@@ -89,40 +89,42 @@ jobs:
   # delay cache refresh. It does not attempt to upgrade to newer dependencies.
   # We only push CI cache as PROD cache usually does not gain as much from fresh cache because
   # it uses prepared airflow and provider packages that invalidate the cache anyway most of the time
-  push-early-buildx-cache-to-github-registry:
-    name: Push Early Image Cache
-    uses: ./.github/workflows/push-image-cache.yml
-    permissions:
-      contents: read
-      # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
-      # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
-      # For regular build for PRS this "build-prod-images" workflow will be skipped anyway by the
-      # "in-workflow-build" condition
-      packages: write
-    secrets: inherit
-    with:
-      # Runs on Public runners
-      cache-type: "Early"
-      include-prod-images: "false"
-      push-latest-images: "false"
-      platform: "linux/amd64"
-      python-versions: ${{ inputs.python-versions }}
-      branch: ${{ inputs.branch }}
-      constraints-branch: ${{ inputs.constraints-branch }}
-      use-uv: "true"
-      include-success-outputs: ${{ inputs.include-success-outputs }}
-      docker-cache: ${{ inputs.docker-cache }}
-    if: inputs.canary-run == 'true' && inputs.branch == 'main'
+  # push-early-buildx-cache-to-github-registry:
+  #   name: Push Early Image Cache
+  #   uses: ./.github/workflows/push-image-cache.yml
+  #   permissions:
+  #     contents: read
+  #     # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
+  #     # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
+  #     # For regular build for PRS this "build-prod-images" workflow will be skipped anyway by the
+  #     # "in-workflow-build" condition
+  #     packages: write
+  #   secrets: inherit
+  #   with:
+  #     runs-on: ${{ inputs.runs-on }}
+  #     cache-type: "Early"
+  #     include-prod-images: "false"
+  #     push-latest-images: "false"
+  #     image-tag: ${{ inputs.image-tag }}
+  #     python-versions: ${{ inputs.python-versions }}
+  #     branch: ${{ inputs.branch }}
+  #     use-uv: "true"
+  #     include-success-outputs: ${{ inputs.include-success-outputs }}
+  #     constraints-branch: ${{ inputs.constraints-branch }}
+  #     docker-cache: ${{ inputs.docker-cache }}
+  #   if: inputs.canary-run == 'true' && inputs.branch == 'main'
 
   # Check that after earlier cache push, breeze command will build quickly
   check-that-image-builds-quickly:
-    timeout-minutes: 11
+    timeout-minutes: 5
     name: Check that image builds quickly
     runs-on: ["ubuntu-22.04"]
     env:
       UPGRADE_TO_NEWER_DEPENDENCIES: false
+      PLATFORM: "linux/amd64"
       PYTHON_MAJOR_MINOR_VERSION: ${{ inputs.default-python-version }}
       PYTHON_VERSION: ${{ inputs.default-python-version }}
+      IMAGE_TAG: ${{ inputs.image-tag }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     if: inputs.canary-run == 'true' && inputs.branch == 'main'
     steps:
@@ -140,7 +142,7 @@ jobs:
       - name: "Login to ghcr.io"
         run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
       - name: "Check that image builds quickly"
-        run: breeze shell --max-time 600 --platform "linux/amd64"
+        run: breeze shell --max-time 120
 
   # This is only a check if ARM images are successfully building when committer runs PR from
   # Apache repository. This is needed in case you want to fix failing cache job in "canary" run
@@ -154,11 +156,11 @@ jobs:
       packages: write
     secrets: inherit
     with:
+      platform: "arm64"
       push-image: "false"
       runs-on: ${{ inputs.runs-on }}
       image-tag: ${{ inputs.image-tag }}
       python-versions: ${{ inputs.python-versions }}
-      platform: "linux/arm64"
       branch: ${{ inputs.branch }}
       constraints-branch: ${{ inputs.constraints-branch }}
       use-uv: "true"

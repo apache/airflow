@@ -23,14 +23,14 @@ on:  # yamllint disable-line rule:truthy
       runs-on:
         description: "The array of labels (in json form) determining type of the runner to use for the build."
         required: false
-        default: "[\"ubuntu-22.04\"]"
+        default: '["self-hosted", "Linux", "X64"]'
         type: string
       cache-type:
         description: "Type of cache to push (Early / Regular)."
         required: true
         type: string
       include-prod-images:
-        description: "Whether to build PROD image cache additionally to CI image cache (true/false)."
+        description: "Whether to include prod images in the cache (true/false)."
         required: true
         type: string
       push-latest-images:
@@ -45,8 +45,12 @@ on:  # yamllint disable-line rule:truthy
         description: "MySQL client type to use during build (mariadb/mysql)"
         type: string
         default: "mariadb"
-      platform:
-        description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
+      use-uv:
+        description: "Whether to use uv to build the image (true/false)"
+        required: true
+        type: string
+      image-tag:
+        description: "Tag to set for the image"
         required: true
         type: string
       python-versions:
@@ -61,10 +65,6 @@ on:  # yamllint disable-line rule:truthy
         description: "Branch used to construct constraints URL from."
         required: true
         type: string
-      use-uv:
-        description: "Whether to use uv to build the image (true/false)"
-        required: true
-        type: string
       include-success-outputs:
         description: "Whether to include success outputs (true/false)."
         required: true
@@ -74,22 +74,25 @@ on:  # yamllint disable-line rule:truthy
         required: true
         type: string
 jobs:
-  push-image-cache:
-    name: "Push CI ${{ inputs.cache-type }} image cache"
+  push-ci-image-cache:
+    name: "Push CI image cache"
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     strategy:
       fail-fast: false
       matrix:
-        python: ${{ fromJson(inputs.python-versions) }}
+        python: ${{fromJson(inputs.python-versions)}}
     env:
+      RUNS_ON: '["self-hosted", "Linux", "X64"]'
       DEBIAN_VERSION: ${{ inputs.debian-version }}
       INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
       USE_UV: ${{ inputs.use-uv }}
+      IMAGE_TAG: ${{ inputs.image-tag }}
       DEFAULT_BRANCH: ${{ inputs.branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ inputs.constraints-branch }}
       UPGRADE_TO_NEWER_DEPENDENCIES: "false"
       DOCKER_CACHE: ${{ inputs.docker-cache }}
       VERSION_SUFFIX_FOR_PYPI: "dev0"
+      PLATFORM: "linux/amd64,linux/arm64"
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       COMMIT_SHA: ${{ github.sha }}
       VERBOSE: "true"
@@ -106,40 +109,45 @@ jobs:
         uses: ./.github/actions/cleanup-docker
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+      - name: "Cleanup dist and context file"
+        run: rm -fv ./dist/* ./docker-context-files/*
+        if: inputs.include-prod-images == 'true'
       - name: "Start ARM instance"
         run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
-        if: inputs.platform == 'linux/arm64'
       - name: Login to ghcr.io
         run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-      - name: "Push CI ${{ inputs.cache-type }} cache: ${{ matrix.python }} ${{ inputs.platform }}"
+      - name: "Push CI ${{ inputs.cache-type }} cache: ${{ matrix.python }} (AMD/ARM)"
         run: >
-          breeze ci-image build --builder airflow_cache --prepare-buildx-cache
-          --platform "${{ inputs.platform }}" --python ${{ matrix.python }}
+          breeze ci-image build --builder airflow_cache
+          --prepare-buildx-cache --run-in-parallel --platform "linux/amd64,linux/arm64"
+          --python ${{ matrix.python }}
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
-        if: always() && inputs.platform == 'linux/arm64'
-      - name: "Push CI latest images: ${{ matrix.python }} (linux/amd64 only)"
+        if: always()
+      - name: "Push CI latest images: ${{ matrix.python }} (AMD ONLY)"
         run: >
-          breeze ci-image build --push
-          --python "${{ matrix.python }}" --platform "${{ inputs.platform }}"
-        if: inputs.push-latest-images == 'true' && inputs.platform == 'linux/amd64'
+          breeze ci-image build --tag-as-latest --push --python "${{matrix.python}}" --platform "linux/amd64"
+        if: inputs.push-latest-images == 'true'
 
   push-prod-image-cache:
-    name: "Push PROD ${{ inputs.cache-type }} image cache"
+    name: "Push PROD image cache"
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     strategy:
       fail-fast: false
       matrix:
-        python: ${{ fromJson(inputs.python-versions) }}
+        python: ${{fromJson(inputs.python-versions)}}
     env:
+      RUNS_ON: '["self-hosted", "Linux", "X64"]'
       DEBIAN_VERSION: ${{ inputs.debian-version }}
       INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
       USE_UV: ${{ inputs.use-uv }}
+      IMAGE_TAG: ${{ inputs.image-tag }}
       DEFAULT_BRANCH: ${{ inputs.branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ inputs.constraints-branch }}
       UPGRADE_TO_NEWER_DEPENDENCIES: "false"
       DOCKER_CACHE: ${{ inputs.docker-cache }}
       VERSION_SUFFIX_FOR_PYPI: "dev0"
+      PLATFORM: "linux/amd64,linux/arm64"
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       COMMIT_SHA: ${{ github.sha }}
       VERBOSE: "true"
@@ -169,23 +177,23 @@ jobs:
         run: cp -v --no-preserve=mode,ownership ./dist/*.whl ./docker-context-files
       - name: "Start ARM instance"
         run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
-        if: inputs.platform == 'linux/arm64'
       - name: Login to ghcr.io
         run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-      - name: "Push PROD ${{ inputs.cache-type }} cache: ${{ matrix.python-version }} ${{ inputs.platform }}"
+      - name: "Push PROD ${{ inputs.cache-type }} cache: ${{ matrix.python-version }} (AMD/ARM)"
         run: >
           breeze prod-image build --builder airflow_cache
-          --prepare-buildx-cache --platform "${{ inputs.platform }}"
+          --prepare-buildx-cache --run-in-parallel --platform "linux/amd64,linux/arm64"
           --install-packages-from-context --airflow-constraints-mode constraints-source-providers
           --python ${{ matrix.python }}
+        if: inputs.include-prod-images == 'true'
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
-        if: always() && inputs.platform == 'linux/arm64'
+        if: always()
         # We only push "AMD" images as it is really only needed for any kind of automated builds in CI
         # and currently there is not an easy way to make multi-platform image from two separate builds
         # and we can do it after we stopped the ARM instance as it is not needed anymore
-      - name: "Push PROD latest image: ${{ matrix.python }} (linux/amd64 ONLY)"
+      - name: "Push PROD latest image: ${{ matrix.python }} (AMD ONLY)"
         run: >
-          breeze prod-image build --install-packages-from-context
-          --push --python ${{ matrix.python}} --platform "${{ inputs.platform }}"
-        if: inputs.push-latest-images == 'true' && inputs.platform == 'linux/amd64'
+          breeze prod-image build --tag-as-latest --install-packages-from-context
+          --push --python ${{ matrix.python}} --platform "linux/amd64"
+        if: inputs.push-latest-images == 'true'

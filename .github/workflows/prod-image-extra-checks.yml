@@ -59,7 +59,6 @@ jobs:
       image-tag: bullseye-${{ inputs.image-tag }}
       debian-version: "bullseye"
       python-versions: ${{ inputs.python-versions }}
-      platform: "linux/amd64"
       branch: ${{ inputs.branch }}
       # Always build images during the extra checks and never push them
       push-image: "false"
@@ -77,7 +76,6 @@ jobs:
       image-tag: mysql-${{ inputs.image-tag }}
       install-mysql-client-type: "mysql"
       python-versions: ${{ inputs.python-versions }}
-      platform: "linux/amd64"
       branch: ${{ inputs.branch }}
       # Always build images during the extra checks and never push them
       push-image: "false"
@@ -95,7 +93,6 @@ jobs:
       image-tag: mysql-${{ inputs.image-tag }}
       install-mysql-client-type: "mysql"
       python-versions: ${{ inputs.python-versions }}
-      platform: "linux/amd64"
       branch: ${{ inputs.branch }}
       # Always build images during the extra checks and never push them
       push-image: "false"
