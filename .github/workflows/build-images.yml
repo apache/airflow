@@ -180,12 +180,12 @@ jobs:
       upload-constraints: "true"
       use-uv: "true"
       image-tag: ${{ needs.build-info.outputs.image-tag }}
+      platform: "linux/amd64"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.constraints-branch }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       docker-cache: ${{ needs.build-info.outputs.cache-directive }}
-
 
   build-prod-images:
     name: Build PROD images
@@ -209,6 +209,7 @@ jobs:
       push-image: "true"
       use-uv: "true"
       image-tag: ${{ needs.build-info.outputs.image-tag }}
+      platform: "linux/amd64"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.constraints-branch }}
