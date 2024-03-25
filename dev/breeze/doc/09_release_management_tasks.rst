@@ -190,9 +190,9 @@ These are all of the available flags for the ``release-prod-images`` command:
   :alt: Breeze release management release prod images
 
 Adding git tags for providers
-"""""""""""""""""""""""""""
+"""""""""""""""""""""""""""""
 
-Assume that your remote for apache repository is called apache you should now set tags for the providers in the repo.
+This command can be utilized to manage git tags for providers within the airflow remote repository during provider releases.
 Sometimes in cases when there is a connectivity issue to Github, it might be possible that local tags get created and lead to annoying errors.
 The default behaviour would be to clean such local tags up.
 
