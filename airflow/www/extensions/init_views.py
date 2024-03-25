@@ -307,3 +307,16 @@ def init_api_auth_manager(connexion_app: connexion.FlaskApp):
     """Initialize the API offered by the auth manager."""
     auth_mgr = get_auth_manager()
     auth_mgr.set_api_endpoints(connexion_app)
+
+
+def init_cors_middleware(connexion_app: connexion.FlaskApp):
+    from starlette.middleware.cors import CORSMiddleware
+
+    connexion_app.add_middleware(
+        CORSMiddleware,
+        connexion.middleware.MiddlewarePosition.BEFORE_ROUTING,
+        allow_origins=conf.get("api", "access_control_allow_origins"),
+        allow_credentials=True,
+        allow_methods=conf.get("api", "access_control_allow_methods"),
+        allow_headers=conf.get("api", "access_control_allow_headers"),
+    )
