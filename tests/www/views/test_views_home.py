@@ -187,6 +187,7 @@ def client_single_dag_edit(app, user_single_dag_edit):
 
 TEST_FILTER_DAG_IDS = ["filter_test_1", "filter_test_2", "a_first_dag_id_asc", "filter.test"]
 TEST_TAGS = ["example", "test", "team", "group"]
+TEST_TASK_IDS = ["filter_task", "filter_task_2", "filter", "not_found"]
 
 
 def _process_file(file_path, session):
@@ -196,12 +197,15 @@ def _process_file(file_path, session):
 
 @pytest.fixture
 def working_dags(tmp_path):
-    dag_contents_template = "from airflow import DAG\ndag = DAG('{}', tags=['{}'])"
-
+    dag_contents_template = """from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
+with DAG("{dag_id}", tags=["{tag}"]) as dag:
+    op = EmptyOperator(task_id="{task_id}")
+"""
     with create_session() as session:
-        for dag_id, tag in zip(TEST_FILTER_DAG_IDS, TEST_TAGS):
+        for dag_id, tag, task_id in zip(TEST_FILTER_DAG_IDS, TEST_TAGS, TEST_TASK_IDS):
             path = tmp_path / f"{dag_id}.py"
-            path.write_text(dag_contents_template.format(dag_id, tag))
+            path.write_text(dag_contents_template.format(dag_id=dag_id, tag=tag, task_id=task_id))
             _process_file(path, session)
 
 
@@ -349,12 +353,76 @@ def test_home_dag_list_filtered_singledag_user(working_dags_with_read_perm, clie
         check_content_not_in_response(f"dag_id={dag_id}", resp)
 
 
-def test_home_dag_list_search(working_dags, user_client):
-    resp = user_client.get("home?search=filter_test", follow_redirects=True)
-    check_content_in_response("dag_id=filter_test_1", resp)
-    check_content_in_response("dag_id=filter_test_2", resp)
-    check_content_not_in_response("dag_id=filter.test", resp)
-    check_content_not_in_response("dag_id=a_first_dag_id_asc", resp)
+@pytest.mark.parametrize(
+    "query, content_in_response, content_not_in_response",
+    [
+        (
+            "filter_test",
+            ["dag_id=filter_test_1", "dag_id=filter_test_2"],
+            ["dag_id=filter.test", "dag_id=a_first_dag_id_asc"],
+        ),
+        (
+            "dag: filter_test",
+            ["dag_id=filter_test_1", "dag_id=filter_test_2"],
+            ["dag_id=filter.test", "dag_id=a_first_dag_id_asc"],
+        ),
+        (
+            "dag:     ",
+            [
+                "dag_id=filter_test_1",
+                "dag_id=filter_test_2",
+                "dag_id=filter.test",
+                "dag_id=a_first_dag_id_asc",
+            ],
+            [],
+        ),
+        (
+            "",
+            [
+                "dag_id=filter_test_1",
+                "dag_id=filter_test_2",
+                "dag_id=filter.test",
+                "dag_id=a_first_dag_id_asc",
+            ],
+            [],
+        ),
+        (
+            "task: ",
+            [
+                "dag_id=filter_test_1",
+                "dag_id=filter_test_2",
+                "dag_id=filter.test",
+                "dag_id=a_first_dag_id_asc",
+            ],
+            [],
+        ),
+        (
+            "task:_task",
+            ["dag_id=filter_test_1", "dag_id=filter_test_2"],
+            ["dag_id=filter.test", "dag_id=a_first_dag_id_asc"],
+        ),
+        (
+            "task:no-match",
+            [],
+            [
+                "dag_id=filter_test_1",
+                "dag_id=filter_test_2",
+                "dag_id=filter.test",
+                "dag_id=a_first_dag_id_asc",
+            ],
+        ),
+    ],
+    ids=["filter_test", "dag: filter_test", "dag:     ", "", "task: ", "task:_task", "task:no-match"],
+)
+def test_home_dag_list_search(
+    working_dags, user_client, query: str, content_in_response: list[str], content_not_in_response: list[str]
+):
+    resp = user_client.get(f"home?search={query}", follow_redirects=True)
+
+    for content in content_in_response:
+        check_content_in_response(content, resp)
+    for content in content_not_in_response:
+        check_content_not_in_response(content, resp)
 
 
 def test_home_dag_edit_permissions(capture_templates, working_dags_with_edit_perm, client_single_dag_edit):
