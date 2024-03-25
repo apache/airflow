@@ -537,6 +537,7 @@ def _refresh_from_db(
         task_instance.queued_dttm = ti.queued_dttm
         task_instance.queued_by_job_id = ti.queued_by_job_id
         task_instance.pid = ti.pid
+        task_instance.executor = ti.executor
         task_instance.executor_config = ti.executor_config
         task_instance.external_executor_id = ti.external_executor_id
         task_instance.trigger_id = ti.trigger_id
@@ -940,6 +941,7 @@ def _refresh_from_task(
     task_instance.run_as_user = task.run_as_user
     # Do not set max_tries to task.retries here because max_tries is a cumulative
     # value that needs to be stored in the db.
+    task_instance.executor = task.executor
     task_instance.executor_config = task.executor_config
     task_instance.operator = task.task_type
     task_instance.custom_operator_name = getattr(task, "custom_operator_name", None)
@@ -1284,6 +1286,7 @@ class TaskInstance(Base, LoggingMixin):
     queued_dttm = Column(UtcDateTime)
     queued_by_job_id = Column(Integer)
     pid = Column(Integer)
+    executor = Column(String(1000))
     executor_config = Column(ExecutorConfigType(pickler=dill))
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
     rendered_map_index = Column(String(250))
@@ -1468,6 +1471,7 @@ class TaskInstance(Base, LoggingMixin):
             "priority_weight": priority_weight,
             "run_as_user": task.run_as_user,
             "max_tries": task.retries,
+            "executor": task.executor,
             "executor_config": task.executor_config,
             "operator": task.task_type,
             "custom_operator_name": getattr(task, "custom_operator_name", None),
@@ -3648,6 +3652,7 @@ class SimpleTaskInstance:
         try_number: int,
         map_index: int,
         state: str,
+        executor: str | None,
         executor_config: Any,
         pool: str,
         queue: str,
@@ -3663,6 +3668,7 @@ class SimpleTaskInstance:
         self.end_date = end_date
         self.try_number = try_number
         self.state = state
+        self.executor = executor
         self.executor_config = executor_config
         self.run_as_user = run_as_user
         self.pool = pool
@@ -3701,6 +3707,7 @@ class SimpleTaskInstance:
             end_date=ti.end_date,
             try_number=ti.try_number,
             state=ti.state,
+            executor=ti.executor,
             executor_config=ti.executor_config,
             pool=ti.pool,
             queue=ti.queue,
