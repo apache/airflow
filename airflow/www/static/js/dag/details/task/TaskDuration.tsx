@@ -50,6 +50,7 @@ const TaskDuration = () => {
   } = useGridData();
   let maxDuration = 0;
   let unit = "seconds";
+  let unitDivisor = 1;
 
   const task = getTask({ taskId, task: groups });
 
@@ -82,30 +83,20 @@ const TaskDuration = () => {
 
     if (maxDuration <= 60 * 2) {
       unit = "seconds";
+      unitDivisor = 1;
     } else if (maxDuration <= 60 * 60 * 2) {
       unit = "minutes";
+      unitDivisor = 60;
     } else if (maxDuration <= 24 * 60 * 60 * 2) {
       unit = "hours";
+      unitDivisor = 60 * 60;
     } else {
       unit = "days";
+      unitDivisor = 60 * 60 * 24;
     }
 
-    let runDurationUnit;
-    let queuedDurationUnit;
-
-    if (unit === "seconds") {
-      runDurationUnit = runDuration.asSeconds();
-      queuedDurationUnit = queuedDuration.asSeconds();
-    } else if (unit === "minutes") {
-      runDurationUnit = runDuration.asMinutes();
-      queuedDurationUnit = queuedDuration.asMinutes();
-    } else if (unit === "hours") {
-      runDurationUnit = runDuration.asHours();
-      queuedDurationUnit = queuedDuration.asHours();
-    } else {
-      runDurationUnit = runDuration.asDays();
-      queuedDurationUnit = queuedDuration.asDays();
-    }
+    const runDurationUnit = runDuration.asSeconds();
+    const queuedDurationUnit = queuedDuration.asSeconds();
 
     return {
       ...instance,
@@ -187,7 +178,18 @@ const TaskDuration = () => {
     // @ts-ignore
     dataset: {
       dimensions: ["runId", "queuedDurationUnit", "runDurationUnit"],
-      source: durations,
+      source: durations.map((duration) => {
+        if (duration) {
+          const durationInSeconds = duration as TaskInstanceDuration;
+          return {
+            ...durationInSeconds,
+            queuedDurationUnit:
+              durationInSeconds.queuedDurationUnit / unitDivisor,
+            runDurationUnit: durationInSeconds.runDurationUnit / unitDivisor,
+          };
+        }
+        return duration;
+      }),
     },
     tooltip: {
       trigger: "axis",
