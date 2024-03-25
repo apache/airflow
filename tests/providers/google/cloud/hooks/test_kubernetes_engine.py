@@ -508,38 +508,28 @@ class TestGKEPodAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @mock.patch(BASE_STRING.format("_CredentialsToken"))
     @mock.patch(GKE_STRING.format("GKEPodAsyncHook.get_conn"))
     @mock.patch(GKE_STRING.format("async_client.CoreV1Api.read_namespaced_pod"))
-    async def test_get_pod(self, read_namespace_pod_mock, get_conn_mock, mock_token, async_hook):
-        async_hook.get_token = mock.AsyncMock()
-        async_hook.get_token.return_value = mock_token
-
+    async def test_get_pod(self, read_namespace_pod_mock, get_conn_mock, async_hook):
         self.make_mock_awaitable(read_namespace_pod_mock)
 
         await async_hook.get_pod(name=POD_NAME, namespace=POD_NAMESPACE)
 
-        async_hook.get_token.assert_called_once()
-        get_conn_mock.assert_called_once_with(mock_token)
+        get_conn_mock.assert_called_once_with()
         read_namespace_pod_mock.assert_called_with(
             name=POD_NAME,
             namespace=POD_NAMESPACE,
         )
 
     @pytest.mark.asyncio
-    @mock.patch(BASE_STRING.format("_CredentialsToken"))
     @mock.patch(GKE_STRING.format("GKEPodAsyncHook.get_conn"))
     @mock.patch(GKE_STRING.format("async_client.CoreV1Api.delete_namespaced_pod"))
-    async def test_delete_pod(self, delete_namespaced_pod, get_conn_mock, mock_token, async_hook):
-        async_hook.get_token = mock.AsyncMock()
-        async_hook.get_token.return_value = mock_token
-
+    async def test_delete_pod(self, delete_namespaced_pod, get_conn_mock, async_hook):
         self.make_mock_awaitable(delete_namespaced_pod)
 
         await async_hook.delete_pod(name=POD_NAME, namespace=POD_NAMESPACE)
 
-        async_hook.get_token.assert_called_once()
-        get_conn_mock.assert_called_once_with(mock_token)
+        get_conn_mock.assert_called_once_with()
         delete_namespaced_pod.assert_called_with(
             name=POD_NAME,
             namespace=POD_NAMESPACE,
@@ -547,19 +537,14 @@ class TestGKEPodAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @mock.patch(BASE_STRING.format("_CredentialsToken"))
     @mock.patch(GKE_STRING.format("GKEPodAsyncHook.get_conn"))
     @mock.patch(GKE_STRING.format("async_client.CoreV1Api.read_namespaced_pod_log"))
-    async def test_read_logs(self, read_namespaced_pod_log, get_conn_mock, mock_token, async_hook, caplog):
-        async_hook.get_token = mock.AsyncMock()
-        async_hook.get_token.return_value = mock_token
-
+    async def test_read_logs(self, read_namespaced_pod_log, get_conn_mock, async_hook, caplog):
         self.make_mock_awaitable(read_namespaced_pod_log, result="Test string #1\nTest string #2\n")
 
         await async_hook.read_logs(name=POD_NAME, namespace=POD_NAMESPACE)
 
-        async_hook.get_token.assert_called_once()
-        get_conn_mock.assert_called_once_with(mock_token)
+        get_conn_mock.assert_called_once_with()
         read_namespaced_pod_log.assert_called_with(
             name=POD_NAME,
             namespace=POD_NAMESPACE,

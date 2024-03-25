@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import os
 from datetime import datetime
 from unittest.mock import patch
 
@@ -27,8 +26,7 @@ from openlineage.client.facet import SourceCodeJobFacet
 from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.openlineage.extractors.bash import BashExtractor
-from airflow.providers.openlineage.utils.utils import is_source_enabled
-from tests.test_utils.config import conf_vars
+from airflow.providers.openlineage.plugins.facets import UnknownOperatorAttributeRunFacet
 
 pytestmark = pytest.mark.db_test
 
@@ -43,90 +41,23 @@ with DAG(
     bash_task = BashOperator(task_id="bash-task", bash_command="ls -halt && exit 0", dag=dag)
 
 
-@pytest.fixture(autouse=True)
-def clear_cache():
-    is_source_enabled.cache_clear()
-    try:
-        yield
-    finally:
-        is_source_enabled.cache_clear()
-
-
-def test_extract_operator_bash_command_disables_without_env():
+@patch("airflow.providers.openlineage.conf.is_source_enabled")
+def test_extract_operator_bash_command_disabled(mocked_source_enabled):
+    mocked_source_enabled.return_value = False
     operator = BashOperator(task_id="taskid", bash_command="exit 0")
-    extractor = BashExtractor(operator)
-    assert "sourceCode" not in extractor.extract().job_facets
+    result = BashExtractor(operator).extract()
+    assert "sourceCode" not in result.job_facets
+    assert "unknownSourceAttribute" in result.run_facets
 
 
-@patch.dict(os.environ, {"OPENLINEAGE_AIRFLOW_DISABLE_SOURCE_CODE": "False"})
-def test_extract_operator_bash_command_enables_on_true_env():
+@patch("airflow.providers.openlineage.conf.is_source_enabled")
+def test_extract_operator_bash_command_enabled(mocked_source_enabled):
+    mocked_source_enabled.return_value = True
     operator = BashOperator(task_id="taskid", bash_command="exit 0")
-    extractor = BashExtractor(operator)
-    assert extractor.extract().job_facets["sourceCode"] == SourceCodeJobFacet("bash", "exit 0")
-
-
-@conf_vars({("openlineage", "disable_source_code"): "False"})
-def test_extract_operator_bash_command_enables_on_true_conf():
-    operator = BashOperator(task_id="taskid", bash_command="exit 0")
-    extractor = BashExtractor(operator)
-    assert extractor.extract().job_facets["sourceCode"] == SourceCodeJobFacet("bash", "exit 0")
-
-
-@patch.dict(
-    os.environ,
-    {k: v for k, v in os.environ.items() if k != "OPENLINEAGE_AIRFLOW_DISABLE_SOURCE_CODE"},
-    clear=True,
-)
-def test_extract_dag_bash_command_disabled_without_env():
-    extractor = BashExtractor(bash_task)
-    assert "sourceCode" not in extractor.extract().job_facets
-
-
-@patch.dict(os.environ, {"OPENLINEAGE_AIRFLOW_DISABLE_SOURCE_CODE": "False"})
-def test_extract_dag_bash_command_enables_on_true_env():
-    extractor = BashExtractor(bash_task)
-    print(extractor.extract().job_facets)
-    assert extractor.extract().job_facets["sourceCode"] == SourceCodeJobFacet("bash", "ls -halt && exit 0")
-
-
-@conf_vars({("openlineage", "disable_source_code"): "False"})
-def test_extract_dag_bash_command_enables_on_true_conf():
-    extractor = BashExtractor(bash_task)
-    assert extractor.extract().job_facets["sourceCode"] == SourceCodeJobFacet("bash", "ls -halt && exit 0")
-
-
-@patch.dict(os.environ, {"OPENLINEAGE_AIRFLOW_DISABLE_SOURCE_CODE": "True"})
-def test_extract_dag_bash_command_env_disables_on_true():
-    extractor = BashExtractor(bash_task)
-    assert "sourceCode" not in extractor.extract().job_facets
-
-
-@conf_vars({("openlineage", "disable_source_code"): "true"})
-def test_extract_dag_bash_command_conf_disables_on_true():
-    extractor = BashExtractor(bash_task)
-    assert "sourceCode" not in extractor.extract().job_facets
-
-
-@patch.dict(os.environ, {"OPENLINEAGE_AIRFLOW_DISABLE_SOURCE_CODE": "asdftgeragdsfgawef"})
-def test_extract_dag_bash_command_env_does_not_disable_on_random_string():
-    extractor = BashExtractor(bash_task)
-    assert extractor.extract().job_facets["sourceCode"] == SourceCodeJobFacet("bash", "ls -halt && exit 0")
-
-
-@conf_vars({("openlineage", "disable_source_code"): "asdftgeragdsfgawef"})
-def test_extract_dag_bash_command_conf_does_not_disable_on_random_string():
-    extractor = BashExtractor(bash_task)
-    assert extractor.extract().job_facets["sourceCode"] == SourceCodeJobFacet("bash", "ls -halt && exit 0")
-
-
-@patch.dict(
-    os.environ,
-    {"AIRFLOW__OPENLINEAGE__DISABLED_FOR_OPERATORS": "airflow.operators.bash.BashOperator"},
-)
-def test_bash_extraction_disabled_operator():
-    operator = BashOperator(task_id="taskid", bash_command="echo 1;")
-    extractor = BashExtractor(operator)
-    metadata = extractor.extract()
-    assert metadata is None
-    metadata = extractor.extract_on_complete(None)
-    assert metadata is None
+    result = BashExtractor(operator).extract()
+    assert result.job_facets["sourceCode"] == SourceCodeJobFacet("bash", "exit 0")
+    assert "unknownSourceAttribute" in result.run_facets
+    unknown_operator_facet = result.run_facets["unknownSourceAttribute"]
+    assert isinstance(unknown_operator_facet, UnknownOperatorAttributeRunFacet)
+    assert len(unknown_operator_facet.unknownItems) == 1
+    assert unknown_operator_facet.unknownItems[0].name == "BashOperator"

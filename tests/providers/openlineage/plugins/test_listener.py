@@ -194,11 +194,12 @@ def _create_listener_and_task_instance() -> tuple[OpenLineageListener, TaskInsta
     return listener, task_instance
 
 
+@mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
 @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
 @mock.patch("airflow.providers.openlineage.plugins.listener.get_custom_facets")
 @mock.patch("airflow.providers.openlineage.plugins.listener.get_job_name")
 def test_adapter_start_task_is_called_with_proper_arguments(
-    mock_get_job_name, mock_get_custom_facets, mock_get_airflow_run_facet
+    mock_get_job_name, mock_get_custom_facets, mock_get_airflow_run_facet, mock_disabled
 ):
     """Tests that the 'start_task' method of the OpenLineageAdapter is invoked with the correct arguments.
 
@@ -212,6 +213,7 @@ def test_adapter_start_task_is_called_with_proper_arguments(
     mock_get_job_name.return_value = "job_name"
     mock_get_custom_facets.return_value = {"custom_facet": 2}
     mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
+    mock_disabled.return_value = False
 
     listener.on_task_instance_running(None, task_instance, None)
     listener.adapter.start_task.assert_called_once_with(
@@ -233,9 +235,10 @@ def test_adapter_start_task_is_called_with_proper_arguments(
     )
 
 
+@mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
 @mock.patch("airflow.providers.openlineage.plugins.listener.OpenLineageAdapter")
 @mock.patch("airflow.providers.openlineage.plugins.listener.get_job_name")
-def test_adapter_fail_task_is_called_with_proper_arguments(mock_get_job_name, mocked_adapter):
+def test_adapter_fail_task_is_called_with_proper_arguments(mock_get_job_name, mocked_adapter, mock_disabled):
     """Tests that the 'fail_task' method of the OpenLineageAdapter is invoked with the correct arguments.
 
     This test ensures that the job name is accurately retrieved and included, along with the generated
@@ -251,6 +254,7 @@ def test_adapter_fail_task_is_called_with_proper_arguments(mock_get_job_name, mo
     mock_get_job_name.return_value = "job_name"
     mocked_adapter.build_task_instance_run_id.side_effect = mock_task_id
     mocked_adapter.build_dag_run_id.side_effect = lambda x, y: f"{x}.{y}"
+    mock_disabled.return_value = False
 
     listener.on_task_instance_failed(None, task_instance, None)
     listener.adapter.fail_task.assert_called_once_with(
@@ -263,9 +267,12 @@ def test_adapter_fail_task_is_called_with_proper_arguments(mock_get_job_name, mo
     )
 
 
+@mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
 @mock.patch("airflow.providers.openlineage.plugins.listener.OpenLineageAdapter")
 @mock.patch("airflow.providers.openlineage.plugins.listener.get_job_name")
-def test_adapter_complete_task_is_called_with_proper_arguments(mock_get_job_name, mocked_adapter):
+def test_adapter_complete_task_is_called_with_proper_arguments(
+    mock_get_job_name, mocked_adapter, mock_disabled
+):
     """Tests that the 'complete_task' method of the OpenLineageAdapter is called with the correct arguments.
 
     It checks that the job name is correctly retrieved and passed,
@@ -282,6 +289,7 @@ def test_adapter_complete_task_is_called_with_proper_arguments(mock_get_job_name
     mock_get_job_name.return_value = "job_name"
     mocked_adapter.build_task_instance_run_id.side_effect = mock_task_id
     mocked_adapter.build_dag_run_id.side_effect = lambda x, y: f"{x}.{y}"
+    mock_disabled.return_value = False
 
     listener.on_task_instance_success(None, task_instance, None)
     # This run_id will be different as we did NOT simulate increase of the try_number attribute,
@@ -455,3 +463,58 @@ def test_listener_on_task_instance_success_is_called_after_try_number_increment(
 
     # try_number after task has been executed
     assert task_instance.try_number == 2
+
+
+@mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+@mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
+@mock.patch("airflow.providers.openlineage.plugins.listener.get_custom_facets")
+@mock.patch("airflow.providers.openlineage.plugins.listener.get_job_name")
+def test_listener_on_task_instance_running_do_not_call_adapter_when_disabled_operator(
+    mock_get_job_name, mock_get_custom_facets, mock_get_airflow_run_facet, mock_disabled
+):
+    listener, task_instance = _create_listener_and_task_instance()
+    mock_get_job_name.return_value = "job_name"
+    mock_get_custom_facets.return_value = {"custom_facet": 2}
+    mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
+    mock_disabled.return_value = True
+
+    listener.on_task_instance_running(None, task_instance, None)
+    mock_disabled.assert_called_once_with(task_instance.task)
+    listener.adapter.build_dag_run_id.assert_not_called()
+    listener.adapter.build_task_instance_run_id.assert_not_called()
+    listener.extractor_manager.extract_metadata.assert_not_called()
+    listener.adapter.start_task.assert_not_called()
+
+
+@mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+@mock.patch("airflow.providers.openlineage.plugins.listener.OpenLineageAdapter")
+@mock.patch("airflow.providers.openlineage.plugins.listener.get_job_name")
+def test_listener_on_task_instance_failed_do_not_call_adapter_when_disabled_operator(
+    mock_get_job_name, mocked_adapter, mock_disabled
+):
+    listener, task_instance = _create_listener_and_task_instance()
+    mock_disabled.return_value = True
+
+    listener.on_task_instance_failed(None, task_instance, None)
+    mock_disabled.assert_called_once_with(task_instance.task)
+    mocked_adapter.build_dag_run_id.assert_not_called()
+    mocked_adapter.build_task_instance_run_id.assert_not_called()
+    listener.extractor_manager.extract_metadata.assert_not_called()
+    listener.adapter.fail_task.assert_not_called()
+
+
+@mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+@mock.patch("airflow.providers.openlineage.plugins.listener.OpenLineageAdapter")
+@mock.patch("airflow.providers.openlineage.plugins.listener.get_job_name")
+def test_listener_on_task_instance_success_do_not_call_adapter_when_disabled_operator(
+    mock_get_job_name, mocked_adapter, mock_disabled
+):
+    listener, task_instance = _create_listener_and_task_instance()
+    mock_disabled.return_value = True
+
+    listener.on_task_instance_success(None, task_instance, None)
+    mock_disabled.assert_called_once_with(task_instance.task)
+    mocked_adapter.build_dag_run_id.assert_not_called()
+    mocked_adapter.build_task_instance_run_id.assert_not_called()
+    listener.extractor_manager.extract_metadata.assert_not_called()
+    listener.adapter.complete_task.assert_not_called()

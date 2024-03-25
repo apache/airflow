@@ -30,6 +30,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_airflow_run_facet,
     get_custom_facets,
     get_job_name,
+    is_operator_disabled,
     print_warning,
 )
 from airflow.stats import Stats
@@ -74,6 +75,13 @@ class OpenLineageListener:
         if TYPE_CHECKING:
             assert task
         dag = task.dag
+        if is_operator_disabled(task):
+            self.log.debug(
+                "Skipping OpenLineage event emission for operator %s "
+                "due to its presence in [openlineage] disabled_for_operators.",
+                task.task_type,
+            )
+            return None
 
         @print_warning(self.log)
         def on_running():
@@ -134,6 +142,13 @@ class OpenLineageListener:
         if TYPE_CHECKING:
             assert task
         dag = task.dag
+        if is_operator_disabled(task):
+            self.log.debug(
+                "Skipping OpenLineage event emission for operator %s "
+                "due to its presence in [openlineage] disabled_for_operators.",
+                task.task_type,
+            )
+            return None
 
         @print_warning(self.log)
         def on_success():
@@ -179,6 +194,13 @@ class OpenLineageListener:
         if TYPE_CHECKING:
             assert task
         dag = task.dag
+        if is_operator_disabled(task):
+            self.log.debug(
+                "Skipping OpenLineage event emission for operator %s "
+                "due to its presence in [openlineage] disabled_for_operators.",
+                task.task_type,
+            )
+            return None
 
         @print_warning(self.log)
         def on_failure():
@@ -228,7 +250,6 @@ class OpenLineageListener:
     @hookimpl
     def before_stopping(self, component):
         self.log.debug("before_stopping: %s", component.__class__.__name__)
-        # TODO: configure this with Airflow config
         with timeout(30):
             self.executor.shutdown(wait=True)
 
