@@ -58,10 +58,7 @@ const Graph = ({
   const { setCenter, setViewport } = useReactFlow();
   const containerRef = useContainerRef();
 
-  const { data: graph } = useDatasetGraphs({
-    dagIds: filteredDagIds,
-    selectedUri,
-  });
+  const { data: graph } = useDatasetGraphs();
 
   useEffect(() => {
     setViewport({ x: 0, y: 0, zoom: 1 });

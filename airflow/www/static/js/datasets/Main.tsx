@@ -19,7 +19,7 @@
 
 import React, { useCallback, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Flex, Box } from "@chakra-ui/react";
+import { Flex, Box, Spinner } from "@chakra-ui/react";
 
 import { useOffsetTop } from "src/utils";
 import { useDatasetDependencies } from "src/api";
@@ -51,7 +51,7 @@ const Datasets = () => {
     .map((param) => decodeURIComponent(param));
 
   // We need to load in the raw dependencies in order to generate the list of dagIds
-  const { data: datasetDependencies } = useDatasetDependencies();
+  const { data: datasetDependencies, isLoading } = useDatasetDependencies();
 
   const onBack = () => {
     searchParams.delete(DATASET_URI_PARAM);
@@ -116,6 +116,7 @@ const Datasets = () => {
     >
       <Box
         minWidth={minPanelWidth}
+        width={500}
         height={height}
         overflowY="auto"
         ref={listRef}
@@ -146,7 +147,9 @@ const Datasets = () => {
         height={height}
         borderColor="gray.200"
         borderWidth={1}
+        position="relative"
       >
+        {isLoading && <Spinner position="absolute" top="50%" left="50%" />}
         <Graph
           selectedUri={datasetUriSearch}
           onSelect={onSelect}
