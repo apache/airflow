@@ -322,7 +322,25 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
                     ),
                     method_name="execute_complete",
                 )
+            self._handle_job_error(job)
+            # job.result() returns a RowIterator. Mypy expects an instance of SupportsNext[Any] for
+            # the next() call which the RowIterator does not resemble to. Hence, ignore the arg-type error.
+            records = next(job.result())  # type: ignore[arg-type]
+            self._validate_records(records)  # type: ignore[attr-defined]
             self.log.info("Current state of job %s is %s", job.job_id, job.state)
+
+    @staticmethod
+    def _handle_job_error(job: BigQueryJob | UnknownJob) -> None:
+        if job.error_result:
+            raise AirflowException(f"BigQuery job {job.job_id} failed: {job.error_result}")
+
+    def _validate_records(self, records) -> None:
+        if not records:
+            raise AirflowException("The query returned empty results")
+        elif not all(records):
+            self._raise_exception(  # type: ignore[attr-defined]
+                f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}"
+            )
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
         """Act as a callback for when the trigger fires.
@@ -333,13 +351,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         if event["status"] == "error":
             raise AirflowException(event["message"])
 
-        records = event["records"]
-        if not records:
-            raise AirflowException("The query returned empty results")
-        elif not all(records):
-            self._raise_exception(  # type: ignore[attr-defined]
-                f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}"
-            )
+        self._validate_records(event["records"])
         self.log.info("Record: %s", event["records"])
         self.log.info("Success.")
 
