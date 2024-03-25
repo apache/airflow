@@ -1,0 +1,113 @@
+{{/*
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+*/}}
+
+################################
+## Airflow rpc-server Ingress
+#################################
+{{- if .Values.rpcServer.enabled }}
+{{- if or .Values.ingress.rpcServer.enabled .Values.ingress.enabled }}
+{{- $fullname := (include "airflow.fullname" .) }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullname }}-ingress
+  labels:
+    tier: airflow
+    component: airflow-ingress
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+    {{- if or (.Values.labels) (.Values.rpcServer.labels) }}
+      {{- mustMerge .Values.rpcServer.labels .Values.labels | toYaml | nindent 4 }}
+    {{- end }}
+  {{- with .Values.ingress.rpcServer.annotations }}
+  annotations: {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if and .Values.ingress.rpcServer.hosts (.Values.ingress.rpcServer.hosts | first | kindIs "string" | not) }}
+  {{- $anyTlsHosts := false -}}
+  {{- range .Values.ingress.rpcServer.hosts }}
+  {{- if .tls }}
+  {{- if .tls.enabled }}
+  {{- $anyTlsHosts = true -}}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+  {{- if $anyTlsHosts }}
+  tls:
+  {{- range .Values.ingress.rpcServer.hosts }}
+  {{- if .tls }}
+  {{- if .tls.enabled }}
+    - hosts:
+        - {{ .name | quote }}
+      secretName: {{ .tls.secretName }}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+  {{- else if .Values.ingress.rpcServer.tls.enabled }}
+  tls:
+    - hosts:
+        {{- .Values.ingress.rpcServer.hosts | default (list .Values.ingress.rpcServer.host) | toYaml | nindent 8 }}
+      secretName: {{ .Values.ingress.rpcServer.tls.secretName }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingress.rpcServer.hosts | default (list .Values.ingress.rpcServer.host) }}
+    - http:
+        paths:
+          {{- range $.Values.ingress.rpcServer.precedingPaths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ .serviceName }}
+                port:
+                  name: {{ .servicePort }}
+          {{- end }}
+          - backend:
+              service:
+                name: {{ $fullname }}-rpc-server
+                port:
+                  name: airflow-ui
+            {{- if $.Values.ingress.rpcServer.path }}
+            path: {{ $.Values.ingress.rpcServer.path }}
+            pathType: {{ $.Values.ingress.rpcServer.pathType }}
+            {{- end }}
+          {{- range $.Values.ingress.rpcServer.succeedingPaths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ .serviceName }}
+                port:
+                  name: {{ .servicePort }}
+          {{- end }}
+      {{- $hostname := . -}}
+      {{- if . | kindIs "string" | not }}
+      {{- $hostname = .name -}}
+      {{- end }}
+      {{- if $hostname }}
+      host: {{ tpl $hostname $ | quote }}
+      {{- end }}
+    {{- end }}
+  {{- if .Values.ingress.rpcServer.ingressClassName }}
+  ingressClassName: {{ .Values.ingress.rpcServer.ingressClassName }}
+  {{- end }}
+{{- end }}
+{{- end }}
