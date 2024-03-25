@@ -1963,6 +1963,12 @@ def generate_issue_content_providers(
                 )
                 continue
             prs = get_prs_for_package(provider_id)
+            if not prs:
+                get_console().print(
+                    f"[warning]Skipping provider {provider_id}. "
+                    "The changelog file doesn't contain any PRs for the release.\n"
+                )
+                return
             provider_prs[provider_id] = [pr for pr in prs if pr not in excluded_prs]
             all_prs.update(provider_prs[provider_id])
         g = Github(github_token)
