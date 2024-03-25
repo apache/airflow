@@ -26,7 +26,6 @@ from flask_appbuilder import SQLA
 from flask_wtf.csrf import CSRFProtect
 from markupsafe import Markup
 from sqlalchemy.engine.url import make_url
-from starlette.middleware.cors import CORSMiddleware
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig
@@ -57,6 +56,7 @@ from airflow.www.extensions.init_views import (
     init_api_experimental,
     init_api_internal,
     init_appbuilder_views,
+    init_cors_middleware,
     init_error_handlers,
     init_flash_views,
     init_plugins,
@@ -83,14 +83,7 @@ def create_app(config=None, testing=False):
                 # Exempt the view function from CSRF protection
                 connexion_app.app.extensions["csrf"].exempt(view_function)
 
-    connexion_app.add_middleware(
-        CORSMiddleware,
-        connexion.middleware.MiddlewarePosition.BEFORE_ROUTING,
-        allow_origins=conf.get("api", "access_control_allow_origins"),
-        allow_credentials=True,
-        allow_methods=conf.get("api", "access_control_allow_methods"),
-        allow_headers=conf.get("api", "access_control_allow_headers"),
-    )
+    init_cors_middleware(connexion_app)
 
     flask_app = connexion_app.app
     flask_app.secret_key = conf.get("webserver", "SECRET_KEY")
