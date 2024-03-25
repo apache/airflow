@@ -2832,7 +2832,6 @@ class Airflow(AirflowBaseView):
         return redirect(url_for("Airflow.calendar", **sanitize_args(request.args)))
 
     @expose("/dags/<string:dag_id>/calendar")
-    @auth.has_access_dag("GET", DagAccessEntity.RUN)
     def calendar(self, dag_id: str):
         """Redirect to the replacement - grid + calendar. Kept for backwards compatibility."""
         kwargs = {**sanitize_args(request.args), "dag_id": dag_id, "tab": "calendar"}
@@ -2977,7 +2976,6 @@ class Airflow(AirflowBaseView):
         return redirect(url_for("Airflow.duration", **sanitize_args(request.args)))
 
     @expose("/dags/<string:dag_id>/duration")
-    @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
     def duration(self, dag_id: str):
         """Redirect to Grid view."""
         return redirect(url_for("Airflow.grid", dag_id=dag_id))
@@ -2988,7 +2986,6 @@ class Airflow(AirflowBaseView):
         return redirect(url_for("Airflow.tries", **sanitize_args(request.args)))
 
     @expose("/dags/<string:dag_id>/tries")
-    @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
     def tries(self, dag_id: str):
         """Redirect to grid view."""
         kwargs = {
@@ -3003,7 +3000,6 @@ class Airflow(AirflowBaseView):
         return redirect(url_for("Airflow.landing_times", **sanitize_args(request.args)))
 
     @expose("/dags/<string:dag_id>/landing-times")
-    @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
     def landing_times(self, dag_id: str):
         """Redirect to run duration page."""
         kwargs = {
@@ -3476,7 +3472,6 @@ class Airflow(AirflowBaseView):
         return redirect(url_for("Airflow.audit_log", **sanitize_args(request.args)))
 
     @expose("/dags/<string:dag_id>/audit_log")
-    @auth.has_access_dag("GET", DagAccessEntity.AUDIT_LOG)
     def audit_log(self, dag_id: str):
         current_page = request.args.get("page")
         arg_sorting_key = request.args.get("sorting_key")
