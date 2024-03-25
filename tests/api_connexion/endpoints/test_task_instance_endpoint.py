@@ -251,6 +251,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "rendered_map_index": None,
             "trigger": None,
             "triggerer_job": None,
+            "task_failed_deps": [],
         }
 
     def test_should_respond_200_with_task_state_in_deferred(self, session):
@@ -318,6 +319,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "state": "running",
                 "unixname": getuser(),
             },
+            "task_failed_deps": [],
         }
 
     def test_should_respond_200_with_task_state_in_removed(self, session):
@@ -356,6 +358,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "rendered_map_index": None,
             "trigger": None,
             "triggerer_job": None,
+            "task_failed_deps": [],
         }
 
     def test_should_respond_200_task_instance_with_sla_and_rendered(self, session):
@@ -414,6 +417,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "rendered_map_index": None,
             "trigger": None,
             "triggerer_job": None,
+            "task_failed_deps": [],
         }
 
     def test_should_respond_200_mapped_task_instance_with_rtif(self, session):
@@ -466,6 +470,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "rendered_map_index": None,
                 "trigger": None,
                 "triggerer_job": None,
+                "task_failed_deps": [],
             }
 
     def test_should_raises_401_unauthenticated(self):
@@ -2391,6 +2396,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
             "rendered_map_index": None,
             "trigger": None,
             "triggerer_job": None,
+            "task_failed_deps": [],
         }
         ti = session.scalars(select(TaskInstance).where(TaskInstance.task_id == "print_the_context")).one()
         assert ti.task_instance_note.user_id is not None
@@ -2450,6 +2456,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
                 "rendered_map_index": None,
                 "trigger": None,
                 "triggerer_job": None,
+                "task_failed_deps": [],
             }
 
     def test_should_respond_200_when_note_is_empty(self, session):
