@@ -73,7 +73,6 @@ class LargeStrObject:
 
 
 max_length = conf.getint("core", "max_templated_field_length")
-LargeStr = "a" * 5000
 
 
 class TestRenderedTaskInstanceFields:
@@ -176,7 +175,7 @@ class TestRenderedTaskInstanceFields:
         """
         Variable.set(
             key="api_key",
-            value="Some very long secret with private information that asserts private is not in the rendered field"
+            value="Api key secret should be masked as before"
             * 5000,
         )
         with dag_maker("test_serialized_rendered_fields"):
