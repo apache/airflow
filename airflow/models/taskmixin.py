@@ -171,8 +171,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
 
         if isinstance(self, (BaseOperator, MappedOperator)):
             return self.task_display_name
-        else:
-            return self.node_id
+        return self.node_id
 
     start_date: pendulum.DateTime | None
     end_date: pendulum.DateTime | None
