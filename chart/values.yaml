@@ -185,6 +185,50 @@ ingress:
     # Http paths to add to the web Ingress after the default path
     succeedingPaths: []
 
+  # Configs for the Ingress of the RPC server Service
+  rpcServer:
+    # Enable RPC server ingress resource
+    enabled: false
+
+    # Annotations for the RPC server Ingress
+    annotations: {}
+
+    # The path for the RPC server Ingress
+    path: "/"
+
+    # The pathType for the above path (used only with Kubernetes v1.19 and above)
+    pathType: "ImplementationSpecific"
+
+    # The hostname for the RPC server Ingress (Deprecated - renamed to `ingress.RPC server.hosts`)
+    host: ""
+
+    # The hostnames or hosts configuration for the RPC server Ingress
+    hosts: []
+    #   # The hostname for the RPC server Ingress (can be templated)
+    # - name: ""
+    #   # configs for RPC server Ingress TLS
+    #   tls:
+    #     # Enable TLS termination for the RPC server Ingress
+    #     enabled: false
+    #     # the name of a pre-created Secret containing a TLS private key and certificate
+    #     secretName: ""
+
+    # The Ingress Class for the RPC server Ingress (used only with Kubernetes v1.19 and above)
+    ingressClassName: ""
+
+    # configs for RPC server Ingress TLS (Deprecated - renamed to `ingress.RPC server.hosts[*].tls`)
+    tls:
+      # Enable TLS termination for the RPC server Ingress
+      enabled: false
+      # the name of a pre-created Secret containing a TLS private key and certificate
+      secretName: ""
+
+    # HTTP paths to add to the RPC server Ingress before the default path
+    precedingPaths: []
+
+    # Http paths to add to the RPC server Ingress after the default path
+    succeedingPaths: []
+
   # Configs for the Ingress of the flower Service
   flower:
     # Enable web ingress resource
@@ -1155,6 +1199,84 @@ migrateDatabaseJob:
   # Disable this if you are using ArgoCD for example
   useHelmHooks: true
   applyCustomEnv: true
+
+rpcServer:
+  enabled: true
+  baseUrl: ""
+
+  # Command to use when running the Airflow rpc server (templated).
+  command:
+    - "bash"
+  # Args to use when running the Airflow rpc server (templated).
+  args: ["-c", "exec airflow internal-api"]
+  env: []
+  serviceAccount:
+    # default value is true
+    # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+    automountServiceAccountToken: true
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    name: ~
+
+    # Annotations to add to webserver kubernetes service account.
+    annotations: {}
+  service:
+    type: ClusterIP
+    ## service annotations
+    annotations: {}
+    ports:
+      - name: rpc-server
+        port: "{{ .Values.ports.rpcServer }}"
+
+    loadBalancerIP: ~
+    ## Limit load balancer source ips to list of CIDRs
+    # loadBalancerSourceRanges:
+    #   - "10.123.0.0/16"
+    loadBalancerSourceRanges: []
+
+  podDisruptionBudget:
+    enabled: false
+
+    # PDB configuration
+    config:
+      # minAvailable and maxUnavailable are mutually exclusive
+      maxUnavailable: 1
+      # minAvailable: 1
+
+  # Detailed default security contexts for webserver deployments for container and pod level
+  securityContexts:
+    pod: {}
+    container: {}
+
+  waitForMigrations:
+    # Whether to create init container to wait for db migrations
+    enabled: true
+    env: []
+    # Detailed default security context for waitForMigrations for container level
+    securityContexts:
+      container: {}
+
+  livenessProbe:
+    initialDelaySeconds: 15
+    timeoutSeconds: 5
+    failureThreshold: 5
+    periodSeconds: 10
+    scheme: HTTP
+
+  readinessProbe:
+    initialDelaySeconds: 15
+    timeoutSeconds: 5
+    failureThreshold: 5
+    periodSeconds: 10
+    scheme: HTTP
+
+  startupProbe:
+    timeoutSeconds: 20
+    failureThreshold: 6
+    periodSeconds: 10
+    scheme: HTTP
 
 # Airflow webserver settings
 webserver:
@@ -2233,6 +2355,7 @@ elasticsearch:
 ports:
   flowerUI: 5555
   airflowUI: 8080
+  rpcServer: 9080
   workerLogs: 8793
   triggererLogs: 8794
   redisDB: 6379
