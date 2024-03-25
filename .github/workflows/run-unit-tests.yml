@@ -126,7 +126,7 @@ jobs:
       BACKEND_VERSION: "${{ matrix.backend-version }}"
       DEBUG_RESOURCES: "${{ inputs.debug-resources }}"
       DOWNGRADE_SQLALCHEMY: "${{ inputs.downgrade-sqlalchemy }}"
-      DOWN_PENDULUM: "${{ inputs.downgrade-pendulum }}"
+      DOWNGRADE_PENDULUM: "${{ inputs.downgrade-pendulum }}"
       ENABLE_COVERAGE: "${{ inputs.run-coverage }}"
       IMAGE_TAG: "${{ inputs.image-tag }}"
       INCLUDE_SUCCESS_OUTPUTS: ${{ inputs.include-success-outputs }}
