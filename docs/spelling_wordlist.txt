@@ -961,6 +961,7 @@ logformat
 loglevel
 Logstash
 logstash
+longblob
 Lowin
 lshift
 lxml
@@ -1094,7 +1095,6 @@ oauth
 Oauthlib
 objectORfile
 objectstorage
-objectstore
 observability
 od
 odbc

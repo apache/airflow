@@ -944,7 +944,8 @@ class TestGCSHook:
         )
 
         # Then
-        assert len(response) == 2 and all("in-interval" in b for b in response)
+        assert len(response) == 2
+        assert all("in-interval" in b for b in response)
 
 
 class TestGCSHookUpload:

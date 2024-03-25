@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from unittest import mock
 
 import pytest
@@ -584,18 +585,16 @@ class TestWasbHook:
     def test_delete_nonexisting_blob_fails(self, mock_check, mock_getblobs, mocked_blob_service_client):
         mock_getblobs.return_value = []
         mock_check.return_value = False
-        with pytest.raises(Exception) as ctx:
-            hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
+        hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
+        with pytest.raises(AirflowException, match=re.escape("Blob(s) not found: nonexisting_blob")):
             hook.delete_file("container", "nonexisting_blob", is_prefix=False, ignore_if_missing=False)
-        assert isinstance(ctx.value, AirflowException)
 
     @mock.patch.object(WasbHook, "get_blobs_list")
     def test_delete_multiple_nonexisting_blobs_fails(self, mock_getblobs):
         mock_getblobs.return_value = []
-        with pytest.raises(Exception) as ctx:
-            hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
+        hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
+        with pytest.raises(AirflowException, match=re.escape("Blob(s) not found: nonexisting_blob_prefix")):
             hook.delete_file("container", "nonexisting_blob_prefix", is_prefix=True, ignore_if_missing=False)
-        assert isinstance(ctx.value, AirflowException)
 
     def test_connection_success(self, mocked_blob_service_client):
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)

@@ -86,15 +86,13 @@ class TestTelegramOperator:
         mock_telegram_hook.return_value = mock.Mock()
         mock_telegram_hook.return_value.send_message.side_effect = side_effect
 
-        with pytest.raises(telegram.error.TelegramError) as ctx:
-            hook = TelegramOperator(
-                telegram_conn_id="telegram_default",
-                task_id="telegram",
-                text="some non empty text",
-            )
-            hook.execute(None)
-
-        assert "cosmic rays caused bit flips" == str(ctx.value)
+        op = TelegramOperator(
+            telegram_conn_id="telegram_default",
+            task_id="telegram",
+            text="some non empty text",
+        )
+        with pytest.raises(telegram.error.TelegramError, match="cosmic rays caused bit flips"):
+            op.execute({})
 
     @mock.patch("airflow.providers.telegram.operators.telegram.TelegramHook")
     def test_should_forward_all_args_to_telegram(self, mock_telegram_hook):

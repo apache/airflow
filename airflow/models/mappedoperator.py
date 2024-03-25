@@ -656,6 +656,10 @@ class MappedOperator(AbstractOperator):
     def doc_rst(self) -> str | None:
         return self.partial_kwargs.get("doc_rst")
 
+    @property
+    def allow_nested_operators(self) -> bool:
+        return bool(self.partial_kwargs.get("allow_nested_operators"))
+
     def get_dag(self) -> DAG | None:
         """Implement Operator."""
         return self.dag
