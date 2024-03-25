@@ -3252,7 +3252,6 @@ class TestTaskInstance:
             "rendered_map_index": None,
             "queued_by_job_id": 321,
             "pid": 123,
-            "executor": "some_executor",
             "executor_config": {"Some": {"extra": "information"}},
             "external_executor_id": "some_executor_id",
             "trigger_timeout": None,
