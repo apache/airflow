@@ -174,11 +174,11 @@ class TestRenderedTaskInstanceFields:
         Test that secrets are masked when the templated field is a large string
         """
         Variable.set(
-            key="name",
-            value="A field exceeding the max length of the templated field length" * 5000,
+            key="api_key",
+            value="test api key are still masked" * 5000,
         )
         with dag_maker("test_serialized_rendered_fields"):
-            task = BashOperator(task_id="test", bash_command="echo {{ var.value.name }}")
+            task = BashOperator(task_id="test", bash_command="echo {{ var.value.api_key }}")
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
         ti.task = task
