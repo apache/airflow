@@ -344,7 +344,7 @@ combine-as-imports = true
 "dev/breeze/tests/*" = ["TID253", "S101"]
 "tests/*" = ["D", "TID253", "S101"]
 "docker_tests/*" = ["D", "TID253", "S101"]
-"kubernetes_tests/*" = ["D", "TID253", "S101", "PT012"]
+"kubernetes_tests/*" = ["D", "TID253", "S101"]
 "helm_tests/*" = ["D", "TID253", "S101"]
 
 # All of the modules which have an extra license header (i.e. that we copy from another project) need to
