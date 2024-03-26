@@ -107,6 +107,7 @@ class HttpOperator(BaseOperator):
         endpoint: str | None = None,
         method: str = "POST",
         data: dict[str, Any] | str | None = None,
+        json: dict[str, Any] | str | None = None,
         headers: dict[str, str] | None = None,
         pagination_function: Callable[..., Any] | None = None,
         response_check: Callable[..., bool] | None = None,
@@ -128,6 +129,7 @@ class HttpOperator(BaseOperator):
         self.endpoint = endpoint
         self.headers = headers or {}
         self.data = data or {}
+        self.json = json or {}
         self.pagination_function = pagination_function
         self.response_check = response_check
         self.response_filter = response_filter
@@ -167,7 +169,7 @@ class HttpOperator(BaseOperator):
 
     def execute_sync(self, context: Context) -> Any:
         self.log.info("Calling HTTP method")
-        response = self.hook.run(self.endpoint, self.data, self.headers, self.extra_options)
+        response = self.hook.run(self.endpoint, self.data, self.json, self.headers, self.extra_options)
         response = self.paginate_sync(response=response)
         return self.process_response(context=context, response=response)
 
@@ -193,6 +195,7 @@ class HttpOperator(BaseOperator):
                 endpoint=self.endpoint,
                 headers=self.headers,
                 data=self.data,
+                json=self.json,
                 extra_options=self.extra_options,
             ),
             method_name="execute_complete",

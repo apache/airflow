@@ -146,6 +146,7 @@ class HttpHook(BaseHook):
         self,
         endpoint: str | None = None,
         data: dict[str, Any] | str | None = None,
+        json: dict[str, Any] | str | None = None,
         headers: dict[str, Any] | None = None,
         extra_options: dict[str, Any] | None = None,
         **request_kwargs: Any,
@@ -153,7 +154,8 @@ class HttpHook(BaseHook):
         r"""Perform the request.
 
         :param endpoint: the endpoint to be called i.e. resource/v1/query?
-        :param data: payload to be uploaded or request parameters
+        :param data: payload to be uploaded in form encoding or request parameters
+        :param json: payload to be uploaded as JSON
         :param headers: additional headers to be passed through as a dictionary
         :param extra_options: additional options to be used when executing the request
             i.e. {'check_response': False} to avoid checking raising exceptions on non
@@ -179,8 +181,8 @@ class HttpHook(BaseHook):
             # HEAD doesn't use params
             req = requests.Request(self.method, url, headers=headers, **request_kwargs)
         else:
-            # Others use data
-            req = requests.Request(self.method, url, data=data, headers=headers, **request_kwargs)
+            # Others use either data or json per user preference
+            req = requests.Request(self.method, url, data=data, json=json, headers=headers, **request_kwargs)
 
         prepped_request = session.prepare_request(req)
         self.log.debug("Sending '%s' to url: %s", self.method, url)
@@ -318,13 +320,15 @@ class HttpAsyncHook(BaseHook):
         self,
         endpoint: str | None = None,
         data: dict[str, Any] | str | None = None,
+        json: dict[str, Any] | str | None = None,
         headers: dict[str, Any] | None = None,
         extra_options: dict[str, Any] | None = None,
     ) -> ClientResponse:
         """Perform an asynchronous HTTP request call.
 
         :param endpoint: Endpoint to be called, i.e. ``resource/v1/query?``.
-        :param data: Payload to be uploaded or request parameters.
+        :param data: Payload to be uploaded in form encoding or request parameters.
+        :param json: Payload to be uploaded as JSON.
         :param headers: Additional headers to be passed through as a dict.
         :param extra_options: Additional kwargs to pass when creating a request.
             For example, ``run(json=obj)`` is passed as
@@ -382,10 +386,16 @@ class HttpAsyncHook(BaseHook):
             else:
                 raise AirflowException(f"Unexpected HTTP Method: {self.method}")
 
+            # I don't know if there would be any implications in removing
+            # default `data` empty dict instantiation
+            data = None if data == {} else data
+            json = None if json == {} else json
+
             for attempt in range(1, 1 + self.retry_limit):
                 response = await request_func(
                     url,
-                    json=data if self.method in ("POST", "PUT", "PATCH") else None,
+                    data=data if self.method in ("POST", "PUT", "PATCH") else None,
+                    json=json,
                     params=data if self.method == "GET" else None,
                     headers=_headers,
                     auth=auth,

@@ -59,6 +59,7 @@ class HttpTrigger(BaseTrigger):
         endpoint: str | None = None,
         headers: dict[str, str] | None = None,
         data: dict[str, Any] | str | None = None,
+        json: dict[str, Any] | str | None = None,
         extra_options: dict[str, Any] | None = None,
     ):
         super().__init__()
@@ -68,6 +69,7 @@ class HttpTrigger(BaseTrigger):
         self.endpoint = endpoint
         self.headers = headers
         self.data = data
+        self.json = json
         self.extra_options = extra_options
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
@@ -81,6 +83,7 @@ class HttpTrigger(BaseTrigger):
                 "endpoint": self.endpoint,
                 "headers": self.headers,
                 "data": self.data,
+                "json": self.json,
                 "extra_options": self.extra_options,
             },
         )
@@ -96,6 +99,7 @@ class HttpTrigger(BaseTrigger):
             client_response = await hook.run(
                 endpoint=self.endpoint,
                 data=self.data,
+                json=self.json,
                 headers=self.headers,
                 extra_options=self.extra_options,
             )

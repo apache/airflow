@@ -40,6 +40,7 @@ TEST_METHOD = "POST"
 TEST_ENDPOINT = "endpoint"
 TEST_HEADERS = {"Authorization": "Bearer test"}
 TEST_DATA = ""
+TEST_JSON = {"key": "value"}
 TEST_EXTRA_OPTIONS: dict[str, Any] = {}
 
 
@@ -52,6 +53,7 @@ def trigger():
         endpoint=TEST_ENDPOINT,
         headers=TEST_HEADERS,
         data=TEST_DATA,
+        json=TEST_JSON,
         extra_options=TEST_EXTRA_OPTIONS,
     )
 
@@ -91,6 +93,7 @@ class TestHttpTrigger:
             "endpoint": TEST_ENDPOINT,
             "headers": TEST_HEADERS,
             "data": TEST_DATA,
+            "json": TEST_JSON,
             "extra_options": TEST_EXTRA_OPTIONS,
         }
 
