@@ -955,7 +955,7 @@ def run_generate_constraints_in_parallel(
     help="Generates tags for airflow provider releases.",
 )
 @click.option(
-    "--clean-local-tags",
+    "--clean-local-tags/--no-clean-local-tags",
     default=True,
     is_flag=True,
     envvar="CLEAN_LOCAL_TAGS",
@@ -999,7 +999,7 @@ def tag_providers(
                 except subprocess.CalledProcessError:
                     pass
 
-    if tags and len(tags) > 0:
+    if tags:
         try:
             push_command = ["git", "push", remote] + [shlex.quote(tag) for tag in tags]
             push_result = run_command(
