@@ -40,6 +40,9 @@ from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetche
 from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.types import NOTSET
 
+pytestmark = pytest.mark.usefixtures("check_deprecations")
+
+
 CLUSTER_NAME = "test_cluster"
 CONTAINER_NAME = "e1ed7aac-d9b2-4315-8726-d2432bf11868"
 TASK_ID = "d8c67b3c-ac87-4ffe-a847-4785bc3a8b55"

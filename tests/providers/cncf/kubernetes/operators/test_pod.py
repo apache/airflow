@@ -48,8 +48,7 @@ from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 from tests.test_utils import db
 
-pytestmark = pytest.mark.db_test
-
+pytestmark = [pytest.mark.db_test, pytest.mark.usefixtures("check_deprecations")]
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1, 1, 0, 0)
 KPO_MODULE = "airflow.providers.cncf.kubernetes.operators.pod"

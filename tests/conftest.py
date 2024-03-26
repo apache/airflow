@@ -401,14 +401,6 @@ def pytest_configure(config: pytest.Config) -> None:
         "markers",
         "external_python_operator: external python operator tests are 'long', we should run them separately",
     )
-    config.addinivalue_line(
-        "filterwarnings",
-        "error::airflow.exceptions.AirflowProviderDeprecationWarning",
-    )
-    config.addinivalue_line(
-        "filterwarnings",
-        "error::airflow.exceptions.RemovedInAirflow3Warning",
-    )
 
     os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
     configure_warning_output(config)
@@ -1212,6 +1204,16 @@ def cleanup_providers_manager():
         yield
     finally:
         ProvidersManager()._cleanup()
+
+
+@pytest.fixture
+def check_deprecations():
+    from airflow.exceptions import AirflowProviderDeprecationWarning, RemovedInAirflow3Warning
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", AirflowProviderDeprecationWarning)
+        warnings.simplefilter("error", RemovedInAirflow3Warning)
+        yield
 
 
 # The code below is a modified version of capture-warning code from
