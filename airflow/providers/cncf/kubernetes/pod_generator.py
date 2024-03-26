@@ -261,7 +261,7 @@ class PodGenerator:
     @staticmethod
     def reconcile_pods(base_pod: k8s.V1Pod, client_pod: k8s.V1Pod | None) -> k8s.V1Pod:
         """
-        Merge Kubernetes Pod objects.
+        Merge Kubernetes Pod objects in-place.
 
         :param base_pod: has the base attributes which are overwritten if they exist
             in the client pod and remain if they do not exist in the client_pod
@@ -273,7 +273,7 @@ class PodGenerator:
         if client_pod is None:
             return base_pod
 
-        client_pod_cp = copy.deepcopy(client_pod)
+        client_pod_cp = client_pod
         client_pod_cp.spec = PodGenerator.reconcile_specs(base_pod.spec, client_pod_cp.spec)
         client_pod_cp.metadata = PodGenerator.reconcile_metadata(base_pod.metadata, client_pod_cp.metadata)
         client_pod_cp = merge_objects(base_pod, client_pod_cp)
@@ -283,7 +283,7 @@ class PodGenerator:
     @staticmethod
     def reconcile_metadata(base_meta, client_meta):
         """
-        Merge Kubernetes Metadata objects.
+        Merge Kubernetes Metadata objects in-place.
 
         :param base_meta: has the base attributes which are overwritten if they exist
             in the client_meta and remain if they do not exist in the client_meta
@@ -309,7 +309,7 @@ class PodGenerator:
         base_spec: k8s.V1PodSpec | None, client_spec: k8s.V1PodSpec | None
     ) -> k8s.V1PodSpec | None:
         """
-        Merge Kubernetes PodSpec objects.
+        Merge Kubernetes PodSpec objects in-place.
 
         :param base_spec: has the base attributes which are overwritten if they exist
             in the client_spec and remain if they do not exist in the client_spec
@@ -335,7 +335,7 @@ class PodGenerator:
         base_containers: list[k8s.V1Container], client_containers: list[k8s.V1Container]
     ) -> list[k8s.V1Container]:
         """
-        Merge Kubernetes Container objects.
+        Merge Kubernetes Container objects in-place.
 
         :param base_containers: has the base attributes which are overwritten if they exist
             in the client_containers and remain if they do not exist in the client_containers
@@ -612,7 +612,7 @@ class PodGenerator:
 
 def merge_objects(base_obj, client_obj):
     """
-    Merge objects.
+    Merge objects in-place.
 
     :param base_obj: has the base attributes which are overwritten if they exist
         in the client_obj and remain if they do not exist in the client_obj
@@ -624,10 +624,10 @@ def merge_objects(base_obj, client_obj):
     if not client_obj:
         return base_obj
 
-    client_obj_cp = copy.deepcopy(client_obj)
+    client_obj_cp = client_obj
 
     if isinstance(base_obj, dict) and isinstance(client_obj_cp, dict):
-        base_obj_cp = copy.deepcopy(base_obj)
+        base_obj_cp = base_obj
         base_obj_cp.update(client_obj_cp)
         return base_obj_cp
 
@@ -651,7 +651,7 @@ def extend_object_field(base_obj, client_obj, field_name):
     :param field_name: the name of the list field
     :return: the client_obj with the property `field_name` being the two properties appended
     """
-    client_obj_cp = copy.deepcopy(client_obj)
+    client_obj_cp = client_obj
     base_obj_field = getattr(base_obj, field_name, None)
     client_obj_field = getattr(client_obj, field_name, None)
 

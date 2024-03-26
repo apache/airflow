@@ -711,8 +711,9 @@ class TestPodGenerator:
         client_spec = k8s.V1PodSpec(
             containers=[], init_containers=[k8s.V1Container(name="client_container1")]
         )
+        expected_init_containers = base_spec.init_containers + client_spec.init_containers
         res = PodGenerator.reconcile_specs(base_spec, client_spec)
-        assert res.init_containers == base_spec.init_containers + client_spec.init_containers
+        assert res.init_containers == expected_init_containers
 
     def test_deserialize_model_file(self, caplog):
         path = sys.path[0] + "/tests/providers/cncf/kubernetes/pod.yaml"
