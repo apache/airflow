@@ -20,6 +20,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from airflow.utils.task_instance_session import set_current_task_instance_session
+
 pytest.importorskip("weaviate")
 
 from airflow.providers.weaviate.operators.weaviate import (  # noqa: E402
@@ -78,6 +80,25 @@ class TestWeaviateIngestOperator:
         assert dag_id == ti.task.input_json
         assert dag_id == ti.task.input_data
 
+    @pytest.mark.db_test
+    def test_partial_batch_hook_params(self, dag_maker, session):
+        with dag_maker(dag_id="test_partial_batch_hook_params", session=session):
+            WeaviateIngestOperator.partial(
+                task_id="fake-task-id",
+                conn_id="weaviate_conn",
+                class_name="FooBar",
+                batch_params={"spam": "egg"},
+                hook_params={"baz": "biz"},
+            ).expand(input_data=[{}, {}])
+
+        dr = dag_maker.create_dagrun()
+        tis = dr.get_task_instances(session=session)
+        with set_current_task_instance_session(session=session):
+            for ti in tis:
+                ti.render_templates()
+                assert ti.task.batch_params == {"spam": "egg"}
+                assert ti.task.hook_params == {"baz": "biz"}
+
 
 class TestWeaviateDocumentIngestOperator:
     @pytest.fixture
@@ -123,3 +144,21 @@ class TestWeaviateDocumentIngestOperator:
             verbose=False,
         )
         mock_log.debug.assert_called_once_with("Total input objects : %s", len([{"data": "sample_data"}]))
+
+    @pytest.mark.db_test
+    def test_partial_hook_params(self, dag_maker, session):
+        with dag_maker(dag_id="test_partial_hook_params", session=session):
+            WeaviateDocumentIngestOperator.partial(
+                task_id="fake-task-id",
+                conn_id="weaviate_conn",
+                class_name="FooBar",
+                document_column="spam-egg",
+                hook_params={"baz": "biz"},
+            ).expand(input_data=[{}, {}])
+
+        dr = dag_maker.create_dagrun()
+        tis = dr.get_task_instances(session=session)
+        with set_current_task_instance_session(session=session):
+            for ti in tis:
+                ti.render_templates()
+                assert ti.task.hook_params == {"baz": "biz"}
