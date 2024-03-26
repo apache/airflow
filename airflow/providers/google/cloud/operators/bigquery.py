@@ -1217,6 +1217,7 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
         location: str | None = None,
         encryption_configuration: dict | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        impersonation_scopes: str | Sequence[str] | None = None,
         job_id: str | list[str] | None = None,
         **kwargs,
     ) -> None:
@@ -1243,6 +1244,7 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
         self.encryption_configuration = encryption_configuration
         self.hook: BigQueryHook | None = None
         self.impersonation_chain = impersonation_chain
+        self.impersonation_scopes = impersonation_scopes
         self.job_id = job_id
 
     def execute(self, context: Context):
@@ -1253,6 +1255,7 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
                 use_legacy_sql=self.use_legacy_sql,
                 location=self.location,
                 impersonation_chain=self.impersonation_chain,
+                impersonation_scopes=self.impersonation_scopes,
             )
         if isinstance(self.sql, str):
             self.job_id = self.hook.run_query(
