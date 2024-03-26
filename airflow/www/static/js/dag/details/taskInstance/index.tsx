@@ -30,6 +30,7 @@ import ExtraLinks from "./ExtraLinks";
 import Details from "./Details";
 import DatasetUpdateEvents from "./DatasetUpdateEvents";
 import TriggererInfo from "./TriggererInfo";
+import TaskFailedDependency from "./TaskFailedDependency";
 
 const dagId = getMetaValue("dag_id")!;
 
@@ -66,6 +67,9 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
     enabled: (!isGroup && !isMapped) || isMapIndexDefined,
   });
   const gridInstance = group?.instances.find((ti) => ti.runId === runId);
+  const showTaskSchedulingDependencies =
+    !isGroupOrMappedTaskSummary &&
+    (!taskInstance?.state || taskInstance?.state === "scheduled");
 
   if (!group || !run || !gridInstance) return null;
 
@@ -112,6 +116,14 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
         <DatasetUpdateEvents taskId={taskId} runId={runId} />
       )}
       <TriggererInfo taskInstance={taskInstance} />
+      {showTaskSchedulingDependencies && (
+        <TaskFailedDependency
+          dagId={dagId}
+          runId={runId}
+          taskId={taskId}
+          mapIndex={isMapped && isMapIndexDefined ? mapIndex : undefined}
+        />
+      )}
       <Details
         gridInstance={gridInstance}
         taskInstance={taskInstance}
