@@ -283,9 +283,7 @@ const Details = ({
               />
             </>
           )}
-          {taskId && runId && !isAbandonedTask && (
-            <FilterTasks taskId={taskId} />
-          )}
+          {taskId && runId && <FilterTasks taskId={taskId} />}
         </Flex>
       </Flex>
       <Divider my={2} />
