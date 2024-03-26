@@ -65,7 +65,7 @@ jobs:
       contents: read
       packages: read
     secrets: inherit
-    if: inputs.canary-run == 'true'
+    if: inputs.canary-run == 'true' || inputs.upgrade-to-newer-dependencies == 'true'
     with:
       runs-on: ${{ inputs.runs-on }}
       downgrade-sqlalchemy: "true"
