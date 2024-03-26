@@ -28,7 +28,7 @@ from airflow.configuration import conf
 from airflow.io.path import ObjectStoragePath
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.xcom import BaseXCom, resolve_xcom_backend
+from airflow.models.xcom import resolve_xcom_backend
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.common.io.xcom.backend import XComObjectStoreBackend
 from airflow.utils import timezone
@@ -151,20 +151,15 @@ class TestXcomObjectStoreBackend:
             session=session,
         )
 
-        res = (
-            XCom.get_many(
-                key=XCOM_RETURN_KEY,
-                dag_ids=task_instance.dag_id,
-                task_ids=task_instance.task_id,
-                run_id=task_instance.run_id,
-                session=session,
-            )
-            .with_entities(BaseXCom.value)
-            .first()
-        )
+        res = XCom.get_many(
+            key=XCOM_RETURN_KEY,
+            dag_ids=task_instance.dag_id,
+            task_ids=task_instance.task_id,
+            run_id=task_instance.run_id,
+            session=session,
+        ).first()
 
-        data = BaseXCom.deserialize_value(res)
-        p = ObjectStoragePath(self.path) / XComObjectStoreBackend._get_key(data)
+        p = ObjectStoragePath(self.path) / XComObjectStoreBackend._get_key(res.value)
         assert p.exists() is True
 
         value = XCom.get_value(
@@ -197,20 +192,15 @@ class TestXcomObjectStoreBackend:
             session=session,
         )
 
-        res = (
-            XCom.get_many(
-                key=XCOM_RETURN_KEY,
-                dag_ids=task_instance.dag_id,
-                task_ids=task_instance.task_id,
-                run_id=task_instance.run_id,
-                session=session,
-            )
-            .with_entities(BaseXCom.value)
-            .first()
-        )
+        res = XCom.get_many(
+            key=XCOM_RETURN_KEY,
+            dag_ids=task_instance.dag_id,
+            task_ids=task_instance.task_id,
+            run_id=task_instance.run_id,
+            session=session,
+        ).first()
 
-        data = BaseXCom.deserialize_value(res)
-        p = ObjectStoragePath(self.path) / XComObjectStoreBackend._get_key(data)
+        p = ObjectStoragePath(self.path) / XComObjectStoreBackend._get_key(res.value)
         assert p.exists() is True
 
         XCom.clear(
@@ -237,20 +227,15 @@ class TestXcomObjectStoreBackend:
             session=session,
         )
 
-        res = (
-            XCom.get_many(
-                key=XCOM_RETURN_KEY,
-                dag_ids=task_instance.dag_id,
-                task_ids=task_instance.task_id,
-                run_id=task_instance.run_id,
-                session=session,
-            )
-            .with_entities(BaseXCom.value)
-            .first()
-        )
+        res = XCom.get_many(
+            key=XCOM_RETURN_KEY,
+            dag_ids=task_instance.dag_id,
+            task_ids=task_instance.task_id,
+            run_id=task_instance.run_id,
+            session=session,
+        ).first()
 
-        data = BaseXCom.deserialize_value(res)
-        p = ObjectStoragePath(self.path) / XComObjectStoreBackend._get_key(data)
+        p = ObjectStoragePath(self.path) / XComObjectStoreBackend._get_key(res.value)
         assert p.exists() is True
         assert p.suffix == ".gz"
 
