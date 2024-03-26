@@ -200,7 +200,7 @@ class DockerOperator(BaseOperator):
         command: str | list[str] | None = None,
         container_name: str | None = None,
         cpus: float = 1.0,
-        docker_url: str | None = None,
+        docker_url: str | list[str] | None = None,
         environment: dict | None = None,
         private_environment: dict | None = None,
         env_file: str | None = None,
@@ -283,6 +283,8 @@ class DockerOperator(BaseOperator):
         self.dns = dns
         self.dns_search = dns_search
         self.docker_url = docker_url or os.environ.get("DOCKER_HOST") or "unix://var/run/docker.sock"
+        if not isinstance(self.docker_url, list):
+            self.docker_url = [self.docker_url]
         self.environment = environment or {}
         self._private_environment = private_environment or {}
         self.env_file = env_file
