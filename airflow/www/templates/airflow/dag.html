@@ -21,7 +21,7 @@
 {% from 'airflow/dataset_next_run_modal.html' import dataset_next_run_modal %}
 {% from 'appbuilder/dag_docs.html' import dag_docs %}
 
-{% block page_title %}{{ dag.dag_id }} - {{ appbuilder.app_name }}{% endblock %}
+{% block page_title %}{{ dag.dag_display_name }} - {{ appbuilder.app_name }}{% endblock %}
 
 {% block head_css %}
   {{ super() }}
