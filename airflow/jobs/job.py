@@ -230,7 +230,7 @@ class Job(Base, LoggingMixin):
             self.latest_heartbeat = previous_heartbeat
 
     @provide_session
-    def prepare_for_execution(self, session: Session = NEW_SESSION):
+    def prepare_for_execution(self, session: Session | None = None):
         """Prepare the job for execution."""
         Stats.incr(self.__class__.__name__.lower() + "_start", 1, 1)
         self.state = JobState.RUNNING
@@ -239,7 +239,7 @@ class Job(Base, LoggingMixin):
         make_transient(self)
 
     @provide_session
-    def complete_execution(self, session: Session = NEW_SESSION):
+    def complete_execution(self, session: Session | None = None):
         get_listener_manager().hook.before_stopping(component=self)
         self.end_date = timezone.utcnow()
         Job._update_in_db(job=self, session=session)
@@ -321,7 +321,9 @@ class Job(Base, LoggingMixin):
     @staticmethod
     @internal_api_call
     @provide_session
-    def _add_to_db(job: Job | JobPydantic, session: Session = NEW_SESSION) -> Job | JobPydantic:
+    def _add_to_db(job: Job | JobPydantic, session: Session | None = None) -> Job | JobPydantic:
+        if TYPE_CHECKING:
+            assert session
         if isinstance(job, JobPydantic):
             orm_job = Job()
             orm_job._merge_from(job)
@@ -387,7 +389,7 @@ def most_recent_job(job_type: str, session: Session = NEW_SESSION) -> Job | JobP
 
 @provide_session
 def run_job(
-    job: Job, execute_callable: Callable[[], int | None], session: Session = NEW_SESSION
+    job: Job, execute_callable: Callable[[], int | None], session: Session | None = None
 ) -> int | None:
     """
     Run the job.

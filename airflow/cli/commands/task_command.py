@@ -281,7 +281,15 @@ def _run_task_by_local_task_job(args, ti: TaskInstance | TaskInstancePydantic) -
         external_executor_id=_extract_external_executor_id(args),
     )
     try:
-        ret = run_job(job=job_runner.job, execute_callable=job_runner._execute)
+        # If internal API is used, we must pass session=None so that one is not created
+        # by the provide_session decorator.  All downstream functions that actually use
+        # a session are already set up for RPC
+        # todo: perhaps instead we should simply modify the provide_session decorator
+        # to *not* provide a session when using internal API
+        kwargs = {}  # type: ignore[var-annotated]
+        if InternalApiConfig.get_use_internal_api():
+            kwargs["session"] = None
+        ret = run_job(job=job_runner.job, execute_callable=job_runner._execute, **kwargs)
     finally:
         if args.shut_down_logging:
             logging.shutdown()
