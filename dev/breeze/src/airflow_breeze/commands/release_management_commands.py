@@ -2066,6 +2066,7 @@ def get_git_log_command(
     from_commit: str | None = None,
     to_commit: str | None = None,
     is_helm_chart: bool = True,
+    max_count: int = 0,
 ) -> list[str]:
     git_cmd = [
         "git",
@@ -2073,6 +2074,8 @@ def get_git_log_command(
         "--pretty=format:%H %h %cd %s",
         "--date=short",
     ]
+    if max_count:
+        git_cmd.extend(["--max-count", str(max_count)])
     if from_commit and to_commit:
         git_cmd.append(f"{from_commit}...{to_commit}")
     elif from_commit:
@@ -2115,12 +2118,20 @@ def get_change_from_line(line: str):
 
 
 def get_changes(
-    verbose: bool, previous_release: str, current_release: str, is_helm_chart: bool = False
+    verbose: bool,
+    previous_release: str,
+    current_release: str,
+    is_helm_chart: bool = False,
+    max_count: int = 0,
 ) -> list[Change]:
     print(MY_DIR_PATH, SOURCE_DIR_PATH)
     change_strings = subprocess.check_output(
         get_git_log_command(
-            verbose, from_commit=previous_release, to_commit=current_release, is_helm_chart=is_helm_chart
+            verbose,
+            from_commit=previous_release,
+            to_commit=current_release,
+            is_helm_chart=is_helm_chart,
+            max_count=max_count,
         ),
         cwd=SOURCE_DIR_PATH,
         text=True,
@@ -3174,6 +3185,7 @@ def generate_issue_content(
 
     previous = previous_release
     current = current_release
+    max_count = 0
 
     if latest:
         import requests
@@ -3188,8 +3200,9 @@ def generate_issue_content(
                 "\n[warning]Environment variable VERSION not set, setting current release "
                 "version as 'main'\n"
             )
+            max_count = 30
 
-    changes = get_changes(verbose, previous, current, is_helm_chart)
+    changes = get_changes(verbose, previous, current, is_helm_chart, max_count)
     change_prs = [change.pr for change in changes]
     if excluded_pr_list:
         excluded_prs = [int(pr) for pr in excluded_pr_list.split(",")]
