@@ -50,6 +50,7 @@ class DAGSchema(SQLAlchemySchema):
         model = DagModel
 
     dag_id = auto_field(dump_only=True)
+    dag_display_name = fields.Method("get_dag_display_name", dump_only=True)
     root_dag_id = auto_field(dump_only=True)
     is_paused = auto_field()
     is_active = auto_field(dump_only=True)
@@ -76,6 +77,11 @@ class DAGSchema(SQLAlchemySchema):
     next_dagrun_data_interval_start = auto_field(dump_only=True)
     next_dagrun_data_interval_end = auto_field(dump_only=True)
     next_dagrun_create_after = auto_field(dump_only=True)
+
+    @staticmethod
+    def get_dag_display_name(obj: DagModel) -> str:
+        """Looks-up the display name with fallback to DAG Id."""
+        return obj.dag_display_name
 
     @staticmethod
     def get_owners(obj: DagModel):

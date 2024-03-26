@@ -40,6 +40,7 @@
 {% block head_meta %}
   {{ super() }}
   <meta name="dag_id" content="{{ dag.dag_id }}">
+  <meta name="dag_display_name" content="{{ dag.dag_display_name }}">
   <meta name="dag_timezone" content="{{ dag.timezone.name }}">
   <!-- Urls -->
   <meta name="logs_with_metadata_url" content="{{ url_for('Airflow.get_logs_with_metadata') }}">
