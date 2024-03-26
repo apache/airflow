@@ -34,6 +34,8 @@ export default function useEventLogs({
   after,
   before,
   owner,
+  includedEvents,
+  excludedEvents,
 }: API.GetEventLogsVariables) {
   const { isRefreshOn } = useAutoRefresh();
   return useQuery(
@@ -48,10 +50,18 @@ export default function useEventLogs({
       after,
       before,
       owner,
+      excludedEvents,
+      includedEvents,
     ],
     () => {
       const eventsLogUrl = getMetaValue("event_logs_api");
       const orderParam = orderBy ? { order_by: orderBy } : {};
+      const excludedParam = excludedEvents
+        ? { excluded_events: excludedEvents }
+        : {};
+      const includedParam = includedEvents
+        ? { included_events: includedEvents }
+        : {};
       return axios.get<AxiosResponse, API.EventLogCollection>(eventsLogUrl, {
         params: {
           offset,
@@ -60,6 +70,8 @@ export default function useEventLogs({
           ...{ task_id: taskId },
           ...{ run_id: runId },
           ...orderParam,
+          ...excludedParam,
+          ...includedParam,
           after,
           before,
         },
