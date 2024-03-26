@@ -163,6 +163,8 @@ class DockerHook(BaseHook):
                     self.__login(client, self.get_connection(self.docker_conn_id))
                 self._client_created = True
                 return client
+            except APIError:
+                raise
             except DockerException as e:
                 self.log.error("Failed to establish connection to Docker host %s: %s", url, e)
         raise DockerException("Failed to establish connection to any given Docker hosts.")

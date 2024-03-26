@@ -87,7 +87,7 @@ def test_hook_usage(docker_hook_patcher, docker_conn_id, tls_params: dict):
 
     docker_hook_patcher.assert_called_once_with(
         docker_conn_id=docker_conn_id,
-        base_url=TEST_DOCKER_URL,
+        base_url=[TEST_DOCKER_URL],
         version=TEST_API_VERSION,
         tls="MOCK-TLS-VALUE",
         timeout=42,
@@ -795,19 +795,19 @@ class TestDockerOperator:
     def test_respect_docker_host_env(self, monkeypatch):
         monkeypatch.setenv("DOCKER_HOST", "tcp://docker-host-from-env:2375")
         operator = DockerOperator(task_id="test", image="test")
-        assert operator.docker_url == "tcp://docker-host-from-env:2375"
+        assert operator.docker_url == ["tcp://docker-host-from-env:2375"]
 
     def test_docker_host_env_empty(self, monkeypatch):
         monkeypatch.setenv("DOCKER_HOST", "")
         operator = DockerOperator(task_id="test", image="test")
         # The docker CLI ignores the empty string and defaults to unix://var/run/docker.sock
         # We want to ensure the same behavior.
-        assert operator.docker_url == "unix://var/run/docker.sock"
+        assert operator.docker_url == ["unix://var/run/docker.sock"]
 
     def test_docker_host_env_unset(self, monkeypatch):
         monkeypatch.delenv("DOCKER_HOST", raising=False)
         operator = DockerOperator(task_id="test", image="test")
-        assert operator.docker_url == "unix://var/run/docker.sock"
+        assert operator.docker_url == ["unix://var/run/docker.sock"]
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
