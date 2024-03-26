@@ -62,7 +62,7 @@ except ImportError:
     from yaml import SafeLoader  # type: ignore
 
 if __name__ != "__main__":
-    raise Exception(
+    raise RuntimeError(
         "This file is intended to be executed as an executable program. You cannot use it as a module."
     )
 
@@ -113,7 +113,7 @@ def _load_package_data(package_paths: Iterable[str]):
         try:
             jsonschema.validate(provider, schema=schema)
         except jsonschema.ValidationError:
-            raise Exception(f"Unable to parse: {rel_path}.")
+            raise ValueError(f"Unable to parse: {rel_path}.")
         if not provider["state"] == "suspended":
             result[rel_path] = provider
         else:

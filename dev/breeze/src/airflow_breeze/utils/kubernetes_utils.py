@@ -92,7 +92,7 @@ def get_architecture_string_for_urls() -> str:
         return "amd64"
     if architecture == Architecture.ARM:
         return "arm64"
-    raise Exception(f"The architecture {architecture} is not supported when downloading kubernetes tools!")
+    raise ValueError(f"The architecture {architecture} is not supported when downloading kubernetes tools!")
 
 
 def _download_with_retries(num_tries, path, tool, url):
