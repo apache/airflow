@@ -61,7 +61,6 @@ jobs:
     name: "Provider packages wheel build and verify"
     runs-on: ${{fromJSON(inputs.runs-on)}}
     env:
-      RUNS_ON: "${{ inputs.runs-on }}"
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       IMAGE_TAG: "${{ inputs.image-tag }}"
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -127,7 +126,6 @@ jobs:
     name: "Provider packages sdist build and install"
     runs-on: ${{fromJSON(inputs.runs-on)}}
     env:
-      RUNS_ON: "${{ inputs.runs-on }}"
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       IMAGE_TAG: "${{ inputs.image-tag }}"
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -196,7 +194,6 @@ jobs:
       matrix:
         include: ${{fromJson(inputs.providers-compatibility-checks)}}
     env:
-      RUNS_ON: "${{ inputs.runs-on }}"
       IMAGE_TAG: "${{ inputs.image-tag }}"
       PYTHON_MAJOR_MINOR_VERSION: "${{matrix.python-version}}"
       VERSION_SUFFIX_FOR_PYPI: "dev0"

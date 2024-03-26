@@ -2321,6 +2321,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.form.get("dag_id")
         dag_run_id = request.form.get("dag_run_id")
         confirmed = request.form.get("confirmed") == "true"
+        only_failed = request.form.get("only_failed") == "true"
 
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
         dr = dag.get_dagrun(run_id=dag_run_id)
@@ -2334,6 +2335,7 @@ class Airflow(AirflowBaseView):
             origin=None,
             recursive=True,
             confirmed=confirmed,
+            only_failed=only_failed,
             session=session,
         )
 
@@ -3288,6 +3290,8 @@ class Airflow(AirflowBaseView):
         with create_session() as session:
             dag_model = DagModel.get_dagmodel(dag_id, session=session)
 
+            latest_run = dag_model.get_last_dagrun(session=session)
+
             events = [
                 dict(info)
                 for info in session.execute(
@@ -3309,7 +3313,12 @@ class Airflow(AirflowBaseView):
                     )
                     .join(
                         DatasetEvent,
-                        DatasetEvent.dataset_id == DatasetModel.id,
+                        and_(
+                            DatasetEvent.dataset_id == DatasetModel.id,
+                            DatasetEvent.timestamp >= latest_run.execution_date
+                            if latest_run and latest_run.execution_date
+                            else True,
+                        ),
                         isouter=True,
                     )
                     .where(DagScheduleDatasetReference.dag_id == dag_id, ~DatasetModel.is_orphaned)

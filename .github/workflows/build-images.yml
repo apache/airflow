@@ -51,7 +51,7 @@ jobs:
   build-info:
     timeout-minutes: 10
     name: "Build Info"
-    runs-on: ['ubuntu-22.04']
+    runs-on: ["ubuntu-22.04"]
     env:
       TARGET_BRANCH: ${{ github.event.pull_request.base.ref }}
     outputs:
@@ -171,7 +171,7 @@ jobs:
       needs.build-info.outputs.ci-image-build == 'true' &&
       github.event.pull_request.head.repo.full_name != 'apache/airflow'
     with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
+      runs-on: '["ubuntu-22.04"]'
       do-build: ${{ needs.build-info.outputs.ci-image-build }}
       target-commit-sha: ${{ needs.build-info.outputs.target-commit-sha }}
       pull-request-target: "true"
@@ -180,12 +180,12 @@ jobs:
       upload-constraints: "true"
       use-uv: "true"
       image-tag: ${{ needs.build-info.outputs.image-tag }}
+      platform: "linux/amd64"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.constraints-branch }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       docker-cache: ${{ needs.build-info.outputs.cache-directive }}
-
 
   build-prod-images:
     name: Build PROD images
@@ -200,7 +200,7 @@ jobs:
       needs.build-info.outputs.prod-image-build == 'true' &&
       github.event.pull_request.head.repo.full_name != 'apache/airflow'
     with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
+      runs-on: '["ubuntu-22.04"]'
       build-type: "Regular"
       do-build: ${{ needs.build-info.outputs.ci-image-build }}
       target-commit-sha: ${{ needs.build-info.outputs.target-commit-sha }}
@@ -209,6 +209,7 @@ jobs:
       push-image: "true"
       use-uv: "true"
       image-tag: ${{ needs.build-info.outputs.image-tag }}
+      platform: "linux/amd64"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.constraints-branch }}

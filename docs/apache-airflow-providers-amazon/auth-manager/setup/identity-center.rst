@@ -59,7 +59,7 @@ have or have not been created successfully. The resource(s) which have not been 
 If the error message below is raised, please create the AWS IAM Identity Center application through the console
 following :ref:`these instructions <identity_center_manual_configuration_application>`: ::
 
-   Creation of SAML applications is only supported in AWS console today. Please create the application through the console.
+  Creation of SAML applications is only supported in AWS console today. Please create the application through the console.
 
 .. _identity_center_manual_configuration:
 

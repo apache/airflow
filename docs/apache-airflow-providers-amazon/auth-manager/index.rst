@@ -40,3 +40,11 @@ The AWS auth manager is an auth manager powered by AWS. It uses two services:
 
     setup/config
     setup/identity-center
+    setup/amazon-verified-permissions
+
+**Manage the environment**
+
+.. toctree::
+    :maxdepth: 2
+
+    manage/index

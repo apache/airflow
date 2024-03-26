@@ -87,11 +87,7 @@ describe("Test Datasets List", () => {
       .mockImplementation(() => returnValue);
 
     const { getByText, queryAllByTestId } = render(
-      <DatasetsList
-        onSelect={() => {}}
-        filteredDagIds={[]}
-        onFilterDags={() => {}}
-      />,
+      <DatasetsList onSelectNode={() => {}} />,
       { wrapper: Wrapper }
     );
 
@@ -115,11 +111,7 @@ describe("Test Datasets List", () => {
       .mockImplementation(() => emptyReturnValue);
 
     const { getByText, queryAllByTestId, getByTestId } = render(
-      <DatasetsList
-        onSelect={() => {}}
-        filteredDagIds={[]}
-        onFilterDags={() => {}}
-      />,
+      <DatasetsList onSelectNode={() => {}} />,
       { wrapper: Wrapper }
     );
 
@@ -129,23 +121,5 @@ describe("Test Datasets List", () => {
 
     expect(getByTestId("no-datasets-msg")).toBeInTheDocument();
     expect(getByText("No Data found.")).toBeInTheDocument();
-  });
-
-  test("Correctly decodes search param and applies it to the input", () => {
-    jest
-      .spyOn(useDatasetsModule, "default")
-      .mockImplementation(() => returnValue);
-
-    const { getByDisplayValue } = render(
-      <Wrapper initialEntries={["/datasets?search=s3%253A%252F%252F"]}>
-        <DatasetsList
-          onSelect={() => {}}
-          filteredDagIds={[]}
-          onFilterDags={() => {}}
-        />
-      </Wrapper>
-    );
-
-    expect(getByDisplayValue("s3://")).toBeInTheDocument();
   });
 });

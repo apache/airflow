@@ -41,9 +41,9 @@ from airflow.utils.module_loading import import_string, qualname
 
 if TYPE_CHECKING:
     try:
-        import importlib_metadata
+        import importlib_metadata as metadata
     except ImportError:
-        from importlib import metadata as importlib_metadata  # type: ignore[no-redef]
+        from importlib import metadata  # type: ignore[no-redef]
     from types import ModuleType
 
     from airflow.hooks.base import BaseHook
@@ -125,7 +125,7 @@ class PluginsDirectorySource(AirflowPluginSource):
 class EntryPointSource(AirflowPluginSource):
     """Class used to define Plugins loaded from entrypoint."""
 
-    def __init__(self, entrypoint: importlib_metadata.EntryPoint, dist: importlib_metadata.Distribution):
+    def __init__(self, entrypoint: metadata.EntryPoint, dist: metadata.Distribution):
         self.dist = dist.metadata["Name"]
         self.version = dist.version
         self.entrypoint = str(entrypoint)

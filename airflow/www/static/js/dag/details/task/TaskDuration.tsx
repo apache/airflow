@@ -146,7 +146,33 @@ const TaskDuration = () => {
     `;
   }
 
+  function formatMarkLineLegendName(name: string) {
+    switch (name) {
+      case "runDurationUnit":
+        return "Median total duration";
+      case "queuedDurationUnit":
+        return "Median queued duration";
+      default:
+        return name;
+    }
+  }
+
   const option: ReactEChartsProps["option"] = {
+    legend: {
+      orient: "horizontal",
+      icon: "circle",
+      formatter: formatMarkLineLegendName,
+      data: [
+        {
+          name: "runDurationUnit",
+          itemStyle: { color: "blue" },
+        },
+        {
+          name: "queuedDurationUnit",
+          itemStyle: { color: stateColors.queued },
+        },
+      ],
+    },
     series: [
       {
         type: "bar",
@@ -158,7 +184,7 @@ const TaskDuration = () => {
         stack: "x",
         markLine: {
           silent: true,
-          data: [{ type: "median" }],
+          data: [{ type: "median", lineStyle: { color: stateColors.queued } }],
         },
       },
       {
@@ -171,7 +197,7 @@ const TaskDuration = () => {
         stack: "x",
         markLine: {
           silent: true,
-          data: [{ type: "median" }],
+          data: [{ type: "median", lineStyle: { color: "blue" } }],
         },
       },
     ],
