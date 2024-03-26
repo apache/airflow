@@ -412,8 +412,6 @@ combine-as-imports = true
 "tests/providers/sftp/operators/test_sftp.py" = ["PT012"]
 "tests/providers/sftp/sensors/test_sftp.py" = ["PT012"]
 "tests/providers/sftp/triggers/test_sftp.py" = ["PT012"]
-"tests/providers/ssh/hooks/test_ssh.py" = ["PT012"]
-"tests/providers/ssh/operators/test_ssh.py" = ["PT012"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.
