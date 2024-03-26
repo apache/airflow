@@ -83,8 +83,7 @@ A timetable that accepts a cron expression, and triggers DAG runs according to i
         pass
 
 You can also provide a static data interval to the timetable. The optional ``interval`` argument
-must be a :class:`datetime.timedelta` or ``dateutil.relativedelta.relativedelta``. When using these arguments,
- a triggered DAG run's data interval spans the specified duration, and *ends* with the trigger time.
+must be a :class:`datetime.timedelta` or ``dateutil.relativedelta.relativedelta``. When using these arguments, a triggered DAG run's data interval spans the specified duration, and *ends* with the trigger time.
 
 .. code-block:: python
 
