@@ -151,6 +151,16 @@ class DAGDetailSchema(DAGSchema):
         return {k: v.dump() for k, v in params.items()}
 
 
+class DAGDetailSchemaWithTasksInfo(DAGDetailSchema):
+    """DAG with task ids details."""
+
+    tasks = fields.Method("get_tasks", dump_only=True)
+    @staticmethod
+    def get_tasks(obj: DAG) -> list[str]:
+        """Get DAG task ids."""
+        return list(obj.task_dict.keys())
+
+
 class DAGCollection(NamedTuple):
     """List of DAGs with metadata."""
 
