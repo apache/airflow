@@ -1005,7 +1005,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.doc_yaml = doc_yaml
         self.doc_rst = doc_rst
         self.doc = doc
-        self._task_display_property_value = task_display_name
+        # Populate the display field only if provided and different from task id
+        self._task_display_property_value = (
+            task_display_name if task_display_name and task_display_name != task_id else None
+        )
 
         self.upstream_task_ids: set[str] = set()
         self.downstream_task_ids: set[str] = set()
