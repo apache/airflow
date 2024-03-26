@@ -50,6 +50,12 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance, TaskInstancePydantic
 
 
+def _get_fields(ti):
+    return {
+        field: serialize_template_field(getattr(ti.task, field), field) for field in ti.task.template_fields
+    }
+
+
 class RenderedTaskInstanceFields(TaskInstanceDependencies):
     """Save Rendered Template Fields."""
 
@@ -101,7 +107,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
     execution_date = association_proxy("dag_run", "execution_date")
 
-    def __init__(self, ti: TaskInstance, render_templates=True):
+    def __init__(self, ti: TaskInstance, render_templates=True, rendered_fields=None):
         self.dag_id = ti.dag_id
         self.task_id = ti.task_id
         self.run_id = ti.run_id
@@ -120,10 +126,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
             from airflow.providers.cncf.kubernetes.template_rendering import render_k8s_pod_yaml
 
             self.k8s_pod_yaml = render_k8s_pod_yaml(ti)
-        self.rendered_fields = {
-            field: serialize_template_field(getattr(self.task, field), field)
-            for field in self.task.template_fields
-        }
+        self.rendered_fields = rendered_fields or _get_fields(ti=ti)
 
         self._redact()
 

@@ -92,6 +92,7 @@ from airflow.models.dagbag import DagBag
 from airflow.models.log import Log
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import process_params
+from airflow.models.renderedtifields import _get_fields
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
@@ -1276,6 +1277,16 @@ def _get_previous_ti(
     if dagrun is None:
         return None
     return dagrun.get_task_instance(task_instance.task_id, session=session)
+
+
+@internal_api_call
+@provide_session
+def _update_rtif(ti, rendered_fields, session: Session | None = None):
+    from airflow.models.renderedtifields import RenderedTaskInstanceFields
+
+    rtif = RenderedTaskInstanceFields(ti=ti, render_templates=False, rendered_fields=rendered_fields)
+    RenderedTaskInstanceFields.write(rtif, session=session)
+    RenderedTaskInstanceFields.delete_old_records(ti.task_id, ti.dag_id, session=session)
 
 
 class TaskInstance(Base, LoggingMixin):
@@ -2628,8 +2639,6 @@ class TaskInstance(Base, LoggingMixin):
 
     def _execute_task_with_callbacks(self, context: Context, test_mode: bool = False, *, session: Session):
         """Prepare Task for Execution."""
-        from airflow.models.renderedtifields import RenderedTaskInstanceFields
-
         if TYPE_CHECKING:
             assert self.task
 
@@ -2670,10 +2679,8 @@ class TaskInstance(Base, LoggingMixin):
                 task_orig = self.render_templates(context=context, jinja_env=jinja_env)
 
             if not test_mode:
-                rtif = RenderedTaskInstanceFields(ti=self, render_templates=False)
-                RenderedTaskInstanceFields.write(rtif)
-                RenderedTaskInstanceFields.delete_old_records(self.task_id, self.dag_id)
-
+                rendered_fields = _get_fields(ti=self)
+                _update_rtif(ti=self, rendered_fields=rendered_fields)
             # Export context to make it available for operators to use.
             airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
             os.environ.update(airflow_context_vars)
