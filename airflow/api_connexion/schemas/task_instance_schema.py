@@ -21,7 +21,6 @@ from typing import TYPE_CHECKING, NamedTuple
 from marshmallow import Schema, ValidationError, fields, validate, validates_schema
 from marshmallow.utils import get_value
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
-from sqlalchemy import inspect
 
 from airflow.api_connexion.parameters import validate_istimezone
 from airflow.api_connexion.schemas.common_schema import JsonObjectField
@@ -29,11 +28,7 @@ from airflow.api_connexion.schemas.enum_schemas import TaskInstanceStateField
 from airflow.api_connexion.schemas.job_schema import JobSchema
 from airflow.api_connexion.schemas.sla_miss_schema import SlaMissSchema
 from airflow.api_connexion.schemas.trigger_schema import TriggerSchema
-from airflow.exceptions import TaskNotFound
 from airflow.models import TaskInstance
-from airflow.ti_deps.dep_context import DepContext
-from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
-from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.helpers import exactly_one
 from airflow.utils.state import TaskInstanceState
 
@@ -77,7 +72,6 @@ class TaskInstanceSchema(SQLAlchemySchema):
     rendered_fields = JsonObjectField(dump_default={})
     trigger = fields.Nested(TriggerSchema)
     triggerer_job = fields.Nested(JobSchema)
-    task_failed_deps = fields.Method("get_task_failed_deps", dump_default=[])
 
     def get_attribute(self, obj, attr, default):
         if attr == "sla_miss":
@@ -89,32 +83,6 @@ class TaskInstanceSchema(SQLAlchemySchema):
         elif attr == "rendered_fields":
             return get_value(obj[0], "rendered_task_instance_fields.rendered_fields", default)
         return get_value(obj[0], attr, default)
-
-    @staticmethod
-    def get_task_failed_deps(obj):
-        # Get failed deps only for tasks in None or scheduled state
-        if obj and (obj[0].state in [None, TaskInstanceState.SCHEDULED]):
-            ti = obj[0]
-
-            session = inspect(ti).session
-            dag = get_airflow_app().dag_bag.get_dag(ti.dag_id, session=session)
-
-            if dag:
-                try:
-                    ti.task = dag.get_task(ti.task_id)
-                except TaskNotFound:
-                    return []
-
-            dep_context = DepContext(SCHEDULER_QUEUED_DEPS)
-            return sorted(
-                [
-                    {"name": dep.dep_name, "reason": dep.reason}
-                    for dep in ti.get_failed_dep_statuses(dep_context=dep_context, session=session)
-                ],
-                key=lambda x: x["name"],
-            )
-        else:
-            return []
 
 
 class TaskInstanceCollection(NamedTuple):
@@ -252,8 +220,22 @@ class SetTaskInstanceNoteFormSchema(Schema):
     note = fields.String(allow_none=True, validate=validate.Length(max=1000))
 
 
+class TaskDependencySchema(Schema):
+    """Schema for task scheduling dependencies."""
+
+    name = fields.String()
+    reason = fields.String()
+
+
+class TaskDependencyCollectionSchema(Schema):
+    """Task scheduling dependencies collection schema."""
+
+    dependencies = fields.List(fields.Nested(TaskDependencySchema))
+
+
 task_instance_schema = TaskInstanceSchema()
 task_instance_collection_schema = TaskInstanceCollectionSchema()
+task_dependencies_collection_schema = TaskDependencyCollectionSchema()
 task_instance_batch_form = TaskInstanceBatchFormSchema()
 clear_task_instance_form = ClearTaskInstanceFormSchema()
 set_task_instance_state_form = SetTaskInstanceStateFormSchema()

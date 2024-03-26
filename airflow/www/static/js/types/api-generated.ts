@@ -139,6 +139,44 @@ export interface paths {
       };
     };
   };
+  "/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dependencies": {
+    /**
+     * Get task dependencies blocking task from getting scheduled.
+     *
+     * *New in version 2.9.0*
+     */
+    get: operations["get_task_instance_dependencies"];
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+      };
+    };
+  };
+  "/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dependencies": {
+    /**
+     * Get task dependencies blocking task from getting scheduled.
+     *
+     * *New in version 2.9.0*
+     */
+    get: operations["get_mapped_task_instance_dependencies"];
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+        /** The map index. */
+        map_index: components["parameters"]["MapIndex"];
+      };
+    };
+  };
   "/dags/{dag_id}/updateTaskInstancesState": {
     /** Updates the state for multiple task instances simultaneously. */
     post: operations["post_set_task_instances_state"];
@@ -1398,6 +1436,9 @@ export interface components {
       name?: string;
       reason?: string;
     };
+    TaskInstanceDependencyCollection: {
+      dependencies?: components["schemas"]["TaskFailedDependency"][];
+    };
     Job: {
       id?: number;
       dag_id?: string | null;
@@ -1466,12 +1507,6 @@ export interface components {
       rendered_fields?: { [key: string]: unknown };
       trigger?: components["schemas"]["Trigger"];
       triggerer_job?: components["schemas"]["Job"];
-      /**
-       * @description Array of failed dependencies blocking task from getting scheduled.
-       *
-       * *New in version 2.9.0*
-       */
-      task_failed_deps?: components["schemas"]["TaskFailedDependency"][];
       /**
        * @description Contains manually entered notes by the user about the TaskInstance.
        *
@@ -3024,6 +3059,66 @@ export interface operations {
       content: {
         "application/json": components["schemas"]["SetTaskInstanceNote"];
       };
+    };
+  };
+  /**
+   * Get task dependencies blocking task from getting scheduled.
+   *
+   * *New in version 2.9.0*
+   */
+  get_task_instance_dependencies: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TaskInstanceDependencyCollection"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  /**
+   * Get task dependencies blocking task from getting scheduled.
+   *
+   * *New in version 2.9.0*
+   */
+  get_mapped_task_instance_dependencies: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+        /** The map index. */
+        map_index: components["parameters"]["MapIndex"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TaskInstanceDependencyCollection"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
     };
   };
   /** Updates the state for multiple task instances simultaneously. */
@@ -5161,6 +5256,9 @@ export type Trigger = CamelCasedPropertiesDeep<
 export type TaskFailedDependency = CamelCasedPropertiesDeep<
   components["schemas"]["TaskFailedDependency"]
 >;
+export type TaskInstanceDependencyCollection = CamelCasedPropertiesDeep<
+  components["schemas"]["TaskInstanceDependencyCollection"]
+>;
 export type Job = CamelCasedPropertiesDeep<components["schemas"]["Job"]>;
 export type TaskInstance = CamelCasedPropertiesDeep<
   components["schemas"]["TaskInstance"]
@@ -5382,6 +5480,13 @@ export type SetMappedTaskInstanceNoteVariables = CamelCasedPropertiesDeep<
   operations["set_mapped_task_instance_note"]["parameters"]["path"] &
     operations["set_mapped_task_instance_note"]["requestBody"]["content"]["application/json"]
 >;
+export type GetTaskInstanceDependenciesVariables = CamelCasedPropertiesDeep<
+  operations["get_task_instance_dependencies"]["parameters"]["path"]
+>;
+export type GetMappedTaskInstanceDependenciesVariables =
+  CamelCasedPropertiesDeep<
+    operations["get_mapped_task_instance_dependencies"]["parameters"]["path"]
+  >;
 export type PostSetTaskInstancesStateVariables = CamelCasedPropertiesDeep<
   operations["post_set_task_instances_state"]["parameters"]["path"] &
     operations["post_set_task_instances_state"]["requestBody"]["content"]["application/json"]
