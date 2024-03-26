@@ -562,7 +562,11 @@ def _rebuild_k8s_image(
 ) -> tuple[int, str]:
     params = BuildProdParams(python=python, image_tag=image_tag, use_uv=use_uv)
     if rebuild_base_image:
-        run_build_production_image(prod_image_params=params, output=output)
+        run_build_production_image(
+            prod_image_params=params,
+            param_description=f"Python: {params.python}, Platform: {params.platform}",
+            output=output,
+        )
     else:
         if not check_if_base_image_exists(params):
             get_console(output=output).print(
