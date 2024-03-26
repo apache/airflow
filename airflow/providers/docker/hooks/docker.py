@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-import sys
 import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
@@ -105,12 +104,9 @@ class DockerHook(BaseHook):
         :param ssl_version: Version of SSL to use when communicating with docker daemon.
         """
         if ca_cert and client_cert and client_key:
-            from packaging.version import Version
+            from importlib.metadata import version
 
-            if sys.version_info >= (3, 9):
-                from importlib.metadata import version
-            else:
-                from importlib_metadata import version
+            from packaging.version import Version
 
             tls_config = {
                 "ca_cert": ca_cert,
