@@ -27,11 +27,17 @@ from google.cloud.container_v1.types import Operation
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
-from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEAsyncHook, GKEPodAsyncHook
+from airflow.providers.google.cloud.hooks.kubernetes_engine import (
+    GKEAsyncHook,
+    GKEKubernetesAsyncHook,
+    GKEPodAsyncHook,
+)
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
     from datetime import datetime
+
+    from kubernetes_asyncio.client import V1Job
 
 
 class GKEStartPodTrigger(KubernetesPodTrigger):
@@ -237,3 +243,67 @@ class GKEOperationTrigger(BaseTrigger):
                 impersonation_chain=self.impersonation_chain,
             )
         return self._hook
+
+
+class GKEJobTrigger(BaseTrigger):
+    """GKEJobTrigger run on the trigger worker to check the state of Job."""
+
+    def __init__(
+        self,
+        cluster_url: str,
+        ssl_ca_cert: str,
+        job_name: str,
+        job_namespace: str,
+        gcp_conn_id: str = "google_cloud_default",
+        poll_interval: float = 2,
+        impersonation_chain: str | Sequence[str] | None = None,
+    ) -> None:
+        super().__init__()
+        self.cluster_url = cluster_url
+        self.ssl_ca_cert = ssl_ca_cert
+        self.job_name = job_name
+        self.job_namespace = job_namespace
+        self.gcp_conn_id = gcp_conn_id
+        self.poll_interval = poll_interval
+        self.impersonation_chain = impersonation_chain
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        """Serialize KubernetesCreateJobTrigger arguments and classpath."""
+        return (
+            "airflow.providers.google.cloud.triggers.kubernetes_engine.GKEJobTrigger",
+            {
+                "cluster_url": self.cluster_url,
+                "ssl_ca_cert": self.ssl_ca_cert,
+                "job_name": self.job_name,
+                "job_namespace": self.job_namespace,
+                "gcp_conn_id": self.gcp_conn_id,
+                "poll_interval": self.poll_interval,
+                "impersonation_chain": self.impersonation_chain,
+            },
+        )
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
+        """Get current job status and yield a TriggerEvent."""
+        job: V1Job = await self.hook.wait_until_job_complete(name=self.job_name, namespace=self.job_namespace)
+        job_dict = job.to_dict()
+        error_message = self.hook.is_job_failed(job=job)
+        status = "error" if error_message else "success"
+        message = f"Job failed with error: {error_message}" if error_message else "Job completed successfully"
+        yield TriggerEvent(
+            {
+                "name": job.metadata.name,
+                "namespace": job.metadata.namespace,
+                "status": status,
+                "message": message,
+                "job": job_dict,
+            }
+        )
+
+    @cached_property
+    def hook(self) -> GKEKubernetesAsyncHook:
+        return GKEKubernetesAsyncHook(
+            cluster_url=self.cluster_url,
+            ssl_ca_cert=self.ssl_ca_cert,
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )

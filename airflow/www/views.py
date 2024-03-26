@@ -5201,10 +5201,24 @@ class TaskInstanceModelView(AirflowModelView):
 
     def log_url_formatter(self):
         """Format log URL."""
-        log_url = self.get("log_url")
+        dag_id = self.get("dag_id")
+        task_id = self.get("task_id")
+        run_id = self.get("run_id")
+        map_index = self.get("map_index", None)
+        if map_index == -1:
+            map_index = None
+
+        url = url_for(
+            "Airflow.grid",
+            dag_id=dag_id,
+            task_id=task_id,
+            dag_run_id=run_id,
+            map_index=map_index,
+            tab="logs",
+        )
         return Markup(
             '<a href="{log_url}"><span class="material-icons" aria-hidden="true">reorder</span></a>'
-        ).format(log_url=log_url)
+        ).format(log_url=url)
 
     def duration_f(self):
         """Format duration."""

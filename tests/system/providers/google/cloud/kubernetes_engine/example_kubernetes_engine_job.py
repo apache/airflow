@@ -24,6 +24,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKECreateClusterOperator,
@@ -44,6 +45,7 @@ CLUSTER_NAME = f"gke-job-{ENV_ID}".replace("_", "-")
 CLUSTER = {"name": CLUSTER_NAME, "initial_node_count": 1}
 
 JOB_NAME = "test-pi"
+JOB_NAME_DEF = "test-pi-def"
 JOB_NAMESPACE = "default"
 
 with DAG(
@@ -73,6 +75,21 @@ with DAG(
     )
     # [END howto_operator_gke_start_job]
 
+    # [START howto_operator_gke_start_job_def]
+    job_task_def = GKEStartJobOperator(
+        task_id="job_task_def",
+        project_id=GCP_PROJECT_ID,
+        location=GCP_LOCATION,
+        cluster_name=CLUSTER_NAME,
+        namespace=JOB_NAMESPACE,
+        image="perl:5.34.0",
+        cmds=["perl", "-Mbignum=bpi", "-wle", "print bpi(2000)"],
+        name=JOB_NAME_DEF,
+        wait_until_job_complete=True,
+        deferrable=True,
+    )
+    # [END howto_operator_gke_start_job_def]
+
     # [START howto_operator_gke_list_jobs]
     list_job_task = GKEListJobsOperator(
         task_id="list_job_task", project_id=GCP_PROJECT_ID, location=GCP_LOCATION, cluster_name=CLUSTER_NAME
@@ -90,6 +107,15 @@ with DAG(
     )
     # [END howto_operator_gke_describe_job]
 
+    describe_job_task_def = GKEDescribeJobOperator(
+        task_id="describe_job_task_def",
+        project_id=GCP_PROJECT_ID,
+        location=GCP_LOCATION,
+        job_name=job_task_def.output["job_name"],
+        namespace="default",
+        cluster_name=CLUSTER_NAME,
+    )
+
     # [START howto_operator_gke_delete_job]
     delete_job = GKEDeleteJobOperator(
         task_id="delete_job",
@@ -101,6 +127,15 @@ with DAG(
     )
     # [END howto_operator_gke_delete_job]
 
+    delete_job_def = GKEDeleteJobOperator(
+        task_id="delete_job_def",
+        project_id=GCP_PROJECT_ID,
+        location=GCP_LOCATION,
+        cluster_name=CLUSTER_NAME,
+        name=JOB_NAME,
+        namespace=JOB_NAMESPACE,
+    )
+
     delete_cluster = GKEDeleteClusterOperator(
         task_id="delete_cluster",
         name=CLUSTER_NAME,
@@ -109,7 +144,14 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    create_cluster >> job_task >> [list_job_task, describe_job_task] >> delete_job >> delete_cluster
+    chain(
+        create_cluster,
+        [job_task, job_task_def],
+        list_job_task,
+        [describe_job_task, describe_job_task_def],
+        [delete_job, delete_job_def],
+        delete_cluster,
+    )
 
     from tests.system.utils.watcher import watcher
 
