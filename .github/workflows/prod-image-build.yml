@@ -77,6 +77,10 @@ on:  # yamllint disable-line rule:truthy
         description: "JSON-formatted array of Python versions to build images from"
         required: true
         type: string
+      platform:
+        description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
+        required: true
+        type: string
       branch:
         description: "Branch used to run the CI jobs in (main/v2_*_test)."
         required: true
@@ -111,8 +115,8 @@ jobs:
     timeout-minutes: 80
     name: "\
 ${{ inputs.do-build == 'true' && 'Build' || 'Skip building' }} \
-PROD ${{inputs.build-type}} image\
-${{matrix.python-version}}${{ inputs.do-build == 'true' && ':' || '' }}\
+PROD ${{ inputs.build-type }} image\
+${{ matrix.python-version }}${{ inputs.do-build == 'true' && ':' || '' }}\
 ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     env:
@@ -248,6 +252,7 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
           PUSH: ${{ inputs.push-image }}
           DOCKER_CACHE: ${{ inputs.docker-cache }}
           DEBIAN_VERSION: ${{ inputs.debian-version }}
+          BUILDER: "airflow_cache"
           INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ inputs.upgrade-to-newer-dependencies }}
           INCLUDE_NOT_READY_PROVIDERS: "true"
