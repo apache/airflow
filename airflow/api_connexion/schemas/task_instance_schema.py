@@ -55,7 +55,7 @@ class TaskInstanceSchema(SQLAlchemySchema):
     state = TaskInstanceStateField()
     _try_number = auto_field(data_key="try_number")
     max_tries = auto_field()
-    task_display_name = fields.Method("get_task_display_name", dump_only=True)
+    task_display_name = fields.String(attribute="task_display_name")
     hostname = auto_field()
     unixname = auto_field()
     pool = auto_field()
@@ -72,11 +72,6 @@ class TaskInstanceSchema(SQLAlchemySchema):
     rendered_fields = JsonObjectField(dump_default={})
     trigger = fields.Nested(TriggerSchema)
     triggerer_job = fields.Nested(JobSchema)
-
-    @staticmethod
-    def get_task_display_name(obj: TaskInstance) -> str:
-        """Looks-up the display name with fallback to Task Id."""
-        return obj.task_display_name
 
     def get_attribute(self, obj, attr, default):
         if attr == "sla_miss":
