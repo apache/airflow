@@ -185,6 +185,8 @@ const Details = ({
 
   const showTaskDetails = !!taskId && !runId;
 
+  const isAbandonedTask = !!taskId && !group;
+
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get(TAB_PARAM) || undefined;
   const tabIndex = tabToIndex(tab);
@@ -253,7 +255,7 @@ const Details = ({
               <MarkRunAs runId={runId} state={run?.state} />
             </>
           )}
-          {runId && taskId && (
+          {runId && taskId && !isAbandonedTask && (
             <>
               <ClearInstance
                 taskId={taskId}
@@ -379,6 +381,7 @@ const Details = ({
                 onChangeTab(0);
                 onSelect({ taskId });
               }}
+              isDisabled={isAbandonedTask}
             >
               <MdHourglassBottom size={16} />
               <Text as="strong" ml={1}>

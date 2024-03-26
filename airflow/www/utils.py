@@ -423,13 +423,17 @@ def task_instance_link(attr):
     dag_id = attr.get("dag_id")
     task_id = attr.get("task_id")
     run_id = attr.get("run_id")
-    execution_date = attr.get("dag_run.execution_date") or attr.get("execution_date") or timezone.utcnow()
+    map_index = attr.get("map_index", None)
+    if map_index == -1:
+        map_index = None
+
     url = url_for(
-        "Airflow.task",
+        "Airflow.grid",
         dag_id=dag_id,
         task_id=task_id,
-        execution_date=execution_date.isoformat(),
-        map_index=attr.get("map_index", -1),
+        dag_run_id=run_id,
+        map_index=map_index,
+        tab="graph",
     )
     url_root = url_for(
         "Airflow.grid",
@@ -437,8 +441,8 @@ def task_instance_link(attr):
         task_id=task_id,
         root=task_id,
         dag_run_id=run_id,
+        map_index=map_index,
         tab="graph",
-        map_index=attr.get("map_index", -1),
     )
     return Markup(
         """
