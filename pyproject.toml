@@ -408,10 +408,6 @@ combine-as-imports = true
 "tests/providers/google/cloud/transfers/test_gcs_to_bigquery.py" = ["PT012"]
 "tests/providers/google/cloud/utils/test_credentials_provider.py" = ["PT012"]
 "tests/providers/google/common/hooks/test_base_google.py" = ["PT012"]
-"tests/providers/sftp/hooks/test_sftp.py" = ["PT012"]
-"tests/providers/sftp/operators/test_sftp.py" = ["PT012"]
-"tests/providers/sftp/sensors/test_sftp.py" = ["PT012"]
-"tests/providers/sftp/triggers/test_sftp.py" = ["PT012"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.
