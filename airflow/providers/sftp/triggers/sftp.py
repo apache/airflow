@@ -134,7 +134,7 @@ class SFTPTrigger(BaseTrigger):
                 # Break loop to avoid infinite retries on terminal failure
                 break
 
-        yield TriggerEvent({"status": "error", "message": exc})
+        yield TriggerEvent({"status": "error", "message": str(exc)})
 
     def _get_async_hook(self) -> SFTPHookAsync:
         return SFTPHookAsync(sftp_conn_id=self.sftp_conn_id)
