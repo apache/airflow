@@ -3182,11 +3182,11 @@ def generate_issue_content(
         response.raise_for_status()
         latest_released_version = response.json()["info"]["version"]
         previous = str(latest_released_version)
-        current = os.getenv("VERSION", previous + "rc1")
-        if current == previous + "rc1":
+        current = os.getenv("VERSION", "main")
+        if current == "main":
             get_console().print(
-                f"\n[warning]Environment variable VERSION not set, setting current release "
-                f"version as {previous + 'rc1'}\n"
+                "\n[warning]Environment variable VERSION not set, setting current release "
+                "version as 'main'\n"
             )
 
     changes = get_changes(verbose, previous, current, is_helm_chart)
