@@ -725,7 +725,7 @@ class TestKubernetesDeleteJobOperator:
     @patch(f"{HOOK_CLASS}.wait_until_job_complete")
     @patch("kubernetes.config.load_kube_config")
     @patch("kubernetes.client.api.BatchV1Api.delete_namespaced_job")
-    def test_execute_wait_until_job_complete_true(
+    def test_execute_wait_for_completion_true(
         self,
         mock_delete_namespaced_job,
         mock_load_kube_config,
@@ -737,8 +737,8 @@ class TestKubernetesDeleteJobOperator:
             task_id="test_delete_job",
             name=JOB_NAME,
             namespace=JOB_NAMESPACE,
-            wait_until_job_complete=True,
-            job_poll_interval=JOB_POLL_INTERVAL,
+            wait_for_completion=True,
+            poll_interval=JOB_POLL_INTERVAL,
         )
 
         op.execute({})
@@ -770,7 +770,7 @@ class TestKubernetesDeleteJobOperator:
     @patch(f"{HOOK_CLASS}.is_job_successful")
     @patch("kubernetes.config.load_kube_config")
     @patch("kubernetes.client.api.BatchV1Api.delete_namespaced_job")
-    def test_execute_on_status(
+    def test_execute_delete_on_status(
         self,
         mock_delete_namespaced_job,
         mock_load_kube_config,
@@ -789,15 +789,15 @@ class TestKubernetesDeleteJobOperator:
             task_id="test_delete_job",
             name=JOB_NAME,
             namespace=JOB_NAMESPACE,
-            on_status=on_status,
+            delete_on_status=on_status,
         )
 
         op.execute({})
 
         assert mock_delete_namespaced_job.called == deleted
 
-    def test_execute_on_status_exception(self):
-        invalid_on_status = "".join(
+    def test_execute_delete_on_status_exception(self):
+        invalid_delete_on_status = "".join(
             random.choices(string.ascii_letters + string.digits, k=random.randint(1, 16))
         )
 
@@ -806,7 +806,7 @@ class TestKubernetesDeleteJobOperator:
             task_id="test_delete_job",
             name=JOB_NAME,
             namespace=JOB_NAMESPACE,
-            on_status=invalid_on_status,
+            delete_on_status=invalid_delete_on_status,
         )
 
         with pytest.raises(AirflowException):
