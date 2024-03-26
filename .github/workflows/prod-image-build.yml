@@ -252,7 +252,6 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
           PUSH: ${{ inputs.push-image }}
           DOCKER_CACHE: ${{ inputs.docker-cache }}
           DEBIAN_VERSION: ${{ inputs.debian-version }}
-          BUILDER: "airflow_cache"
           INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ inputs.upgrade-to-newer-dependencies }}
           INCLUDE_NOT_READY_PROVIDERS: "true"
@@ -260,8 +259,8 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
       - name: "Build PROD images with PyPi providers ${{ matrix.python-version }}:${{ inputs.image-tag }}"
         shell: bash
         run: >
-          breeze prod-image build --tag-as-latest --image-tag "${{ inputs.image-tag }}"
-          --commit-sha "${{ github.sha }}"
+          breeze prod-image build --builder airflow_cache --tag-as-latest
+          --image-tag "${{ inputs.image-tag }}" --commit-sha "${{ github.sha }}"
           --install-packages-from-context --airflow-constraints-mode constraints
           --use-constraints-for-context-packages --python "${{ matrix.python-version }}"
         env:

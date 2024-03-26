@@ -192,15 +192,13 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
           Build ${{ inputs.push-image == 'true' && ' & push ' || '' }}
           ${{ inputs.platform }}:${{ matrix.python-version }}:${{ inputs.image-tag }}
         run: >
-          breeze ci-image build --tag-as-latest --image-tag "${{ inputs.image-tag }}"
-          --python "${{ matrix.python-version }}"
-          --platform "${{ inputs.platform }}"
+          breeze ci-image build --builder airflow_cache --tag-as-latest --image-tag "${{ inputs.image-tag }}"
+          --python "${{ matrix.python-version }}" --platform "${{ inputs.platform }}"
         env:
           DOCKER_CACHE: ${{ inputs.docker-cache }}
           INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ inputs.upgrade-to-newer-dependencies }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BUILDER: "airflow_cache"
           PUSH: ${{ inputs.push-image }}
           VERBOSE: "true"
         if: inputs.do-build == 'true'

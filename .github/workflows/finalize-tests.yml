@@ -121,7 +121,7 @@ jobs:
           git push
 
   push-buildx-cache-to-github-registry-amd:
-    name: Push Regular Image Cache
+    name: Push Regular AMD Image Cache
     needs: [update-constraints]
     uses: ./.github/workflows/push-image-cache.yml
     permissions:
@@ -129,7 +129,8 @@ jobs:
       packages: write
     secrets: inherit
     with:
-      cache-type: "Regular"
+      runs-on: '["ubuntu-22.04"]'
+      cache-type: "Regular AMD"
       include-prod-images: "true"
       push-latest-images: "true"
       platform: "linux/amd64"
@@ -142,7 +143,7 @@ jobs:
     if: inputs.canary-run == 'true'
 
   push-buildx-cache-to-github-registry-arm:
-    name: Push Regular Image Cache
+    name: Push Regular ARM Image Cache
     needs: [update-constraints]
     uses: ./.github/workflows/push-image-cache.yml
     permissions:
@@ -151,7 +152,7 @@ jobs:
     secrets: inherit
     with:
       runs-on: ${{ inputs.runs-on }}
-      cache-type: "Regular"
+      cache-type: "Regular ARM"
       include-prod-images: "true"
       push-latest-images: "true"
       platform: "linux/arm64"
