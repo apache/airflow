@@ -133,9 +133,7 @@ class TestDatabricksPartitionSensor:
     @pytest.mark.parametrize(
         "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
     )
-    @patch(
-        "airflow.providers.databricks.sensors.databricks_partition.DatabricksPartitionSensor" "._sql_sensor"
-    )
+    @patch("airflow.providers.databricks.sensors.databricks_partition.DatabricksPartitionSensor._sql_sensor")
     def test_fail__generate_partition_query_with_missing_opts(
         self, _sql_sensor, soft_fail, expected_exception
     ):
