@@ -184,6 +184,7 @@ def _get_ti(
     )
 
     ti_or_none = dag_run.get_task_instance(task.task_id, map_index=map_index, session=session)
+    ti: TaskInstance | TaskInstancePydantic
     if ti_or_none is None:
         if not create_if_necessary:
             raise TaskInstanceNotFound(
@@ -191,9 +192,7 @@ def _get_ti(
                 f"run_id or execution_date of {exec_date_or_run_id!r} not found"
             )
         # TODO: Validate map_index is in range?
-        ti: TaskInstance | TaskInstancePydantic = TaskInstance(
-            task, run_id=dag_run.run_id, map_index=map_index
-        )
+        ti = TaskInstance(task, run_id=dag_run.run_id, map_index=map_index)
         ti.dag_run = dag_run
     else:
         ti = ti_or_none
