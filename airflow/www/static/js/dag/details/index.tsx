@@ -255,7 +255,7 @@ const Details = ({
               <MarkRunAs runId={runId} state={run?.state} />
             </>
           )}
-          {runId && taskId && (
+          {runId && taskId && !isAbandonedTask && (
             <>
               <ClearInstance
                 taskId={taskId}
@@ -283,7 +283,9 @@ const Details = ({
               />
             </>
           )}
-          {taskId && runId && <FilterTasks taskId={taskId} />}
+          {taskId && runId && !isAbandonedTask && (
+            <FilterTasks taskId={taskId} />
+          )}
         </Flex>
       </Flex>
       <Divider my={2} />

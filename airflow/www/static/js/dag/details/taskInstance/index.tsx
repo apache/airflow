@@ -93,6 +93,7 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
           mapIndex={mapIndex}
           initialValue={gridInstance?.note || taskInstance?.note}
           key={dagId + runId + taskId + mapIndex}
+          isAbandonedTask={!!taskId && !group}
         />
       )}
       {!!group?.extraLinks?.length &&
