@@ -52,7 +52,7 @@ function install_airflow_dependencies_from_branch_tip() {
     # pyproject.toml in the next step (when we install regular airflow).
     set -x
     curl -fsSL "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz" | \
-        tar xvz -C "${TEMP_AIRFLOW_DIR}" --strip 1
+        tar xz -C "${TEMP_AIRFLOW_DIR}" --strip 1
     # Make sure editable dependencies are calculated when devel-ci dependencies are installed
     ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} \
         --editable "${TEMP_AIRFLOW_DIR}[${AIRFLOW_EXTRAS}]"
@@ -70,8 +70,8 @@ function install_airflow_dependencies_from_branch_tip() {
     echo
     set +x
     ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} apache-airflow
+    rm -rf "${TEMP_AIRFLOW_DIR}"
     set -x
-    rm -rvf "${TEMP_AIRFLOW_DIR}"
     # If you want to make sure dependency is removed from cache in your PR when you removed it from
     # pyproject.toml - please add your dependency here as a list of strings
     # for example:

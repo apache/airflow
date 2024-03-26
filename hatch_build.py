@@ -255,6 +255,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "coverage>=7.4.0",
         "pytest-asyncio>=0.23.3",
         "pytest-cov>=4.1.0",
+        "pytest-custom-exit-code>=0.3.0",
         "pytest-icdiff>=0.9",
         "pytest-instafail>=0.5.0",
         "pytest-mock>=3.12.0",
