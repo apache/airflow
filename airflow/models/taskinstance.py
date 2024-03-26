@@ -596,6 +596,7 @@ def _clear_next_method_args(*, task_instance: TaskInstance | TaskInstancePydanti
     task_instance.next_kwargs = None
 
 
+@internal_api_call
 def _get_template_context(
     *,
     task_instance: TaskInstance | TaskInstancePydantic,
@@ -622,10 +623,30 @@ def _get_template_context(
 
     task = task_instance.task
     if TYPE_CHECKING:
+        assert task_instance.task
         assert task
         assert task.dag
-    dag: DAG = task.dag
+    try:
+        dag: DAG = task.dag
+    except AirflowException:
+        from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
+        if isinstance(task_instance, TaskInstancePydantic):
+            ti = session.scalar(
+                select(TaskInstance).where(
+                    TaskInstance.task_id == task_instance.task_id,
+                    TaskInstance.dag_id == task_instance.dag_id,
+                    TaskInstance.run_id == task_instance.run_id,
+                    TaskInstance.map_index == task_instance.map_index,
+                )
+            )
+            dag = ti.dag_model.serialized_dag.dag
+            if hasattr(task_instance.task, "_dag"):  # BaseOperator
+                task_instance.task._dag = dag
+            else:  # MappedOperator
+                task_instance.task.dag = dag
+        else:
+            raise
     dag_run = task_instance.get_dagrun(session)
     data_interval = dag.get_run_data_interval(dag_run)
 
