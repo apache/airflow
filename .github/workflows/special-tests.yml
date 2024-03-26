@@ -45,6 +45,14 @@ on:  # yamllint disable-line rule:truthy
         description: "The default version of the postgres to use"
         required: true
         type: string
+      canary-run:
+        description: "Whether to run canary tests or not (true/false)"
+        required: true
+        type: string
+      upgrade-to-newer-dependencies:
+        description: "Whether to upgrade to newer dependencies or not (true/false)"
+        required: true
+        type: string
       debug-resources:
         description: "Whether to debug resources or not (true/false)"
         required: true
@@ -57,6 +65,7 @@ jobs:
       contents: read
       packages: read
     secrets: inherit
+    if: inputs.canary-run == 'true'
     with:
       runs-on: ${{ inputs.runs-on }}
       downgrade-sqlalchemy: "true"
@@ -79,6 +88,7 @@ jobs:
       contents: read
       packages: read
     secrets: inherit
+    if: inputs.canary-run == 'true' || inputs.upgrade-to-newer-dependencies == 'true'
     with:
       runs-on: ${{ inputs.runs-on }}
       upgrade-boto: "true"
@@ -101,6 +111,7 @@ jobs:
       contents: read
       packages: read
     secrets: inherit
+    if: inputs.canary-run == 'true' || inputs.upgrade-to-newer-dependencies == 'true'
     with:
       runs-on: ${{ inputs.runs-on }}
       pydantic: "v1"
@@ -123,6 +134,7 @@ jobs:
       contents: read
       packages: read
     secrets: inherit
+    if: inputs.canary-run == 'true' || inputs.upgrade-to-newer-dependencies == 'true'
     with:
       runs-on: ${{ inputs.runs-on }}
       pydantic: "none"
@@ -145,6 +157,7 @@ jobs:
       contents: read
       packages: read
     secrets: inherit
+    if: inputs.canary-run == 'true' || inputs.upgrade-to-newer-dependencies == 'true'
     with:
       runs-on: ${{ inputs.runs-on }}
       downgrade-pendulum: "true"
@@ -167,6 +180,7 @@ jobs:
       contents: read
       packages: read
     secrets: inherit
+    if: inputs.canary-run == 'true' || inputs.upgrade-to-newer-dependencies == 'true'
     with:
       runs-on: ${{ inputs.runs-on }}
       enable-aip-44: "false"
@@ -189,6 +203,7 @@ jobs:
       contents: read
       packages: read
     secrets: inherit
+    if: inputs.canary-run == 'true' || inputs.upgrade-to-newer-dependencies == 'true'
     with:
       runs-on: ${{ inputs.runs-on }}
       test-name: "Postgres"
@@ -210,6 +225,7 @@ jobs:
       contents: read
       packages: read
     secrets: inherit
+    if: inputs.canary-run == 'true' || inputs.upgrade-to-newer-dependencies == 'true'
     with:
       runs-on: ${{ inputs.runs-on }}
       test-name: "Postgres"
