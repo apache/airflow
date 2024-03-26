@@ -45,6 +45,7 @@ def _initialize_map() -> dict[str, Callable]:
     from airflow.models.serialized_dag import SerializedDagModel
     from airflow.models.taskinstance import TaskInstance
     from airflow.secrets.metastore import MetastoreBackend
+    from airflow.utils.log.file_task_handler import FileTaskHandler
 
     functions: list[Callable] = [
         DagFileProcessor.update_import_errors,
@@ -55,6 +56,7 @@ def _initialize_map() -> dict[str, Callable]:
         DagModel.get_current,
         DagFileProcessorManager.clear_nonexistent_import_errors,
         DagWarning.purge_inactive_dag_warnings,
+        FileTaskHandler._render_filename_db_access,
         Job._add_to_db,
         Job._fetch_from_db,
         Job._kill,
