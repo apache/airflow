@@ -29,8 +29,11 @@ import pytest
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.python import PythonOperator
+from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
+from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
 from airflow.utils.state import State
+from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
@@ -107,7 +110,7 @@ def _setup_mock_listener(mock_listener: mock.Mock, captured_try_numbers: dict[st
         ).side_effect = capture_try_number(event)
 
 
-def _create_test_dag_and_task(python_callable: Callable, scenario_name: str) -> TaskInstance:
+def _create_test_dag_and_task(python_callable: Callable, scenario_name: str) -> tuple[DagRun, TaskInstance]:
     """Creates a test DAG and a task for a custom test scenario.
 
     :param python_callable: The Python callable to be executed by the PythonOperator.
@@ -132,9 +135,9 @@ def _create_test_dag_and_task(python_callable: Callable, scenario_name: str) -> 
     )
     t = PythonOperator(task_id=f"test_task_{scenario_name}", dag=dag, python_callable=python_callable)
     run_id = str(uuid.uuid1())
-    dag.create_dagrun(state=State.NONE, run_id=run_id)  # type: ignore
+    dagrun = dag.create_dagrun(state=State.NONE, run_id=run_id)  # type: ignore
     task_instance = TaskInstance(t, run_id=run_id)
-    return task_instance
+    return dagrun, task_instance
 
 
 def _create_listener_and_task_instance() -> tuple[OpenLineageListener, TaskInstance]:
@@ -423,7 +426,7 @@ def test_listener_on_task_instance_failed_is_called_before_try_number_increment(
     def fail_callable(**kwargs):
         raise CustomError("Simulated task failure")
 
-    task_instance = _create_test_dag_and_task(fail_callable, "failure")
+    _, task_instance = _create_test_dag_and_task(fail_callable, "failure")
     # try_number before execution
     assert task_instance.try_number == 1
     with suppress(CustomError):
@@ -452,7 +455,7 @@ def test_listener_on_task_instance_success_is_called_after_try_number_increment(
     def success_callable(**kwargs):
         return None
 
-    task_instance = _create_test_dag_and_task(success_callable, "success")
+    _, task_instance = _create_test_dag_and_task(success_callable, "success")
     # try_number before execution
     assert task_instance.try_number == 1
     task_instance.run()
@@ -518,3 +521,148 @@ def test_listener_on_task_instance_success_do_not_call_adapter_when_disabled_ope
     mocked_adapter.build_task_instance_run_id.assert_not_called()
     listener.extractor_manager.extract_metadata.assert_not_called()
     listener.adapter.complete_task.assert_not_called()
+
+
+class TestOpenLineageSelectiveEnable:
+    def setup_method(self):
+        self.dag = DAG(
+            "test_selective_enable",
+            start_date=dt.datetime(2022, 1, 1),
+        )
+
+        def simple_callable(**kwargs):
+            return None
+
+        self.task_1 = PythonOperator(
+            task_id="test_task_selective_enable_1", dag=self.dag, python_callable=simple_callable
+        )
+        self.task_2 = PythonOperator(
+            task_id="test_task_selective_enable_2", dag=self.dag, python_callable=simple_callable
+        )
+        run_id = str(uuid.uuid1())
+        self.dagrun = self.dag.create_dagrun(state=State.NONE, run_id=run_id)  # type: ignore
+        self.task_instance_1 = TaskInstance(self.task_1, run_id=run_id)
+        self.task_instance_2 = TaskInstance(self.task_2, run_id=run_id)
+        self.task_instance_1.dag_run = self.task_instance_2.dag_run = self.dagrun
+
+    @pytest.mark.parametrize(
+        "selective_enable, enable_dag, expected_call_count",
+        [
+            ("True", True, 3),
+            ("False", True, 3),
+            ("True", False, 0),
+            ("False", False, 3),
+        ],
+    )
+    def test_listener_with_dag_enabled(self, selective_enable, enable_dag, expected_call_count):
+        """Tests listener's behaviour with selective-enable on DAG level."""
+
+        if enable_dag:
+            enable_lineage(self.dag)
+
+        conf.selective_enable.cache_clear()
+        with conf_vars({("openlineage", "selective_enable"): selective_enable}):
+            listener = OpenLineageListener()
+            listener._executor = mock.Mock()
+
+            # run all three DagRun-related hooks
+            listener.on_dag_run_running(self.dagrun, msg="test running")
+            listener.on_dag_run_failed(self.dagrun, msg="test failure")
+            listener.on_dag_run_success(self.dagrun, msg="test success")
+
+        try:
+            assert expected_call_count == listener._executor.submit.call_count
+        finally:
+            conf.selective_enable.cache_clear()
+
+    @pytest.mark.parametrize(
+        "selective_enable, enable_task, expected_dag_call_count, expected_task_call_count",
+        [
+            ("True", True, 3, 3),
+            ("False", True, 3, 3),
+            ("True", False, 0, 0),
+            ("False", False, 3, 3),
+        ],
+    )
+    def test_listener_with_task_enabled(
+        self, selective_enable, enable_task, expected_dag_call_count, expected_task_call_count
+    ):
+        """Tests listener's behaviour with selective-enable on task level."""
+
+        if enable_task:
+            enable_lineage(self.task_1)
+
+        conf.selective_enable.cache_clear()
+        with conf_vars({("openlineage", "selective_enable"): selective_enable}):
+            listener = OpenLineageListener()
+            listener._executor = mock.Mock()
+            listener.extractor_manager = mock.Mock()
+            listener.adapter = mock.Mock()
+            try:
+                # run all three DagRun-related hooks
+                listener.on_dag_run_running(self.dagrun, msg="test running")
+                listener.on_dag_run_failed(self.dagrun, msg="test failure")
+                listener.on_dag_run_success(self.dagrun, msg="test success")
+
+                assert expected_dag_call_count == listener._executor.submit.call_count
+
+                # run TaskInstance-related hooks for lineage enabled task
+                listener.on_task_instance_running(None, self.task_instance_1, None)
+                listener.on_task_instance_success(None, self.task_instance_1, None)
+                listener.on_task_instance_failed(None, self.task_instance_1, None)
+
+                assert expected_task_call_count == listener.extractor_manager.extract_metadata.call_count
+
+                # run TaskInstance-related hooks for lineage disabled task
+                listener.on_task_instance_running(None, self.task_instance_2, None)
+                listener.on_task_instance_success(None, self.task_instance_2, None)
+                listener.on_task_instance_failed(None, self.task_instance_2, None)
+
+                # with selective-enable disabled both task_1 and task_2 should trigger metadata extraction
+                if selective_enable == "False":
+                    expected_task_call_count *= 2
+
+                assert expected_task_call_count == listener.extractor_manager.extract_metadata.call_count
+            finally:
+                conf.selective_enable.cache_clear()
+
+    @pytest.mark.parametrize(
+        "selective_enable, enable_task, expected_call_count, expected_task_call_count",
+        [
+            ("True", True, 3, 3),
+            ("False", True, 3, 3),
+            ("True", False, 0, 0),
+            ("False", False, 3, 3),
+        ],
+    )
+    def test_listener_with_dag_disabled_task_enabled(
+        self, selective_enable, enable_task, expected_call_count, expected_task_call_count
+    ):
+        """Tests listener's behaviour with selective-enable on task level with DAG disabled."""
+        disable_lineage(self.dag)
+
+        if enable_task:
+            enable_lineage(self.task_1)
+
+        conf.selective_enable.cache_clear()
+        with conf_vars({("openlineage", "selective_enable"): selective_enable}):
+            listener = OpenLineageListener()
+            listener._executor = mock.Mock()
+            listener.extractor_manager = mock.Mock()
+            listener.adapter = mock.Mock()
+
+            # run all three DagRun-related hooks
+            listener.on_dag_run_running(self.dagrun, msg="test running")
+            listener.on_dag_run_failed(self.dagrun, msg="test failure")
+            listener.on_dag_run_success(self.dagrun, msg="test success")
+
+            # run TaskInstance-related hooks for lineage enabled task
+            listener.on_task_instance_running(None, self.task_instance_1, None)
+            listener.on_task_instance_success(None, self.task_instance_1, None)
+            listener.on_task_instance_failed(None, self.task_instance_1, None)
+
+        try:
+            assert expected_call_count == listener._executor.submit.call_count
+            assert expected_task_call_count == listener.extractor_manager.extract_metadata.call_count
+        finally:
+            conf.selective_enable.cache_clear()

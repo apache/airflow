@@ -52,6 +52,11 @@ def disabled_operators() -> set[str]:
 
 
 @cache
+def selective_enable() -> bool:
+    return conf.getboolean(_CONFIG_SECTION, "selective_enable", fallback=False)
+
+
+@cache
 def custom_extractors() -> set[str]:
     """[openlineage] extractors."""
     option = conf.get(_CONFIG_SECTION, "extractors", fallback="")
