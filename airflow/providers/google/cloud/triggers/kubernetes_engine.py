@@ -293,7 +293,7 @@ class GKEJobTrigger(BaseTrigger):
             {
                 "name": job.metadata.name,
                 "namespace": job.metadata.namespace,
-                "status": status
+                "status": status,
                 "message": message,
                 "job": job_dict,
             }
