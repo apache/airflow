@@ -672,11 +672,11 @@ class TestGKEPodOperatorAsync:
         Asserts that a task is deferred and the GKEStartPodTrigger will be fired
         when the GKEStartPodOperator is executed in deferrable mode when deferrable=True.
         """
+        self.gke_op._cluster_url = CLUSTER_URL
+        self.gke_op._ssl_ca_cert = SSL_CA_CERT
         with pytest.raises(TaskDeferred) as exc:
-            self.gke_op._cluster_url = CLUSTER_URL
-            self.gke_op._ssl_ca_cert = SSL_CA_CERT
             self.gke_op.execute(context=mock.MagicMock())
-            fetch_cluster_info_mock.assert_called_once()
+        fetch_cluster_info_mock.assert_called_once()
         assert isinstance(exc.value.trigger, GKEStartPodTrigger)
 
 
