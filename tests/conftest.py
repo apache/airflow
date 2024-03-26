@@ -401,6 +401,14 @@ def pytest_configure(config: pytest.Config) -> None:
         "markers",
         "external_python_operator: external python operator tests are 'long', we should run them separately",
     )
+    config.addinivalue_line(
+        "filterwarnings",
+        "error::airflow.exceptions.AirflowProviderDeprecationWarning",
+    )
+    config.addinivalue_line(
+        "filterwarnings",
+        "error::airflow.exceptions.RemovedInAirflow3Warning",
+    )
 
     os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
     configure_warning_output(config)
@@ -1246,54 +1254,24 @@ def pytest_runtest_call(item):
     """
     Needed to grab the item.location information
     """
-    global warnings_recorder
-
     if os.environ.get("PYTHONWARNINGS") == "ignore":
         yield
         return
 
-    warnings_recorder.__enter__()
-    yield
-    warnings_recorder.__exit__(None, None, None)
-
-    for warning in warnings_recorder.list:
-        # this code is adapted from python official warnings module
-
-        # Search the filters
-        for filter in warnings.filters:
-            action, msg, cat, mod, ln = filter
-
-            module = warning.filename or "<unknown>"
-            if module[-3:].lower() == ".py":
-                module = module[:-3]  # XXX What about leading pathname?
-
-            if (
-                (msg is None or msg.match(str(warning.message)))
-                and issubclass(warning.category, cat)
-                and (mod is None or mod.match(module))
-                and (ln == 0 or warning.lineno == ln)
-            ):
-                break
-        else:
-            action = warnings.defaultaction
-
-        # Early exit actions
-        if action == "ignore":
-            continue
-
-        warning.item = item
+    with warnings.catch_warnings(record=True) as records:
+        yield
+    for record in records:
         quadruplet: tuple[str, int, type[Warning], str] = (
-            warning.filename,
-            warning.lineno,
-            warning.category,
-            str(warning.message),
+            record.filename,
+            record.lineno,
+            record.category,
+            str(record.message),
         )
-
         if quadruplet in captured_warnings:
             captured_warnings_count[quadruplet] += 1
             continue
         else:
-            captured_warnings[quadruplet] = warning
+            captured_warnings[quadruplet] = record
             captured_warnings_count[quadruplet] = 1
 
 
