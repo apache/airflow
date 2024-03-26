@@ -194,6 +194,7 @@ jobs:
       packages: write
     secrets: inherit
     with:
+      runs-on: '["ubuntu-22.04"]'
       do-build: ${{ needs.build-info.outputs.in-workflow-build }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       platform: "linux/amd64"
@@ -248,7 +249,7 @@ jobs:
     needs: [build-info, wait-for-ci-images]
     uses: ./.github/workflows/additional-ci-image-checks.yml
     with:
-      runs-on: ${{needs.build-info.outputs.runs-on}}
+      runs-on: ${{ needs.build-info.outputs.runs-on }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       branch: ${{ needs.build-info.outputs.default-branch }}
@@ -269,7 +270,7 @@ jobs:
     needs: [build-info, wait-for-ci-images]
     uses: ./.github/workflows/static-checks-mypy-and-constraints-generation.yml
     with:
-      runs-on: ${{needs.build-info.outputs.runs-on}}
+      runs-on: ${{ needs.build-info.outputs.runs-on }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       branch: ${{ needs.build-info.outputs.default-branch }}
@@ -455,6 +456,8 @@ jobs:
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
+      canary-run: ${{ needs.build-info.outputs.canary-run }}
+      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
     if: needs.build-info.outputs.run-tests == 'true'
 
@@ -494,6 +497,7 @@ jobs:
       packages: write
     secrets: inherit
     with:
+      runs-on: '["ubuntu-22.04"]'
       build-type: "Regular"
       do-build: ${{ needs.build-info.outputs.in-workflow-build }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}

@@ -75,7 +75,6 @@ jobs:
           - backend: mysql
             backend-version: ${{ inputs.default-mysql-version }}
     env:
-      RUNS_ON: "${{ inputs.runs-on }}"
       IMAGE_TAG: "${{ inputs.image-tag }}"
       PARALLEL_TEST_TYPES: "${{ inputs.parallel-test-types-list-as-string }}"
       BACKEND: "${{ matrix.backend }}"
@@ -149,7 +148,7 @@ jobs:
         if: inputs.is-airflow-runner == 'true'
       - name: "Post Tests success: Integration"
         uses: ./.github/actions/post_tests_success
-        if: success() && inputs.is-airflow-runner == 'true' || matrix.backend == 'postgres'
+        if: success() && (inputs.is-airflow-runner == 'true' || matrix.backend == 'postgres')
       - name: "Post Tests failure: Integration"
         uses: ./.github/actions/post_tests_failure
-        if: failure() && inputs.is-airflow-runner == 'true' || matrix.backend == 'postgres'
+        if: failure() && (inputs.is-airflow-runner == 'true' || matrix.backend == 'postgres')

@@ -409,7 +409,7 @@ function install_airflow_dependencies_from_branch_tip() {
     # pyproject.toml in the next step (when we install regular airflow).
     set -x
     curl -fsSL "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz" | \
-        tar xvz -C "${TEMP_AIRFLOW_DIR}" --strip 1
+        tar xz -C "${TEMP_AIRFLOW_DIR}" --strip 1
     # Make sure editable dependencies are calculated when devel-ci dependencies are installed
     ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} \
         --editable "${TEMP_AIRFLOW_DIR}[${AIRFLOW_EXTRAS}]"
@@ -427,8 +427,8 @@ function install_airflow_dependencies_from_branch_tip() {
     echo
     set +x
     ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} apache-airflow
+    rm -rf "${TEMP_AIRFLOW_DIR}"
     set -x
-    rm -rvf "${TEMP_AIRFLOW_DIR}"
     # If you want to make sure dependency is removed from cache in your PR when you removed it from
     # pyproject.toml - please add your dependency here as a list of strings
     # for example:
@@ -1231,6 +1231,7 @@ ARG AIRFLOW_USE_UV="true"
 ARG PIP_NO_CACHE_DIR="true"
 # By default UV install run without cache to make image smaller
 ARG UV_NO_CACHE="true"
+ARG UV_REQUEST_TIMEOUT="300"
 # By default PIP has progress bar but you can disable it.
 ARG PIP_PROGRESS_BAR="on"
 # Optimizing installation of Cassandra driver (in case there are no prebuilt wheels which is the
@@ -1264,6 +1265,7 @@ ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
     AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION} \
     AIRFLOW_USE_UV=${AIRFLOW_USE_UV} \
+    UV_REQUEST_TIMEOUT=${UV_REQUEST_TIMEOUT} \
     INSTALL_MYSQL_CLIENT="true" \
     INSTALL_MYSQL_CLIENT_TYPE=${INSTALL_MYSQL_CLIENT_TYPE} \
     INSTALL_MSSQL_CLIENT="true" \

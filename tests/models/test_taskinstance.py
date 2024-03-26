@@ -3355,10 +3355,20 @@ class TestTaskInstance:
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])
-def test_refresh_from_task(pool_override):
+@pytest.mark.parametrize("queue_by_policy", [None, "forced_queue"])
+def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
+    default_queue = "test_queue"
+    expected_queue = queue_by_policy or default_queue
+    if queue_by_policy:
+        # Apply a dummy cluster policy to check if it is always applied
+        def mock_policy(task_instance: TaskInstance):
+            task_instance.queue = queue_by_policy
+
+        monkeypatch.setattr("airflow.models.taskinstance.task_instance_mutation_hook", mock_policy)
+
     task = EmptyOperator(
         task_id="empty",
-        queue="test_queue",
+        queue=default_queue,
         pool="test_pool1",
         pool_slots=3,
         priority_weight=10,
@@ -3369,7 +3379,7 @@ def test_refresh_from_task(pool_override):
     ti = TI(task, run_id=None)
     ti.refresh_from_task(task, pool_override=pool_override)
 
-    assert ti.queue == task.queue
+    assert ti.queue == expected_queue
 
     if pool_override:
         assert ti.pool == pool_override

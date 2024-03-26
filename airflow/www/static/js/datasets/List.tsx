@@ -24,17 +24,11 @@ import {
   Flex,
   Text,
   Link,
-  Input,
-  InputGroup,
-  InputLeftElement,
-  InputRightElement,
-  IconButton,
   ButtonGroup,
   Button,
 } from "@chakra-ui/react";
 import { snakeCase } from "lodash";
 import type { Row, SortingRule } from "react-table";
-import { MdClose, MdSearch } from "react-icons/md";
 import { useSearchParams } from "react-router-dom";
 
 import { useDatasetsSummary } from "src/api";
@@ -43,13 +37,13 @@ import type { API } from "src/types";
 import { getMetaValue } from "src/utils";
 import type { DateOption } from "src/api/useDatasetsSummary";
 import type { DatasetDependencies } from "src/api/useDatasetDependencies";
-import DagFilter from "./DagFilter";
+import SearchBar from "./SearchBar";
 
 interface Props {
-  onSelect: (datasetId: string) => void;
   datasetDependencies?: DatasetDependencies;
-  filteredDagIds: string[];
-  onFilterDags: (dagIds: string[]) => void;
+  selectedDagId?: string;
+  selectedUri?: string;
+  onSelectNode: (id: string, type: string) => void;
 }
 
 interface CellProps {
@@ -75,7 +69,6 @@ const DetailCell = ({ cell: { row } }: CellProps) => {
   );
 };
 
-const SEARCH_PARAM = "search";
 const DATE_FILTER_PARAM = "updated_within";
 
 const dateOptions: Record<string, DateOption> = {
@@ -86,17 +79,16 @@ const dateOptions: Record<string, DateOption> = {
 };
 
 const DatasetsList = ({
-  onSelect,
   datasetDependencies,
-  onFilterDags,
-  filteredDagIds,
+  onSelectNode,
+  selectedDagId,
+  selectedUri,
 }: Props) => {
   const limit = 25;
   const [offset, setOffset] = useState(0);
 
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const search = decodeURIComponent(searchParams.get(SEARCH_PARAM) || "");
   const dateFilter = searchParams.get(DATE_FILTER_PARAM) || undefined;
 
   const [sortBy, setSortBy] = useState<SortingRule<object>[]>([
@@ -104,7 +96,6 @@ const DatasetsList = ({
   ]);
   const sort = sortBy[0];
   const order = sort ? `${sort.desc ? "-" : ""}${snakeCase(sort.id)}` : "";
-  const uri = search.length > 2 ? search : undefined;
 
   const {
     data: { datasets, totalEntries },
@@ -113,7 +104,7 @@ const DatasetsList = ({
     limit,
     offset,
     order,
-    uri,
+    // uri,
     updatedAfter: dateFilter ? dateOptions[dateFilter] : undefined,
   });
 
@@ -137,24 +128,10 @@ const DatasetsList = ({
   const memoSort = useMemo(() => sortBy, [sortBy]);
 
   const onDatasetSelect = (row: Row<API.Dataset>) => {
-    if (row.original.uri) onSelect(row.original.uri);
+    if (row.original.uri) onSelectNode(row.original.uri, "dataset");
   };
 
   const docsUrl = getMetaValue("datasets_docs");
-
-  const onSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.value) {
-      searchParams.set(SEARCH_PARAM, encodeURIComponent(e.target.value));
-    } else {
-      searchParams.delete(SEARCH_PARAM);
-    }
-    setSearchParams(searchParams);
-  };
-
-  const onClear = () => {
-    searchParams.delete(SEARCH_PARAM);
-    setSearchParams(searchParams);
-  };
 
   return (
     <Box>
@@ -163,7 +140,7 @@ const DatasetsList = ({
           Datasets
         </Heading>
       </Flex>
-      {!datasets.length && !isLoading && !search && !dateFilter && (
+      {!datasets.length && !isLoading && !dateFilter && (
         <Text mb={4} data-testid="no-datasets-msg">
           Looks like you do not have any datasets yet. Check out the{" "}
           <Link color="blue" href={docsUrl} isExternal>
@@ -208,31 +185,11 @@ const DatasetsList = ({
           })}
         </ButtonGroup>
       </Flex>
-      <InputGroup my={2}>
-        <InputLeftElement pointerEvents="none">
-          <MdSearch />
-        </InputLeftElement>
-        <Input
-          placeholder="Search by URI..."
-          value={search}
-          onChange={onSearch}
-        />
-        {search.length > 0 && (
-          <InputRightElement>
-            <IconButton
-              aria-label="Clear search"
-              title="Clear search"
-              icon={<MdClose />}
-              variant="ghost"
-              onClick={onClear}
-            />
-          </InputRightElement>
-        )}
-      </InputGroup>
-      <DagFilter
+      <SearchBar
         datasetDependencies={datasetDependencies}
-        filteredDagIds={filteredDagIds}
-        onFilterDags={onFilterDags}
+        selectedDagId={selectedDagId}
+        selectedUri={selectedUri}
+        onSelectNode={onSelectNode}
       />
       <Box borderWidth={1} mt={2}>
         <Table

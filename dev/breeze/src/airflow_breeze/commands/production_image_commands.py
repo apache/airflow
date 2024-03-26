@@ -69,6 +69,7 @@ from airflow_breeze.commands.common_options import (
     option_run_in_parallel,
     option_skip_cleanup,
     option_use_uv_default_disabled,
+    option_uv_request_timeout,
     option_verbose,
     option_version_suffix_for_pypi,
 )
@@ -242,6 +243,7 @@ def prod_image():
 @option_skip_cleanup
 @option_tag_as_latest
 @option_use_uv_default_disabled
+@option_uv_request_timeout
 @option_verbose
 @option_version_suffix_for_pypi
 def build(
@@ -295,6 +297,7 @@ def build(
     tag_as_latest: bool,
     use_constraints_for_context_packages: bool,
     use_uv: bool,
+    uv_request_timeout: int,
     version_suffix_for_pypi: str,
 ):
     """
@@ -357,6 +360,7 @@ def build(
         tag_as_latest=tag_as_latest,
         use_constraints_for_context_packages=use_constraints_for_context_packages,
         use_uv=use_uv,
+        uv_request_timeout=uv_request_timeout,
         version_suffix_for_pypi=version_suffix_for_pypi,
     )
     if platform:

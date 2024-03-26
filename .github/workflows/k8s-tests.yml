@@ -62,7 +62,6 @@ jobs:
         use-standard-naming: [true, false]
       fail-fast: false
     env:
-      RUNS_ON: ${{ inputs.outputs.runs-on }}
       DEBUG_RESOURCES: ${{ inputs.debug-resources }}
       INCLUDE_SUCCESS_OUTPUTS: ${{ inputs.include-success-outputs }}
       IMAGE_TAG: ${{ inputs.image-tag }}

@@ -344,7 +344,7 @@ combine-as-imports = true
 "dev/breeze/tests/*" = ["TID253", "S101"]
 "tests/*" = ["D", "TID253", "S101"]
 "docker_tests/*" = ["D", "TID253", "S101"]
-"kubernetes_tests/*" = ["D", "TID253", "S101", "PT012"]
+"kubernetes_tests/*" = ["D", "TID253", "S101"]
 "helm_tests/*" = ["D", "TID253", "S101"]
 
 # All of the modules which have an extra license header (i.e. that we copy from another project) need to
@@ -376,8 +376,6 @@ combine-as-imports = true
 "tests/providers/amazon/aws/transfers/test_redshift_to_s3.py" = ["PT012"]
 "tests/providers/amazon/aws/triggers/test_ecs.py" = ["PT012"]
 "tests/providers/amazon/aws/waiters/test_neptune.py" = ["PT012"]
-"tests/providers/apache/hive/hooks/test_hive.py" = ["PT012"]
-"tests/providers/apache/hive/sensors/test_named_hive_partition.py" = ["PT012"]
 "tests/providers/cncf/kubernetes/executors/test_kubernetes_executor.py" = ["PT012"]
 "tests/providers/cncf/kubernetes/hooks/test_kubernetes.py" = ["PT012"]
 "tests/providers/cncf/kubernetes/operators/test_pod.py" = ["PT012"]
@@ -414,8 +412,6 @@ combine-as-imports = true
 "tests/providers/sftp/operators/test_sftp.py" = ["PT012"]
 "tests/providers/sftp/sensors/test_sftp.py" = ["PT012"]
 "tests/providers/sftp/triggers/test_sftp.py" = ["PT012"]
-"tests/providers/ssh/hooks/test_ssh.py" = ["PT012"]
-"tests/providers/ssh/operators/test_ssh.py" = ["PT012"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.

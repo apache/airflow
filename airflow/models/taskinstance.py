@@ -98,6 +98,7 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import LazyXComAccess, XCom
 from airflow.plugins_manager import integrate_macros_plugins
 from airflow.sentry import Sentry
+from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
 from airflow.templates import SandboxedEnvironment
 from airflow.ti_deps.dep_context import DepContext
@@ -943,6 +944,8 @@ def _refresh_from_task(
     task_instance.executor_config = task.executor_config
     task_instance.operator = task.task_type
     task_instance.custom_operator_name = getattr(task, "custom_operator_name", None)
+    # Re-apply cluster policy here so that task default do not overload previous data
+    task_instance_mutation_hook(task_instance)
 
 
 def _record_task_map_for_downstreams(
