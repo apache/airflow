@@ -48,6 +48,7 @@ RELEASE_PROVIDERS_COMMANDS: dict[str, str | list[str]] = {
         "generate-providers-metadata",
         "generate-issue-content-providers",
         "clean-old-provider-artifacts",
+        "tag-providers",
     ],
 }
 
@@ -198,6 +199,14 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--package-list",
             ],
         }
+    ],
+    "breeze release-management tag-providers": [
+        {
+            "name": "Add tags to providers",
+            "options": [
+                "--clean-local-tags",
+            ],
+        },
     ],
     "breeze release-management prepare-provider-documentation": [
         {
