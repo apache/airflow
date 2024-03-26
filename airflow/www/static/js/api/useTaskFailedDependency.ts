@@ -39,8 +39,9 @@ export default function useTaskFailedDependency({
   return useQuery(
     ["taskFailedDependencies", dagId, taskId, runId, mapIndex],
     async () => {
+      const definedMapIndex = mapIndex ?? -1;
       const url = (
-        mapIndex && mapIndex >= 0 ? mappedTaskDependencyURI : taskDependencyURI
+        definedMapIndex >= 0 ? mappedTaskDependencyURI : taskDependencyURI
       )
         .replace("_DAG_RUN_ID_", runId)
         .replace(
