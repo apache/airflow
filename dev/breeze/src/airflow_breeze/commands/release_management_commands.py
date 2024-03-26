@@ -2121,12 +2121,18 @@ def get_change_from_line(line: str):
 
 
 def get_changes(
-    verbose: bool, previous_release: str, current_release: str, is_helm_chart: bool = False
+    verbose: bool,
+    previous_release: str,
+    current_release: str,
+    is_helm_chart: bool = False,
 ) -> list[Change]:
     print(MY_DIR_PATH, SOURCE_DIR_PATH)
     change_strings = subprocess.check_output(
         get_git_log_command(
-            verbose, from_commit=previous_release, to_commit=current_release, is_helm_chart=is_helm_chart
+            verbose,
+            from_commit=previous_release,
+            to_commit=current_release,
+            is_helm_chart=is_helm_chart,
         ),
         cwd=SOURCE_DIR_PATH,
         text=True,
@@ -2233,7 +2239,13 @@ def generate_issue_content_helm_chart(
     limit_pr_count: int | None,
 ):
     generate_issue_content(
-        github_token, previous_release, current_release, excluded_pr_list, limit_pr_count, is_helm_chart=True
+        github_token,
+        previous_release,
+        current_release,
+        excluded_pr_list,
+        limit_pr_count,
+        is_helm_chart=True,
+        latest=False,
     )
 
 
@@ -2254,13 +2266,11 @@ def generate_issue_content_helm_chart(
 @click.option(
     "--previous-release",
     type=str,
-    required=True,
     help="commit reference (for example hash or tag) of the previous release.",
 )
 @click.option(
     "--current-release",
     type=str,
-    required=True,
     help="commit reference (for example hash or tag) of the current release.",
 )
 @click.option("--excluded-pr-list", type=str, help="Coma-separated list of PRs to exclude from the issue.")
@@ -2270,6 +2280,11 @@ def generate_issue_content_helm_chart(
     default=None,
     help="Limit PR count processes (useful for testing small subset of PRs).",
 )
+@click.option(
+    "--latest",
+    is_flag=True,
+    help="Run the command against latest released version of airflow",
+)
 @option_verbose
 def generate_issue_content_core(
     github_token: str,
@@ -2277,9 +2292,16 @@ def generate_issue_content_core(
     current_release: str,
     excluded_pr_list: str,
     limit_pr_count: int | None,
+    latest: bool,
 ):
     generate_issue_content(
-        github_token, previous_release, current_release, excluded_pr_list, limit_pr_count, is_helm_chart=False
+        github_token,
+        previous_release,
+        current_release,
+        excluded_pr_list,
+        limit_pr_count,
+        is_helm_chart=False,
+        latest=latest,
     )
 
 
@@ -3155,12 +3177,31 @@ def generate_issue_content(
     excluded_pr_list: str,
     limit_pr_count: int | None,
     is_helm_chart: bool,
+    latest: bool,
 ):
     from github import Github, Issue, PullRequest, UnknownObjectException
 
     PullRequestOrIssue = Union[PullRequest.PullRequest, Issue.Issue]
     verbose = get_verbose()
-    changes = get_changes(verbose, previous_release, current_release, is_helm_chart)
+
+    previous = previous_release
+    current = current_release
+
+    if latest:
+        import requests
+
+        response = requests.get("https://pypi.org/pypi/apache-airflow/json")
+        response.raise_for_status()
+        latest_released_version = response.json()["info"]["version"]
+        previous = str(latest_released_version)
+        current = os.getenv("VERSION", "HEAD")
+        if current == "HEAD":
+            get_console().print(
+                "\n[warning]Environment variable VERSION not set, setting current release "
+                "version as 'HEAD'\n"
+            )
+
+    changes = get_changes(verbose, previous, current, is_helm_chart)
     change_prs = [change.pr for change in changes]
     if excluded_pr_list:
         excluded_prs = [int(pr) for pr in excluded_pr_list.split(",")]
