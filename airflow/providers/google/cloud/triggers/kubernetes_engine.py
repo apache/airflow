@@ -257,7 +257,7 @@ class GKEJobTrigger(BaseTrigger):
         gcp_conn_id: str = "google_cloud_default",
         poll_interval: float = 2,
         impersonation_chain: str | Sequence[str] | None = None,
-    ):
+    ) -> None:
         super().__init__()
         self.cluster_url = cluster_url
         self.ssl_ca_cert = ssl_ca_cert
