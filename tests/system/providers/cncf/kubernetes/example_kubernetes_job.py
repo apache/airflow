@@ -79,9 +79,9 @@ with DAG(
         task_id="delete_job_task",
         name=k8s_job.output["job_name"],
         namespace=JOB_NAMESPACE,
-        wait_until_job_complete=True,
-        on_status="Complete",
-        job_poll_interval=1.0,
+        wait_for_completion=True,
+        delete_on_status="Complete",
+        poll_interval=1.0,
     )
     # [END howto_operator_delete_k8s_job]
 
