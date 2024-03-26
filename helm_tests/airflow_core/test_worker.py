@@ -471,7 +471,7 @@ class TestWorker:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert "Always" == jmespath.search("spec.template.spec.initContainers[0].restartPolicy", docs[0])
+        assert "Always" == jmespath.search("spec.template.spec.initContainers[1].restartPolicy", docs[0])
 
     @pytest.mark.parametrize(
         "log_values, expected_volume",
