@@ -287,14 +287,14 @@ class GKEJobTrigger(BaseTrigger):
         job: V1Job = await self.hook.wait_until_job_complete(name=self.job_name, namespace=self.job_namespace)
         job_dict = job.to_dict()
         error_message = self.hook.is_job_failed(job=job)
+        status = "error" if error_message else "success"
+        message = f"Job failed with error: {error_message}" if error_message else "Job completed successfully"
         yield TriggerEvent(
             {
                 "name": job.metadata.name,
                 "namespace": job.metadata.namespace,
-                "status": "error" if error_message else "success",
-                "message": f"Job failed with error: {error_message}"
-                if error_message
-                else "Job completed successfully",
+                "status": status
+                "message": message,
                 "job": job_dict,
             }
         )
