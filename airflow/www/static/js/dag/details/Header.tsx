@@ -92,7 +92,9 @@ const Header = () => {
 
   const lastIndex = taskId ? taskId.lastIndexOf(".") : null;
   const taskName =
-    taskId && lastIndex ? taskId.substring(lastIndex + 1) : taskId;
+    taskInstance?.taskDisplayName && lastIndex
+      ? taskInstance?.taskDisplayName.substring(lastIndex + 1)
+      : taskId;
 
   const isDagDetails = !runId && !taskId;
   const isRunDetails = !!(runId && !taskId);
