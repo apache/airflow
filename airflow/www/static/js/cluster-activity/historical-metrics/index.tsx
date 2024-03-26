@@ -74,6 +74,7 @@ const HistoricalMetrics = () => {
                     datasetTriggered: stateColors.queued,
                     manual: stateColors.success,
                     scheduled: stateColors.scheduled,
+                    triggered: stateColors.running,
                   }}
                 />
                 <PieChart

@@ -52,6 +52,7 @@ class DagRunType(str, enum.Enum):
     SCHEDULED = "scheduled"
     MANUAL = "manual"
     DATASET_TRIGGERED = "dataset_triggered"
+    TRIGGERED = "triggered"
 
     def __str__(self) -> str:
         return self.value

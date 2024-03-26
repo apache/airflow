@@ -40,6 +40,7 @@ const mockHistoricalMetricsData = {
     dataset_triggered: 0,
     manual: 14,
     scheduled: 292,
+    triggered: 0,
   },
   task_instance_states: {
     deferred: 0,

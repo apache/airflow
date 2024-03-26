@@ -159,7 +159,7 @@ class TriggerDagRunOperator(BaseOperator):
         if self.trigger_run_id:
             run_id = str(self.trigger_run_id)
         else:
-            run_id = DagRun.generate_run_id(DagRunType.MANUAL, parsed_execution_date)
+            run_id = DagRun.generate_run_id(DagRunType.TRIGGERED, parsed_execution_date)
 
         try:
             dag_run = trigger_dag(

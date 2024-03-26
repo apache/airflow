@@ -18,7 +18,7 @@
  */
 
 import React from "react";
-import { MdPlayArrow, MdOutlineSchedule } from "react-icons/md";
+import { MdPlayArrow, MdOutlineSchedule, MdBolt } from "react-icons/md";
 import { RiArrowGoBackFill } from "react-icons/ri";
 import { HiDatabase } from "react-icons/hi";
 
@@ -44,6 +44,8 @@ const DagRunTypeIcon = ({ runType, ...rest }: Props) => {
       return <MdOutlineSchedule style={iconStyle} {...rest} />;
     case "dataset_triggered":
       return <HiDatabase style={iconStyle} {...rest} />;
+    case "triggered":
+      return <MdBolt style={iconStyle} {...rest} />;
     default:
       return null;
   }
