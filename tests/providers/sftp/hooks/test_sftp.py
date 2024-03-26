@@ -23,7 +23,7 @@ import os
 import shutil
 from io import StringIO
 from unittest import mock
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import paramiko
 import pytest
@@ -405,12 +405,11 @@ class TestSFTPHook:
     @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_invalid_ssh_hook(self, mock_get_connection):
         with pytest.raises(AirflowException, match="ssh_hook must be an instance of SSHHook"):
-            connection = Connection(conn_id="sftp_default", login="root", host="localhost")
-            mock_get_connection.return_value = connection
-            with pytest.warns(
-                AirflowProviderDeprecationWarning, match=r"Parameter `ssh_hook` is deprecated.*"
-            ):
-                SFTPHook(ssh_hook="invalid_hook")
+            SFTPHook(ssh_hook="invalid_hook")
+
+    def test_ssh_hook_deprecated(self):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=r"Parameter `ssh_hook` is deprecated.*"):
+            SFTPHook(ssh_hook=MagicMock(ssh_conn_id="ssh_conn_id", spec=SSHHook))
 
     @mock.patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_connection")
     def test_valid_ssh_hook(self, mock_get_connection):
