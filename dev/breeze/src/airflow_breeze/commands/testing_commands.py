@@ -679,7 +679,7 @@ def _run_test_command(
     fix_ownership_using_docker()
     cleanup_python_generated_files()
     perform_environment_checks()
-    if pydantic:
+    if pydantic != "v2":
         # Avoid edge cases when there are no available tests, e.g. No-Pydantic for Weaviate provider.
         # https://docs.pytest.org/en/stable/reference/exit-codes.html
         # https://github.com/apache/airflow/pull/38402#issuecomment-2014938950
