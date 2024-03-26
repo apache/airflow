@@ -2119,7 +2119,6 @@ def get_changes(
     previous_release: str,
     current_release: str,
     is_helm_chart: bool = False,
-    max_count: int = 0,
 ) -> list[Change]:
     print(MY_DIR_PATH, SOURCE_DIR_PATH)
     change_strings = subprocess.check_output(
@@ -3189,11 +3188,11 @@ def generate_issue_content(
         response.raise_for_status()
         latest_released_version = response.json()["info"]["version"]
         previous = str(latest_released_version)
-        current = os.getenv("VERSION", "main")
-        if current == "main":
+        current = os.getenv("VERSION", "HEAD")
+        if current == "HEAD":
             get_console().print(
                 "\n[warning]Environment variable VERSION not set, setting current release "
-                "version as 'main'\n"
+                "version as 'HEAD'\n"
             )
 
     changes = get_changes(verbose, previous, current, is_helm_chart)
