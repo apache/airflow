@@ -148,7 +148,7 @@ jobs:
         if: inputs.is-airflow-runner == 'true'
       - name: "Post Tests success: Integration"
         uses: ./.github/actions/post_tests_success
-        if: success() && inputs.is-airflow-runner == 'true' || matrix.backend == 'postgres'
+        if: success() && (inputs.is-airflow-runner == 'true' || matrix.backend == 'postgres')
       - name: "Post Tests failure: Integration"
         uses: ./.github/actions/post_tests_failure
-        if: failure() && inputs.is-airflow-runner == 'true' || matrix.backend == 'postgres'
+        if: failure() && (inputs.is-airflow-runner == 'true' || matrix.backend == 'postgres')
