@@ -61,7 +61,7 @@ PROJECT_ID = "test-project-id"
 LOCATION = "us-central1-c"
 GCP_CONN_ID = "test-non-existing-project-id"
 IMPERSONATION_CHAIN = ["impersonate", "this", "test"]
-TRIGGER_PATH = GKE_TRIGGERS_PATH + ".GKEOperationTrigger"
+TRIGGER_PATH = f"{GKE_TRIGGERS_PATH}.GKEOperationTrigger"
 EXC_MSG = "test error msg"
 
 
