@@ -2224,10 +2224,15 @@ class TaskInstance(Base, LoggingMixin):
 
         if isinstance(task_instance, TaskInstance):
             ti: TaskInstance = task_instance
-        else:  # isinstance(task_instance,TaskInstancePydantic)
+        else:  # isinstance(task_instance, TaskInstancePydantic)
             filters = (col == getattr(task_instance, col.name) for col in inspect(TaskInstance).primary_key)
             ti = session.query(TaskInstance).filter(*filters).scalar()
+            dag = ti.dag_model.serialized_dag.dag
+            task_instance.task = dag.task_dict[ti.task_id]
+            ti.task = task_instance.task
         task = task_instance.task
+        if TYPE_CHECKING:
+            assert task
         ti.refresh_from_task(task, pool_override=pool)
         ti.test_mode = test_mode
         ti.refresh_from_db(session=session, lock_for_update=True)
