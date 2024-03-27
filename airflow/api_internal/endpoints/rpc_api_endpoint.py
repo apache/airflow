@@ -26,7 +26,6 @@ from uuid import uuid4
 from flask import Response
 
 from airflow.jobs.job import Job, most_recent_job
-from airflow.models.taskinstance import _get_template_context, _update_rtif
 from airflow.sensors.base import _orig_start_date
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils.session import create_session
@@ -42,12 +41,19 @@ def _initialize_map() -> dict[str, Callable]:
     from airflow.cli.commands.task_command import _get_ti_db_access
     from airflow.dag_processing.manager import DagFileProcessorManager
     from airflow.dag_processing.processor import DagFileProcessor
+    from airflow.datasets.manager import DatasetManager
     from airflow.models import Trigger, Variable, XCom
     from airflow.models.dag import DAG, DagModel
     from airflow.models.dagrun import DagRun
     from airflow.models.dagwarning import DagWarning
     from airflow.models.serialized_dag import SerializedDagModel
-    from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstance import (
+        TaskInstance,
+        _add_log,
+        _get_template_context,
+        _handle_failure,
+        _update_rtif,
+    )
     from airflow.secrets.metastore import MetastoreBackend
     from airflow.utils.cli_action_loggers import _default_action_log_internal
     from airflow.utils.log.file_task_handler import FileTaskHandler
@@ -58,6 +64,8 @@ def _initialize_map() -> dict[str, Callable]:
         _get_ti_db_access,
         _update_rtif,
         _orig_start_date,
+        _handle_failure,
+        _add_log,
         DagFileProcessor.update_import_errors,
         DagFileProcessor.manage_slas,
         DagFileProcessorManager.deactivate_stale_dags,
@@ -66,6 +74,7 @@ def _initialize_map() -> dict[str, Callable]:
         DagModel.get_current,
         DagFileProcessorManager.clear_nonexistent_import_errors,
         DagWarning.purge_inactive_dag_warnings,
+        DatasetManager.register_dataset_change,
         FileTaskHandler._render_filename_db_access,
         Job._add_to_db,
         Job._fetch_from_db,
@@ -94,7 +103,6 @@ def _initialize_map() -> dict[str, Callable]:
         TaskInstance.get_task_instance,
         TaskInstance._get_dagrun,
         TaskInstance._set_state,
-        TaskInstance.fetch_handle_failure_context,
         TaskInstance.save_to_db,
         TaskInstance._schedule_downstream_tasks,
         TaskInstance._clear_xcom_data,

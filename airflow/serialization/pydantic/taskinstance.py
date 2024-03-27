@@ -21,9 +21,10 @@ from typing import TYPE_CHECKING, Any, Iterable, Optional
 
 from typing_extensions import Annotated
 
+from airflow.exceptions import AirflowRescheduleException, TaskDeferred
 from airflow.models import Operator
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import TaskInstance, TaskReturnCode, _run_raw_task
 from airflow.serialization.pydantic.dag import DagModelPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -125,6 +126,25 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
 
     def set_state(self, state, session: Session | None = None) -> bool:
         return TaskInstance._set_state(ti=self, state=state, session=session)
+
+    def _run_raw_task(
+        self,
+        mark_success: bool = False,
+        test_mode: bool = False,
+        job_id: str | None = None,
+        pool: str | None = None,
+        raise_on_defer: bool = False,
+        session: Session | None = None,
+    ) -> TaskReturnCode | None:
+        return _run_raw_task(
+            ti=self,
+            mark_success=mark_success,
+            test_mode=test_mode,
+            job_id=job_id,
+            pool=pool,
+            raise_on_defer=raise_on_defer,
+            session=session,
+        )
 
     def _run_execute_callback(self, context, task):
         TaskInstance._run_execute_callback(self=self, context=context, task=task)  # type: ignore[arg-type]
@@ -259,7 +279,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
 
     def handle_failure(
         self,
-        error: None | str | Exception | KeyboardInterrupt,
+        error: None | str | BaseException,
         test_mode: bool | None = None,
         context: Context | None = None,
         force_fail: bool = False,
@@ -450,6 +470,26 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
             pool=pool,
             cfg_path=cfg_path,
         )
+
+    def _register_dataset_changes(self, *, events, session: Session | None = None) -> None:
+        TaskInstance._register_dataset_changes(self=self, events=events, session=session)  # type: ignore[arg-type]
+
+    def defer_task(self, session: Session, defer: TaskDeferred):
+        """Defer task.
+
+        todo: AIP-44
+        """
+        return NotImplementedError
+
+    def _handle_reschedule(
+        self,
+        actual_start_date: datetime,
+        reschedule_exception: AirflowRescheduleException,
+        test_mode: bool = False,
+        session: Session | None = None,
+    ):
+        # todo: AIP-44
+        return NotImplementedError
 
 
 if is_pydantic_2_installed():
