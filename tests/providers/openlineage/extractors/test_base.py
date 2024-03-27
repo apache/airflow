@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import os
 from typing import Any
 from unittest import mock
 
@@ -34,7 +33,6 @@ from airflow.providers.openlineage.extractors.base import (
 )
 from airflow.providers.openlineage.extractors.manager import ExtractorManager
 from airflow.providers.openlineage.extractors.python import PythonExtractor
-from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
@@ -230,20 +228,9 @@ def test_extraction_without_on_start():
     )
 
 
-@mock.patch.dict(
-    os.environ,
-    {"OPENLINEAGE_EXTRACTORS": "tests.providers.openlineage.extractors.test_base.ExampleExtractor"},
-)
-def test_extractors_env_var():
-    extractor = ExtractorManager().get_extractor_class(ExampleOperator(task_id="example"))
-    assert extractor is ExampleExtractor
-
-
-@mock.patch.dict(os.environ, {"OPENLINEAGE_EXTRACTORS": "no.such.extractor"})
-@conf_vars(
-    {("openlineage", "extractors"): "tests.providers.openlineage.extractors.test_base.ExampleExtractor"}
-)
-def test_config_has_precedence_over_env_var():
+@mock.patch("airflow.providers.openlineage.conf.custom_extractors")
+def test_extractors_env_var(custom_extractors):
+    custom_extractors.return_value = {"tests.providers.openlineage.extractors.test_base.ExampleExtractor"}
     extractor = ExtractorManager().get_extractor_class(ExampleOperator(task_id="example"))
     assert extractor is ExampleExtractor
 
@@ -285,17 +272,3 @@ def test_default_extractor_uses_wrong_operatorlineage_class():
     assert (
         ExtractorManager().extract_metadata(mock.MagicMock(), operator, complete=False) == OperatorLineage()
     )
-
-
-@mock.patch.dict(
-    os.environ,
-    {
-        "AIRFLOW__OPENLINEAGE__DISABLED_FOR_OPERATORS": "tests.providers.openlineage.extractors.test_base.ExampleOperator"
-    },
-)
-def test_default_extraction_disabled_operator():
-    extractor = DefaultExtractor(ExampleOperator(task_id="test"))
-    metadata = extractor.extract()
-    assert metadata is None
-    metadata = extractor.extract_on_complete(None)
-    assert metadata is None

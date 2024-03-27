@@ -80,13 +80,11 @@ def _parse_sqlite_version(s: str) -> tuple[int, ...]:
 
 
 @overload
-def expand_env_var(env_var: None) -> None:
-    ...
+def expand_env_var(env_var: None) -> None: ...
 
 
 @overload
-def expand_env_var(env_var: str) -> str:
-    ...
+def expand_env_var(env_var: str) -> str: ...
 
 
 def expand_env_var(env_var: str | None) -> str | None:
@@ -266,7 +264,7 @@ class AirflowConfigParser(ConfigParser):
                     )
                 self._default_values.set(section, key, value)
             if errors:
-                raise Exception(
+                raise AirflowConfigException(
                     f"The string config passed as default contains variables. "
                     f"This is not supported. String config: {config_string}"
                 )
@@ -471,7 +469,7 @@ class AirflowConfigParser(ConfigParser):
         ("logging", "fab_logging_level"): _available_logging_levels,
         # celery_logging_level can be empty, which uses logging_level as fallback
         ("logging", "celery_logging_level"): [*_available_logging_levels, ""],
-        ("webserver", "analytical_tool"): ["google_analytics", "metarouter", "segment", ""],
+        ("webserver", "analytical_tool"): ["google_analytics", "metarouter", "segment", "matomo", ""],
     }
 
     upgraded_values: dict[tuple[str, str], str]
@@ -929,12 +927,10 @@ class AirflowConfigParser(ConfigParser):
         return value
 
     @overload  # type: ignore[override]
-    def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str:
-        ...
+    def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str: ...
 
     @overload  # type: ignore[override]
-    def get(self, section: str, key: str, **kwargs) -> str | None:
-        ...
+    def get(self, section: str, key: str, **kwargs) -> str | None: ...
 
     def get(  # type: ignore[override,misc]
         self,

@@ -172,7 +172,8 @@ class TestDagBag:
         path2.write_text("".join(source_lines))
 
         found_1 = dagbag.process_file(os.fspath(path1))
-        assert len(found_1) == 1 and found_1[0].dag_id == "my_flow"
+        assert len(found_1) == 1
+        assert found_1[0].dag_id == "my_flow"
         assert dagbag.import_errors == {}
         dags_in_bag = dagbag.dags
 

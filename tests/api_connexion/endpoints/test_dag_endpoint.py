@@ -181,6 +181,7 @@ class TestGetDag(TestDagEndpoint):
         assert response.status_code == 200
         assert {
             "dag_id": "TEST_DAG_1",
+            "dag_display_name": "TEST_DAG_1",
             "description": None,
             "fileloc": "/tmp/dag_1.py",
             "file_token": "Ii90bXAvZGFnXzEucHki.EnmIdPaUPo26lHQClbWMbDFD1Pk",
@@ -196,6 +197,7 @@ class TestGetDag(TestDagEndpoint):
             "next_dagrun_data_interval_start": None,
             "next_dagrun_data_interval_end": None,
             "max_active_runs": 16,
+            "max_consecutive_failed_dag_runs": 0,
             "next_dagrun_create_after": None,
             "last_expired": None,
             "max_active_tasks": 16,
@@ -222,6 +224,7 @@ class TestGetDag(TestDagEndpoint):
         assert response.status_code == 200
         assert {
             "dag_id": "TEST_DAG_1",
+            "dag_display_name": "TEST_DAG_1",
             "description": None,
             "fileloc": "/tmp/dag_1.py",
             "file_token": "Ii90bXAvZGFnXzEucHki.EnmIdPaUPo26lHQClbWMbDFD1Pk",
@@ -237,6 +240,7 @@ class TestGetDag(TestDagEndpoint):
             "next_dagrun_data_interval_start": None,
             "next_dagrun_data_interval_end": None,
             "max_active_runs": 16,
+            "max_consecutive_failed_dag_runs": 0,
             "next_dagrun_create_after": None,
             "last_expired": None,
             "max_active_tasks": 16,
@@ -327,6 +331,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "catchup": True,
             "concurrency": 16,
             "dag_id": "test_dag",
+            "dag_display_name": "test_dag",
             "dag_run_timeout": None,
             "dataset_expression": None,
             "default_view": None,
@@ -347,6 +352,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "last_pickled": None,
             "max_active_runs": 16,
             "max_active_tasks": 16,
+            "max_consecutive_failed_dag_runs": 0,
             "next_dagrun": None,
             "next_dagrun_create_after": None,
             "next_dagrun_data_interval_end": None,
@@ -386,6 +392,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "catchup": True,
             "concurrency": 16,
             "dag_id": "test_dag",
+            "dag_display_name": "test_dag",
             "dag_run_timeout": None,
             "dataset_expression": {
                 "any": [
@@ -410,6 +417,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "last_parsed_time": None,
             "last_pickled": None,
             "max_active_runs": 16,
+            "max_consecutive_failed_dag_runs": 0,
             "max_active_tasks": 16,
             "next_dagrun": None,
             "next_dagrun_create_after": None,
@@ -450,6 +458,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "catchup": True,
             "concurrency": 16,
             "dag_id": "test_dag2",
+            "dag_display_name": "test_dag2",
             "dag_run_timeout": None,
             "dataset_expression": None,
             "default_view": None,
@@ -469,6 +478,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "last_parsed_time": None,
             "last_pickled": None,
             "max_active_runs": 16,
+            "max_consecutive_failed_dag_runs": 0,
             "max_active_tasks": 16,
             "next_dagrun": None,
             "next_dagrun_create_after": None,
@@ -502,6 +512,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "catchup": True,
             "concurrency": 16,
             "dag_id": "test_dag3",
+            "dag_display_name": "test_dag3",
             "dag_run_timeout": None,
             "dataset_expression": None,
             "default_view": None,
@@ -521,6 +532,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "last_parsed_time": None,
             "last_pickled": None,
             "max_active_runs": 16,
+            "max_consecutive_failed_dag_runs": 0,
             "max_active_tasks": 16,
             "next_dagrun": None,
             "next_dagrun_create_after": None,
@@ -557,6 +569,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "catchup": True,
             "concurrency": 16,
             "dag_id": "test_dag",
+            "dag_display_name": "test_dag",
             "dag_run_timeout": None,
             "dataset_expression": None,
             "default_view": None,
@@ -575,6 +588,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "last_parsed_time": None,
             "last_pickled": None,
             "max_active_runs": 16,
+            "max_consecutive_failed_dag_runs": 0,
             "max_active_tasks": 16,
             "next_dagrun": None,
             "next_dagrun_create_after": None,
@@ -619,6 +633,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "catchup": True,
             "concurrency": 16,
             "dag_id": "test_dag",
+            "dag_display_name": "test_dag",
             "dag_run_timeout": None,
             "dataset_expression": None,
             "default_view": None,
@@ -637,6 +652,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "last_parsed_time": None,
             "last_pickled": None,
             "max_active_runs": 16,
+            "max_consecutive_failed_dag_runs": 0,
             "max_active_tasks": 16,
             "next_dagrun": None,
             "next_dagrun_create_after": None,
@@ -731,6 +747,7 @@ class TestGetDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
+                    "dag_display_name": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
                     "file_token": file_token,
@@ -749,6 +766,7 @@ class TestGetDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -762,6 +780,7 @@ class TestGetDags(TestDagEndpoint):
                 },
                 {
                     "dag_id": "TEST_DAG_2",
+                    "dag_display_name": "TEST_DAG_2",
                     "description": None,
                     "fileloc": "/tmp/dag_2.py",
                     "file_token": file_token2,
@@ -780,6 +799,7 @@ class TestGetDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -805,6 +825,7 @@ class TestGetDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
+                    "dag_display_name": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
                     "file_token": file_token,
@@ -823,6 +844,7 @@ class TestGetDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -849,6 +871,7 @@ class TestGetDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
+                    "dag_display_name": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
                     "file_token": file_token,
@@ -867,6 +890,7 @@ class TestGetDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -880,6 +904,7 @@ class TestGetDags(TestDagEndpoint):
                 },
                 {
                     "dag_id": "TEST_DAG_DELETED_1",
+                    "dag_display_name": "TEST_DAG_DELETED_1",
                     "description": None,
                     "fileloc": "/tmp/dag_del_1.py",
                     "file_token": file_token_2,
@@ -898,6 +923,7 @@ class TestGetDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -1049,6 +1075,7 @@ class TestGetDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_PAUSED_1",
+                    "dag_display_name": "TEST_DAG_PAUSED_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
                     "file_token": file_token,
@@ -1067,6 +1094,7 @@ class TestGetDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -1092,6 +1120,7 @@ class TestGetDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_UNPAUSED_1",
+                    "dag_display_name": "TEST_DAG_UNPAUSED_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
                     "file_token": file_token,
@@ -1110,6 +1139,7 @@ class TestGetDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -1135,6 +1165,7 @@ class TestGetDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_PAUSED_1",
+                    "dag_display_name": "TEST_DAG_PAUSED_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
                     "file_token": file_token,
@@ -1153,6 +1184,7 @@ class TestGetDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -1166,6 +1198,7 @@ class TestGetDags(TestDagEndpoint):
                 },
                 {
                     "dag_id": "TEST_DAG_UNPAUSED_1",
+                    "dag_display_name": "TEST_DAG_UNPAUSED_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
                     "file_token": file_token,
@@ -1184,6 +1217,7 @@ class TestGetDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -1230,16 +1264,16 @@ class TestPatchDag(TestDagEndpoint):
     def test_should_respond_200_on_patch_is_paused(self, url_safe_serializer, session):
         file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
         dag_model = self._create_dag_model()
+        payload = {"is_paused": False}
         response = self.client.patch(
             f"/api/v1/dags/{dag_model.dag_id}",
-            json={
-                "is_paused": False,
-            },
+            json=payload,
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         expected_response = {
             "dag_id": "TEST_DAG_1",
+            "dag_display_name": "TEST_DAG_1",
             "description": None,
             "fileloc": "/tmp/dag_1.py",
             "file_token": file_token,
@@ -1258,6 +1292,7 @@ class TestPatchDag(TestDagEndpoint):
             "next_dagrun_data_interval_start": None,
             "next_dagrun_data_interval_end": None,
             "max_active_runs": 16,
+            "max_consecutive_failed_dag_runs": 0,
             "next_dagrun_create_after": None,
             "last_expired": None,
             "max_active_tasks": 16,
@@ -1270,7 +1305,9 @@ class TestPatchDag(TestDagEndpoint):
             "pickle_id": None,
         }
         assert response.json == expected_response
-        _check_last_log(session, dag_id="TEST_DAG_1", event="api.patch_dag", execution_date=None)
+        _check_last_log(
+            session, dag_id="TEST_DAG_1", event="api.patch_dag", execution_date=None, expected_extra=payload
+        )
 
     def test_should_respond_200_on_patch_with_granular_dag_access(self, session):
         self._create_dag_models(1)
@@ -1373,6 +1410,7 @@ class TestPatchDag(TestDagEndpoint):
         assert response.status_code == 200
         expected_response = {
             "dag_id": "TEST_DAG_1",
+            "dag_display_name": "TEST_DAG_1",
             "description": None,
             "fileloc": "/tmp/dag_1.py",
             "file_token": file_token,
@@ -1391,6 +1429,7 @@ class TestPatchDag(TestDagEndpoint):
             "next_dagrun_data_interval_start": None,
             "next_dagrun_data_interval_end": None,
             "max_active_runs": 16,
+            "max_consecutive_failed_dag_runs": 0,
             "next_dagrun_create_after": None,
             "last_expired": None,
             "max_active_tasks": 16,
@@ -1471,6 +1510,7 @@ class TestPatchDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
+                    "dag_display_name": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
                     "file_token": file_token,
@@ -1489,6 +1529,7 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -1502,6 +1543,7 @@ class TestPatchDags(TestDagEndpoint):
                 },
                 {
                     "dag_id": "TEST_DAG_2",
+                    "dag_display_name": "TEST_DAG_2",
                     "description": None,
                     "fileloc": "/tmp/dag_2.py",
                     "file_token": file_token2,
@@ -1520,6 +1562,7 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -1558,6 +1601,7 @@ class TestPatchDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
+                    "dag_display_name": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
                     "file_token": file_token,
@@ -1576,6 +1620,7 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -1589,6 +1634,7 @@ class TestPatchDags(TestDagEndpoint):
                 },
                 {
                     "dag_id": "TEST_DAG_2",
+                    "dag_display_name": "TEST_DAG_2",
                     "description": None,
                     "fileloc": "/tmp/dag_2.py",
                     "file_token": file_token2,
@@ -1607,6 +1653,7 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -1685,6 +1732,7 @@ class TestPatchDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
+                    "dag_display_name": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
                     "file_token": file_token,
@@ -1703,6 +1751,7 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -1737,6 +1786,7 @@ class TestPatchDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
+                    "dag_display_name": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
                     "file_token": file_token,
@@ -1755,6 +1805,7 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -1768,6 +1819,7 @@ class TestPatchDags(TestDagEndpoint):
                 },
                 {
                     "dag_id": "TEST_DAG_DELETED_1",
+                    "dag_display_name": "TEST_DAG_DELETED_1",
                     "description": None,
                     "fileloc": "/tmp/dag_del_1.py",
                     "file_token": file_token_2,
@@ -1786,6 +1838,7 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -1983,6 +2036,7 @@ class TestPatchDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
+                    "dag_display_name": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
                     "file_token": file_token,
@@ -2001,6 +2055,7 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -2014,6 +2069,7 @@ class TestPatchDags(TestDagEndpoint):
                 },
                 {
                     "dag_id": "TEST_DAG_2",
+                    "dag_display_name": "TEST_DAG_2",
                     "description": None,
                     "fileloc": "/tmp/dag_2.py",
                     "file_token": file_token2,
@@ -2032,6 +2088,7 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -2066,6 +2123,7 @@ class TestPatchDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
+                    "dag_display_name": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
                     "file_token": file_token,
@@ -2084,6 +2142,7 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -2097,6 +2156,7 @@ class TestPatchDags(TestDagEndpoint):
                 },
                 {
                     "dag_id": "TEST_DAG_10",
+                    "dag_display_name": "TEST_DAG_10",
                     "description": None,
                     "fileloc": "/tmp/dag_10.py",
                     "file_token": file_token10,
@@ -2115,6 +2175,7 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -2151,6 +2212,7 @@ class TestPatchDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_2",
+                    "dag_display_name": "TEST_DAG_2",
                     "description": None,
                     "fileloc": "/tmp/dag_2.py",
                     "file_token": file_token10,
@@ -2169,6 +2231,7 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -2182,6 +2245,7 @@ class TestPatchDags(TestDagEndpoint):
                 },
                 {
                     "dag_id": "TEST_DAG_1",
+                    "dag_display_name": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
                     "file_token": file_token,
@@ -2200,6 +2264,7 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,

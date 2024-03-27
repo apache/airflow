@@ -243,6 +243,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "running",
             "task_id": "print_the_context",
+            "task_display_name": "print_the_context",
             "try_number": 0,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
@@ -300,6 +301,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "deferred",
             "task_id": "print_the_context",
+            "task_display_name": "print_the_context",
             "try_number": 0,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
@@ -346,6 +348,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "removed",
             "task_id": "print_the_context",
+            "task_display_name": "print_the_context",
             "try_number": 0,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
@@ -403,6 +406,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "running",
             "task_id": "print_the_context",
+            "task_display_name": "print_the_context",
             "try_number": 0,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
@@ -454,6 +458,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "start_date": "2020-01-02T00:00:00+00:00",
                 "state": "running",
                 "task_id": "print_the_context",
+                "task_display_name": "print_the_context",
                 "try_number": 0,
                 "unixname": getuser(),
                 "dag_run_id": "TEST_DAG_RUN_ID",
@@ -1249,7 +1254,11 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert response.status_code == 200
         assert len(response.json["task_instances"]) == expected_ti
         _check_last_log(
-            session, dag_id=request_dag, event="api.post_clear_task_instances", execution_date=None
+            session,
+            dag_id=request_dag,
+            event="api.post_clear_task_instances",
+            execution_date=None,
+            expected_extra=payload,
         )
 
     @mock.patch("airflow.api_connexion.endpoints.task_instance_endpoint.clear_task_instances")
@@ -2374,6 +2383,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "running",
             "task_id": "print_the_context",
+            "task_display_name": "print_the_context",
             "try_number": 0,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
@@ -2432,6 +2442,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
                 "start_date": "2020-01-02T00:00:00+00:00",
                 "state": "running",
                 "task_id": "print_the_context",
+                "task_display_name": "print_the_context",
                 "try_number": 0,
                 "unixname": getuser(),
                 "dag_run_id": "TEST_DAG_RUN_ID",

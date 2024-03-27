@@ -19,6 +19,7 @@
 ### DAG Tutorial Documentation
 This DAG is demonstrating an Extract -> Transform -> Load pipeline
 """
+
 from __future__ import annotations
 
 # [START tutorial]

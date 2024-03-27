@@ -19,6 +19,7 @@
 """
 Module to check pre-commit hook names for length
 """
+
 from __future__ import annotations
 
 import argparse

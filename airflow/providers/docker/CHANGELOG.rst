@@ -27,6 +27,13 @@
 Changelog
 ---------
 
+.. note::
+  The standard ``DOCKER_HOST`` environment variable now overrides the default value
+  of the ``docker_url`` parameter when set. If ``DOCKER_HOST`` is set but you want to
+  use the previous default value, then you must explicitly set
+  ``docker_url="unix://var/run/docker.sock"`` in the ``DockerOperator`` constructor
+  or ``@task.docker`` decorator.
+
 3.9.2
 .....
 

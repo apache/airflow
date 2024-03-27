@@ -25,7 +25,7 @@ from flask import session, url_for
 
 from airflow.cli.cli_config import CLICommand, DefaultHelpParser, GroupCommand
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
 from airflow.providers.amazon.aws.auth_manager.avp.facade import (
     AwsAuthManagerAmazonVerifiedPermissionsFacade,
@@ -40,28 +40,6 @@ from airflow.providers.amazon.aws.auth_manager.constants import (
 )
 from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_manager_override import (
     AwsSecurityManagerOverride,
-)
-from airflow.security.permissions import (
-    RESOURCE_AUDIT_LOG,
-    RESOURCE_CLUSTER_ACTIVITY,
-    RESOURCE_CONFIG,
-    RESOURCE_CONNECTION,
-    RESOURCE_DAG,
-    RESOURCE_DAG_CODE,
-    RESOURCE_DAG_DEPENDENCIES,
-    RESOURCE_DAG_RUN,
-    RESOURCE_DATASET,
-    RESOURCE_DOCS,
-    RESOURCE_JOB,
-    RESOURCE_PLUGIN,
-    RESOURCE_POOL,
-    RESOURCE_PROVIDER,
-    RESOURCE_SLA_MISS,
-    RESOURCE_TASK_INSTANCE,
-    RESOURCE_TASK_RESCHEDULE,
-    RESOURCE_TRIGGER,
-    RESOURCE_VARIABLE,
-    RESOURCE_XCOM,
 )
 
 try:
@@ -97,136 +75,6 @@ if TYPE_CHECKING:
     from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
 
 
-_MENU_ITEM_REQUESTS: dict[str, IsAuthorizedRequest] = {
-    RESOURCE_AUDIT_LOG: {
-        "method": "GET",
-        "entity_type": AvpEntities.DAG,
-        "context": {
-            "dag_entity": {
-                "string": DagAccessEntity.AUDIT_LOG.value,
-            },
-        },
-    },
-    RESOURCE_CLUSTER_ACTIVITY: {
-        "method": "GET",
-        "entity_type": AvpEntities.VIEW,
-        "entity_id": AccessView.CLUSTER_ACTIVITY.value,
-    },
-    RESOURCE_CONFIG: {
-        "method": "GET",
-        "entity_type": AvpEntities.CONFIGURATION,
-    },
-    RESOURCE_CONNECTION: {
-        "method": "GET",
-        "entity_type": AvpEntities.CONNECTION,
-    },
-    RESOURCE_DAG: {
-        "method": "GET",
-        "entity_type": AvpEntities.DAG,
-    },
-    RESOURCE_DAG_CODE: {
-        "method": "GET",
-        "entity_type": AvpEntities.DAG,
-        "context": {
-            "dag_entity": {
-                "string": DagAccessEntity.CODE.value,
-            },
-        },
-    },
-    RESOURCE_DAG_DEPENDENCIES: {
-        "method": "GET",
-        "entity_type": AvpEntities.DAG,
-        "context": {
-            "dag_entity": {
-                "string": DagAccessEntity.DEPENDENCIES.value,
-            },
-        },
-    },
-    RESOURCE_DAG_RUN: {
-        "method": "GET",
-        "entity_type": AvpEntities.DAG,
-        "context": {
-            "dag_entity": {
-                "string": DagAccessEntity.RUN.value,
-            },
-        },
-    },
-    RESOURCE_DATASET: {
-        "method": "GET",
-        "entity_type": AvpEntities.DATASET,
-    },
-    RESOURCE_DOCS: {
-        "method": "GET",
-        "entity_type": AvpEntities.VIEW,
-        "entity_id": AccessView.DOCS.value,
-    },
-    RESOURCE_PLUGIN: {
-        "method": "GET",
-        "entity_type": AvpEntities.VIEW,
-        "entity_id": AccessView.PLUGINS.value,
-    },
-    RESOURCE_JOB: {
-        "method": "GET",
-        "entity_type": AvpEntities.VIEW,
-        "entity_id": AccessView.JOBS.value,
-    },
-    RESOURCE_POOL: {
-        "method": "GET",
-        "entity_type": AvpEntities.POOL,
-    },
-    RESOURCE_PROVIDER: {
-        "method": "GET",
-        "entity_type": AvpEntities.VIEW,
-        "entity_id": AccessView.PROVIDERS.value,
-    },
-    RESOURCE_SLA_MISS: {
-        "method": "GET",
-        "entity_type": AvpEntities.DAG,
-        "context": {
-            "dag_entity": {
-                "string": DagAccessEntity.SLA_MISS.value,
-            },
-        },
-    },
-    RESOURCE_TASK_INSTANCE: {
-        "method": "GET",
-        "entity_type": AvpEntities.DAG,
-        "context": {
-            "dag_entity": {
-                "string": DagAccessEntity.TASK_INSTANCE.value,
-            },
-        },
-    },
-    RESOURCE_TASK_RESCHEDULE: {
-        "method": "GET",
-        "entity_type": AvpEntities.DAG,
-        "context": {
-            "dag_entity": {
-                "string": DagAccessEntity.TASK_RESCHEDULE.value,
-            },
-        },
-    },
-    RESOURCE_TRIGGER: {
-        "method": "GET",
-        "entity_type": AvpEntities.VIEW,
-        "entity_id": AccessView.TRIGGERS.value,
-    },
-    RESOURCE_VARIABLE: {
-        "method": "GET",
-        "entity_type": AvpEntities.VARIABLE,
-    },
-    RESOURCE_XCOM: {
-        "method": "GET",
-        "entity_type": AvpEntities.DAG,
-        "context": {
-            "dag_entity": {
-                "string": DagAccessEntity.XCOM.value,
-            },
-        },
-    },
-}
-
-
 class AwsAuthManager(BaseAuthManager):
     """
     AWS auth manager.
@@ -240,6 +88,7 @@ class AwsAuthManager(BaseAuthManager):
     def __init__(self, appbuilder: AirflowAppBuilder) -> None:
         super().__init__(appbuilder)
         enable = conf.getboolean(CONF_SECTION_NAME, CONF_ENABLE_KEY)
+        self._check_avp_schema_version()
         if not enable:
             raise NotImplementedError(
                 "The AWS auth manager is currently being built. It is not finalized. It is not intended to be used yet."
@@ -355,6 +204,16 @@ class AwsAuthManager(BaseAuthManager):
             entity_type=AvpEntities.VIEW,
             user=user or self.get_user(),
             entity_id=access_view.value,
+        )
+
+    def is_authorized_custom_view(
+        self, *, method: ResourceMethod, resource_name: str, user: BaseUser | None = None
+    ):
+        return self.avp_facade.is_authorized(
+            method=method,
+            entity_type=AvpEntities.CUSTOM,
+            user=user or self.get_user(),
+            entity_id=resource_name,
         )
 
     def batch_is_authorized_connection(
@@ -565,12 +424,21 @@ class AwsAuthManager(BaseAuthManager):
         ]
 
     @staticmethod
-    def _get_menu_item_request(fab_resource_name: str) -> IsAuthorizedRequest:
-        menu_item_request = _MENU_ITEM_REQUESTS.get(fab_resource_name)
-        if menu_item_request:
-            return menu_item_request
-        else:
-            raise AirflowException(f"Unknown resource name {fab_resource_name}")
+    def _get_menu_item_request(resource_name: str) -> IsAuthorizedRequest:
+        return {
+            "method": "MENU",
+            "entity_type": AvpEntities.MENU,
+            "entity_id": resource_name,
+        }
+
+    def _check_avp_schema_version(self):
+        if not self.avp_facade.is_policy_store_schema_up_to_date():
+            self.log.warning(
+                "The Amazon Verified Permissions policy store schema is different from the latest version "
+                "(https://github.com/apache/airflow/blob/main/airflow/providers/amazon/aws/auth_manager/avp/schema.json). "
+                "Please update it to its latest version. "
+                "See doc: https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable/auth-manager/setup/amazon-verified-permissions.html#update-the-policy-store-schema."
+            )
 
 
 def get_parser() -> argparse.ArgumentParser:

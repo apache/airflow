@@ -71,7 +71,7 @@ DETECT_IMAGE = {"source": {"image_uri": GCP_VISION_ANNOTATE_IMAGE_URL}}
 # Public bucket holding the sample data
 BUCKET_NAME_SRC = "cloud-samples-data"
 # Path to the data inside the public bucket
-PATH_SRC = "vision/ocr/sign.jpg"
+PATH_SRC = "vision/logo/google_logo.jpg"
 
 
 with DAG(

@@ -63,7 +63,7 @@ def create_avp_policy_store(env_id):
     description = f"Created by system test TestAwsAuthManager: {env_id}"
     client = boto3.client("verifiedpermissions")
     response = client.create_policy_store(
-        validationSettings={"mode": "OFF"},
+        validationSettings={"mode": "STRICT"},
         description=description,
     )
     policy_store_id = response["policyStoreId"]
@@ -71,7 +71,7 @@ def create_avp_policy_store(env_id):
     schema_path = (
         Path(__file__)
         .parents[6]
-        .joinpath("airflow", "providers", "amazon", "aws", "auth_manager", "cli", "schema.json")
+        .joinpath("airflow", "providers", "amazon", "aws", "auth_manager", "avp", "schema.json")
         .resolve()
     )
     with open(schema_path) as schema_file:
@@ -81,14 +81,6 @@ def create_avp_policy_store(env_id):
                 "cedarJson": schema_file.read(),
             },
         )
-
-    client.update_policy_store(
-        policyStoreId=policy_store_id,
-        validationSettings={
-            "mode": "STRICT",
-        },
-        description=description,
-    )
 
     client.create_policy(
         policyStoreId=policy_store_id,

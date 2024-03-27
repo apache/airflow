@@ -172,7 +172,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_update_common_sql_api_stubs.py
         language: python
         files: ^scripts/ci/pre_commit/pre_commit_update_common_sql_api\.py|^airflow/providers/common/sql/.*\.pyi?$
-        additional_dependencies: ['rich>=12.4.4', 'mypy==1.8.0', 'black==23.10.0', 'jinja2']
+        additional_dependencies: ['rich>=12.4.4', 'mypy==1.9.0', 'black==23.10.0', 'jinja2']
         pass_filenames: false
         require_serial: true
       - id: update-black-version
@@ -189,7 +189,6 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_update_build_dependencies.py
         stages: ['manual']
         language: python
-        language_version: python38
         files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/pre_commit_update_build_dependencies.py$
         pass_filenames: false
         require_serial: true
@@ -198,7 +197,6 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_update_installers.py
         stages: ['manual']
         language: python
-        language_version: python38
         files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/pre_commit_update_installers.py$
         pass_filenames: false
         require_serial: true
@@ -208,7 +206,6 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_update_chart_dependencies.py
         stages: ['manual']
         language: python
-        language_version: python38
         additional_dependencies: ['pyyaml', 'rich>=12.4.4', 'requests']
         files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/pre_commit_update_build_dependencies.py$
         pass_filenames: false
@@ -330,18 +327,6 @@ repos:
         pass_filenames: true
         files: ^airflow/providers/.*/(operators|transfers|sensors)/.*\.py$
         additional_dependencies: [ 'rich>=12.4.4' ]
-        # TODO: Handle the provider-specific exclusions and remove them from the list, see:
-        #       https://github.com/apache/airflow/issues/36484
-        exclude: |
-          (?x)^(
-              ^airflow\/providers\/google\/cloud\/operators\/mlengine.py$|
-              ^airflow\/providers\/google\/cloud\/operators\/vertex_ai\/custom_job.py$|
-              ^airflow\/providers\/google\/cloud\/operators\/cloud_storage_transfer_service.py$|
-              ^airflow\/providers\/apache\/spark\/operators\/spark_submit.py\.py$|
-              ^airflow\/providers\/google\/cloud\/operators\/vertex_ai\/auto_ml\.py$|
-              ^airflow\/providers\/apache\/spark\/operators\/spark_submit\.py$|
-              ^airflow\/providers\/databricks\/operators\/databricks_sql\.py$|
-          )$
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"
@@ -350,7 +335,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ["ruff==0.2.1"]
+        additional_dependencies: ["ruff==0.3.4"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
       - id: ruff-format
         name: Run 'ruff format' for extremely fast Python formatting
@@ -360,7 +345,7 @@ repos:
         types_or: [python, pyi]
         args: []
         require_serial: true
-        additional_dependencies: ["ruff==0.2.1"]
+        additional_dependencies: ["ruff==0.3.4"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^airflow/contrib/
       - id: replace-bad-characters
         name: Replace bad characters
@@ -447,26 +432,26 @@ repos:
         additional_dependencies: ['setuptools', 'rich>=12.4.4', 'pyyaml', 'tomli']
       - id: check-extra-packages-references
         name: Checks setup extra packages
-        description: Checks if all the extras defined in pyproject.toml are listed in extra-packages-ref.rst file
+        description: Checks if all the extras defined in hatch_build.py are listed in extra-packages-ref.rst file
         language: python
-        files: ^docs/apache-airflow/extra-packages-ref\.rst$|^pyproject.toml
+        files: ^docs/apache-airflow/extra-packages-ref\.rst$|^hatch_build.py
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/pre_commit_check_extra_packages_ref.py
-        additional_dependencies: ['rich>=12.4.4', 'tomli', 'tabulate']
-      - id: check-pyproject-toml-order
-        name: Check order of dependencies in pyproject.toml
+        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.22.4', 'tabulate']
+      - id: check-hatch-build-order
+        name: Check order of dependencies in hatch_build.py
         language: python
-        files: ^pyproject\.toml$
+        files: ^hatch_build.py$
         pass_filenames: false
-        entry: ./scripts/ci/pre_commit/pre_commit_check_order_pyproject_toml.py
-        additional_dependencies: ['rich>=12.4.4']
+        entry: ./scripts/ci/pre_commit/pre_commit_check_order_hatch_build.py
+        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.22.4']
       - id: update-extras
         name: Update extras in documentation
         entry: ./scripts/ci/pre_commit/pre_commit_insert_extras.py
         language: python
         files: ^contributing-docs/12_airflow_dependencies_and_extras.rst$|^INSTALL$|^airflow/providers/.*/provider\.yaml$|^Dockerfile.*
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'tomli']
+        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.22.4']
       - id: check-extras-order
         name: Check order of extras in Dockerfile
         entry: ./scripts/ci/pre_commit/pre_commit_check_order_dockerfile_extras.py
@@ -546,14 +531,6 @@ repos:
         entry: "^\\s*DeprecationWarning*"
         pass_filenames: true
         files: ^airflow/providers/.*\.py$
-      - id: check-no-relative-imports
-        language: pygrep
-        name: No relative imports
-        description: Airflow style is to use absolute imports only (except docs building)
-        entry: "^\\s*from\\s+\\."
-        pass_filenames: true
-        files: \.py$
-        exclude: ^.*/.*_vendor/|^docs/|^tests/
       - id: check-urlparse-usage-in-code
         language: pygrep
         name: Don't use urlparse in code
@@ -878,6 +855,14 @@ repos:
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['click', 'rich>=12.4.4', 'pyyaml']
+      - id: check-tests-in-the-right-folders
+        name: Check if tests are in the right folders
+        entry: ./scripts/ci/pre_commit/pre_commit_check_tests_in_right_folders.py
+        language: python
+        files: ^tests/.*\.py
+        pass_filenames: true
+        require_serial: true
+        additional_dependencies: ['rich>=12.4.4']
       - id: check-system-tests-present
         name: Check if system tests have required segments of code
         entry: ./scripts/ci/pre_commit/pre_commit_check_system_tests.py

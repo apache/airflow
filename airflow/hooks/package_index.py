@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for additional Package Indexes (Python)."""
+
 from __future__ import annotations
 
 import subprocess
@@ -72,7 +73,7 @@ class PackageIndexHook(BaseHook):
         conn = self.get_connection(self.pi_conn_id)
         index_url = conn.host
         if not index_url:
-            raise Exception("Please provide an index URL.")
+            raise ValueError("Please provide an index URL.")
         return self._get_basic_auth_conn_url(index_url, conn.login, conn.password)
 
     def test_connection(self) -> tuple[bool, str]:

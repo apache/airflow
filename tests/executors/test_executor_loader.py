@@ -24,7 +24,9 @@ import pytest
 
 from airflow import plugins_manager
 from airflow.exceptions import AirflowConfigException
+from airflow.executors import executor_loader
 from airflow.executors.executor_loader import ConnectorSource, ExecutorLoader, ExecutorName
+from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from tests.test_utils.config import conf_vars
 
 # Plugin Manager creates new modules, which is difficult to mock, so we use test isolation by a unique name.
@@ -163,6 +165,17 @@ class TestExecutorLoader:
         with conf_vars({("core", "executor"): executor_config}):
             executors = ExecutorLoader._get_executor_names()
             assert executors == expected_executors_list
+
+    def test_init_executors(self):
+        ExecutorLoader.block_use_of_hybrid_exec = mock.Mock()
+        with conf_vars({("core", "executor"): "CeleryExecutor"}):
+            executors = ExecutorLoader.init_executors()
+            executor_name = ExecutorLoader.get_default_executor_name()
+            assert len(executors) == 1
+            assert isinstance(executors[0], CeleryExecutor)
+            assert "CeleryExecutor" in ExecutorLoader.executors
+            assert ExecutorLoader.executors["CeleryExecutor"] == executor_name.module_path
+            assert isinstance(executor_loader._loaded_executors[executor_name], CeleryExecutor)
 
     @pytest.mark.parametrize(
         "executor_config",

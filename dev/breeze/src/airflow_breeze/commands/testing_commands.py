@@ -336,8 +336,19 @@ def run_tests_in_parallel(
     debug_resources: bool,
     parallelism: int,
     skip_cleanup: bool,
-    skio_docker_compose_down: bool,
+    skip_docker_compose_down: bool,
 ) -> None:
+    get_console().print("\n[info]Summary of the tests to run\n")
+    get_console().print(f"[info]Running tests in parallel with parallelism={parallelism}")
+    get_console().print(f"[info]Extra pytest args: {extra_pytest_args}")
+    get_console().print(f"[info]DB reset: {db_reset}")
+    get_console().print(f"[info]Test timeout: {test_timeout}")
+    get_console().print(f"[info]Include success outputs: {include_success_outputs}")
+    get_console().print(f"[info]Debug resources: {debug_resources}")
+    get_console().print(f"[info]Skip cleanup: {skip_cleanup}")
+    get_console().print(f"[info]Skip docker-compose down: {skip_docker_compose_down}")
+    get_console().print("[info]Shell params:")
+    get_console().print(shell_params.__dict__)
     _run_tests_in_pool(
         tests_to_run=shell_params.parallel_test_types_list,
         parallelism=parallelism,
@@ -348,7 +359,7 @@ def run_tests_in_parallel(
         include_success_outputs=include_success_outputs,
         debug_resources=debug_resources,
         skip_cleanup=skip_cleanup,
-        skip_docker_compose_down=skio_docker_compose_down,
+        skip_docker_compose_down=skip_docker_compose_down,
     )
 
 
@@ -668,6 +679,11 @@ def _run_test_command(
     fix_ownership_using_docker()
     cleanup_python_generated_files()
     perform_environment_checks()
+    if pydantic != "v2":
+        # Avoid edge cases when there are no available tests, e.g. No-Pydantic for Weaviate provider.
+        # https://docs.pytest.org/en/stable/reference/exit-codes.html
+        # https://github.com/apache/airflow/pull/38402#issuecomment-2014938950
+        extra_pytest_args = (*extra_pytest_args, "--suppress-no-test-exit-code")
     if run_in_parallel:
         if test_type != "Default":
             get_console().print(
@@ -684,7 +700,7 @@ def _run_test_command(
             parallelism=parallelism,
             skip_cleanup=skip_cleanup,
             debug_resources=debug_resources,
-            skio_docker_compose_down=skip_docker_compose_down,
+            skip_docker_compose_down=skip_docker_compose_down,
         )
     else:
         if shell_params.test_type == "Default":

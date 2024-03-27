@@ -21,6 +21,37 @@
 
 .. towncrier release notes start
 
+
+Airflow 2.8.4 (2024-03-25)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Bug Fixes
+"""""""""
+- Fix incorrect serialization of ``FixedTimezone`` (#38139)
+- Fix excessive permission changing for log task handler (#38164)
+- Fix task instances list link (#38096)
+- Fix a bug where scheduler heartrate parameter was not used (#37992)
+- Add padding to prevent grid horizontal scroll overlapping tasks (#37942)
+- Fix hash caching in ``ObjectStoragePath`` (#37769)
+
+Miscellaneous
+"""""""""""""
+- Limit importlib_resources as it breaks ``pytest_rewrites`` (#38095, #38139)
+- Limit ``pandas`` to ``<2.2`` (#37748)
+- Bump ``croniter`` to fix an issue with 29 Feb cron expressions (#38198)
+
+Doc Only Changes
+""""""""""""""""
+- Tell users what to do if their scanners find issues in the image (#37652)
+- Add a section about debugging in Docker Compose with PyCharm (#37940)
+- Update deferrable docs to clarify kwargs when trigger resumes operator (#38122)
+
+
 Airflow 2.8.3 (2024-03-11)
 --------------------------
 

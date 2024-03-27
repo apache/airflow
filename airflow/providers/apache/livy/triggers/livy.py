@@ -16,6 +16,7 @@
 # under the License.
 
 """This module contains the Apache Livy Trigger."""
+
 from __future__ import annotations
 
 import asyncio

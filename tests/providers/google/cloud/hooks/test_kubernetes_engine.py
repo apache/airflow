@@ -229,10 +229,9 @@ class TestGKEHookDelete:
     def test_delete_cluster_error(self, wait_mock, mock_project_id):
         # To force an error
         self.gke_hook._client.delete_cluster.side_effect = AirflowException("400")
-
         with pytest.raises(AirflowException):
             self.gke_hook.delete_cluster(name="a-cluster")
-            wait_mock.assert_not_called()
+        wait_mock.assert_not_called()
 
 
 class TestGKEHookCreate:
@@ -292,7 +291,7 @@ class TestGKEHookCreate:
 
         with pytest.raises(AirflowException):
             self.gke_hook.create_cluster(mock_cluster_proto)
-            wait_mock.assert_not_called()
+        wait_mock.assert_not_called()
 
     @mock.patch(GKE_STRING.format("GKEHook.log"))
     @mock.patch(GKE_STRING.format("GKEHook.wait_for_operation"))
@@ -305,7 +304,7 @@ class TestGKEHookCreate:
 
         with pytest.raises(AlreadyExists):
             self.gke_hook.create_cluster(cluster={}, project_id=TEST_GCP_PROJECT_ID)
-            wait_mock.assert_not_called()
+        wait_mock.assert_not_called()
 
 
 class TestGKEHookGet:
@@ -390,7 +389,7 @@ class TestGKEHook:
 
         with pytest.raises(GoogleCloudError):
             self.gke_hook.wait_for_operation(mock_op)
-            assert time_mock.call_count == 1
+        assert time_mock.call_count == 1
 
     @mock.patch(GKE_STRING.format("GKEHook.get_operation"))
     @mock.patch(GKE_STRING.format("time.sleep"))
@@ -508,38 +507,28 @@ class TestGKEPodAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @mock.patch(BASE_STRING.format("_CredentialsToken"))
     @mock.patch(GKE_STRING.format("GKEPodAsyncHook.get_conn"))
     @mock.patch(GKE_STRING.format("async_client.CoreV1Api.read_namespaced_pod"))
-    async def test_get_pod(self, read_namespace_pod_mock, get_conn_mock, mock_token, async_hook):
-        async_hook.get_token = mock.AsyncMock()
-        async_hook.get_token.return_value = mock_token
-
+    async def test_get_pod(self, read_namespace_pod_mock, get_conn_mock, async_hook):
         self.make_mock_awaitable(read_namespace_pod_mock)
 
         await async_hook.get_pod(name=POD_NAME, namespace=POD_NAMESPACE)
 
-        async_hook.get_token.assert_called_once()
-        get_conn_mock.assert_called_once_with(mock_token)
+        get_conn_mock.assert_called_once_with()
         read_namespace_pod_mock.assert_called_with(
             name=POD_NAME,
             namespace=POD_NAMESPACE,
         )
 
     @pytest.mark.asyncio
-    @mock.patch(BASE_STRING.format("_CredentialsToken"))
     @mock.patch(GKE_STRING.format("GKEPodAsyncHook.get_conn"))
     @mock.patch(GKE_STRING.format("async_client.CoreV1Api.delete_namespaced_pod"))
-    async def test_delete_pod(self, delete_namespaced_pod, get_conn_mock, mock_token, async_hook):
-        async_hook.get_token = mock.AsyncMock()
-        async_hook.get_token.return_value = mock_token
-
+    async def test_delete_pod(self, delete_namespaced_pod, get_conn_mock, async_hook):
         self.make_mock_awaitable(delete_namespaced_pod)
 
         await async_hook.delete_pod(name=POD_NAME, namespace=POD_NAMESPACE)
 
-        async_hook.get_token.assert_called_once()
-        get_conn_mock.assert_called_once_with(mock_token)
+        get_conn_mock.assert_called_once_with()
         delete_namespaced_pod.assert_called_with(
             name=POD_NAME,
             namespace=POD_NAMESPACE,
@@ -547,19 +536,14 @@ class TestGKEPodAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @mock.patch(BASE_STRING.format("_CredentialsToken"))
     @mock.patch(GKE_STRING.format("GKEPodAsyncHook.get_conn"))
     @mock.patch(GKE_STRING.format("async_client.CoreV1Api.read_namespaced_pod_log"))
-    async def test_read_logs(self, read_namespaced_pod_log, get_conn_mock, mock_token, async_hook, caplog):
-        async_hook.get_token = mock.AsyncMock()
-        async_hook.get_token.return_value = mock_token
-
+    async def test_read_logs(self, read_namespaced_pod_log, get_conn_mock, async_hook, caplog):
         self.make_mock_awaitable(read_namespaced_pod_log, result="Test string #1\nTest string #2\n")
 
         await async_hook.read_logs(name=POD_NAME, namespace=POD_NAMESPACE)
 
-        async_hook.get_token.assert_called_once()
-        get_conn_mock.assert_called_once_with(mock_token)
+        get_conn_mock.assert_called_once_with()
         read_namespaced_pod_log.assert_called_with(
             name=POD_NAME,
             namespace=POD_NAMESPACE,

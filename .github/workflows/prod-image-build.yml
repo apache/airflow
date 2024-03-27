@@ -20,6 +20,11 @@ name: Build PROD images
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
+      runs-on:
+        description: "The array of labels (in json form) determining type of the runner to use for the build."
+        required: false
+        default: '["ubuntu-22.04"]'
+        type: string
       build-type:
         description: >
           Name of the 'type' of the build - usually 'Regular' but other types are used to test image
@@ -32,6 +37,25 @@ on:  # yamllint disable-line rule:truthy
           already in pull-request-target workflow, so we skip it here.
         required: false
         default: "true"
+        type: string
+      target-commit-sha:
+        description: "The commit SHA to checkout for the build"
+        required: false
+        default: ""
+        type: string
+      pull-request-target:
+        description: "Whether we are running this from pull-request-target workflow (true/false)"
+        required: false
+        default: "false"
+        type: string
+      is-committer-build:
+        description: "Whether the build is executed by committer (true/false)"
+        required: false
+        default: "false"
+        type: string
+      push-image:
+        description: "Whether to push image to the registry (true/false)"
+        required: true
         type: string
       debian-version:
         description: "Base Debian distribution to use for the build (bookworm/bullseye)"
@@ -49,16 +73,20 @@ on:  # yamllint disable-line rule:truthy
         description: "Tag to set for the image"
         required: true
         type: string
-      push-image:
-        description: "Whether to push image to the registry (true/false)"
-        required: true
-        type: string
       python-versions:
         description: "JSON-formatted array of Python versions to build images from"
         required: true
         type: string
+      platform:
+        description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
+        required: true
+        type: string
       branch:
         description: "Branch used to run the CI jobs in (main/v2_*_test)."
+        required: true
+        type: string
+      constraints-branch:
+        description: "Branch used to construct constraints URL from."
         required: true
         type: string
       build-provider-packages:
@@ -69,17 +97,8 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to attempt to upgrade image to newer dependencies (false/RANDOM_VALUE)"
         required: true
         type: string
-      breeze-python-version:
-        description: >
-          Which version of python should be used to install Breeze (3.9 is minimum for reproducible builds)
-        required: true
-        type: string
       chicken-egg-providers:
         description: "Space-separated list of providers that should be installed from context files"
-        required: true
-        type: string
-      constraints-branch:
-        description: "Branch used to construct constraints URL from."
         required: true
         type: string
       docker-cache:
@@ -96,15 +115,19 @@ jobs:
     timeout-minutes: 80
     name: "\
 ${{ inputs.do-build == 'true' && 'Build' || 'Skip building' }} \
-PROD ${{inputs.build-type}} image\
-${{matrix.python-version}}${{ inputs.do-build == 'true' && ':' || '' }}\
+PROD ${{ inputs.build-type }} image\
+${{ matrix.python-version }}${{ inputs.do-build == 'true' && ':' || '' }}\
 ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
-    runs-on: ["ubuntu-22.04"]
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
     env:
       BACKEND: sqlite
       DEFAULT_BRANCH: ${{ inputs.branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ inputs.constraints-branch }}
       VERSION_SUFFIX_FOR_PYPI: "dev0"
+      INCLUDE_NOT_READY_PROVIDERS: "true"
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERBOSE: "true"
+      USE_UV: ${{ inputs.use-uv }}
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -112,16 +135,57 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
         if: inputs.do-build == 'true'
       - uses: actions/checkout@v4
         with:
-          ref: ${{ needs.build-info.outputs.targetCommitSha }}
+          ref: ${{ inputs.target-commit-sha }}
           persist-credentials: false
         if: inputs.do-build == 'true'
+      ####################################################################################################
+      #  BE VERY CAREFUL HERE! THIS LINE AND THE END OF THE WARNING. IN PULL REQUEST TARGET WORKFLOW
+      #  WE CHECK OUT THE TARGET COMMIT ABOVE TO BE ABLE TO BUILD THE IMAGE FROM SOURCES FROM THE
+      #  INCOMING PR, RATHER THAN FROM TARGET BRANCH. THIS IS A SECURITY RISK, BECAUSE THE PR
+      #  CAN CONTAIN ANY CODE AND WE EXECUTE IT HERE. THEREFORE, WE NEED TO BE VERY CAREFUL WHAT WE
+      #  DO HERE. WE SHOULD NOT EXECUTE ANY CODE THAT COMES FROM THE PR. WE SHOULD NOT RUN ANY BREEZE
+      #  COMMAND NOR SCRIPTS NOR COMPOSITE ACTIONS. WE SHOULD ONLY RUN CODE THAT IS EMBEDDED DIRECTLY IN
+      #  THIS WORKFLOW - BECAUSE THIS IS THE ONLY CODE THAT WE CAN TRUST.
+      ####################################################################################################
+      - name: Checkout target branch to 'target-airflow' folder to use ci/scripts and breeze from there.
+        uses: actions/checkout@v4
+        with:
+          path: "target-airflow"
+          ref: ${{ github.base_ref }}
+          persist-credentials: false
+        if: >
+          inputs.do-build == 'true' && inputs.pull-request-target == 'true' &&
+          inputs.is-committer-build != 'true'
+      - name: >
+          Replace "scripts/ci", "dev", ".github/actions" and ".github/workflows" with the target branch
+          so that the those directories are not coming from the PR
+        shell: bash
+        run: |
+          echo
+          echo -e "\033[33m Replace scripts, dev, actions with target branch for non-committer builds!\033[0m"
+          echo
+          rm -rfv "scripts/ci"
+          rm -rfv "dev"
+          rm -rfv ".github/actions"
+          rm -rfv ".github/workflows"
+          mv -v "target-airflow/scripts/ci" "scripts"
+          mv -v "target-airflow/dev" "."
+          mv -v "target-airflow/.github/actions" "target-airflow/.github/workflows" ".github"
+        if: >
+          inputs.do-build == 'true' && inputs.pull-request-target == 'true' &&
+          inputs.is-committer-build != 'true'
+      ####################################################################################################
+      #  HERE IT'S A BIT SAFER. THE `dev`, `scripts/ci` AND `.github/actions` ARE NOW COMING FROM THE
+      #  BASE_REF - WHICH IS THE TARGET BRANCH OF THE PR. WE CAN TRUST THAT THOSE SCRIPTS ARE SAVE TO RUN.
+      #  ALL THE REST OF THE CODE COMES FROM THE PR, AND FOR EXAMPLE THE CODE IN THE `Dockerfile.ci` CAN
+      #  BE RUN SAFELY AS PART OF DOCKER BUILD. BECAUSE IT RUNS INSIDE THE DOCKER CONTAINER AND IT IS
+      #  ISOLATED FROM THE RUNNER.
+      ####################################################################################################
       - name: Cleanup docker
         uses: ./.github/actions/cleanup-docker
         if: inputs.do-build == 'true'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        with:
-          python-version: ${{ inputs.breeze-python-version }}
         if: inputs.do-build == 'true'
       - name: "Regenerate dependencies in case they was modified manually so that we can build an image"
         shell: bash
@@ -167,12 +231,16 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
           name: source-constraints-${{ matrix.python-version }}
           path: ./docker-context-files
         if: inputs.do-build == 'true' && inputs.build-provider-packages == 'true'
-      - name: "Download constraints from the Generate & Verify build"
+      - name: "Download constraints"
         uses: actions/download-artifact@v4
         with:
           name: constraints
           path: ./docker-context-files
         if: inputs.do-build == 'true' && inputs.build-provider-packages != 'true'
+      - name: Login to ghcr.io
+        shell: bash
+        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+        if: inputs.do-build == 'true'
       - name: "Build PROD images w/ source providers ${{ matrix.python-version }}:${{ inputs.image-tag }}"
         shell: bash
         run: >
@@ -182,28 +250,29 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
           --use-constraints-for-context-packages --python "${{ matrix.python-version }}"
         env:
           PUSH: ${{ inputs.push-image }}
-          DOCKER_CACHE: ${{ inputs.cache-directive }}
+          DOCKER_CACHE: ${{ inputs.docker-cache }}
           DEBIAN_VERSION: ${{ inputs.debian-version }}
           INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ inputs.upgrade-to-newer-dependencies }}
           INCLUDE_NOT_READY_PROVIDERS: "true"
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          USE_UV: ${{ inputs.use-uv }}
         if: inputs.do-build == 'true' && inputs.build-provider-packages == 'true'
       - name: "Build PROD images with PyPi providers ${{ matrix.python-version }}:${{ inputs.image-tag }}"
         shell: bash
         run: >
-          breeze prod-image build --tag-as-latest --image-tag "${{ inputs.image-tag }}"
-          --commit-sha "${{ github.sha }}"
+          breeze prod-image build --builder airflow_cache --tag-as-latest
+          --image-tag "${{ inputs.image-tag }}" --commit-sha "${{ github.sha }}"
           --install-packages-from-context --airflow-constraints-mode constraints
           --use-constraints-for-context-packages --python "${{ matrix.python-version }}"
         env:
           PUSH: ${{ inputs.push-image }}
-          DOCKER_CACHE: ${{ inputs.cache-directive }}
+          DOCKER_CACHE: ${{ inputs.docker-cache }}
           DEBIAN_VERSION: ${{ inputs.debian-version }}
           INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ inputs.upgrade-to-newer-dependencies }}
           INCLUDE_NOT_READY_PROVIDERS: "true"
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          USE_UV: ${{ inputs.use-uv }}
         if: inputs.do-build == 'true' && inputs.build-provider-packages != 'true'
+      - name: Verify PROD image ${{ matrix.python-version }}:${{ inputs.image-tag }}
+        run: >
+          breeze prod-image verify --image-tag "${{ inputs.image-tag }}"
+          --python "${{ matrix.python-version }}"
+        if: inputs.do-build == 'true'

@@ -79,13 +79,11 @@ def utc_epoch() -> dt.datetime:
 
 
 @overload
-def convert_to_utc(value: None) -> None:
-    ...
+def convert_to_utc(value: None) -> None: ...
 
 
 @overload
-def convert_to_utc(value: dt.datetime) -> DateTime:
-    ...
+def convert_to_utc(value: dt.datetime) -> DateTime: ...
 
 
 def convert_to_utc(value: dt.datetime | None) -> DateTime | None:
@@ -106,18 +104,15 @@ def convert_to_utc(value: dt.datetime | None) -> DateTime | None:
 
 
 @overload
-def make_aware(value: None, timezone: dt.tzinfo | None = None) -> None:
-    ...
+def make_aware(value: None, timezone: dt.tzinfo | None = None) -> None: ...
 
 
 @overload
-def make_aware(value: DateTime, timezone: dt.tzinfo | None = None) -> DateTime:
-    ...
+def make_aware(value: DateTime, timezone: dt.tzinfo | None = None) -> DateTime: ...
 
 
 @overload
-def make_aware(value: dt.datetime, timezone: dt.tzinfo | None = None) -> dt.datetime:
-    ...
+def make_aware(value: dt.datetime, timezone: dt.tzinfo | None = None) -> dt.datetime: ...
 
 
 def make_aware(value: dt.datetime | None, timezone: dt.tzinfo | None = None) -> dt.datetime | None:
@@ -210,18 +205,15 @@ def parse(string: str, timezone=None, *, strict=False) -> DateTime:
 
 
 @overload
-def coerce_datetime(v: None, tz: dt.tzinfo | None = None) -> None:
-    ...
+def coerce_datetime(v: None, tz: dt.tzinfo | None = None) -> None: ...
 
 
 @overload
-def coerce_datetime(v: DateTime, tz: dt.tzinfo | None = None) -> DateTime:
-    ...
+def coerce_datetime(v: DateTime, tz: dt.tzinfo | None = None) -> DateTime: ...
 
 
 @overload
-def coerce_datetime(v: dt.datetime, tz: dt.tzinfo | None = None) -> DateTime:
-    ...
+def coerce_datetime(v: dt.datetime, tz: dt.tzinfo | None = None) -> DateTime: ...
 
 
 def coerce_datetime(v: dt.datetime | None, tz: dt.tzinfo | None = None) -> DateTime | None:

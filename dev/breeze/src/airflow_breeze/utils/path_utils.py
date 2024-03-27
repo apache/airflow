@@ -17,6 +17,7 @@
 """
 Useful tools for various Paths used inside Airflow Sources.
 """
+
 from __future__ import annotations
 
 import hashlib

@@ -18,6 +18,7 @@
 """
 Example Airflow DAG that uses Google Cloud Run Operators.
 """
+
 from __future__ import annotations
 
 import os
@@ -106,7 +107,8 @@ def _assert_jobs(ti):
         if job2_name in job_dict["name"]:
             job2_exists = True
 
-    assert job1_exists and job2_exists
+    assert job1_exists
+    assert job2_exists
 
 
 def _assert_one_job(ti):

@@ -16,14 +16,30 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google AutoML links."""
+
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import warnings
+from typing import TYPE_CHECKING, Any
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
+
+def __getattr__(name: str) -> Any:
+    warnings.warn(
+        (
+            "AutoML links module have been deprecated and will be removed in the next MAJOR release."
+            " Please use equivalent Vertex AI links instead"
+        ),
+        AirflowProviderDeprecationWarning,
+        stacklevel=2,
+    )
+    return getattr(__name__, name)
+
 
 AUTOML_BASE_LINK = "https://console.cloud.google.com/automl-tables"
 AUTOML_DATASET_LINK = (

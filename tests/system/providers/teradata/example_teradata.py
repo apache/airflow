@@ -18,6 +18,7 @@
 """
 Example use of Teradata related operators.
 """
+
 from __future__ import annotations
 
 import datetime

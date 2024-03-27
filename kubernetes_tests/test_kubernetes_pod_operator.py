@@ -629,12 +629,12 @@ class TestKubernetesPodOperatorSystem:
             do_xcom_push=False,
             startup_timeout_seconds=5,
         )
-        with pytest.raises(AirflowException):
-            context = create_context(k)
+        context = create_context(k)
+        with pytest.raises(AirflowException, match="Pod .* returned a failure"):
             k.execute(context)
-            actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-            self.expected_pod["spec"]["containers"][0]["image"] = bad_image_name
-            assert self.expected_pod == actual_pod
+        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
+        self.expected_pod["spec"]["containers"][0]["image"] = bad_image_name
+        assert self.expected_pod == actual_pod
 
     def test_faulty_service_account(self, mock_get_connection):
         k = KubernetesPodOperator(
@@ -669,12 +669,12 @@ class TestKubernetesPodOperatorSystem:
             in_cluster=False,
             do_xcom_push=False,
         )
-        with pytest.raises(AirflowException):
-            context = create_context(k)
+        context = create_context(k)
+        with pytest.raises(AirflowException, match="Pod .* returned a failure"):
             k.execute(context)
-            actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-            self.expected_pod["spec"]["containers"][0]["args"] = bad_internal_command
-            assert self.expected_pod == actual_pod
+        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
+        self.expected_pod["spec"]["containers"][0]["args"] = bad_internal_command
+        assert self.expected_pod == actual_pod
 
     def test_xcom_push(self, test_label, mock_get_connection):
         expected = {"test_label": test_label, "buzz": 2}

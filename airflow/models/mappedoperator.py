@@ -48,6 +48,7 @@ from airflow.models.expandinput import (
 )
 from airflow.models.pool import Pool
 from airflow.serialization.enums import DagAttributeTypes
+from airflow.task.priority_strategy import PriorityWeightStrategy, validate_and_load_priority_weight_strategy
 from airflow.ti_deps.deps.mapped_task_expanded import MappedTaskIsExpanded
 from airflow.typing_compat import Literal
 from airflow.utils.context import context_update_for_unmapped
@@ -386,6 +387,10 @@ class MappedOperator(AbstractOperator):
         return [self]
 
     @property
+    def task_display_name(self) -> str:
+        return self.partial_kwargs.get("task_display_name") or self.task_id
+
+    @property
     def owner(self) -> str:  # type: ignore[override]
         return self.partial_kwargs.get("owner", DEFAULT_OWNER)
 
@@ -534,12 +539,14 @@ class MappedOperator(AbstractOperator):
         self.partial_kwargs["priority_weight"] = value
 
     @property
-    def weight_rule(self) -> str:  # type: ignore[override]
-        return self.partial_kwargs.get("weight_rule", DEFAULT_WEIGHT_RULE)
+    def weight_rule(self) -> PriorityWeightStrategy:  # type: ignore[override]
+        return validate_and_load_priority_weight_strategy(
+            self.partial_kwargs.get("weight_rule", DEFAULT_WEIGHT_RULE)
+        )
 
     @weight_rule.setter
-    def weight_rule(self, value: str) -> None:
-        self.partial_kwargs["weight_rule"] = value
+    def weight_rule(self, value: str | PriorityWeightStrategy) -> None:
+        self.partial_kwargs["weight_rule"] = validate_and_load_priority_weight_strategy(value)
 
     @property
     def sla(self) -> datetime.timedelta | None:
@@ -652,6 +659,10 @@ class MappedOperator(AbstractOperator):
     @property
     def doc_rst(self) -> str | None:
         return self.partial_kwargs.get("doc_rst")
+
+    @property
+    def allow_nested_operators(self) -> bool:
+        return bool(self.partial_kwargs.get("allow_nested_operators"))
 
     def get_dag(self) -> DAG | None:
         """Implement Operator."""

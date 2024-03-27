@@ -562,7 +562,11 @@ def _rebuild_k8s_image(
 ) -> tuple[int, str]:
     params = BuildProdParams(python=python, image_tag=image_tag, use_uv=use_uv)
     if rebuild_base_image:
-        run_build_production_image(prod_image_params=params, output=output)
+        run_build_production_image(
+            prod_image_params=params,
+            param_description=f"Python: {params.python}, Platform: {params.platform}",
+            output=output,
+        )
     else:
         if not check_if_base_image_exists(params):
             get_console(output=output).print(
@@ -1287,10 +1291,10 @@ def k9s(python: str, kubernetes_version: str, use_docker: bool, k9s_args: tuple[
             )
             get_console().print(
                 "\n[info]In such case you might want to pull latest `kindest` images. "
-                "For example if you run kubernetes version v1.25.16 you might need to run:\n"
+                "For example if you run kubernetes version v1.26.14 you might need to run:\n"
                 "[special]* run `breeze k8s delete-cluster` (note k8s version printed after "
                 "Python version)\n"
-                "* run `docker pull kindest/node:v1.25.16`\n"
+                "* run `docker pull kindest/node:v1.26.14`\n"
                 "* restart docker engine\n\n"
             )
         sys.exit(result.returncode)
@@ -1690,6 +1694,20 @@ def run_complete_tests(
         combo_titles, combos, pytest_args, short_combo_titles = _get_parallel_test_args(
             kubernetes_versions, python_versions, test_args
         )
+        get_console().print(f"[info]Running complete tests for: {short_combo_titles}")
+        get_console().print(f"[info]Parallelism: {parallelism}")
+        get_console().print(f"[info]Image tag: {image_tag}")
+        get_console().print(f"[info]Extra test args: {executor}")
+        get_console().print(f"[info]Executor: {executor}")
+        get_console().print(f"[info]Use standard naming: {use_standard_naming}")
+        get_console().print(f"[info]Upgrade: {upgrade}")
+        get_console().print(f"[info]Use uv: {use_uv}")
+        get_console().print(f"[info]Rebuild base image: {rebuild_base_image}")
+        get_console().print(f"[info]Force recreate cluster: {force_recreate_cluster}")
+        get_console().print(f"[info]Include success outputs: {include_success_outputs}")
+        get_console().print(f"[info]Debug resources: {debug_resources}")
+        get_console().print(f"[info]Skip cleanup: {skip_cleanup}")
+        get_console().print(f"[info]Wait time in seconds: {wait_time_in_seconds}")
         with ci_group(f"Running complete tests for: {short_combo_titles}"):
             with run_with_pool(
                 parallelism=parallelism,

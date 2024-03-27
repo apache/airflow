@@ -77,6 +77,8 @@ interface Props {
   hoveredTaskState?: string | null;
   gridScrollRef: React.RefObject<HTMLDivElement>;
   ganttScrollRef: React.RefObject<HTMLDivElement>;
+  isFullScreen?: boolean;
+  toggleFullScreen?: () => void;
 }
 
 const tabToIndex = (tab?: string) => {
@@ -148,6 +150,8 @@ const Details = ({
   hoveredTaskState,
   gridScrollRef,
   ganttScrollRef,
+  isFullScreen,
+  toggleFullScreen,
 }: Props) => {
   const {
     selected: { runId, taskId, mapIndex },
@@ -180,6 +184,8 @@ const Details = ({
   );
 
   const showTaskDetails = !!taskId && !runId;
+
+  const isAbandonedTask = !!taskId && !group;
 
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get(TAB_PARAM) || undefined;
@@ -249,7 +255,7 @@ const Details = ({
               <MarkRunAs runId={runId} state={run?.state} />
             </>
           )}
-          {runId && taskId && (
+          {runId && taskId && !isAbandonedTask && (
             <>
               <ClearInstance
                 taskId={taskId}
@@ -375,6 +381,7 @@ const Details = ({
                 onChangeTab(0);
                 onSelect({ taskId });
               }}
+              isDisabled={isAbandonedTask}
             >
               <MdHourglassBottom size={16} />
               <Text as="strong" ml={1}>
@@ -407,6 +414,8 @@ const Details = ({
               openGroupIds={openGroupIds}
               onToggleGroups={onToggleGroups}
               hoveredTaskState={hoveredTaskState}
+              isFullScreen={isFullScreen}
+              toggleFullScreen={toggleFullScreen}
             />
           </TabPanel>
           <TabPanel p={0} height="100%">
@@ -456,6 +465,8 @@ const Details = ({
                     ? undefined
                     : instance.state
                 }
+                isFullScreen={isFullScreen}
+                toggleFullScreen={toggleFullScreen}
               />
             </TabPanel>
           )}

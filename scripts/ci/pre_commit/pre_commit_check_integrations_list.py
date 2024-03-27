@@ -22,6 +22,7 @@ Module to check integration tests are listed in documentation.
 Compare the contents of the integrations table and the docker-compose
 integration files, if there is a mismatch, the table is generated.
 """
+
 from __future__ import annotations
 
 import re
