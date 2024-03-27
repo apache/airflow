@@ -17,12 +17,15 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
 
-from airflow.hooks.base import BaseHook
 from airflow.models import Connection
+
+if TYPE_CHECKING:
+    from airflow.hooks.base import BaseHook
 
 
 @pytest.fixture
