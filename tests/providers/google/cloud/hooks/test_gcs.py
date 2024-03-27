@@ -588,7 +588,7 @@ class TestGCSHook:
         get_blob_method = bucket_method.return_value.get_blob
         get_blob_method.return_value = None
 
-        with pytest.raises(exceptions.ValueError):
+        with pytest.raises(ValueError, match=r"Object \((.*?)\) not found in bucket \((.*?)\)"):
             self.gcs_hook.get_metadata(bucket_name=test_bucket, object_name=test_object)
 
     @mock.patch("google.cloud.storage.Bucket")
