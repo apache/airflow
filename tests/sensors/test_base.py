@@ -909,6 +909,15 @@ class TestBaseSensor:
             task = sensor.prepare_for_execution()
             assert task.mode == mode
 
+    def test_resume_execution(self):
+        op = BaseSensorOperator(task_id="hi")
+        with pytest.raises(AirflowSensorTimeout):
+            op.resume_execution(
+                next_method="__fail__",
+                next_kwargs={"error": "Trigger timeout"},
+                context={},
+            )
+
 
 @poke_mode_only
 class DummyPokeOnlySensor(BaseSensorOperator):

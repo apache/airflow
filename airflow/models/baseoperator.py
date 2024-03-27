@@ -59,6 +59,7 @@ from airflow.exceptions import (
     FailStopDagInvalidTriggerRule,
     RemovedInAirflow3Warning,
     TaskDeferralError,
+    TaskDeferralTimeout,
     TaskDeferred,
 )
 from airflow.lineage import apply_lineage, prepare_lineage
@@ -1671,7 +1672,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         trigger: BaseTrigger,
         method_name: str,
         kwargs: dict[str, Any] | None = None,
-        timeout: timedelta | None = None,
+        timeout: timedelta | int | float | None = None,
     ):
         """
         Mark this Operator "deferred", suspending its execution until the provided trigger fires an event.
@@ -1690,7 +1691,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             traceback = next_kwargs.get("traceback")
             if traceback is not None:
                 self.log.error("Trigger failed:\n%s", "\n".join(traceback))
-            raise TaskDeferralError(next_kwargs.get("error", "Unknown"))
+            if (error := next_kwargs.get("error", "Unknown")) == "Trigger timeout":
+                raise TaskDeferralTimeout(error)
+            else:
+                raise TaskDeferralError(error)
         # Grab the callable off the Operator/Task and add in any kwargs
         execute_callable = getattr(self, next_method)
         if next_kwargs:

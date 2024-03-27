@@ -22,6 +22,7 @@
 from __future__ import annotations
 
 import warnings
+from datetime import datetime, timedelta
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, NamedTuple
 
@@ -208,7 +209,7 @@ class DagRunNotFound(AirflowNotFoundException):
 class DagRunAlreadyExists(AirflowBadRequest):
     """Raise when creating a DAG run for DAG which already has DAG run entry."""
 
-    def __init__(self, dag_run: DagRun, execution_date: datetime.datetime, run_id: str) -> None:
+    def __init__(self, dag_run: DagRun, execution_date: datetime, run_id: str) -> None:
         super().__init__(
             f"A DAG Run already exists for DAG {dag_run.dag_id} at {execution_date} with run id {run_id}"
         )
@@ -368,7 +369,7 @@ class TaskDeferred(BaseException):
         trigger,
         method_name: str,
         kwargs: dict[str, Any] | None = None,
-        timeout: datetime.timedelta | None = None,
+        timeout: timedelta | int | float | None = None,
     ):
         super().__init__()
         self.trigger = trigger
@@ -376,6 +377,8 @@ class TaskDeferred(BaseException):
         self.kwargs = kwargs
         self.timeout = timeout
         # Check timeout type at runtime
+        if isinstance(self.timeout, (int, float)):
+            self.timeout = timedelta(seconds=self.timeout)
         if self.timeout is not None and not hasattr(self.timeout, "total_seconds"):
             raise ValueError("Timeout value must be a timedelta")
 
@@ -385,6 +388,10 @@ class TaskDeferred(BaseException):
 
 class TaskDeferralError(AirflowException):
     """Raised when a task failed during deferral for some reason."""
+
+
+class TaskDeferralTimeout(AirflowException):
+    """Raise when there is a timeout on the deferral."""
 
 
 # The try/except handling is needed after we moved all k8s classes to cncf.kubernetes provider

@@ -29,7 +29,12 @@ import jinja2
 import pytest
 
 from airflow.decorators import task as task_decorator
-from airflow.exceptions import AirflowException, FailStopDagInvalidTriggerRule, RemovedInAirflow3Warning
+from airflow.exceptions import (
+    AirflowException,
+    FailStopDagInvalidTriggerRule,
+    RemovedInAirflow3Warning,
+    TaskDeferralTimeout,
+)
 from airflow.lineage.entities import File
 from airflow.models.baseoperator import (
     BaseOperator,
@@ -784,6 +789,15 @@ class TestBaseOperator:
         # the other case (that when we have set_context it goes to the file is harder to achieve without
         # leaking a lot of state)
         assert caplog.messages == ["test"]
+
+    def test_resume_execution(self):
+        op = BaseOperator(task_id="hi")
+        with pytest.raises(TaskDeferralTimeout):
+            op.resume_execution(
+                next_method="__fail__",
+                next_kwargs={"error": "Trigger timeout"},
+                context={},
+            )
 
 
 def test_init_subclass_args():

@@ -76,7 +76,11 @@ class TimeDeltaSensorAsync(TimeDeltaSensor):
                 raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
             raise
 
-        self.defer(trigger=trigger, method_name="execute_complete")
+        self.defer(
+            trigger=trigger,
+            method_name="execute_complete",
+            timeout=self.timeout,
+        )
 
     def execute_complete(self, context, event=None):
         """Execute for when the trigger fires - return immediately."""
