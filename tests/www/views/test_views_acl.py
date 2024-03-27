@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import datetime
-import json
 import urllib.parse
 
 import pytest
@@ -159,7 +158,9 @@ def init_dagruns(acl_app, reset_dagruns):
 
 @pytest.fixture
 def dag_test_client(acl_app):
-    return client_with_login(acl_app, username="dag_test", password="dag_test")
+    return client_with_login(
+        acl_app, expected_path=b"/login/?next=/home", username="dag_test", password="dag_test"
+    )
 
 
 @pytest.fixture
@@ -261,7 +262,7 @@ def test_dag_autocomplete_success(client_all_dags):
         {"name": "tutorial_taskflow_api_virtualenv", "type": "dag"},
     ]
 
-    assert resp.json == expected
+    assert resp.json() == expected
 
 
 @pytest.mark.parametrize(
@@ -278,7 +279,7 @@ def test_dag_autocomplete_empty(client_all_dags, query, expected):
     if query is not None:
         url = f"{url}?query={query}"
     resp = client_all_dags.get(url, follow_redirects=False)
-    assert resp.json == expected
+    assert resp.json() == expected
 
 
 @pytest.fixture
@@ -338,7 +339,7 @@ def client_all_dags_dagruns(acl_app, user_all_dags_dagruns):
 def test_dag_stats_success(client_all_dags_dagruns):
     resp = client_all_dags_dagruns.post("dag_stats", follow_redirects=True)
     check_content_in_response("example_bash_operator", resp)
-    assert set(next(iter(resp.json.items()))[1][0].keys()) == {"state", "count"}
+    assert set(next(iter(resp.json().items()))[1][0].keys()) == {"state", "count"}
 
 
 def test_task_stats_failure(dag_test_client):
@@ -408,7 +409,7 @@ def test_task_stats_success(
     assert resp.status_code == 200
     for dag_id in unexpected_dag_ids:
         check_content_not_in_response(dag_id, resp)
-    stats = json.loads(resp.data.decode())
+    stats = resp.json()
     for dag_id in dags_to_run:
         assert dag_id in stats
 
@@ -671,7 +672,7 @@ def test_blocked_success_when_selecting_dags(
     assert resp.status_code == 200
     for dag_id in unexpected_dag_ids:
         check_content_not_in_response(dag_id, resp)
-    blocked_dags = {blocked["dag_id"] for blocked in json.loads(resp.data.decode())}
+    blocked_dags = {blocked["dag_id"] for blocked in resp.json()}
     for dag_id in dags_to_block:
         assert dag_id in blocked_dags
 
@@ -755,7 +756,7 @@ def test_success_fail_for_read_only_task_instance_access(client_only_dags_tis):
         past="false",
     )
     resp = client_only_dags_tis.post("success", data=form)
-    check_content_not_in_response("Wait a minute", resp, resp_code=302)
+    check_content_not_in_response("Wait a minute", resp, resp_code=200)
 
 
 GET_LOGS_WITH_METADATA_URL = (
