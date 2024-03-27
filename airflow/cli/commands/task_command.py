@@ -156,7 +156,6 @@ def _get_dag_run(
     raise ValueError(f"unknown create_if_necessary value: {create_if_necessary!r}")
 
 
-@provide_session
 def _get_ti(
     task: Operator,
     map_index: int,
@@ -164,7 +163,7 @@ def _get_ti(
     exec_date_or_run_id: str | None = None,
     pool: str | None = None,
     create_if_necessary: CreateIfNecessary = False,
-    session: Session = NEW_SESSION,
+    session: Session | None = None,
 ) -> tuple[TaskInstance | TaskInstancePydantic, bool]:
     """Get the task instance through DagRun.run_id, if that fails, get the TI the old way."""
     dag = task.dag
