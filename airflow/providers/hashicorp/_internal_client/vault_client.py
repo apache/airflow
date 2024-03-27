@@ -73,7 +73,12 @@ class _VaultClient(LoggingMixin):
     :param password: Password for Authentication (for ``ldap`` and ``userpass`` auth_types).
     :param key_id: Key ID for Authentication (for ``aws_iam`` and ''azure`` auth_type).
     :param secret_id: Secret ID for Authentication (for ``approle``, ``aws_iam`` and ``azure`` auth_types).
+    :param session_token: The AWS session token to use. Defaults to None.,
+    :param header_value: additional header to mitigate replay attacks, potentially necessitating an argument
+        depending on AWS auth backend configuration. Defaults to None.
     :param role_id: Role ID for Authentication (for ``approle``, ``aws_iam`` auth_types).
+    :param use_token: A flag indicating whether to use the token. Defaults to True.,
+    :param region: The AWS region to use. Defaults to ``us-east-1``
     :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type).
     :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, default:
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``).
@@ -103,7 +108,11 @@ class _VaultClient(LoggingMixin):
         password: str | None = None,
         key_id: str | None = None,
         secret_id: str | None = None,
+        session_token: str | None = None,
+        header_value: str | None = None,
         role_id: str | None = None,
+        use_token: bool = True,
+        region: str = "us-east-1",
         kubernetes_role: str | None = None,
         kubernetes_jwt_path: str | None = "/var/run/secrets/kubernetes.io/serviceaccount/token",
         gcp_key_path: str | None = None,
@@ -160,7 +169,11 @@ class _VaultClient(LoggingMixin):
         self.password = password
         self.key_id = key_id
         self.secret_id = secret_id
+        self.session_token = session_token
+        self.header_value = header_value
         self.role_id = role_id
+        self.use_token = use_token
+        self.region = region
         self.kubernetes_role = kubernetes_role
         self.kubernetes_jwt_path = kubernetes_jwt_path
         self.gcp_key_path = gcp_key_path
@@ -322,7 +335,11 @@ class _VaultClient(LoggingMixin):
             _client.auth.aws.iam_login(
                 access_key=self.key_id,
                 secret_key=self.secret_id,
+                session_token=self.session_token,
+                header_value=self.header_value,
                 role=self.role_id,
+                use_token=self.use_token,
+                region=self.region,
                 mount_point=self.auth_mount_point,
             )
         else:
