@@ -161,7 +161,6 @@ class AbstractOperator(Templater, DAGNode):
         return self.task_id
 
     @abstractproperty
-    @property
     def task_display_name(self) -> str: ...
 
     @property
