@@ -258,6 +258,9 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
           breeze release-management generate-constraints --python  "${{ matrix.python-version }}"
           --airflow-constraints-mode constraints --answer yes
           --chicken-egg-providers "${{ inputs.chicken-egg-providers }}"
+        env:
+          # always use UV for constraints generation even if we build `pip` image
+          USE_UV: "true"
         if: inputs.do-build == 'true' && inputs.build-provider-packages != 'true'
       # This cleanup is needed as we will run out of disk space if we keep both CI and PROD images
       # on public runners.
