@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any, Callable, Sequence, cast
 from deprecated import deprecated
 
 from airflow.configuration import conf
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -88,7 +89,7 @@ class S3KeySensor(BaseSensorOperator):
         bucket_name: str | None = None,
         wildcard_match: bool = False,
         check_fn: Callable[..., bool] | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         verify: str | bool | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         use_regex: bool = False,
@@ -242,7 +243,7 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
         *,
         bucket_name: str,
         prefix: str,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         verify: bool | str | None = None,
         inactivity_period: float = 60 * 60,
         min_objects: int = 1,
@@ -371,6 +372,8 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
+        event = validate_execute_complete_event(event)
+
         if event and event["status"] == "error":
             # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
             if self.soft_fail:

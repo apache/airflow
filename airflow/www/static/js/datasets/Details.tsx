@@ -18,11 +18,24 @@
  */
 
 import React from "react";
-import { Box, Heading, Flex, Spinner, Button } from "@chakra-ui/react";
+import {
+  Box,
+  Heading,
+  Flex,
+  Spinner,
+  Button,
+  IconButton,
+  useDisclosure,
+} from "@chakra-ui/react";
+import { MdPlayArrow } from "react-icons/md";
 
 import { useDataset } from "src/api";
 import { ClipboardButton } from "src/components/Clipboard";
 import InfoTooltip from "src/components/InfoTooltip";
+import { useContainerRef } from "src/context/containerRef";
+import Tooltip from "src/components/Tooltip";
+
+import CreateDatasetEventModal from "./CreateDatasetEvent";
 import Events from "./DatasetEvents";
 
 interface Props {
@@ -32,9 +45,27 @@ interface Props {
 
 const DatasetDetails = ({ uri, onBack }: Props) => {
   const { data: dataset, isLoading } = useDataset({ uri });
+  const { isOpen, onToggle, onClose } = useDisclosure();
+  const containerRef = useContainerRef();
   return (
     <Box mt={[6, 3]}>
-      <Button onClick={onBack}>See all datasets</Button>
+      <Flex alignItems="center" justifyContent="space-between">
+        <Button onClick={onBack}>See all datasets</Button>
+        <Tooltip
+          label="Manually create dataset event"
+          hasArrow
+          portalProps={{ containerRef }}
+        >
+          <IconButton
+            variant="outline"
+            colorScheme="blue"
+            aria-label="Manually create dataset event"
+            onClick={onToggle}
+          >
+            <MdPlayArrow />
+          </IconButton>
+        </Tooltip>
+      </Flex>
       {isLoading && <Spinner display="block" />}
       <Box>
         <Heading my={2} fontWeight="normal" size="lg">
@@ -52,6 +83,13 @@ const DatasetDetails = ({ uri, onBack }: Props) => {
         />
       </Flex>
       {dataset && dataset.id && <Events datasetId={dataset.id} />}
+      {dataset && (
+        <CreateDatasetEventModal
+          isOpen={isOpen}
+          onClose={onClose}
+          dataset={dataset}
+        />
+      )}
     </Box>
   );
 };

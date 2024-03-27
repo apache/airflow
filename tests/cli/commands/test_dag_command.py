@@ -22,7 +22,7 @@ import json
 import os
 from datetime import datetime, timedelta
 from io import StringIO
-from unittest import TestCase, mock
+from unittest import mock
 from unittest.mock import MagicMock
 
 import pendulum
@@ -37,7 +37,7 @@ from airflow.decorators import task
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.dag import _run_trigger
+from airflow.models.dag import _run_inline_trigger
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.triggers.base import TriggerEvent
 from airflow.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
@@ -230,7 +230,7 @@ class TestCliDags:
                         "--task-regex",
                         "run_this_first",
                         "--dry-run",
-                        "--treat-dag-as-regex",
+                        "--treat-dag-id-as-regex",
                         "--start-date",
                         DEFAULT_DATE.isoformat(),
                     ]
@@ -243,6 +243,24 @@ class TestCliDags:
         assert "Task run_this_first located in DAG example_branch_python_operator_decorator\n" in output
         assert f"Dry run of DAG example_branch_operator on {DEFAULT_DATE_REPR}\n" in output
         assert "Task run_this_first located in DAG example_branch_operator\n" in output
+
+    @mock.patch("airflow.cli.commands.dag_command._run_dag_backfill")
+    def test_backfill_treat_dag_as_regex_deprecation(self, _):
+        run_date = DEFAULT_DATE + timedelta(days=1)
+        cli_args = self.parser.parse_args(
+            [
+                "dags",
+                "backfill",
+                "example_bash_operator",
+                "--treat-dag-as-regex",
+                "--start-date",
+                run_date.isoformat(),
+            ]
+        )
+
+        with pytest.warns(DeprecationWarning, match="--treat-dag-as-regex is deprecated"):
+            dag_command.dag_backfill(cli_args)
+        assert cli_args.treat_dag_id_as_regex == cli_args.treat_dag_as_regex
 
     @mock.patch("airflow.cli.commands.dag_command.get_dag")
     def test_backfill_fails_without_loading_dags(self, mock_get_dag):
@@ -392,16 +410,24 @@ class TestCliDags:
             disable_retry=False,
         )
 
-    @mock.patch("workday.AfterWorkdayTimetable")
+    @mock.patch("workday.AfterWorkdayTimetable.get_next_workday")
     @mock.patch("airflow.models.taskinstance.TaskInstance.dry_run")
     @mock.patch("airflow.cli.commands.dag_command.DagRun")
-    def test_backfill_with_custom_timetable(self, mock_dagrun, mock_dry_run, mock_AfterWorkdayTimetable):
+    def test_backfill_with_custom_timetable(self, mock_dagrun, mock_dry_run, mock_get_next_workday):
         """
         when calling `dags backfill` on dag with custom timetable, the DagRun object should be created with
          data_intervals.
         """
+
         start_date = DEFAULT_DATE + timedelta(days=1)
         end_date = start_date + timedelta(days=1)
+        workdays = [
+            start_date,
+            start_date + timedelta(days=1),
+            start_date + timedelta(days=2),
+        ]
+        mock_get_next_workday.side_effect = workdays
+
         cli_args = self.parser.parse_args(
             [
                 "dags",
@@ -590,12 +616,12 @@ class TestCliDags:
         dag_path = os.path.join(TEST_DAGS_FOLDER, "test_invalid_cron.py")
         args = self.parser.parse_args(["dags", "list", "--output", "yaml", "--subdir", dag_path])
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
-            with TestCase.assertRaises(TestCase(), SystemExit) as context:
+            with pytest.raises(SystemExit) as err_ctx:
                 dag_command.dag_list_import_errors(args)
             out = temp_stdout.getvalue()
         assert "[0 100 * * *] is not acceptable, out of range" in out
         assert dag_path in out
-        assert context.exception.code == 1
+        assert err_ctx.value.code == 1
 
     def test_cli_list_dag_runs(self):
         dag_command.dag_trigger(
@@ -642,11 +668,49 @@ class TestCliDags:
     def test_pause(self):
         args = self.parser.parse_args(["dags", "pause", "example_bash_operator"])
         dag_command.dag_pause(args)
-        assert self.dagbag.dags["example_bash_operator"].get_is_paused() in [True, 1]
-
-        args = self.parser.parse_args(["dags", "unpause", "example_bash_operator"])
+        assert self.dagbag.dags["example_bash_operator"].get_is_paused()
         dag_command.dag_unpause(args)
-        assert self.dagbag.dags["example_bash_operator"].get_is_paused() in [False, 0]
+        assert not self.dagbag.dags["example_bash_operator"].get_is_paused()
+
+    @mock.patch("airflow.cli.commands.dag_command.ask_yesno")
+    def test_pause_regex(self, mock_yesno):
+        args = self.parser.parse_args(["dags", "pause", "^example_.*$", "--treat-dag-id-as-regex"])
+        dag_command.dag_pause(args)
+        mock_yesno.assert_called_once()
+        assert self.dagbag.dags["example_bash_decorator"].get_is_paused()
+        assert self.dagbag.dags["example_kubernetes_executor"].get_is_paused()
+        assert self.dagbag.dags["example_xcom_args"].get_is_paused()
+
+        args = self.parser.parse_args(["dags", "unpause", "^example_.*$", "--treat-dag-id-as-regex"])
+        dag_command.dag_unpause(args)
+        assert not self.dagbag.dags["example_bash_decorator"].get_is_paused()
+        assert not self.dagbag.dags["example_kubernetes_executor"].get_is_paused()
+        assert not self.dagbag.dags["example_xcom_args"].get_is_paused()
+
+    @mock.patch("airflow.cli.commands.dag_command.ask_yesno")
+    def test_pause_regex_operation_cancelled(self, ask_yesno, capsys):
+        args = self.parser.parse_args(["dags", "pause", "example_bash_operator", "--treat-dag-id-as-regex"])
+        ask_yesno.return_value = False
+        dag_command.dag_pause(args)
+        stdout = capsys.readouterr().out
+        assert "Operation cancelled by user" in stdout
+
+    @mock.patch("airflow.cli.commands.dag_command.ask_yesno")
+    def test_pause_regex_yes(self, mock_yesno):
+        args = self.parser.parse_args(["dags", "pause", ".*", "--treat-dag-id-as-regex", "--yes"])
+        dag_command.dag_pause(args)
+        mock_yesno.assert_not_called()
+        dag_command.dag_unpause(args)
+
+    def test_pause_non_existing_dag_error(self):
+        args = self.parser.parse_args(["dags", "pause", "non_existing_dag"])
+        with pytest.raises(AirflowException):
+            dag_command.dag_pause(args)
+
+    def test_unpause_already_unpaused_dag_error(self):
+        args = self.parser.parse_args(["dags", "unpause", "example_bash_operator", "--yes"])
+        with pytest.raises(AirflowException, match="No paused DAGs were found"):
+            dag_command.dag_unpause(args)
 
     def test_trigger_dag(self):
         dag_command.dag_trigger(
@@ -878,15 +942,28 @@ class TestCliDags:
         dag_command.dag_test(cli_args)
         assert "data_interval" in mock__get_or_create_dagrun.call_args.kwargs
 
-    def test_dag_test_run_trigger(self, dag_maker):
+    @mock.patch("airflow.models.dag._get_or_create_dagrun")
+    def test_dag_with_parsing_context(self, mock__get_or_create_dagrun):
+        """
+        airflow parsing context should be set when calling `dags test`.
+        """
+        cli_args = self.parser.parse_args(
+            ["dags", "test", "test_dag_parsing_context", DEFAULT_DATE.isoformat()]
+        )
+        dag_command.dag_test(cli_args)
+
+        # if dag_parsing_context is not set, this DAG will only have 1 task
+        assert len(mock__get_or_create_dagrun.call_args[1]["dag"].task_ids) == 2
+
+    def test_dag_test_run_inline_trigger(self, dag_maker):
         now = timezone.utcnow()
         trigger = DateTimeTrigger(moment=now)
-        e = _run_trigger(trigger)
+        e = _run_inline_trigger(trigger)
         assert isinstance(e, TriggerEvent)
         assert e.payload == now
 
     def test_dag_test_no_triggerer_running(self, dag_maker):
-        with mock.patch("airflow.models.dag._run_trigger", wraps=_run_trigger) as mock_run:
+        with mock.patch("airflow.models.dag._run_inline_trigger", wraps=_run_inline_trigger) as mock_run:
             with dag_maker() as dag:
 
                 @task

@@ -25,3 +25,4 @@ Amazon Executors
     :maxdepth: 1
 
     ECS Executor (experimental) <ecs-executor>
+    Batch Executor (experimental) <batch-executor>

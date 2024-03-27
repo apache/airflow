@@ -166,7 +166,6 @@ def test_cannot_be_both_setup_and_teardown(dag_maker, type_):
                 ValueError, match=f"Cannot mark task 's1' as {second}; task is already a {first}."
             ):
                 getattr(s1, f"as_{second}")()
-                s1.as_teardown()
 
 
 def test_cannot_set_on_failure_fail_dagrun_unless_teardown_classic(dag_maker):

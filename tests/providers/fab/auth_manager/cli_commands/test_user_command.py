@@ -36,7 +36,7 @@ TEST_USER2_EMAIL = "test-user2@example.com"
 TEST_USER3_EMAIL = "test-user3@example.com"
 
 
-@pytest.fixture()
+@pytest.fixture
 def parser():
     return cli_parser.get_parser()
 
@@ -354,7 +354,7 @@ class TestCliUsers:
             user_command.users_export(args)
             return f.name
 
-    @pytest.fixture()
+    @pytest.fixture
     def create_user_test4(self):
         args = self.parser.parse_args(
             [
@@ -404,21 +404,28 @@ class TestCliUsers:
         ), "User should have been removed from role 'Viewer'"
 
     @pytest.mark.parametrize(
-        "action, role, message",
+        "role, message",
         [
-            ["add-role", "Viewer", 'User "test4" is already a member of role "Viewer"'],
-            ["add-role", "Foo", '"Foo" is not a valid role. Valid roles are'],
-            ["remove-role", "Admin", 'User "test4" is not a member of role "Admin"'],
-            ["remove-role", "Foo", '"Foo" is not a valid role. Valid roles are'],
+            ["Viewer", 'User "test4" is already a member of role "Viewer"'],
+            ["Foo", '"Foo" is not a valid role. Valid roles are'],
         ],
     )
-    def test_cli_manage_roles_exceptions(self, create_user_test4, action, role, message):
-        args = self.parser.parse_args(["users", action, "--username", "test4", "--role", role])
+    def test_cli_manage_add_role_exceptions(self, create_user_test4, role, message):
+        args = self.parser.parse_args(["users", "add-role", "--username", "test4", "--role", role])
         with pytest.raises(SystemExit, match=message):
-            if action == "add-role":
-                user_command.add_role(args)
-            else:
-                user_command.remove_role(args)
+            user_command.add_role(args)
+
+    @pytest.mark.parametrize(
+        "role, message",
+        [
+            ["Admin", 'User "test4" is not a member of role "Admin"'],
+            ["Foo", '"Foo" is not a valid role. Valid roles are'],
+        ],
+    )
+    def test_cli_manage_remove_role_exceptions(self, create_user_test4, role, message):
+        args = self.parser.parse_args(["users", "remove-role", "--username", "test4", "--role", role])
+        with pytest.raises(SystemExit, match=message):
+            user_command.remove_role(args)
 
     @pytest.mark.parametrize(
         "user, message",

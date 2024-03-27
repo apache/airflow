@@ -42,7 +42,13 @@ const mockTaskLog = `
 
 describe("Test Logs Utils.", () => {
   test("parseLogs function replaces datetimes", () => {
-    const { parsedLogs, fileSources } = parseLogs(mockTaskLog, "UTC", [], []);
+    const { parsedLogs, fileSources } = parseLogs(
+      mockTaskLog,
+      "UTC",
+      [],
+      [],
+      []
+    );
 
     expect(parsedLogs).toContain("2022-06-04, 00:00:01 UTC");
     expect(fileSources).toEqual([
@@ -51,7 +57,7 @@ describe("Test Logs Utils.", () => {
       "task_command.py",
       "taskinstance.py",
     ]);
-    const result = parseLogs(mockTaskLog, "America/Los_Angeles", [], []);
+    const result = parseLogs(mockTaskLog, "America/Los_Angeles", [], [], []);
     expect(result.parsedLogs).toContain("2022-06-03, 17:00:01 PDT");
   });
 
@@ -77,6 +83,7 @@ describe("Test Logs Utils.", () => {
         mockTaskLog,
         null,
         logLevelFilters,
+        [],
         []
       );
 
@@ -93,7 +100,8 @@ describe("Test Logs Utils.", () => {
       mockTaskLog,
       null,
       [],
-      ["taskinstance.py"]
+      ["taskinstance.py"],
+      []
     );
 
     expect(fileSources).toEqual([
@@ -112,7 +120,8 @@ describe("Test Logs Utils.", () => {
       mockTaskLog,
       null,
       [LogLevel.INFO, LogLevel.WARNING],
-      ["taskinstance.py"]
+      ["taskinstance.py"],
+      []
     );
 
     expect(fileSources).toEqual([

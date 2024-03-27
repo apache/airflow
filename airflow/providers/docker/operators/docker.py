@@ -16,9 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """Implements Docker operator."""
+
 from __future__ import annotations
 
 import ast
+import os
 import pickle
 import tarfile
 import warnings
@@ -42,6 +44,7 @@ from airflow.providers.docker.exceptions import (
     DockerContainerFailedSkipException,
 )
 from airflow.providers.docker.hooks.docker import DockerHook
+from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from docker import APIClient
@@ -93,7 +96,8 @@ class DockerOperator(BaseOperator):
         This value gets multiplied with 1024. See
         https://docs.docker.com/engine/reference/run/#cpu-share-constraint
     :param docker_url: URL of the host running the docker daemon.
-        Default is unix://var/run/docker.sock
+        Default is the value of the ``DOCKER_HOST`` environment variable or unix://var/run/docker.sock
+        if it is unset.
     :param environment: Environment variables to set in the container. (templated)
     :param private_environment: Private environment variables to set in the container.
         These are not templated, and hidden from the website.
@@ -196,7 +200,7 @@ class DockerOperator(BaseOperator):
         command: str | list[str] | None = None,
         container_name: str | None = None,
         cpus: float = 1.0,
-        docker_url: str = "unix://var/run/docker.sock",
+        docker_url: str | None = None,
         environment: dict | None = None,
         private_environment: dict | None = None,
         env_file: str | None = None,
@@ -237,9 +241,11 @@ class DockerOperator(BaseOperator):
         skip_on_exit_code: int | Container[int] | None = None,
         port_bindings: dict | None = None,
         ulimits: list[Ulimit] | None = None,
+        # deprecated, no need to include into docstring
+        skip_exit_code: int | Container[int] | ArgNotSet = NOTSET,
         **kwargs,
     ) -> None:
-        if skip_exit_code := kwargs.pop("skip_exit_code", None):
+        if skip_exit_code is not NOTSET:
             warnings.warn(
                 "`skip_exit_code` is deprecated and will be removed in the future. "
                 "Please use `skip_on_exit_code` instead.",
@@ -252,7 +258,7 @@ class DockerOperator(BaseOperator):
                     f"skip_on_exit_code={skip_on_exit_code!r}, skip_exit_code={skip_exit_code!r}."
                 )
                 raise ValueError(msg)
-            skip_on_exit_code = skip_exit_code
+            skip_on_exit_code = skip_exit_code  # type: ignore[assignment]
         if isinstance(auto_remove, bool):
             warnings.warn(
                 "bool value for `auto_remove` is deprecated and will be removed in the future. "
@@ -276,7 +282,7 @@ class DockerOperator(BaseOperator):
         self.cpus = cpus
         self.dns = dns
         self.dns_search = dns_search
-        self.docker_url = docker_url
+        self.docker_url = docker_url or os.environ.get("DOCKER_HOST") or "unix://var/run/docker.sock"
         self.environment = environment or {}
         self._private_environment = private_environment or {}
         self.env_file = env_file

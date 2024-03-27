@@ -31,6 +31,7 @@ from airflow.providers.amazon.aws.triggers.batch import (
     BatchCreateComputeEnvironmentTrigger,
     BatchJobTrigger,
 )
+from airflow.utils.task_instance_session import set_current_task_instance_session
 
 AWS_REGION = "eu-west-1"
 AWS_ACCESS_KEY_ID = "airflow_dummy_key"
@@ -370,6 +371,8 @@ class TestBatchOperator:
 
 
 class TestBatchCreateComputeEnvironmentOperator:
+    warn_message = "The `status_retries` parameter is unused and should be removed"
+
     @mock.patch.object(BatchClientHook, "client")
     def test_execute(self, mock_conn):
         environment_name = "environment_name"
@@ -393,6 +396,36 @@ class TestBatchCreateComputeEnvironmentOperator:
             computeResources=compute_resources,
             tags=tags,
         )
+
+    def test_deprecation(self):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=self.warn_message):
+            BatchCreateComputeEnvironmentOperator(
+                task_id="id",
+                compute_environment_name="environment_name",
+                environment_type="environment_type",
+                state="environment_state",
+                compute_resources={},
+                status_retries="Huh?",
+            )
+
+    @pytest.mark.db_test
+    def test_partial_deprecation(self, dag_maker, session):
+        with dag_maker(dag_id="test_partial_deprecation_waiters_params_reg_ecs", session=session):
+            BatchCreateComputeEnvironmentOperator.partial(
+                task_id="id",
+                compute_environment_name="environment_name",
+                environment_type="environment_type",
+                state="environment_state",
+                status_retries="Huh?",
+            ).expand(compute_resources=[{}, {}])
+
+        dr = dag_maker.create_dagrun()
+        tis = dr.get_task_instances(session=session)
+        with set_current_task_instance_session(session=session):
+            for ti in tis:
+                with pytest.warns(AirflowProviderDeprecationWarning, match=self.warn_message):
+                    ti.render_templates()
+                assert not hasattr(ti.task, "status_retries")
 
     @mock.patch.object(BatchClientHook, "client")
     def test_defer(self, client_mock):

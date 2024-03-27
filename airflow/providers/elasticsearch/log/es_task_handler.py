@@ -225,6 +225,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             else:
                 log_id_template = self.log_id_template
 
+        if TYPE_CHECKING:
+            assert ti.task
         try:
             dag = ti.task.dag
         except AttributeError:  # ti.task is not always set.

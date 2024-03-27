@@ -60,11 +60,9 @@ from airflow.api_connexion.schemas.task_instance_schema import (
 )
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.models import DagModel, DagRun
-from airflow.security import permissions
 from airflow.timetables.base import DataInterval
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.db import get_query_count
-from airflow.utils.log.action_logger import action_event_from_permission
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
@@ -77,11 +75,10 @@ if TYPE_CHECKING:
 
     from airflow.api_connexion.types import APIResponse
 
-RESOURCE_EVENT_PREFIX = "dag_run"
-
 
 @security.requires_access_dag("DELETE", DagAccessEntity.RUN)
 @provide_session
+@action_logging
 def delete_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Delete a DAG Run."""
     deleted_count = session.execute(
@@ -302,13 +299,8 @@ def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
 
 
 @security.requires_access_dag("POST", DagAccessEntity.RUN)
+@action_logging
 @provide_session
-@action_logging(
-    event=action_event_from_permission(
-        prefix=RESOURCE_EVENT_PREFIX,
-        permission=permissions.ACTION_CAN_CREATE,
-    ),
-)
 def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Trigger a DAG."""
     dm = session.scalar(select(DagModel).where(DagModel.is_active, DagModel.dag_id == dag_id).limit(1))
@@ -380,6 +372,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
 
 @security.requires_access_dag("PUT", DagAccessEntity.RUN)
 @provide_session
+@action_logging
 def update_dag_run_state(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Set a state of a dag run."""
     dag_run: DagRun | None = session.scalar(
@@ -406,6 +399,7 @@ def update_dag_run_state(*, dag_id: str, dag_run_id: str, session: Session = NEW
 
 
 @security.requires_access_dag("PUT", DagAccessEntity.RUN)
+@action_logging
 @provide_session
 def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Clear a dag run."""
@@ -452,6 +446,7 @@ def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSIO
 
 
 @security.requires_access_dag("PUT", DagAccessEntity.RUN)
+@action_logging
 @provide_session
 def set_dag_run_note(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Set the note for a dag run."""

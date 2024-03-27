@@ -74,6 +74,7 @@ const formatEdge = (e: WebserverEdge, font: string, node?: DepNode) => ({
   targets: [e.targetId],
   isSetupTeardown: e.isSetupTeardown,
   parentNode: node?.id,
+  isSourceDataset: e.isSourceDataset,
   labels: e.label
     ? [
         {
@@ -174,6 +175,7 @@ const generateGraph = ({
     }
     const extraLabelLength =
       value.label.length > 20 ? value.label.length - 19 : 0;
+
     return {
       id,
       label: value.label,
@@ -218,7 +220,7 @@ export const useGraphLayout = ({
   return useQuery(
     [
       "graphLayout",
-      !!nodes?.children,
+      nodes?.children?.length,
       openGroupIds,
       arrange,
       root,

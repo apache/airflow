@@ -20,6 +20,7 @@ from __future__ import annotations
 import os
 import signal
 from datetime import datetime, timedelta
+from pathlib import Path
 from time import sleep
 from unittest import mock
 
@@ -37,9 +38,9 @@ END_DATE = datetime(2016, 1, 2, tzinfo=timezone.utc)
 INTERVAL = timedelta(hours=12)
 
 
-@pytest.fixture()
+@pytest.fixture
 def context():
-    yield {"ti": mock.Mock()}
+    return {"ti": mock.Mock()}
 
 
 class TestBashOperator:
@@ -242,5 +243,23 @@ class TestBashOperator:
         for proc in psutil.process_iter():
             if proc.cmdline() == ["sleep", sleep_time]:
                 os.kill(proc.pid, signal.SIGTERM)
-                assert False, "BashOperator's subprocess still running after stopping on timeout!"
-                break
+                pytest.fail("BashOperator's subprocess still running after stopping on timeout!")
+
+    @pytest.mark.db_test
+    def test_templated_fields(self, create_task_instance_of_operator):
+        ti = create_task_instance_of_operator(
+            BashOperator,
+            # Templated fields
+            bash_command='echo "{{ dag_run.dag_id }}"',
+            env={"FOO": "{{ ds }}"},
+            cwd="{{ dag_run.dag.folder }}",
+            # Other parameters
+            dag_id="test_templated_fields_dag",
+            task_id="test_templated_fields_task",
+            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+        )
+        ti.render_templates()
+        task: BashOperator = ti.task
+        assert task.bash_command == 'echo "test_templated_fields_dag"'
+        assert task.env == {"FOO": "2024-02-01"}
+        assert task.cwd == Path(__file__).absolute().parent.as_posix()

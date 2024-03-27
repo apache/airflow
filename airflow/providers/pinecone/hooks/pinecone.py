@@ -16,6 +16,7 @@
 # under the License.
 
 """Hook for Pinecone."""
+
 from __future__ import annotations
 
 import itertools

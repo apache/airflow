@@ -53,18 +53,19 @@ class _BashDecoratedOperator(DecoratedOperator, BashOperator):
         op_kwargs: Mapping[str, Any] | None = None,
         **kwargs,
     ) -> None:
-        if kwargs.get("multiple_outputs") is not None:
+        if kwargs.pop("multiple_outputs", None):
             warnings.warn(
-                f"`multiple_outputs` is not supported in {self.custom_operator_name} tasks. Ignoring.",
-                stacklevel=1,
+                f"`multiple_outputs=True` is not supported in {self.custom_operator_name} tasks. Ignoring.",
+                UserWarning,
+                stacklevel=3,
             )
-        kwargs.pop("multiple_outputs")
 
         super().__init__(
             python_callable=python_callable,
             op_args=op_args,
             op_kwargs=op_kwargs,
             bash_command=NOTSET,
+            multiple_outputs=False,
             **kwargs,
         )
 

@@ -18,16 +18,24 @@
 """
 This is an example dag for using the KubernetesJobOperator.
 """
+
 from __future__ import annotations
 
 import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.cncf.kubernetes.operators.job import KubernetesJobOperator
+from airflow.providers.cncf.kubernetes.operators.job import (
+    KubernetesDeleteJobOperator,
+    KubernetesJobOperator,
+    KubernetesPatchJobOperator,
+)
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_kubernetes_job_operator"
+
+JOB_NAME = "test-pi"
+JOB_NAMESPACE = "default"
 
 with DAG(
     dag_id=DAG_ID,
@@ -38,12 +46,50 @@ with DAG(
     # [START howto_operator_k8s_job]
     k8s_job = KubernetesJobOperator(
         task_id="job-task",
+        namespace=JOB_NAMESPACE,
+        image="perl:5.34.0",
+        cmds=["perl", "-Mbignum=bpi", "-wle", "print bpi(2000)"],
+        name=JOB_NAME,
+    )
+    # [END howto_operator_k8s_job]
+
+    # [START howto_operator_update_job]
+    update_job = KubernetesPatchJobOperator(
+        task_id="update-job-task",
+        namespace="default",
+        name=JOB_NAME,
+        body={"spec": {"suspend": False}},
+    )
+    # [END howto_operator_update_job]
+
+    # [START howto_operator_k8s_job_deferrable]
+    k8s_job_def = KubernetesJobOperator(
+        task_id="job-task-def",
         namespace="default",
         image="perl:5.34.0",
         cmds=["perl", "-Mbignum=bpi", "-wle", "print bpi(2000)"],
-        name="test-pi",
+        name=JOB_NAME + "-def",
+        wait_until_job_complete=True,
+        deferrable=True,
     )
-    # [END howto_operator_k8s_job]
+    # [END howto_operator_k8s_job_deferrable]
+
+    # [START howto_operator_delete_k8s_job]
+    delete_job_task = KubernetesDeleteJobOperator(
+        task_id="delete_job_task",
+        name=JOB_NAME,
+        namespace=JOB_NAMESPACE,
+    )
+    # [END howto_operator_delete_k8s_job]
+
+    delete_job_task_def = KubernetesDeleteJobOperator(
+        task_id="delete_job_task_def",
+        name=JOB_NAME + "-def",
+        namespace=JOB_NAMESPACE,
+    )
+
+    k8s_job >> update_job >> delete_job_task
+    k8s_job_def >> delete_job_task_def
 
     from tests.system.utils.watcher import watcher
 

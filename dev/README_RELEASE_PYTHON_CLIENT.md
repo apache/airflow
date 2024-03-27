@@ -161,7 +161,7 @@ cd airflow-dev/clients/python
 svn mkdir ${VERSION}${VERSION_SUFFIX}
 
 # Move the artifacts to svn folder & commit
-mv ${AIRLFOW_REPO_ROOT}/dist/apache_airflow_client-* ${VERSION}${VERSION_SUFFIX}/
+mv ${AIRFLOW_REPO_ROOT}/dist/apache_airflow_client-* ${VERSION}${VERSION_SUFFIX}/
 cd ${VERSION}${VERSION_SUFFIX}
 svn add *
 svn commit -m "Add artifacts for Apache Airflow Python Client ${VERSION}${VERSION_SUFFIX}"

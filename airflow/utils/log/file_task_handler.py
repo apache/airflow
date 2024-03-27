@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """File logging handler for tasks."""
+
 from __future__ import annotations
 
 import inspect
@@ -159,31 +160,6 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
         raise AirflowException(f"Could not find TaskInstance for {ti}")
 
 
-def _change_directory_permissions_up(directory: Path, folder_permissions: int):
-    """
-    Change permissions of the given directory and its parents.
-
-    Only attempt to change permissions for directories owned by the current user.
-
-    :param directory: directory to change permissions of (including parents)
-    :param folder_permissions: permissions to set
-    """
-    if directory.stat().st_uid == os.getuid():
-        if directory.stat().st_mode % 0o1000 != folder_permissions % 0o1000:
-            print(f"Changing {directory} permission to {folder_permissions}")
-            try:
-                directory.chmod(folder_permissions)
-            except PermissionError as e:
-                # In some circumstances (depends on user and filesystem) we might not be able to
-                # change the permission for the folder (when the folder was created by another user
-                # before or when the filesystem does not allow to change permission). We should not
-                # fail in this case but rather ignore it.
-                print(f"Failed to change {directory} permission to {folder_permissions}: {e}")
-                return
-        if directory.parent != directory:
-            _change_directory_permissions_up(directory.parent, folder_permissions)
-
-
 class FileTaskHandler(logging.Handler):
     """
     FileTaskHandler is a python log handler that handles and reads task instance logs.
@@ -288,7 +264,7 @@ class FileTaskHandler(logging.Handler):
             str_tpl, jinja_tpl = parse_template_string(template)
 
             if jinja_tpl:
-                if hasattr(ti, "task"):
+                if getattr(ti, "task", None) is not None:
                     context = ti.get_template_context(session=session)
                 else:
                     context = Context(ti=ti, ts=dag_run.logical_date.isoformat())
@@ -296,14 +272,13 @@ class FileTaskHandler(logging.Handler):
                 return render_template_to_string(jinja_tpl, context)
 
         if str_tpl:
-            try:
+            if ti.task is not None and ti.task.dag is not None:
                 dag = ti.task.dag
-            except AttributeError:  # ti.task is not always set.
-                data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
-            else:
-                if TYPE_CHECKING:
-                    assert dag is not None
                 data_interval = dag.get_run_data_interval(dag_run)
+            else:
+                from airflow.timetables.base import DataInterval
+
+                data_interval = DataInterval(dag_run.data_interval_start, dag_run.data_interval_end)
             if data_interval[0]:
                 data_interval_start = data_interval[0].isoformat()
             else:
@@ -481,7 +456,8 @@ class FileTaskHandler(logging.Handler):
 
         return logs, metadata_array
 
-    def _prepare_log_folder(self, directory: Path):
+    @staticmethod
+    def _prepare_log_folder(directory: Path, new_folder_permissions: int):
         """
         Prepare the log folder and ensure its mode is as configured.
 
@@ -505,11 +481,9 @@ class FileTaskHandler(logging.Handler):
         sure that the same group is set as default group for both - impersonated user and main airflow
         user.
         """
-        new_folder_permissions = int(
-            conf.get("logging", "file_task_handler_new_folder_permissions", fallback="0o775"), 8
-        )
-        directory.mkdir(mode=new_folder_permissions, parents=True, exist_ok=True)
-        _change_directory_permissions_up(directory, new_folder_permissions)
+        for parent in reversed(directory.parents):
+            parent.mkdir(mode=new_folder_permissions, exist_ok=True)
+        directory.mkdir(mode=new_folder_permissions, exist_ok=True)
 
     def _init_file(self, ti, *, identifier: str | None = None):
         """
@@ -531,14 +505,17 @@ class FileTaskHandler(logging.Handler):
             # if this is true, we're invoked via set_context in the context of
             # setting up individual trigger logging. return trigger log path.
             full_path = self.add_triggerer_suffix(full_path=full_path, job_id=ti.triggerer_job.id)
-        self._prepare_log_folder(Path(full_path).parent)
+        new_folder_permissions = int(
+            conf.get("logging", "file_task_handler_new_folder_permissions", fallback="0o775"), 8
+        )
+        self._prepare_log_folder(Path(full_path).parent, new_folder_permissions)
 
         if not os.path.exists(full_path):
             open(full_path, "a").close()
             try:
                 os.chmod(full_path, new_file_permissions)
             except OSError as e:
-                logging.warning("OSError while changing ownership of the log file. ", e)
+                logger.warning("OSError while changing ownership of the log file. ", e)
 
         return full_path
 

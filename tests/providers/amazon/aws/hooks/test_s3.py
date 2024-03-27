@@ -62,6 +62,10 @@ class TestAwsS3Hook:
         hook = S3Hook()
         assert hook.get_conn() is not None
 
+    def test_resource(self):
+        hook = S3Hook()
+        assert hook.resource is not None
+
     def test_use_threads_default_value(self):
         hook = S3Hook()
         assert hook.transfer_config.use_threads is True
@@ -316,7 +320,7 @@ class TestAwsS3Hook:
     def test_read_key(self, s3_bucket):
         hook = S3Hook()
         bucket = hook.get_bucket(s3_bucket)
-        bucket.put_object(Key="my_key", Body=b"Cont\xC3\xA9nt")
+        bucket.put_object(Key="my_key", Body=b"Cont\xc3\xa9nt")
 
         assert hook.read_key("my_key", s3_bucket) == "Contént"
 
@@ -324,7 +328,7 @@ class TestAwsS3Hook:
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_client_type")
     def test_select_key(self, mock_get_client_type, s3_bucket):
         mock_get_client_type.return_value.select_object_content.return_value = {
-            "Payload": [{"Records": {"Payload": b"Cont\xC3"}}, {"Records": {"Payload": b"\xA9nt"}}]
+            "Payload": [{"Records": {"Payload": b"Cont\xc3"}}, {"Records": {"Payload": b"\xa9nt"}}]
         }
         hook = S3Hook()
         assert hook.select_key("my_key", s3_bucket) == "Contént"
@@ -382,14 +386,14 @@ class TestAwsS3Hook:
         hook = S3Hook()
         hook.load_string("Contént", "my_key", s3_bucket)
         resource = boto3.resource("s3").Object(s3_bucket, "my_key")
-        assert resource.get()["Body"].read() == b"Cont\xC3\xA9nt"
+        assert resource.get()["Body"].read() == b"Cont\xc3\xa9nt"
 
     def test_load_string_compress(self, s3_bucket):
         hook = S3Hook()
         hook.load_string("Contént", "my_key", s3_bucket, compression="gzip")
         resource = boto3.resource("s3").Object(s3_bucket, "my_key")
         data = gz.decompress(resource.get()["Body"].read())
-        assert data == b"Cont\xC3\xA9nt"
+        assert data == b"Cont\xc3\xa9nt"
 
     def test_load_string_compress_exception(self, s3_bucket):
         hook = S3Hook()
@@ -400,9 +404,8 @@ class TestAwsS3Hook:
         hook = S3Hook()
         hook.load_string("Contént", "my_key", s3_bucket, acl_policy="public-read")
         response = boto3.client("s3").get_object_acl(Bucket=s3_bucket, Key="my_key", RequestPayer="requester")
-        assert (response["Grants"][1]["Permission"] == "READ") and (
-            response["Grants"][0]["Permission"] == "FULL_CONTROL"
-        )
+        assert response["Grants"][1]["Permission"] == "READ"
+        assert response["Grants"][0]["Permission"] == "FULL_CONTROL"
 
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
     @pytest.mark.asyncio
@@ -908,9 +911,8 @@ class TestAwsS3Hook:
         hook = S3Hook()
         hook.load_bytes(b"Content", "my_key", s3_bucket, acl_policy="public-read")
         response = boto3.client("s3").get_object_acl(Bucket=s3_bucket, Key="my_key", RequestPayer="requester")
-        assert (response["Grants"][1]["Permission"] == "READ") and (
-            response["Grants"][0]["Permission"] == "FULL_CONTROL"
-        )
+        assert response["Grants"][1]["Permission"] == "READ"
+        assert response["Grants"][0]["Permission"] == "FULL_CONTROL"
 
     def test_load_fileobj(self, s3_bucket, tmp_path):
         hook = S3Hook()
@@ -926,9 +928,8 @@ class TestAwsS3Hook:
         path.write_text("Content")
         hook.load_file_obj(path.open("rb"), "my_key", s3_bucket, acl_policy="public-read")
         response = boto3.client("s3").get_object_acl(Bucket=s3_bucket, Key="my_key", RequestPayer="requester")
-        assert (response["Grants"][1]["Permission"] == "READ") and (
-            response["Grants"][0]["Permission"] == "FULL_CONTROL"
-        )
+        assert response["Grants"][1]["Permission"] == "READ"
+        assert response["Grants"][0]["Permission"] == "FULL_CONTROL"
 
     def test_load_file_gzip(self, s3_bucket, tmp_path):
         hook = S3Hook()
@@ -944,9 +945,8 @@ class TestAwsS3Hook:
         path.write_text("Content")
         hook.load_file(path, "my_key", s3_bucket, gzip=True, acl_policy="public-read")
         response = boto3.client("s3").get_object_acl(Bucket=s3_bucket, Key="my_key", RequestPayer="requester")
-        assert (response["Grants"][1]["Permission"] == "READ") and (
-            response["Grants"][0]["Permission"] == "FULL_CONTROL"
-        )
+        assert response["Grants"][1]["Permission"] == "READ"
+        assert response["Grants"][0]["Permission"] == "FULL_CONTROL"
 
     def test_copy_object_acl(self, s3_bucket, tmp_path):
         hook = S3Hook()
@@ -957,7 +957,8 @@ class TestAwsS3Hook:
         response = boto3.client("s3").get_object_acl(
             Bucket=s3_bucket, Key="my_key2", RequestPayer="requester"
         )
-        assert (response["Grants"][0]["Permission"] == "FULL_CONTROL") and (len(response["Grants"]) == 1)
+        assert response["Grants"][0]["Permission"] == "FULL_CONTROL"
+        assert len(response["Grants"]) == 1
 
     @mock_aws
     def test_delete_bucket_if_bucket_exist(self, s3_bucket):

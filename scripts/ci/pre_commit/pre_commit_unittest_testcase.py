@@ -27,20 +27,27 @@ def check_test_file(file: str) -> int:
 
     found = 0
     classes = [c for c in node.body if isinstance(c, ast.ClassDef)]
+    known_classes = {"TestCase"}
     for c in classes:
         # Some classes are returned as an ast.Attribute, some as an ast.Name object. Not quite sure why
         if any(
-            (isinstance(base, ast.Attribute) and base.attr == "TestCase")
-            or (isinstance(base, ast.Name) and base.id == "TestCase")
+            (isinstance(base, ast.Attribute) and base.attr in known_classes)
+            or (isinstance(base, ast.Name) and base.id in known_classes)
             for base in c.bases
         ):
             found += 1
-            print(f"The class {c.name} inherits from TestCase, please use pytest instead")
+            prefix = f"{file}:{c.lineno}:"
+            print(f"{prefix} The class {c.name!r} inherits from TestCase, please use pytest instead")
+            known_classes.add(c.name)  # Also use to found inherited classes in the same module
     return found
 
 
 def main(*args: str) -> int:
-    return sum(check_test_file(file) for file in args[1:])
+    errors = sum(check_test_file(file) for file in args[1:])
+    if not errors:
+        return 0
+    print(f"Found {errors} error{'s' if errors > 1 else ''}.")
+    return 1
 
 
 if __name__ == "__main__":

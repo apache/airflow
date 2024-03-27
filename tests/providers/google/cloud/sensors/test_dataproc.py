@@ -141,14 +141,13 @@ class TestDataprocJobSensor:
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_missing_region(self, mock_hook):
         with pytest.raises(AirflowException):
-            sensor = DataprocJobSensor(
+            DataprocJobSensor(
                 task_id=TASK_ID,
                 project_id=GCP_PROJECT,
                 dataproc_job_id="job_id",
                 gcp_conn_id=GCP_CONN_ID,
                 timeout=TIMEOUT,
             )
-            sensor.poke(context={})
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_wait_timeout(self, mock_hook):

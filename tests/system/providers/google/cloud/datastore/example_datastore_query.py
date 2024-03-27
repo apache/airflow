@@ -18,6 +18,7 @@
 """
 Airflow System Test DAG that verifies Datastore query operators.
 """
+
 from __future__ import annotations
 
 import os

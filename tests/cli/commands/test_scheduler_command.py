@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from http.server import BaseHTTPRequestHandler
+from importlib import reload
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -25,6 +26,7 @@ import pytest
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import scheduler_command
+from airflow.executors import executor_loader
 from airflow.utils.scheduler_health import HealthServer, serve_health_check
 from airflow.utils.serve_logs import serve_logs
 from tests.test_utils.config import conf_vars
@@ -60,6 +62,7 @@ class TestSchedulerCommand:
         args = self.parser.parse_args(["scheduler"])
 
         with conf_vars({("core", "executor"): executor}):
+            reload(executor_loader)
             scheduler_command.scheduler(args)
             if expect_serve_logs:
                 mock_process.assert_has_calls([mock.call(target=serve_logs)])
@@ -74,6 +77,7 @@ class TestSchedulerCommand:
         mock_scheduler_job.return_value.job_type = "SchedulerJob"
         args = self.parser.parse_args(["scheduler", "--skip-serve-logs"])
         with conf_vars({("core", "executor"): executor}):
+            reload(executor_loader)
             scheduler_command.scheduler(args)
             with pytest.raises(AssertionError):
                 mock_process.assert_has_calls([mock.call(target=serve_logs)])
@@ -109,6 +113,7 @@ class TestSchedulerCommand:
         mock_scheduler_job.return_value.job_type = "SchedulerJob"
         args = self.parser.parse_args(["scheduler"])
         with conf_vars({("core", "executor"): executor}):
+            reload(executor_loader)
             mock_scheduler_job.run.side_effect = Exception("Mock exception to trigger runtime error")
             try:
                 scheduler_command.scheduler(args)
@@ -160,10 +165,8 @@ class TestSchedulerCommand:
     @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner")
     @mock.patch("airflow.cli.commands.scheduler_command.Process")
     @mock.patch("airflow.cli.commands.scheduler_command.run_job", side_effect=Exception("run_job failed"))
-    @mock.patch("airflow.cli.commands.scheduler_command.log")
     def test_run_job_exception_handling(
         self,
-        mock_log,
         mock_run_job,
         mock_process,
         mock_scheduler_job,
@@ -178,7 +181,6 @@ class TestSchedulerCommand:
             job=mock_scheduler_job().job,
             execute_callable=mock_scheduler_job()._execute,
         )
-        mock_log.exception.assert_called_once_with("Exception when running scheduler job")
         mock_process.assert_called_once_with(target=serve_logs)
         mock_process().terminate.assert_called_once_with()
 

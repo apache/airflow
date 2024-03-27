@@ -356,8 +356,8 @@ The ``4.0.0`` and ``4.0.1`` versions have been broken and yanked, so the 4.0.2 i
 * ``Fix wrapping of run() method result of exasol and snowflake DB hooks (#27997)``
 * ``Make Snowflake Hook conform to semantics of DBApi (#28006)``
 
-4.0.1
-.....
+4.0.1 (YANKED)
+..............
 
 .. warning::
 
@@ -375,8 +375,8 @@ Bug Fixes
    appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare for follow-up release for November providers (#27774)``
 
-4.0.0
-.....
+4.0.0 (YANKED)
+..............
 
 .. warning::
 
@@ -689,7 +689,9 @@ Features
 * ``Fix S3ToSnowflakeOperator to support uploading all files in the specified stage (#12505)``
 * ``Add connection arguments in S3ToSnowflakeOperator (#12564)``
 
-1.0.0
-.....
+1.0.0 (YANKED)
+..............
+
+.. warning:: This release has been **yanked** with a reason: ``Snowflake breaks openssl when used``
 
 Initial version of the provider.

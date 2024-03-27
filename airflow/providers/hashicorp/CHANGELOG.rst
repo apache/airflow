@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+3.6.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix unexpected keyword argument 'secret_path' in secrets.kv.v2 (#37626)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add comment about versions updated by release manager (#37488)``
+   * ``Fix remaining D401 checks (#37434)``
+
 3.6.3
 .....
 

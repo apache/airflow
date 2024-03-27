@@ -62,7 +62,7 @@ export const flattenNodes = ({
     if (!node.id.endsWith("join_id") && selected.runId) {
       instance = group?.instances.find((ti) => ti.runId === selected.runId);
     }
-    const isSelected = node.id === selected.taskId && !!instance;
+    const isSelected = node.id === selected.taskId;
     const isActive =
       instance && hoveredTaskState !== undefined
         ? hoveredTaskState === instance.state

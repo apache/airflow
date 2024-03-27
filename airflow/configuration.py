@@ -80,13 +80,11 @@ def _parse_sqlite_version(s: str) -> tuple[int, ...]:
 
 
 @overload
-def expand_env_var(env_var: None) -> None:
-    ...
+def expand_env_var(env_var: None) -> None: ...
 
 
 @overload
-def expand_env_var(env_var: str) -> str:
-    ...
+def expand_env_var(env_var: str) -> str: ...
 
 
 def expand_env_var(env_var: str | None) -> str | None:
@@ -259,12 +257,14 @@ class AirflowConfigParser(ConfigParser):
                 if not self.is_template(section, key) and "{" in value:
                     errors = True
                     log.error(
-                        f"The {section}.{key} value {value} read from string contains "
-                        "variable. This is not supported"
+                        "The %s.%s value %s read from string contains variable. This is not supported",
+                        section,
+                        key,
+                        value,
                     )
                 self._default_values.set(section, key, value)
             if errors:
-                raise Exception(
+                raise AirflowConfigException(
                     f"The string config passed as default contains variables. "
                     f"This is not supported. String config: {config_string}"
                 )
@@ -469,7 +469,7 @@ class AirflowConfigParser(ConfigParser):
         ("logging", "fab_logging_level"): _available_logging_levels,
         # celery_logging_level can be empty, which uses logging_level as fallback
         ("logging", "celery_logging_level"): [*_available_logging_levels, ""],
-        ("webserver", "analytical_tool"): ["google_analytics", "metarouter", "segment", ""],
+        ("webserver", "analytical_tool"): ["google_analytics", "metarouter", "segment", "matomo", ""],
     }
 
     upgraded_values: dict[tuple[str, str], str]
@@ -920,13 +920,17 @@ class AirflowConfigParser(ConfigParser):
             raise ValueError(f"The value {section}/{key} should be set!")
         return value
 
-    @overload  # type: ignore[override]
-    def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str:
-        ...
+    def get_mandatory_list_value(self, section: str, key: str, **kwargs) -> list[str]:
+        value = self.getlist(section, key, **kwargs)
+        if value is None:
+            raise ValueError(f"The value {section}/{key} should be set!")
+        return value
 
     @overload  # type: ignore[override]
-    def get(self, section: str, key: str, **kwargs) -> str | None:
-        ...
+    def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str: ...
+
+    @overload  # type: ignore[override]
+    def get(self, section: str, key: str, **kwargs) -> str | None: ...
 
     def get(  # type: ignore[override,misc]
         self,
@@ -1173,6 +1177,21 @@ class AirflowConfigParser(ConfigParser):
         except ValueError:
             raise AirflowConfigException(
                 f'Failed to convert value to float. Please check "{key}" key in "{section}" section. '
+                f'Current value: "{val}".'
+            )
+
+    def getlist(self, section: str, key: str, delimiter=",", **kwargs):
+        val = self.get(section, key, **kwargs)
+        if val is None:
+            raise AirflowConfigException(
+                f"Failed to convert value None to list. "
+                f'Please check "{key}" key in "{section}" section is set.'
+            )
+        try:
+            return [item.strip() for item in val.split(delimiter)]
+        except Exception:
+            raise AirflowConfigException(
+                f'Failed to parse value to a list. Please check "{key}" key in "{section}" section. '
                 f'Current value: "{val}".'
             )
 
@@ -1871,7 +1890,8 @@ class AirflowConfigParser(ConfigParser):
                 stacklevel=4 + extra_stacklevel,
             )
 
-    def __getstate__(self):
+    def __getstate__(self) -> dict[str, Any]:
+        """Return the state of the object as a dictionary for pickling."""
         return {
             name: getattr(self, name)
             for name in [
@@ -1883,8 +1903,9 @@ class AirflowConfigParser(ConfigParser):
             ]
         }
 
-    def __setstate__(self, state):
-        self.__init__()
+    def __setstate__(self, state) -> None:
+        """Restore the state of the object from a dictionary representation."""
+        self.__init__()  # type: ignore[misc]
         config = state.pop("_sections")
         self.read_dict(config)
         self.__dict__.update(state)

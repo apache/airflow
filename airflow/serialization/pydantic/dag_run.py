@@ -53,7 +53,7 @@ class DagRunPydantic(BaseModelPydantic):
     dag_hash: Optional[str]
     updated_at: Optional[datetime]
     dag: Optional[PydanticDag]
-    consumed_dataset_events: List[DatasetEventPydantic]  # noqa
+    consumed_dataset_events: List[DatasetEventPydantic]  # noqa: UP006
     log_template_id: Optional[int]
 
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
@@ -75,11 +75,10 @@ class DagRunPydantic(BaseModelPydantic):
         """
         raise NotImplementedError()
 
-    @provide_session
     def get_task_instance(
         self,
         task_id: str,
-        session: Session = NEW_SESSION,
+        session: Session,
         *,
         map_index: int = -1,
     ) -> TI | TaskInstancePydantic | None:
@@ -98,6 +97,11 @@ class DagRunPydantic(BaseModelPydantic):
             session=session,
             map_index=map_index,
         )
+
+    def get_log_template(self, session: Session):
+        from airflow.models.dagrun import DagRun
+
+        return DagRun._get_log_template(log_template_id=self.log_template_id)
 
 
 if is_pydantic_2_installed():

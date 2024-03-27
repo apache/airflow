@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import datetime
 import enum
+from collections import namedtuple
 from dataclasses import dataclass
 from importlib import import_module
 from typing import ClassVar
@@ -44,7 +45,7 @@ from airflow.utils.pydantic import BaseModel
 from tests.test_utils.config import conf_vars
 
 
-@pytest.fixture()
+@pytest.fixture
 def recalculate_patterns():
     _get_patterns.cache_clear()
     _get_regexp_patterns.cache_clear()
@@ -177,17 +178,25 @@ class TestSerDe:
         e = serialize(i)
         assert i == e
 
+        i = {CLASSNAME: "cannot"}
         with pytest.raises(AttributeError, match="^reserved"):
-            i = {CLASSNAME: "cannot"}
             serialize(i)
 
+        i = {SCHEMA_ID: "cannot"}
         with pytest.raises(AttributeError, match="^reserved"):
-            i = {SCHEMA_ID: "cannot"}
             serialize(i)
+
+    def test_ser_namedtuple(self):
+        CustomTuple = namedtuple("CustomTuple", ["id", "value"])
+        data = CustomTuple(id=1, value="something")
+
+        i = deserialize(serialize(data))
+        e = (1, "something")
+        assert i == e
 
     def test_no_serializer(self):
+        i = Exception
         with pytest.raises(TypeError, match="^cannot serialize"):
-            i = Exception
             serialize(i)
 
     def test_ser_registered(self):
@@ -314,7 +323,7 @@ class TestSerDe:
         """
         Verify deserialization of old-style encoded Xcom values including nested ones
         """
-        uri = "s3://does_not_exist"
+        uri = "s3://does/not/exist"
         data = {
             "__type": "airflow.datasets.Dataset",
             "__source": None,
@@ -356,6 +365,11 @@ class TestSerDe:
             if name == "airflow.serialization.serializers.iceberg":
                 try:
                     import pyiceberg  # noqa: F401
+                except ImportError:
+                    continue
+            if name == "airflow.serialization.serializers.deltalake":
+                try:
+                    import deltalake  # noqa: F401
                 except ImportError:
                     continue
             mod = import_module(name)

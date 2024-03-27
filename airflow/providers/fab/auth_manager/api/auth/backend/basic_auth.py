@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Basic authentication backend."""
+
 from __future__ import annotations
 
 from functools import wraps

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Authentication backend that use Google credentials for authorization."""
+
 from __future__ import annotations
 
 import logging

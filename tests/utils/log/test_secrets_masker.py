@@ -448,7 +448,7 @@ class TestRedactedIO:
 
 
 class TestMaskSecretAdapter:
-    @pytest.fixture(scope="function", autouse=True)
+    @pytest.fixture(autouse=True)
     def reset_secrets_masker_and_skip_escape(self):
         self.secrets_masker = SecretsMasker()
         with patch("airflow.utils.log.secrets_masker._secrets_masker", return_value=self.secrets_masker):

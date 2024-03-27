@@ -445,6 +445,21 @@ class TestDbtCloudHook:
         ids=["default_account", "explicit_account"],
     )
     @patch.object(DbtCloudHook, "run")
+    def test_get_job_runs(self, mock_http_run, conn_id, account_id):
+        hook = DbtCloudHook(conn_id)
+        hook.get_job_runs(account_id=account_id)
+
+        assert hook.method == "GET"
+
+        _account_id = account_id or DEFAULT_ACCOUNT_ID
+        hook.run.assert_called_once_with(endpoint=f"{_account_id}/runs/", data=None)
+
+    @pytest.mark.parametrize(
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        ids=["default_account", "explicit_account"],
+    )
+    @patch.object(DbtCloudHook, "run")
     @patch.object(DbtCloudHook, "_paginate")
     def test_get_job_run(self, mock_http_run, mock_paginate, conn_id, account_id):
         hook = DbtCloudHook(conn_id)
@@ -493,9 +508,11 @@ class TestDbtCloudHook:
         argnames=("job_run_status", "expected_status", "expected_output"),
         argvalues=wait_for_job_run_status_test_args,
         ids=[
-            f"run_status_{argval[0]}_expected_{argval[1]}"
-            if isinstance(argval[1], int)
-            else f"run_status_{argval[0]}_expected_AnyTerminalStatus"
+            (
+                f"run_status_{argval[0]}_expected_{argval[1]}"
+                if isinstance(argval[1], int)
+                else f"run_status_{argval[0]}_expected_AnyTerminalStatus"
+            )
             for argval in wait_for_job_run_status_test_args
         ],
     )

@@ -270,6 +270,8 @@ class FTPSHook(FTPHook):
 
     def get_conn(self) -> ftplib.FTP:
         """Return an FTPS connection object."""
+        import ssl
+
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
             pasv = params.extra_dejson.get("passive", True)
@@ -277,7 +279,9 @@ class FTPSHook(FTPHook):
             if params.port:
                 ftplib.FTP_TLS.port = params.port
 
-            self.conn = ftplib.FTP_TLS(params.host, params.login, params.password)  # nosec: B321
+            # Construct FTP_TLS instance with SSL context to allow certificates to be validated by default
+            context = ssl.create_default_context()
+            self.conn = ftplib.FTP_TLS(params.host, params.login, params.password, context=context)  # nosec: B321
             self.conn.set_pasv(pasv)
 
         return self.conn

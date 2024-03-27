@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud API base hook."""
+
 from __future__ import annotations
 
 import datetime
@@ -674,7 +675,10 @@ class _CredentialsToken(Token):
 
         self.access_token = cast(str, self.credentials.token)
         self.access_token_duration = 3600
-        self.access_token_acquired_at = datetime.datetime.now(tz=datetime.timezone.utc)
+        # access_token_acquired_at is specific to gcloud-aio's Token. On subsequent calls of `get` it will be used
+        # with `datetime.datetime.utcnow()`. Therefore we have to use an offset-naive datetime.
+        # https://github.com/talkiq/gcloud-aio/blob/f1132b005ba35d8059229a9ca88b90f31f77456d/auth/gcloud/aio/auth/token.py#L204
+        self.access_token_acquired_at = datetime.datetime.now(tz=datetime.timezone.utc).replace(tzinfo=None)
         self.acquiring = None
 
 

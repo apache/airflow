@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Plugin to demonstrate timetable registration and accommodate example DAGs."""
+
 from __future__ import annotations
 
 import logging

@@ -248,15 +248,15 @@ def requires_access_view(access_view: AccessView) -> Callable[[T], T]:
 
 
 def requires_access_custom_view(
-    fab_action_name: str,
-    fab_resource_name: str,
+    method: ResourceMethod,
+    resource_name: str,
 ) -> Callable[[T], T]:
     def requires_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):
             return _requires_access(
                 is_authorized_callback=lambda: get_auth_manager().is_authorized_custom_view(
-                    fab_action_name=fab_action_name, fab_resource_name=fab_resource_name
+                    method=method, resource_name=resource_name
                 ),
                 func=func,
                 args=args,

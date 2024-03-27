@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains code related to OpenLineage and lineage extraction."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any

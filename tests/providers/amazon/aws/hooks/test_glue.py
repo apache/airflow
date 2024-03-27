@@ -29,6 +29,7 @@ from moto import mock_aws
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
+from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
@@ -376,12 +377,12 @@ class TestGlueJobHook:
         glue_job_run_state = glue_job_hook.get_job_state(glue_job_run["JobName"], glue_job_run["JobRunId"])
         assert glue_job_run_state == mock_job_run_state, "Mocks but be equal"
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.glue.boto3.client")
+    @mock.patch.object(AwsLogsHook, "get_conn")
     @mock.patch.object(GlueJobHook, "conn")
-    def test_print_job_logs_returns_token(self, conn_mock: MagicMock, client_mock: MagicMock, caplog):
-        hook = GlueJobHook()
+    def test_print_job_logs_returns_token(self, conn_mock: MagicMock, log_client_mock: MagicMock, caplog):
+        hook = GlueJobHook(job_name="test")
         conn_mock().get_job_run.return_value = {"JobRun": {"LogGroupName": "my_log_group"}}
-        client_mock().get_paginator().paginate.return_value = [
+        log_client_mock().get_paginator().paginate.return_value = [
             # first response : 2 log lines
             {
                 "events": [
@@ -399,12 +400,11 @@ class TestGlueJobHook:
         tokens = GlueJobHook.LogContinuationTokens()
         with caplog.at_level("INFO"):
             hook.print_job_logs("name", "run", tokens)
-
         assert "\thello\n\tworld\n" in caplog.text
         assert tokens.output_stream_continuation == "my_continuation_token"
         assert tokens.error_stream_continuation == "my_continuation_token"
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.glue.boto3.client")
+    @mock.patch.object(AwsLogsHook, "get_conn")
     @mock.patch.object(GlueJobHook, "conn")
     def test_print_job_logs_no_stream_yet(self, conn_mock: MagicMock, client_mock: MagicMock):
         hook = GlueJobHook()

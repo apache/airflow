@@ -246,3 +246,41 @@ class TestDockerDecorator:
         assert some_task.expect_airflow == clone_of_docker_operator.expect_airflow
         assert some_task.use_dill == clone_of_docker_operator.use_dill
         assert some_task.pickling_library is clone_of_docker_operator.pickling_library
+
+    def test_respect_docker_host_env(self, monkeypatch, dag_maker):
+        monkeypatch.setenv("DOCKER_HOST", "tcp://docker-host-from-env:2375")
+
+        @task.docker(image="python:3.9-slim", auto_remove="force")
+        def f():
+            pass
+
+        with dag_maker():
+            ret = f()
+
+        assert ret.operator.docker_url == "tcp://docker-host-from-env:2375"
+
+    def test_docker_host_env_empty(self, monkeypatch, dag_maker):
+        monkeypatch.setenv("DOCKER_HOST", "")
+
+        @task.docker(image="python:3.9-slim", auto_remove="force")
+        def f():
+            pass
+
+        with dag_maker():
+            ret = f()
+
+        # The docker CLI ignores the empty string and defaults to unix://var/run/docker.sock
+        # We want to ensure the same behavior.
+        assert ret.operator.docker_url == "unix://var/run/docker.sock"
+
+    def test_docker_host_env_unset(self, monkeypatch, dag_maker):
+        monkeypatch.delenv("DOCKER_HOST", raising=False)
+
+        @task.docker(image="python:3.9-slim", auto_remove="force")
+        def f():
+            pass
+
+        with dag_maker():
+            ret = f()
+
+        assert ret.operator.docker_url == "unix://var/run/docker.sock"

@@ -23,6 +23,7 @@ description: |
 
 state: ready
 source-date-epoch: 1707636199
+# note that those versions are maintained by release manager - do not update them manually
 versions:
   - 2.6.1
   - 2.6.0

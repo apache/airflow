@@ -23,11 +23,12 @@ from unittest.mock import MagicMock, Mock
 import pandas as pd
 import pytest
 import requests
-import weaviate
-from weaviate import ObjectAlreadyExistsException
 
-from airflow.models import Connection
-from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
+weaviate = pytest.importorskip("weaviate")
+from weaviate import ObjectAlreadyExistsException  # noqa: E402
+
+from airflow.models import Connection  # noqa: E402
+from airflow.providers.weaviate.hooks.weaviate import WeaviateHook  # noqa: E402
 
 TEST_CONN_ID = "test_weaviate_conn"
 

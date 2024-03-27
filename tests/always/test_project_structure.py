@@ -60,9 +60,13 @@ class TestProjectStructure:
         # The test below had a but for quite a while and we missed a lot of modules to have tess
         # We should make sure that one goes to 0
         OVERLOOKED_TESTS = [
+            "tests/providers/amazon/aws/executors/batch/test_boto_schema.py",
+            "tests/providers/amazon/aws/executors/batch/test_batch_executor_config.py",
+            "tests/providers/amazon/aws/executors/batch/test_utils.py",
             "tests/providers/amazon/aws/executors/ecs/test_boto_schema.py",
             "tests/providers/amazon/aws/executors/ecs/test_ecs_executor_config.py",
             "tests/providers/amazon/aws/executors/ecs/test_utils.py",
+            "tests/providers/amazon/aws/executors/utils/test_base_config_keys.py",
             "tests/providers/amazon/aws/operators/test_emr.py",
             "tests/providers/amazon/aws/operators/test_sagemaker.py",
             "tests/providers/amazon/aws/sensors/test_emr.py",
@@ -159,7 +163,6 @@ class TestProjectStructure:
             "tests/providers/microsoft/azure/operators/test_adls.py",
             "tests/providers/microsoft/azure/transfers/test_azure_blob_to_gcs.py",
             "tests/providers/mongo/sensors/test_mongo.py",
-            "tests/providers/openlineage/extractors/test_manager.py",
             "tests/providers/openlineage/plugins/test_adapter.py",
             "tests/providers/openlineage/plugins/test_facets.py",
             "tests/providers/openlineage/test_sqlparser.py",
@@ -422,8 +425,6 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
     }
 
     ASSETS_NOT_REQUIRED = {
-        "airflow.providers.google.cloud.operators.automl.AutoMLDeleteDatasetOperator",
-        "airflow.providers.google.cloud.operators.automl.AutoMLDeleteModelOperator",
         "airflow.providers.google.cloud.operators.bigquery.BigQueryCheckOperator",
         "airflow.providers.google.cloud.operators.bigquery.BigQueryDeleteDatasetOperator",
         "airflow.providers.google.cloud.operators.bigquery.BigQueryDeleteTableOperator",

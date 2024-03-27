@@ -21,7 +21,7 @@
   <a href="{{item.get_url()}}">{{_(item.label)}}</a>
 {% endmacro %}
 
-{% for item1 in auth_manager.get_permitted_menu_items(menu.get_list()) %}
+{% for item1 in auth_manager.filter_permitted_menu_items(menu.get_list()) %}
   {% if item1 %}
     {% if item1.childs %}
       <li class="dropdown">

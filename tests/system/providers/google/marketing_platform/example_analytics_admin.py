@@ -32,6 +32,7 @@ Editor permissions. This service account should be created on behalf of the acco
 6. Associate the Google Ads account with a property, and save this property's id in the variable
 GA_GOOGLE_ADS_PROPERTY_ID.
 """
+
 from __future__ import annotations
 
 import json

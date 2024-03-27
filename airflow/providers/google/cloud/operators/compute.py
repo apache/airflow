@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Compute Engine operators."""
+
 from __future__ import annotations
 
 from copy import deepcopy
@@ -49,7 +50,7 @@ class ComputeEngineBaseOperator(GoogleCloudBaseOperator):
         self,
         *,
         zone: str,
-        resource_id: str,
+        resource_id: str | None = None,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
@@ -151,7 +152,8 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
         self.body = body
         self.zone = zone
         self.request_id = request_id
-        self.resource_id = self.body["name"] if "name" in body else resource_id
+        if "name" in body:
+            resource_id = self.body["name"]
         self._field_validator = None  # Optional[GcpBodyFieldValidator]
         self.retry = retry
         self.timeout = timeout
@@ -163,7 +165,7 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
             )
         self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
         super().__init__(
-            resource_id=self.resource_id,
+            resource_id=resource_id,
             zone=zone,
             project_id=project_id,
             gcp_conn_id=gcp_conn_id,
@@ -332,7 +334,8 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
         self.source_instance_template = source_instance_template
         self.body = body
         self.zone = zone
-        self.resource_id = self.body["name"] if "name" in body else resource_id
+        if "name" in body:
+            resource_id = self.body["name"]
         self.request_id = request_id
         self._field_validator = None  # Optional[GcpBodyFieldValidator]
         self.retry = retry
@@ -345,7 +348,7 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
             )
         self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
         super().__init__(
-            resource_id=self.resource_id,
+            resource_id=resource_id,
             zone=zone,
             project_id=project_id,
             gcp_conn_id=gcp_conn_id,
@@ -893,7 +896,8 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
     ) -> None:
         self.body = body
         self.request_id = request_id
-        self.resource_id = self.body["name"] if "name" in body else resource_id
+        if "name" in body:
+            resource_id = self.body["name"]
         self._field_validator = None  # Optional[GcpBodyFieldValidator]
         self.retry = retry
         self.timeout = timeout
@@ -907,7 +911,7 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
         super().__init__(
             project_id=project_id,
             zone="global",
-            resource_id=self.resource_id,
+            resource_id=resource_id,
             gcp_conn_id=gcp_conn_id,
             api_version=api_version,
             impersonation_chain=impersonation_chain,
@@ -1341,7 +1345,7 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
             )
         super().__init__(
             project_id=project_id,
-            zone=self.zone,
+            zone=zone,
             resource_id=resource_id,
             gcp_conn_id=gcp_conn_id,
             api_version=api_version,
@@ -1477,9 +1481,9 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
         **kwargs,
     ) -> None:
         self.body = body
-        self.zone = zone
         self.request_id = request_id
-        self.resource_id = self.body["name"] if "name" in body else resource_id
+        if "name" in body:
+            resource_id = self.body["name"]
         self._field_validator = None  # Optional[GcpBodyFieldValidator]
         self.retry = retry
         self.timeout = timeout
@@ -1492,7 +1496,7 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
         super().__init__(
             project_id=project_id,
             zone=zone,
-            resource_id=self.resource_id,
+            resource_id=resource_id,
             gcp_conn_id=gcp_conn_id,
             api_version=api_version,
             impersonation_chain=impersonation_chain,

@@ -18,7 +18,7 @@
  */
 
 import React from "react";
-import { Text, Flex, Table, Tbody, Tr, Td, Code } from "@chakra-ui/react";
+import { Text, Flex, Table, Tbody, Tr, Td, Code, Box } from "@chakra-ui/react";
 import { snakeCase } from "lodash";
 
 import { getGroupAndMapSummary } from "src/utils";
@@ -32,48 +32,64 @@ import type {
   TaskInstance as GridTaskInstance,
   TaskState,
 } from "src/types";
-import DatasetUpdateEvents from "./DatasetUpdateEvents";
 
 interface Props {
-  gridInstance: GridTaskInstance;
+  gridInstance?: GridTaskInstance;
   taskInstance?: API.TaskInstance;
-  group: Task;
+  group?: Task | null;
 }
 
 const Details = ({ gridInstance, taskInstance, group }: Props) => {
-  const isGroup = !!group.children;
+  const isGroup = !!group?.children;
   const summary: React.ReactNode[] = [];
 
-  const { taskId, runId, startDate, endDate, state } = gridInstance;
+  const state =
+    gridInstance?.state ||
+    (taskInstance?.state === "none" ? null : taskInstance?.state) ||
+    null;
+  const isMapped = group?.isMapped;
+  const runId = gridInstance?.runId || taskInstance?.dagRunId;
+  const startDate = gridInstance?.startDate || taskInstance?.startDate;
+  const endDate = gridInstance?.endDate || taskInstance?.endDate;
+  const taskId = gridInstance?.taskId || taskInstance?.taskId;
+  const mapIndex = gridInstance?.mapIndex || taskInstance?.mapIndex;
 
-  const mappedStates = !taskInstance ? gridInstance.mappedStates : undefined;
+  const operator = group?.operator || taskInstance?.operator;
 
-  const { isMapped, tooltip, operator, hasOutletDatasets, triggerRule } = group;
+  const mappedStates = !taskInstance ? gridInstance?.mappedStates : undefined;
 
-  const { totalTasks, childTaskMap } = getGroupAndMapSummary({
-    group,
-    runId,
-    mappedStates,
-  });
+  let totalTasks;
+  let childTaskMap;
 
-  childTaskMap.forEach((key, val) => {
-    const childState = snakeCase(val);
-    if (key > 0) {
-      summary.push(
-        <Tr key={childState}>
-          <Td />
-          <Td>
-            <Flex alignItems="center">
-              <SimpleStatus state={childState as TaskState} mx={2} />
-              {childState}
-              {": "}
-              {key}
-            </Flex>
-          </Td>
-        </Tr>
-      );
-    }
-  });
+  if (group) {
+    const groupAndMapSummary = getGroupAndMapSummary({
+      group,
+      runId,
+      mappedStates,
+    });
+
+    totalTasks = groupAndMapSummary.totalTasks;
+    childTaskMap = groupAndMapSummary.childTaskMap;
+
+    childTaskMap.forEach((key, val) => {
+      const childState = snakeCase(val);
+      if (key > 0) {
+        summary.push(
+          <Tr key={childState}>
+            <Td />
+            <Td>
+              <Flex alignItems="center">
+                <SimpleStatus state={childState as TaskState} mx={2} />
+                {childState}
+                {": "}
+                {key}
+              </Flex>
+            </Td>
+          </Tr>
+        );
+      }
+    });
+  }
 
   const taskIdTitle = isGroup ? "Task Group ID" : "Task ID";
   const isStateFinal =
@@ -82,47 +98,15 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
   const isOverall = (isMapped || isGroup) && "Overall ";
 
   return (
-    <Flex flexWrap="wrap" justifyContent="space-between">
-      {!!taskInstance?.trigger && !!taskInstance?.triggererJob && (
-        <>
-          <Text as="strong" mb={3}>
-            Triggerer info
-          </Text>
-          <Table variant="striped" mb={3}>
-            <Tbody>
-              <Tr>
-                <Td>Trigger class</Td>
-                <Td>{`${taskInstance?.trigger?.classpath}`}</Td>
-              </Tr>
-              <Tr>
-                <Td>Trigger ID</Td>
-                <Td>{`${taskInstance?.trigger?.id}`}</Td>
-              </Tr>
-              <Tr>
-                <Td>Trigger creation time</Td>
-                <Td>{`${taskInstance?.trigger?.createdDate}`}</Td>
-              </Tr>
-              <Tr>
-                <Td>Assigned triggerer</Td>
-                <Td>{`${taskInstance?.triggererJob?.hostname}`}</Td>
-              </Tr>
-              <Tr>
-                <Td>Latest triggerer heartbeat</Td>
-                <Td>{`${taskInstance?.triggererJob?.latestHeartbeat}`}</Td>
-              </Tr>
-            </Tbody>
-          </Table>
-        </>
-      )}
-
+    <Box mt={3} flexGrow={1}>
       <Text as="strong" mb={3}>
         Task Instance Details
       </Text>
       <Table variant="striped">
         <Tbody>
-          {tooltip && (
+          {group?.tooltip && (
             <Tr>
-              <Td colSpan={2}>{tooltip}</Td>
+              <Td colSpan={2}>{group.tooltip}</Td>
             </Tr>
           )}
           <Tr>
@@ -137,7 +121,7 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
               </Flex>
             </Td>
           </Tr>
-          {!!group.setupTeardownType && (
+          {!!group?.setupTeardownType && (
             <Tr>
               <Td>Type</Td>
               <Td>
@@ -147,7 +131,7 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
               </Td>
             </Tr>
           )}
-          {mappedStates && totalTasks > 0 && (
+          {mappedStates && !!totalTasks && totalTasks > 0 && (
             <Tr>
               <Td colSpan={2}>
                 {totalTasks} {isGroup ? "Task Group" : "Task"}
@@ -157,26 +141,37 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
             </Tr>
           )}
           {summary.length > 0 && summary}
-          <Tr>
-            <Td>{taskIdTitle}</Td>
-            <Td>
-              <ClipboardText value={taskId} />
-            </Td>
-          </Tr>
-          <Tr>
-            <Td>Run ID</Td>
-            <Td>
-              <Text whiteSpace="nowrap">
-                <ClipboardText value={runId} />
-              </Text>
-            </Td>
-          </Tr>
-          {taskInstance?.mapIndex !== undefined && (
+          {!!taskId && (
             <Tr>
-              <Td>Map Index</Td>
-              <Td>{taskInstance.mapIndex}</Td>
+              <Td>{taskIdTitle}</Td>
+              <Td>
+                <ClipboardText value={taskId} />
+              </Td>
             </Tr>
           )}
+          {!!runId && (
+            <Tr>
+              <Td>Run ID</Td>
+              <Td>
+                <Text whiteSpace="nowrap">
+                  <ClipboardText value={runId} />
+                </Text>
+              </Td>
+            </Tr>
+          )}
+          {mapIndex !== undefined && (
+            <Tr>
+              <Td>Map Index</Td>
+              <Td>{mapIndex}</Td>
+            </Tr>
+          )}
+          {taskInstance?.renderedMapIndex !== undefined &&
+            taskInstance?.renderedMapIndex !== null && (
+              <Tr>
+                <Td>Rendered Map Index</Td>
+                <Td>{taskInstance.renderedMapIndex}</Td>
+              </Tr>
+            )}
           {!!taskInstance?.tryNumber && (
             <Tr>
               <Td>Try Number</Td>
@@ -189,10 +184,10 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
               <Td>{operator}</Td>
             </Tr>
           )}
-          {triggerRule && (
+          {group?.triggerRule && (
             <Tr>
               <Td>Trigger Rule</Td>
-              <Td>{triggerRule}</Td>
+              <Td>{group.triggerRule}</Td>
             </Tr>
           )}
           {startDate && (
@@ -305,10 +300,7 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
           )}
         </Tbody>
       </Table>
-      {hasOutletDatasets && (
-        <DatasetUpdateEvents taskId={taskId} runId={runId} />
-      )}
-    </Flex>
+    </Box>
   );
 };
 

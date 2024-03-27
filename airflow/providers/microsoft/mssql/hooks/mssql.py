@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Microsoft SQLServer hook module."""
+
 from __future__ import annotations
 
 from typing import Any

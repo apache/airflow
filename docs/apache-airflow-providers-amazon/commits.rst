@@ -35,14 +35,48 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.19.0
+......
+
+Latest change: 2024-03-04
+
+=================================================================================================  ===========  ========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================
+`30f7b2abe6 <https://github.com/apache/airflow/commit/30f7b2abe6991fe6e565f17f7d0701e80ecba0d3>`_  2024-03-04   ``Avoid to use too broad 'noqa' (#37862)``
+`a7d13315e1 <https://github.com/apache/airflow/commit/a7d13315e11bcf76d02493b874ca5f0690ddd5e1>`_  2024-03-02   ``Resolve G003: "Logging statement uses +" (#37848)``
+`9da6a21159 <https://github.com/apache/airflow/commit/9da6a21159208cf1222b52f9808e5ceb6b0d6277>`_  2024-02-29   ``Use named loggers instead of root logger (#37801)``
+`77341ef6a1 <https://github.com/apache/airflow/commit/77341ef6a1e4ffa3f8d3275eade325c89f2c95f2>`_  2024-02-29   ``Avoid non-recommended usage of logging (#37792)``
+`dc08e6acc2 <https://github.com/apache/airflow/commit/dc08e6acc2def50c88c7a2425c300a61338f0b0a>`_  2024-02-28   ``D105 Check on Amazon (#37764)``
+`2bc103698f <https://github.com/apache/airflow/commit/2bc103698fad1b7c0bebed0d5cbdda0ec7ea83c3>`_  2024-02-28   ``Unify 'aws_conn_id' type to always be 'str | None' (#37768)``
+`9e4bdc9e45 <https://github.com/apache/airflow/commit/9e4bdc9e457c275eb2cead5d80c2f79c3b9a0085>`_  2024-02-27   ``Limit 'pandas' to '<2.2' (#37748)``
+`b124d6e94f <https://github.com/apache/airflow/commit/b124d6e94fc4a7cd2cafba4580180788d1716728>`_  2024-02-26   ``Fix init checks for aws 'eks' (#37674)``
+`b52b227c04 <https://github.com/apache/airflow/commit/b52b227c048674117e11d720dfd01c4eeacea854>`_  2024-02-26   ``Implement AIP-60 Dataset URI formats (#37005)``
+`f3159df406 <https://github.com/apache/airflow/commit/f3159df40627d591f877c1b7d49e6cbc4b176cf7>`_  2024-02-25   ``Bump min versions of openapi validators (#37691)``
+`42f6373e52 <https://github.com/apache/airflow/commit/42f6373e52e2f857e4c4aaa0f6fa096eb791cddc>`_  2024-02-24   ``Fix 'example_emr' system test (#37667)``
+`a2db179d9c <https://github.com/apache/airflow/commit/a2db179d9c75e4963323852732b6d22a25485615>`_  2024-02-23   ``Init checks for aws gcs_to_s3 (#37662)``
+`f36d17ce75 <https://github.com/apache/airflow/commit/f36d17ce757e5c39ca4dd35a637a090ef6105744>`_  2024-02-23   ``Implement 'filter_permitted_menu_items' in AWS auth manager (#37627)``
+`0c2d2c6544 <https://github.com/apache/airflow/commit/0c2d2c6544d5704c57ac35dacaab2dd08ff2999c>`_  2024-02-22   ``Implement 'batch_is_authorized_*' APIs in AWS auth manager (#37430)``
+`d8c8989d42 <https://github.com/apache/airflow/commit/d8c8989d42b27d94722bb367f0dbb0fddb7ddc79>`_  2024-02-21   ``Update action names in AWS auth manager (#37572)``
+=================================================================================================  ===========  ========================================================================
+
 8.18.0
 ......
 
-Latest change: 2024-02-10
+Latest change: 2024-02-17
 
-=================================================================================================  ===========  =============================================================================================
+=================================================================================================  ===========  =====================================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  =============================================================================================
+=================================================================================================  ===========  =====================================================================================================
+`75182363a2 <https://github.com/apache/airflow/commit/75182363a2070145745b98fa040e9bc590e3853b>`_  2024-02-17   ``Prepare docs 1st wave (RC2) of Providers February 2024 (#37471)``
+`5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
+`c75a105935 <https://github.com/apache/airflow/commit/c75a1059355df6e1edc42f77947150b4a4c5d51a>`_  2024-02-16   ``add type annotations to Amazon provider "execute_coplete" methods (#36330)``
+`42f8d048d2 <https://github.com/apache/airflow/commit/42f8d048d2dccfcf59a44e00e9b1e8a3e63090a0>`_  2024-02-16   ``Replace usage of 'datetime.utcnow' and 'datetime.utcfromtimestamp' in providers (#37138)``
+`f91c93ccfe <https://github.com/apache/airflow/commit/f91c93ccfeedc27e54493e95d3088e8478cdf08c>`_  2024-02-14   ``Add retry configuration in 'EmrContainerOperator' (#37426)``
+`56c27f8f5a <https://github.com/apache/airflow/commit/56c27f8f5a3c547147389253ea9653a374ad29f1>`_  2024-02-14   ``Create CLI commands for AWS auth manager to create AWS Identity Center related resources (#37407)``
+`b341b5927e <https://github.com/apache/airflow/commit/b341b5927e6a7271a85558d3da766b07165ee22a>`_  2024-02-14   ``docs: Add doc page with providers deprecations (#37075)``
+`b5b452b590 <https://github.com/apache/airflow/commit/b5b452b590152f4bffe91e8eb3e0044ad208db66>`_  2024-02-13   ``Add extra operator links for EMR Serverless (#34225)``
+`bfb054e9e8 <https://github.com/apache/airflow/commit/bfb054e9e867b8b9a6a449e43bfba97f645e025e>`_  2024-02-12   ``Prepare docs 1st wave of Providers February 2024 (#37326)``
 `8fac799a25 <https://github.com/apache/airflow/commit/8fac799a250a222bf85d484947a9b3f2065d5ba4>`_  2024-02-10   ``D401 support in amazon provider (#37275)``
 `48bfb1a970 <https://github.com/apache/airflow/commit/48bfb1a970f5b47ba1b385ad809b8324923ddf3e>`_  2024-02-09   ``Merge all ECS executor configs following recursive python dict update (#37137)``
 `90e2b12d6b <https://github.com/apache/airflow/commit/90e2b12d6b99d2f7db43e45f5e8b97d3b8a43b36>`_  2024-02-08   ``Upgrade mypy to 1.8.0 (#36428)``
@@ -58,7 +92,7 @@ Commit                                                                          
 `8914e49551 <https://github.com/apache/airflow/commit/8914e49551d8ae5ece7418950b011c1f338b4634>`_  2024-01-30   ``SqlToS3Operator: feat/ add max_rows_per_file parameter (#37055)``
 `d576c72c20 <https://github.com/apache/airflow/commit/d576c72c20258e4ad56bbbec05ffac5a3e07207e>`_  2024-01-28   ``Limit moto to version below 5.0.0 (#37054)``
 `004d1d3a84 <https://github.com/apache/airflow/commit/004d1d3a84224ac728f0bcfee68dae13522fe907>`_  2024-01-26   ``Adding Amazon Neptune Hook and Operators (#37000)``
-=================================================================================================  ===========  =============================================================================================
+=================================================================================================  ===========  =====================================================================================================
 
 8.17.0
 ......

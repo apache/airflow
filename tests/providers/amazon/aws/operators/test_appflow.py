@@ -60,7 +60,7 @@ def ctx(create_task_instance):
         task_id=TASK_ID,
         schedule="0 12 * * *",
     )
-    yield {"task_instance": ti}
+    return {"task_instance": ti}
 
 
 @pytest.fixture

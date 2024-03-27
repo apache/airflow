@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Run ephemeral Docker Swarm services."""
+
 from __future__ import annotations
 
 import re
@@ -58,7 +59,8 @@ class DockerSwarmOperator(DockerOperator):
         The default is False.
     :param command: Command to be run in the container. (templated)
     :param docker_url: URL of the host running the docker daemon.
-        Default is unix://var/run/docker.sock
+        Default is the value of the ``DOCKER_HOST`` environment variable or unix://var/run/docker.sock
+        if it is unset.
     :param environment: Environment variables to set in the container. (templated)
     :param force_pull: Pull the docker image on every run. Default is False.
     :param mem_limit: Maximum amount of memory the container can use.

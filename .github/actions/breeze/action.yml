@@ -21,7 +21,10 @@ description: 'Sets up Python and Breeze'
 inputs:
   python-version:
     description: 'Python version to use'
-    default: "3.8"
+    # Version of Python used for reproducibility of the packages built
+    # Python 3.8 tarfile produces different tarballs than Python 3.9+ tarfile that's why we are forcing
+    # Python 3.9 for all release preparation commands to make sure that the tarballs are reproducible
+    default: "3.9"
 outputs:
   host-python-version:
     description: Python version used in host
@@ -34,16 +37,7 @@ runs:
       with:
         python-version: ${{ inputs.python-version }}
         cache: 'pip'
-        cache-dependency-path: ./dev/breeze/setup*
-    - name: Cache breeze
-      uses: actions/cache@v4
-      with:
-        path: ~/.local/pipx
-        # README has the latest breeze's hash and python location is used to distinguish between
-        # different minor versions of python
-        key: "breeze-${{inputs.python-version}}-${{env.pythonLocation}}-\
-          ${{hashFiles('dev/breeze/README.md')}}"
-        restore-keys: breeze-${{inputs.python-version}}-${{ env.pythonLocation }}
+        cache-dependency-path: ./dev/breeze/pyproject.toml
     - name: "Install Breeze"
       shell: bash
       run: ./scripts/ci/install_breeze.sh

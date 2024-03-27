@@ -26,6 +26,7 @@ description: |
 state: ready
 source-date-epoch: 1705911992
 
+# note that those versions are maintained by release manager - do not update them manually
 versions:
   - 1.1.2
   - 1.1.1
@@ -41,7 +42,7 @@ integrations:
 
 dependencies:
   - apache-airflow>=2.6.0
-  - cohere>=4.37
+  - cohere>=4.37,<5
 
 hooks:
   - integration-name: Cohere

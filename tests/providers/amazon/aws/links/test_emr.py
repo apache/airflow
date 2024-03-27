@@ -162,7 +162,8 @@ def test_get_serverless_dashboard_url_with_client(mocked_emr_serverless_hook, da
     url = get_serverless_dashboard_url(
         emr_serverless_client=mocked_client, application_id="anything", job_run_id="anything"
     )
-    assert url and url.geturl() == expected_uri
+    assert url
+    assert url.geturl() == expected_uri
     mocked_emr_serverless_hook.assert_not_called()
     mocked_client.get_dashboard_for_job_run.assert_called_with(
         applicationId="anything",
@@ -179,7 +180,8 @@ def test_get_serverless_dashboard_url_with_conn_id(mocked_emr_serverless_hook):
     url = get_serverless_dashboard_url(
         aws_conn_id="aws-test", application_id="anything", job_run_id="anything"
     )
-    assert url and url.geturl() == "https://example.com/?authToken=some-unique-value"
+    assert url
+    assert url.geturl() == "https://example.com/?authToken=some-unique-value"
     mocked_emr_serverless_hook.assert_called_with(
         aws_conn_id="aws-test", config={"retries": {"total_max_attempts": 1}}
     )

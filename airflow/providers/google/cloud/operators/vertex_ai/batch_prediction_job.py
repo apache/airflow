@@ -20,22 +20,27 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+import warnings
+from functools import cached_property
+from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform_v1.types import BatchPredictionJob
 
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.vertex_ai.batch_prediction_job import BatchPredictionJobHook
 from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAIBatchPredictionJobLink,
     VertexAIBatchPredictionJobListLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.cloud.triggers.vertex_ai import CreateBatchPredictionJobTrigger
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
-    from google.cloud.aiplatform import Model, explain
+    from google.cloud.aiplatform import BatchPredictionJob as BatchPredictionJobObject, Model, explain
 
     from airflow.utils.context import Context
 
@@ -131,7 +136,7 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
         If this is set, then all resources created by the BatchPredictionJob will be encrypted with the
         provided encryption key.
         Overrides encryption_spec_key_name set in aiplatform.init.
-    :param sync: Whether to execute this method synchronously. If False, this method will be executed in
+    :param sync: (Deprecated) Whether to execute this method synchronously. If False, this method will be executed in
         concurrent Future and any downstream object will be immediately returned and synced when the
         Future has completed.
     :param create_request_timeout: Optional. The timeout for the create request in seconds.
@@ -154,6 +159,8 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param deferrable: Optional. Run operator in the deferrable mode.
+    :param poll_interval: Interval size which defines how often job status is checked in deferrable mode.
     """
 
     template_fields = ("region", "project_id", "model_name", "impersonation_chain")
@@ -188,6 +195,8 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
         batch_size: int | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        poll_interval: int = 10,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -217,15 +226,24 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
         self.batch_size = batch_size
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-        self.hook: BatchPredictionJobHook | None = None
+        self.deferrable = deferrable
+        self.poll_interval = poll_interval
 
-    def execute(self, context: Context):
-        self.log.info("Creating Batch prediction job")
-        self.hook = BatchPredictionJobHook(
+    @cached_property
+    def hook(self) -> BatchPredictionJobHook:
+        return BatchPredictionJobHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        result = self.hook.create_batch_prediction_job(
+
+    def execute(self, context: Context):
+        warnings.warn(
+            "The 'sync' parameter is deprecated and will be removed after 28.08.2024.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        self.log.info("Creating Batch prediction job")
+        batch_prediction_job: BatchPredictionJobObject = self.hook.submit_batch_prediction_job(
             region=self.region,
             project_id=self.project_id,
             job_display_name=self.job_display_name,
@@ -247,25 +265,61 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
             explanation_parameters=self.explanation_parameters,
             labels=self.labels,
             encryption_spec_key_name=self.encryption_spec_key_name,
-            sync=self.sync,
             create_request_timeout=self.create_request_timeout,
             batch_size=self.batch_size,
         )
-
-        batch_prediction_job = result.to_dict()
-        batch_prediction_job_id = self.hook.extract_batch_prediction_job_id(batch_prediction_job)
+        batch_prediction_job.wait_for_resource_creation()
+        batch_prediction_job_id = batch_prediction_job.name
         self.log.info("Batch prediction job was created. Job id: %s", batch_prediction_job_id)
 
         self.xcom_push(context, key="batch_prediction_job_id", value=batch_prediction_job_id)
         VertexAIBatchPredictionJobLink.persist(
             context=context, task_instance=self, batch_prediction_job_id=batch_prediction_job_id
         )
-        return batch_prediction_job
+
+        if self.deferrable:
+            self.defer(
+                trigger=CreateBatchPredictionJobTrigger(
+                    conn_id=self.gcp_conn_id,
+                    project_id=self.project_id,
+                    location=self.region,
+                    job_id=batch_prediction_job.name,
+                    poll_interval=self.poll_interval,
+                    impersonation_chain=self.impersonation_chain,
+                ),
+                method_name="execute_complete",
+            )
+
+        batch_prediction_job.wait_for_completion()
+        self.log.info("Batch prediction job was completed. Job id: %s", batch_prediction_job_id)
+        return batch_prediction_job.to_dict()
 
     def on_kill(self) -> None:
         """Act as a callback called when the operator is killed; cancel any running job."""
         if self.hook:
             self.hook.cancel_batch_prediction_job()
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> dict[str, Any]:
+        if event and event["status"] == "error":
+            raise AirflowException(event["message"])
+        job: dict[str, Any] = event["job"]
+        self.log.info("Batch prediction job %s created and completed successfully.", job["name"])
+        job_id = self.hook.extract_batch_prediction_job_id(job)
+        self.xcom_push(
+            context,
+            key="batch_prediction_job_id",
+            value=job_id,
+        )
+        self.xcom_push(
+            context,
+            key="training_conf",
+            value={
+                "training_conf_id": job_id,
+                "region": self.region,
+                "project_id": self.project_id,
+            },
+        )
+        return event["job"]
 
 
 class DeleteBatchPredictionJobOperator(GoogleCloudBaseOperator):

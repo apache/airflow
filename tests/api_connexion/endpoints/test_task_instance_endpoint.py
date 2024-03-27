@@ -22,6 +22,7 @@ from unittest import mock
 
 import pendulum
 import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import contains_eager
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
@@ -37,6 +38,7 @@ from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_roles, delete_user
 from tests.test_utils.db import clear_db_runs, clear_db_sla_miss, clear_rendered_ti_fields
+from tests.test_utils.www import _check_last_log
 
 pytestmark = pytest.mark.db_test
 
@@ -241,10 +243,12 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "running",
             "task_id": "print_the_context",
+            "task_display_name": "print_the_context",
             "try_number": 0,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "rendered_fields": {},
+            "rendered_map_index": None,
             "trigger": None,
             "triggerer_job": None,
         }
@@ -297,10 +301,12 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "deferred",
             "task_id": "print_the_context",
+            "task_display_name": "print_the_context",
             "try_number": 0,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "rendered_fields": {},
+            "rendered_map_index": None,
             "trigger": {
                 "classpath": "none",
                 "kwargs": "{}",
@@ -342,10 +348,12 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "removed",
             "task_id": "print_the_context",
+            "task_display_name": "print_the_context",
             "try_number": 0,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "rendered_fields": {},
+            "rendered_map_index": None,
             "trigger": None,
             "triggerer_job": None,
         }
@@ -398,10 +406,12 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "running",
             "task_id": "print_the_context",
+            "task_display_name": "print_the_context",
             "try_number": 0,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "rendered_fields": {"op_args": [], "op_kwargs": {}, "templates_dict": None},
+            "rendered_map_index": None,
             "trigger": None,
             "triggerer_job": None,
         }
@@ -448,10 +458,12 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "start_date": "2020-01-02T00:00:00+00:00",
                 "state": "running",
                 "task_id": "print_the_context",
+                "task_display_name": "print_the_context",
                 "try_number": 0,
                 "unixname": getuser(),
                 "dag_run_id": "TEST_DAG_RUN_ID",
                 "rendered_fields": {"op_args": [], "op_kwargs": {}, "templates_dict": None},
+                "rendered_map_index": None,
                 "trigger": None,
                 "triggerer_job": None,
             }
@@ -1241,6 +1253,13 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 200
         assert len(response.json["task_instances"]) == expected_ti
+        _check_last_log(
+            session,
+            dag_id=request_dag,
+            event="api.post_clear_task_instances",
+            execution_date=None,
+            expected_extra=payload,
+        )
 
     @mock.patch("airflow.api_connexion.endpoints.task_instance_endpoint.clear_task_instances")
     def test_clear_taskinstance_is_called_with_queued_dr_state(self, mock_clearti, session):
@@ -1258,6 +1277,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         mock_clearti.assert_called_once_with(
             [], session, dag=self.app.dag_bag.get_dag(dag_id), dag_run_state=State.QUEUED
         )
+        _check_last_log(session, dag_id=dag_id, event="api.post_clear_task_instances", execution_date=None)
 
     def test_clear_taskinstance_is_called_with_invalid_task_ids(self, session):
         """Test that dagrun is running when invalid task_ids are passed to clearTaskInstances API."""
@@ -1278,6 +1298,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         dagrun.refresh_from_db()
         assert dagrun.state == "running"
         assert all(ti.state == "running" for ti in tis)
+        _check_last_log(session, dag_id=dag_id, event="api.post_clear_task_instances", execution_date=None)
 
     def test_should_respond_200_with_reset_dag_run(self, session):
         dag_id = "example_python_operator"
@@ -1369,6 +1390,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             assert task_instance in response.json["task_instances"]
         assert 6 == len(response.json["task_instances"])
         assert 0 == failed_dag_runs, 0
+        _check_last_log(session, dag_id=dag_id, event="api.post_clear_task_instances", execution_date=None)
 
     def test_should_respond_200_with_dag_run_id(self, session):
         dag_id = "example_python_operator"
@@ -1427,6 +1449,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         ]
         assert response.json["task_instances"] == expected_response
         assert 1 == len(response.json["task_instances"])
+        _check_last_log(session, dag_id=dag_id, event="api.post_clear_task_instances", execution_date=None)
 
     def test_should_respond_200_with_include_past(self, session):
         dag_id = "example_python_operator"
@@ -1516,6 +1539,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         for task_instance in expected_response:
             assert task_instance in response.json["task_instances"]
         assert 6 == len(response.json["task_instances"])
+        _check_last_log(session, dag_id=dag_id, event="api.post_clear_task_instances", execution_date=None)
 
     def test_should_respond_200_with_include_future(self, session):
         dag_id = "example_python_operator"
@@ -1605,6 +1629,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         for task_instance in expected_response:
             assert task_instance in response.json["task_instances"]
         assert 6 == len(response.json["task_instances"])
+        _check_last_log(session, dag_id=dag_id, event="api.post_clear_task_instances", execution_date=None)
 
     def test_should_respond_404_for_nonexistent_dagrun_id(self, session):
         dag_id = "example_python_operator"
@@ -1642,6 +1667,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             response.json["title"]
             == "Dag Run id TEST_DAG_RUN_ID_100 not found in dag example_python_operator"
         )
+        _check_last_log(session, dag_id=dag_id, event="api.post_clear_task_instances", execution_date=None)
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.post(
@@ -2069,6 +2095,12 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             commit=True,
             session=session,
         )
+        _check_last_log(
+            session,
+            dag_id="example_python_operator",
+            event="api.post_set_task_instances_state",
+            execution_date=None,
+        )
 
     @mock.patch("airflow.models.dag.DAG.set_task_instance_state")
     def test_should_not_call_mocked_api_for_dry_run(self, mock_set_task_instance_state, session):
@@ -2321,7 +2353,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
 
     @provide_session
     def test_should_respond_200(self, session):
-        tis = self.create_task_instances(session)
+        self.create_task_instances(session)
         new_note_value = "My super cool TaskInstance note."
         response = self.client.patch(
             "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
@@ -2351,15 +2383,20 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "running",
             "task_id": "print_the_context",
+            "task_display_name": "print_the_context",
             "try_number": 0,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "rendered_fields": {},
+            "rendered_map_index": None,
             "trigger": None,
             "triggerer_job": None,
         }
-        ti = tis[0]
+        ti = session.scalars(select(TaskInstance).where(TaskInstance.task_id == "print_the_context")).one()
         assert ti.task_instance_note.user_id is not None
+        _check_last_log(
+            session, dag_id="example_python_operator", event="api.set_task_instance_note", execution_date=None
+        )
 
     def test_should_respond_200_mapped_task_instance_with_rtif(self, session):
         """Verify we don't duplicate rows through join to RTIF"""
@@ -2405,10 +2442,12 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
                 "start_date": "2020-01-02T00:00:00+00:00",
                 "state": "running",
                 "task_id": "print_the_context",
+                "task_display_name": "print_the_context",
                 "try_number": 0,
                 "unixname": getuser(),
                 "dag_run_id": "TEST_DAG_RUN_ID",
                 "rendered_fields": {"op_args": [], "op_kwargs": {}, "templates_dict": None},
+                "rendered_map_index": None,
                 "trigger": None,
                 "triggerer_job": None,
             }

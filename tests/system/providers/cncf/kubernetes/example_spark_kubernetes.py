@@ -24,6 +24,7 @@ and the second task is to check the final state of the sparkApplication that sub
 Spark-on-k8s operator is required to be already installed on Kubernetes
 https://github.com/GoogleCloudPlatform/spark-on-k8s-operator
 """
+
 from __future__ import annotations
 
 import os

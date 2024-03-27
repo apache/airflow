@@ -29,6 +29,7 @@ from airflow.providers.amazon.aws.links.step_function import (
 )
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.step_function import StepFunctionsExecutionCompleteTrigger
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
@@ -48,7 +49,11 @@ class StepFunctionStartExecutionOperator(AwsBaseOperator[StepFunctionHook]):
     :param state_machine_arn: ARN of the Step Function State Machine
     :param name: The name of the execution.
     :param state_machine_input: JSON data input to pass to the State Machine
-    :param aws_conn_id: aws connection to uses
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param do_xcom_push: if True, execution_arn is pushed to XCom with key execution_arn.
     :param waiter_max_attempts: Maximum number of attempts to poll the execution.
     :param waiter_delay: Number of seconds between polling the state of the execution.
@@ -129,7 +134,9 @@ class StepFunctionStartExecutionOperator(AwsBaseOperator[StepFunctionHook]):
         return execution_arn
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        if event is None or event["status"] != "success":
+        event = validate_execute_complete_event(event)
+
+        if event["status"] != "success":
             raise AirflowException(f"Trigger error: event is {event}")
 
         self.log.info("State Machine execution completed successfully")

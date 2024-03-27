@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+9.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Pass proxies config when using ClientSecretCredential in AzureDataLakeStorageV2Hook (#37103)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add comment about versions updated by release manager (#37488)``
+   * ``D401 Support in Microsoft providers (#37327)``
+
 9.0.0
 .....
 

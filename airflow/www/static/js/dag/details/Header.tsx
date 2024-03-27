@@ -28,12 +28,13 @@ import {
 import { getDagRunLabel, getMetaValue, getTask } from "src/utils";
 import useSelection from "src/dag/useSelection";
 import Time from "src/components/Time";
-import { useGridData } from "src/api";
+import { useGridData, useTaskInstance } from "src/api";
 import RunTypeIcon from "src/components/RunTypeIcon";
 
 import BreadcrumbText from "./BreadcrumbText";
 
 const dagId = getMetaValue("dag_id");
+const dagDisplayName = getMetaValue("dag_display_name");
 
 const Header = () => {
   const {
@@ -45,15 +46,27 @@ const Header = () => {
     onSelect,
     clearSelection,
   } = useSelection();
+
+  const { data: taskInstance } = useTaskInstance({
+    dagId,
+    dagRunId: runId || "",
+    taskId: taskId || "",
+    mapIndex,
+    enabled: mapIndex !== undefined,
+  });
+
   const dagRun = dagRuns.find((r) => r.runId === runId);
 
-  // clearSelection if the current selected dagRun is
-  // filtered out.
+  const group = getTask({ taskId, task: groups });
+
+  // If runId and/or taskId can't be found remove the selection
   useEffect(() => {
-    if (runId && !dagRun) {
+    if (runId && !dagRun && taskId && !group) {
       clearSelection();
+    } else if (runId && !dagRun) {
+      onSelect({ taskId });
     }
-  }, [clearSelection, dagRun, runId]);
+  }, [dagRun, taskId, group, runId, onSelect, clearSelection]);
 
   let runLabel;
   if (dagRun && runId) {
@@ -75,25 +88,25 @@ const Header = () => {
     );
   }
 
-  const group = getTask({ taskId, task: groups });
-
   const lastIndex = taskId ? taskId.lastIndexOf(".") : null;
   const taskName =
-    taskId && lastIndex ? taskId.substring(lastIndex + 1) : taskId;
+    taskInstance?.taskDisplayName && lastIndex
+      ? taskInstance?.taskDisplayName.substring(lastIndex + 1)
+      : taskId;
 
   const isDagDetails = !runId && !taskId;
   const isRunDetails = !!(runId && !taskId);
-  const isTaskDetails = runId && taskId && mapIndex === undefined;
+  const isTaskDetails = !runId && taskId;
   const isMappedTaskDetails = runId && taskId && mapIndex !== undefined;
 
   return (
-    <Breadcrumb ml={3} separator={<Text color="gray.300">/</Text>}>
+    <Breadcrumb ml={3} pt={2} separator={<Text color="gray.300">/</Text>}>
       <BreadcrumbItem isCurrentPage={isDagDetails} mt={4}>
         <BreadcrumbLink
           onClick={clearSelection}
           _hover={isDagDetails ? { cursor: "default" } : undefined}
         >
-          <BreadcrumbText label="DAG" value={dagId} />
+          <BreadcrumbText label="DAG" value={dagDisplayName} />
         </BreadcrumbLink>
       </BreadcrumbItem>
       {runId && (
@@ -109,7 +122,11 @@ const Header = () => {
       {taskId && (
         <BreadcrumbItem isCurrentPage mt={4}>
           <BreadcrumbLink
-            onClick={() => onSelect({ runId, taskId })}
+            onClick={() =>
+              mapIndex !== undefined
+                ? onSelect({ runId, taskId })
+                : onSelect({ taskId })
+            }
             _hover={isTaskDetails ? { cursor: "default" } : undefined}
           >
             <BreadcrumbText
@@ -124,7 +141,10 @@ const Header = () => {
           <BreadcrumbLink
             _hover={isMappedTaskDetails ? { cursor: "default" } : undefined}
           >
-            <BreadcrumbText label="Map Index" value={mapIndex} />
+            <BreadcrumbText
+              label="Map Index"
+              value={taskInstance?.renderedMapIndex || mapIndex}
+            />
           </BreadcrumbLink>
         </BreadcrumbItem>
       )}

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
@@ -103,15 +104,39 @@ class DockerHook(BaseHook):
         :param ssl_version: Version of SSL to use when communicating with docker daemon.
         """
         if ca_cert and client_cert and client_key:
-            # Ignore type error on SSL version here.
-            # It is deprecated and type annotation is wrong, and it should be string.
-            return TLSConfig(
-                ca_cert=ca_cert,
-                client_cert=(client_cert, client_key),
-                verify=verify,
-                ssl_version=ssl_version,
-                assert_hostname=assert_hostname,
-            )
+            from importlib.metadata import version
+
+            from packaging.version import Version
+
+            tls_config = {
+                "ca_cert": ca_cert,
+                "client_cert": (client_cert, client_key),
+                "verify": verify,
+                "assert_hostname": assert_hostname,
+                "ssl_version": ssl_version,
+            }
+
+            docker_py_version = Version(version("docker"))
+            if docker_py_version.major >= 7:
+                # `ssl_version` and `assert_hostname` removed into the `docker>=7`
+                # see: https://github.com/docker/docker-py/pull/3185
+                if tls_config.pop("ssl_version", None) is not None:
+                    warnings.warn(
+                        f"`ssl_version` removed in `docker.TLSConfig` constructor arguments "
+                        f"since `docker>=7`, but you use {docker_py_version}. "
+                        f"This parameter does not have any affect.",
+                        UserWarning,
+                        stacklevel=2,
+                    )
+                if tls_config.pop("assert_hostname", None) is not None:
+                    warnings.warn(
+                        f"`assert_hostname` removed in `docker.TLSConfig` constructor arguments "
+                        f"since `docker>=7`, but you use {docker_py_version}. "
+                        f"This parameter does not have any affect.",
+                        UserWarning,
+                        stacklevel=2,
+                    )
+            return TLSConfig(**tls_config)
         return False
 
     @cached_property

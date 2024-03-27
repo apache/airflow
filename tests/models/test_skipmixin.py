@@ -141,8 +141,7 @@ class TestSkipMixin:
         with dag_maker("dag_test_skip_all_except") as dag:
 
             @task
-            def branch_op(k):
-                ...
+            def branch_op(k): ...
 
             @task_group
             def task_group_op(k):

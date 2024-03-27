@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Operators that integrates with Google Cloud Build service."""
+
 from __future__ import annotations
 
 import json

@@ -19,6 +19,7 @@
 """
 Checks if all the libraries in setup.py are listed in installation.rst file
 """
+
 from __future__ import annotations
 
 import re
@@ -27,24 +28,17 @@ from pathlib import Path
 
 from tabulate import tabulate
 
-# tomllib is available in Python 3.11+ and before that tomli offers same interface for parsing TOML files
-try:
-    import tomllib
-except ImportError:
-    import tomli as tomllib
-
-
 AIRFLOW_ROOT_PATH = Path(__file__).parents[3].resolve()
+COMMON_PRECOMMIT_PATH = Path(__file__).parent.resolve()
 EXTRA_PACKAGES_REF_FILE = AIRFLOW_ROOT_PATH / "docs" / "apache-airflow" / "extra-packages-ref.rst"
 PYPROJECT_TOML_FILE_PATH = AIRFLOW_ROOT_PATH / "pyproject.toml"
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
-
+sys.path.insert(0, COMMON_PRECOMMIT_PATH.as_posix())  # make sure common_precommit_utils is imported
 from common_precommit_utils import console
 
-pyproject_toml_content = tomllib.loads(PYPROJECT_TOML_FILE_PATH.read_text())
+sys.path.insert(0, AIRFLOW_ROOT_PATH.as_posix())  # make sure airflow root is imported
+from hatch_build import ALL_DYNAMIC_EXTRAS
 
-optional_dependencies: dict[str, list[str]] = pyproject_toml_content["project"]["optional-dependencies"]
 doc_ref_content = EXTRA_PACKAGES_REF_FILE.read_text()
 
 errors: list[str] = []
@@ -54,7 +48,7 @@ suggestions: list[tuple] = []
 suggestions_devel: list[tuple] = []
 suggestions_providers: list[tuple] = []
 
-for dependency in optional_dependencies:
+for dependency in ALL_DYNAMIC_EXTRAS:
     console.print(f"[bright_blue]Checking if {dependency} is mentioned in refs[/]")
     find_matching = re.search(rf"^\| {dependency} *\|", doc_ref_content, flags=re.MULTILINE)
     if not find_matching:
@@ -94,4 +88,4 @@ if errors:
         console.print(tabulate(suggestions_providers, headers=HEADERS, tablefmt="grid"), markup=False)
     sys.exit(1)
 else:
-    console.print(f"[green]Checked: {len(optional_dependencies)} dependencies are mentioned[/]")
+    console.print(f"[green]Checked: {len(ALL_DYNAMIC_EXTRAS)} dependencies are mentioned[/]")

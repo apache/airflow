@@ -85,7 +85,7 @@ def test_label(request):
     return label[-63:]
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_get_connection():
     with mock.patch(f"{HOOK_CLASS}.get_connection", return_value=Connection(conn_id="kubernetes_default")):
         yield
@@ -205,6 +205,21 @@ class TestKubernetesPodOperatorSystem:
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
         assert self.expected_pod["spec"] == actual_pod["spec"]
         assert self.expected_pod["metadata"]["labels"] == actual_pod["metadata"]["labels"]
+
+    def test_skip_cleanup(self, mock_get_connection):
+        k = KubernetesPodOperator(
+            namespace="unknown",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels=self.labels,
+            task_id=str(uuid4()),
+            in_cluster=False,
+            do_xcom_push=False,
+        )
+        context = create_context(k)
+        with pytest.raises(ApiException):
+            k.execute(context)
 
     def test_delete_operator_pod(self, mock_get_connection):
         k = KubernetesPodOperator(
@@ -614,12 +629,12 @@ class TestKubernetesPodOperatorSystem:
             do_xcom_push=False,
             startup_timeout_seconds=5,
         )
-        with pytest.raises(AirflowException):
-            context = create_context(k)
+        context = create_context(k)
+        with pytest.raises(AirflowException, match="Pod .* returned a failure"):
             k.execute(context)
-            actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-            self.expected_pod["spec"]["containers"][0]["image"] = bad_image_name
-            assert self.expected_pod == actual_pod
+        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
+        self.expected_pod["spec"]["containers"][0]["image"] = bad_image_name
+        assert self.expected_pod == actual_pod
 
     def test_faulty_service_account(self, mock_get_connection):
         k = KubernetesPodOperator(
@@ -654,12 +669,12 @@ class TestKubernetesPodOperatorSystem:
             in_cluster=False,
             do_xcom_push=False,
         )
-        with pytest.raises(AirflowException):
-            context = create_context(k)
+        context = create_context(k)
+        with pytest.raises(AirflowException, match="Pod .* returned a failure"):
             k.execute(context)
-            actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-            self.expected_pod["spec"]["containers"][0]["args"] = bad_internal_command
-            assert self.expected_pod == actual_pod
+        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
+        self.expected_pod["spec"]["containers"][0]["args"] = bad_internal_command
+        assert self.expected_pod == actual_pod
 
     def test_xcom_push(self, test_label, mock_get_connection):
         expected = {"test_label": test_label, "buzz": 2}
@@ -1158,7 +1173,7 @@ class TestKubernetesPodOperatorSystem:
         # `create_pod` should be called because though there's still a pod to be found,
         # it will be `already_checked`
         with mock.patch(f"{POD_MANAGER_CLASS}.create_pod") as create_mock:
-            with pytest.raises(AirflowException):
+            with pytest.raises(Exception):
                 k.execute(context)
             create_mock.assert_called_once()
 

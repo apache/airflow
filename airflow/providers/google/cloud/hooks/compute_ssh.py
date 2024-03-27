@@ -281,7 +281,7 @@ class ComputeEngineSSHHook(SSHHook):
                 if retry == self.max_retries:
                     raise AirflowException("Maximum retries exceeded. Aborting operation.")
                 delay = random.randint(0, max_delay)
-                self.log.info(f"Failed establish SSH connection, waiting {delay} seconds to retry...")
+                self.log.info("Failed establish SSH connection, waiting %s seconds to retry...", delay)
                 time.sleep(delay)
         if not sshclient:
             raise AirflowException("Unable to establish SSH connection.")

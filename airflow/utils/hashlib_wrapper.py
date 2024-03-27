@@ -18,12 +18,11 @@
 from __future__ import annotations
 
 import hashlib
+import sys
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from _typeshed import ReadableBuffer
-
-from airflow import PY39
 
 
 def md5(__string: ReadableBuffer = b"") -> hashlib._Hash:
@@ -33,6 +32,6 @@ def md5(__string: ReadableBuffer = b"") -> hashlib._Hash:
     :param __string: The data to hash. Default to empty str byte.
     :return: The hashed value.
     """
-    if PY39:
+    if sys.version_info >= (3, 9):
         return hashlib.md5(__string, usedforsecurity=False)  # type: ignore
     return hashlib.md5(__string)

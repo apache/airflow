@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import datetime
 import decimal
+import sys
+from importlib import metadata
 from unittest.mock import patch
 
 import numpy as np
@@ -25,20 +27,19 @@ import pendulum
 import pendulum.tz
 import pytest
 from dateutil.tz import tzutc
-from deltalake import DeltaTable
+from packaging import version
 from pendulum import DateTime
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
-from airflow import PY39
 from airflow.models.param import Param, ParamsDict
 from airflow.serialization.serde import DATA, deserialize, serialize
 
-if PY39:
+if sys.version_info >= (3, 9):
     from zoneinfo import ZoneInfo
 else:
     from backports.zoneinfo import ZoneInfo
 
-PENDULUM3 = pendulum.__version__.startswith("3")
+PENDULUM3 = version.parse(metadata.version("pendulum")).major == 3
 
 
 class TestSerializers:
@@ -212,28 +213,29 @@ class TestSerializers:
         mock_load_catalog.assert_called_with("catalog", uri=uri)
         mock_load_table.assert_called_with((identifier[1], identifier[2]))
 
-    @patch("deltalake.table.Metadata")
-    @patch("deltalake.table.RawDeltaTable")
-    @patch.object(DeltaTable, "version", return_value=0)
-    @patch.object(DeltaTable, "table_uri", new_callable=lambda: "/tmp/bucket/path")
-    def test_deltalake(self, mock_table_uri, mock_version, mock_deltalake, mock_metadata):
-        uri = "/tmp/bucket/path"
+    def test_deltalake(selfa):
+        deltalake = pytest.importorskip("deltalake")
 
-        i = DeltaTable(uri, storage_options={"key": "value"})
+        with patch("deltalake.table.Metadata"), patch("deltalake.table.RawDeltaTable"), patch.object(
+            deltalake.DeltaTable, "version", return_value=0
+        ), patch.object(deltalake.DeltaTable, "table_uri", new_callable=lambda: "/tmp/bucket/path"):
+            uri = "/tmp/bucket/path"
 
-        e = serialize(i)
-        d = deserialize(e)
-        assert i.table_uri == d.table_uri
-        assert i.version() == d.version()
-        assert i._storage_options == d._storage_options
+            i = deltalake.DeltaTable(uri, storage_options={"key": "value"})
 
-        i = DeltaTable(uri)
-        e = serialize(i)
-        d = deserialize(e)
-        assert i.table_uri == d.table_uri
-        assert i.version() == d.version()
-        assert i._storage_options == d._storage_options
-        assert d._storage_options is None
+            e = serialize(i)
+            d = deserialize(e)
+            assert i.table_uri == d.table_uri
+            assert i.version() == d.version()
+            assert i._storage_options == d._storage_options
+
+            i = deltalake.DeltaTable(uri)
+            e = serialize(i)
+            d = deserialize(e)
+            assert i.table_uri == d.table_uri
+            assert i.version() == d.version()
+            assert i._storage_options == d._storage_options
+            assert d._storage_options is None
 
     @pytest.mark.skipif(not PENDULUM3, reason="Test case for pendulum~=3")
     @pytest.mark.parametrize(

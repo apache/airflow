@@ -113,7 +113,7 @@ class TestJenkinsBuildSensor:
             if result not in sensor.target_states:
                 with pytest.raises(expected_exception):
                     sensor.poke(None)
-                    assert jenkins_mock.get_build_info.call_count == 2
+                assert jenkins_mock.get_build_info.call_count == 2
             else:
                 output = sensor.poke(None)
                 assert output == (not build_state)

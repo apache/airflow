@@ -155,7 +155,7 @@
 {% block content %}
   {{ super() }}
   <h2>
-    Trigger DAG: <a href="{{ url_for('Airflow.'+ dag.get_default_view(), dag_id=dag.dag_id) }}">{{ dag.dag_id }}</a>
+    Trigger DAG: <a href="{{ url_for('Airflow.'+ dag.get_default_view(), dag_id=dag.dag_id) }}" title="{{ dag.dag_id }}">{{ dag.dag_display_name }}</a>
     <small class="text-muted">{{ dag.description[0:150] + '…' if dag.description and dag.description|length > 150 else dag.description|default('', true) }}</small>
   </h2>
   {{ dag_docs(doc_md, False) }}
@@ -251,7 +251,7 @@
                         <label for="run_id" control-label="">Run id:</label>
                       </td>
                       <td>
-                        <input type="text" class="form-control" placeholder="Run id, optional - will be generated if not provided" name="run_id" id="run_id">
+                        <input type="text" class="form-control" placeholder="Run id, optional - will be generated if not provided" name="run_id" id="run_id"{% if run_id %}value="{{ run_id }}"{% endif %}>
                       </td>
                     </tr>
                     <tr>
@@ -277,7 +277,7 @@
     <div class="form-group row">
       <div class="col-md-2">
         <label for="run_id">Run id (Optional)</label>
-        <input type="text" class="form-control" placeholder="Run ID" name="run_id">
+        <input type="text" class="form-control" placeholder="Run ID" name="run_id"{% if run_id %}value="{{ run_id }}"{% endif %}>
       </div>
     </div>
     <label for="conf">Configuration JSON (Optional, must be a dict object)</label>

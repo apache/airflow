@@ -28,6 +28,7 @@ export interface ReactEChartsProps {
   settings?: SetOptionOpts;
   style?: CSSProperties;
   theme?: "light" | "dark";
+  events?: { [key: string]: (params: any) => void };
 }
 
 const ReactECharts = ({
@@ -36,6 +37,7 @@ const ReactECharts = ({
   settings,
   style,
   theme,
+  events,
 }: ReactEChartsProps) => {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -78,9 +80,15 @@ const ReactECharts = ({
       const chartInstance = getInstanceByDom(ref.current);
       if (chartInstance) {
         chartInstance.setOption(option, settings);
+
+        if (events) {
+          Object.keys(events).forEach((key) => {
+            chartInstance.on(key, events[key]);
+          });
+        }
       }
     }
-  }, [option, settings, theme]);
+  }, [option, settings, theme, events]);
 
   return (
     <div

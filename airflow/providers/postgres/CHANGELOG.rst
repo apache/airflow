@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+5.10.2
+......
+
+Misc
+~~~~
+
+* ``Implement AIP-60 Dataset URI formats (#37005)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix remaining D401 checks (#37434)``
+   * ``Add comment about versions updated by release manager (#37488)``
+
 5.10.1
 ......
 
@@ -429,8 +442,10 @@ Misc
    * ``Import Hooks lazily individually in providers manager (#17682)``
    * ``Improve postgres provider logging (#17214)``
 
-2.1.0
-.....
+2.1.0 (YANKED)
+..............
+
+.. warning:: This release has been **yanked** with a reason: ``The postgres operator seem to conflict with earlier versions of Airflow``
 
 Features
 ~~~~~~~~

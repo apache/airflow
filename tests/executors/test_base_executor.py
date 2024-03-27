@@ -210,7 +210,8 @@ def test_trigger_running_tasks(can_try_mock, dag_maker, can_try_num, change_stat
     executor.queue_command(ti, ["airflow"])
 
     # this is the problem we're dealing with: ti.key both queued and running
-    assert ti.key in executor.queued_tasks and ti.key in executor.running
+    assert ti.key in executor.queued_tasks
+    assert ti.key in executor.running
     assert len(executor.attempts) == 0
     executor.trigger_tasks(open_slots)
 
@@ -221,7 +222,8 @@ def test_trigger_running_tasks(can_try_mock, dag_maker, can_try_num, change_stat
     for attempt in range(2, change_state_num + 2):
         executor.trigger_tasks(open_slots)
         if attempt <= min(can_try_num, change_state_num):
-            assert ti.key in executor.queued_tasks and ti.key in executor.running
+            assert ti.key in executor.queued_tasks
+            assert ti.key in executor.running
         # On the configured attempt, we notify the executor that the task has succeeded.
         if attempt == change_state_num:
             executor.change_state(ti.key, State.SUCCESS)
@@ -251,7 +253,8 @@ def test_validate_airflow_tasks_run_command(dag_maker):
     print(f"command: {tis[0].command_as_list()}")
     dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(tis[0].command_as_list())
     print(f"dag_id: {dag_id}, task_id: {task_id}")
-    assert dag_id == dagrun.dag_id and task_id == tis[0].task_id
+    assert dag_id == dagrun.dag_id
+    assert task_id == tis[0].task_id
 
 
 @pytest.mark.db_test
@@ -263,7 +266,8 @@ def test_validate_airflow_tasks_run_command_with_complete_forloop(generate_comma
     dagrun = setup_dagrun(dag_maker)
     tis = dagrun.task_instances
     dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(tis[0].command_as_list())
-    assert dag_id is None and task_id is None
+    assert dag_id is None
+    assert task_id is None
 
 
 @pytest.mark.db_test

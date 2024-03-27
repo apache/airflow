@@ -24,6 +24,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.redshift_data import RedshiftDataTrigger
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
@@ -170,10 +171,7 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
     def execute_complete(
         self, context: Context, event: dict[str, Any] | None = None
     ) -> GetStatementResultResponseTypeDef | str:
-        if event is None:
-            err_msg = "Trigger error: event is None"
-            self.log.info(err_msg)
-            raise AirflowException(err_msg)
+        event = validate_execute_complete_event(event)
 
         if event["status"] == "error":
             msg = f"context: {context}, error message: {event['message']}"

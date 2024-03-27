@@ -65,12 +65,13 @@ class Context(TypedDict, total=False):
     data_interval_start: DateTime
     ds: str
     ds_nodash: str
-    exception: KeyboardInterrupt | Exception | str | None
+    exception: BaseException | str | None
     execution_date: DateTime
     expanded_ti_count: int | None
     inlets: list
     logical_date: DateTime
     macros: Any
+    map_index_template: str
     next_ds: str | None
     next_ds_nodash: str | None
     next_execution_date: DateTime | None

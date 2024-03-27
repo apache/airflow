@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+4.4.3
+.....
+
+Misc
+~~~~
+
+* ``Limit 'pandas' to '<2.2' (#37748)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add comment about versions updated by release manager (#37488)``
+
 4.4.2
 .....
 

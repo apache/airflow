@@ -90,10 +90,9 @@ class TestQuotaRetry:
         assert 5 == custom_fn.counter
 
     def test_raise_exception_on_non_quota_exception(self):
+        message = "POST https://translation.googleapis.com/language/translate/v2: Daily Limit Exceeded"
+        errors = [mock.MagicMock(details=mock.PropertyMock(return_value="dailyLimitExceeded"))]
         with pytest.raises(Forbidden, match="Daily Limit Exceeded"):
-            message = "POST https://translation.googleapis.com/language/translate/v2: Daily Limit Exceeded"
-            errors = [mock.MagicMock(details=mock.PropertyMock(return_value="dailyLimitExceeded"))]
-
             _retryable_test_with_temporary_quota_retry(
                 NoForbiddenAfterCount(5, message=message, errors=errors)
             )
@@ -892,6 +891,10 @@ class TestCredentialsToken:
         token = hook._CredentialsToken(mock_credentials, project=PROJECT_ID, scopes=SCOPES)
         assert await token.get() == "ACCESS_TOKEN"
         mock_credentials.refresh.assert_called_once()
+        # ensure token caching works on subsequent calls of `get`
+        mock_credentials.reset_mock()
+        assert await token.get() == "ACCESS_TOKEN"
+        mock_credentials.refresh.assert_not_called()
 
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE_NAME}.get_credentials_and_project_id", return_value=("CREDENTIALS", "PROJECT_ID"))

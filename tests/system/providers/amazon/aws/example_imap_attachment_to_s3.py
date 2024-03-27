@@ -18,6 +18,7 @@
 This is an example dag for using `ImapAttachmentToS3Operator` to transfer an email attachment via IMAP
 protocol from a mail server to S3 Bucket.
 """
+
 from __future__ import annotations
 
 from datetime import datetime

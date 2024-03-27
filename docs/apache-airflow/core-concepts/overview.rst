@@ -67,8 +67,8 @@ performance in your Airflow:
 
 * Optional *worker*, which executes the tasks given to it by the scheduler. In the basic installation
   worker might be part of the scheduler not a separate component. It can be run as a long running process
-  in the :doc:`CeleryExecutor <executor/celery>`, or as a POD in the
-  :doc:`KubernetesExecutor <executor/kubernetes>`.
+  in the :doc:`CeleryExecutor <apache-airflow-providers-celery:celery_executor>`, or as a POD in the
+  :doc:`KubernetesExecutor <apache-airflow-providers-cncf-kubernetes:kubernetes_executor>`.
 
 * Optional *triggerer*, which executes deferred tasks in an asyncio event loop. In basic installation
   where deferred tasks are not used, a triggerer is not necessary. More about deferring tasks can be
@@ -93,7 +93,7 @@ They can have extra *installed packages* installed in their Python environment. 
 install custom operators or sensors or extend Airflow functionality with custom plugins.
 
 While Airflow can be run in a single machine and with simple installation where only *scheduler* and
-*webserver* are deployed, Airflow is designed to be scalable and secure, and is able ot run in a distributed
+*webserver* are deployed, Airflow is designed to be scalable and secure, and is able to run in a distributed
 environment - where various components can run on different machines, with different security perimeters
 and can be scaled by running multiple instances of the components above.
 
@@ -180,6 +180,14 @@ support full multi-tenant features, it can be used to make sure that **DAG autho
 executed in the context of the scheduler.
 
 .. image:: ../img/diagram_dag_processor_airflow_architecture.png
+
+.. note::
+
+    When DAG file is changed there can be cases where the scheduler and the worker will see different
+    versions of the DAG until both components catch up. You can avoid the issue by making sure dag is
+    deactivated during deployment and reactivate once finished. If needed, the cadence of sync and scan
+    of DAG folder can be configured. Please make sure you really know what you are doing if you change
+    the configurations.
 
 .. _overview:workloads:
 

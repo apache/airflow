@@ -50,7 +50,7 @@ class SageMakerTrigger(BaseTrigger):
         job_type: str,
         poke_interval: int = 30,
         max_attempts: int = 480,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
     ):
         super().__init__()
         self.job_name = job_name
@@ -139,7 +139,7 @@ class SageMakerPipelineTrigger(BaseTrigger):
         pipeline_execution_arn: str,
         waiter_delay: int,
         waiter_max_attempts: int,
-        aws_conn_id: str,
+        aws_conn_id: str | None,
     ):
         self.waiter_type = waiter_type
         self.pipeline_execution_arn = pipeline_execution_arn
@@ -212,7 +212,7 @@ class SageMakerTrainingPrintLogTrigger(BaseTrigger):
         self,
         job_name: str,
         poke_interval: float,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
     ):
         super().__init__()
         self.job_name = job_name
@@ -245,8 +245,8 @@ class SageMakerTrainingPrintLogTrigger(BaseTrigger):
         job_already_completed = status not in self.hook.non_terminal_states
         state = LogState.COMPLETE if job_already_completed else LogState.TAILING
         last_describe_job_call = time.time()
-        while True:
-            try:
+        try:
+            while True:
                 (
                     state,
                     last_description,
@@ -267,6 +267,7 @@ class SageMakerTrainingPrintLogTrigger(BaseTrigger):
                     reason = last_description.get("FailureReason", "(No reason provided)")
                     error_message = f"SageMaker job failed because {reason}"
                     yield TriggerEvent({"status": "error", "message": error_message})
+                    return
                 else:
                     billable_seconds = SageMakerHook.count_billable_seconds(
                         training_start_time=last_description["TrainingStartTime"],
@@ -275,5 +276,6 @@ class SageMakerTrainingPrintLogTrigger(BaseTrigger):
                     )
                     self.log.info("Billable seconds: %d", billable_seconds)
                     yield TriggerEvent({"status": "success", "message": last_description})
-            except Exception as e:
-                yield TriggerEvent({"status": "error", "message": str(e)})
+                    return
+        except Exception as e:
+            yield TriggerEvent({"status": "error", "message": str(e)})

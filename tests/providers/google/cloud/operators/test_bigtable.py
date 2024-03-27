@@ -304,18 +304,17 @@ class TestBigtableInstanceUpdate:
     @mock.patch("airflow.providers.google.cloud.operators.bigtable.BigtableHook")
     def test_update_instance_that_doesnt_exists(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = None
-
+        op = BigtableUpdateInstanceOperator(
+            project_id=PROJECT_ID,
+            instance_id=INSTANCE_ID,
+            instance_display_name=INSTANCE_DISPLAY_NAME,
+            instance_type=INSTANCE_TYPE,
+            instance_labels=INSTANCE_LABELS,
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         with pytest.raises(AirflowException) as ctx:
-            op = BigtableUpdateInstanceOperator(
-                project_id=PROJECT_ID,
-                instance_id=INSTANCE_ID,
-                instance_display_name=INSTANCE_DISPLAY_NAME,
-                instance_type=INSTANCE_TYPE,
-                instance_labels=INSTANCE_LABELS,
-                task_id="id",
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-            )
             op.execute(None)
 
         err = ctx.value
@@ -330,17 +329,16 @@ class TestBigtableInstanceUpdate:
     @mock.patch("airflow.providers.google.cloud.operators.bigtable.BigtableHook")
     def test_update_instance_that_doesnt_exists_empty_project_id(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = None
-
+        op = BigtableUpdateInstanceOperator(
+            instance_id=INSTANCE_ID,
+            instance_display_name=INSTANCE_DISPLAY_NAME,
+            instance_type=INSTANCE_TYPE,
+            instance_labels=INSTANCE_LABELS,
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         with pytest.raises(AirflowException) as ctx:
-            op = BigtableUpdateInstanceOperator(
-                instance_id=INSTANCE_ID,
-                instance_display_name=INSTANCE_DISPLAY_NAME,
-                instance_type=INSTANCE_TYPE,
-                instance_labels=INSTANCE_LABELS,
-                task_id="id",
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-            )
             op.execute(None)
 
         err = ctx.value
@@ -412,17 +410,16 @@ class TestBigtableClusterUpdate:
     @mock.patch("airflow.providers.google.cloud.operators.bigtable.BigtableHook")
     def test_updating_cluster_but_instance_does_not_exists(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = None
-
+        op = BigtableUpdateClusterOperator(
+            project_id=PROJECT_ID,
+            instance_id=INSTANCE_ID,
+            cluster_id=CLUSTER_ID,
+            nodes=NODES,
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         with pytest.raises(AirflowException) as ctx:
-            op = BigtableUpdateClusterOperator(
-                project_id=PROJECT_ID,
-                instance_id=INSTANCE_ID,
-                cluster_id=CLUSTER_ID,
-                nodes=NODES,
-                task_id="id",
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-            )
             op.execute(None)
 
         err = ctx.value
@@ -436,16 +433,15 @@ class TestBigtableClusterUpdate:
     @mock.patch("airflow.providers.google.cloud.operators.bigtable.BigtableHook")
     def test_updating_cluster_but_instance_does_not_exists_empty_project_id(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = None
-
+        op = BigtableUpdateClusterOperator(
+            instance_id=INSTANCE_ID,
+            cluster_id=CLUSTER_ID,
+            nodes=NODES,
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         with pytest.raises(AirflowException) as ctx:
-            op = BigtableUpdateClusterOperator(
-                instance_id=INSTANCE_ID,
-                cluster_id=CLUSTER_ID,
-                nodes=NODES,
-                task_id="id",
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-            )
             op.execute(None)
 
         err = ctx.value
@@ -462,17 +458,16 @@ class TestBigtableClusterUpdate:
         mock_hook.return_value.update_cluster.side_effect = mock.Mock(
             side_effect=google.api_core.exceptions.NotFound("Cluster not found.")
         )
-
+        op = BigtableUpdateClusterOperator(
+            project_id=PROJECT_ID,
+            instance_id=INSTANCE_ID,
+            cluster_id=CLUSTER_ID,
+            nodes=NODES,
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         with pytest.raises(AirflowException) as ctx:
-            op = BigtableUpdateClusterOperator(
-                project_id=PROJECT_ID,
-                instance_id=INSTANCE_ID,
-                cluster_id=CLUSTER_ID,
-                nodes=NODES,
-                task_id="id",
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-            )
             op.execute(None)
 
         err = ctx.value
@@ -491,16 +486,15 @@ class TestBigtableClusterUpdate:
         mock_hook.return_value.update_cluster.side_effect = mock.Mock(
             side_effect=google.api_core.exceptions.NotFound("Cluster not found.")
         )
-
+        op = BigtableUpdateClusterOperator(
+            instance_id=INSTANCE_ID,
+            cluster_id=CLUSTER_ID,
+            nodes=NODES,
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         with pytest.raises(AirflowException) as ctx:
-            op = BigtableUpdateClusterOperator(
-                instance_id=INSTANCE_ID,
-                cluster_id=CLUSTER_ID,
-                nodes=NODES,
-                task_id="id",
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-            )
             op.execute(None)
 
         err = ctx.value

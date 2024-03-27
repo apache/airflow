@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Transfers data from Exasol database into a S3 Bucket."""
+
 from __future__ import annotations
 
 from tempfile import NamedTemporaryFile
@@ -68,7 +69,7 @@ class ExasolToS3Operator(BaseOperator):
         query_params: dict | None = None,
         export_params: dict | None = None,
         exasol_conn_id: str = "exasol_default",
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

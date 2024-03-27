@@ -83,6 +83,7 @@ class TestUserEndpoint:
                 roles=roles or [],
                 created_on=timezone.parse(DEFAULT_TIME),
                 changed_on=timezone.parse(DEFAULT_TIME),
+                active=True,
             )
             for i in range(1, count + 1)
         ]
@@ -96,7 +97,7 @@ class TestGetUser(TestUserEndpoint):
         response = self.client.get("/auth/fab/v1/users/TEST_USER1", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert response.json == {
-            "active": None,
+            "active": True,
             "changed_on": DEFAULT_TIME,
             "created_on": DEFAULT_TIME,
             "email": "mytest@test1.org",
@@ -124,7 +125,7 @@ class TestGetUser(TestUserEndpoint):
         response = self.client.get("/auth/fab/v1/users/prince", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert response.json == {
-            "active": None,
+            "active": True,
             "changed_on": DEFAULT_TIME,
             "created_on": DEFAULT_TIME,
             "email": "prince@example.org",
@@ -152,7 +153,7 @@ class TestGetUser(TestUserEndpoint):
         response = self.client.get("/auth/fab/v1/users/liberace", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert response.json == {
-            "active": None,
+            "active": True,
             "changed_on": DEFAULT_TIME,
             "created_on": DEFAULT_TIME,
             "email": "liberace@example.org",
@@ -180,7 +181,7 @@ class TestGetUser(TestUserEndpoint):
         response = self.client.get("/auth/fab/v1/users/nameless", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert response.json == {
-            "active": None,
+            "active": True,
             "changed_on": DEFAULT_TIME,
             "created_on": DEFAULT_TIME,
             "email": "nameless@example.org",
@@ -346,21 +347,21 @@ def _delete_user(**filters):
         session.delete(user)
 
 
-@pytest.fixture()
+@pytest.fixture
 def autoclean_username():
     _delete_user(username=EXAMPLE_USER_NAME)
     yield EXAMPLE_USER_NAME
     _delete_user(username=EXAMPLE_USER_NAME)
 
 
-@pytest.fixture()
+@pytest.fixture
 def autoclean_email():
     _delete_user(email=EXAMPLE_USER_EMAIL)
     yield EXAMPLE_USER_EMAIL
     _delete_user(email=EXAMPLE_USER_EMAIL)
 
 
-@pytest.fixture()
+@pytest.fixture
 def user_with_same_username(configured_app, autoclean_username):
     user = create_user(
         configured_app,
@@ -372,7 +373,7 @@ def user_with_same_username(configured_app, autoclean_username):
     return user
 
 
-@pytest.fixture()
+@pytest.fixture
 def user_with_same_email(configured_app, autoclean_email):
     user = create_user(
         configured_app,
@@ -384,7 +385,7 @@ def user_with_same_email(configured_app, autoclean_email):
     return user
 
 
-@pytest.fixture()
+@pytest.fixture
 def user_different(configured_app):
     username = "another_user"
     email = "another_user@example.com"
@@ -396,7 +397,7 @@ def user_different(configured_app):
     _delete_user(username=username, email=email)
 
 
-@pytest.fixture()
+@pytest.fixture
 def autoclean_user_payload(autoclean_username, autoclean_email):
     return {
         "username": autoclean_username,
@@ -407,7 +408,7 @@ def autoclean_user_payload(autoclean_username, autoclean_email):
     }
 
 
-@pytest.fixture()
+@pytest.fixture
 def autoclean_admin_user(configured_app, autoclean_user_payload):
     security_manager = configured_app.appbuilder.sm
     return security_manager.add_user(

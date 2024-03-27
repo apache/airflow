@@ -23,6 +23,7 @@ This DAG relies on the following OS environment variables
   For generating it please use instruction
   https://docs.trifacta.com/display/DP/Manage+API+Access+Tokens#:~:text=Enable%20individual%20access-,Generate%20New%20Token,-Via%20UI.
 """
+
 from __future__ import annotations
 
 import logging

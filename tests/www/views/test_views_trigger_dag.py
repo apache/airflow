@@ -37,7 +37,7 @@ from tests.test_utils.www import check_content_in_response, check_content_not_in
 pytestmark = pytest.mark.db_test
 
 
-@pytest.fixture(scope="function", autouse=True)
+@pytest.fixture(autouse=True)
 def initialize_one_dag():
     with create_session() as session:
         DagBag().get_dag("example_bash_operator").sync_to_db(session=session)

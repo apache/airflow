@@ -18,6 +18,7 @@
 """
 Example Airflow DAG to submit Apache Druid json index file using `DruidOperator`
 """
+
 from __future__ import annotations
 
 import os

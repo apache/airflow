@@ -52,6 +52,7 @@ from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.www.decorators import action_logging
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
@@ -383,7 +384,6 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
             {
                 "method": "GET",
                 "details": DagDetails(id=id),
-                "user": g.user,
             }
             for id in dag_ids
         ]
@@ -440,6 +440,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
 
 
 @security.requires_access_dag("PUT", DagAccessEntity.TASK_INSTANCE)
+@action_logging
 @provide_session
 def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Clear task instances."""
@@ -500,6 +501,7 @@ def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) ->
 
 
 @security.requires_access_dag("PUT", DagAccessEntity.TASK_INSTANCE)
+@action_logging
 @provide_session
 def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Set a state of task instances."""
@@ -567,6 +569,7 @@ def set_mapped_task_instance_note(
 
 
 @security.requires_access_dag("PUT", DagAccessEntity.TASK_INSTANCE)
+@action_logging
 @provide_session
 def patch_task_instance(
     *, dag_id: str, dag_run_id: str, task_id: str, map_index: int = -1, session: Session = NEW_SESSION
@@ -607,6 +610,7 @@ def patch_task_instance(
 
 
 @security.requires_access_dag("PUT", DagAccessEntity.TASK_INSTANCE)
+@action_logging
 @provide_session
 def patch_mapped_task_instance(
     *, dag_id: str, dag_run_id: str, task_id: str, map_index: int, session: Session = NEW_SESSION
@@ -618,6 +622,7 @@ def patch_mapped_task_instance(
 
 
 @security.requires_access_dag("PUT", DagAccessEntity.TASK_INSTANCE)
+@action_logging
 @provide_session
 def set_task_instance_note(
     *, dag_id: str, dag_run_id: str, task_id: str, map_index: int = -1, session: Session = NEW_SESSION

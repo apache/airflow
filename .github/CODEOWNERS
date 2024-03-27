@@ -97,3 +97,9 @@ ISSUE_TRIAGE_PROCESS.rst @eladkal
 /airflow/decorators/setup_teardown.py @jedcunningham @ephraimbuddy @dstandish
 /airflow/utils/setup_teardown.py @jedcunningham @ephraimbuddy @dstandish
 /airflow/example_dags/example_setup_teardown*.py @jedcunningham @ephraimbuddy @dstandish
+
+# AIP-58 - Object Storage
+/airflow/io/ @bolkedebruin
+/airflow/providers/common/io/ @bolkedebruin
+/airflow/providers/**/fs/ @bolkedebruin
+/docs/apache-airflow/core-concepts/objectstorage.rst @bolkedebruin

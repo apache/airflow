@@ -18,12 +18,13 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glue_databrew import GlueDataBrewHook
 from airflow.providers.amazon.aws.triggers.glue_databrew import GlueDataBrewJobCompleteTrigger
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -63,7 +64,7 @@ class GlueDataBrewStartJobOperator(BaseOperator):
         wait_for_completion: bool = True,
         delay: int = 30,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -101,7 +102,9 @@ class GlueDataBrewStartJobOperator(BaseOperator):
 
         return {"run_id": run_id}
 
-    def execute_complete(self, context: Context, event=None) -> dict[str, str]:
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, str]:
+        event = validate_execute_complete_event(event)
+
         run_id = event.get("run_id", "")
         status = event.get("status", "")
 

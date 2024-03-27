@@ -20,7 +20,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from copy import copy
 from logging import DEBUG, ERROR, INFO, WARNING
-from typing import Any, Callable, Generator
+from typing import TYPE_CHECKING, Any, Callable, Generator
 from warnings import warn
 from weakref import WeakKeyDictionary
 
@@ -74,6 +74,11 @@ class PsrpHook(BaseHook):
     You can provide an alternative `configuration_name` using either `runspace_options`
     or by setting this key as the extra fields of your connection.
     """
+
+    conn_name_attr = "psrp_conn_id"
+    default_conn_name = "psrp_default"
+    conn_type = "psrp"
+    hook_name = "PowerShell Remoting Protocol"
 
     _conn: RunspacePool | None = None
     _wsman_ref: WeakKeyDictionary[RunspacePool, WSMan] = WeakKeyDictionary()
@@ -168,7 +173,8 @@ class PsrpHook(BaseHook):
         if local_context:
             self.__enter__()
         try:
-            assert self._conn is not None
+            if TYPE_CHECKING:
+                assert self._conn is not None
             ps = PowerShell(self._conn)
             yield ps
             ps.begin_invoke()
@@ -281,3 +287,8 @@ class PsrpHook(BaseHook):
             log(INFO, "Progress: %s (%s)", record.activity, record.description)
         else:
             log(WARNING, "Unsupported message type: %s", message_type)
+
+    def test_connection(self):
+        """Test PSRP Connection."""
+        with PsrpHook(psrp_conn_id=self.conn_id):
+            pass

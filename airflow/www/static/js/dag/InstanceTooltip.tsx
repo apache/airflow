@@ -33,7 +33,16 @@ interface Props {
 
 const InstanceTooltip = ({
   group,
-  instance: { taskId, startDate, endDate, state, runId, mappedStates, note },
+  instance: {
+    taskId,
+    startDate,
+    endDate,
+    state,
+    runId,
+    mappedStates,
+    note,
+    tryNumber,
+  },
 }: Props) => {
   if (!group) return null;
   const isGroup = !!group.children;
@@ -88,6 +97,7 @@ const InstanceTooltip = ({
           </Text>
         </>
       )}
+      {tryNumber && tryNumber > 1 && <Text>Try Number: {tryNumber}</Text>}
       {group.triggerRule && <Text>Trigger Rule: {group.triggerRule}</Text>}
       {note && <Text>Contains a note</Text>}
     </Box>

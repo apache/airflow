@@ -21,6 +21,7 @@ Example Airflow DAG for Apache Beam operators
 Requirements:
     This test requires the gcloud and go commands to run.
 """
+
 from __future__ import annotations
 
 import os

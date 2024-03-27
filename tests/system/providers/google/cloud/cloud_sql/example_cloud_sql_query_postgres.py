@@ -18,6 +18,7 @@
 """
 Example Airflow DAG that performs query in a Cloud SQL instance for Postgres.
 """
+
 from __future__ import annotations
 
 import logging

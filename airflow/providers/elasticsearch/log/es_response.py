@@ -34,15 +34,18 @@ class AttributeList:
         self._l_ = _list
 
     def __getitem__(self, k):
+        """Retrieve an item or a slice from the list. If the item is a dictionary, it is wrapped in an AttributeDict."""
         val = self._l_[k]
         if isinstance(val, slice):
             return AttributeList(val)
         return _wrap(val)
 
     def __iter__(self):
+        """Provide an iterator for the list or the dictionary."""
         return (_wrap(i) for i in self._l_)
 
     def __bool__(self):
+        """Check if the list is non-empty."""
         return bool(self._l_)
 
 
@@ -53,12 +56,14 @@ class AttributeDict:
         super().__setattr__("_d_", d)
 
     def __getattr__(self, attr_name):
+        """Retrieve an item as an attribute from the dictionary."""
         try:
             return self.__getitem__(attr_name)
         except KeyError:
             raise AttributeError(f"{self.__class__.__name__!r} object has no attribute {attr_name!r}")
 
     def __getitem__(self, key):
+        """Retrieve an item using a key from the dictionary."""
         return _wrap(self._d_[key])
 
     def to_dict(self):
@@ -120,14 +125,17 @@ class ElasticSearchResponse(AttributeDict):
         super().__init__(response)
 
     def __iter__(self) -> Iterator[Hit]:
+        """Provide an iterator over the hits in the Elasticsearch response."""
         return iter(self.hits)
 
     def __getitem__(self, key):
+        """Retrieve a specific hit or a slice of hits from the Elasticsearch response."""
         if isinstance(key, (slice, int)):
             return self.hits[key]
         return super().__getitem__(key)
 
     def __bool__(self):
+        """Evaluate the presence of hits in the Elasticsearch response."""
         return bool(self.hits)
 
     @property

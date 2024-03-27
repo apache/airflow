@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Launches PODs."""
+
 from __future__ import annotations
 
 import enum
@@ -789,7 +790,7 @@ class PodManager(LoggingMixin):
                 _preload_content=False,
             )
         ) as resp:
-            self._exec_pod_command(resp, "kill -s SIGINT 1")
+            self._exec_pod_command(resp, "kill -2 1")
 
     def _exec_pod_command(self, resp, command: str) -> str | None:
         res = ""

@@ -25,6 +25,7 @@ operators talk to the
 or the ``api/2.1/jobs/runs/submit``
 `endpoint <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit>`_.
 """
+
 from __future__ import annotations
 
 import json

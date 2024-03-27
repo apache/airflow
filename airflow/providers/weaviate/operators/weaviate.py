@@ -46,9 +46,12 @@ class WeaviateIngestOperator(BaseOperator):
     :param class_name: The Weaviate class to be used for storing the data objects into.
     :param input_data: The list of dicts or pandas dataframe representing Weaviate data objects to generate
         embeddings on (or provides custom vectors) and store them in the Weaviate class.
-    :param input_json: (Deprecated) The JSON representing Weaviate data objects to generate embeddings on (or provides
-        custom vectors) and store them in the Weaviate class.
     :param vector_col: key/column name in which the vectors are stored.
+    :param batch_params: Additional parameters for Weaviate batch configuration.
+    :param hook_params: Optional config params to be passed to the underlying hook.
+        Should match the desired hook constructor params.
+    :param input_json: (Deprecated) The JSON representing Weaviate data objects to generate embeddings on
+        (or provides custom vectors) and store them in the Weaviate class.
     """
 
     template_fields: Sequence[str] = ("input_json", "input_data")
@@ -57,16 +60,15 @@ class WeaviateIngestOperator(BaseOperator):
         self,
         conn_id: str,
         class_name: str,
-        input_json: list[dict[str, Any]] | pd.DataFrame | None = None,
         input_data: list[dict[str, Any]] | pd.DataFrame | None = None,
         vector_col: str = "Vector",
         uuid_column: str = "id",
         tenant: str | None = None,
+        batch_params: dict | None = None,
+        hook_params: dict | None = None,
+        input_json: list[dict[str, Any]] | pd.DataFrame | None = None,
         **kwargs: Any,
     ) -> None:
-        self.batch_params = kwargs.pop("batch_params", {})
-        self.hook_params = kwargs.pop("hook_params", {})
-
         super().__init__(**kwargs)
         self.class_name = class_name
         self.conn_id = conn_id
@@ -75,6 +77,9 @@ class WeaviateIngestOperator(BaseOperator):
         self.uuid_column = uuid_column
         self.tenant = tenant
         self.input_data = input_data
+        self.batch_params = batch_params or {}
+        self.hook_params = hook_params or {}
+
         if (self.input_data is None) and (input_json is not None):
             warnings.warn(
                 "Passing 'input_json' to WeaviateIngestOperator is deprecated and"
@@ -135,7 +140,8 @@ class WeaviateDocumentIngestOperator(BaseOperator):
     :param batch_config_params: Additional parameters for Weaviate batch configuration.
     :param tenant: The tenant to which the object will be added.
     :param verbose: Flag to enable verbose output during the ingestion process.
-    :return: list of UUID which failed to create
+    :param hook_params: Optional config params to be passed to the underlying hook.
+        Should match the desired hook constructor params.
     """
 
     template_fields: Sequence[str] = ("input_data",)
@@ -152,12 +158,10 @@ class WeaviateDocumentIngestOperator(BaseOperator):
         batch_config_params: dict | None = None,
         tenant: str | None = None,
         verbose: bool = False,
+        hook_params: dict | None = None,
         **kwargs: Any,
     ) -> None:
-        self.hook_params = kwargs.pop("hook_params", {})
-
         super().__init__(**kwargs)
-
         self.conn_id = conn_id
         self.input_data = input_data
         self.class_name = class_name
@@ -168,6 +172,7 @@ class WeaviateDocumentIngestOperator(BaseOperator):
         self.batch_config_params = batch_config_params
         self.tenant = tenant
         self.verbose = verbose
+        self.hook_params = hook_params or {}
 
     @cached_property
     def hook(self) -> WeaviateHook:
@@ -175,6 +180,11 @@ class WeaviateDocumentIngestOperator(BaseOperator):
         return WeaviateHook(conn_id=self.conn_id, **self.hook_params)
 
     def execute(self, context: Context) -> list:
+        """
+        Create or replace objects belonging to documents.
+
+        :return: List of UUID which failed to create
+        """
         self.log.debug("Total input objects : %s", len(self.input_data))
         insertion_errors = self.hook.create_or_replace_document_objects(
             data=self.input_data,

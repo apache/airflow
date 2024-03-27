@@ -18,6 +18,7 @@
 """
 Example Airflow DAG for Google BigQuery service testing data structures with location.
 """
+
 from __future__ import annotations
 
 import os

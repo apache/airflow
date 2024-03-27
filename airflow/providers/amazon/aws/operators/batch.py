@@ -22,6 +22,7 @@
     - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/batch.html
     - https://docs.aws.amazon.com/batch/latest/APIReference/Welcome.html
 """
+
 from __future__ import annotations
 
 import warnings
@@ -44,8 +45,9 @@ from airflow.providers.amazon.aws.triggers.batch import (
     BatchCreateComputeEnvironmentTrigger,
     BatchJobTrigger,
 )
-from airflow.providers.amazon.aws.utils import trim_none_values
+from airflow.providers.amazon.aws.utils import trim_none_values, validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
+from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -269,10 +271,7 @@ class BatchOperator(BaseOperator):
         return self.job_id
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        if event is None:
-            err_msg = "Trigger error: event is None"
-            self.log.info(err_msg)
-            raise AirflowException(err_msg)
+        event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
             raise AirflowException(f"Error while running job: {event}")
@@ -482,16 +481,16 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
         aws_conn_id: str | None = None,
         region_name: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        status_retries=NOTSET,
         **kwargs,
     ):
-        if "status_retries" in kwargs:
+        if status_retries is not NOTSET:
             warnings.warn(
                 "The `status_retries` parameter is unused and should be removed. "
                 "It'll be deleted in a future version.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            kwargs.pop("status_retries")  # remove before calling super() to prevent unexpected arg error
 
         super().__init__(**kwargs)
 
@@ -541,7 +540,9 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
         self.log.info("AWS Batch compute environment created successfully")
         return arn
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             raise AirflowException(f"Error while waiting for the compute environment to be ready: {event}")
         return event["value"]

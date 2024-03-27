@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains ODBC hook."""
+
 from __future__ import annotations
 
 from collections import namedtuple

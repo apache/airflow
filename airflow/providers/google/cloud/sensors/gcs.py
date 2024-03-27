@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud Storage sensors."""
+
 from __future__ import annotations
 
 import os
@@ -363,6 +364,8 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
                     ),
                     method_name="execute_complete",
                 )
+            else:
+                return self._matches
 
     def execute_complete(self, context: dict[str, Any], event: dict[str, str | list[str]]) -> str | list[str]:
         """Return immediately and rely on trigger to throw a success event. Callback for the trigger."""

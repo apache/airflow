@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+4.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Change the URL building in HttpHookAsync to match the behavior of HttpHook (#37696)``
+
+Misc
+~~~~
+
+* ``Return back removed public HttpHook's method (#37738)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add comment about versions updated by release manager (#37488)``
+
 4.9.1
 .....
 
@@ -195,8 +212,10 @@ Misc
 
 * ``Bring back min-airflow-version for preinstalled providers (#31469)``
 
-4.4.0
-.....
+4.4.0 (YANKED)
+..............
+
+.. warning:: This release has been **yanked** with a reason: ``This version might cause unconstrained installation of old airflow version lead to Runtime Error.``
 
 .. note::
   This release of provider is only available for Airflow 2.4+ as explained in the

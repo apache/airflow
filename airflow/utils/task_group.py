@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """A collection of closely related tasks on the same DAG that should be grouped together visually."""
+
 from __future__ import annotations
 
 import copy

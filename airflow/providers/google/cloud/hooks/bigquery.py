@@ -49,7 +49,7 @@ from google.cloud.bigquery.table import EncryptionConfiguration, Row, RowIterato
 from google.cloud.exceptions import NotFound
 from googleapiclient.discovery import Resource, build
 from pandas_gbq import read_gbq
-from pandas_gbq.gbq import GbqConnector  # noqa
+from pandas_gbq.gbq import GbqConnector  # noqa: F401 Used in ``airflow.contrib.hooks.bigquery``
 from requests import Session
 from sqlalchemy import create_engine
 
@@ -232,8 +232,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         target_fields: Any = None,
         commit_every: Any = 1000,
         replace: Any = False,
-        *,
-        executemany=False,
         **kwargs,
     ) -> None:
         """Insert rows.
@@ -3187,7 +3185,7 @@ def _validate_src_fmt_configs(
         if k not in src_fmt_configs and k in valid_configs:
             src_fmt_configs[k] = v
 
-    for k, v in src_fmt_configs.items():
+    for k in src_fmt_configs:
         if k not in valid_configs:
             raise ValueError(f"{k} is not a valid src_fmt_configs for type {source_format}.")
 
@@ -3313,6 +3311,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
     async def create_job_for_partition_get(
         self,
         dataset_id: str | None,
+        table_id: str | None = None,
         project_id: str | None = None,
     ):
         """Create a new job and get the job_id using gcloud-aio."""
@@ -3322,7 +3321,8 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
 
             query_request = {
                 "query": "SELECT partition_id "
-                f"FROM `{project_id}.{dataset_id}.INFORMATION_SCHEMA.PARTITIONS`",
+                f"FROM `{project_id}.{dataset_id}.INFORMATION_SCHEMA.PARTITIONS`"
+                + (f" WHERE table_id={table_id}" if table_id else ""),
                 "useLegacySql": False,
             }
             job_query_resp = await job_client.query(query_request, cast(Session, session))

@@ -162,6 +162,37 @@ class TestDatasetEventSchema(TestDatasetSchemaBase):
         }
 
 
+class TestDatasetEventCreateSchema(TestDatasetSchemaBase):
+    def test_serialize(self, session):
+        d = DatasetModel("s3://abc")
+        session.add(d)
+        session.commit()
+        event = DatasetEvent(
+            id=1,
+            dataset_id=d.id,
+            extra={"foo": "bar"},
+            source_dag_id=None,
+            source_task_id=None,
+            source_run_id=None,
+            source_map_index=-1,
+        )
+        session.add(event)
+        session.flush()
+        serialized_data = dataset_event_schema.dump(event)
+        assert serialized_data == {
+            "id": 1,
+            "dataset_id": d.id,
+            "dataset_uri": "s3://abc",
+            "extra": {"foo": "bar"},
+            "source_dag_id": None,
+            "source_task_id": None,
+            "source_run_id": None,
+            "source_map_index": -1,
+            "timestamp": self.timestamp,
+            "created_dagruns": [],
+        }
+
+
 class TestDatasetEventCollectionSchema(TestDatasetSchemaBase):
     def test_serialize(self, session):
         common = {

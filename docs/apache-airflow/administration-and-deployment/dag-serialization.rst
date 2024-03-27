@@ -116,3 +116,6 @@ define a ``json`` variable in local Airflow settings (``airflow_local_settings.p
     import ujson
 
     json = ujson
+
+See :ref:`Configuring local settings <set-config:configuring-local-settings>` for details on how to
+configure local settings.

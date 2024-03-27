@@ -37,7 +37,7 @@ def mock_openai_connection():
         conn_type="openai",
     )
     os.environ[f"AIRFLOW_CONN_{conn.conn_id.upper()}"] = conn.get_uri()
-    yield conn
+    return conn
 
 
 @pytest.fixture

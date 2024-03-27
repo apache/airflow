@@ -58,26 +58,26 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-smtp
+apache-airflow-providers-smtp package
 ------------------------------------------------------
 
 `Simple Mail Transfer Protocol (SMTP) <https://tools.ietf.org/html/rfc5321>`__
 
 
-Release: 1.7.0
+Release: 1.6.1
 
 Provider package
 ----------------
 
-This is a provider package for ``smtp`` provider. All classes for this provider package
-are in ``airflow.providers.smtp`` python package.
+This package is for the ``smtp`` provider.
+All classes for this package are included in the ``airflow.providers.smtp`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-smtp``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-smtp``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------

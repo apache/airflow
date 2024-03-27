@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Storage to BigQuery operator."""
+
 from __future__ import annotations
 
 import json
@@ -467,7 +468,7 @@ class GCSToBigQueryOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         if self.max_id_key:
-            self.log.info(f"Selecting the MAX value from BigQuery column '{self.max_id_key}'...")
+            self.log.info("Selecting the MAX value from BigQuery column %r...", self.max_id_key)
             select_command = (
                 f"SELECT MAX({self.max_id_key}) AS max_value "
                 f"FROM {self.destination_project_dataset_table}"
@@ -713,7 +714,7 @@ class GCSToBigQueryOperator(BaseOperator):
             if k not in src_fmt_configs and k in valid_configs:
                 src_fmt_configs[k] = v
 
-        for k, v in src_fmt_configs.items():
+        for k in src_fmt_configs:
             if k not in valid_configs:
                 raise ValueError(f"{k} is not a valid src_fmt_configs for type {source_format}.")
 

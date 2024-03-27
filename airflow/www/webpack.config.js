@@ -76,8 +76,6 @@ const config = {
     grid: `${JS_DIR}/dag/index.tsx`,
     clusterActivity: `${JS_DIR}/cluster-activity/index.tsx`,
     datasets: `${JS_DIR}/datasets/index.tsx`,
-    calendar: [`${CSS_DIR}/calendar.css`, `${JS_DIR}/calendar.js`],
-    durationChart: `${JS_DIR}/duration_chart.js`,
     trigger: `${JS_DIR}/trigger.js`,
     variableEdit: `${JS_DIR}/variable_edit.js`,
   },
@@ -202,10 +200,6 @@ const config = {
     // we'll have the dependencies imported within the custom JS
     new CopyWebpackPlugin({
       patterns: [
-        {
-          from: "node_modules/nvd3/build/*.min.*",
-          flatten: true,
-        },
         {
           from: "node_modules/d3/d3.min.*",
           flatten: true,

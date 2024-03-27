@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 import stat
+import warnings
 from contextlib import nullcontext as no_raise
 from unittest import mock
 
@@ -35,7 +36,7 @@ DEFAULT_DATE = timezone.datetime(2023, 1, 1)
 
 @pytest.mark.db_test
 class TestBashDecorator:
-    @pytest.fixture(scope="function", autouse=True)
+    @pytest.fixture(autouse=True)
     def setup(self, dag_maker):
         self.dag_maker = dag_maker
 
@@ -69,8 +70,7 @@ class TestBashDecorator:
         with self.dag:
 
             @task.bash
-            def bash():
-                ...
+            def bash(): ...
 
             bash_task = bash()
 
@@ -339,14 +339,15 @@ class TestBashDecorator:
 
         assert bash_task.operator.bash_command == NOTSET
 
+        dr = self.dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
         with pytest.raises(AirflowException, match=f"Can not find the cwd: {cwd_path}"):
-            ti, _ = self.execute_task(bash_task)
-
-            self.validate_bash_command_rtif(ti, "echo")
+            ti.run()
+        assert ti.task.bash_command == "echo"
 
     def test_cwd_is_file(self, tmp_path):
         """Verify task failure for user-defined working directory that is actually a file."""
-        cwd_file = tmp_path / "test_file.sh"
+        cwd_file = tmp_path / "testfile.var.env"
         cwd_file.touch()
 
         with self.dag:
@@ -359,42 +360,73 @@ class TestBashDecorator:
 
         assert bash_task.operator.bash_command == NOTSET
 
+        dr = self.dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
         with pytest.raises(AirflowException, match=f"The cwd {cwd_file} must be a directory"):
-            ti, _ = self.execute_task(bash_task)
-
-            self.validate_bash_command_rtif(ti, "echo")
+            ti.run()
+        assert ti.task.bash_command == "echo"
 
     def test_command_not_found(self):
         """Fail task if executed command is not found on path."""
+
+        with self.dag:
+
+            @task.bash
+            def bash():
+                return "set -e; something-that-isnt-on-path"
+
+            bash_task = bash()
+
+        assert bash_task.operator.bash_command == NOTSET
+
+        dr = self.dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
         with pytest.raises(
             AirflowException, match="Bash command failed\\. The command returned a non-zero exit code 127\\."
         ):
-            with self.dag:
+            ti.run()
+        assert ti.task.bash_command == "set -e; something-that-isnt-on-path"
 
-                @task.bash
-                def bash():
-                    return "set -e; something-that-isnt-on-path"
-
-                bash_task = bash()
-
-            assert bash_task.operator.bash_command == NOTSET
-
-            ti, _ = self.execute_task(bash_task)
-            self.validate_bash_command_rtif(ti, "set -e; something-that-isnt-on-path")
-
-    @pytest.mark.parametrize(argnames="multiple_outputs", argvalues=[True, False])
-    def test_multiple_outputs(self, multiple_outputs):
+    def test_multiple_outputs_true(self):
         """Verify setting `multiple_outputs` for a @task.bash-decorated function is ignored."""
 
         with self.dag:
 
-            @task.bash(multiple_outputs=multiple_outputs)
+            @task.bash(multiple_outputs=True)
             def bash():
                 return "echo"
 
             with pytest.warns(
-                UserWarning, match="`multiple_outputs` is not supported in @task.bash tasks. Ignoring."
+                UserWarning, match="`multiple_outputs=True` is not supported in @task.bash tasks. Ignoring."
             ):
+                bash_task = bash()
+
+                assert bash_task.operator.bash_command == NOTSET
+
+                ti, _ = self.execute_task(bash_task)
+
+        assert bash_task.operator.multiple_outputs is False
+        self.validate_bash_command_rtif(ti, "echo")
+
+    @pytest.mark.parametrize(
+        "multiple_outputs", [False, pytest.param(None, id="none"), pytest.param(NOTSET, id="not-set")]
+    )
+    def test_multiple_outputs(self, multiple_outputs):
+        """Verify setting `multiple_outputs` for a @task.bash-decorated function is ignored."""
+
+        decorator_kwargs = {}
+        if multiple_outputs is not NOTSET:
+            decorator_kwargs["multiple_outputs"] = multiple_outputs
+
+        with self.dag:
+
+            @task.bash(**decorator_kwargs)
+            def bash():
+                return "echo"
+
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", category=UserWarning)
+
                 bash_task = bash()
 
                 assert bash_task.operator.bash_command == NOTSET
@@ -447,7 +479,8 @@ class TestBashDecorator:
 
         assert bash_task.operator.bash_command == NOTSET
 
+        dr = self.dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
         with pytest.raises(AirflowException):
-            ti, _ = self.execute_task(bash_task)
-
-            self.validate_bash_command_rtif(ti, f"{DEFAULT_DATE.date()}; exit 1;")
+            ti.run()
+        assert ti.task.bash_command == f"{DEFAULT_DATE.date()}; exit 1;"

@@ -56,7 +56,8 @@ Extra (optional)
     * ``region``: Warehouse region.
     * ``warehouse``: Snowflake warehouse name.
     * ``role``: Snowflake role.
-    * ``authenticator``: To connect using OAuth set this parameter ``oath``.
+    * ``authenticator``: To connect using OAuth set this parameter ``oauth``.
+    * ``refresh_token``: Specify refresh_token for OAuth connection.
     * ``private_key_file``: Specify the path to the private key file.
     * ``private_key_content``: Specify the content of the private key file.
     * ``session_parameters``: Specify `session level parameters <https://docs.snowflake.com/en/user-guide/python-connector-example.html#setting-session-parameters>`_.

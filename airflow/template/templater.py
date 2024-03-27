@@ -23,11 +23,9 @@ from typing import TYPE_CHECKING, Any, Collection, Iterable, Sequence
 from airflow.utils.helpers import render_template_as_native, render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.mixins import ResolveMixin
-from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     import jinja2
-    from sqlalchemy.orm import Session
 
     from airflow import DAG
     from airflow.models.operator import Operator
@@ -103,7 +101,6 @@ class Templater(LoggingMixin):
                                 self.log.exception("Failed to get source %s", item)
         self.prepare_template()
 
-    @provide_session
     def _do_render_template_fields(
         self,
         parent: Any,
@@ -111,8 +108,6 @@ class Templater(LoggingMixin):
         context: Context,
         jinja_env: jinja2.Environment,
         seen_oids: set[int],
-        *,
-        session: Session = NEW_SESSION,
     ) -> None:
         for attr_name in template_fields:
             value = getattr(parent, attr_name)

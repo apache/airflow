@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """An Airflow Hook for interacting with Teradata SQL Server."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any

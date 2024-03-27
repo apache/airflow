@@ -41,6 +41,7 @@ from airflow.models.dag import DagModel, DagTag
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.www.decorators import action_logging
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
@@ -139,6 +140,7 @@ def get_dags(
 
 
 @security.requires_access_dag("PUT")
+@action_logging
 @provide_session
 def patch_dag(*, dag_id: str, update_mask: UpdateMask = None, session: Session = NEW_SESSION) -> APIResponse:
     """Update the specific DAG."""
@@ -162,6 +164,7 @@ def patch_dag(*, dag_id: str, update_mask: UpdateMask = None, session: Session =
 
 @security.requires_access_dag("PUT")
 @format_parameters({"limit": check_limit})
+@action_logging
 @provide_session
 def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pattern=None, update_mask=None):
     """Patch multiple DAGs."""
@@ -209,6 +212,7 @@ def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pat
 
 
 @security.requires_access_dag("DELETE")
+@action_logging
 @provide_session
 def delete_dag(dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Delete the specific DAG."""

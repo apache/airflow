@@ -20,6 +20,7 @@ This module is deprecated. Please use :mod:`airflow.utils.task_group`.
 
 The module which provides a way to nest your DAGs and so your levels of complexity.
 """
+
 from __future__ import annotations
 
 import warnings

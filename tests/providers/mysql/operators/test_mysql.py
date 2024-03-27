@@ -94,10 +94,8 @@ class TestMySql:
 
             from MySQLdb import OperationalError
 
-            try:
+            with pytest.raises(OperationalError, match="Unknown database 'foobar'"):
                 op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-            except OperationalError as e:
-                assert "Unknown database 'foobar'" in str(e)
 
     def test_mysql_operator_resolve_parameters_template_json_file(self, tmp_path):
         path = tmp_path / "testfile.json"

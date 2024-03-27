@@ -69,7 +69,7 @@ class TestAdminClientHook:
         mock_connection.return_value = self.mock_conn_without_schema
         hook = AdminClientHook(azure_service_bus_conn_id=self.conn_id)
         assert isinstance(hook.get_conn(), ServiceBusAdministrationClient)
-        assert mock_default_azure_credential.called_with(
+        mock_default_azure_credential.assert_called_with(
             managed_identity_client_id=None, workload_identity_tenant_id=None
         )
 
@@ -182,7 +182,7 @@ class TestMessageHook:
         mock_connection.return_value = self.mock_conn_without_schema
         hook = MessageHook(azure_service_bus_conn_id=self.conn_id)
         assert isinstance(hook.get_conn(), ServiceBusClient)
-        assert mock_default_azure_credential.called_with(
+        mock_default_azure_credential.assert_called_with(
             managed_identity_client_id=None, workload_identity_tenant_id=None
         )
 

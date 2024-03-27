@@ -361,8 +361,10 @@ Bug Fixes
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
 
-2.4.0
-.....
+2.4.0 (YANKED)
+..............
+
+.. warning:: This release has been **yanked** with a reason: ``Breaking change found with ssh_conn_id``
 
 Features
 ~~~~~~~~

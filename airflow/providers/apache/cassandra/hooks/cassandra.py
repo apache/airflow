@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains hook to integrate with Apache Cassandra."""
+
 from __future__ import annotations
 
 import re

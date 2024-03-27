@@ -352,13 +352,13 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         assert _validate_value("case_2", 0, int) is None
 
     def test_duplication_check(self):
+        key_one = True
         with pytest.raises(
             ValueError,
             match=r"Values of key_one param are duplicated. api_resource_configs contained key_one param in"
             r" `query` config and key_one was also provided with arg to run_query\(\) method. "
             r"Please remove duplicates.",
         ):
-            key_one = True
             _api_resource_configs_duplication_check("key_one", key_one, {"key_one": False})
         assert _api_resource_configs_duplication_check("key_one", key_one, {"key_one": True}) is None
 
@@ -367,11 +367,11 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         valid_configs = ["test_config_known", "compatibility_val"]
         backward_compatibility_configs = {"compatibility_val": "val"}
 
+        src_fmt_configs = {"test_config_unknown": "val"}
         with pytest.raises(
             ValueError, match="test_config_unknown is not a valid src_fmt_configs for type test_format."
         ):
             # This config should raise a value error.
-            src_fmt_configs = {"test_config_unknown": "val"}
             _validate_src_fmt_configs(
                 source_format, src_fmt_configs, valid_configs, backward_compatibility_configs
             )
@@ -2180,6 +2180,42 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
         mock_job_instance.return_value.get_query_results.return_value = response
         resp = await hook.get_job_output(job_id=JOB_ID, project_id=PROJECT_ID)
         assert resp == response
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.ClientSession")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
+    async def test_create_job_for_partition_get_with_table(self, mock_job_instance, mock_client_session):
+        hook = BigQueryAsyncHook()
+        mock_job_client = AsyncMock(Job)
+        mock_job_instance.return_value = mock_job_client
+        mock_session = AsyncMock()
+        mock_client_session.return_value.__aenter__.return_value = mock_session
+        expected_query_request = {
+            "query": "SELECT partition_id "
+            f"FROM `{PROJECT_ID}.{DATASET_ID}.INFORMATION_SCHEMA.PARTITIONS`"
+            f" WHERE table_id={TABLE_ID}",
+            "useLegacySql": False,
+        }
+        await hook.create_job_for_partition_get(
+            dataset_id=DATASET_ID, table_id=TABLE_ID, project_id=PROJECT_ID
+        )
+        mock_job_client.query.assert_called_once_with(expected_query_request, mock_session)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.ClientSession")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
+    async def test_create_job_for_partition_get(self, mock_job_instance, mock_client_session):
+        hook = BigQueryAsyncHook()
+        mock_job_client = AsyncMock(Job)
+        mock_job_instance.return_value = mock_job_client
+        mock_session = AsyncMock()
+        mock_client_session.return_value.__aenter__.return_value = mock_session
+        expected_query_request = {
+            "query": f"SELECT partition_id FROM `{PROJECT_ID}.{DATASET_ID}.INFORMATION_SCHEMA.PARTITIONS`",
+            "useLegacySql": False,
+        }
+        await hook.create_job_for_partition_get(dataset_id=DATASET_ID, project_id=PROJECT_ID)
+        mock_job_client.query.assert_called_once_with(expected_query_request, mock_session)
 
     def test_interval_check_for_airflow_exception(self):
         """

@@ -229,9 +229,9 @@ class TestSubDagOperator:
             "execution_date": DEFAULT_DATE,
         }
 
+        subdag_task.pre_execute(context=context)
+        subdag_task.execute(context=context)
         with pytest.raises(AirflowException):
-            subdag_task.pre_execute(context=context)
-            subdag_task.execute(context=context)
             subdag_task.post_execute(context=context)
 
     def test_execute_skip_if_dagrun_success(self):

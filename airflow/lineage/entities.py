@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Defines base entities used for providing lineage information."""
+
 from __future__ import annotations
 
 from typing import Any, ClassVar

@@ -32,6 +32,14 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
+    :caption: Executors
+
+    KubernetesExecutor details <kubernetes_executor>
+    LocalKubernetesExecutor details <local_kubernetes_executor>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
     :caption: Guides
 
     Connection types <connections/kubernetes>
@@ -79,7 +87,7 @@ apache-airflow-providers-cncf-kubernetes package
 `Kubernetes <https://kubernetes.io/>`__
 
 
-Release: 8.0.0
+Release: 8.0.1
 
 Provider package
 ----------------

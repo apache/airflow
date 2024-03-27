@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Datastore operators."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Sequence

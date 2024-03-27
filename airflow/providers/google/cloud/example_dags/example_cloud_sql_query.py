@@ -35,6 +35,7 @@ This DAG relies on the following OS environment variables
 * GCSQL_MYSQL_PUBLIC_IP - Public IP of the mysql database
 * GCSQL_MYSQL_PUBLIC_PORT - Port of the mysql database
 """
+
 from __future__ import annotations
 
 import os

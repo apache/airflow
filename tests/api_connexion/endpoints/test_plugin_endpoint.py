@@ -36,12 +36,10 @@ from tests.test_utils.mock_plugins import mock_plugin_manager
 pytestmark = pytest.mark.db_test
 
 
-class PluginHook(BaseHook):
-    ...
+class PluginHook(BaseHook): ...
 
 
-def plugin_macro():
-    ...
+def plugin_macro(): ...
 
 
 class MockOperatorLink(BaseOperatorLink):
@@ -54,8 +52,7 @@ class MockOperatorLink(BaseOperatorLink):
 bp = Blueprint("mock_blueprint", __name__, url_prefix="/mock_blueprint")
 
 
-class MockView(BaseView):
-    ...
+class MockView(BaseView): ...
 
 
 mockview = MockView()
