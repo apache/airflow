@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-03-26T19:38:29.955325
+# This constraints file was automatically generated on 2024-03-26T23:01:48.733850
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -137,8 +137,8 @@ prometheus_client==0.20.0
 protobuf==4.25.3
 psutil==5.9.8
 pure-sasl==0.6.2
-pyasn1-modules==0.3.0
-pyasn1==0.5.1
+pyasn1==0.6.0
+pyasn1_modules==0.4.0
 pycparser==2.21
 pydantic==2.6.4
 pydantic_core==2.16.3
