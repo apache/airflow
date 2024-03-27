@@ -29,7 +29,6 @@ from sqlalchemy.orm.session import make_transient
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import ID_LEN, Base
@@ -49,6 +48,8 @@ if TYPE_CHECKING:
     import datetime
 
     from sqlalchemy.orm.session import Session
+
+    from airflow.executors.base_executor import BaseExecutor
 
 
 def _resolve_dagrun_model():
