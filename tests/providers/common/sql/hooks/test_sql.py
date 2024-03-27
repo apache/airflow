@@ -25,7 +25,7 @@ import pytest
 from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
 from airflow.utils.session import provide_session
-from tests.providers.conftest import mock_hook
+from tests.providers.common.sql.test_utils import mock_hook
 
 TASK_ID = "sql-operator"
 HOST = "host"

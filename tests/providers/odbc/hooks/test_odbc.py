@@ -28,7 +28,7 @@ import pyodbc
 import pytest
 
 from airflow.providers.odbc.hooks.odbc import OdbcHook
-from tests.providers.conftest import mock_hook
+from tests.providers.common.sql.test_utils import mock_hook
 
 
 @pytest.fixture
