@@ -263,6 +263,9 @@ def _run_task_by_executor(args, dag: DAG, ti: TaskInstance) -> None:
 
 def _run_task_by_local_task_job(args, ti: TaskInstance | TaskInstancePydantic) -> TaskReturnCode | None:
     """Run LocalTaskJob, which monitors the raw task execution process."""
+    if InternalApiConfig.get_use_internal_api():
+        from airflow.models.renderedtifields import RenderedTaskInstanceFields  # noqa: F401
+        from airflow.models.trigger import Trigger  # noqa: F401
     job_runner = LocalTaskJobRunner(
         job=Job(dag_id=ti.dag_id),
         task_instance=ti,
