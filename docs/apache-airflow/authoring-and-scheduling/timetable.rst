@@ -44,7 +44,7 @@ Some examples of when custom timetable implementations are useful:
   days. It is possible to hack this with a cron expression, but a custom data
   interval provides a more natural representation.
 * Data intervals with "holes" between intervals instead of a continuous interval, as both the cron
-expression and ``timedelta`` schedules represent continuous intervals. See :ref:`data-interval`.
+  expression and ``timedelta`` schedules represent continuous intervals. See :ref:`data-interval`.
 
 .. _`Traditional Chinese Calendar`: https://en.wikipedia.org/wiki/Chinese_calendar
 
