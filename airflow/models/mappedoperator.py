@@ -387,6 +387,10 @@ class MappedOperator(AbstractOperator):
         return [self]
 
     @property
+    def task_display_name(self) -> str:
+        return self.partial_kwargs.get("task_display_name") or self.task_id
+
+    @property
     def owner(self) -> str:  # type: ignore[override]
         return self.partial_kwargs.get("owner", DEFAULT_OWNER)
 

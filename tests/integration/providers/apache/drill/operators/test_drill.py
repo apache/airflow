@@ -29,7 +29,8 @@ DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 TEST_DAG_ID = "unit_test_dag"
 
 
-@pytest.mark.backend("drill")
+@pytest.mark.skip(reason="FIXME: Supposed to use 'drill' integration which is not implemented yet.")
+@pytest.mark.integration("drill")
 class TestDrillOperator:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}

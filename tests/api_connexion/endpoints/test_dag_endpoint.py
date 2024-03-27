@@ -181,6 +181,7 @@ class TestGetDag(TestDagEndpoint):
         assert response.status_code == 200
         assert {
             "dag_id": "TEST_DAG_1",
+            "dag_display_name": "TEST_DAG_1",
             "description": None,
             "fileloc": "/tmp/dag_1.py",
             "file_token": "Ii90bXAvZGFnXzEucHki.EnmIdPaUPo26lHQClbWMbDFD1Pk",
@@ -223,6 +224,7 @@ class TestGetDag(TestDagEndpoint):
         assert response.status_code == 200
         assert {
             "dag_id": "TEST_DAG_1",
+            "dag_display_name": "TEST_DAG_1",
             "description": None,
             "fileloc": "/tmp/dag_1.py",
             "file_token": "Ii90bXAvZGFnXzEucHki.EnmIdPaUPo26lHQClbWMbDFD1Pk",
@@ -329,6 +331,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "catchup": True,
             "concurrency": 16,
             "dag_id": "test_dag",
+            "dag_display_name": "test_dag",
             "dag_run_timeout": None,
             "dataset_expression": None,
             "default_view": None,
@@ -389,6 +392,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "catchup": True,
             "concurrency": 16,
             "dag_id": "test_dag",
+            "dag_display_name": "test_dag",
             "dag_run_timeout": None,
             "dataset_expression": {
                 "any": [
@@ -454,6 +458,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "catchup": True,
             "concurrency": 16,
             "dag_id": "test_dag2",
+            "dag_display_name": "test_dag2",
             "dag_run_timeout": None,
             "dataset_expression": None,
             "default_view": None,
@@ -507,6 +512,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "catchup": True,
             "concurrency": 16,
             "dag_id": "test_dag3",
+            "dag_display_name": "test_dag3",
             "dag_run_timeout": None,
             "dataset_expression": None,
             "default_view": None,
@@ -563,6 +569,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "catchup": True,
             "concurrency": 16,
             "dag_id": "test_dag",
+            "dag_display_name": "test_dag",
             "dag_run_timeout": None,
             "dataset_expression": None,
             "default_view": None,
@@ -626,6 +633,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "catchup": True,
             "concurrency": 16,
             "dag_id": "test_dag",
+            "dag_display_name": "test_dag",
             "dag_run_timeout": None,
             "dataset_expression": None,
             "default_view": None,
@@ -739,6 +747,7 @@ class TestGetDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
+                    "dag_display_name": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
                     "file_token": file_token,
@@ -771,6 +780,7 @@ class TestGetDags(TestDagEndpoint):
                 },
                 {
                     "dag_id": "TEST_DAG_2",
+                    "dag_display_name": "TEST_DAG_2",
                     "description": None,
                     "fileloc": "/tmp/dag_2.py",
                     "file_token": file_token2,
@@ -815,6 +825,7 @@ class TestGetDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
+                    "dag_display_name": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
                     "file_token": file_token,
@@ -860,6 +871,7 @@ class TestGetDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
+                    "dag_display_name": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
                     "file_token": file_token,
@@ -892,6 +904,7 @@ class TestGetDags(TestDagEndpoint):
                 },
                 {
                     "dag_id": "TEST_DAG_DELETED_1",
+                    "dag_display_name": "TEST_DAG_DELETED_1",
                     "description": None,
                     "fileloc": "/tmp/dag_del_1.py",
                     "file_token": file_token_2,
@@ -1062,6 +1075,7 @@ class TestGetDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_PAUSED_1",
+                    "dag_display_name": "TEST_DAG_PAUSED_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
                     "file_token": file_token,
@@ -1106,6 +1120,7 @@ class TestGetDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_UNPAUSED_1",
+                    "dag_display_name": "TEST_DAG_UNPAUSED_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
                     "file_token": file_token,
@@ -1150,6 +1165,7 @@ class TestGetDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_PAUSED_1",
+                    "dag_display_name": "TEST_DAG_PAUSED_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
                     "file_token": file_token,
@@ -1182,6 +1198,7 @@ class TestGetDags(TestDagEndpoint):
                 },
                 {
                     "dag_id": "TEST_DAG_UNPAUSED_1",
+                    "dag_display_name": "TEST_DAG_UNPAUSED_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
                     "file_token": file_token,
@@ -1256,6 +1273,7 @@ class TestPatchDag(TestDagEndpoint):
         assert response.status_code == 200
         expected_response = {
             "dag_id": "TEST_DAG_1",
+            "dag_display_name": "TEST_DAG_1",
             "description": None,
             "fileloc": "/tmp/dag_1.py",
             "file_token": file_token,
@@ -1392,6 +1410,7 @@ class TestPatchDag(TestDagEndpoint):
         assert response.status_code == 200
         expected_response = {
             "dag_id": "TEST_DAG_1",
+            "dag_display_name": "TEST_DAG_1",
             "description": None,
             "fileloc": "/tmp/dag_1.py",
             "file_token": file_token,
@@ -1491,6 +1510,7 @@ class TestPatchDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
+                    "dag_display_name": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
                     "file_token": file_token,
@@ -1523,6 +1543,7 @@ class TestPatchDags(TestDagEndpoint):
                 },
                 {
                     "dag_id": "TEST_DAG_2",
+                    "dag_display_name": "TEST_DAG_2",
                     "description": None,
                     "fileloc": "/tmp/dag_2.py",
                     "file_token": file_token2,
@@ -1580,6 +1601,7 @@ class TestPatchDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
+                    "dag_display_name": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
                     "file_token": file_token,
@@ -1612,6 +1634,7 @@ class TestPatchDags(TestDagEndpoint):
                 },
                 {
                     "dag_id": "TEST_DAG_2",
+                    "dag_display_name": "TEST_DAG_2",
                     "description": None,
                     "fileloc": "/tmp/dag_2.py",
                     "file_token": file_token2,
@@ -1709,6 +1732,7 @@ class TestPatchDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
+                    "dag_display_name": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
                     "file_token": file_token,
@@ -1762,6 +1786,7 @@ class TestPatchDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
+                    "dag_display_name": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
                     "file_token": file_token,
@@ -1794,6 +1819,7 @@ class TestPatchDags(TestDagEndpoint):
                 },
                 {
                     "dag_id": "TEST_DAG_DELETED_1",
+                    "dag_display_name": "TEST_DAG_DELETED_1",
                     "description": None,
                     "fileloc": "/tmp/dag_del_1.py",
                     "file_token": file_token_2,
@@ -2010,6 +2036,7 @@ class TestPatchDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
+                    "dag_display_name": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
                     "file_token": file_token,
@@ -2042,6 +2069,7 @@ class TestPatchDags(TestDagEndpoint):
                 },
                 {
                     "dag_id": "TEST_DAG_2",
+                    "dag_display_name": "TEST_DAG_2",
                     "description": None,
                     "fileloc": "/tmp/dag_2.py",
                     "file_token": file_token2,
@@ -2095,6 +2123,7 @@ class TestPatchDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
+                    "dag_display_name": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
                     "file_token": file_token,
@@ -2127,6 +2156,7 @@ class TestPatchDags(TestDagEndpoint):
                 },
                 {
                     "dag_id": "TEST_DAG_10",
+                    "dag_display_name": "TEST_DAG_10",
                     "description": None,
                     "fileloc": "/tmp/dag_10.py",
                     "file_token": file_token10,
@@ -2182,6 +2212,7 @@ class TestPatchDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_2",
+                    "dag_display_name": "TEST_DAG_2",
                     "description": None,
                     "fileloc": "/tmp/dag_2.py",
                     "file_token": file_token10,
@@ -2214,6 +2245,7 @@ class TestPatchDags(TestDagEndpoint):
                 },
                 {
                     "dag_id": "TEST_DAG_1",
+                    "dag_display_name": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
                     "file_token": file_token,

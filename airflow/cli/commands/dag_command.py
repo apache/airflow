@@ -326,6 +326,7 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
     """Return a dagbag dag details dict."""
     return {
         "dag_id": dag.dag_id,
+        "dag_display_name": dag.dag_display_name,
         "root_dag_id": dag.parent_dag.dag_id if dag.parent_dag else None,
         "is_paused": dag.get_is_paused(),
         "is_active": dag.get_is_active(),

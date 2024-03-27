@@ -67,8 +67,8 @@ for env_key in os.environ.copy():
             del os.environ[env_key]
 
 DEFAULT_WARNING_OUTPUT_PATH = Path("warnings.txt")
-
 warning_output_path = DEFAULT_WARNING_OUTPUT_PATH
+SUPPORTED_DB_BACKENDS = ("sqlite", "postgres", "mysql")
 
 # A bit of a Hack - but we need to check args before they are parsed by pytest in order to
 # configure the DB before Airflow gets initialized (which happens at airflow import time).
@@ -362,7 +362,14 @@ def initialize_airflow_tests(request):
             sys.exit(1)
 
 
-def pytest_configure(config):
+def pytest_configure(config: pytest.Config) -> None:
+    if (backend := config.getoption("backend", default=None)) and backend not in SUPPORTED_DB_BACKENDS:
+        msg = (
+            f"Provided DB backend {backend!r} not supported, "
+            f"expected one of: {', '.join(map(repr, SUPPORTED_DB_BACKENDS))}"
+        )
+        pytest.exit(msg, returncode=6)
+
     config.addinivalue_line("filterwarnings", "error::airflow.utils.context.AirflowContextDeprecationWarning")
     config.addinivalue_line("markers", "integration(name): mark test to run with named integration")
     config.addinivalue_line("markers", "backend(name): mark test to run with named backend")
@@ -400,7 +407,7 @@ def pytest_configure(config):
 
 
 def pytest_unconfigure(config):
-    del os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"]
+    os.environ.pop("_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK", None)
 
 
 def skip_if_not_marked_with_integration(selected_integrations, item):
@@ -546,17 +553,29 @@ def skip_if_integration_disabled(marker, item):
         )
 
 
-def skip_if_wrong_backend(marker, item):
-    valid_backend_names = marker.args
-    environment_variable_name = "BACKEND"
-    environment_variable_value = os.environ.get(environment_variable_name)
-    if not environment_variable_value or environment_variable_value not in valid_backend_names:
-        pytest.skip(
-            f"The test requires one of {valid_backend_names} backend started and "
-            f"{environment_variable_name} environment variable to be set to either of {valid_backend_names}"
-            f" (it is currently set to {environment_variable_value}'). "
-            f"It can be set by specifying backend at breeze startup: {item}"
+def skip_if_wrong_backend(marker: pytest.Mark, item: pytest.Item) -> None:
+    if not (backend_names := marker.args):
+        reason = (
+            "`pytest.mark.backend` expect to get at least one of the following backends: "
+            f"{', '.join(map(repr, SUPPORTED_DB_BACKENDS))}."
         )
+        pytest.fail(reason)
+    elif unsupported_backends := list(filter(lambda b: b not in SUPPORTED_DB_BACKENDS, backend_names)):
+        reason = (
+            "Airflow Tests supports only the following backends in `pytest.mark.backend` marker: "
+            f"{', '.join(map(repr, SUPPORTED_DB_BACKENDS))}, "
+            f"but got {', '.join(map(repr, unsupported_backends))}."
+        )
+        pytest.fail(reason)
+
+    env_name = "BACKEND"
+    if not (backend := os.environ.get(env_name)) or backend not in backend_names:
+        reason = (
+            f"The test {item.nodeid!r} requires one of {', '.join(map(repr, backend_names))} backend started "
+            f"and {env_name!r} environment variable to be set (currently it set to {backend!r}). "
+            f"It can be set by specifying backend at breeze startup."
+        )
+        pytest.skip(reason)
 
 
 def skip_if_credential_file_missing(item):
@@ -911,6 +930,7 @@ def create_dummy_dag(dag_maker):
     def create_dag(
         dag_id="dag",
         task_id="op1",
+        task_display_name=None,
         max_active_tis_per_dag=16,
         max_active_tis_per_dagrun=None,
         pool="default_pool",
@@ -927,6 +947,7 @@ def create_dummy_dag(dag_maker):
         with dag_maker(dag_id, **kwargs) as dag:
             op = EmptyOperator(
                 task_id=task_id,
+                task_display_name=task_display_name,
                 max_active_tis_per_dag=max_active_tis_per_dag,
                 max_active_tis_per_dagrun=max_active_tis_per_dagrun,
                 executor_config=executor_config or {},

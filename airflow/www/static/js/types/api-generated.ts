@@ -936,6 +936,12 @@ export interface components {
     DAG: {
       /** @description The ID of the DAG. */
       dag_id?: string;
+      /**
+       * @description Human centric display text for the DAG.
+       *
+       * *New in version 2.9.0*
+       */
+      dag_display_name?: string;
       /** @description If the DAG is SubDAG then it is the top level DAG identifier. Otherwise, null. */
       root_dag_id?: string | null;
       /** @description Whether the DAG is paused. */
@@ -1391,6 +1397,12 @@ export interface components {
     } | null;
     TaskInstance: {
       task_id?: string;
+      /**
+       * @description Human centric display text for the task.
+       *
+       * *New in version 2.9.0*
+       */
+      task_display_name?: string;
       dag_id?: string;
       /**
        * @description The DagRun ID for this task instance
@@ -1596,6 +1608,7 @@ export interface components {
     Task: {
       class_ref?: components["schemas"]["ClassReference"];
       task_id?: string;
+      task_display_name?: string;
       owner?: string;
       /** Format: date-time */
       start_date?: string;

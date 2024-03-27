@@ -155,7 +155,7 @@
 {% block content %}
   {{ super() }}
   <h2>
-    Trigger DAG: <a href="{{ url_for('Airflow.'+ dag.get_default_view(), dag_id=dag.dag_id) }}">{{ dag.dag_id }}</a>
+    Trigger DAG: <a href="{{ url_for('Airflow.'+ dag.get_default_view(), dag_id=dag.dag_id) }}" title="{{ dag.dag_id }}">{{ dag.dag_display_name }}</a>
     <small class="text-muted">{{ dag.description[0:150] + '…' if dag.description and dag.description|length > 150 else dag.description|default('', true) }}</small>
   </h2>
   {{ dag_docs(doc_md, False) }}

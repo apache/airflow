@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime
 import inspect
+from abc import abstractproperty
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable, Iterator, Sequence
 
@@ -157,6 +158,20 @@ class AbstractOperator(Templater, DAGNode):
 
     @property
     def node_id(self) -> str:
+        return self.task_id
+
+    @abstractproperty
+    def task_display_name(self) -> str: ...
+
+    @property
+    def label(self) -> str | None:
+        if self.task_display_name and self.task_display_name != self.task_id:
+            return self.task_display_name
+        # Prefix handling if no display is given is cloned from taskmixin for compatibility
+        tg = self.task_group
+        if tg and tg.node_id and tg.prefix_group_id:
+            # "task_group_id.task_id" -> "task_id"
+            return self.task_id[len(tg.node_id) + 1 :]
         return self.task_id
 
     @property

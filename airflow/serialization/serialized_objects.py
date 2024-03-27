@@ -1395,6 +1395,7 @@ class SerializedDAG(DAG, BaseSerialization):
     def __get_constructor_defaults():
         param_to_attr = {
             "max_active_tasks": "_max_active_tasks",
+            "dag_display_name": "_dag_display_property_value",
             "description": "_description",
             "default_view": "_default_view",
             "access_control": "_access_control",

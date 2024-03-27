@@ -1307,6 +1307,7 @@ class TaskInstance(Base, LoggingMixin):
     next_method = Column(String(1000))
     next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
 
+    _task_display_property_value = Column("task_display_name", String(2000), nullable=True)
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they won't display in the UI correctly
 
@@ -1475,6 +1476,7 @@ class TaskInstance(Base, LoggingMixin):
             "operator": task.task_type,
             "custom_operator_name": getattr(task, "custom_operator_name", None),
             "map_index": map_index,
+            "_task_display_property_value": task.task_display_name,
         }
 
     @reconstructor
@@ -1534,6 +1536,10 @@ class TaskInstance(Base, LoggingMixin):
     def operator_name(self) -> str | None:
         """@property: use a more friendly display name for the operator, if set."""
         return self.custom_operator_name or self.operator
+
+    @hybrid_property
+    def task_display_name(self) -> str:
+        return self._task_display_property_value or self.task_id
 
     @staticmethod
     def _command_as_list(
@@ -2385,8 +2391,10 @@ class TaskInstance(Base, LoggingMixin):
         elif new_state == TaskInstanceState.QUEUED:
             metric_name = "scheduled_duration"
             if self.start_date is None:
-                # same comment as above
-                self.log.warning(
+                # This check does not work correctly before fields like `scheduled_dttm` are implemented.
+                # TODO: Change the level to WARNING once it's viable.
+                # see #30612 #34493 and #34771 for more details
+                self.log.debug(
                     "cannot record %s for task %s because previous state change time has not been saved",
                     metric_name,
                     self.task_id,

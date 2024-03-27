@@ -239,6 +239,7 @@ class TestGetMappedTaskInstance(TestMappedTaskInstanceEndpoint):
             "start_date": "2020-01-01T00:00:00+00:00",
             "state": "success",
             "task_id": "task_2",
+            "task_display_name": "task_2",
             "try_number": 0,
             "unixname": getuser(),
             "trigger": None,

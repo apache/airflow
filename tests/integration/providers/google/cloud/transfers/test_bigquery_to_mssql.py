@@ -34,7 +34,8 @@ TEST_TABLE_ID = "test-table-id"
 TEST_DAG_ID = "test-bigquery-operators"
 
 
-@pytest.mark.backend("mssql")
+@pytest.mark.skip(reason="FIXME: Supposed to use 'mssql' integration which is not implemented yet.")
+@pytest.mark.integration("mssql")
 class TestBigQueryToMsSqlOperator:
     @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_sql.BigQueryHook")
     def test_execute_good_request_to_bq(self, mock_hook):

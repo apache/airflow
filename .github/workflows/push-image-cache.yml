@@ -82,18 +82,26 @@ jobs:
       matrix:
         python: ${{ fromJson(inputs.python-versions) }}
     env:
+      COMMIT_SHA: ${{ github.sha }}
+      # You can override CONSTRAINTS_GITHUB_REPOSITORY by setting secret in your repo but by default the
+      # Airflow one is going to be used
+      CONSTRAINTS_GITHUB_REPOSITORY: >-
+        ${{ secrets.CONSTRAINTS_GITHUB_REPOSITORY != '' &&
+        secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
+      # In builds from forks, this token is read-only. For scheduled/direct push it is WRITE one
       DEBIAN_VERSION: ${{ inputs.debian-version }}
-      INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
-      USE_UV: ${{ inputs.use-uv }}
       DEFAULT_BRANCH: ${{ inputs.branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ inputs.constraints-branch }}
-      UPGRADE_TO_NEWER_DEPENDENCIES: "false"
       DOCKER_CACHE: ${{ inputs.docker-cache }}
-      VERSION_SUFFIX_FOR_PYPI: "dev0"
+      GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      COMMIT_SHA: ${{ github.sha }}
-      VERBOSE: "true"
+      GITHUB_USERNAME: ${{ github.actor }}
       INCLUDE_SUCCESS_OUTPUTS: "${{ inputs.include-success-outputs }}"
+      INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
+      USE_UV: ${{ inputs.use-uv }}
+      UPGRADE_TO_NEWER_DEPENDENCIES: "false"
+      VERBOSE: "true"
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -132,17 +140,25 @@ jobs:
       matrix:
         python: ${{ fromJson(inputs.python-versions) }}
     env:
+      COMMIT_SHA: ${{ github.sha }}
+      # You can override CONSTRAINTS_GITHUB_REPOSITORY by setting secret in your repo but by default the
+      # Airflow one is going to be used
+      CONSTRAINTS_GITHUB_REPOSITORY: >-
+        ${{ secrets.CONSTRAINTS_GITHUB_REPOSITORY != '' &&
+        secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
+      # In builds from forks, this token is read-only. For scheduled/direct push it is WRITE one
       DEBIAN_VERSION: ${{ inputs.debian-version }}
-      INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
-      USE_UV: ${{ inputs.use-uv }}
       DEFAULT_BRANCH: ${{ inputs.branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ inputs.constraints-branch }}
-      UPGRADE_TO_NEWER_DEPENDENCIES: "false"
       DOCKER_CACHE: ${{ inputs.docker-cache }}
-      VERSION_SUFFIX_FOR_PYPI: "dev0"
+      GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      COMMIT_SHA: ${{ github.sha }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
+      UPGRADE_TO_NEWER_DEPENDENCIES: "false"
+      USE_UV: ${{ inputs.use-uv }}
       VERBOSE: "true"
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
     if: inputs.include-prod-images == 'true'
     steps:
       - name: "Cleanup repo"
@@ -158,15 +174,11 @@ jobs:
         uses: ./.github/actions/breeze
       - name: "Cleanup dist and context file"
         run: rm -fv ./dist/* ./docker-context-files/*
-      - name: "Prepare airflow package for PROD build"
-        run: breeze release-management prepare-airflow-package --package-format wheel
-      - name: "Prepare providers packages for PROD build"
-        run: >
-          breeze release-management prepare-provider-packages
-          --package-list-file ./prod_image_installed_providers.txt
-          --package-format wheel
-      - name: "Copy dist packages to docker-context files"
-        run: cp -v --no-preserve=mode,ownership ./dist/*.whl ./docker-context-files
+      - name: "Download packages prepared as artifacts"
+        uses: actions/download-artifact@v4
+        with:
+          name: prod-packages
+          path: ./docker-context-files
       - name: "Start ARM instance"
         run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
         if: inputs.platform == 'linux/arm64'

@@ -51,6 +51,7 @@ def test_serialize_test_dag_schema(url_safe_serializer):
 
     assert {
         "dag_id": "test_dag_id",
+        "dag_display_name": "test_dag_id",
         "description": "The description",
         "fileloc": "/root/airflow/dags/my_dag.py",
         "file_token": url_safe_serializer.dumps("/root/airflow/dags/my_dag.py"),
@@ -89,6 +90,7 @@ def test_serialize_test_dag_collection_schema(url_safe_serializer):
         "dags": [
             {
                 "dag_id": "test_dag_id_a",
+                "dag_display_name": "test_dag_id_a",
                 "description": None,
                 "fileloc": "/tmp/a.py",
                 "file_token": url_safe_serializer.dumps("/tmp/a.py"),
@@ -118,6 +120,7 @@ def test_serialize_test_dag_collection_schema(url_safe_serializer):
             },
             {
                 "dag_id": "test_dag_id_b",
+                "dag_display_name": "test_dag_id_b",
                 "description": None,
                 "fileloc": "/tmp/a.py",
                 "file_token": url_safe_serializer.dumps("/tmp/a.py"),
@@ -168,6 +171,7 @@ def test_serialize_test_dag_detail_schema(url_safe_serializer):
         "concurrency": 16,
         "max_active_tasks": 16,
         "dag_id": "test_dag",
+        "dag_display_name": "test_dag",
         "dag_run_timeout": None,
         "default_view": "duration",
         "description": None,
@@ -225,6 +229,7 @@ def test_serialize_test_dag_with_dataset_schedule_detail_schema(url_safe_seriali
         "concurrency": 16,
         "max_active_tasks": 16,
         "dag_id": "test_dag",
+        "dag_display_name": "test_dag",
         "dag_run_timeout": None,
         "default_view": "duration",
         "description": None,

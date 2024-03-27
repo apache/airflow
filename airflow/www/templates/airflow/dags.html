@@ -22,7 +22,7 @@
 {% from 'airflow/dataset_next_run_modal.html' import dataset_next_run_modal %}
 {% from 'airflow/_messages.html' import show_message %}
 
-{%- macro sortable_column(display_name, attribute_name) -%}
+{%- macro sortable_column(dag_display_name, attribute_name) -%}
   {% set curr_ordering_direction = (request.args.get('sorting_direction', 'desc')) %}
   {% set new_ordering_direction = ('asc' if (request.args.get('sorting_key') != attribute_name or curr_ordering_direction == 'desc') else 'desc') %}
   <a href="{{ url_for('Airflow.index',
@@ -36,9 +36,9 @@
      role="tooltip"
      title="Sort by {{ new_ordering_direction }} {{ attribute_name }}."
   >
-    {{ display_name }}
+    {{ dag_display_name }}
 
-    <span class="material-icons" aria-hidden="true" aria-describedby="sorting-tip-{{ display_name }}">
+    <span class="material-icons" aria-hidden="true" aria-describedby="sorting-tip-{{ dag_display_name }}">
       {% if curr_ordering_direction == 'desc' and request.args.get('sorting_key') == attribute_name %}
         expand_more
       {% elif curr_ordering_direction == 'asc' and request.args.get('sorting_key') == attribute_name %}
@@ -257,7 +257,7 @@
             <td>
               <a href="{{ url_for('Airflow.'+ dag.get_default_view(), dag_id=dag.dag_id) }}"
                  title="{{ dag.description[0:80] + '…' if dag.description and dag.description|length > 80 else dag.description|default('', true) }}">
-                <strong>{{ dag.dag_id }}</strong>
+                <strong title="{{ dag.dag_id }}">{{ dag.dag_display_name }}</strong>
               </a>
               <div>
                 {% for tag in dag.tags | sort(attribute='name') %}

@@ -14,21 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-import packaging.version
-
-from airflow.exceptions import AirflowOptionalProviderFeatureException
-
-try:
-    from airflow import __version__ as airflow_version
-except ImportError:
-    from airflow.version import version as airflow_version
-
-if packaging.version.parse(packaging.version.parse(airflow_version).base_version) < packaging.version.parse(
-    "2.9.0"
-):
-    raise AirflowOptionalProviderFeatureException(
-        "The package xcom backend feature of `apache-airflow-providers-common-io` needs "
-        "Apache Airflow 2.9.0+"
-    )

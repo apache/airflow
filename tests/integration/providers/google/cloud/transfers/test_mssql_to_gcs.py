@@ -67,7 +67,8 @@ SCHEMA_JSON_BIT_FIELDS = [
 ]
 
 
-@pytest.mark.backend("mssql")
+@pytest.mark.skip(reason="FIXME: Supposed to use 'mssql' integration which is not implemented yet.")
+@pytest.mark.integration("mssql")
 class TestMsSqlToGoogleCloudStorageOperator:
     @pytest.mark.parametrize(
         "value, expected",
