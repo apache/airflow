@@ -781,7 +781,7 @@ class KubernetesPodOperator(BaseOperator):
                 follow=False,
             )
             for raw_line in logs:
-                line = raw_line.decode("utf-8", errors="backslashreplace").strip()
+                line = raw_line.decode("utf-8", errors="backslashreplace").rstrip("\n")
                 if line:
                     self.log.info("Container logs: %s", line)
         except HTTPError as e:
