@@ -40,8 +40,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     container_is_terminated,
 )
 from airflow.utils.timezone import utc
-
-from ..test_callbacks import MockKubernetesPodOperatorCallback, MockWrapper
+from tests.providers.cncf.kubernetes.test_callbacks import MockKubernetesPodOperatorCallback, MockWrapper
 
 if TYPE_CHECKING:
     from pendulum import DateTime

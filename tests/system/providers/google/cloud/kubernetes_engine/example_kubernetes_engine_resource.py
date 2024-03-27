@@ -31,13 +31,14 @@ from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKEDeleteClusterOperator,
     GKEDeleteCustomResourceOperator,
 )
+from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "kubernetes_engine_resource"
 GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
 GCP_LOCATION = "europe-north1-a"
-CLUSTER_NAME = f"cluster-name-test-build-{ENV_ID}"
+CLUSTER_NAME = f"gke-resource-{ENV_ID}".replace("_", "-")
 CLUSTER = {"name": CLUSTER_NAME, "initial_node_count": 1}
 
 PVC_NAME = "test-pvc-name"
@@ -95,6 +96,7 @@ with DAG(
         name=CLUSTER_NAME,
         project_id=GCP_PROJECT_ID,
         location=GCP_LOCATION,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     create_cluster >> create_resource_task >> delete_resource_task >> delete_cluster

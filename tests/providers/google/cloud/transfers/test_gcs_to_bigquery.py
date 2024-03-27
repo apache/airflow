@@ -230,18 +230,18 @@ class TestGCSToBigQueryOperator:
         ]
         hook.return_value.generate_job_id.return_value = pytest.real_job_id
         hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            schema_fields=SCHEMA_FIELDS,
+            max_id_key=MAX_ID_KEY,
+            write_disposition=WRITE_DISPOSITION,
+            external_table=False,
+            project_id=JOB_PROJECT_ID,
+        )
         with pytest.raises(RuntimeError, match=r"returned no rows!"):
-            operator = GCSToBigQueryOperator(
-                task_id=TASK_ID,
-                bucket=TEST_BUCKET,
-                source_objects=TEST_SOURCE_OBJECTS,
-                destination_project_dataset_table=TEST_EXPLICIT_DEST,
-                schema_fields=SCHEMA_FIELDS,
-                max_id_key=MAX_ID_KEY,
-                write_disposition=WRITE_DISPOSITION,
-                external_table=False,
-                project_id=JOB_PROJECT_ID,
-            )
             operator.execute(context=MagicMock())
 
         calls = [
@@ -907,7 +907,7 @@ class TestGCSToBigQueryOperator:
         hook.return_value.generate_job_id.return_value = pytest.real_job_id
         hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
         with pytest.raises(AirflowException, match=r"missing keyword argument 'bucket'"):
-            operator = GCSToBigQueryOperator(
+            GCSToBigQueryOperator(
                 task_id=TASK_ID,
                 source_objects=TEST_SOURCE_OBJECTS,
                 destination_project_dataset_table=TEST_EXPLICIT_DEST,
@@ -917,7 +917,6 @@ class TestGCSToBigQueryOperator:
                 external_table=False,
                 project_id=JOB_PROJECT_ID,
             )
-            operator.execute(context=MagicMock())
 
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
     def test_execute_should_throw_ex_when_no_source_objects_specified(self, hook):
@@ -928,7 +927,7 @@ class TestGCSToBigQueryOperator:
         hook.return_value.generate_job_id.return_value = pytest.real_job_id
         hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
         with pytest.raises(AirflowException, match=r"missing keyword argument 'source_objects'"):
-            operator = GCSToBigQueryOperator(
+            GCSToBigQueryOperator(
                 task_id=TASK_ID,
                 destination_project_dataset_table=TEST_EXPLICIT_DEST,
                 schema_fields=SCHEMA_FIELDS,
@@ -938,7 +937,6 @@ class TestGCSToBigQueryOperator:
                 external_table=False,
                 project_id=JOB_PROJECT_ID,
             )
-            operator.execute(context=MagicMock())
 
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
     def test_execute_should_throw_ex_when_no_destination_project_dataset_table_specified(self, hook):
@@ -951,7 +949,7 @@ class TestGCSToBigQueryOperator:
         with pytest.raises(
             AirflowException, match=r"missing keyword argument 'destination_project_dataset_table'"
         ):
-            operator = GCSToBigQueryOperator(
+            GCSToBigQueryOperator(
                 task_id=TASK_ID,
                 schema_fields=SCHEMA_FIELDS,
                 bucket=TEST_BUCKET,
@@ -961,7 +959,6 @@ class TestGCSToBigQueryOperator:
                 external_table=False,
                 project_id=JOB_PROJECT_ID,
             )
-            operator.execute(context=MagicMock())
 
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
     def test_source_format_check_should_throw_ex_when_incorrect_source_type(
@@ -975,12 +972,11 @@ class TestGCSToBigQueryOperator:
         hook.return_value.generate_job_id.return_value = pytest.real_job_id
         hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
         hook.return_value.get_job.return_value.result.return_value = ("1",)
-
         with pytest.raises(
             ValueError,
             match=r"is not a valid source format.",
         ):
-            operator = GCSToBigQueryOperator(
+            GCSToBigQueryOperator(
                 task_id=TASK_ID,
                 bucket=TEST_BUCKET,
                 source_objects=TEST_SOURCE_OBJECTS,
@@ -992,7 +988,6 @@ class TestGCSToBigQueryOperator:
                 source_format="incorrect",
                 project_id=JOB_PROJECT_ID,
             )
-            operator.execute(context=MagicMock())
 
     @mock.patch(GCS_TO_BQ_PATH.format("GCSHook"))
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
@@ -1623,19 +1618,19 @@ class TestAsyncGCSToBigQueryOperator:
         Tests that an AirflowException is raised in case of error event.
         """
 
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            write_disposition=WRITE_DISPOSITION,
+            schema_fields=SCHEMA_FIELDS,
+            external_table=False,
+            autodetect=True,
+            deferrable=True,
+            project_id=JOB_PROJECT_ID,
+        )
         with pytest.raises(AirflowException):
-            operator = GCSToBigQueryOperator(
-                task_id=TASK_ID,
-                bucket=TEST_BUCKET,
-                source_objects=TEST_SOURCE_OBJECTS,
-                destination_project_dataset_table=TEST_EXPLICIT_DEST,
-                write_disposition=WRITE_DISPOSITION,
-                schema_fields=SCHEMA_FIELDS,
-                external_table=False,
-                autodetect=True,
-                deferrable=True,
-                project_id=JOB_PROJECT_ID,
-            )
             operator.execute_complete(
                 context=None, event={"status": "error", "message": "test failure message"}
             )
@@ -1817,54 +1812,41 @@ class TestAsyncGCSToBigQueryOperator:
         )
 
         with pytest.raises(TaskDeferred):
-            result = operator.execute(self.create_context(operator))
-            assert result == "1"
+            operator.execute(self.create_context(operator))
 
-            calls = [
-                call(
-                    configuration={
-                        "load": dict(
-                            autodetect=True,
-                            createDisposition="CREATE_IF_NEEDED",
-                            destinationTable={
-                                "projectId": PROJECT_ID,
-                                "datasetId": DATASET,
-                                "tableId": TABLE,
-                            },
-                            destinationTableProperties={
-                                "description": None,
-                                "labels": None,
-                            },
-                            sourceFormat="CSV",
-                            skipLeadingRows=None,
-                            sourceUris=[f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS}"],
-                            writeDisposition=WRITE_DISPOSITION,
-                            ignoreUnknownValues=False,
-                            allowQuotedNewlines=False,
-                            encoding="UTF-8",
-                            schema={"fields": SCHEMA_FIELDS},
-                        ),
-                    },
-                    project_id=JOB_PROJECT_ID,
-                    location=None,
-                    job_id=pytest.real_job_id,
-                    timeout=None,
-                    retry=DEFAULT_RETRY,
-                    nowait=True,
-                ),
-                call(
-                    configuration={
-                        "query": {
-                            "query": f"SELECT MAX({MAX_ID_KEY}) AS max_value FROM {TEST_EXPLICIT_DEST}",
-                            "useLegacySql": False,
-                            "schemaUpdateOptions": [],
-                        }
-                    },
-                    project_id=JOB_PROJECT_ID,
-                ),
-            ]
+        calls = [
+            call(
+                configuration={
+                    "load": dict(
+                        autodetect=True,
+                        createDisposition="CREATE_IF_NEEDED",
+                        destinationTable={
+                            "projectId": PROJECT_ID,
+                            "datasetId": DATASET,
+                            "tableId": TABLE,
+                        },
+                        sourceFormat="CSV",
+                        skipLeadingRows=None,
+                        sourceUris=[f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS}"],
+                        writeDisposition=WRITE_DISPOSITION,
+                        ignoreUnknownValues=False,
+                        allowQuotedNewlines=False,
+                        encoding="UTF-8",
+                        fieldDelimiter=",",
+                        schema={"fields": SCHEMA_FIELDS},
+                        quote=None,
+                    ),
+                },
+                project_id=JOB_PROJECT_ID,
+                location=None,
+                job_id=pytest.real_job_id,
+                timeout=None,
+                retry=DEFAULT_RETRY,
+                nowait=True,
+            )
+        ]
 
-            bq_hook.return_value.insert_job.assert_has_calls(calls)
+        bq_hook.return_value.insert_job.assert_has_calls(calls)
 
     @mock.patch(GCS_TO_BQ_PATH.format("GCSHook"))
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
@@ -1894,53 +1876,46 @@ class TestAsyncGCSToBigQueryOperator:
         )
 
         with pytest.raises(TaskDeferred):
-            result = operator.execute(self.create_context(operator))
-            assert result == "1"
+            operator.execute(self.create_context(operator))
 
-            calls = [
-                call(
-                    configuration={
-                        "load": dict(
-                            autodetect=True,
-                            createDisposition="CREATE_IF_NEEDED",
-                            destinationTable={
-                                "projectId": PROJECT_ID,
-                                "datasetId": DATASET,
-                                "tableId": TABLE,
-                            },
-                            destinationTableProperties={
-                                "description": None,
-                                "labels": None,
-                            },
-                            sourceFormat="CSV",
-                            skipLeadingRows=None,
-                            sourceUris=[f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS}"],
-                            writeDisposition=WRITE_DISPOSITION,
-                            ignoreUnknownValues=False,
-                            allowQuotedNewlines=False,
-                            encoding="UTF-8",
-                        ),
-                    },
-                    project_id=JOB_PROJECT_ID,
-                    location=None,
-                    job_id=pytest.real_job_id,
-                    timeout=None,
-                    retry=DEFAULT_RETRY,
-                    nowait=True,
-                ),
-                call(
-                    configuration={
-                        "query": {
-                            "query": f"SELECT MAX({MAX_ID_KEY}) AS max_value FROM {TEST_EXPLICIT_DEST}",
-                            "useLegacySql": False,
-                            "schemaUpdateOptions": [],
-                        }
-                    },
-                    project_id=JOB_PROJECT_ID,
-                ),
-            ]
+        calls = [
+            call(
+                configuration={
+                    "load": dict(
+                        autodetect=True,
+                        createDisposition="CREATE_IF_NEEDED",
+                        destinationTable={
+                            "projectId": PROJECT_ID,
+                            "datasetId": DATASET,
+                            "tableId": TABLE,
+                        },
+                        fieldDelimiter=",",
+                        quote=None,
+                        sourceFormat="CSV",
+                        skipLeadingRows=None,
+                        sourceUris=[f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS}"],
+                        writeDisposition=WRITE_DISPOSITION,
+                        ignoreUnknownValues=False,
+                        allowQuotedNewlines=False,
+                        encoding="UTF-8",
+                        schema={
+                            "fields": [
+                                {"mode": "NULLABLE", "name": "id", "type": "STRING"},
+                                {"mode": "NULLABLE", "name": "name", "type": "STRING"},
+                            ],
+                        },
+                    ),
+                },
+                project_id=JOB_PROJECT_ID,
+                location=None,
+                job_id=pytest.real_job_id,
+                timeout=None,
+                retry=DEFAULT_RETRY,
+                nowait=True,
+            )
+        ]
 
-            bq_hook.return_value.insert_job.assert_has_calls(calls)
+        bq_hook.return_value.insert_job.assert_has_calls(calls)
 
     def create_context(self, task):
         dag = DAG(dag_id="dag")

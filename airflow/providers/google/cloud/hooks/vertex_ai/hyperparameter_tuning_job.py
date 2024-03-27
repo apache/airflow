@@ -39,8 +39,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHoo
 
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
-    from google.api_core.retry import Retry
-    from google.api_core.retry_async import AsyncRetry
+    from google.api_core.retry import AsyncRetry, Retry
     from google.cloud.aiplatform_v1.services.job_service.pagers import ListHyperparameterTuningJobsPager
 
 

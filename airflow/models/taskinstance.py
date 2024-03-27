@@ -86,7 +86,7 @@ from airflow.exceptions import (
     XComForMappingNotPushed,
 )
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.base import Base, StringID, TaskInstanceDependencies
+from airflow.models.base import Base, StringID, TaskInstanceDependencies, _sentinel
 from airflow.models.dagbag import DagBag
 from airflow.models.log import Log
 from airflow.models.mappedoperator import MappedOperator
@@ -98,6 +98,7 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import LazyXComAccess, XCom
 from airflow.plugins_manager import integrate_macros_plugins
 from airflow.sentry import Sentry
+from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
 from airflow.templates import SandboxedEnvironment
 from airflow.ti_deps.dep_context import DepContext
@@ -411,11 +412,17 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
     execute_callable_kwargs: dict[str, Any] = {}
     execute_callable: Callable
     if task_instance.next_method:
+        if task_instance.next_method == "execute":
+            if not task_instance.next_kwargs:
+                task_instance.next_kwargs = {}
+            task_instance.next_kwargs[f"{task_to_execute.__class__.__name__}__sentinel"] = _sentinel
         execute_callable = task_to_execute.resume_execution
         execute_callable_kwargs["next_method"] = task_instance.next_method
         execute_callable_kwargs["next_kwargs"] = task_instance.next_kwargs
     else:
         execute_callable = task_to_execute.execute
+        if execute_callable.__name__ == "execute":
+            execute_callable_kwargs[f"{task_to_execute.__class__.__name__}__sentinel"] = _sentinel
 
     def _execute_callable(context, **execute_callable_kwargs):
         try:
@@ -937,6 +944,8 @@ def _refresh_from_task(
     task_instance.executor_config = task.executor_config
     task_instance.operator = task.task_type
     task_instance.custom_operator_name = getattr(task, "custom_operator_name", None)
+    # Re-apply cluster policy here so that task default do not overload previous data
+    task_instance_mutation_hook(task_instance)
 
 
 def _record_task_map_for_downstreams(

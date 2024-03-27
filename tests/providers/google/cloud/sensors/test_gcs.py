@@ -412,7 +412,6 @@ class TestGoogleCloudStoragePrefixSensor:
         mock_hook.return_value.list.return_value = []
         with pytest.raises(expected_exception):
             task.execute(mock.MagicMock)
-            mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix=TEST_PREFIX)
 
     @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
     @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSObjectsWithPrefixExistenceSensor.defer")

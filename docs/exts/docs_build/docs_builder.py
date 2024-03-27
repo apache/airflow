@@ -25,16 +25,16 @@ from subprocess import run
 
 from rich.console import Console
 
-from .code_utils import (
+from docs.exts.docs_build.code_utils import (
     ALL_PROVIDER_YAMLS,
     ALL_PROVIDER_YAMLS_WITH_SUSPENDED,
     CONSOLE_WIDTH,
     DOCS_DIR,
     PROCESS_TIMEOUT,
 )
-from .errors import DocBuildError, parse_sphinx_warnings
-from .helm_chart_utils import chart_version
-from .spelling_checks import SpellingError, parse_spelling_warnings
+from docs.exts.docs_build.errors import DocBuildError, parse_sphinx_warnings
+from docs.exts.docs_build.helm_chart_utils import chart_version
+from docs.exts.docs_build.spelling_checks import SpellingError, parse_spelling_warnings
 
 console = Console(force_terminal=True, color_system="standard", width=CONSOLE_WIDTH)
 

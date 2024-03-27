@@ -188,6 +188,7 @@ class TestKubernetesPodTrigger:
                 "namespace": "default",
                 "name": "test-pod-name",
                 "message": "Container state failed",
+                "last_log_time": None,
             }
         )
         actual_event = await trigger.run().asend(None)

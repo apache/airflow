@@ -51,6 +51,8 @@ from airflow.operators.python import (
     PythonOperator,
     PythonVirtualenvOperator,
     ShortCircuitOperator,
+    _parse_version_info,
+    _PythonVersionInfo,
     get_current_context,
 )
 from airflow.utils import timezone
@@ -1686,3 +1688,61 @@ class TestShortCircuitWithTeardown:
                 assert isinstance(actual_skipped, Generator)
             assert set(actual_skipped) == {op3}
             assert actual_kwargs["execution_date"] == dagrun.logical_date
+
+
+@pytest.mark.parametrize(
+    "text_input, expected_tuple",
+    [
+        pytest.param("   2.7.18.final.0  ", (2, 7, 18, "final", 0), id="py27"),
+        pytest.param("3.10.13.final.0\n", (3, 10, 13, "final", 0), id="py310"),
+        pytest.param("\n3.13.0.alpha.3", (3, 13, 0, "alpha", 3), id="py313-alpha"),
+    ],
+)
+def test_parse_version_info(text_input, expected_tuple):
+    assert _parse_version_info(text_input) == expected_tuple
+
+
+@pytest.mark.parametrize(
+    "text_input",
+    [
+        pytest.param("   2.7.18.final.0.3  ", id="more-than-5-parts"),
+        pytest.param("3.10.13\n", id="less-than-5-parts"),
+        pytest.param("Apache Airflow 3.0.0", id="garbage-input"),
+    ],
+)
+def test_parse_version_invalid_parts(text_input):
+    with pytest.raises(ValueError, match="expected 5 components separated by '\.'"):
+        _parse_version_info(text_input)
+
+
+@pytest.mark.parametrize(
+    "text_input",
+    [
+        pytest.param("2EOL.7.18.final.0", id="major-non-int"),
+        pytest.param("3.XXX.13.final.3", id="minor-non-int"),
+        pytest.param("3.13.0a.alpha.3", id="micro-non-int"),
+        pytest.param("3.8.18.alpha.beta", id="serial-non-int"),
+    ],
+)
+def test_parse_version_invalid_parts_types(text_input):
+    with pytest.raises(ValueError, match="Unable to convert parts.*parsed from.*to"):
+        _parse_version_info(text_input)
+
+
+def test_python_version_info_fail_subprocess(mocker):
+    mocked_subprocess = mocker.patch("subprocess.check_output")
+    mocked_subprocess.side_effect = RuntimeError("some error")
+
+    with pytest.raises(ValueError, match="Error while executing command.*some error"):
+        _PythonVersionInfo.from_executable("/dev/null")
+    mocked_subprocess.assert_called_once()
+
+
+def test_python_version_info(mocker):
+    result = _PythonVersionInfo.from_executable(sys.executable)
+    assert result.major == sys.version_info.major
+    assert result.minor == sys.version_info.minor
+    assert result.micro == sys.version_info.micro
+    assert result.releaselevel == sys.version_info.releaselevel
+    assert result.serial == sys.version_info.serial
+    assert list(result) == list(sys.version_info)

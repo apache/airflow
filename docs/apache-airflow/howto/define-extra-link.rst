@@ -21,6 +21,9 @@
 Define an operator extra link
 =============================
 
+If you want to add further links to operators you can define them via a plugin or provider package.
+Extra links will be displayed in task details page in Grid view.
+
 .. image:: ../img/operator_extra_link.png
 
 The following code shows how to add extra links to an operator via Plugins:

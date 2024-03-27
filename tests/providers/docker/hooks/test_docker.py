@@ -19,8 +19,8 @@ from __future__ import annotations
 
 import logging
 import ssl
-import sys
 import warnings
+from importlib.metadata import version
 from unittest import mock
 
 import pytest
@@ -30,12 +30,6 @@ from packaging.version import Version
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.docker.hooks.docker import DockerHook
-
-if sys.version_info >= (3, 9):
-    from importlib.metadata import version
-else:
-    from importlib_metadata import version
-
 
 DOCKER_PY_7_PLUS = Version(Version(version("docker")).base_version) >= Version("7")
 

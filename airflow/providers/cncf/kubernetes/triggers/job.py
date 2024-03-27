@@ -45,7 +45,7 @@ class KubernetesJobTrigger(BaseTrigger):
         job_name: str,
         job_namespace: str,
         kubernetes_conn_id: str | None = None,
-        poll_interval: float = 2,
+        poll_interval: float = 10.0,
         cluster_context: str | None = None,
         config_file: str | None = None,
         in_cluster: bool | None = None,

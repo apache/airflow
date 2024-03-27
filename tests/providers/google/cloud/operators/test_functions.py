@@ -26,7 +26,6 @@ from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.operators.functions import (
-    FUNCTION_NAME_PATTERN,
     CloudFunctionDeleteFunctionOperator,
     CloudFunctionDeployFunctionOperator,
     CloudFunctionInvokeFunctionOperator,
@@ -60,7 +59,7 @@ def _prepare_test_bodies():
     body_empty_runtime = deepcopy(VALID_BODY)
     body_empty_runtime["runtime"] = ""
     body_values = [
-        ({}, "The required parameter 'body' is missing"),
+        # ({}, "The required parameter 'body' is missing"),
         (body_no_name, "The required body field 'name' is missing"),
         (body_empty_entry_point, "The body field 'entryPoint' of value '' does not match"),
         (body_empty_runtime, "The body field 'runtime' of value '' does not match"),
@@ -71,15 +70,18 @@ def _prepare_test_bodies():
 class TestGcfFunctionDeploy:
     @pytest.mark.parametrize("body, message", _prepare_test_bodies())
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
-    def test_body_empty_or_missing_fields(self, mock_hook, body, message):
-        mock_hook.return_value.upload_function_zip.return_value = "https://uploadUrl"
-        with pytest.raises(AirflowException) as ctx:
-            op = CloudFunctionDeployFunctionOperator(
-                project_id="test_project_id", location="test_region", body=body, task_id="id"
-            )
+    def test_missing_fields(self, mock_hook, body, message):
+        op = CloudFunctionDeployFunctionOperator(
+            project_id="test_project_id", location="test_region", body=body, task_id="id"
+        )
+        with pytest.raises(AirflowException):
             op.execute(None)
-        err = ctx.value
-        assert message in str(err)
+
+    def test_body_empty(self):
+        with pytest.raises(AirflowException):
+            CloudFunctionDeployFunctionOperator(
+                project_id="test_project_id", location="test_region", body={}, task_id="id"
+            )
 
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
     def test_deploy_execute(self, mock_hook):
@@ -245,10 +247,10 @@ class TestGcfFunctionDeploy:
         mock_hook.return_value.create_new_function.return_value = True
         body = deepcopy(VALID_BODY)
         body["name"] = ""
+        op = CloudFunctionDeployFunctionOperator(
+            project_id="test_project_id", location="test_region", body=body, task_id="id"
+        )
         with pytest.raises(AirflowException) as ctx:
-            op = CloudFunctionDeployFunctionOperator(
-                project_id="test_project_id", location="test_region", body=body, task_id="id"
-            )
             op.execute(None)
         err = ctx.value
         assert "The body field 'name' of value '' does not match" in str(err)
@@ -279,10 +281,10 @@ class TestGcfFunctionDeploy:
         mock_hook.return_value.create_new_function.return_value = True
         body = deepcopy(VALID_BODY)
         body[key] = value
+        op = CloudFunctionDeployFunctionOperator(
+            project_id="test_project_id", location="test_region", body=body, task_id="id"
+        )
         with pytest.raises(AirflowException) as ctx:
-            op = CloudFunctionDeployFunctionOperator(
-                project_id="test_project_id", location="test_region", body=body, task_id="id"
-            )
             op.execute(None)
         err = ctx.value
         assert message in str(err)
@@ -302,45 +304,13 @@ class TestGcfFunctionDeploy:
                 "The body field 'source_code.sourceArchiveUrl' of value '' does not match",
             ),
             (
-                {"sourceArchiveUrl": "", "zip_path": "/path/to/file"},
-                "Only one of 'sourceArchiveUrl' in body or 'zip_path' argument allowed.",
-            ),
-            (
-                {"sourceArchiveUrl": "gs://url", "zip_path": "/path/to/file"},
-                "Only one of 'sourceArchiveUrl' in body or 'zip_path' argument allowed.",
-            ),
-            (
-                {"sourceArchiveUrl": "", "sourceUploadUrl": ""},
-                "Parameter 'sourceUploadUrl' is empty in the body and argument "
-                "'zip_path' is missing or empty.",
-            ),
-            (
                 {"sourceArchiveUrl": "gs://adasda", "sourceRepository": ""},
                 "The field 'source_code.sourceRepository' should be of dictionary type",
-            ),
-            (
-                {"sourceUploadUrl": "", "sourceRepository": ""},
-                "Parameter 'sourceUploadUrl' is empty in the body and argument 'zip_path' "
-                "is missing or empty.",
-            ),
-            (
-                {"sourceArchiveUrl": "", "sourceUploadUrl": "", "sourceRepository": ""},
-                "Parameter 'sourceUploadUrl' is empty in the body and argument 'zip_path' "
-                "is missing or empty.",
             ),
             (
                 {"sourceArchiveUrl": "gs://url", "sourceUploadUrl": "https://url"},
                 "The mutually exclusive fields 'sourceUploadUrl' and 'sourceArchiveUrl' "
                 "belonging to the union 'source_code' are both present. Please remove one",
-            ),
-            (
-                {"sourceUploadUrl": "https://url", "zip_path": "/path/to/file"},
-                "Only one of 'sourceUploadUrl' in body or 'zip_path' argument allowed. Found both.",
-            ),
-            (
-                {"sourceUploadUrl": ""},
-                "Parameter 'sourceUploadUrl' is empty in the body "
-                "and argument 'zip_path' is missing or empty.",
             ),
             (
                 {"sourceRepository": ""},
@@ -356,23 +326,74 @@ class TestGcfFunctionDeploy:
             ),
         ],
     )
-    def test_invalid_source_code_union_field(self, source_code, message):
+    def test_invalid_source_code_union_field__execute(self, source_code, message):
         body = deepcopy(VALID_BODY)
         body.pop("sourceUploadUrl", None)
         body.pop("sourceArchiveUrl", None)
         zip_path = source_code.pop("zip_path", None)
         body.update(source_code)
-        with pytest.raises(AirflowException) as ctx:
-            op = CloudFunctionDeployFunctionOperator(
+        op = CloudFunctionDeployFunctionOperator(
+            project_id="test_project_id",
+            location="test_region",
+            body=body,
+            task_id="id",
+            zip_path=zip_path,
+        )
+        with pytest.raises(AirflowException, match=message):
+            op.execute(None)
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        "source_code, message",
+        [
+            (
+                {"sourceArchiveUrl": "", "zip_path": "/path/to/file"},
+                "Only one of 'sourceArchiveUrl' in body or 'zip_path' argument allowed.",
+            ),
+            (
+                {"sourceArchiveUrl": "gs://url", "zip_path": "/path/to/file"},
+                "Only one of 'sourceArchiveUrl' in body or 'zip_path' argument allowed.",
+            ),
+            (
+                {"sourceArchiveUrl": "", "sourceUploadUrl": ""},
+                "Parameter 'sourceUploadUrl' is empty in the body and argument "
+                "'zip_path' is missing or empty.",
+            ),
+            (
+                {"sourceUploadUrl": "", "sourceRepository": ""},
+                "Parameter 'sourceUploadUrl' is empty in the body and argument 'zip_path' "
+                "is missing or empty.",
+            ),
+            (
+                {"sourceArchiveUrl": "", "sourceUploadUrl": "", "sourceRepository": ""},
+                "Parameter 'sourceUploadUrl' is empty in the body and argument 'zip_path' "
+                "is missing or empty.",
+            ),
+            (
+                {"sourceUploadUrl": "https://url", "zip_path": "/path/to/file"},
+                "Only one of 'sourceUploadUrl' in body or 'zip_path' argument allowed. Found both.",
+            ),
+            (
+                {"sourceUploadUrl": ""},
+                "Parameter 'sourceUploadUrl' is empty in the body "
+                "and argument 'zip_path' is missing or empty.",
+            ),
+        ],
+    )
+    def test_invalid_source_code_union_field__init(self, source_code, message):
+        body = deepcopy(VALID_BODY)
+        body.pop("sourceUploadUrl", None)
+        body.pop("sourceArchiveUrl", None)
+        zip_path = source_code.pop("zip_path", None)
+        body.update(source_code)
+        with pytest.raises(AirflowException, match=message):
+            CloudFunctionDeployFunctionOperator(
                 project_id="test_project_id",
                 location="test_region",
                 body=body,
                 task_id="id",
                 zip_path=zip_path,
             )
-            op.execute(None)
-        err = ctx.value
-        assert message in str(err)
 
     @pytest.mark.parametrize(
         "source_code, project_id",
@@ -484,13 +505,13 @@ class TestGcfFunctionDeploy:
         body.pop("httpsTrigger", None)
         body.pop("eventTrigger", None)
         body.update(trigger)
+        op = CloudFunctionDeployFunctionOperator(
+            project_id="test_project_id",
+            location="test_region",
+            body=body,
+            task_id="id",
+        )
         with pytest.raises(AirflowException) as ctx:
-            op = CloudFunctionDeployFunctionOperator(
-                project_id="test_project_id",
-                location="test_region",
-                body=body,
-                task_id="id",
-            )
             op.execute(None)
         err = ctx.value
         assert message in str(err)
@@ -622,14 +643,9 @@ class TestGcfFunctionDelete:
             impersonation_chain=None,
         )
 
-    @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
-    def test_invalid_name(self, mock_hook):
-        with pytest.raises(AttributeError) as ctx:
-            op = CloudFunctionDeleteFunctionOperator(name="invalid_name", task_id="id")
-            op.execute(None)
-        err = ctx.value
-        assert str(err) == f"Parameter name must match pattern: {FUNCTION_NAME_PATTERN}"
-        mock_hook.assert_not_called()
+    def test_invalid_name(self):
+        with pytest.raises(AttributeError):
+            CloudFunctionDeleteFunctionOperator(name="invalid_name", task_id="id")
 
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
     def test_empty_name(self, mock_hook):

@@ -22,7 +22,6 @@ from __future__ import annotations
 import contextlib
 import json
 import time
-from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 from deprecated import deprecated
@@ -38,13 +37,11 @@ from kubernetes import client, utils
 from kubernetes.client.models import V1Deployment
 from kubernetes_asyncio import client as async_client
 from kubernetes_asyncio.config.kube_config import FileOrData
-from urllib3.exceptions import HTTPError
 
 from airflow import version
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
+from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook, KubernetesHook
 from airflow.providers.cncf.kubernetes.kube_client import _enable_tcp_keepalive
-from airflow.providers.cncf.kubernetes.utils.pod_manager import PodOperatorHookProtocol
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
@@ -54,9 +51,7 @@ from airflow.providers.google.common.hooks.base_google import (
 
 if TYPE_CHECKING:
     import google.auth.credentials
-    from gcloud.aio.auth import Token
     from google.api_core.retry import Retry
-    from kubernetes_asyncio.client.models import V1Pod
 
 OPERATIONAL_POLL_INTERVAL = 15
 
@@ -64,14 +59,23 @@ OPERATIONAL_POLL_INTERVAL = 15
 class GKEClusterConnection:
     """Helper for establishing connection to GKE cluster."""
 
-    def __init__(self, cluster_url: str, ssl_ca_cert: str, credentials: google.auth.credentials.Credentials):
+    def __init__(
+        self,
+        cluster_url: str,
+        ssl_ca_cert: str,
+        credentials: google.auth.credentials.Credentials,
+        enable_tcp_keepalive: bool = False,
+    ):
         self._cluster_url = cluster_url
         self._ssl_ca_cert = ssl_ca_cert
         self._credentials = credentials
+        self.enable_tcp_keepalive = enable_tcp_keepalive
 
     def get_conn(self) -> client.ApiClient:
         configuration = self._get_config()
         configuration.refresh_api_key_hook = self._refresh_api_key_hook
+        if self.enable_tcp_keepalive:
+            _enable_tcp_keepalive()
         return client.ApiClient(configuration)
 
     def _refresh_api_key_hook(self, configuration: client.configuration.Configuration):
@@ -368,100 +372,6 @@ class GKEHook(GoogleBaseHook):
             return False
 
 
-class GKEDeploymentHook(GoogleBaseHook, KubernetesHook):
-    """Google Kubernetes Engine Deployment APIs."""
-
-    def __init__(
-        self,
-        cluster_url: str,
-        ssl_ca_cert: str,
-        *args,
-        **kwargs,
-    ):
-        super().__init__(*args, **kwargs)
-        self._cluster_url = cluster_url
-        self._ssl_ca_cert = ssl_ca_cert
-
-    @cached_property
-    def api_client(self) -> client.ApiClient:
-        return self.get_conn()
-
-    @cached_property
-    def core_v1_client(self) -> client.CoreV1Api:
-        return client.CoreV1Api(self.api_client)
-
-    @cached_property
-    def batch_v1_client(self) -> client.BatchV1Api:
-        return client.BatchV1Api(self.api_client)
-
-    @cached_property
-    def apps_v1_client(self) -> client.AppsV1Api:
-        return client.AppsV1Api(api_client=self.api_client)
-
-    def get_conn(self) -> client.ApiClient:
-        return GKEClusterConnection(
-            cluster_url=self._cluster_url, ssl_ca_cert=self._ssl_ca_cert, credentials=self.get_credentials()
-        ).get_conn()
-
-    def check_kueue_deployment_running(self, name, namespace):
-        timeout = 300
-        polling_period_seconds = 2
-
-        while timeout is None or timeout > 0:
-            try:
-                deployment = self.get_deployment_status(name=name, namespace=namespace)
-                deployment_status = V1Deployment.to_dict(deployment)["status"]
-                replicas = deployment_status["replicas"]
-                ready_replicas = deployment_status["ready_replicas"]
-                unavailable_replicas = deployment_status["unavailable_replicas"]
-                if (
-                    replicas is not None
-                    and ready_replicas is not None
-                    and unavailable_replicas is None
-                    and replicas == ready_replicas
-                ):
-                    return
-                else:
-                    self.log.info("Waiting until Deployment will be ready...")
-                    time.sleep(polling_period_seconds)
-            except Exception as e:
-                self.log.exception("Exception occurred while checking for Deployment status.")
-                raise e
-
-            if timeout is not None:
-                timeout -= polling_period_seconds
-
-        raise AirflowException("Deployment timed out")
-
-
-class GKECustomResourceHook(GoogleBaseHook, KubernetesHook):
-    """Google Kubernetes Engine Custom Resource APIs."""
-
-    def __init__(
-        self,
-        cluster_url: str,
-        ssl_ca_cert: str,
-        *args,
-        **kwargs,
-    ):
-        super().__init__(*args, **kwargs)
-        self._cluster_url = cluster_url
-        self._ssl_ca_cert = ssl_ca_cert
-
-    @cached_property
-    def api_client(self) -> client.ApiClient:
-        return self.get_conn()
-
-    @cached_property
-    def custom_object_client(self) -> client.CustomObjectsApi:
-        return client.CustomObjectsApi(api_client=self.api_client)
-
-    def get_conn(self) -> client.ApiClient:
-        return GKEClusterConnection(
-            cluster_url=self._cluster_url, ssl_ca_cert=self._ssl_ca_cert, credentials=self.get_credentials()
-        ).get_conn()
-
-
 class GKEAsyncHook(GoogleBaseAsyncHook):
     """Asynchronous client of GKE."""
 
@@ -509,89 +419,64 @@ class GKEAsyncHook(GoogleBaseAsyncHook):
         )
 
 
-class GKEPodHook(GoogleBaseHook, PodOperatorHookProtocol):
-    """Google Kubernetes Engine pod APIs."""
+class GKEKubernetesHook(GoogleBaseHook, KubernetesHook):
+    """GKE authenticated hook for standard Kubernetes API.
+
+    This hook provides full set of the standard Kubernetes API provided by the KubernetesHook,
+    and at the same time it provides a GKE authentication, so it makes it possible to KubernetesHook
+    functionality against GKE clusters.
+    """
 
     def __init__(
         self,
         cluster_url: str,
         ssl_ca_cert: str,
-        disable_tcp_keepalive: bool | None = None,
-        gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: str | Sequence[str] | None = None,
+        enable_tcp_keepalive: bool = False,
+        *args,
         **kwargs,
     ):
-        super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            impersonation_chain=impersonation_chain,
-            **kwargs,
-        )
+        super().__init__(*args, **kwargs)
         self._cluster_url = cluster_url
         self._ssl_ca_cert = ssl_ca_cert
-        self.disable_tcp_keepalive = disable_tcp_keepalive
-
-    @cached_property
-    def api_client(self) -> client.ApiClient:
-        return self.get_conn()
-
-    @cached_property
-    def core_v1_client(self) -> client.CoreV1Api:
-        return client.CoreV1Api(self.api_client)
-
-    @property
-    def is_in_cluster(self) -> bool:
-        return False
-
-    def get_namespace(self):
-        """Get the namespace configured by the Airflow connection."""
-
-    def _get_namespace(self):
-        """For compatibility with KubernetesHook. Deprecated; do not use."""
-
-    def get_xcom_sidecar_container_image(self):
-        """Get the xcom sidecar image defined in the connection.
-
-        Implemented for compatibility with KubernetesHook.
-        """
-
-    def get_xcom_sidecar_container_resources(self):
-        """Get the xcom sidecar resources defined in the connection.
-
-        Implemented for compatibility with KubernetesHook.
-        """
+        self.enable_tcp_keepalive = enable_tcp_keepalive
 
     def get_conn(self) -> client.ApiClient:
-        configuration = self._get_config()
-        configuration.refresh_api_key_hook = self._refresh_api_key_hook
+        return GKEClusterConnection(
+            cluster_url=self._cluster_url,
+            ssl_ca_cert=self._ssl_ca_cert,
+            credentials=self.get_credentials(),
+            enable_tcp_keepalive=self.enable_tcp_keepalive,
+        ).get_conn()
 
-        if self.disable_tcp_keepalive is not True:
-            _enable_tcp_keepalive()
+    def check_kueue_deployment_running(self, name, namespace):
+        timeout = 300
+        polling_period_seconds = 2
 
-        return client.ApiClient(configuration)
+        while timeout is None or timeout > 0:
+            try:
+                deployment = self.get_deployment_status(name=name, namespace=namespace)
+                deployment_status = V1Deployment.to_dict(deployment)["status"]
+                replicas = deployment_status["replicas"]
+                ready_replicas = deployment_status["ready_replicas"]
+                unavailable_replicas = deployment_status["unavailable_replicas"]
+                if (
+                    replicas is not None
+                    and ready_replicas is not None
+                    and unavailable_replicas is None
+                    and replicas == ready_replicas
+                ):
+                    return
+                else:
+                    self.log.info("Waiting until Deployment will be ready...")
+                    time.sleep(polling_period_seconds)
+            except Exception as e:
+                self.log.exception("Exception occurred while checking for Deployment status.")
+                raise e
 
-    def _refresh_api_key_hook(self, configuration: client.configuration.Configuration):
-        configuration.api_key = {"authorization": self._get_token(self.get_credentials())}
+            if timeout is not None:
+                timeout -= polling_period_seconds
 
-    def _get_config(self) -> client.configuration.Configuration:
-        configuration = client.Configuration(
-            host=self._cluster_url,
-            api_key_prefix={"authorization": "Bearer"},
-            api_key={"authorization": self._get_token(self.get_credentials())},
-        )
-        configuration.ssl_ca_cert = FileOrData(
-            {
-                "certificate-authority-data": self._ssl_ca_cert,
-            },
-            file_key_name="certificate-authority",
-        ).as_file()
-        return configuration
-
-    @staticmethod
-    def _get_token(creds: google.auth.credentials.Credentials) -> str:
-        if creds.token is None or creds.expired:
-            auth_req = google_requests.Request()
-            creds.refresh(auth_req)
-        return creds.token
+        raise AirflowException("Deployment timed out")
 
     def apply_from_yaml_file(
         self,
@@ -601,7 +486,7 @@ class GKEPodHook(GoogleBaseHook, PodOperatorHookProtocol):
         namespace: str = "default",
     ):
         """
-        Perform an action from a yaml file on a Pod.
+        Perform an action from a yaml file.
 
         :param yaml_file: Contains the path to yaml file.
         :param yaml_objects: List of YAML objects; used instead of reading the yaml_file.
@@ -619,58 +504,16 @@ class GKEPodHook(GoogleBaseHook, PodOperatorHookProtocol):
             namespace=namespace,
         )
 
-    def get_pod(self, name: str, namespace: str) -> V1Pod:
-        """Get a pod object.
 
-        :param name: Name of the pod.
-        :param namespace: Name of the pod's namespace.
-        """
-        return self.core_v1_client.read_namespaced_pod(
-            name=name,
-            namespace=namespace,
-        )
+class GKEKubernetesAsyncHook(GoogleBaseAsyncHook, AsyncKubernetesHook):
+    """Async GKE authenticated hook for standard Kubernetes API.
 
-
-class GKEJobHook(GoogleBaseHook, KubernetesHook):
-    """Google Kubernetes Engine Job APIs."""
-
-    def __init__(
-        self,
-        cluster_url: str,
-        ssl_ca_cert: str,
-        *args,
-        **kwargs,
-    ):
-        super().__init__(*args, **kwargs)
-        self._cluster_url = cluster_url
-        self._ssl_ca_cert = ssl_ca_cert
-
-    @cached_property
-    def api_client(self) -> client.ApiClient:
-        return self.get_conn()
-
-    @cached_property
-    def core_v1_client(self) -> client.CoreV1Api:
-        return client.CoreV1Api(self.api_client)
-
-    @cached_property
-    def batch_v1_client(self) -> client.BatchV1Api:
-        return client.BatchV1Api(self.api_client)
-
-    def get_conn(self) -> client.ApiClient:
-        return GKEClusterConnection(
-            cluster_url=self._cluster_url, ssl_ca_cert=self._ssl_ca_cert, credentials=self.get_credentials()
-        ).get_conn()
-
-
-class GKEPodAsyncHook(GoogleBaseAsyncHook):
-    """Google Kubernetes Engine pods APIs asynchronously.
-
-    :param cluster_url: The URL pointed to the cluster.
-    :param ssl_ca_cert: SSL certificate used for authentication to the pod.
+    This hook provides full set of the standard Kubernetes API provided by the AsyncKubernetesHook,
+    and at the same time it provides a GKE authentication, so it makes it possible to KubernetesHook
+    functionality against GKE clusters.
     """
 
-    sync_hook_class = GKEPodHook
+    sync_hook_class = GKEKubernetesHook
     scopes = ["https://www.googleapis.com/auth/cloud-platform"]
 
     def __init__(
@@ -679,10 +522,12 @@ class GKEPodAsyncHook(GoogleBaseAsyncHook):
         ssl_ca_cert: str,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        enable_tcp_keepalive: bool = True,
         **kwargs,
     ) -> None:
         self._cluster_url = cluster_url
         self._ssl_ca_cert = ssl_ca_cert
+        self.enable_tcp_keepalive = enable_tcp_keepalive
         super().__init__(
             cluster_url=cluster_url,
             ssl_ca_cert=ssl_ca_cert,
@@ -692,17 +537,18 @@ class GKEPodAsyncHook(GoogleBaseAsyncHook):
         )
 
     @contextlib.asynccontextmanager
-    async def get_conn(self, token: Token) -> async_client.ApiClient:  # type: ignore[override]
+    async def get_conn(self) -> async_client.ApiClient:  # type: ignore[override]
         kube_client = None
         try:
-            kube_client = await self._load_config(token)
+            kube_client = await self._load_config()
             yield kube_client
         finally:
             if kube_client is not None:
                 await kube_client.close()
 
-    async def _load_config(self, token: Token) -> async_client.ApiClient:
+    async def _load_config(self) -> async_client.ApiClient:
         configuration = self._get_config()
+        token = await self.get_token()
         access_token = await token.get()
         return async_client.ApiClient(
             configuration,
@@ -722,66 +568,79 @@ class GKEPodAsyncHook(GoogleBaseAsyncHook):
         )
         return configuration
 
-    async def get_pod(self, name: str, namespace: str) -> V1Pod:
-        """Get a pod object.
 
-        :param name: Name of the pod.
-        :param namespace: Name of the pod's namespace.
-        """
-        token = await self.get_token()
-        async with self.get_conn(token) as connection:
-            v1_api = async_client.CoreV1Api(connection)
-            pod: V1Pod = await v1_api.read_namespaced_pod(
-                name=name,
-                namespace=namespace,
-            )
-            return pod
+@deprecated(
+    reason=(
+        "The `GKEDeploymentHook` class is deprecated and will be removed after 01.10.2024, please use "
+        "`GKEKubernetesHook` instead."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
+class GKEDeploymentHook(GKEKubernetesHook):
+    """Google Kubernetes Engine Deployment APIs."""
 
-    async def delete_pod(self, name: str, namespace: str):
-        """Delete a pod.
 
-        :param name: Name of the pod.
-        :param namespace: Name of the pod's namespace.
-        """
-        token = await self.get_token()
-        async with self.get_conn(token) as connection:
-            try:
-                v1_api = async_client.CoreV1Api(connection)
-                await v1_api.delete_namespaced_pod(
-                    name=name,
-                    namespace=namespace,
-                    body=client.V1DeleteOptions(),
-                )
-            except async_client.ApiException as e:
-                # If the pod is already deleted
-                if e.status != 404:
-                    raise
+@deprecated(
+    reason=(
+        "The `GKECustomResourceHook` class is deprecated and will be removed after 01.10.2024, please use "
+        "`GKEKubernetesHook` instead."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
+class GKECustomResourceHook(GKEKubernetesHook):
+    """Google Kubernetes Engine Custom Resource APIs."""
 
-    async def read_logs(self, name: str, namespace: str):
-        """Read logs inside the pod while starting containers inside.
 
-        All the logs will be outputted with its timestamp to track the logs
-        after the execution of the pod is completed. The method is used for
-        async output of the logs only in the pod failed it execution or the task
-        was cancelled by the user.
+@deprecated(
+    reason=(
+        "The `GKEPodHook` class is deprecated and will be removed after 01.10.2024, please use "
+        "`GKEKubernetesHook` instead."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
+class GKEPodHook(GKEKubernetesHook):
+    """Google Kubernetes Engine pod APIs."""
 
-        :param name: Name of the pod.
-        :param namespace: Name of the pod's namespace.
-        """
-        token = await self.get_token()
-        async with self.get_conn(token) as connection:
-            try:
-                v1_api = async_client.CoreV1Api(connection)
-                logs = await v1_api.read_namespaced_pod_log(
-                    name=name,
-                    namespace=namespace,
-                    follow=False,
-                    timestamps=True,
-                )
-                logs = logs.splitlines()
-                for line in logs:
-                    self.log.info("Container logs from %s", line)
-                return logs
-            except HTTPError:
-                self.log.exception("There was an error reading the kubernetes API.")
-                raise
+    def __init__(
+        self,
+        cluster_url: str,
+        ssl_ca_cert: str,
+        disable_tcp_keepalive: bool | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ):
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            impersonation_chain=impersonation_chain,
+            cluster_url=cluster_url,
+            ssl_ca_cert=ssl_ca_cert,
+            **kwargs,
+        )
+        self.enable_tcp_keepalive = not bool(disable_tcp_keepalive)
+
+
+@deprecated(
+    reason=(
+        "The `GKEJobHook` class is deprecated and will be removed after 01.10.2024, please use "
+        "`GKEKubernetesHook` instead."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
+class GKEJobHook(GKEKubernetesHook):
+    """Google Kubernetes Engine Job APIs."""
+
+
+@deprecated(
+    reason=(
+        "The `GKEPodAsyncHook` class is deprecated and will be removed after 01.10.2024, please use "
+        "`GKEKubernetesAsyncHook` instead."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
+class GKEPodAsyncHook(GKEKubernetesAsyncHook):
+    """Google Kubernetes Engine pods APIs asynchronously.
+
+    :param cluster_url: The URL pointed to the cluster.
+    :param ssl_ca_cert: SSL certificate used for authentication to the pod.
+    """

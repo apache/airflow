@@ -166,19 +166,19 @@ class TestPartitions(TestHiveEnvironment):
         assert name[2] == "part1=this.can.be.an.issue/part2=ok"
 
     def test_times_out_on_nonexistent_partition(self):
-        with pytest.raises(AirflowSensorTimeout):
-            mock_hive_metastore_hook = MockHiveMetastoreHook()
-            mock_hive_metastore_hook.check_for_named_partition = mock.MagicMock(return_value=False)
+        mock_hive_metastore_hook = MockHiveMetastoreHook()
+        mock_hive_metastore_hook.check_for_named_partition = mock.MagicMock(return_value=False)
 
-            op = NamedHivePartitionSensor(
-                task_id="hive_partition_check",
-                partition_names=[
-                    "airflow.static_babynames_partitioned/ds={{ds}}",
-                    "airflow.static_babynames_partitioned/ds=nonexistent",
-                ],
-                poke_interval=0.1,
-                timeout=1,
-                dag=self.dag,
-                hook=mock_hive_metastore_hook,
-            )
+        op = NamedHivePartitionSensor(
+            task_id="hive_partition_check",
+            partition_names=[
+                "airflow.static_babynames_partitioned/ds={{ds}}",
+                "airflow.static_babynames_partitioned/ds=nonexistent",
+            ],
+            poke_interval=0.1,
+            timeout=1,
+            dag=self.dag,
+            hook=mock_hive_metastore_hook,
+        )
+        with pytest.raises(AirflowSensorTimeout):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)

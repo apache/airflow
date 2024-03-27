@@ -16,10 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-try:
-    import importlib_metadata
-except ImportError:
-    from importlib import metadata as importlib_metadata  # type: ignore[no-redef]
+import sys
+
+if sys.version_info >= (3, 10):
+    from importlib import metadata
+else:
+    import importlib_metadata as metadata  # type: ignore[no-redef]
 
 
 def get_docs_url(page: str | None = None) -> str:
@@ -40,7 +42,7 @@ def get_docs_url(page: str | None = None) -> str:
 def get_doc_url_for_provider(provider_name: str, provider_version: str) -> str:
     """Prepare link to Airflow Provider documentation."""
     try:
-        metadata_items = importlib_metadata.metadata(provider_name).get_all("Project-URL")
+        metadata_items = metadata.metadata(provider_name).get_all("Project-URL")
         if isinstance(metadata_items, str):
             metadata_items = [metadata_items]
         if metadata_items:
@@ -49,7 +51,7 @@ def get_doc_url_for_provider(provider_name: str, provider_version: str) -> str:
                     _, _, url = item.partition(",")
                     if url:
                         return url.strip()
-    except importlib_metadata.PackageNotFoundError:
+    except metadata.PackageNotFoundError:
         pass
     # Fallback if provider is apache one
     if provider_name.startswith("apache-airflow"):

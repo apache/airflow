@@ -22,10 +22,15 @@ import sys
 from itertools import chain
 from subprocess import DEVNULL
 
+from airflow_breeze.global_constants import PIP_VERSION
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.packages import get_excluded_provider_folders, get_suspended_provider_folders
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.run_utils import run_command
+from airflow_breeze.utils.virtualenv_utils import create_temp_venv
+
+DOCKER_TESTS_ROOT = AIRFLOW_SOURCES_ROOT / "docker_tests"
+DOCKER_TESTS_REQUIREMENTS = DOCKER_TESTS_ROOT / "requirements.txt"
 
 
 def verify_an_image(
@@ -47,19 +52,20 @@ def verify_an_image(
         return command_result.returncode, f"Testing {image_type} python {image_name}"
     pytest_args = ("-n", str(os.cpu_count()), "--color=yes")
     if image_type == "PROD":
-        test_path = AIRFLOW_SOURCES_ROOT / "docker_tests" / "test_prod_image.py"
+        test_path = DOCKER_TESTS_ROOT / "test_prod_image.py"
     else:
-        test_path = AIRFLOW_SOURCES_ROOT / "docker_tests" / "test_ci_image.py"
+        test_path = DOCKER_TESTS_ROOT / "test_ci_image.py"
     env = os.environ.copy()
     env["DOCKER_IMAGE"] = image_name
     if slim_image:
         env["TEST_SLIM_IMAGE"] = "true"
-    command_result = run_command(
-        [sys.executable, "-m", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
-        env=env,
-        output=output,
-        check=False,
-    )
+    with create_temp_venv(pip_version=PIP_VERSION, requirements_file=DOCKER_TESTS_REQUIREMENTS) as py_exe:
+        command_result = run_command(
+            [py_exe, "-m", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
+            env=env,
+            output=output,
+            check=False,
+        )
     return command_result.returncode, f"Testing {image_type} python {image_name}"
 
 
@@ -73,16 +79,17 @@ def run_docker_compose_tests(
         get_console().print(f"[error]Error when inspecting PROD image: {command_result.returncode}[/]")
         return command_result.returncode, f"Testing docker-compose python with {image_name}"
     pytest_args = ("--color=yes",)
-    test_path = AIRFLOW_SOURCES_ROOT / "docker_tests" / "test_docker_compose_quick_start.py"
+    test_path = DOCKER_TESTS_ROOT / "test_docker_compose_quick_start.py"
     env = os.environ.copy()
     env["DOCKER_IMAGE"] = image_name
     if skip_docker_compose_deletion:
         env["SKIP_DOCKER_COMPOSE_DELETION"] = "true"
-    command_result = run_command(
-        [sys.executable, "-m", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
-        env=env,
-        check=False,
-    )
+    with create_temp_venv(pip_version=PIP_VERSION, requirements_file=DOCKER_TESTS_REQUIREMENTS) as py_exe:
+        command_result = run_command(
+            [py_exe, "-m", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
+            env=env,
+            check=False,
+        )
     return command_result.returncode, f"Testing docker-compose python with {image_name}"
 
 

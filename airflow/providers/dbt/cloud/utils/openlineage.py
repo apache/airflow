@@ -47,9 +47,9 @@ def generate_openlineage_events_from_dbt_cloud_run(
     """
     from openlineage.common.provider.dbt import DbtCloudArtifactProcessor, ParentRunMetadata
 
+    from airflow.providers.openlineage.conf import namespace
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.plugins.adapter import (
-        _DAG_NAMESPACE,
         _PRODUCER,
         OpenLineageAdapter,
     )
@@ -110,7 +110,7 @@ def generate_openlineage_events_from_dbt_cloud_run(
 
         processor = DbtCloudArtifactProcessor(
             producer=_PRODUCER,
-            job_namespace=_DAG_NAMESPACE,
+            job_namespace=namespace(),
             skip_errors=False,
             logger=operator.log,
             manifest=manifest,
@@ -130,7 +130,7 @@ def generate_openlineage_events_from_dbt_cloud_run(
         parent_job = ParentRunMetadata(
             run_id=parent_run_id,
             job_name=f"{task_instance.dag_id}.{task_instance.task_id}",
-            job_namespace=_DAG_NAMESPACE,
+            job_namespace=namespace(),
         )
         processor.dbt_run_metadata = parent_job
 

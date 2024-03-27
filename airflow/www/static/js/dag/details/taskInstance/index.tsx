@@ -65,11 +65,8 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
     mapIndex,
     enabled: (!isGroup && !isMapped) || isMapIndexDefined,
   });
+
   const gridInstance = group?.instances.find((ti) => ti.runId === runId);
-
-  if (!group || !run || !gridInstance) return null;
-
-  const { executionDate } = run;
 
   return (
     <Box
@@ -79,12 +76,12 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
       ref={taskInstanceRef}
       overflowY="auto"
     >
-      {!isGroup && (
+      {!isGroup && run?.executionDate && (
         <TaskNav
           taskId={taskId}
           isMapped={isMapped}
           mapIndex={mapIndex}
-          executionDate={executionDate}
+          executionDate={run?.executionDate}
           operator={operator}
         />
       )}
@@ -93,22 +90,25 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
           dagId={dagId}
           runId={runId}
           taskId={taskId}
-          mapIndex={gridInstance.mapIndex}
-          initialValue={gridInstance.note}
-          key={dagId + runId + taskId + gridInstance.mapIndex}
+          mapIndex={mapIndex}
+          initialValue={gridInstance?.note || taskInstance?.note}
+          key={dagId + runId + taskId + mapIndex}
+          isAbandonedTask={!!taskId && !group}
         />
       )}
-      {!!group.extraLinks?.length && !isGroupOrMappedTaskSummary && (
-        <ExtraLinks
-          taskId={taskId}
-          dagId={dagId}
-          mapIndex={isMapped && isMapIndexDefined ? mapIndex : undefined}
-          executionDate={executionDate}
-          extraLinks={group?.extraLinks}
-          tryNumber={taskInstance?.tryNumber || gridInstance.tryNumber}
-        />
-      )}
-      {group.hasOutletDatasets && (
+      {!!group?.extraLinks?.length &&
+        !isGroupOrMappedTaskSummary &&
+        run?.executionDate && (
+          <ExtraLinks
+            taskId={taskId}
+            dagId={dagId}
+            mapIndex={isMapped && isMapIndexDefined ? mapIndex : undefined}
+            executionDate={run.executionDate}
+            extraLinks={group.extraLinks}
+            tryNumber={taskInstance?.tryNumber || gridInstance?.tryNumber || 1}
+          />
+        )}
+      {group?.hasOutletDatasets && (
         <DatasetUpdateEvents taskId={taskId} runId={runId} />
       )}
       <TriggererInfo taskInstance={taskInstance} />

@@ -44,6 +44,7 @@ from airflow.providers.docker.exceptions import (
     DockerContainerFailedSkipException,
 )
 from airflow.providers.docker.hooks.docker import DockerHook
+from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from docker import APIClient
@@ -240,9 +241,11 @@ class DockerOperator(BaseOperator):
         skip_on_exit_code: int | Container[int] | None = None,
         port_bindings: dict | None = None,
         ulimits: list[Ulimit] | None = None,
+        # deprecated, no need to include into docstring
+        skip_exit_code: int | Container[int] | ArgNotSet = NOTSET,
         **kwargs,
     ) -> None:
-        if skip_exit_code := kwargs.pop("skip_exit_code", None):
+        if skip_exit_code is not NOTSET:
             warnings.warn(
                 "`skip_exit_code` is deprecated and will be removed in the future. "
                 "Please use `skip_on_exit_code` instead.",
@@ -255,7 +258,7 @@ class DockerOperator(BaseOperator):
                     f"skip_on_exit_code={skip_on_exit_code!r}, skip_exit_code={skip_exit_code!r}."
                 )
                 raise ValueError(msg)
-            skip_on_exit_code = skip_exit_code
+            skip_on_exit_code = skip_exit_code  # type: ignore[assignment]
         if isinstance(auto_remove, bool):
             warnings.warn(
                 "bool value for `auto_remove` is deprecated and will be removed in the future. "

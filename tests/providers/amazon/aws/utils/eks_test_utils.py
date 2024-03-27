@@ -21,7 +21,7 @@ import re
 from copy import deepcopy
 from typing import TYPE_CHECKING, Pattern, Type, Union
 
-from ..utils.eks_test_constants import (
+from tests.providers.amazon.aws.utils.eks_test_constants import (
     STATUS,
     ClusterAttributes,
     ClusterInputs,

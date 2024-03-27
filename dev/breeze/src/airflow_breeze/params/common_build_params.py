@@ -68,6 +68,7 @@ class CommonBuildParams:
     push: bool = False
     python: str = "3.8"
     tag_as_latest: bool = False
+    uv_request_timeout: int = 300
     dry_run: bool = False
     version_suffix_for_pypi: str | None = None
     verbose: bool = False

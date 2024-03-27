@@ -436,16 +436,6 @@ def test_dashboard_flash_messages_type(user_client):
     check_content_in_response("alert-foo", resp)
 
 
-def test_audit_log_view_admin(admin_client, working_dags):
-    resp = admin_client.get("/dags/filter_test_1/audit_log")
-    check_content_in_response("Dag Audit Log", resp)
-
-
-def test_audit_log_view_user(user_client, working_dags):
-    resp = user_client.get("/dags/filter_test_1/audit_log")
-    check_content_not_in_response("Dag Audit Log", resp, resp_code=302)
-
-
 @pytest.mark.parametrize(
     "url, lower_key, greater_key",
     [

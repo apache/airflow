@@ -941,22 +941,20 @@ class TestSSHHook:
             session.commit()
 
     def test_oneline_key(self):
+        TEST_ONELINE_KEY = "-----BEGIN OPENSSHPRIVATE KEY-----asdfg-----END OPENSSHPRIVATE KEY-----"
+        session = settings.Session()
+        conn = Connection(
+            conn_id="openssh_pkey",
+            host="localhost",
+            conn_type="ssh",
+            extra={"private_key": TEST_ONELINE_KEY},
+        )
+        session.add(conn)
+        session.flush()
         with pytest.raises(Exception):
-            TEST_ONELINE_KEY = "-----BEGIN OPENSSHPRIVATE KEY-----asdfg-----END OPENSSHPRIVATE KEY-----"
-            session = settings.Session()
-            try:
-                conn = Connection(
-                    conn_id="openssh_pkey",
-                    host="localhost",
-                    conn_type="ssh",
-                    extra={"private_key": TEST_ONELINE_KEY},
-                )
-                session.add(conn)
-                session.flush()
-                SSHHook(ssh_conn_id=conn.conn_id)
-            finally:
-                session.delete(conn)
-                session.commit()
+            SSHHook(ssh_conn_id=conn.conn_id)
+        session.delete(conn)
+        session.commit()
 
     @pytest.mark.flaky(reruns=5)
     def test_exec_ssh_client_command(self):
