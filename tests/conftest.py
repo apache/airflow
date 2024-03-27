@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 import time_machine
+import yaml
 
 # We should set these before loading _any_ of the rest of airflow so that the
 # unit test mode config is set as early as possible.
@@ -370,7 +371,6 @@ def pytest_configure(config: pytest.Config) -> None:
         )
         pytest.exit(msg, returncode=6)
 
-    config.addinivalue_line("filterwarnings", "error::airflow.utils.context.AirflowContextDeprecationWarning")
     config.addinivalue_line("markers", "integration(name): mark test to run with named integration")
     config.addinivalue_line("markers", "backend(name): mark test to run with named backend")
     config.addinivalue_line("markers", "system(name): mark test to run with named system")
@@ -1206,13 +1206,25 @@ def cleanup_providers_manager():
         ProvidersManager()._cleanup()
 
 
-@pytest.fixture
-def check_deprecations():
+@pytest.fixture(scope="session")
+def deprecations_ignore() -> tuple[str, ...]:
+    with open(Path(__file__).absolute().parent.resolve() / "deprecations_ignore.yml") as fp:
+        return tuple(yaml.safe_load(fp))
+
+
+@pytest.fixture(autouse=True)
+def check_deprecations(request: pytest.FixtureRequest, deprecations_ignore):
     from airflow.exceptions import AirflowProviderDeprecationWarning, RemovedInAirflow3Warning
+    from airflow.utils.context import AirflowContextDeprecationWarning
+
+    if request.node.nodeid.startswith(deprecations_ignore):
+        yield
+        return
 
     with warnings.catch_warnings():
         warnings.simplefilter("error", AirflowProviderDeprecationWarning)
         warnings.simplefilter("error", RemovedInAirflow3Warning)
+        warnings.simplefilter("error", AirflowContextDeprecationWarning)
         yield
 
 
