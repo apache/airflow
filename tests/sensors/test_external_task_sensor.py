@@ -621,6 +621,170 @@ exit 0
         with pytest.raises(exceptions.AirflowSensorTimeout):
             op2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
+    def test_external_task_sensor_infer_interval(self):
+        """
+        Upstream DAG runs hourly, downstream dag runs daily. Sensor should wait until all 24 upstream tasks are finished:
+                    +----------------------------------------------------+
+        downstream  |                       24 hours                     |
+                    +----------------------------------------------------+
+        upstream    | 1hr | 1hr | 1hr |          ...         | 1hr | 1hr |
+                    +----------------------------------------------------+
+        """
+
+        upstream_dag = DAG(
+            dag_id="hourly",
+            schedule="0 * * * *",
+            start_date=DEFAULT_DATE,
+        )
+        upstream_task = EmptyOperator(task_id="empty", dag=upstream_dag)
+
+        sensor = ExternalTaskSensor(
+            task_id="wait",
+            external_task_id=upstream_task.task_id,
+            external_dag_id=upstream_dag.dag_id,
+            infer_upstream_execution_dates=True,
+            allowed_states=["success"],
+            dag=self.dag,
+            timeout=0.01,
+            poke_interval=0.05,
+        )
+
+        with mock.patch(
+            "airflow.models.serialized_dag.SerializedDagModel.get_dag",
+            mock.MagicMock(return_value=upstream_dag),
+        ):
+            # run first 12 intervals, not enough to satisfy the sensor
+            upstream_task.run(
+                start_date=DEFAULT_DATE, end_date=DEFAULT_DATE + timedelta(hours=12), ignore_ti_state=True
+            )
+
+            with pytest.raises(AirflowSensorTimeout):
+                sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+            # run remaining intervals to fill the whole 24 hour period
+            upstream_task.run(
+                start_date=DEFAULT_DATE + timedelta(hours=12),
+                end_date=DEFAULT_DATE + timedelta(hours=24),
+                ignore_ti_state=True,
+            )
+
+            sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+    def test_external_task_sensor_infer_interval_desynced_schedules_end(self):
+        """
+        Upstream DAG runs 3-hourly, downstream dag runs 4-hourly. Sensor must wait until all 4 hours of the interval are
+        finished, which means waiting for 6 hours to pass
+                    +----------------------------------------------------+
+        downstream  |                  4 hours           |
+                    +----------------------------------------------------+
+        upstream    |             3 hours          |        3 hours      |
+                    +----------------------------------------------------+
+                                                   ^     ^ this overlap has to finish as well
+        """
+        upstream_dag = DAG(
+            dag_id="3hourly",
+            schedule="0 */3 * * *",
+            start_date=DEFAULT_DATE,
+        )
+        upstream_task = EmptyOperator(task_id="empty", dag=upstream_dag)
+
+        sensor = ExternalTaskSensor(
+            task_id="wait",
+            external_task_id=upstream_task.task_id,
+            external_dag_id=upstream_dag.dag_id,
+            infer_upstream_execution_dates=True,
+            allowed_states=["success"],
+            dag=DAG(
+                "4hourly",
+                schedule_interval="0 */4 * * *",
+                default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            ),
+            timeout=0.01,
+            poke_interval=0.05,
+        )
+
+        with mock.patch(
+            "airflow.models.serialized_dag.SerializedDagModel.get_dag",
+            mock.MagicMock(return_value=upstream_dag),
+        ):
+            # run first 3 hour interval, not enough, since the sensor needs 4 hours
+            upstream_task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+            with pytest.raises(AirflowSensorTimeout):
+                sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+            # run second interval. After this, 6 hours are finished, so the 4 hour requirement of the sensor is satisfied
+            upstream_task.run(
+                start_date=DEFAULT_DATE + timedelta(hours=3),
+                end_date=DEFAULT_DATE + timedelta(hours=3),
+                ignore_ti_state=True,
+            )
+
+            sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+    def test_external_task_sensor_infer_interval_desynced_schedules_start(self):
+        """
+        Same check as test_external_task_sensor_infer_interval_desynced_schedules_end, but checking the same
+        situation from the other side.
+                    +----------------------------------------------------+
+        downstream                  |             4 hours           |
+                    +----------------------------------------------------+
+        upstream    |             3 hours          |        3 hours      |
+                    +----------------------------------------------------+
+        """
+        upstream_dag = DAG(
+            dag_id="3hourly",
+            schedule="0 */3 * * *",
+            start_date=DEFAULT_DATE,
+        )
+        upstream_task = EmptyOperator(task_id="empty", dag=upstream_dag)
+
+        sensor = ExternalTaskSensor(
+            task_id="wait",
+            external_task_id=upstream_task.task_id,
+            external_dag_id=upstream_dag.dag_id,
+            infer_upstream_execution_dates=True,
+            allowed_states=["success"],
+            dag=DAG(
+                "4hourly",
+                schedule_interval="0 */4 * * *",
+                default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            ),
+            timeout=0.01,
+            poke_interval=0.05,
+        )
+
+        with mock.patch(
+            "airflow.models.serialized_dag.SerializedDagModel.get_dag",
+            mock.MagicMock(return_value=upstream_dag),
+        ):
+            # run second 3 hour interval, not enough, since the first 2 hours of the interval belong to a previous run
+            upstream_task.run(
+                start_date=DEFAULT_DATE + timedelta(hours=6),
+                end_date=DEFAULT_DATE + timedelta(hours=6),
+                ignore_ti_state=True,
+            )
+
+            with pytest.raises(AirflowSensorTimeout):
+                sensor.run(
+                    start_date=DEFAULT_DATE + timedelta(hours=4),
+                    end_date=DEFAULT_DATE + timedelta(hours=4),
+                    ignore_ti_state=True,
+                )
+
+            # run second interval. After this, 6 hours are finished, so the 4 hour requirement of the sensor is satisfied
+            upstream_task.run(
+                start_date=DEFAULT_DATE + timedelta(hours=3),
+                end_date=DEFAULT_DATE + timedelta(hours=3),
+                ignore_ti_state=True,
+            )
+
+            sensor.run(
+                start_date=DEFAULT_DATE + timedelta(hours=4),
+                end_date=DEFAULT_DATE + timedelta(hours=4),
+                ignore_ti_state=True,
+            )
+
     def test_external_task_sensor_fn_multiple_args(self):
         """Check this task sensor passes multiple args with full context. If no failure, means clean run."""
         self.add_time_sensor()
