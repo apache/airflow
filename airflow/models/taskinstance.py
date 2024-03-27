@@ -60,7 +60,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import reconstructor, relationship
+from sqlalchemy.orm import lazyload, reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
 from sqlalchemy.sql.expression import case, select
 
@@ -521,7 +521,6 @@ def _refresh_from_db(
         task_id=task_instance.task_id,
         run_id=task_instance.run_id,
         map_index=task_instance.map_index,
-        select_columns=True,
         lock_for_update=lock_for_update,
         session=session,
     )
@@ -532,8 +531,7 @@ def _refresh_from_db(
         task_instance.end_date = ti.end_date
         task_instance.duration = ti.duration
         task_instance.state = ti.state
-        # Since we selected columns, not the object, this is the raw value
-        task_instance.try_number = ti.try_number
+        task_instance.try_number = ti._try_number
         task_instance.max_tries = ti.max_tries
         task_instance.hostname = ti.hostname
         task_instance.unixname = ti.unixname
@@ -911,7 +909,7 @@ def _get_try_number(*, task_instance: TaskInstance | TaskInstancePydantic):
 
     :meta private:
     """
-    if task_instance.state == TaskInstanceState.RUNNING.RUNNING:
+    if task_instance.state == TaskInstanceState.RUNNING:
         return task_instance._try_number
     return task_instance._try_number + 1
 
@@ -1792,18 +1790,18 @@ class TaskInstance(Base, LoggingMixin):
         run_id: str,
         task_id: str,
         map_index: int,
-        select_columns: bool = False,
         lock_for_update: bool = False,
         session: Session = NEW_SESSION,
     ) -> TaskInstance | TaskInstancePydantic | None:
         query = (
-            session.query(*TaskInstance.__table__.columns) if select_columns else session.query(TaskInstance)
-        )
-        query = query.filter_by(
-            dag_id=dag_id,
-            run_id=run_id,
-            task_id=task_id,
-            map_index=map_index,
+            session.query(TaskInstance)
+            .options(lazyload("dag_run"))  # lazy load dag run to avoid locking it
+            .filter_by(
+                dag_id=dag_id,
+                run_id=run_id,
+                task_id=task_id,
+                map_index=map_index,
+            )
         )
 
         if lock_for_update:
