@@ -16,7 +16,7 @@
 # under the License.
 #
 ---
-name: All PROD image tests
+name: Additional PROD image tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
