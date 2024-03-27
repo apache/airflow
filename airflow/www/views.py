@@ -871,7 +871,16 @@ class Airflow(AirflowBaseView):
                 current_dags = all_dags
                 num_of_all_dags = all_dags_count
 
-            if arg_sorting_key == "last_dagrun":
+            if arg_sorting_key == "dag_id":
+                if arg_sorting_direction == "desc":
+                    current_dags = current_dags.order_by(
+                        func.coalesce(DagModel.dag_display_name, DagModel.dag_id).desc()
+                    )
+                else:
+                    current_dags = current_dags.order_by(
+                        func.coalesce(DagModel.dag_display_name, DagModel.dag_id)
+                    )
+            elif arg_sorting_key == "last_dagrun":
                 dag_run_subquery = (
                     select(
                         DagRun.dag_id,
@@ -888,10 +897,8 @@ class Airflow(AirflowBaseView):
                     current_dags = current_dags.order_by(
                         null_case, dag_run_subquery.c.max_execution_date.desc()
                     )
-
                 else:
                     current_dags = current_dags.order_by(null_case, dag_run_subquery.c.max_execution_date)
-
             else:
                 sort_column = DagModel.__table__.c.get(arg_sorting_key)
                 if sort_column is not None:
@@ -1456,6 +1463,7 @@ class Airflow(AirflowBaseView):
             html_dict=html_dict,
             dag=dag,
             task_id=task_id,
+            task_display_name=task.task_display_name,
             execution_date=execution_date,
             map_index=map_index,
             form=form,
@@ -1520,6 +1528,7 @@ class Airflow(AirflowBaseView):
             html_dict={"k8s": content},
             dag=dag,
             task_id=task_id,
+            task_display_name=task.task_display_name,
             execution_date=execution_date,
             map_index=map_index,
             form=form,
@@ -1626,7 +1635,7 @@ class Airflow(AirflowBaseView):
         form = DateTimeForm(data={"execution_date": dttm})
         dag_model = DagModel.get_dagmodel(dag_id)
 
-        ti = session.scalar(
+        ti: TaskInstance = session.scalar(
             select(models.TaskInstance)
             .filter_by(dag_id=dag_id, task_id=task_id, execution_date=dttm, map_index=map_index)
             .limit(1)
@@ -1645,6 +1654,7 @@ class Airflow(AirflowBaseView):
             title="Log by attempts",
             dag_id=dag_id,
             task_id=task_id,
+            task_display_name=ti.task_display_name,
             execution_date=execution_date,
             map_index=map_index,
             form=form,
@@ -1806,6 +1816,7 @@ class Airflow(AirflowBaseView):
             root=root,
             dag=dag,
             title=title,
+            task_display_name=task.task_display_name,
         )
 
     @expose("/xcom")
@@ -1824,7 +1835,9 @@ class Airflow(AirflowBaseView):
         form = DateTimeForm(data={"execution_date": dttm})
         root = request.args.get("root", "")
         dag = DagModel.get_dagmodel(dag_id)
-        ti = session.scalar(select(TaskInstance).filter_by(dag_id=dag_id, task_id=task_id).limit(1))
+        ti: TaskInstance = session.scalar(
+            select(TaskInstance).filter_by(dag_id=dag_id, task_id=task_id).limit(1)
+        )
 
         if not ti:
             flash(f"Task [{dag_id}.{task_id}] doesn't seem to exist at the moment", "error")
@@ -1846,6 +1859,7 @@ class Airflow(AirflowBaseView):
             show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             attributes=attributes,
             task_id=task_id,
+            task_display_name=ti.task_display_name,
             execution_date=execution_date,
             map_index=map_index,
             form=form,

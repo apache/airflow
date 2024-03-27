@@ -95,11 +95,11 @@ class TestCloudDataFusionPipelineStateSensor:
             soft_fail=soft_fail,
         )
 
+        mock_hook.return_value.get_pipeline_workflow.return_value = {"status": "FAILED"}
         with pytest.raises(
             expected_exception,
             match=f"Pipeline with id '{PIPELINE_ID}' state is: FAILED. Terminating sensor...",
         ):
-            mock_hook.return_value.get_pipeline_workflow.return_value = {"status": "FAILED"}
             task.poke(mock.MagicMock())
 
     @pytest.mark.parametrize(

@@ -18,7 +18,7 @@
 #}
 
 {% extends "airflow/dag.html" %}
-{% block page_title %}{{ dag.dag_id }} - Grid - {{ appbuilder.app_name }}{% endblock %}
+{% block page_title %}{{ dag.dag_display_name }} - Grid - {{ appbuilder.app_name }}{% endblock %}
 {% from 'appbuilder/loading_dots.html' import loading_dots %}
 
 {% block head_meta %}
