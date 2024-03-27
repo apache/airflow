@@ -207,7 +207,7 @@ class TestAirflowKubernetesScheduler:
 
         with pytest.raises(ApiException):
             kube_executor.kube_scheduler.delete_pod(pod_name, namespace)
-            mock_delete_namespace.assert_called_with(pod_name, namespace, body=mock_client.V1DeleteOptions())
+        mock_delete_namespace.assert_called_with(pod_name, namespace, body=mock_client.V1DeleteOptions())
 
     @pytest.mark.db_test
     @pytest.mark.skipif(

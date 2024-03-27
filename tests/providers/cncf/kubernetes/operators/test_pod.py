@@ -761,9 +761,9 @@ class TestKubernetesPodOperator:
         find_pod_mock.return_value.status.container_statuses = [cont_status]
         k = KubernetesPodOperator(task_id="task", **task_kwargs)
         self.await_pod_mock.side_effect = AirflowException("fake failure")
+        context = create_context(k)
+        context["ti"].xcom_push = MagicMock()
         with pytest.raises(AirflowException, match="my-failure"):
-            context = create_context(k)
-            context["ti"].xcom_push = MagicMock()
             k.execute(context=context)
         if should_be_deleted:
             delete_pod_mock.assert_called_with(find_pod_mock.return_value)
@@ -1608,7 +1608,7 @@ class TestSuppress:
         with pytest.raises(RuntimeError):
             with _optionally_suppress(reraise=True):
                 raise RuntimeError("failure")
-            assert caplog.text == ""
+        assert caplog.text == ""
 
     def test__suppress_wrong_error(self, caplog):
         """
@@ -2026,8 +2026,8 @@ class TestKubernetesPodOperatorAsync:
         """Assert that trigger_reentry raise exception in case of error"""
         find_pod.return_value = MagicMock()
         op = KubernetesPodOperator(task_id="test_task", name="test-pod", get_logs=True)
+        context = create_context(op)
         with pytest.raises(AirflowException):
-            context = create_context(op)
             op.trigger_reentry(
                 context,
                 {
