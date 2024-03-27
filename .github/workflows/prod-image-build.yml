@@ -205,9 +205,17 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
       DEFAULT_CONSTRAINTS_BRANCH: ${{ inputs.constraints-branch }}
       VERSION_SUFFIX_FOR_PYPI: "dev0"
       INCLUDE_NOT_READY_PROVIDERS: "true"
+      # You can override CONSTRAINTS_GITHUB_REPOSITORY by setting secret in your repo but by default the
+      # Airflow one is going to be used
+      CONSTRAINTS_GITHUB_REPOSITORY: >-
+        ${{ secrets.CONSTRAINTS_GITHUB_REPOSITORY != '' &&
+        secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
+      # In builds from forks, this token is read-only. For scheduled/direct push it is WRITE one
+      GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      VERBOSE: "true"
+      GITHUB_USERNAME: ${{ github.actor }}
       USE_UV: ${{ inputs.use-uv }}
+      VERBOSE: "true"
     steps:
       - name: "Cleanup repo"
         shell: bash

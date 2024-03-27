@@ -115,8 +115,11 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
       DEFAULT_BRANCH: ${{ inputs.branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ inputs.constraints-branch }}
       VERSION_SUFFIX_FOR_PYPI: "dev0"
+      GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
       USE_UV: ${{ inputs.use-uv }}
+      VERBOSE: "true"
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -198,7 +201,15 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
           DOCKER_CACHE: ${{ inputs.docker-cache }}
           INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ inputs.upgrade-to-newer-dependencies }}
+          # You can override CONSTRAINTS_GITHUB_REPOSITORY by setting secret in your repo but by default the
+          # Airflow one is going to be used
+          CONSTRAINTS_GITHUB_REPOSITORY: >-
+            ${{ secrets.CONSTRAINTS_GITHUB_REPOSITORY != '' &&
+            secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
+          # In builds from forks, this token is read-only. For scheduled/direct push it is WRITE one
+          GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_USERNAME: ${{ github.actor }}
           PUSH: ${{ inputs.push-image }}
           VERBOSE: "true"
         if: inputs.do-build == 'true'

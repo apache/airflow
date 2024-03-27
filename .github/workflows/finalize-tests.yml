@@ -81,6 +81,10 @@ jobs:
       DEBUG_RESOURCES: ${{ inputs.debug-resources}}
       PYTHON_VERSIONS: ${{ inputs.python-versions-list-as-string }}
       IMAGE_TAG: ${{ inputs.image-tag }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      VERBOSE: "true"
     if: inputs.upgrade-to-newer-dependencies != 'false'
     steps:
       - name: "Cleanup repo"
