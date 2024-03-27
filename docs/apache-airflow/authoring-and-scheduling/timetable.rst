@@ -239,7 +239,7 @@ triggered when ``catchup`` is ``True``.
 
 When ``catchup`` is ``False``, there is difference in how a new DAG run is triggered.
 
-`CronTriggerTimetable`_ and `CronDataIntervalTimetable`_ trigger DAG runs at the same time, because they were given the same CRON string. However, the timestamp for the ``run_id`` is different for each.
+`CronTriggerTimetable`_ and `CronDataIntervalTimetable`_ trigger DAG runs at the same time. However, the timestamp for the ``run_id`` is different for each.
 
 - `CronTriggerTimetable`_ has a ``run_id`` timestamp showing when DAG run started.
 - `CronDataIntervalTimetable`_ has a ``run_id`` timestamp for when the interval started, which is before the DAG run started.
