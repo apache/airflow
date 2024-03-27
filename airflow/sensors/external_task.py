@@ -29,6 +29,7 @@ from airflow.exceptions import AirflowException, AirflowSkipException, RemovedIn
 from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.sensors.base import BaseSensorOperator
@@ -139,6 +140,8 @@ class ExternalTaskSensor(BaseSensorOperator):
         context dictionary, and returns the desired logical dates to query.
         Either execution_delta or execution_date_fn can be passed to ExternalTaskSensor,
         but not both.
+    :param infer_upstream_execution_dates: Set to `True` to automatically wait for all data intervals from external_dag_id,
+        which overlap with the data interval of the current run (default value: False).
     :param check_existence: Set to `True` to check if the external task exists (when
         external_task_id is not None) or check if the DAG to wait for exists (when
         external_task_id is None), and immediately cease waiting if the external task
@@ -163,6 +166,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         failed_states: Iterable[str] | None = None,
         execution_delta: datetime.timedelta | None = None,
         execution_date_fn: Callable | None = None,
+        infer_upstream_execution_dates: bool = False,
         check_existence: bool = False,
         poll_interval: float = 2.0,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
@@ -227,6 +231,7 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         self.execution_delta = execution_delta
         self.execution_date_fn = execution_date_fn
+        self.infer_upstream_execution_dates = infer_upstream_execution_dates
         self.external_dag_id = external_dag_id
         self.external_task_id = external_task_id
         self.external_task_ids = external_task_ids
@@ -236,11 +241,39 @@ class ExternalTaskSensor(BaseSensorOperator):
         self.deferrable = deferrable
         self.poll_interval = poll_interval
 
-    def _get_dttm_filter(self, context):
+    def _get_dttm_filter(self, context: Context):
         if self.execution_delta:
             dttm = context["logical_date"] - self.execution_delta
         elif self.execution_date_fn:
             dttm = self._handle_execution_date_fn(context=context)
+        elif self.infer_upstream_execution_dates:
+            upstream_dag = SerializedDagModel.get_dag(self.external_dag_id)
+            assert upstream_dag is not None, f"external_dag_id '{self.external_dag_id}' not found in database"
+
+            self.log.info(
+                f"Infering overlapping time intervals for {self.dag.dag_id} ({self.dag.timetable.summary}) "
+                f"and {upstream_dag.dag_id} ({upstream_dag.timetable.summary})"
+            )
+
+            start, end = context["data_interval_start"], context["data_interval_end"]
+
+            dag_run_infos = list(
+                upstream_dag.iter_dagrun_infos_between(
+                    # iter_dagrun_infos_between returns intervals which *start* in the given interval,
+                    # to make sure we also get overlap with the start of the interval, we must go one back from the start
+                    self.dag.previous_schedule(start),
+                    end,
+                )
+            )
+            assert (
+                dag_run_infos[0].data_interval.start <= start and dag_run_infos[-1].data_interval.end >= end
+            ), f"Upstream ({upstream_dag.dag_id}) dag runs do not fully cover the downstream ({self.dag.dag_id}) interval, please report this as a bug."
+
+            dttm = [
+                info.logical_date
+                for info in dag_run_infos
+                if start <= info.data_interval.start < end or start < info.data_interval.end <= end
+            ]
         else:
             dttm = context["logical_date"]
         return dttm if isinstance(dttm, list) else [dttm]
