@@ -123,7 +123,10 @@ jobs:
       UPGRADE_TO_NEWER_DEPENDENCIES: false
       PYTHON_MAJOR_MINOR_VERSION: ${{ inputs.default-python-version }}
       PYTHON_VERSION: ${{ inputs.default-python-version }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      VERBOSE: "true"
     if: inputs.canary-run == 'true' && inputs.branch == 'main'
     steps:
       - name: "Cleanup repo"
@@ -173,7 +176,10 @@ jobs:
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       IMAGE_TAG: ${{ inputs.image-tag }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      VERBOSE: "true"
     # for now release check is failing and we need to fix it but we don't want to block the PRs
     if: false
     steps:
