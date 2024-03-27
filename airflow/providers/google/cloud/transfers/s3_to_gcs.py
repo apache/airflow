@@ -269,6 +269,7 @@ class S3ToGCSOperator(S3ListOperator):
         self.defer(
             trigger=CloudStorageTransferServiceCreateJobsTrigger(
                 project_id=gcs_hook.project_id,
+                gcp_conn_id=self.gcp_conn_id,
                 job_names=job_names,
                 poll_interval=self.poll_interval,
             ),
