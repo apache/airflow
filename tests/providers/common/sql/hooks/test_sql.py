@@ -228,6 +228,7 @@ class TestDbApiHook:
             dbapi_hook.run(sql=empty_statement)
         assert err.value.args[0] == "List of SQL statements is empty"
 
+    @pytest.mark.db_test
     def test_placeholder_config_from_extra(self):
         dbapi_hook = mock_hook(DbApiHook, conn_params={"extra": {"placeholder": "?"}})
         assert dbapi_hook.placeholder == "?"
