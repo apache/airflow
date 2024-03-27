@@ -48,9 +48,8 @@ on:  # yamllint disable-line rule:truthy
         default: "false"
         type: string
       platform:
-        description: >
-          Name of the platform for the build - 'amd64/arm64'
-        default: "amd64"
+        description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
+        required: true
         type: string
       push-image:
         description: "Whether to push image to the registry (true/false)"
@@ -107,8 +106,8 @@ jobs:
     timeout-minutes: 110
     name: "\
 ${{ inputs.do-build == 'true' && 'Build' || 'Skip building' }} \
-CI ${{inputs.platform}} image\
-${{matrix.python-version}}${{ inputs.do-build == 'true' && ':' || '' }}\
+CI ${{ inputs.platform }} image\
+${{ matrix.python-version }}${{ inputs.do-build == 'true' && ':' || '' }}\
 ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     env:
@@ -185,7 +184,7 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
         if: inputs.do-build == 'true' && inputs.upgrade-to-newer-dependencies != 'false'
       - name: "Start ARM instance"
         run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
-        if: inputs.do-build == 'true' && inputs.platform == 'arm64'
+        if: inputs.do-build == 'true' && inputs.platform == 'linux/arm64'
       - name: Login to ghcr.io
         run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
         if: inputs.do-build == 'true'
@@ -193,21 +192,19 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
           Build ${{ inputs.push-image == 'true' && ' & push ' || '' }}
           ${{ inputs.platform }}:${{ matrix.python-version }}:${{ inputs.image-tag }}
         run: >
-          breeze ci-image build --tag-as-latest --image-tag "${{ inputs.image-tag }}"
-          --python "${{ matrix.python-version }}"
-          --platform "linux/${{ inputs.platform }}"
+          breeze ci-image build --builder airflow_cache --tag-as-latest --image-tag "${{ inputs.image-tag }}"
+          --python "${{ matrix.python-version }}" --platform "${{ inputs.platform }}"
         env:
           DOCKER_CACHE: ${{ inputs.docker-cache }}
           INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ inputs.upgrade-to-newer-dependencies }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BUILDER: ${{ inputs.platform == 'amd64' && 'default' || 'airflow_cache' }}
           PUSH: ${{ inputs.push-image }}
           VERBOSE: "true"
         if: inputs.do-build == 'true'
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
-        if: always() && inputs.do-build == 'true' && inputs.platform == 'arm64'
+        if: always() && inputs.do-build == 'true' && inputs.platform == 'linux/arm64'
       - name: "Source constraints: ${{ matrix.python-version }}"
         shell: bash
         run: >

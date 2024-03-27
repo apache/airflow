@@ -855,6 +855,14 @@ repos:
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['click', 'rich>=12.4.4', 'pyyaml']
+      - id: check-tests-in-the-right-folders
+        name: Check if tests are in the right folders
+        entry: ./scripts/ci/pre_commit/pre_commit_check_tests_in_right_folders.py
+        language: python
+        files: ^tests/.*\.py
+        pass_filenames: true
+        require_serial: true
+        additional_dependencies: ['rich>=12.4.4']
       - id: check-system-tests-present
         name: Check if system tests have required segments of code
         entry: ./scripts/ci/pre_commit/pre_commit_check_system_tests.py

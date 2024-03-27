@@ -51,6 +51,7 @@ const RunDurationChart = ({ showLandingTimes }: Props) => {
 
   let maxDuration = 0;
   let unit = "seconds";
+  let unitDivisor = 1;
 
   const orderingLabel = ordering[0] || ordering[1] || "startDate";
 
@@ -82,35 +83,21 @@ const RunDurationChart = ({ showLandingTimes }: Props) => {
 
     if (maxDuration <= 60 * 2) {
       unit = "seconds";
+      unitDivisor = 1;
     } else if (maxDuration <= 60 * 60 * 2) {
       unit = "minutes";
+      unitDivisor = 60;
     } else if (maxDuration <= 24 * 60 * 60 * 2) {
       unit = "hours";
+      unitDivisor = 60 * 60;
     } else {
       unit = "days";
+      unitDivisor = 60 * 60 * 24;
     }
 
-    let landingDurationUnit;
-    let queuedDurationUnit;
-    let runDurationUnit;
-
-    if (unit === "seconds") {
-      landingDurationUnit = landingDuration.asSeconds();
-      queuedDurationUnit = queuedDuration.asSeconds();
-      runDurationUnit = runDuration.asSeconds();
-    } else if (unit === "minutes") {
-      landingDurationUnit = landingDuration.asMinutes();
-      queuedDurationUnit = queuedDuration.asMinutes();
-      runDurationUnit = runDuration.asMinutes();
-    } else if (unit === "hours") {
-      landingDurationUnit = landingDuration.asHours();
-      queuedDurationUnit = queuedDuration.asHours();
-      runDurationUnit = runDuration.asHours();
-    } else {
-      landingDurationUnit = landingDuration.asDays();
-      queuedDurationUnit = queuedDuration.asDays();
-      runDurationUnit = runDuration.asDays();
-    }
+    const landingDurationUnit = landingDuration.asSeconds();
+    const queuedDurationUnit = queuedDuration.asSeconds();
+    const runDurationUnit = runDuration.asSeconds();
 
     return {
       ...dagRun,
@@ -176,10 +163,6 @@ const RunDurationChart = ({ showLandingTimes }: Props) => {
                 opacity: 0.6,
               },
               stack: "x",
-              markLine: {
-                silent: true,
-                data: [{ type: "median" }],
-              },
             } as SeriesOption,
           ]
         : []),
@@ -191,10 +174,6 @@ const RunDurationChart = ({ showLandingTimes }: Props) => {
           opacity: 0.6,
         },
         stack: "x",
-        markLine: {
-          silent: true,
-          data: [{ type: "median" }],
-        },
       },
       {
         type: "bar",
@@ -205,10 +184,6 @@ const RunDurationChart = ({ showLandingTimes }: Props) => {
           color: (params) => stateColors[params.data.state],
         },
         stack: "x",
-        markLine: {
-          silent: true,
-          data: [{ type: "median" }],
-        },
       },
     ],
     // @ts-ignore
@@ -219,7 +194,20 @@ const RunDurationChart = ({ showLandingTimes }: Props) => {
         "queuedDurationUnit",
         "runDurationUnit",
       ],
-      source: durations,
+      source: durations.map((duration) => {
+        if (duration) {
+          const durationInSeconds = duration as RunDuration;
+          return {
+            ...durationInSeconds,
+            landingDurationUnit:
+              durationInSeconds.landingDurationUnit / unitDivisor,
+            queuedDurationUnit:
+              durationInSeconds.queuedDurationUnit / unitDivisor,
+            runDurationUnit: durationInSeconds.runDurationUnit / unitDivisor,
+          };
+        }
+        return duration;
+      }),
     },
     tooltip: {
       trigger: "axis",

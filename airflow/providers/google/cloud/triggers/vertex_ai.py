@@ -19,13 +19,20 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, AsyncIterator, Sequence
 
-from google.cloud.aiplatform_v1 import BatchPredictionJob, HyperparameterTuningJob, JobState, types
+from google.cloud.aiplatform_v1 import (
+    BatchPredictionJob,
+    HyperparameterTuningJob,
+    JobState,
+    PipelineState,
+    types,
+)
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.vertex_ai.batch_prediction_job import BatchPredictionJobAsyncHook
 from airflow.providers.google.cloud.hooks.vertex_ai.hyperparameter_tuning_job import (
     HyperparameterTuningJobAsyncHook,
 )
+from airflow.providers.google.cloud.hooks.vertex_ai.pipeline_job import PipelineJobAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
@@ -152,6 +159,30 @@ class CreateBatchPredictionJobTrigger(BaseVertexAIJobTrigger):
 
     async def _wait_job(self) -> types.BatchPredictionJob:
         job: types.BatchPredictionJob = await self.async_hook.wait_batch_prediction_job(
+            project_id=self.project_id,
+            location=self.location,
+            job_id=self.job_id,
+            poll_interval=self.poll_interval,
+        )
+        return job
+
+
+class RunPipelineJobTrigger(BaseVertexAIJobTrigger):
+    """Make async calls to Vertex AI to check the state of a Pipeline Job."""
+
+    job_type_verbose_name = "Pipeline Job"
+    job_serializer_class = types.PipelineJob
+    statuses_success = {
+        PipelineState.PIPELINE_STATE_PAUSED,
+        PipelineState.PIPELINE_STATE_SUCCEEDED,
+    }
+
+    @cached_property
+    def async_hook(self) -> PipelineJobAsyncHook:
+        return PipelineJobAsyncHook(gcp_conn_id=self.conn_id, impersonation_chain=self.impersonation_chain)
+
+    async def _wait_job(self) -> types.PipelineJob:
+        job: types.PipelineJob = await self.async_hook.wait_for_pipeline_job(
             project_id=self.project_id,
             location=self.location,
             job_id=self.job_id,

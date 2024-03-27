@@ -15,15 +15,34 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Sentry Integration."""
-
 from __future__ import annotations
 
-from airflow.configuration import conf
-from airflow.sentry.blank import BlankSentry
+import pendulum
 
-Sentry: BlankSentry = BlankSentry()
-if conf.getboolean("sentry", "sentry_on", fallback=False):
-    from airflow.sentry.configured import ConfiguredSentry
+from airflow.decorators import dag, task
+from airflow.operators.empty import EmptyOperator
 
-    Sentry = ConfiguredSentry()
+
+# [START dag_decorator_usage]
+@dag(
+    schedule=None,
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    catchup=False,
+    tags=["example"],
+    dag_display_name="Sample DAG with Display Name",
+)
+def example_display_name():
+    sample_task_1 = EmptyOperator(
+        task_id="sample_task_1",
+        task_display_name="Sample Task 1",
+    )
+
+    @task(task_display_name="Sample Task 2")
+    def sample_task_2():
+        pass
+
+    sample_task_1 >> sample_task_2()
+
+
+example_dag = example_display_name()
+# [END dag_decorator_usage]

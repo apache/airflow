@@ -222,6 +222,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-system-tests-tocs                                   | Check that system tests is properly added                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-tests-in-the-right-folders                          | Check if tests are in the right folders                      |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-tests-unittest-testcase                             | Check that unit tests do not inherit from unittest.TestCase  |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-urlparse-usage-in-code                              | Don't use urlparse in code                                   |         |

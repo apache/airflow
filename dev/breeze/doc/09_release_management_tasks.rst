@@ -189,6 +189,29 @@ These are all of the available flags for the ``release-prod-images`` command:
   :width: 100%
   :alt: Breeze release management release prod images
 
+Adding git tags for providers
+"""""""""""""""""""""""""""""
+
+This command can be utilized to manage git tags for providers within the airflow remote repository during provider releases.
+Sometimes in cases when there is a connectivity issue to Github, it might be possible that local tags get created and lead to annoying errors.
+The default behaviour would be to clean such local tags up.
+
+The flag ``--clean-local-tags`` can be used to delete the local tags.
+
+However, If you want to disable this behaviour, set the envvar CLEAN_LOCAL_TAGS to false or use the
+``--no-clean-local-tags`` flag.
+
+.. code-block:: bash
+
+     breeze release-management tag-providers
+
+These are all of the available flags for the ``tag-providers`` command:
+
+.. image:: ./images/output_release-management_tag-providers.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_release-management_tag-providers.svg
+  :width: 100%
+  :alt: Breeze release management tag-providers
+
 Helm Chart release commands
 ...........................
 
