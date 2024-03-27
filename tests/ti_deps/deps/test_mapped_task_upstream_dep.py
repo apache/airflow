@@ -198,18 +198,19 @@ def test_step_by_step(
             return x + y
 
         @task_group
-        def tg(a, x, y, z):
-            return m2(a, m1(a, x, y, z))
+        def tg(x, y):
+            return m2(x, y)
 
-        vals = t1()
+        x_vals = t1()
+        y_vals = m1.partial(a=t4()).expand(x=x_vals, y=t2_b(t2_a()), z=t3())
         if testcase == "task":
-            m2.expand(x=vals, y=m1.partial(a=t4()).expand(x=vals, y=t2_b(t2_a()), z=t3()))
+            m2.expand(x=x_vals, y=y_vals)
         else:
-            tg.partial(a=t4()).expand(x=vals, y=t2_b(t2_a()), z=t3())
+            tg.expand(x=x_vals, y=y_vals)
 
     dr: DagRun = dag_maker.create_dagrun()
 
-    mapped_task_1 = "m1" if testcase == "task" else "tg.m1"
+    mapped_task_1 = "m1"
     mapped_task_2 = "m2" if testcase == "task" else "tg.m2"
 
     # Initial decision, t1, t2 and t3 can be scheduled
@@ -407,6 +408,85 @@ def test_non_mapped_task_group(dag_maker, session: Session):
     dr: DagRun = dag_maker.create_dagrun()
 
     assert not get_dep_statuses(dr, "tg.op1", session)
+
+
+@pytest.mark.parametrize("upstream_instance_state", [None, SKIPPED, FAILED])
+@pytest.mark.parametrize("testcase", ["task", "group"])
+def test_upstream_mapped_expanded(
+    dag_maker, session: Session, upstream_instance_state: TaskInstanceState | None, testcase: str
+):
+    from airflow.decorators import task, task_group
+
+    with dag_maker(session=session):
+
+        @task()
+        def m1(x):
+            if x == 0 and upstream_instance_state == FAILED:
+                raise AirflowFailException()
+            elif x == 0 and upstream_instance_state == SKIPPED:
+                raise AirflowSkipException()
+            return x
+
+        @task(trigger_rule="all_done")
+        def m2(x):
+            return x
+
+        @task_group
+        def tg(x):
+            return m2(x)
+
+        vals = [0, 1, 2]
+        if testcase == "task":
+            m2.expand(x=m1.expand(x=vals))
+        else:
+            tg.expand(x=m1.expand(x=vals))
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    mapped_task_1 = "m1"
+    mapped_task_2 = "m2" if testcase == "task" else "tg.m2"
+
+    # Initial decision
+    schedulable_tis, finished_tis_states = _one_scheduling_decision_iteration(dr, session)
+    assert sorted(schedulable_tis) == [f"{mapped_task_1}_0", f"{mapped_task_1}_1", f"{mapped_task_1}_2"]
+    assert not finished_tis_states
+
+    # Run expanded m1 tasks
+    schedulable_tis[f"{mapped_task_1}_1"].run()
+    schedulable_tis[f"{mapped_task_1}_2"].run()
+    if upstream_instance_state != FAILED:
+        schedulable_tis[f"{mapped_task_1}_0"].run()
+    else:
+        with pytest.raises(AirflowFailException):
+            schedulable_tis[f"{mapped_task_1}_0"].run()
+    schedulable_tis, finished_tis_states = _one_scheduling_decision_iteration(dr, session)
+
+    # Expect that m2 can still be expanded since the dependency check does not fail. If one of the expanded
+    # m1 tasks fails or is skipped, there is one fewer m2 expanded tasks
+    expected_schedulable = [f"{mapped_task_2}_0", f"{mapped_task_2}_1"]
+    if upstream_instance_state is None:
+        expected_schedulable.append(f"{mapped_task_2}_2")
+    assert list(schedulable_tis.keys()) == expected_schedulable
+
+    # Run the expanded m2 tasks
+    schedulable_tis[f"{mapped_task_2}_0"].run()
+    schedulable_tis[f"{mapped_task_2}_1"].run()
+    if upstream_instance_state is None:
+        schedulable_tis[f"{mapped_task_2}_2"].run()
+    schedulable_tis, finished_tis_states = _one_scheduling_decision_iteration(dr, session)
+    assert not schedulable_tis
+    expected_finished_tis_states = {
+        ti: "success"
+        for ti in (f"{mapped_task_1}_1", f"{mapped_task_1}_2", f"{mapped_task_2}_0", f"{mapped_task_2}_1")
+    }
+    if upstream_instance_state is None:
+        expected_finished_tis_states[f"{mapped_task_1}_0"] = "success"
+        expected_finished_tis_states[f"{mapped_task_2}_2"] = "success"
+    else:
+        expected_finished_tis_states[f"{mapped_task_1}_0"] = (
+            "skipped" if upstream_instance_state == SKIPPED else "failed"
+        )
+    assert finished_tis_states == expected_finished_tis_states
 
 
 def _one_scheduling_decision_iteration(
