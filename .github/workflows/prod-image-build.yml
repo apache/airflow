@@ -87,6 +87,10 @@ on:  # yamllint disable-line rule:truthy
         description: "JSON-formatted array of Python versions to build images from"
         required: true
         type: string
+      default-python-version:
+        description: "Which version of python should be used by default"
+        required: true
+        type: string
       platform:
         description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
         required: true
