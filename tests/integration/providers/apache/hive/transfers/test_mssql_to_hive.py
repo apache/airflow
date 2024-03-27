@@ -29,7 +29,8 @@ except ImportError:
     pytest.skip("MSSQL not available", allow_module_level=True)
 
 
-@pytest.mark.backend("mssql")
+@pytest.mark.skip(reason="FIXME: Supposed to use 'mssql' integration which is not implemented yet.")
+@pytest.mark.integration("mssql")
 class TestMsSqlToHiveTransfer:
     def setup_method(self):
         self.kwargs = dict(sql="sql", hive_table="table", task_id="test_mssql_to_hive", dag=None)
