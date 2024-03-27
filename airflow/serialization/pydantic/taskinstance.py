@@ -126,6 +126,30 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     def set_state(self, state, session: Session | None = None) -> bool:
         return TaskInstance._set_state(ti=self, state=state, session=session)
 
+    def _run_raw_task(
+        self,
+        mark_success: bool = False,
+        test_mode: bool = False,
+        job_id: str | None = None,
+        pool: str | None = None,
+        raise_on_defer: bool = False,
+        session: Session | None = None,
+    ):
+        self.refresh_from_db()
+        try:
+            context = self.get_template_context(ignore_param_exceptions=False)
+            TaskInstance._execute_task_with_callbacks(self, context, test_mode, session=session)  # type: ignore[arg-type]
+            self.set_state(state="success")
+        except Exception:
+            self.set_state(state="failed")
+            raise
+
+    def _run_execute_callback(self, context, task):
+        TaskInstance._run_execute_callback(self=self, context=context, task=task)  # type: ignore[arg-type]
+
+    def render_templates(self, context: Context | None = None, jinja_env=None):
+        return TaskInstance.render_templates(self=self, context=context, jinja_env=jinja_env)  # type: ignore[arg-type]
+
     def init_run_context(self, raw: bool = False) -> None:
         """Set the log context."""
         self.raw = raw
