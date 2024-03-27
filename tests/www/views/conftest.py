@@ -128,7 +128,7 @@ def viewer_client(app):
 
 @pytest.fixture
 def user_client(app):
-    return client_with_login(app.app, username="test_user", password="test_user")
+    return client_with_login(app, username="test_user", password="test_user")
 
 
 @pytest.fixture
