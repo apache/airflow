@@ -147,6 +147,8 @@ class DbApiHook(BaseHook):
     connector: ConnectorProtocol | None = None
     # Override with db-specific query to check connection
     _test_connection_sql = "select 1"
+    # Default SQL placeholder
+    _placeholder: str = "%s"
 
     def __init__(self, *args, schema: str | None = None, log_sql: bool = True, **kwargs):
         super().__init__()
@@ -165,7 +167,6 @@ class DbApiHook(BaseHook):
         self.__schema = schema
         self.log_sql = log_sql
         self.descriptions: list[Sequence[Sequence] | None] = []
-        self._placeholder: str = "%s"
         self._insert_statement_format: str = kwargs.get(
             "insert_statement_format", "INSERT INTO {} {} VALUES ({})"
         )
