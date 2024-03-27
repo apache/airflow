@@ -61,9 +61,13 @@ jobs:
     name: "Provider packages wheel build and verify"
     runs-on: ${{fromJSON(inputs.runs-on)}}
     env:
-      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
-      IMAGE_TAG: "${{ inputs.image-tag }}"
+      GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      IMAGE_TAG: "${{ inputs.image-tag }}"
+      INCLUDE_NOT_READY_PROVIDERS: "true"
+      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
+      VERBOSE: "true"
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -125,9 +129,13 @@ jobs:
     name: "Provider packages sdist build and install"
     runs-on: ${{fromJSON(inputs.runs-on)}}
     env:
-      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
-      IMAGE_TAG: "${{ inputs.image-tag }}"
+      GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      IMAGE_TAG: "${{ inputs.image-tag }}"
+      INCLUDE_NOT_READY_PROVIDERS: "true"
+      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
+      VERBOSE: "true"
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -193,10 +201,14 @@ jobs:
       matrix:
         include: ${{fromJson(inputs.providers-compatibility-checks)}}
     env:
-      IMAGE_TAG: "${{ inputs.image-tag }}"
-      PYTHON_MAJOR_MINOR_VERSION: "${{matrix.python-version}}"
-      VERSION_SUFFIX_FOR_PYPI: "dev0"
+      GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      IMAGE_TAG: "${{ inputs.image-tag }}"
+      INCLUDE_NOT_READY_PROVIDERS: "true"
+      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
+      VERBOSE: "true"
     if: inputs.skip-provider-tests != 'true'
     steps:
       - name: "Cleanup repo"

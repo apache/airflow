@@ -59,10 +59,14 @@ jobs:
       matrix:
         flag: ["--docs-only", "--spellcheck-only"]
     env:
-      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
-      INCLUDE_SUCCESS_OUTPUTS: "${{ inputs.include-success-outputs }}"
-      IMAGE_TAG: "${{ inputs.image-tag }}"
+      GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      IMAGE_TAG: "${{ inputs.image-tag }}"
+      INCLUDE_NOT_READY_PROVIDERS: "true"
+      INCLUDE_SUCCESS_OUTPUTS: "${{ inputs.include-success-outputs }}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
+      VERBOSE: "true"
     steps:
       - name: "Cleanup repo"
         shell: bash

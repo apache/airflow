@@ -91,7 +91,10 @@ jobs:
     name: "Test examples of POD image building"
     runs-on: ["ubuntu-22.04"]
     env:
+      GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      VERBOSE: "true"
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -134,7 +137,10 @@ jobs:
     env:
       IMAGE_TAG: "${{ inputs.image-tag }}"
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
+      GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      VERBOSE: "true"
     steps:
       - name: "Cleanup repo"
         shell: bash
