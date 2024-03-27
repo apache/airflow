@@ -158,6 +158,7 @@ jobs:
           PR_LABELS: ${{ steps.get-latest-pr-labels.outputs.pull-request-labels }}
           GITHUB_CONTEXT: ${{ toJson(github) }}
 
+
   build-ci-images:
     name: Build CI images
     permissions:
@@ -203,6 +204,7 @@ jobs:
       runs-on: '["ubuntu-22.04"]'
       build-type: "Regular"
       do-build: ${{ needs.build-info.outputs.ci-image-build }}
+      upload-package-artifact: "true"
       target-commit-sha: ${{ needs.build-info.outputs.target-commit-sha }}
       pull-request-target: "true"
       is-committer-build: ${{ needs.build-info.outputs.is-committer-build }}
