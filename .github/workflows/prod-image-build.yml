@@ -231,16 +231,42 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
           name: source-constraints-${{ matrix.python-version }}
           path: ./docker-context-files
         if: inputs.do-build == 'true' && inputs.build-provider-packages == 'true'
-      - name: "Download constraints"
-        uses: actions/download-artifact@v4
-        with:
-          name: constraints
-          path: ./docker-context-files
-        if: inputs.do-build == 'true' && inputs.build-provider-packages != 'true'
       - name: Login to ghcr.io
         shell: bash
         run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
         if: inputs.do-build == 'true'
+      - name: Pull CI images ${{ inputs.python-versions-list-as-string }}:${{ inputs.image-tag }}
+        run: >
+          breeze ci-image pull --tag-as-latest --image-tag "${{ inputs.image-tag }}"
+          --python "${{ matrix.python-version }}"
+        if: inputs.do-build == 'true' && inputs.build-provider-packages != 'true'
+      - name: "Prepare chicken-eggs provider packages"
+        # In case of provider packages which use latest dev0 version of providers, we should prepare them
+        # from the source code, not from the PyPI because they have apache-airflow>=X.Y.Z dependency
+        # And when we prepare them from sources they will have apache-airflow>=X.Y.Z.dev0
+        run: >
+          breeze release-management prepare-provider-packages --include-not-ready-providers
+          --package-format wheel --version-suffix-for-pypi dev0
+          ${{ inputs.chicken-egg-providers }}
+        if: >
+          inputs.do-build == 'true' &&
+          inputs.chicken-egg-providers != '' &&
+          inputs.build-provider-packages != 'true'
+      - name: "PyPI constraints"
+        timeout-minutes: 25
+        run: >
+          breeze release-management generate-constraints --python  "${{ matrix.python-version }}"
+          --airflow-constraints-mode constraints --answer yes
+          --chicken-egg-providers "${{ inputs.chicken-egg-providers }}"
+        if: inputs.do-build == 'true' && inputs.build-provider-packages != 'true'
+      # This cleanup is needed as we will run out of disk space if we keep both CI and PROD images
+      # on public runners.
+      - name: Cleanup docker
+        uses: ./.github/actions/cleanup-docker
+        if: inputs.do-build == 'true' && inputs.build-provider-packages != 'true'
+      - name: "Copy constraints to docker-context-files"
+        run: cp -vr --no-preserve=mode,ownership ./files/constraints-* ./docker-context-files
+        if: inputs.do-build == 'true' && inputs.build-provider-packages != 'true'
       - name: "Build PROD images w/ source providers ${{ matrix.python-version }}:${{ inputs.image-tag }}"
         shell: bash
         run: >
