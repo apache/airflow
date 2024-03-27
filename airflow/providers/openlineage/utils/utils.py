@@ -20,7 +20,6 @@ from __future__ import annotations
 import datetime
 import json
 import logging
-import os
 from contextlib import suppress
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Iterable
@@ -31,17 +30,21 @@ from attrs import asdict
 # TODO: move this maybe to Airflow's logic?
 from openlineage.client.utils import RedactMixin
 
-from airflow.compat.functools import cache
-from airflow.configuration import conf
+from airflow.models import DAG, BaseOperator, MappedOperator
+from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.plugins.facets import (
     AirflowMappedTaskRunFacet,
     AirflowRunFacet,
+)
+from airflow.providers.openlineage.utils.selective_enable import (
+    is_dag_lineage_enabled,
+    is_task_lineage_enabled,
 )
 from airflow.utils.context import AirflowContextDeprecationWarning
 from airflow.utils.log.secrets_masker import Redactable, Redacted, SecretsMasker, should_hide_value_for_key
 
 if TYPE_CHECKING:
-    from airflow.models import DAG, BaseOperator, DagRun, TaskInstance
+    from airflow.models import DagRun, TaskInstance
 
 
 log = logging.getLogger(__name__)
@@ -65,6 +68,26 @@ def get_custom_facets(task_instance: TaskInstance | None = None) -> dict[str, An
     if hasattr(task_instance, "map_index") and getattr(task_instance, "map_index") != -1:
         custom_facets["airflow_mappedTask"] = AirflowMappedTaskRunFacet.from_task_instance(task_instance)
     return custom_facets
+
+
+def get_fully_qualified_class_name(operator: BaseOperator | MappedOperator) -> str:
+    return operator.__class__.__module__ + "." + operator.__class__.__name__
+
+
+def is_operator_disabled(operator: BaseOperator | MappedOperator) -> bool:
+    return get_fully_qualified_class_name(operator) in conf.disabled_operators()
+
+
+def is_selective_lineage_enabled(obj: DAG | BaseOperator | MappedOperator) -> bool:
+    """If selective enable is active check if DAG or Task is enabled to emit events."""
+    if not conf.selective_enable():
+        return True
+    if isinstance(obj, DAG):
+        return is_dag_lineage_enabled(obj)
+    elif isinstance(obj, (BaseOperator, MappedOperator)):
+        return is_task_lineage_enabled(obj)
+    else:
+        raise TypeError("is_selective_lineage_enabled can only be used on DAG or Operator objects")
 
 
 class InfoJsonEncodable(dict):
@@ -327,14 +350,6 @@ def print_warning(log):
         return wrapper
 
     return decorator
-
-
-@cache
-def is_source_enabled() -> bool:
-    source_var = conf.get(
-        "openlineage", "disable_source_code", fallback=os.getenv("OPENLINEAGE_AIRFLOW_DISABLE_SOURCE_CODE")
-    )
-    return isinstance(source_var, str) and source_var.lower() not in ("true", "1", "t")
 
 
 def get_filtered_unknown_operator_keys(operator: BaseOperator) -> dict:

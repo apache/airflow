@@ -54,7 +54,7 @@ const DagNode = ({
 
   const gridUrl = getMetaValue("grid_url").replace("__DAG_ID__", dagId);
   return (
-    <Popover>
+    <Popover trigger="hover">
       <PopoverTrigger>
         <Flex
           borderColor={
@@ -70,6 +70,11 @@ const DagNode = ({
           fontSize={16}
           justifyContent="space-between"
           alignItems="center"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (onSelect) onSelect(dagId, "dag");
+          }}
         >
           <MdOutlineAccountTree size="16px" />
           <Text ml={2}>{dagId}</Text>
@@ -81,16 +86,6 @@ const DagNode = ({
           <PopoverCloseButton />
           <PopoverHeader>{dagId}</PopoverHeader>
           <PopoverFooter as={Flex} justifyContent="space-between">
-            <Button
-              variant="outline"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (onSelect) onSelect(dagId, "dag");
-              }}
-            >
-              Filter by DAG
-            </Button>
             <Button
               as={Link}
               href={gridUrl}

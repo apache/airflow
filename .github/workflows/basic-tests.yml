@@ -210,9 +210,15 @@ jobs:
       - name: "Setup python"
         uses: actions/setup-python@v5
         with:
+          python-version: ${{ inputs.default-python-version }}
+          cache: 'pip'
+          cache-dependency-path: ./dev/breeze/pyproject.toml
+      - name: "Setup python"
+        uses: actions/setup-python@v5
+        with:
           python-version: "${{ inputs.default-python-version }}"
           cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
+          cache-dependency-path: ./dev/breeze/pyproject.toml
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         id: breeze

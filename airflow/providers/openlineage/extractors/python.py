@@ -22,15 +22,13 @@ from typing import Callable
 
 from openlineage.client.facet import SourceCodeJobFacet
 
+from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors.base import BaseExtractor, OperatorLineage
 from airflow.providers.openlineage.plugins.facets import (
     UnknownOperatorAttributeRunFacet,
     UnknownOperatorInstance,
 )
-from airflow.providers.openlineage.utils.utils import (
-    get_filtered_unknown_operator_keys,
-    is_source_enabled,
-)
+from airflow.providers.openlineage.utils.utils import get_filtered_unknown_operator_keys
 
 """
 :meta private:
@@ -55,7 +53,7 @@ class PythonExtractor(BaseExtractor):
     def _execute_extraction(self) -> OperatorLineage | None:
         source_code = self.get_source_code(self.operator.python_callable)
         job_facet: dict = {}
-        if is_source_enabled() and source_code:
+        if conf.is_source_enabled() and source_code:
             job_facet = {
                 "sourceCode": SourceCodeJobFacet(
                     language="python",

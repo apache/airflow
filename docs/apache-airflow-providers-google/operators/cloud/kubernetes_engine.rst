@@ -213,6 +213,15 @@ All Kubernetes parameters (except ``config_file``) are also valid for the ``GKES
     :start-after: [START howto_operator_gke_start_job]
     :end-before: [END howto_operator_gke_start_job]
 
+``GKEStartJobOperator`` also supports deferrable mode. Note that it makes sense only if the ``wait_until_job_complete``
+parameter is set ``True``.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_job.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gke_start_job_def]
+    :end-before: [END howto_operator_gke_start_job_def]
+
 For run Job on a GKE cluster with Kueue enabled use ``GKEStartKueueJobOperator``.
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_kueue.py

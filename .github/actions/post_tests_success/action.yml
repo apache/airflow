@@ -27,6 +27,7 @@ runs:
         name: test-warnings-${{env.JOB_ID}}
         path: ./files/warnings-*.txt
         retention-days: 7
+        if-no-files-found: ignore
     - name: "Move coverage artifacts in separate directory"
       if: env.ENABLE_COVERAGE == 'true' && env.TEST_TYPES != 'Helm'
       shell: bash

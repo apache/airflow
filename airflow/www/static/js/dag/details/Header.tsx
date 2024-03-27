@@ -64,8 +64,6 @@ const Header = () => {
       clearSelection();
     } else if (runId && !dagRun) {
       onSelect({ taskId });
-    } else if (taskId && !group) {
-      onSelect({ runId });
     }
   }, [dagRun, taskId, group, runId, onSelect, clearSelection]);
 
@@ -99,7 +97,7 @@ const Header = () => {
   const isMappedTaskDetails = runId && taskId && mapIndex !== undefined;
 
   return (
-    <Breadcrumb ml={3} separator={<Text color="gray.300">/</Text>}>
+    <Breadcrumb ml={3} pt={2} separator={<Text color="gray.300">/</Text>}>
       <BreadcrumbItem isCurrentPage={isDagDetails} mt={4}>
         <BreadcrumbLink
           onClick={clearSelection}

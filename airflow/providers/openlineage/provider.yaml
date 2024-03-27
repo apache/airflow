@@ -77,6 +77,14 @@ config:
         example: "airflow.operators.bash.BashOperator;airflow.operators.python.PythonOperator"
         default: ""
         version_added: 1.1.0
+      selective_enable:
+        description: |
+          If this setting is enabled, OpenLineage integration won't collect and emit metadata,
+          unless you explicitly enable it per `DAG` or `Task` using  `enable_lineage` method.
+        type: boolean
+        default: "False"
+        example: ~
+        version_added: 1.7.0
       namespace:
         description: |
           Set namespace that the lineage data belongs to, so that if you use multiple OpenLineage producers,

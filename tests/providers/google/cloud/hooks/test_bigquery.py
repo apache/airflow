@@ -352,13 +352,13 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         assert _validate_value("case_2", 0, int) is None
 
     def test_duplication_check(self):
+        key_one = True
         with pytest.raises(
             ValueError,
             match=r"Values of key_one param are duplicated. api_resource_configs contained key_one param in"
             r" `query` config and key_one was also provided with arg to run_query\(\) method. "
             r"Please remove duplicates.",
         ):
-            key_one = True
             _api_resource_configs_duplication_check("key_one", key_one, {"key_one": False})
         assert _api_resource_configs_duplication_check("key_one", key_one, {"key_one": True}) is None
 
@@ -367,11 +367,11 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         valid_configs = ["test_config_known", "compatibility_val"]
         backward_compatibility_configs = {"compatibility_val": "val"}
 
+        src_fmt_configs = {"test_config_unknown": "val"}
         with pytest.raises(
             ValueError, match="test_config_unknown is not a valid src_fmt_configs for type test_format."
         ):
             # This config should raise a value error.
-            src_fmt_configs = {"test_config_unknown": "val"}
             _validate_src_fmt_configs(
                 source_format, src_fmt_configs, valid_configs, backward_compatibility_configs
             )

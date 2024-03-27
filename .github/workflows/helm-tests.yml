@@ -47,7 +47,6 @@ jobs:
       matrix:
         helm-test-package: ${{ fromJson(inputs.helm-test-packages) }}
     env:
-      RUNS_ON: "${{ inputs.runs-on }}"
       # Always use default Python version of CI image for preparing packages
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       PARALLEL_TEST_TYPES: "Helm"
@@ -75,9 +74,8 @@ jobs:
   tests-helm-release:
     timeout-minutes: 80
     name: "Release Helm"
-    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    runs-on: ["ubuntu-22.04"]
     env:
-      RUNS_ON: "${{inputs.runs-on}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{inputs.default-python-version}}"
     steps:
       - name: "Cleanup repo"

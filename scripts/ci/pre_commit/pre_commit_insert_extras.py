@@ -19,14 +19,7 @@ from __future__ import annotations
 
 import sys
 import textwrap
-from enum import Enum
 from pathlib import Path
-
-# tomllib is available in Python 3.11+ and before that tomli offers same interface for parsing TOML files
-try:
-    import tomllib
-except ImportError:
-    import tomli as tomllib
 
 AIRFLOW_ROOT_PATH = Path(__file__).parents[3].resolve()
 PYPROJECT_TOML_FILE_PATH = AIRFLOW_ROOT_PATH / "pyproject.toml"
@@ -34,74 +27,71 @@ PYPROJECT_TOML_FILE_PATH = AIRFLOW_ROOT_PATH / "pyproject.toml"
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
 from common_precommit_utils import insert_documentation
 
+sys.path.insert(0, AIRFLOW_ROOT_PATH.as_posix())  # make sure airflow root is imported
+from hatch_build import (
+    ALL_DYNAMIC_EXTRA_DICTS,
+    ALL_GENERATED_BUNDLE_EXTRAS,
+    BUNDLE_EXTRAS,
+    PROVIDER_DEPENDENCIES,
+)
 
-class ExtraType(Enum):
-    DEVEL = "DEVEL"
-    DOC = "DOC"
-    REGULAR = "REGULAR"
 
-
-def get_header_and_footer(extra_type: ExtraType, file_format: str) -> tuple[str, str]:
+def get_header_and_footer(extra_type: str, file_format: str) -> tuple[str, str]:
     if file_format == "rst":
-        return f"  .. START {extra_type.value} EXTRAS HERE", f"  .. END {extra_type.value} EXTRAS HERE"
+        return f"  .. START {extra_type.upper()} HERE", f"  .. END {extra_type.upper()} HERE"
     elif file_format == "txt":
-        return f"# START {extra_type.value} EXTRAS HERE", f"# END {extra_type.value} EXTRAS HERE"
+        return f"# START {extra_type.upper()} HERE", f"# END {extra_type.upper()} HERE"
     else:
         raise Exception(f"Bad format {format} passed. Only rst and txt are supported")
 
 
-def get_wrapped_list(extras_set: set[str]) -> list[str]:
+def get_wrapped_list(extras_set: list[str]) -> list[str]:
     array = [line + "\n" for line in textwrap.wrap(", ".join(sorted(extras_set)), 100)]
     array.insert(0, "\n")
     array.append("\n")
     return array
 
 
-def get_extra_types_dict(extras: dict[str, list[str]]) -> dict[ExtraType, tuple[set[str], list[str]]]:
+def get_extra_types_dict() -> dict[str, list[str]]:
     """
     Split extras into four types.
 
     :return: dictionary of extra types with tuple of two set,list - set of extras and text-wrapped list
     """
-    extra_type_dict: dict[ExtraType, tuple[set[str], list[str]]] = {}
+    extra_type_dict: dict[str, list[str]] = {}
 
-    for extra_type in ExtraType:
-        extra_type_dict[extra_type] = (set(), [])
-
-    for key, value in extras.items():
-        if key.startswith("devel"):
-            extra_type_dict[ExtraType.DEVEL][0].add(key)
-        elif key in ["doc", "doc-gen"]:
-            extra_type_dict[ExtraType.DOC][0].add(key)
-        else:
-            extra_type_dict[ExtraType.REGULAR][0].add(key)
-
-    for extra_type in ExtraType:
-        extra_type_dict[extra_type][1].extend(get_wrapped_list(extra_type_dict[extra_type][0]))
-
+    for extra_dict, extra_description in ALL_DYNAMIC_EXTRA_DICTS:
+        extra_list = sorted(extra_dict)
+        if extra_dict == BUNDLE_EXTRAS:
+            extra_list = sorted(extra_list + ALL_GENERATED_BUNDLE_EXTRAS)
+        extra_type_dict[extra_description] = get_wrapped_list(extra_list)
+    extra_type_dict["Provider extras"] = get_wrapped_list(PROVIDER_DEPENDENCIES)
     return extra_type_dict
 
 
-def get_extras_from_pyproject_toml() -> dict[str, list[str]]:
-    pyproject_toml_content = tomllib.loads(PYPROJECT_TOML_FILE_PATH.read_text())
-    return pyproject_toml_content["project"]["optional-dependencies"]
-
-
-FILES_TO_UPDATE = [
-    (AIRFLOW_ROOT_PATH / "INSTALL", "txt"),
-    (AIRFLOW_ROOT_PATH / "contributing-docs" / "12_airflow_dependencies_and_extras.rst", "rst"),
+FILES_TO_UPDATE: list[tuple[Path, str, bool]] = [
+    (AIRFLOW_ROOT_PATH / "INSTALL", "txt", False),
+    (AIRFLOW_ROOT_PATH / "contributing-docs" / "12_airflow_dependencies_and_extras.rst", "rst", False),
+    (AIRFLOW_ROOT_PATH / "pyproject.toml", "txt", True),
 ]
 
 
-def process_documentation_files():
-    extra_type_dict = get_extra_types_dict(get_extras_from_pyproject_toml())
-    for file, file_format in FILES_TO_UPDATE:
+def process_documentation_files() -> bool:
+    changed = False
+    extra_type_dict = get_extra_types_dict()
+    for file, file_format, add_comment in FILES_TO_UPDATE:
         if not file.exists():
             raise Exception(f"File {file} does not exist")
-        for extra_type in ExtraType:
-            header, footer = get_header_and_footer(extra_type, file_format)
-            insert_documentation(file, extra_type_dict[extra_type][1], header, footer)
+        for extra_type_description, extra_list in extra_type_dict.items():
+            header, footer = get_header_and_footer(extra_type_description, file_format)
+            if insert_documentation(
+                file, extra_type_dict[extra_type_description], header, footer, add_comment
+            ):
+                changed = True
+    return changed
 
 
 if __name__ == "__main__":
-    process_documentation_files()
+    if process_documentation_files():
+        print("Some files were updated. Please commit them.")
+        sys.exit(1)

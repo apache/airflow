@@ -115,8 +115,8 @@ class TestHiveCliHook:
         )
 
     def test_hive_cli_hook_invalid_schema(self):
+        hook = InvalidHiveCliHook()
         with pytest.raises(RuntimeError) as error:
-            hook = InvalidHiveCliHook()
             hook.run_cli("SHOW DATABASES")
 
         assert str(error.value) == "The schema `default;` contains invalid characters: ;"

@@ -34,10 +34,11 @@ from abc import ABCMeta, abstractmethod
 from collections.abc import Container
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, Sequence, cast
+from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, NamedTuple, Sequence, cast
 
 import dill
 
+from airflow.compat.functools import cache
 from airflow.exceptions import (
     AirflowConfigException,
     AirflowException,
@@ -103,6 +104,40 @@ def task(python_callable: Callable | None = None, multiple_outputs: bool | None 
         stacklevel=2,
     )
     return python_task(python_callable=python_callable, multiple_outputs=multiple_outputs, **kwargs)
+
+
+@cache
+def _parse_version_info(text: str) -> tuple[int, int, int, str, int]:
+    """Parse python version info from a text."""
+    parts = text.strip().split(".")
+    if len(parts) != 5:
+        msg = f"Invalid Python version info, expected 5 components separated by '.', but got {text!r}."
+        raise ValueError(msg)
+    try:
+        return int(parts[0]), int(parts[1]), int(parts[2]), parts[3], int(parts[4])
+    except ValueError:
+        msg = f"Unable to convert parts {parts} parsed from {text!r} to (int, int, int, str, int)."
+        raise ValueError(msg) from None
+
+
+class _PythonVersionInfo(NamedTuple):
+    """Provide the same interface as ``sys.version_info``."""
+
+    major: int
+    minor: int
+    micro: int
+    releaselevel: str
+    serial: int
+
+    @classmethod
+    def from_executable(cls, executable: str) -> _PythonVersionInfo:
+        """Parse python version info from an executable."""
+        cmd = [executable, "-c", 'import sys; print(".".join(map(str, sys.version_info)))']
+        try:
+            result = subprocess.check_output(cmd, text=True)
+        except Exception as e:
+            raise ValueError(f"Error while executing command {cmd}: {e}")
+        return cls(*_parse_version_info(result.strip()))
 
 
 class PythonOperator(BaseOperator):
@@ -847,26 +882,15 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             raise ValueError(f"Python Path '{python_path}' must be a file")
         if not python_path.is_absolute():
             raise ValueError(f"Python Path '{python_path}' must be an absolute path.")
-        python_version_as_list_of_strings = self._get_python_version_from_environment()
-        if (
-            python_version_as_list_of_strings
-            and str(python_version_as_list_of_strings[0]) != str(sys.version_info.major)
-            and (self.op_args or self.op_kwargs)
-        ):
+        python_version = _PythonVersionInfo.from_executable(self.python)
+        if python_version.major != sys.version_info.major and (self.op_args or self.op_kwargs):
             raise AirflowException(
                 "Passing op_args or op_kwargs is not supported across different Python "
                 "major versions for ExternalPythonOperator. Please use string_args."
                 f"Sys version: {sys.version_info}. "
-                f"Virtual environment version: {python_version_as_list_of_strings}"
+                f"Virtual environment version: {python_version}"
             )
         return self._execute_python_callable_in_subprocess(python_path)
-
-    def _get_python_version_from_environment(self) -> list[str]:
-        try:
-            result = subprocess.check_output([self.python, "--version"], text=True)
-            return result.strip().split(" ")[-1].split(".")
-        except Exception as e:
-            raise ValueError(f"Error while executing {self.python}: {e}")
 
     def _iter_serializable_context_keys(self):
         yield from self.BASE_SERIALIZABLE_CONTEXT_KEYS
@@ -900,16 +924,15 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
         On the other hand, `importlib.metadata.version` will retrieve the package version pretty fast
         something below 100ms; this includes new subprocess overhead.
 
-        Possible side effect: it might be a situation that backport package is not available
-        in Python 3.8 and below, which indicates that venv doesn't contain an `apache-airflow`
+        Possible side effect: It might be a situation that `importlib.metadata` is not available (Python < 3.8),
+        as well as backport `importlib_metadata` which might indicate that venv doesn't contain an `apache-airflow`
         or something wrong with the environment.
         """
         return textwrap.dedent(
             """
-            import sys
-            if sys.version_info >= (3, 9):
+            try:
                 from importlib.metadata import version
-            else:
+            except ImportError:
                 from importlib_metadata import version
             print(version("apache-airflow"))
             """

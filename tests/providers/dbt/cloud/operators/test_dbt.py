@@ -235,18 +235,15 @@ class TestDbtCloudRunJobOperator:
                 assert mock_run_job.return_value.data["id"] == RUN_ID
             elif expected_output == "exception":
                 # The operator should fail if the job run fails or is cancelled.
-                with pytest.raises(DbtCloudJobRunException) as err:
+                error_message = "has failed or has been cancelled\.$"
+                with pytest.raises(DbtCloudJobRunException, match=error_message):
                     operator.execute(context=self.mock_context)
-
-                    assert err.value.endswith("has failed or has been cancelled.")
             else:
                 # Demonstrating the operator timing out after surpassing the configured timeout value.
-                with pytest.raises(DbtCloudJobRunException) as err:
+                timeout = self.config["timeout"]
+                error_message = f"has not reached a terminal status after {timeout} seconds\.$"
+                with pytest.raises(DbtCloudJobRunException, match=error_message):
                     operator.execute(context=self.mock_context)
-
-                    assert err.value.endswith(
-                        f"has not reached a terminal status after {self.config['timeout']} seconds."
-                    )
 
             mock_run_job.assert_called_once_with(
                 account_id=account_id,
