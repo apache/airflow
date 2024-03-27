@@ -77,11 +77,14 @@ jobs:
     name: Generate constraints ${{ inputs.python-versions-list-as-string }}
     runs-on: ['ubuntu-22.04']
     env:
-      PYTHON_VERSIONS: ${{ inputs.python-versions-list-as-string }}
       DEBUG_RESOURCES: ${{ inputs.debug-resources }}
-      VERSION_SUFFIX_FOR_PYPI: "dev0"
-      INCLUDE_SUCCESS_OUTPUTS: "true"
+      GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      INCLUDE_SUCCESS_OUTPUTS: "true"
+      PYTHON_VERSIONS: ${{ inputs.python-versions-list-as-string }}
+      VERBOSE: "true"
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
     if: inputs.ci-image-build == 'true'
     steps:
       - name: "Cleanup repo"

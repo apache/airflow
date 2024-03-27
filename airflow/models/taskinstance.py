@@ -2391,8 +2391,10 @@ class TaskInstance(Base, LoggingMixin):
         elif new_state == TaskInstanceState.QUEUED:
             metric_name = "scheduled_duration"
             if self.start_date is None:
-                # same comment as above
-                self.log.warning(
+                # This check does not work correctly before fields like `scheduled_dttm` are implemented.
+                # TODO: Change the level to WARNING once it's viable.
+                # see #30612 #34493 and #34771 for more details
+                self.log.debug(
                     "cannot record %s for task %s because previous state change time has not been saved",
                     metric_name,
                     self.task_id,
