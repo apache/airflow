@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import datetime
 import importlib
+import logging
 import time
 from threading import Thread
 from unittest.mock import MagicMock, patch
@@ -50,6 +51,21 @@ from tests.core.test_logging_config import reset_logging
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 pytestmark = pytest.mark.db_test
+
+
+class QueueListener_(logging.handlers.QueueListener):
+    def __init__(self, queue, *handlers, respect_handler_level):
+        no_console_handlers = (h for h in handlers if h.name != "console")
+        super().__init__(queue, *no_console_handlers, respect_handler_level=respect_handler_level)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def disable_console_handler():
+    """
+    Prevent console handler from getting bound to the trigger_job_runner when setup_queue_listener is called during tests
+    """
+    with patch("logging.handlers.QueueListener", QueueListener_):
+        yield
 
 
 class TimeDeltaTrigger_(TimeDeltaTrigger):
@@ -129,6 +145,7 @@ def test_trigger_logging_sensitive_info(session, caplog):
     op = SensitiveArgOperator(task_id="sensitive_arg_task", password="some_password")
     create_trigger_in_db(session, trigger, operator=op)
     triggerer_job = Job()
+    triggerer_job.prepare_for_execution()
     triggerer_job_runner = TriggererJobRunner(triggerer_job)
     triggerer_job_runner.load_triggers()
     # Now, start TriggerRunner up (and set it as a daemon thread during tests)
@@ -144,8 +161,10 @@ def test_trigger_logging_sensitive_info(session, caplog):
         else:
             pytest.fail("TriggerRunner never sent the trigger event out")
     finally:
+        triggerer_job.complete_execution()
         # We always have to stop the runner
         triggerer_job_runner.trigger_runner.stop = True
+        triggerer_job_runner._kill_listener()
         triggerer_job_runner.trigger_runner.join(30)
 
     # Since we have now an in-memory process of forwarding the logs to stdout,
@@ -230,6 +249,7 @@ def test_trigger_lifecycle(session):
     dag_model, run, trigger_orm, task_instance = create_trigger_in_db(session, trigger)
     # Make a TriggererJobRunner and have it retrieve DB tasks
     job = Job()
+    job.prepare_for_execution()
     job_runner = TriggererJobRunner(job)
     job_runner.load_triggers()
     # Make sure it turned up in TriggerRunner's queue
@@ -259,8 +279,10 @@ def test_trigger_lifecycle(session):
         else:
             pytest.fail("TriggerRunner never deleted trigger")
     finally:
+        job.complete_execution()
         # We always have to stop the runner
         job_runner.trigger_runner.stop = True
+        job_runner._kill_listener()
         job_runner.trigger_runner.join(30)
 
 
@@ -362,7 +384,7 @@ def test_trigger_create_race_condition_18392(session, tmp_path):
         def wait_for_runner_loop(self, runner_loop_count):
             for _ in range(30):
                 time.sleep(0.1)
-                if getattr(self.trigger_runner, "call_count", 0) >= runner_loop_count:
+                if getattr(self.trigger_runner, "loop_count", 0) >= runner_loop_count:
                     break
             else:
                 pytest.fail("did not observe 2 loops in the runner thread")
@@ -399,6 +421,7 @@ def test_trigger_create_race_condition_18392(session, tmp_path):
     session.commit()
 
     job = Job()
+    job.prepare_for_execution()
     job_runner = TriggererJob_(job)
     job_runner.trigger_runner = TriggerRunner_()
     thread = Thread(target=job_runner._execute)
@@ -412,7 +435,9 @@ def test_trigger_create_race_condition_18392(session, tmp_path):
         else:
             pytest.fail("did not observe 2 loops in the runner thread")
     finally:
+        job.complete_execution()
         job_runner.trigger_runner.stop = True
+        job_runner._kill_listener()
         job_runner.trigger_runner.join(30)
         thread.join()
     instances = path.read_text().splitlines()
@@ -518,6 +543,7 @@ def test_trigger_runner_exception_stops_triggerer(session):
 
     finally:
         job_runner.trigger_runner.stop = True
+        job_runner._kill_listener()
         # with suppress(MockTriggerException):
         job_runner.trigger_runner.join(30)
         thread.join()
@@ -533,6 +559,7 @@ def test_trigger_firing(session):
     create_trigger_in_db(session, trigger)
     # Make a TriggererJobRunner and have it retrieve DB tasks
     job = Job()
+    job.prepare_for_execution()
     job_runner = TriggererJobRunner(job)
     job_runner.load_triggers()
     # Now, start TriggerRunner up (and set it as a daemon thread during tests)
@@ -548,8 +575,10 @@ def test_trigger_firing(session):
         else:
             pytest.fail("TriggerRunner never sent the trigger event out")
     finally:
+        job.complete_execution()
         # We always have to stop the runner
         job_runner.trigger_runner.stop = True
+        job_runner._kill_listener()
         job_runner.trigger_runner.join(30)
 
 
@@ -584,6 +613,7 @@ def test_trigger_failing(session):
     finally:
         # We always have to stop the runner
         job_runner.trigger_runner.stop = True
+        job_runner._kill_listener()
         job_runner.trigger_runner.join(30)
 
 

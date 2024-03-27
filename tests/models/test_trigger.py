@@ -142,10 +142,12 @@ def test_submit_failure(session, create_task_instance):
     assert updated_task_instance.next_method == "__fail__"
 
 
-def test_assign_unassigned(session, create_task_instance):
+def test_assign_unassigned(session, create_task_instance, monkeypatch):
     """
     Tests that unassigned triggers of all appropriate states are assigned.
     """
+    # disable QueueListener to prevent logging during tests
+    monkeypatch.setattr("airflow.jobs.triggerer_job_runner.DISABLE_LISTENER", True)
     time_now = timezone.utcnow()
     triggerer_heartrate = 10
     finished_triggerer = Job(heartrate=triggerer_heartrate, state=State.SUCCESS)
