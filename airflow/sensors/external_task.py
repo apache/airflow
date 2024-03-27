@@ -25,7 +25,12 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable
 import attr
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowSkipException, RemovedInAirflow3Warning
+from airflow.exceptions import (
+    AirflowException,
+    AirflowNotFoundException,
+    AirflowSkipException,
+    RemovedInAirflow3Warning,
+)
 from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
@@ -248,11 +253,17 @@ class ExternalTaskSensor(BaseSensorOperator):
             dttm = self._handle_execution_date_fn(context=context)
         elif self.infer_upstream_execution_dates:
             upstream_dag = SerializedDagModel.get_dag(self.external_dag_id)
-            assert upstream_dag is not None, f"external_dag_id '{self.external_dag_id}' not found in database"
+            if upstream_dag is None:
+                raise AirflowNotFoundException(
+                    f"external_dag_id '{self.external_dag_id}' not found in database"
+                )
 
             self.log.info(
-                f"Infering overlapping time intervals for {self.dag.dag_id} ({self.dag.timetable.summary}) "
-                f"and {upstream_dag.dag_id} ({upstream_dag.timetable.summary})"
+                "Inferring overlapping time intervals for %s (%s) and %s (%s)",
+                self.dag.dag_id,
+                self.dag.timetable.summary,
+                upstream_dag.dag_id,
+                upstream_dag.timetable.summary,
             )
 
             start, end = context["data_interval_start"], context["data_interval_end"]
@@ -265,9 +276,10 @@ class ExternalTaskSensor(BaseSensorOperator):
                     end,
                 )
             )
-            assert (
-                dag_run_infos[0].data_interval.start <= start and dag_run_infos[-1].data_interval.end >= end
-            ), f"Upstream ({upstream_dag.dag_id}) dag runs do not fully cover the downstream ({self.dag.dag_id}) interval, please report this as a bug."
+            if dag_run_infos[0].data_interval.start <= start and dag_run_infos[-1].data_interval.end >= end:
+                raise AirflowException(
+                    f"Upstream ({upstream_dag.dag_id}) dag runs do not fully cover the downstream ({self.dag.dag_id}) interval, please report this as a bug."
+                )
 
             dttm = [
                 info.logical_date
