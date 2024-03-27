@@ -73,6 +73,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Tag to set for the image"
         required: true
         type: string
+      ci-image-tag:
+        description: "Tag to use for the CI image used during the build"
+        required: true
+        type: string
       python-versions:
         description: "JSON-formatted array of Python versions to build images from"
         required: true
@@ -235,23 +239,11 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
         shell: bash
         run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
         if: inputs.do-build == 'true'
-      - name: Pull CI images ${{ inputs.python-versions-list-as-string }}:${{ inputs.image-tag }}
+      - name: Pull CI images ${{ matrix.python-version }}:${{ inputs.ci-image-tag }}
         run: >
-          breeze ci-image pull --tag-as-latest --image-tag "${{ inputs.image-tag }}"
+          breeze ci-image pull --tag-as-latest --image-tag "${{ inputs.ci-image-tag }}"
           --python "${{ matrix.python-version }}"
         if: inputs.do-build == 'true' && inputs.build-provider-packages != 'true'
-      - name: "Prepare chicken-eggs provider packages"
-        # In case of provider packages which use latest dev0 version of providers, we should prepare them
-        # from the source code, not from the PyPI because they have apache-airflow>=X.Y.Z dependency
-        # And when we prepare them from sources they will have apache-airflow>=X.Y.Z.dev0
-        run: >
-          breeze release-management prepare-provider-packages --include-not-ready-providers
-          --package-format wheel --version-suffix-for-pypi dev0
-          ${{ inputs.chicken-egg-providers }}
-        if: >
-          inputs.do-build == 'true' &&
-          inputs.chicken-egg-providers != '' &&
-          inputs.build-provider-packages != 'true'
       - name: "PyPI constraints"
         timeout-minutes: 25
         run: >
