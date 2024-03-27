@@ -50,6 +50,7 @@ class DAGSchema(SQLAlchemySchema):
         model = DagModel
 
     dag_id = auto_field(dump_only=True)
+    dag_display_name = fields.String(attribute="dag_display_name", dump_only=True)
     root_dag_id = auto_field(dump_only=True)
     is_paused = auto_field()
     is_active = auto_field(dump_only=True)

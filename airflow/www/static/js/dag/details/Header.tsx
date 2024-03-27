@@ -34,6 +34,7 @@ import RunTypeIcon from "src/components/RunTypeIcon";
 import BreadcrumbText from "./BreadcrumbText";
 
 const dagId = getMetaValue("dag_id");
+const dagDisplayName = getMetaValue("dag_display_name");
 
 const Header = () => {
   const {
@@ -89,7 +90,9 @@ const Header = () => {
 
   const lastIndex = taskId ? taskId.lastIndexOf(".") : null;
   const taskName =
-    taskId && lastIndex ? taskId.substring(lastIndex + 1) : taskId;
+    taskInstance?.taskDisplayName && lastIndex
+      ? taskInstance?.taskDisplayName.substring(lastIndex + 1)
+      : taskId;
 
   const isDagDetails = !runId && !taskId;
   const isRunDetails = !!(runId && !taskId);
@@ -103,7 +106,7 @@ const Header = () => {
           onClick={clearSelection}
           _hover={isDagDetails ? { cursor: "default" } : undefined}
         >
-          <BreadcrumbText label="DAG" value={dagId} />
+          <BreadcrumbText label="DAG" value={dagDisplayName} />
         </BreadcrumbLink>
       </BreadcrumbItem>
       {runId && (

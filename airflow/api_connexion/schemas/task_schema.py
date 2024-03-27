@@ -39,6 +39,7 @@ class TaskSchema(Schema):
     class_ref = fields.Method("_get_class_reference", dump_only=True)
     operator_name = fields.Method("_get_operator_name", dump_only=True)
     task_id = fields.String(dump_only=True)
+    task_display_name = fields.String(attribute="task_display_name", dump_only=True)
     owner = fields.String(dump_only=True)
     start_date = fields.DateTime(dump_only=True)
     end_date = fields.DateTime(dump_only=True)

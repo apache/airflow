@@ -3227,7 +3227,7 @@ class TestTaskInstance:
 
     def test_refresh_from_db(self, create_task_instance):
         run_date = timezone.utcnow()
-
+        hybrid_props = ["task_display_name"]
         expected_values = {
             "task_id": "test_refresh_from_db_task",
             "dag_id": "test_refresh_from_db_dag",
@@ -3259,6 +3259,7 @@ class TestTaskInstance:
             "next_kwargs": None,
             "next_method": None,
             "updated_at": None,
+            "task_display_name": "Test Refresh from DB Task",
         }
         # Make sure we aren't missing any new value in our expected_values list.
         expected_keys = {f"task_instance.{key.lstrip('_')}" for key in expected_values}
@@ -3267,9 +3268,14 @@ class TestTaskInstance:
             "This prevents refresh_from_db() from missing a field."
         )
 
-        ti = create_task_instance(task_id=expected_values["task_id"], dag_id=expected_values["dag_id"])
+        ti = create_task_instance(
+            task_id=expected_values["task_id"],
+            task_display_name=expected_values["task_display_name"],
+            dag_id=expected_values["dag_id"],
+        )
         for key, expected_value in expected_values.items():
-            setattr(ti, key, expected_value)
+            if key not in hybrid_props:
+                setattr(ti, key, expected_value)
         with create_session() as session:
             session.merge(ti)
             session.commit()
@@ -3282,9 +3288,10 @@ class TestTaskInstance:
         ti.refresh_from_db()
         for key, expected_value in expected_values.items():
             assert hasattr(ti, key), f"Key {key} is missing in the TaskInstance."
-            assert (
-                getattr(ti, key) == expected_value
-            ), f"Key: {key} had different values. Make sure it loads it in the refresh refresh_from_db()"
+            if key not in hybrid_props:
+                assert (
+                    getattr(ti, key) == expected_value
+                ), f"Key: {key} had different values. Make sure it loads it in the refresh refresh_from_db()"
 
     def test_operator_field_with_serialization(self, create_task_instance):
         ti = create_task_instance()

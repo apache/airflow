@@ -911,6 +911,7 @@ def create_dummy_dag(dag_maker):
     def create_dag(
         dag_id="dag",
         task_id="op1",
+        task_display_name=None,
         max_active_tis_per_dag=16,
         max_active_tis_per_dagrun=None,
         pool="default_pool",
@@ -927,6 +928,7 @@ def create_dummy_dag(dag_maker):
         with dag_maker(dag_id, **kwargs) as dag:
             op = EmptyOperator(
                 task_id=task_id,
+                task_display_name=task_display_name,
                 max_active_tis_per_dag=max_active_tis_per_dag,
                 max_active_tis_per_dagrun=max_active_tis_per_dagrun,
                 executor_config=executor_config or {},

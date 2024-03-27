@@ -33,12 +33,13 @@ from airflow.models.param import Param, ParamsDict
 
 with DAG(
     dag_id=Path(__file__).stem,
+    dag_display_name="Params UI tutorial",
     description=__doc__.partition(".")[0],
     doc_md=__doc__,
     schedule=None,
     start_date=datetime.datetime(2022, 3, 4),
     catchup=False,
-    tags=["example_ui"],
+    tags=["example", "params", "ui"],
     params={
         # Let's start simple: Standard dict values are detected from type and offered as entry form fields.
         # Detected types are numbers, text, boolean, lists and dicts.
@@ -237,7 +238,7 @@ with DAG(
     },
 ) as dag:
 
-    @task
+    @task(task_display_name="Show used parameters")
     def show_params(**kwargs) -> None:
         params: ParamsDict = kwargs["params"]
         print(f"This DAG was triggered with the following parameters:\n\n{json.dumps(params, indent=4)}\n")
