@@ -387,6 +387,56 @@ class TestFlowerDeployment:
         assert 333 == jmespath.search(f"spec.template.spec.containers[0].{probe}.failureThreshold", docs[0])
         assert 444 == jmespath.search(f"spec.template.spec.containers[0].{probe}.periodSeconds", docs[0])
 
+    @pytest.mark.parametrize(
+        "probe, variable",
+        [("livenessProbe", "customLivenessProbe"), ("readinessProbe", "customReadinessProbe")],
+    )
+    def test_custom_probe_values_are_configurable(self, probe, variable):
+        docs = render_chart(
+            values={
+                "flower": {
+                    "enabled": True,
+                    "livenessProbe": {"enabled": False},
+                    "readinessProbe": {"enabled": False},
+                    variable: {
+                        "failureThreshold": 5,
+                        "httpGet": {"path": "/flower/", "port": 5555, "scheme": "HTTP"},
+                        "initialDelaySeconds": 5,
+                        "periodSeconds": 10,
+                        "successThreshold": 1,
+                        "timeoutSeconds": 5,
+                    },
+                },
+            },
+            show_only=["templates/flower/flower-deployment.yaml"],
+        )
+        print(docs)
+        assert 5 == jmespath.search(f"spec.template.spec.containers[0].{probe}.failureThreshold", docs[0])
+        assert "/flower/" == jmespath.search(
+            f"spec.template.spec.containers[0].{probe}.httpGet.path", docs[0]
+        )
+        assert 5555 == jmespath.search(f"spec.template.spec.containers[0].{probe}.httpGet.port", docs[0])
+        assert "HTTP" == jmespath.search(f"spec.template.spec.containers[0].{probe}.httpGet.scheme", docs[0])
+        assert 5 == jmespath.search(f"spec.template.spec.containers[0].{probe}.initialDelaySeconds", docs[0])
+        assert 10 == jmespath.search(f"spec.template.spec.containers[0].{probe}.periodSeconds", docs[0])
+        assert 1 == jmespath.search(f"spec.template.spec.containers[0].{probe}.successThreshold", docs[0])
+        assert 5 == jmespath.search(f"spec.template.spec.containers[0].{probe}.timeoutSeconds", docs[0])
+
+    @pytest.mark.parametrize("probe", ["livenessProbe", "readinessProbe"])
+    def test_probe_should_be_disabled(self, probe):
+        docs = render_chart(
+            values={
+                "flower": {
+                    "enabled": True,
+                    "livenessProbe": {"enabled": False},
+                    "readinessProbe": {"enabled": False},
+                },
+            },
+            show_only=["templates/flower/flower-deployment.yaml"],
+        )
+
+        assert jmespath.search(f"spec.template.spec.containers[0].{probe}", docs[0]) is None
+
 
 class TestFlowerService:
     """Tests flower service."""

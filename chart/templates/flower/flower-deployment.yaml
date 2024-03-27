@@ -115,6 +115,9 @@ spec:
           ports:
             - name: flower-ui
               containerPort: {{ .Values.ports.flowerUI }}
+          {{- if .Values.flower.customLivenessProbe }}
+          livenessProbe: {{- toYaml .Values.flower.customLivenessProbe | nindent 12 }}
+          {{- else if .Values.flower.livenessProbe.enabled }}
           livenessProbe:
             failureThreshold: {{ .Values.flower.livenessProbe.failureThreshold }}
             exec:
@@ -128,6 +131,10 @@ spec:
             initialDelaySeconds: {{ .Values.flower.livenessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.flower.livenessProbe.periodSeconds }}
             timeoutSeconds: {{ .Values.flower.livenessProbe.timeoutSeconds }}
+          {{- end }}
+          {{- if .Values.flower.customReadinessProbe }}
+          readinessProbe: {{- toYaml .Values.flower.customReadinessProbe | nindent 12 }}
+          {{- else if .Values.flower.readinessProbe.enabled }}
           readinessProbe:
             failureThreshold: {{ .Values.flower.readinessProbe.failureThreshold }}
             exec:
@@ -141,6 +148,7 @@ spec:
             initialDelaySeconds: {{ .Values.flower.readinessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.flower.readinessProbe.periodSeconds }}
             timeoutSeconds: {{ .Values.flower.readinessProbe.timeoutSeconds }}
+          {{- end }}
           envFrom:
           {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:

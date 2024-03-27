@@ -4968,6 +4968,11 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                        "enabled": {
+                            "description": "Enable livenessProbe on flower container.",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "initialDelaySeconds": {
                             "description": "Flower Liveness probe initial delay.",
                             "type": "integer",
@@ -4990,11 +4995,36 @@
                         }
                     }
                 },
+                "customLivenessProbe": {
+                    "description": "Custom livenessProbe that overrides the default one",
+                    "type": "object",
+                    "default": {},
+                    "examples": [
+                        {
+                            "failureThreshold": 5,
+                            "httpGet": {
+                                "path": "/flower/",
+                                "port": 5555,
+                                "scheme": "HTTP"
+                            },
+                            "initialDelaySeconds": 5,
+                            "periodSeconds": 10,
+                            "successThreshold": 1,
+                            "timeoutSeconds": 5
+                        }
+                    ],
+                    "$ref": "#/definitions/io.k8s.api.core.v1.Probe"
+                },
                 "readinessProbe": {
                     "description": "Readiness probe configuration.",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                        "enabled": {
+                            "description": "Enable readinessProbe on flower container.",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "initialDelaySeconds": {
                             "description": "Flower Readiness probe initial delay.",
                             "type": "integer",
@@ -5016,6 +5046,26 @@
                             "default": 5
                         }
                     }
+                },
+                "customReadinessProbe": {
+                    "description": "Custom readinessProbe that overrides the default one",
+                    "type": "object",
+                    "default": {},
+                    "examples": [
+                        {
+                            "failureThreshold": 5,
+                            "httpGet": {
+                                "path": "/flower/",
+                                "port": 5555,
+                                "scheme": "HTTP"
+                            },
+                            "initialDelaySeconds": 5,
+                            "periodSeconds": 10,
+                            "successThreshold": 1,
+                            "timeoutSeconds": 5
+                        }
+                    ],
+                    "$ref": "#/definitions/io.k8s.api.core.v1.Probe"
                 },
                 "revisionHistoryLimit": {
                     "description": "Number of old replicasets to retain.",
