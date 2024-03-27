@@ -381,10 +381,6 @@ combine-as-imports = true
 "tests/providers/cncf/kubernetes/operators/test_pod.py" = ["PT012"]
 "tests/providers/cncf/kubernetes/utils/test_k8s_resource_iterator.py" = ["PT012"]
 "tests/providers/cncf/kubernetes/utils/test_pod_manager.py" = ["PT012"]
-"tests/providers/sftp/hooks/test_sftp.py" = ["PT012"]
-"tests/providers/sftp/operators/test_sftp.py" = ["PT012"]
-"tests/providers/sftp/sensors/test_sftp.py" = ["PT012"]
-"tests/providers/sftp/triggers/test_sftp.py" = ["PT012"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.

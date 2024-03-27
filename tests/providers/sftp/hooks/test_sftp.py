@@ -404,9 +404,9 @@ class TestSFTPHook:
 
     @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_invalid_ssh_hook(self, mock_get_connection):
+        connection = Connection(conn_id="sftp_default", login="root", host="localhost")
+        mock_get_connection.return_value = connection
         with pytest.raises(AirflowException, match="ssh_hook must be an instance of SSHHook"):
-            connection = Connection(conn_id="sftp_default", login="root", host="localhost")
-            mock_get_connection.return_value = connection
             with pytest.warns(
                 AirflowProviderDeprecationWarning, match=r"Parameter `ssh_hook` is deprecated.*"
             ):
