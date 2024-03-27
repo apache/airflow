@@ -307,6 +307,45 @@ def _triggerer_is_healthy():
     return job and job.is_alive()
 
 
+@internal_api_call
+@provide_session
+def _create_orm_dagrun(
+    dag,
+    dag_id,
+    run_id,
+    logical_date,
+    start_date,
+    external_trigger,
+    conf,
+    state,
+    run_type,
+    dag_hash,
+    creating_job_id,
+    data_interval,
+    session,
+):
+    run = DagRun(
+        dag_id=dag_id,
+        run_id=run_id,
+        execution_date=logical_date,
+        start_date=start_date,
+        external_trigger=external_trigger,
+        conf=conf,
+        state=state,
+        run_type=run_type,
+        dag_hash=dag_hash,
+        creating_job_id=creating_job_id,
+        data_interval=data_interval,
+    )
+    session.add(run)
+    session.flush()
+    run.dag = dag
+    # create the associated task instances
+    # state is None at the moment of creation
+    run.verify_integrity(session=session)
+    return run
+
+
 @functools.total_ordering
 class DAG(LoggingMixin):
     """
@@ -3023,10 +3062,11 @@ class DAG(LoggingMixin):
         copied_params.update(conf or {})
         copied_params.validate()
 
-        run = DagRun(
+        run = _create_orm_dagrun(
+            dag=self,
             dag_id=self.dag_id,
             run_id=run_id,
-            execution_date=logical_date,
+            logical_date=logical_date,
             start_date=start_date,
             external_trigger=external_trigger,
             conf=conf,
@@ -3035,16 +3075,8 @@ class DAG(LoggingMixin):
             dag_hash=dag_hash,
             creating_job_id=creating_job_id,
             data_interval=data_interval,
+            session=session,
         )
-        session.add(run)
-        session.flush()
-
-        run.dag = self
-
-        # create the associated task instances
-        # state is None at the moment of creation
-        run.verify_integrity(session=session)
-
         return run
 
     @classmethod

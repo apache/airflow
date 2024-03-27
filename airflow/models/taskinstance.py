@@ -28,6 +28,7 @@ import os
 import signal
 import warnings
 from collections import defaultdict
+from contextlib import nullcontext
 from datetime import timedelta
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, Mapping, Tuple
@@ -65,7 +66,7 @@ from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
 from sqlalchemy.sql.expression import case, select
 
 from airflow import settings
-from airflow.api_internal.internal_api_call import internal_api_call
+from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
 from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.datasets import Dataset
@@ -91,6 +92,7 @@ from airflow.models.dagbag import DagBag
 from airflow.models.log import Log
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import process_params
+from airflow.models.renderedtifields import _get_fields
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
@@ -463,7 +465,8 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
             raise
     else:
         result = _execute_callable(context=context, **execute_callable_kwargs)
-    with create_session() as session:
+    cm = nullcontext() if InternalApiConfig.get_use_internal_api() else create_session()
+    with cm as session_or_null:
         if task_to_execute.do_xcom_push:
             xcom_value = result
         else:
@@ -482,16 +485,19 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
                             f"multiple_outputs, found {key} ({type(key)}) instead"
                         )
                 for key, value in xcom_value.items():
-                    task_instance.xcom_push(key=key, value=value, session=session)
-            task_instance.xcom_push(key=XCOM_RETURN_KEY, value=xcom_value, session=session)
+                    task_instance.xcom_push(key=key, value=value, session=session_or_null)
+            task_instance.xcom_push(key=XCOM_RETURN_KEY, value=xcom_value, session=session_or_null)
         _record_task_map_for_downstreams(
-            task_instance=task_instance, task=task_orig, value=xcom_value, session=session
+            task_instance=task_instance, task=task_orig, value=xcom_value, session=session_or_null
         )
     return result
 
 
 def _refresh_from_db(
-    *, task_instance: TaskInstance | TaskInstancePydantic, session: Session, lock_for_update: bool = False
+    *,
+    task_instance: TaskInstance | TaskInstancePydantic,
+    session: Session | None = None,
+    lock_for_update: bool = False,
 ) -> None:
     """
     Refresh the task instance from the database based on the primary key.
@@ -504,7 +510,7 @@ def _refresh_from_db(
 
     :meta private:
     """
-    if task_instance in session:
+    if session and task_instance in session:
         session.refresh(task_instance, TaskInstance.__mapper__.column_attrs.keys())
 
     ti = TaskInstance.get_task_instance(
@@ -512,7 +518,6 @@ def _refresh_from_db(
         task_id=task_instance.task_id,
         run_id=task_instance.run_id,
         map_index=task_instance.map_index,
-        select_columns=True,
         lock_for_update=lock_for_update,
         session=session,
     )
@@ -587,6 +592,7 @@ def _clear_next_method_args(*, task_instance: TaskInstance | TaskInstancePydanti
     task_instance.next_kwargs = None
 
 
+@internal_api_call
 def _get_template_context(
     *,
     task_instance: TaskInstance | TaskInstancePydantic,
@@ -613,10 +619,30 @@ def _get_template_context(
 
     task = task_instance.task
     if TYPE_CHECKING:
+        assert task_instance.task
         assert task
         assert task.dag
-    dag: DAG = task.dag
+    try:
+        dag: DAG = task.dag
+    except AirflowException:
+        from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
+        if isinstance(task_instance, TaskInstancePydantic):
+            ti = session.scalar(
+                select(TaskInstance).where(
+                    TaskInstance.task_id == task_instance.task_id,
+                    TaskInstance.dag_id == task_instance.dag_id,
+                    TaskInstance.run_id == task_instance.run_id,
+                    TaskInstance.map_index == task_instance.map_index,
+                )
+            )
+            dag = ti.dag_model.serialized_dag.dag
+            if hasattr(task_instance.task, "_dag"):  # BaseOperator
+                task_instance.task._dag = dag
+            else:  # MappedOperator
+                task_instance.task.dag = dag
+        else:
+            raise
     dag_run = task_instance.get_dagrun(session)
     data_interval = dag.get_run_data_interval(dag_run)
 
@@ -1244,6 +1270,16 @@ def _get_previous_ti(
     return dagrun.get_task_instance(task_instance.task_id, session=session)
 
 
+@internal_api_call
+@provide_session
+def _update_rtif(ti, rendered_fields, session: Session | None = None):
+    from airflow.models.renderedtifields import RenderedTaskInstanceFields
+
+    rtif = RenderedTaskInstanceFields(ti=ti, render_templates=False, rendered_fields=rendered_fields)
+    RenderedTaskInstanceFields.write(rtif, session=session)
+    RenderedTaskInstanceFields.delete_old_records(ti.task_id, ti.dag_id, session=session)
+
+
 class TaskInstance(Base, LoggingMixin):
     """
     Task instances store the state of a task instance.
@@ -1781,14 +1817,10 @@ class TaskInstance(Base, LoggingMixin):
         run_id: str,
         task_id: str,
         map_index: int,
-        select_columns: bool = False,
         lock_for_update: bool = False,
         session: Session = NEW_SESSION,
     ) -> TaskInstance | TaskInstancePydantic | None:
-        query = (
-            session.query(*TaskInstance.__table__.columns) if select_columns else session.query(TaskInstance)
-        )
-        query = query.filter_by(
+        query = session.query(TaskInstance).filter_by(
             dag_id=dag_id,
             run_id=run_id,
             task_id=task_id,
@@ -2224,10 +2256,15 @@ class TaskInstance(Base, LoggingMixin):
 
         if isinstance(task_instance, TaskInstance):
             ti: TaskInstance = task_instance
-        else:  # isinstance(task_instance,TaskInstancePydantic)
+        else:  # isinstance(task_instance, TaskInstancePydantic)
             filters = (col == getattr(task_instance, col.name) for col in inspect(TaskInstance).primary_key)
             ti = session.query(TaskInstance).filter(*filters).scalar()
+            dag = ti.dag_model.serialized_dag.dag
+            task_instance.task = dag.task_dict[ti.task_id]
+            ti.task = task_instance.task
         task = task_instance.task
+        if TYPE_CHECKING:
+            assert task
         ti.refresh_from_task(task, pool_override=pool)
         ti.test_mode = test_mode
         ti.refresh_from_db(session=session, lock_for_update=True)
@@ -2586,8 +2623,6 @@ class TaskInstance(Base, LoggingMixin):
 
     def _execute_task_with_callbacks(self, context: Context, test_mode: bool = False, *, session: Session):
         """Prepare Task for Execution."""
-        from airflow.models.renderedtifields import RenderedTaskInstanceFields
-
         if TYPE_CHECKING:
             assert self.task
 
@@ -2628,10 +2663,8 @@ class TaskInstance(Base, LoggingMixin):
                 task_orig = self.render_templates(context=context, jinja_env=jinja_env)
 
             if not test_mode:
-                rtif = RenderedTaskInstanceFields(ti=self, render_templates=False)
-                RenderedTaskInstanceFields.write(rtif)
-                RenderedTaskInstanceFields.delete_old_records(self.task_id, self.dag_id)
-
+                rendered_fields = _get_fields(ti=self)
+                _update_rtif(ti=self, rendered_fields=rendered_fields)
             # Export context to make it available for operators to use.
             airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
             os.environ.update(airflow_context_vars)

@@ -34,6 +34,7 @@ from pendulum.parsing.exceptions import ParserError
 from sqlalchemy import select
 
 from airflow import settings
+from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagRunNotFound, TaskDeferred, TaskInstanceNotFound
@@ -96,7 +97,7 @@ def _get_dag_run(
     dag: DAG,
     create_if_necessary: CreateIfNecessary,
     exec_date_or_run_id: str | None = None,
-    session: Session,
+    session: Session | None = None,
 ) -> tuple[DagRun | DagRunPydantic, bool]:
     """Try to retrieve a DAG run from a string representing either a run ID or logical date.
 
@@ -115,13 +116,13 @@ def _get_dag_run(
         raise ValueError("Must provide `exec_date_or_run_id` if not `create_if_necessary`.")
     execution_date: pendulum.DateTime | None = None
     if exec_date_or_run_id:
-        dag_run = dag.get_dagrun(run_id=exec_date_or_run_id, session=session)
+        dag_run = DAG.fetch_dagrun(dag_id=dag.dag_id, run_id=exec_date_or_run_id, session=session)
         if dag_run:
             return dag_run, False
         with suppress(ParserError, TypeError):
             execution_date = timezone.parse(exec_date_or_run_id)
         if execution_date:
-            dag_run = dag.get_dagrun(execution_date=execution_date, session=session)
+            dag_run = DAG.fetch_dagrun(dag_id=dag.dag_id, execution_date=execution_date, session=session)
         if dag_run:
             return dag_run, False
         elif not create_if_necessary:
@@ -137,7 +138,7 @@ def _get_dag_run(
 
     if create_if_necessary == "memory":
         dag_run = DagRun(
-            dag.dag_id,
+            dag_id=dag.dag_id,
             run_id=exec_date_or_run_id,
             execution_date=dag_run_execution_date,
             data_interval=dag.timetable.infer_manual_data_interval(run_after=dag_run_execution_date),
@@ -155,7 +156,6 @@ def _get_dag_run(
     raise ValueError(f"unknown create_if_necessary value: {create_if_necessary!r}")
 
 
-@provide_session
 def _get_ti(
     task: Operator,
     map_index: int,
@@ -163,7 +163,7 @@ def _get_ti(
     exec_date_or_run_id: str | None = None,
     pool: str | None = None,
     create_if_necessary: CreateIfNecessary = False,
-    session: Session = NEW_SESSION,
+    session: Session | None = None,
 ) -> tuple[TaskInstance | TaskInstancePydantic, bool]:
     """Get the task instance through DagRun.run_id, if that fails, get the TI the old way."""
     dag = task.dag
@@ -184,6 +184,7 @@ def _get_ti(
     )
 
     ti_or_none = dag_run.get_task_instance(task.task_id, map_index=map_index, session=session)
+    ti: TaskInstance | TaskInstancePydantic
     if ti_or_none is None:
         if not create_if_necessary:
             raise TaskInstanceNotFound(
@@ -191,9 +192,7 @@ def _get_ti(
                 f"run_id or execution_date of {exec_date_or_run_id!r} not found"
             )
         # TODO: Validate map_index is in range?
-        ti: TaskInstance | TaskInstancePydantic = TaskInstance(
-            task, run_id=dag_run.run_id, map_index=map_index
-        )
+        ti = TaskInstance(task, run_id=dag_run.run_id, map_index=map_index)
         ti.dag_run = dag_run
     else:
         ti = ti_or_none
@@ -264,6 +263,9 @@ def _run_task_by_executor(args, dag: DAG, ti: TaskInstance) -> None:
 
 def _run_task_by_local_task_job(args, ti: TaskInstance | TaskInstancePydantic) -> TaskReturnCode | None:
     """Run LocalTaskJob, which monitors the raw task execution process."""
+    if InternalApiConfig.get_use_internal_api():
+        from airflow.models.renderedtifields import RenderedTaskInstanceFields  # noqa: F401
+        from airflow.models.trigger import Trigger  # noqa: F401
     job_runner = LocalTaskJobRunner(
         job=Job(dag_id=ti.dag_id),
         task_instance=ti,
@@ -278,7 +280,15 @@ def _run_task_by_local_task_job(args, ti: TaskInstance | TaskInstancePydantic) -
         external_executor_id=_extract_external_executor_id(args),
     )
     try:
-        ret = run_job(job=job_runner.job, execute_callable=job_runner._execute)
+        # If internal API is used, we must pass session=None so that one is not created
+        # by the provide_session decorator.  All downstream functions that actually use
+        # a session are already set up for RPC
+        # todo: perhaps instead we should simply modify the provide_session decorator
+        # to *not* provide a session when using internal API
+        kwargs = {}  # type: ignore[var-annotated]
+        if InternalApiConfig.get_use_internal_api():
+            kwargs["session"] = None
+        ret = run_job(job=job_runner.job, execute_callable=job_runner._execute, **kwargs)
     finally:
         if args.shut_down_logging:
             logging.shutdown()
