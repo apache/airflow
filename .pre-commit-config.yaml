@@ -596,6 +596,7 @@ repos:
           ^airflow/www/static/css/bootstrap-theme.css$|
           ^airflow/www/static/js/types/api-generated.ts$|
           ^airflow/www/templates/appbuilder/flash.html$|
+          ^chart/values.schema.json$|
           ^.*/.*_vendor/|
           ^dev/|
           ^docs/README.rst$|
