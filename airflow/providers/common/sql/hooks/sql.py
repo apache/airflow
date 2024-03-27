@@ -50,6 +50,7 @@ if TYPE_CHECKING:
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
 T = TypeVar("T")
+DEFAULT_SQL_PLACEHOLDERS = frozenset({"%s", "?"})
 
 
 def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool):
@@ -173,8 +174,19 @@ class DbApiHook(BaseHook):
         )
 
     @property
-    def placeholder(self) -> str:
-        return self._placeholder
+    def placeholder(self):
+        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        placeholder = conn.extra_dejson.get("placeholder")
+        if placeholder in DEFAULT_SQL_PLACEHOLDERS:
+            return placeholder
+        else:
+            self.log.warning(
+                "Placeholder defined in Connection '%s' is not listed in 'DEFAULT_SQL_PLACEHOLDERS' "
+                "and got ignored. Falling back to the default placeholder '%s'.",
+                placeholder,
+                self._placeholder,
+            )
+            return self._placeholder
 
     def get_conn(self):
         """Return a connection object."""

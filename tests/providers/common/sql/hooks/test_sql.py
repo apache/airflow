@@ -25,6 +25,7 @@ import pytest
 from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
 from airflow.utils.session import provide_session
+from tests.providers.conftest import mock_hook
 
 TASK_ID = "sql-operator"
 HOST = "host"
@@ -211,18 +212,22 @@ def test_query(
     dbapi_hook.get_conn.return_value.cursor.return_value.close.assert_called()
 
 
-@pytest.mark.db_test
-@pytest.mark.parametrize(
-    "empty_statement",
-    [
-        pytest.param([], id="Empty list"),
-        pytest.param("", id="Empty string"),
-        pytest.param("\n", id="Only EOL"),
-    ],
-)
-def test_no_query(empty_statement):
-    dbapi_hook = DBApiHookForTests()
-    dbapi_hook.get_conn.return_value.cursor.rowcount = 0
-    with pytest.raises(ValueError) as err:
-        dbapi_hook.run(sql=empty_statement)
-    assert err.value.args[0] == "List of SQL statements is empty"
+class TestDbApiHook:
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        "empty_statement",
+        [
+            pytest.param([], id="Empty list"),
+            pytest.param("", id="Empty string"),
+            pytest.param("\n", id="Only EOL"),
+        ],
+    )
+    def test_no_query(self, empty_statement):
+        dbapi_hook = mock_hook(DbApiHook)
+        with pytest.raises(ValueError) as err:
+            dbapi_hook.run(sql=empty_statement)
+        assert err.value.args[0] == "List of SQL statements is empty"
+
+    def test_placeholder_config_from_extra(self):
+        dbapi_hook = mock_hook(DbApiHook, conn_params={"extra": {"placeholder": "?"}})
+        assert dbapi_hook.placeholder == "?"

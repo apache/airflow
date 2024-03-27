@@ -21,6 +21,7 @@ from unittest import mock
 
 import pytest
 
+from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 
 
@@ -55,3 +56,32 @@ def hook_conn(request):
             )
 
         yield m
+
+
+def mock_hook(hook_class: type[BaseHook], hook_params=None, conn_params=None):
+    hook_params = hook_params or {}
+    conn_params = conn_params or {}
+    connection = Connection(
+        **{
+            **dict(login="login", password="password", host="host", schema="schema", port=1234),
+            **conn_params,
+        }
+    )
+
+    cursor = mock.MagicMock(
+        rowcount=0, spec=["description", "rowcount", "execute", "fetchall", "fetchone", "close"]
+    )
+    conn = mock.MagicMock()
+    conn.cursor.return_value = cursor
+
+    class MockedHook(hook_class):
+        conn_name_attr = "test_conn_id"
+
+        @classmethod
+        def get_connection(cls, conn_id: str):
+            return connection
+
+        def get_conn(self):
+            return conn
+
+    return MockedHook(**hook_params)
