@@ -214,6 +214,7 @@ jobs:
       ci-image-tag: ${{ needs.build-info.outputs.image-tag }}
       platform: "linux/amd64"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
+      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.constraints-branch }}
       build-provider-packages: "true"
