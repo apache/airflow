@@ -209,6 +209,7 @@ jobs:
       push-image: "true"
       use-uv: "true"
       image-tag: ${{ needs.build-info.outputs.image-tag }}
+      ci-image-tag: ${{ needs.build-info.outputs.image-tag }}
       platform: "linux/amd64"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       branch: ${{ needs.build-info.outputs.default-branch }}

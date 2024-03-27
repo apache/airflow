@@ -57,6 +57,7 @@ jobs:
     with:
       build-type: "Bullseye"
       image-tag: bullseye-${{ inputs.image-tag }}
+      ci-image-tag: ${{ inputs.image-tag }}
       debian-version: "bullseye"
       python-versions: ${{ inputs.python-versions }}
       platform: "linux/amd64"
@@ -75,6 +76,7 @@ jobs:
     with:
       build-type: "MySQL Client"
       image-tag: mysql-${{ inputs.image-tag }}
+      ci-image-tag: ${{ inputs.image-tag }}
       install-mysql-client-type: "mysql"
       python-versions: ${{ inputs.python-versions }}
       platform: "linux/amd64"
@@ -93,6 +95,7 @@ jobs:
     with:
       build-type: "pip"
       image-tag: mysql-${{ inputs.image-tag }}
+      ci-image-tag: ${{ inputs.image-tag }}
       install-mysql-client-type: "mysql"
       python-versions: ${{ inputs.python-versions }}
       platform: "linux/amd64"
