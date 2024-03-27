@@ -500,6 +500,7 @@ jobs:
       runs-on: '["ubuntu-22.04"]'
       build-type: "Regular"
       do-build: ${{ needs.build-info.outputs.in-workflow-build }}
+      upload-package-artifact: "true"
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       ci-image-tag: ${{ needs.build-info.outputs.image-tag }}
       platform: "linux/amd64"

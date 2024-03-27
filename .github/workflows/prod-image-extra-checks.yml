@@ -56,6 +56,7 @@ jobs:
     uses: ./.github/workflows/prod-image-build.yml
     with:
       build-type: "Bullseye"
+      upload-package-artifact: "false"
       image-tag: bullseye-${{ inputs.image-tag }}
       ci-image-tag: ${{ inputs.image-tag }}
       debian-version: "bullseye"
@@ -75,6 +76,7 @@ jobs:
     uses: ./.github/workflows/prod-image-build.yml
     with:
       build-type: "MySQL Client"
+      upload-package-artifact: "false"
       image-tag: mysql-${{ inputs.image-tag }}
       ci-image-tag: ${{ inputs.image-tag }}
       install-mysql-client-type: "mysql"
@@ -94,6 +96,7 @@ jobs:
     uses: ./.github/workflows/prod-image-build.yml
     with:
       build-type: "pip"
+      upload-package-artifact: "false"
       image-tag: mysql-${{ inputs.image-tag }}
       ci-image-tag: ${{ inputs.image-tag }}
       install-mysql-client-type: "mysql"

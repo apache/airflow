@@ -38,6 +38,12 @@ on:  # yamllint disable-line rule:truthy
         required: false
         default: "true"
         type: string
+      upload-package-artifact:
+        description: >
+          Whether to upload package artifacts (true/false). If false, the job will rely on artifacts prepared
+          by the main prod-image build job.
+        required: true
+        type: string
       target-commit-sha:
         description: "The commit SHA to checkout for the build"
         required: false
@@ -110,6 +116,74 @@ on:  # yamllint disable-line rule:truthy
         required: true
         type: string
 jobs:
+
+  build-prod-packages:
+    name: "${{ inputs.do-build == 'true' && 'Build' || 'Skip building' }} Airflow and provider packages"
+    timeout-minutes: 10
+    runs-on: ["ubuntu-22.04"]
+    env:
+      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        if: inputs.do-build == 'true' && inputs.upload-package-artifact == 'true'
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+        if: inputs.do-build == 'true' && inputs.upload-package-artifact == 'true'
+      - name: Cleanup docker
+        uses: ./.github/actions/cleanup-docker
+        if: inputs.do-build == 'true' && inputs.upload-package-artifact == 'true'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "${{ inputs.default-python-version }}"
+        if: inputs.do-build == 'true' && inputs.upload-package-artifact == 'true'
+      - name: "Cleanup dist and context file"
+        shell: bash
+        run: rm -fv ./dist/* ./docker-context-files/*
+        if: inputs.do-build == 'true' && inputs.upload-package-artifact == 'true'
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        if: inputs.do-build == 'true' && inputs.upload-package-artifact == 'true'
+      - name: "Prepare providers packages"
+        shell: bash
+        run: >
+          breeze release-management prepare-provider-packages
+          --package-list-file ./prod_image_installed_providers.txt
+          --package-format wheel --version-suffix-for-pypi dev0
+        if: >
+          inputs.do-build == 'true' &&
+          inputs.upload-package-artifact == 'true' &&
+          inputs.build-provider-packages == 'true'
+      - name: "Prepare chicken-eggs provider packages"
+        # In case of provider packages which use latest dev0 version of providers, we should prepare them
+        # from the source code, not from the PyPI because they have apache-airflow>=X.Y.Z dependency
+        # And when we prepare them from sources they will have apache-airflow>=X.Y.Z.dev0
+        shell: bash
+        run: >
+          breeze release-management prepare-provider-packages
+          --package-format wheel --version-suffix-for-pypi dev0 ${{ inputs.chicken-egg-providers }}
+        if: >
+          inputs.do-build  == 'true' &&
+          inputs.upload-package-artifact == 'true' &&
+          inputs.chicken-egg-providers != ''
+      - name: "Prepare airflow package"
+        shell: bash
+        run: >
+          breeze release-management prepare-airflow-package
+          --package-format wheel --version-suffix-for-pypi dev0
+        if: inputs.do-build  == 'true' && inputs.upload-package-artifact == 'true'
+      - name: "Upload prepared packages as artifacts"
+        uses: actions/upload-artifact@v4
+        with:
+          name: prod-packages
+          path: ./dist
+          retention-days: 7
+          if-no-files-found: error
+        if: inputs.do-build  == 'true' && inputs.upload-package-artifact == 'true'
+
   build-prod-images:
     strategy:
       fail-fast: true
@@ -123,6 +197,8 @@ PROD ${{ inputs.build-type }} image\
 ${{ matrix.python-version }}${{ inputs.do-build == 'true' && ':' || '' }}\
 ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    needs:
+      - build-prod-packages
     env:
       BACKEND: sqlite
       DEFAULT_BRANCH: ${{ inputs.branch }}
@@ -201,33 +277,11 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
         shell: bash
         run: rm -fv ./dist/* ./docker-context-files/*
         if: inputs.do-build == 'true'
-      - name: "Prepare providers packages"
-        shell: bash
-        run: >
-          breeze release-management prepare-provider-packages
-          --package-list-file ./prod_image_installed_providers.txt
-          --package-format wheel --version-suffix-for-pypi dev0
-        if: inputs.do-build == 'true' && inputs.build-provider-packages == 'true'
-      - name: "Prepare chicken-eggs provider packages"
-        # In case of provider packages which use latest dev0 version of providers, we should prepare them
-        # from the source code, not from the PyPI because they have apache-airflow>=X.Y.Z dependency
-        # And when we prepare them from sources they will have apache-airflow>=X.Y.Z.dev0
-        shell: bash
-        run: >
-          breeze release-management prepare-provider-packages
-          --package-format wheel --version-suffix-for-pypi dev0 ${{ inputs.chicken-egg-providers }}
-        if: >
-          inputs.do-build == 'true' && inputs.build-provider-packages != 'true' &&
-          inputs.chicken-egg-providers != ''
-      - name: "Prepare airflow package"
-        shell: bash
-        run: >
-          breeze release-management prepare-airflow-package
-          --package-format wheel --version-suffix-for-pypi dev0
-        if: inputs.do-build == 'true'
-      - name: "Copy dist packages to docker-context files"
-        shell: bash
-        run: cp -v --no-preserve=mode,ownership ./dist/*.whl ./docker-context-files
+      - name: "Download packages prepared as artifacts"
+        uses: actions/download-artifact@v4
+        with:
+          name: prod-packages
+          path: ./docker-context-files
         if: inputs.do-build == 'true'
       - name: "Download constraints from the CI build"
         uses: actions/download-artifact@v4

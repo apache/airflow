@@ -158,15 +158,11 @@ jobs:
         uses: ./.github/actions/breeze
       - name: "Cleanup dist and context file"
         run: rm -fv ./dist/* ./docker-context-files/*
-      - name: "Prepare airflow package for PROD build"
-        run: breeze release-management prepare-airflow-package --package-format wheel
-      - name: "Prepare providers packages for PROD build"
-        run: >
-          breeze release-management prepare-provider-packages
-          --package-list-file ./prod_image_installed_providers.txt
-          --package-format wheel
-      - name: "Copy dist packages to docker-context files"
-        run: cp -v --no-preserve=mode,ownership ./dist/*.whl ./docker-context-files
+      - name: "Download packages prepared as artifacts"
+        uses: actions/download-artifact@v4
+        with:
+          name: prod-packages
+          path: ./docker-context-files
       - name: "Start ARM instance"
         run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
         if: inputs.platform == 'linux/arm64'
