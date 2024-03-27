@@ -74,8 +74,8 @@ on:  # yamllint disable-line rule:truthy
         required: true
         type: string
 jobs:
-  push-image-cache:
-    name: "Push CI ${{ inputs.cache-type }} image cache"
+  push-ci-image-cache:
+    name: "Push CI ${{ inputs.cache-type }}:${{ matrix.python }} image cache "
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     strategy:
       fail-fast: false
@@ -120,12 +120,12 @@ jobs:
         if: always() && inputs.platform == 'linux/arm64'
       - name: "Push CI latest images: ${{ matrix.python }} (linux/amd64 only)"
         run: >
-          breeze ci-image build --push
+          breeze ci-image build --builder airflow_cache --push
           --python "${{ matrix.python }}" --platform "${{ inputs.platform }}"
         if: inputs.push-latest-images == 'true' && inputs.platform == 'linux/amd64'
 
   push-prod-image-cache:
-    name: "Push PROD ${{ inputs.cache-type }} image cache"
+    name: "Push PROD ${{ inputs.cache-type }}:${{ matrix.python }} image cache"
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     strategy:
       fail-fast: false
@@ -186,6 +186,6 @@ jobs:
         # and we can do it after we stopped the ARM instance as it is not needed anymore
       - name: "Push PROD latest image: ${{ matrix.python }} (linux/amd64 ONLY)"
         run: >
-          breeze prod-image build --install-packages-from-context
-          --push --python ${{ matrix.python}} --platform "${{ inputs.platform }}"
+          breeze prod-image build --builder airflow_cache --install-packages-from-context
+          --push --platform "${{ inputs.platform }}"
         if: inputs.push-latest-images == 'true' && inputs.platform == 'linux/amd64'
