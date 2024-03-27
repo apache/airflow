@@ -391,6 +391,17 @@ class MappedOperator(AbstractOperator):
         return self.partial_kwargs.get("task_display_name") or self.task_id
 
     @property
+    def label(self) -> str | None:
+        if self.partial_kwargs.get("task_display_name"):
+            return self.partial_kwargs.get("task_display_name")
+        # Prefix handling if no display is given is cloned from taskmixin for compatibility
+        tg = self.task_group
+        if tg and tg.node_id and tg.prefix_group_id:
+            # "task_group_id.task_id" -> "task_id"
+            return self.task_id[len(tg.node_id) + 1 :]
+        return self.task_id
+
+    @property
     def owner(self) -> str:  # type: ignore[override]
         return self.partial_kwargs.get("owner", DEFAULT_OWNER)
 

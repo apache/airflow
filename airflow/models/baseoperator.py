@@ -1200,6 +1200,17 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def task_display_name(self) -> str:
         return self._task_display_property_value or self.task_id
 
+    @property
+    def label(self) -> str | None:
+        if self._task_display_property_value:
+            return self._task_display_property_value
+        # Prefix handling if no display is given is cloned from taskmixin for compatibility
+        tg = self.task_group
+        if tg and tg.node_id and tg.prefix_group_id:
+            # "task_group_id.task_id" -> "task_id"
+            return self.task_id[len(tg.node_id) + 1 :]
+        return self.task_id
+
     def has_dag(self):
         """Return True if the Operator has been assigned to a DAG."""
         return self._dag is not None
