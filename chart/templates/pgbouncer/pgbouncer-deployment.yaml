@@ -192,7 +192,7 @@ spec:
           lifecycle: {{- tpl (toYaml $containerLifecycleHooksMetricsExporter) . | nindent 12 }}
           {{- end }}
         {{- if .Values.pgbouncer.extraContainers }}
-          {{- toYaml .Values.pgbouncer.extraContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.pgbouncer.extraContainers) . | nindent 8 }}
         {{- end }}
       volumes:
         - name: pgbouncer-config

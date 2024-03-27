@@ -227,7 +227,7 @@ spec:
             {{- end }}
           {{- end }}
         {{- if .Values.dagProcessor.extraContainers }}
-          {{- toYaml .Values.dagProcessor.extraContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.dagProcessor.extraContainers) . | nindent 8 }}
         {{- end }}
       volumes:
         - name: config

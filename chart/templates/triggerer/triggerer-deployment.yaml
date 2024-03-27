@@ -255,7 +255,7 @@ spec:
             {{- end }}
           {{- end }}
         {{- if .Values.triggerer.extraContainers }}
-          {{- toYaml .Values.triggerer.extraContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.triggerer.extraContainers) . | nindent 8 }}
         {{- end }}
       volumes:
         - name: config

@@ -57,7 +57,7 @@ class TestScheduler:
                 "executor": "CeleryExecutor",
                 "scheduler": {
                     "extraContainers": [
-                        {"name": "test-container", "image": "test-registry/test-repo:test-tag"}
+                        {"name": "{{ .Chart.Name }}", "image": "test-registry/test-repo:test-tag"}
                     ],
                 },
             },
@@ -65,7 +65,7 @@ class TestScheduler:
         )
 
         assert {
-            "name": "test-container",
+            "name": "airflow",
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
 

@@ -282,7 +282,7 @@ spec:
             {{- end }}
           {{- end }}
         {{- if .Values.scheduler.extraContainers }}
-          {{- toYaml .Values.scheduler.extraContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.scheduler.extraContainers) . | nindent 8 }}
         {{- end }}
       volumes:
         - name: config
