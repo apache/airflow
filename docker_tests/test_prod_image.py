@@ -43,13 +43,13 @@ from hatch_build import PRE_INSTALLED_PROVIDERS  # noqa: E402
 SLIM_IMAGE_PROVIDERS = [
     f"apache-airflow-providers-{provider_id.replace('.','-')}"
     for provider_id in PRE_INSTALLED_PROVIDERS
-    if not provider_id.startswith("#")
-]
+    if not provider_id.startswith("#") and "fab" not in provider_id
+] + ["apache-airflow-providers-fab"]
 REGULAR_IMAGE_PROVIDERS = [
     f"apache-airflow-providers-{provider_id.replace('.','-')}"
     for provider_id in PROD_IMAGE_PROVIDERS_FILE_PATH.read_text().splitlines()
-    if not provider_id.startswith("#")
-]
+    if not provider_id.startswith("#") and "fab" not in provider_id
+] + ["apache-airflow-providers-fab"]
 
 
 class TestCommands:
