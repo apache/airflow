@@ -33,8 +33,6 @@ you can create your own timetable class and pass that to the DAG's ``schedule`` 
 
 Some examples of when custom timetable implementations are useful:
 
-* Data intervals with "holes" between intervals instead of a continuous interval, as both the cron
-  expression and ``timedelta`` schedules represent continuous intervals.
 * Task runs that occur at different times each day. For example, an astronomer might find it
   useful to run a task at dawn to process data collected from the previous
   night-time period.
@@ -45,6 +43,8 @@ Some examples of when custom timetable implementations are useful:
   have a run each day, but make each run cover the period of the previous seven
   days. It is possible to hack this with a cron expression, but a custom data
   interval provides a more natural representation.
+* Data intervals with "holes" between intervals instead of a continuous interval, as both the cron
+expression and ``timedelta`` schedules represent continuous intervals. See :ref:`data-interval`.
 
 .. _`Traditional Chinese Calendar`: https://en.wikipedia.org/wiki/Chinese_calendar
 
@@ -239,13 +239,15 @@ triggered when ``catchup`` is ``True``.
 
 When ``catchup`` is ``False``, there is difference in how a new DAG run is triggered.
 
-`CronTriggerTimetable`_ triggers a new DAG run *after* the current time, while `CronDataIntervalTimetable`_ triggers a DAG run *before* the current time, assuming
-the value of ``start_date`` is past time.
+`CronTriggerTimetable`_ and `CronDataIntervalTimetable`_ trigger DAG runs at the same time, because they were given the same CRON string. However, the timestamp for the ``run_id`` is different for each.
 
-Suppose there is a cron expression ``@daily`` or ``0 0 * * *``, which is scheduled to run at 12AM every day. If you enable DAGs using the two timetables at 3PM on January
+- `CronTriggerTimetable`_ has a ``run_id`` timestamp showing when DAG run started.
+- `CronDataIntervalTimetable`_ has a ``run_id`` timestamp for when the interval started, which is before the DAG run started.
+
+For example, suppose there is a cron expression ``@daily`` or ``0 0 * * *``, which is scheduled to run at 12AM every day. If you enable DAGs using the two timetables at 3PM on January
 31st,
-- `CronTriggerTimetable`_ triggers a new DAG run at 12AM on February 1st.
-- `CronDataIntervalTimetable`_ immediately triggers a new DAG run, because a DAG run for the daily time interval beginning at 12AM on January 31st did not occur yet.
+- `CronTriggerTimetable`_ triggers a new DAG run at 12AM on February 1st. The ``run_id`` timestamp is midnight, on February 1st.
+- `CronDataIntervalTimetable`_ immediately triggers a new DAG run, because a DAG run for the daily time interval beginning at 12AM on January 31st did not occur yet. The ``run_id`` timestamp is midnight, on January 31st, since that is the beginning of the data interval.
 
 This is another example showing the difference in the case of skipping DAG runs.
 
