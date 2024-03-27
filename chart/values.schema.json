@@ -521,7 +521,9 @@
                 "LocalKubernetesExecutor",
                 "CeleryExecutor",
                 "KubernetesExecutor",
-                "CeleryKubernetesExecutor"
+                "CeleryKubernetesExecutor",
+                "airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor",
+                "airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor"
             ]
         },
         "allowPodLaunching": {
