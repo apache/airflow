@@ -19,6 +19,7 @@
 Example Airflow DAG to submit Apache Spark applications using
 `SparkSubmitOperator`, `SparkJDBCOperator` and `SparkSqlOperator`.
 """
+
 from __future__ import annotations
 
 import os

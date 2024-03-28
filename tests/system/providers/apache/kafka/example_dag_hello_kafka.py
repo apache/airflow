@@ -229,12 +229,12 @@ with DAG(
     )
     # [END howto_sensor_await_message]
 
-    t5.doc_md = "A deferable task. Reads the topic `test_1` until a message with a value"
+    t5.doc_md = "A deferrable task. Reads the topic `test_1` until a message with a value"
     "divisible by 5 is encountered."
 
     t6 = PythonOperator(task_id="hello_kafka", python_callable=hello_kafka)
 
-    t6.doc_md = "The task that is executed after the deferable task returns for execution."
+    t6.doc_md = "The task that is executed after the deferrable task returns for execution."
 
     t0 >> t1 >> t2
     t0 >> t3 >> [t4, t4b] >> t5 >> t6

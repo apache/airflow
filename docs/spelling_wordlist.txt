@@ -961,6 +961,7 @@ logformat
 loglevel
 Logstash
 logstash
+longblob
 Lowin
 lshift
 lxml
@@ -982,6 +983,8 @@ MarketingTeam
 MarkupSafe
 Masternode
 masterType
+Matomo
+matomo
 Maxime
 mb
 md
@@ -1092,7 +1095,6 @@ oauth
 Oauthlib
 objectORfile
 objectstorage
-objectstore
 observability
 od
 odbc

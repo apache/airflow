@@ -482,8 +482,7 @@ def is_lock_not_available_error(error: OperationalError):
 def tuple_in_condition(
     columns: tuple[ColumnElement, ...],
     collection: Iterable[Any],
-) -> ColumnOperators:
-    ...
+) -> ColumnOperators: ...
 
 
 @overload
@@ -492,8 +491,7 @@ def tuple_in_condition(
     collection: Select,
     *,
     session: Session,
-) -> ColumnOperators:
-    ...
+) -> ColumnOperators: ...
 
 
 def tuple_in_condition(
@@ -517,8 +515,7 @@ def tuple_in_condition(
 def tuple_not_in_condition(
     columns: tuple[ColumnElement, ...],
     collection: Iterable[Any],
-) -> ColumnOperators:
-    ...
+) -> ColumnOperators: ...
 
 
 @overload
@@ -527,8 +524,7 @@ def tuple_not_in_condition(
     collection: Select,
     *,
     session: Session,
-) -> ColumnOperators:
-    ...
+) -> ColumnOperators: ...
 
 
 def tuple_not_in_condition(

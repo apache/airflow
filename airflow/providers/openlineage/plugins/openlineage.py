@@ -16,25 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-import os
-
-from airflow.configuration import conf
 from airflow.plugins_manager import AirflowPlugin
+from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.plugins.listener import get_openlineage_listener
 from airflow.providers.openlineage.plugins.macros import lineage_parent_id, lineage_run_id
-
-
-def _is_disabled() -> bool:
-    return (
-        conf.getboolean("openlineage", "disabled", fallback=False)
-        or os.getenv("OPENLINEAGE_DISABLED", "false").lower() == "true"
-        or (
-            conf.get("openlineage", "transport", fallback="") == ""
-            and conf.get("openlineage", "config_path", fallback="") == ""
-            and os.getenv("OPENLINEAGE_URL", "") == ""
-            and os.getenv("OPENLINEAGE_CONFIG", "") == ""
-        )
-    )
 
 
 class OpenLineageProviderPlugin(AirflowPlugin):
@@ -46,6 +31,6 @@ class OpenLineageProviderPlugin(AirflowPlugin):
     """
 
     name = "OpenLineageProviderPlugin"
-    if not _is_disabled():
+    if not conf.is_disabled():
         macros = [lineage_run_id, lineage_parent_id]
         listeners = [get_openlineage_listener()]

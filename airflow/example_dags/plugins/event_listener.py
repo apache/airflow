@@ -48,6 +48,9 @@ def on_task_instance_running(previous_state: TaskInstanceState, task_instance: T
 
     task = task_instance.task
 
+    if TYPE_CHECKING:
+        assert task
+
     dag = task.dag
     dag_name = None
     if dag:
@@ -103,7 +106,10 @@ def on_task_instance_failed(previous_state: TaskInstanceState, task_instance: Ta
 
     task = task_instance.task
 
-    dag = task_instance.task.dag
+    if TYPE_CHECKING:
+        assert task
+
+    dag = task.dag
 
     error = task_instance.get_last_error()
 

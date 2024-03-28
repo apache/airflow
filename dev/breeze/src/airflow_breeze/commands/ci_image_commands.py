@@ -72,6 +72,7 @@ from airflow_breeze.commands.common_options import (
     option_run_in_parallel,
     option_skip_cleanup,
     option_use_uv,
+    option_uv_request_timeout,
     option_verbose,
 )
 from airflow_breeze.commands.common_package_installation_options import (
@@ -104,7 +105,6 @@ from airflow_breeze.utils.parallel import (
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, BUILD_CACHE_DIR
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.recording import generating_command_images
-from airflow_breeze.utils.registry import login_to_github_docker_registry
 from airflow_breeze.utils.run_tests import verify_an_image
 from airflow_breeze.utils.run_utils import (
     fix_group_permissions,
@@ -318,6 +318,7 @@ option_version_suffix_for_pypi_ci = click.option(
 @option_upgrade_on_failure
 @option_upgrade_to_newer_dependencies
 @option_use_uv
+@option_uv_request_timeout
 @option_verbose
 @option_version_suffix_for_pypi_ci
 def build(
@@ -359,6 +360,7 @@ def build(
     upgrade_on_failure: bool,
     upgrade_to_newer_dependencies: bool,
     use_uv: bool,
+    uv_request_timeout: int,
     version_suffix_for_pypi: str,
 ):
     """Build CI image. Include building multiple images for all python versions."""
@@ -366,7 +368,7 @@ def build(
     def run_build(ci_image_params: BuildCiParams) -> None:
         return_code, info = run_build_ci_image(
             ci_image_params=ci_image_params,
-            param_description=ci_image_params.python + ci_image_params.platform,
+            param_description=ci_image_params.python + ":" + ci_image_params.platform,
             output=None,
         )
         if return_code != 0:
@@ -394,13 +396,6 @@ def build(
             os.setpgid(0, 0)
 
     perform_environment_checks()
-    res, message = login_to_github_docker_registry(
-        github_token=github_token,
-        output=None,
-    )
-    if res != 0:
-        get_console().print(f"[error]Error when logging in to GitHub Docker Registry: {message}")
-        sys.exit(res)
     check_remote_ghcr_io_commands()
     fix_group_permissions()
     base_build_params = BuildCiParams(
@@ -434,6 +429,7 @@ def build(
         upgrade_on_failure=upgrade_on_failure,
         upgrade_to_newer_dependencies=upgrade_to_newer_dependencies,
         use_uv=use_uv,
+        uv_request_timeout=uv_request_timeout,
         version_suffix_for_pypi=version_suffix_for_pypi,
     )
     if platform:
@@ -513,13 +509,6 @@ def pull(
 ):
     """Pull and optionally verify CI images - possibly in parallel for all Python versions."""
     perform_environment_checks()
-    res, message = login_to_github_docker_registry(
-        github_token=github_token,
-        output=None,
-    )
-    if res != 0:
-        get_console().print(f"[error]Error when logging in to GitHub Docker Registry: {message}")
-        sys.exit(res)
     check_remote_ghcr_io_commands()
     if run_in_parallel:
         python_version_list = get_python_version_list(python_versions)
@@ -640,13 +629,6 @@ def verify(
 ):
     """Verify CI image."""
     perform_environment_checks()
-    res, message = login_to_github_docker_registry(
-        github_token=github_token,
-        output=None,
-    )
-    if res != 0:
-        get_console().print(f"[error]Error when logging in to GitHub Docker Registry: {message}")
-        sys.exit(res)
     check_remote_ghcr_io_commands()
     if (pull or image_name) and run_in_parallel:
         get_console().print(

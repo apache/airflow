@@ -22,6 +22,7 @@ This module contains AWS Athena hook.
 
     PageIterator
 """
+
 from __future__ import annotations
 
 import warnings

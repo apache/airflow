@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Google Drive service."""
+
 from __future__ import annotations
 
 from typing import IO, Any, Sequence

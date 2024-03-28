@@ -21,6 +21,74 @@
 
 .. towncrier release notes start
 
+
+Airflow 2.8.4 (2024-03-25)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Bug Fixes
+"""""""""
+- Fix incorrect serialization of ``FixedTimezone`` (#38139)
+- Fix excessive permission changing for log task handler (#38164)
+- Fix task instances list link (#38096)
+- Fix a bug where scheduler heartrate parameter was not used (#37992)
+- Add padding to prevent grid horizontal scroll overlapping tasks (#37942)
+- Fix hash caching in ``ObjectStoragePath`` (#37769)
+
+Miscellaneous
+"""""""""""""
+- Limit importlib_resources as it breaks ``pytest_rewrites`` (#38095, #38139)
+- Limit ``pandas`` to ``<2.2`` (#37748)
+- Bump ``croniter`` to fix an issue with 29 Feb cron expressions (#38198)
+
+Doc Only Changes
+""""""""""""""""
+- Tell users what to do if their scanners find issues in the image (#37652)
+- Add a section about debugging in Docker Compose with PyCharm (#37940)
+- Update deferrable docs to clarify kwargs when trigger resumes operator (#38122)
+
+
+Airflow 2.8.3 (2024-03-11)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+The smtp provider is now pre-installed when you install Airflow. (#37713)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Bug Fixes
+"""""""""
+- Add "MENU" permission in auth manager (#37881)
+- Fix external_executor_id being overwritten (#37784)
+- Make more MappedOperator members modifiable (#37828)
+- Set parsing context dag_id in dag test command (#37606)
+
+Miscellaneous
+"""""""""""""
+- Remove useless methods from security manager (#37889)
+- Improve code coverage for TriggerRuleDep (#37680)
+- The SMTP provider is now preinstalled when installing Airflow (#37713)
+- Bump min versions of openapi validators (#37691)
+- Properly include ``airflow_pre_installed_providers.txt`` artifact (#37679)
+
+Doc Only Changes
+""""""""""""""""
+- Clarify lack of sync between workers and scheduler (#37913)
+- Simplify some docs around airflow_local_settings (#37835)
+- Add section about local settings configuration (#37829)
+- Fix docs of ``BranchDayOfWeekOperator`` (#37813)
+- Write to secrets store is not supported by design (#37814)
+- ``ERD`` generating doc improvement (#37808)
+- Update incorrect config value (#37706)
+- Update security model to clarify Connection Editing user's capabilities (#37688)
+- Fix ImportError on examples dags (#37571)
+
+
 Airflow 2.8.2 (2024-02-26)
 --------------------------
 

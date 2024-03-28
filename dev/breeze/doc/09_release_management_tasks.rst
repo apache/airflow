@@ -127,6 +127,16 @@ When we prepare final release, we automate some of the steps we need to do.
   :width: 100%
   :alt: Breeze release-management start-rc-process
 
+Generating airflow core Issue
+"""""""""""""""""""""""""
+
+You can use Breeze to generate a airflow core issue when you release new airflow.
+
+.. image:: ./images/output_release-management_generate-issue-content-providers.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_generate-issue-content-core.svg
+  :width: 100%
+  :alt: Breeze generate-issue-content-core
+
 
 Preparing Python Clients
 """"""""""""""""""""""""
@@ -179,6 +189,29 @@ These are all of the available flags for the ``release-prod-images`` command:
   :width: 100%
   :alt: Breeze release management release prod images
 
+Adding git tags for providers
+"""""""""""""""""""""""""""""
+
+This command can be utilized to manage git tags for providers within the airflow remote repository during provider releases.
+Sometimes in cases when there is a connectivity issue to Github, it might be possible that local tags get created and lead to annoying errors.
+The default behaviour would be to clean such local tags up.
+
+The flag ``--clean-local-tags`` can be used to delete the local tags.
+
+However, If you want to disable this behaviour, set the envvar CLEAN_LOCAL_TAGS to false or use the
+``--no-clean-local-tags`` flag.
+
+.. code-block:: bash
+
+     breeze release-management tag-providers
+
+These are all of the available flags for the ``tag-providers`` command:
+
+.. image:: ./images/output_release-management_tag-providers.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_release-management_tag-providers.svg
+  :width: 100%
+  :alt: Breeze release management tag-providers
+
 Helm Chart release commands
 ...........................
 
@@ -226,6 +259,16 @@ This prepares helm chart .tar.gz package in the dist folder.
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_release-management_prepare-helm-chart-package.svg
   :width: 100%
   :alt: Breeze release-management prepare-helm-chart-package
+
+Generating helm chart Issue
+"""""""""""""""""""""""""
+
+You can use Breeze to generate a helm chart issue when you release new helm chart.
+
+.. image:: ./images/output_release-management_generate-issue-content-providers.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_generate-issue-content-helm-chart.svg
+  :width: 100%
+  :alt: Breeze generate-issue-content-helm-chart
 
 
 Provider release commands

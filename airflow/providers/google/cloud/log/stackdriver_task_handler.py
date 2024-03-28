@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Handler that integrates with Stackdriver."""
+
 from __future__ import annotations
 
 import logging

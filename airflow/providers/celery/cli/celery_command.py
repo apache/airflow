@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Celery command."""
+
 from __future__ import annotations
 
 import logging
@@ -58,12 +59,12 @@ def _providers_configuration_loaded(func):
             from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
             providers_configuration_loaded(func)(*args, **kwargs)
-        except ImportError:
+        except ImportError as e:
             from airflow.exceptions import AirflowOptionalProviderFeatureException
 
             raise AirflowOptionalProviderFeatureException(
                 "Failed to import providers_configuration_loaded. This feature is only available in Airflow versions >= 2.8.0"
-            )
+            ) from e
 
     return wrapper
 
@@ -106,9 +107,11 @@ def _serve_logs(skip_serve_logs: bool = False):
     if skip_serve_logs is False:
         sub_proc = Process(target=serve_logs)
         sub_proc.start()
-    yield
-    if sub_proc:
-        sub_proc.terminate()
+    try:
+        yield
+    finally:
+        if sub_proc:
+            sub_proc.terminate()
 
 
 @after_setup_logger.connect()

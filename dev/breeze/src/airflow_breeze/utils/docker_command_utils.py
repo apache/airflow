@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Various utils to prepare docker and docker compose commands."""
+
 from __future__ import annotations
 
 import copy
@@ -380,12 +381,15 @@ def prepare_base_build_command(image_params: CommonBuildParams) -> list[str]:
             ]
         )
         if not image_params.docker_host:
+            builder = get_and_use_docker_context(image_params.builder)
             build_command_param.extend(
                 [
                     "--builder",
-                    get_and_use_docker_context(image_params.builder),
+                    builder,
                 ]
             )
+            if builder != "default":
+                build_command_param.append("--load")
     else:
         build_command_param.append("build")
     return build_command_param
@@ -657,6 +661,7 @@ def autodetect_docker_context():
 def get_and_use_docker_context(context: str):
     if context == "autodetect":
         context = autodetect_docker_context()
+    run_command(["docker", "context", "create", context], check=False)
     output = run_command(["docker", "context", "use", context], check=False)
     if output.returncode != 0:
         get_console().print(

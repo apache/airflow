@@ -25,6 +25,7 @@ This module delegates all other properties to the yaml module, so it can be used
 
 And then be used directly in place of the normal python module.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, BinaryIO, TextIO, cast

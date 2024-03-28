@@ -459,7 +459,7 @@ class TestsClusterGenerator:
                 project_id=GCP_PROJECT,
                 cluster_name=CLUSTER_NAME,
             )
-            assert "custom_image and image_version" in str(ctx.value)
+        assert "custom_image and image_version" in str(ctx.value)
 
     def test_custom_image_family_error_with_image_version(self):
         with pytest.raises(ValueError) as ctx:
@@ -469,7 +469,7 @@ class TestsClusterGenerator:
                 project_id=GCP_PROJECT,
                 cluster_name=CLUSTER_NAME,
             )
-            assert "image_version and custom_image_family" in str(ctx.value)
+        assert "image_version and custom_image_family" in str(ctx.value)
 
     def test_custom_image_family_error_with_custom_image(self):
         with pytest.raises(ValueError) as ctx:
@@ -479,29 +479,28 @@ class TestsClusterGenerator:
                 project_id=GCP_PROJECT,
                 cluster_name=CLUSTER_NAME,
             )
-            assert "custom_image and custom_image_family" in str(ctx.value)
+        assert "custom_image and custom_image_family" in str(ctx.value)
 
     def test_nodes_number(self):
-        with pytest.raises(AssertionError) as ctx:
+        with pytest.raises(ValueError, match="Single node cannot have preemptible workers"):
             ClusterGenerator(
-                num_workers=0, num_preemptible_workers=0, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME
+                num_workers=0, num_preemptible_workers=1, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME
             )
-            assert "num_workers == 0 means single" in str(ctx.value)
 
     def test_min_num_workers_less_than_num_workers(self):
         with pytest.raises(ValueError) as ctx:
             ClusterGenerator(
                 num_workers=3, min_num_workers=4, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME
             )
-            assert (
-                "The value of min_num_workers must be less than or equal to num_workers. "
-                "Provided 4(min_num_workers) and 3(num_workers)." in str(ctx.value)
-            )
+        assert (
+            "The value of min_num_workers must be less than or equal to num_workers. "
+            "Provided 4(min_num_workers) and 3(num_workers)." in str(ctx.value)
+        )
 
     def test_min_num_workers_without_num_workers(self):
         with pytest.raises(ValueError) as ctx:
             ClusterGenerator(min_num_workers=4, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME)
-            assert "Must specify num_workers when min_num_workers are provided." in str(ctx.value)
+        assert "Must specify num_workers when min_num_workers are provided." in str(ctx.value)
 
     def test_build(self):
         generator = ClusterGenerator(
@@ -1527,10 +1526,9 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             project_id=GCP_PROJECT, region=GCP_REGION, job_id=job_id
         )
 
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_missing_region_parameter(self, mock_hook):
+    def test_missing_region_parameter(self):
         with pytest.raises(AirflowException):
-            op = DataprocSubmitJobOperator(
+            DataprocSubmitJobOperator(
                 task_id=TASK_ID,
                 project_id=GCP_PROJECT,
                 job={},
@@ -1541,7 +1539,6 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
                 request_id=REQUEST_ID,
                 impersonation_chain=IMPERSONATION_CHAIN,
             )
-            op.execute(context=self.mock_context)
 
 
 @pytest.mark.db_test
@@ -1638,10 +1635,9 @@ class TestDataprocUpdateClusterOperator(DataprocClusterTestBase):
             execution_date=None,
         )
 
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_missing_region_parameter(self, mock_hook):
+    def test_missing_region_parameter(self):
         with pytest.raises(AirflowException):
-            op = DataprocUpdateClusterOperator(
+            DataprocUpdateClusterOperator(
                 task_id=TASK_ID,
                 cluster_name=CLUSTER_NAME,
                 cluster=CLUSTER,
@@ -1655,7 +1651,6 @@ class TestDataprocUpdateClusterOperator(DataprocClusterTestBase):
                 metadata=METADATA,
                 impersonation_chain=IMPERSONATION_CHAIN,
             )
-            op.execute(context=self.mock_context)
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
@@ -2598,10 +2593,9 @@ class TestDataprocCreateWorkflowTemplateOperator:
             template=WORKFLOW_TEMPLATE,
         )
 
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_missing_region_parameter(self, mock_hook):
+    def test_missing_region_parameter(self):
         with pytest.raises(AirflowException):
-            op = DataprocCreateWorkflowTemplateOperator(
+            DataprocCreateWorkflowTemplateOperator(
                 task_id=TASK_ID,
                 gcp_conn_id=GCP_CONN_ID,
                 impersonation_chain=IMPERSONATION_CHAIN,
@@ -2611,7 +2605,6 @@ class TestDataprocCreateWorkflowTemplateOperator:
                 metadata=METADATA,
                 template=WORKFLOW_TEMPLATE,
             )
-            op.execute(context={})
 
 
 class TestDataprocCreateBatchOperator:
@@ -2743,15 +2736,15 @@ class TestDataprocCreateBatchOperator:
         mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.FAILED)
         with pytest.raises(AirflowException):
             op.execute(context=MagicMock())
-            mock_hook.return_value.wait_for_batch.assert_called_once_with(
-                batch_id=BATCH_ID,
-                region=GCP_REGION,
-                project_id=GCP_PROJECT,
-                wait_check_interval=10,
-                retry=RETRY,
-                timeout=TIMEOUT,
-                metadata=METADATA,
-            )
+        mock_hook.return_value.wait_for_batch.assert_called_once_with(
+            batch_id=BATCH_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            wait_check_interval=5,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_batch_already_exists_cancelled(self, mock_hook):
@@ -2772,15 +2765,15 @@ class TestDataprocCreateBatchOperator:
         mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.CANCELLED)
         with pytest.raises(AirflowException):
             op.execute(context=MagicMock())
-            mock_hook.return_value.wait_for_batch.assert_called_once_with(
-                batch_id=BATCH_ID,
-                region=GCP_REGION,
-                project_id=GCP_PROJECT,
-                wait_check_interval=10,
-                retry=RETRY,
-                timeout=TIMEOUT,
-                metadata=METADATA,
-            )
+        mock_hook.return_value.wait_for_batch.assert_called_once_with(
+            batch_id=BATCH_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            wait_check_interval=5,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
 
 
 class TestDataprocDeleteBatchOperator:

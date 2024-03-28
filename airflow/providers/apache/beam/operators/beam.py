@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Apache Beam operators."""
+
 from __future__ import annotations
 
 import asyncio
@@ -415,7 +416,9 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
             # This means we can perform asynchronous operations with this file.
             create_tmp_file_call = gcs_hook.provide_file(object_url=self.py_file)
             tmp_gcs_file: IO[str] = await loop.run_in_executor(
-                None, contextlib.ExitStack().enter_context, create_tmp_file_call
+                None,
+                contextlib.ExitStack().enter_context,  # type: ignore[arg-type]
+                create_tmp_file_call,
             )
             self.py_file = tmp_gcs_file.name
 
@@ -612,7 +615,9 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
             # This means we can perform asynchronous operations with this file.
             create_tmp_file_call = gcs_hook.provide_file(object_url=self.jar)
             tmp_gcs_file: IO[str] = await loop.run_in_executor(
-                None, contextlib.ExitStack().enter_context, create_tmp_file_call
+                None,
+                contextlib.ExitStack().enter_context,  # type: ignore[arg-type]
+                create_tmp_file_call,
             )
             self.jar = tmp_gcs_file.name
 
@@ -817,12 +822,10 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
 
 class _GoArtifact(ABC):
     @abstractmethod
-    def is_located_on_gcs(self) -> bool:
-        ...
+    def is_located_on_gcs(self) -> bool: ...
 
     @abstractmethod
-    def download_from_gcs(self, gcs_hook: GCSHook, tmp_dir: str) -> None:
-        ...
+    def download_from_gcs(self, gcs_hook: GCSHook, tmp_dir: str) -> None: ...
 
     @abstractmethod
     def start_pipeline(
@@ -830,8 +833,7 @@ class _GoArtifact(ABC):
         beam_hook: BeamHook,
         variables: dict,
         process_line_callback: Callable[[str], None] | None = None,
-    ) -> None:
-        ...
+    ) -> None: ...
 
 
 class _GoFile(_GoArtifact):

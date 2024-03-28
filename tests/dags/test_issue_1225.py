@@ -20,6 +20,7 @@ DAG designed to test what happens when a DAG with pooled tasks is run
 by a BackfillJob.
 Addresses issue #1225.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta

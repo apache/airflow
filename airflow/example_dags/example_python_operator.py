@@ -19,6 +19,7 @@
 Example DAG demonstrating the usage of the classic Python operators to execute Python functions natively and
 within a virtual environment.
 """
+
 from __future__ import annotations
 
 import logging

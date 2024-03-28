@@ -24,6 +24,7 @@ You can trigger this manually with `airflow dags trigger example_cosmosdb_sensor
 *Note: Make sure that connection `azure_cosmos_default` is properly set before running
 this example.*
 """
+
 from __future__ import annotations
 
 import os

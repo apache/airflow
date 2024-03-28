@@ -21,6 +21,7 @@ from __future__ import annotations
 import datetime
 import json
 import logging
+import math
 import re
 import shlex
 import string
@@ -274,7 +275,7 @@ class KubernetesPodOperator(BaseOperator):
         labels: dict | None = None,
         reattach_on_restart: bool = True,
         startup_timeout_seconds: int = 120,
-        startup_check_interval_seconds: int = 1,
+        startup_check_interval_seconds: int = 5,
         get_logs: bool = True,
         container_logs: Iterable[str] | str | Literal[True] = BASE_CONTAINER_NAME,
         image_pull_policy: str | None = None,
@@ -710,10 +711,13 @@ class KubernetesPodOperator(BaseOperator):
                     pod=self.pod, event=event, client=self.client, mode=ExecutionMode.SYNC
                 )
 
+            follow = self.logging_interval is None
+            last_log_time = event.get("last_log_time")
+
             if event["status"] in ("error", "failed", "timeout"):
                 # fetch some logs when pod is failed
                 if self.get_logs:
-                    self.write_logs(self.pod)
+                    self.write_logs(self.pod, follow=follow, since_time=last_log_time)
 
                 if self.do_xcom_push:
                     _ = self.extract_xcom(pod=self.pod)
@@ -723,13 +727,12 @@ class KubernetesPodOperator(BaseOperator):
 
             elif event["status"] == "running":
                 if self.get_logs:
-                    last_log_time = event.get("last_log_time")
                     self.log.info("Resuming logs read from time %r", last_log_time)
 
                     pod_log_status = self.pod_manager.fetch_container_logs(
                         pod=self.pod,
                         container_name=self.BASE_CONTAINER_NAME,
-                        follow=self.logging_interval is None,
+                        follow=follow,
                         since_time=last_log_time,
                     )
 
@@ -742,7 +745,7 @@ class KubernetesPodOperator(BaseOperator):
             elif event["status"] == "success":
                 # fetch some logs when pod is executed successfully
                 if self.get_logs:
-                    self.write_logs(self.pod)
+                    self.write_logs(self.pod, follow=follow, since_time=last_log_time)
 
                 if self.do_xcom_push:
                     xcom_sidecar_output = self.extract_xcom(pod=self.pod)
@@ -771,14 +774,20 @@ class KubernetesPodOperator(BaseOperator):
 
     @deprecated(reason="use `trigger_reentry` instead.", category=AirflowProviderDeprecationWarning)
     def execute_complete(self, context: Context, event: dict, **kwargs):
-        self.trigger_reentry(context=context, event=event)
+        return self.trigger_reentry(context=context, event=event)
 
-    def write_logs(self, pod: k8s.V1Pod):
+    def write_logs(self, pod: k8s.V1Pod, follow: bool = False, since_time: DateTime | None = None):
         try:
+            since_seconds = (
+                math.ceil((datetime.datetime.now(tz=datetime.timezone.utc) - since_time).total_seconds())
+                if since_time
+                else None
+            )
             logs = self.pod_manager.read_pod_logs(
                 pod=pod,
                 container_name=self.base_container_name,
-                follow=False,
+                follow=follow,
+                since_seconds=since_seconds,
             )
             for raw_line in logs:
                 line = raw_line.decode("utf-8", errors="backslashreplace").rstrip("\n")

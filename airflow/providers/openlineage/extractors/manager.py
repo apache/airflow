@@ -16,11 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-import os
 from contextlib import suppress
 from typing import TYPE_CHECKING, Iterator
 
-from airflow.configuration import conf
+from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors import BaseExtractor, OperatorLineage
 from airflow.providers.openlineage.extractors.base import DefaultExtractor
 from airflow.providers.openlineage.extractors.bash import BashExtractor
@@ -65,22 +64,17 @@ class ExtractorManager(LoggingMixin):
             for operator_class in extractor.get_operator_classnames():
                 self.extractors[operator_class] = extractor
 
-        # Semicolon-separated extractors in Airflow configuration or OPENLINEAGE_EXTRACTORS variable.
-        # Extractors should implement BaseExtractor
-        env_extractors = conf.get("openlineage", "extractors", fallback=os.getenv("OPENLINEAGE_EXTRACTORS"))
-        # skip either when it's empty string or None
-        if env_extractors:
-            for extractor in env_extractors.split(";"):
-                extractor: type[BaseExtractor] = try_import_from_string(extractor.strip())
-                for operator_class in extractor.get_operator_classnames():
-                    if operator_class in self.extractors:
-                        self.log.debug(
-                            "Duplicate extractor found for `%s`. `%s` will be used instead of `%s`",
-                            operator_class,
-                            extractor,
-                            self.extractors[operator_class],
-                        )
-                    self.extractors[operator_class] = extractor
+        for extractor_path in conf.custom_extractors():
+            extractor: type[BaseExtractor] = try_import_from_string(extractor_path)
+            for operator_class in extractor.get_operator_classnames():
+                if operator_class in self.extractors:
+                    self.log.debug(
+                        "Duplicate extractor found for `%s`. `%s` will be used instead of `%s`",
+                        operator_class,
+                        extractor_path,
+                        self.extractors[operator_class],
+                    )
+                self.extractors[operator_class] = extractor
 
     def add_extractor(self, operator_class: str, extractor: type[BaseExtractor]):
         self.extractors[operator_class] = extractor

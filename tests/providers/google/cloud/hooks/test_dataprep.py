@@ -121,8 +121,8 @@ class TestGoogleDataprepHook:
         side_effect=[HTTPError(), HTTPError(), HTTPError(), HTTPError(), HTTPError()],
     )
     def test_get_jobs_for_job_group_raise_error_after_five_calls(self, mock_get_request):
+        self.hook.get_jobs_for_job_group.retry.sleep = mock.Mock()
         with pytest.raises(RetryError) as ctx:
-            self.hook.get_jobs_for_job_group.retry.sleep = mock.Mock()
             self.hook.get_jobs_for_job_group(JOB_ID)
         assert "HTTPError" in str(ctx.value)
         assert mock_get_request.call_count == 5
@@ -176,8 +176,8 @@ class TestGoogleDataprepHook:
         side_effect=[HTTPError(), HTTPError(), HTTPError(), HTTPError(), HTTPError()],
     )
     def test_get_job_group_raise_error_after_five_calls(self, mock_get_request):
+        self.hook.get_job_group.retry.sleep = mock.Mock()
         with pytest.raises(RetryError) as ctx:
-            self.hook.get_job_group.retry.sleep = mock.Mock()
             self.hook.get_job_group(JOB_ID, EMBED, INCLUDE_DELETED)
         assert "HTTPError" in str(ctx.value)
         assert mock_get_request.call_count == 5
@@ -231,8 +231,8 @@ class TestGoogleDataprepHook:
         side_effect=[HTTPError(), HTTPError(), HTTPError(), HTTPError(), HTTPError()],
     )
     def test_run_job_group_raise_error_after_five_calls(self, mock_get_request):
+        self.hook.run_job_group.retry.sleep = mock.Mock()
         with pytest.raises(RetryError) as ctx:
-            self.hook.run_job_group.retry.sleep = mock.Mock()
             self.hook.run_job_group(body_request=DATA)
         assert "HTTPError" in str(ctx.value)
         assert mock_get_request.call_count == 5
@@ -285,8 +285,8 @@ class TestGoogleDataprepHook:
         side_effect=[HTTPError(), HTTPError(), HTTPError(), HTTPError(), HTTPError()],
     )
     def test_get_job_group_status_five_calls(self, mock_get_request):
+        self.hook.get_job_group_status.retry.sleep = mock.Mock()
         with pytest.raises(RetryError) as ctx:
-            self.hook.get_job_group_status.retry.sleep = mock.Mock()
             self.hook.get_job_group_status(job_group_id=JOB_ID)
         assert "HTTPError" in str(ctx.value)
         assert mock_get_request.call_count == 5
@@ -353,8 +353,8 @@ class TestGoogleDataprepHook:
         side_effect=[HTTPError(), HTTPError(), HTTPError(), HTTPError(), HTTPError()],
     )
     def test_create_imported_dataset_five_calls(self, mock_post_request):
+        self.hook.create_imported_dataset.retry.sleep = mock.Mock()
         with pytest.raises(RetryError) as ctx:
-            self.hook.create_imported_dataset.retry.sleep = mock.Mock()
             self.hook.create_imported_dataset(body_request=self._create_imported_dataset_body_request)
         assert "HTTPError" in str(ctx.value)
         assert mock_post_request.call_count == 5
@@ -408,8 +408,8 @@ class TestGoogleDataprepHook:
         side_effect=[HTTPError(), HTTPError(), HTTPError(), HTTPError(), HTTPError()],
     )
     def test_create_wrangled_dataset_five_calls(self, mock_post_request):
+        self.hook.create_wrangled_dataset.retry.sleep = mock.Mock()
         with pytest.raises(RetryError) as ctx:
-            self.hook.create_wrangled_dataset.retry.sleep = mock.Mock()
             self.hook.create_wrangled_dataset(body_request=self._create_wrangled_dataset_body_request)
         assert "HTTPError" in str(ctx.value)
         assert mock_post_request.call_count == 5
@@ -463,8 +463,8 @@ class TestGoogleDataprepHook:
         side_effect=[HTTPError(), HTTPError(), HTTPError(), HTTPError(), HTTPError()],
     )
     def test_create_output_objects_five_calls(self, mock_post_request):
+        self.hook.create_output_object.retry.sleep = mock.Mock()
         with pytest.raises(RetryError) as ctx:
-            self.hook.create_output_object.retry.sleep = mock.Mock()
             self.hook.create_output_object(body_request=self._create_output_object_body_request)
         assert "HTTPError" in str(ctx.value)
         assert mock_post_request.call_count == 5
@@ -518,8 +518,8 @@ class TestGoogleDataprepHook:
         side_effect=[HTTPError(), HTTPError(), HTTPError(), HTTPError(), HTTPError()],
     )
     def test_create_write_settings_five_calls(self, mock_post_request):
+        self.hook.create_write_settings.retry.sleep = mock.Mock()
         with pytest.raises(RetryError) as ctx:
-            self.hook.create_write_settings.retry.sleep = mock.Mock()
             self.hook.create_write_settings(body_request=self._create_write_settings_body_request)
         assert "HTTPError" in str(ctx.value)
         assert mock_post_request.call_count == 5
@@ -572,8 +572,8 @@ class TestGoogleDataprepHook:
         side_effect=[HTTPError(), HTTPError(), HTTPError(), HTTPError(), HTTPError()],
     )
     def test_delete_imported_dataset_five_calls(self, mock_delete_request):
+        self.hook.delete_imported_dataset.retry.sleep = mock.Mock()
         with pytest.raises(RetryError) as ctx:
-            self.hook.delete_imported_dataset.retry.sleep = mock.Mock()
             self.hook.delete_imported_dataset(dataset_id=self._imported_dataset_id)
         assert "HTTPError" in str(ctx.value)
         assert mock_delete_request.call_count == 5
@@ -655,8 +655,8 @@ class TestGoogleDataprepFlowPathHooks:
         side_effect=[HTTPError(), HTTPError(), HTTPError(), HTTPError(), HTTPError()],
     )
     def test_create_flow_raise_error_after_five_calls(self, mock_post_request):
+        self.hook.create_flow.retry.sleep = mock.Mock()
         with pytest.raises(RetryError) as ctx:
-            self.hook.create_flow.retry.sleep = mock.Mock()
             self.hook.create_flow(body_request=self._create_flow_body_request)
         assert "HTTPError" in str(ctx.value)
         assert mock_post_request.call_count == 5
@@ -712,8 +712,8 @@ class TestGoogleDataprepFlowPathHooks:
         side_effect=[HTTPError(), HTTPError(), HTTPError(), HTTPError(), HTTPError()],
     )
     def test_copy_flow_raise_error_after_five_calls(self, mock_get_request):
+        self.hook.copy_flow.retry.sleep = mock.Mock()
         with pytest.raises(RetryError) as ctx:
-            self.hook.copy_flow.retry.sleep = mock.Mock()
             self.hook.copy_flow(flow_id=self._flow_id)
         assert "HTTPError" in str(ctx.value)
         assert mock_get_request.call_count == 5
@@ -768,8 +768,8 @@ class TestGoogleDataprepFlowPathHooks:
         side_effect=[HTTPError(), HTTPError(), HTTPError(), HTTPError(), HTTPError()],
     )
     def test_delete_flow_raise_error_after_five_calls(self, mock_get_request):
+        self.hook.delete_flow.retry.sleep = mock.Mock()
         with pytest.raises(RetryError) as ctx:
-            self.hook.delete_flow.retry.sleep = mock.Mock()
             self.hook.delete_flow(flow_id=self._flow_id)
         assert "HTTPError" in str(ctx.value)
         assert mock_get_request.call_count == 5
@@ -835,8 +835,8 @@ class TestGoogleDataprepFlowPathHooks:
         side_effect=[HTTPError(), HTTPError(), HTTPError(), HTTPError(), HTTPError()],
     )
     def test_run_flow_raise_error_after_five_calls(self, mock_get_request):
+        self.hook.run_flow.retry.sleep = mock.Mock()
         with pytest.raises(RetryError) as ctx:
-            self.hook.run_flow.retry.sleep = mock.Mock()
             self.hook.run_flow(
                 flow_id=self._flow_id,
                 body_request={},

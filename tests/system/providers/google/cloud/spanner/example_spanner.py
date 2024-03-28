@@ -18,6 +18,7 @@
 """
 Example Airflow DAG that creates, updates, queries and deletes a Cloud Spanner instance.
 """
+
 from __future__ import annotations
 
 import os

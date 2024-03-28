@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Jinja2 template rendering context helper."""
+
 from __future__ import annotations
 
 import contextlib
@@ -43,8 +44,10 @@ from airflow.utils.types import NOTSET
 if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
 
-# NOTE: Please keep this in sync with Context in airflow/utils/context.pyi.
-KNOWN_CONTEXT_KEYS = {
+# NOTE: Please keep this in sync with the following:
+# * Context in airflow/utils/context.pyi.
+# * Table in docs/apache-airflow/templates-ref.rst
+KNOWN_CONTEXT_KEYS: set[str] = {
     "conf",
     "conn",
     "dag",
@@ -73,6 +76,7 @@ KNOWN_CONTEXT_KEYS = {
     "prev_execution_date_success",
     "prev_start_date_success",
     "prev_end_date_success",
+    "reason",
     "run_id",
     "task",
     "task_instance",

@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 import urllib.parse
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Iterator, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Iterator
 
 import attr
 
@@ -82,21 +82,21 @@ def _sanitize_uri(uri: str) -> str:
     return urllib.parse.urlunsplit(parsed)
 
 
-@runtime_checkable
-class BaseDatasetEventInput(Protocol):
+class BaseDatasetEventInput:
     """Protocol for all dataset triggers to use in ``DAG(schedule=...)``.
 
     :meta private:
     """
 
     def __or__(self, other: BaseDatasetEventInput) -> DatasetAny:
+        if not isinstance(other, BaseDatasetEventInput):
+            return NotImplemented
         return DatasetAny(self, other)
 
     def __and__(self, other: BaseDatasetEventInput) -> DatasetAll:
+        if not isinstance(other, BaseDatasetEventInput):
+            return NotImplemented
         return DatasetAll(self, other)
-
-    def as_expression(self) -> dict[str, Any]:
-        raise NotImplementedError
 
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         raise NotImplementedError
@@ -123,16 +123,10 @@ class Dataset(os.PathLike, BaseDatasetEventInput):
     def __eq__(self, other: Any) -> bool:
         if isinstance(other, self.__class__):
             return self.uri == other.uri
-        else:
-            return NotImplemented
+        return NotImplemented
 
     def __hash__(self) -> int:
         return hash(self.uri)
-
-    def as_expression(self) -> dict[str, Any]:
-        if self.extra is None:
-            return {"uri": self.uri}
-        return {"uri": self.uri, "extra": self.extra}
 
     def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
         yield self.uri, self
@@ -147,10 +141,9 @@ class _DatasetBooleanCondition(BaseDatasetEventInput):
     agg_func: Callable[[Iterable], bool]
 
     def __init__(self, *objects: BaseDatasetEventInput) -> None:
+        if not all(isinstance(o, BaseDatasetEventInput) for o in objects):
+            raise TypeError("expect dataset expressions in condition")
         self.objects = objects
-
-    def as_expression(self) -> dict[str, Any]:
-        return {"objects": [o.as_expression() for o in self.objects]}
 
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         return self.agg_func(x.evaluate(statuses=statuses) for x in self.objects)
@@ -171,6 +164,8 @@ class DatasetAny(_DatasetBooleanCondition):
     agg_func = any
 
     def __or__(self, other: BaseDatasetEventInput) -> DatasetAny:
+        if not isinstance(other, BaseDatasetEventInput):
+            return NotImplemented
         # Optimization: X | (Y | Z) is equivalent to X | Y | Z.
         return DatasetAny(*self.objects, other)
 
@@ -184,6 +179,8 @@ class DatasetAll(_DatasetBooleanCondition):
     agg_func = all
 
     def __and__(self, other: BaseDatasetEventInput) -> DatasetAll:
+        if not isinstance(other, BaseDatasetEventInput):
+            return NotImplemented
         # Optimization: X & (Y & Z) is equivalent to X & Y & Z.
         return DatasetAll(*self.objects, other)
 

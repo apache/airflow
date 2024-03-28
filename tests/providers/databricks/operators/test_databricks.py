@@ -1340,12 +1340,12 @@ class TestDatabricksRunNowOperator:
         with pytest.raises(AirflowException, match=exception_message):
             DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, job_name=JOB_NAME)
 
+        run = {"job_id": JOB_ID, "job_name": JOB_NAME}
         with pytest.raises(AirflowException, match=exception_message):
-            run = {"job_id": JOB_ID, "job_name": JOB_NAME}
             DatabricksRunNowOperator(task_id=TASK_ID, json=run)
 
+        run = {"job_id": JOB_ID}
         with pytest.raises(AirflowException, match=exception_message):
-            run = {"job_id": JOB_ID}
             DatabricksRunNowOperator(task_id=TASK_ID, json=run, job_name=JOB_NAME)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
