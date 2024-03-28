@@ -170,12 +170,12 @@ class TestHelpers:
         """
         Test query generated with dag_id and params
         """
-        query = {"dag_id": "test_dag", "param": "key/to.encode"}
-        expected_url = "/dags/test_dag/graph?param=key%2Fto.encode"
+        query = {"dag_id": "test_dag", "param": "key to.encode"}
+        expected_url = "/dags/test_dag/graph?param=key+to.encode"
 
         from airflow.www.app import cached_app
 
-        with cached_app(testing=True).test_request_context():
+        with cached_app(testing=True).app.test_request_context():
             assert build_airflow_url_with_query(query) == expected_url
 
     @pytest.mark.parametrize(

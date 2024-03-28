@@ -34,7 +34,7 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_roles, delete_user
+from tests.test_utils.api_connexion_utils import create_user, delete_roles, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 from tests.test_utils.www import _check_last_log
@@ -44,10 +44,10 @@ pytestmark = pytest.mark.db_test
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
-    app = minimal_app_for_api
+    connexion_app = minimal_app_for_api
 
     create_user(
-        app,  # type: ignore
+        connexion_app.app,  # type: ignore
         username="test",
         role_name="Test",
         permissions=[
@@ -62,7 +62,7 @@ def configured_app(minimal_app_for_api):
         ],
     )
     create_user(
-        app,  # type: ignore
+        connexion_app.app,  # type: ignore
         username="test_dag_view_only",
         role_name="TestViewDags",
         permissions=[
@@ -74,7 +74,7 @@ def configured_app(minimal_app_for_api):
         ],
     )
     create_user(
-        app,  # type: ignore
+        connexion_app.app,  # type: ignore
         username="test_view_dags",
         role_name="TestViewDags",
         permissions=[
@@ -83,25 +83,25 @@ def configured_app(minimal_app_for_api):
         ],
     )
     create_user(
-        app,  # type: ignore
+        connexion_app.app,  # type: ignore
         username="test_granular_permissions",
         role_name="TestGranularDag",
         permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN)],
     )
-    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
+    connexion_app.app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
         "TEST_DAG_ID",
         access_control={"TestGranularDag": [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(connexion_app.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
-    yield app
+    yield connexion_app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_dag_view_only")  # type: ignore
-    delete_user(app, username="test_view_dags")  # type: ignore
-    delete_user(app, username="test_granular_permissions")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
-    delete_roles(app)
+    delete_user(connexion_app.app, username="test")  # type: ignore
+    delete_user(connexion_app.app, username="test_dag_view_only")  # type: ignore
+    delete_user(connexion_app.app, username="test_view_dags")  # type: ignore
+    delete_user(connexion_app.app, username="test_granular_permissions")  # type: ignore
+    delete_user(connexion_app.app, username="test_no_permissions")  # type: ignore
+    delete_roles(connexion_app.app)
 
 
 class TestDagRunEndpoint:
@@ -111,8 +111,9 @@ class TestDagRunEndpoint:
 
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app) -> None:
-        self.app = configured_app
-        self.client = self.app.test_client()  # type:ignore
+        self.connexion_app = configured_app
+        self.flask_app = configured_app.app
+        self.client = self.connexion_app.test_client()  # type:ignore
         clear_db_runs()
         clear_db_serialized_dags()
         clear_db_dags()
@@ -128,7 +129,7 @@ class TestDagRunEndpoint:
         with create_session() as session:
             session.add(dag_instance)
         dag = DAG(dag_id=dag_id, schedule=None)
-        self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        self.flask_app.dag_bag.bag_dag(dag, root_dag=dag)
         return dag_instance
 
     def _create_test_dag_run(self, state=DagRunState.RUNNING, extra_dag=False, commit=True, idx_start=1):
@@ -176,25 +177,25 @@ class TestDeleteDagRun(TestDagRunEndpoint):
         session.add_all(self._create_test_dag_run())
         session.commit()
         response = self.client.delete(
-            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1", environ_overrides={"REMOTE_USER": "test"}
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1", headers={"REMOTE_USER": "test"}
         )
         assert response.status_code == 204
         # Check if the Dag Run is deleted from the database
         response = self.client.get(
-            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1", environ_overrides={"REMOTE_USER": "test"}
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1", headers={"REMOTE_USER": "test"}
         )
         assert response.status_code == 404
 
     def test_should_respond_404(self):
         response = self.client.delete(
-            "api/v1/dags/INVALID_DAG_RUN/dagRuns/INVALID_DAG_RUN", environ_overrides={"REMOTE_USER": "test"}
+            "api/v1/dags/INVALID_DAG_RUN/dagRuns/INVALID_DAG_RUN", headers={"REMOTE_USER": "test"}
         )
         assert response.status_code == 404
-        assert response.json == {
+        assert response.json() == {
             "detail": "DAGRun with DAG ID: 'INVALID_DAG_RUN' and DagRun ID: 'INVALID_DAG_RUN' not found",
             "status": 404,
             "title": "Not Found",
-            "type": EXCEPTIONS_LINK_MAP[404],
+            "type": "about:blank",
         }
 
     def test_should_raises_401_unauthenticated(self, session):
@@ -205,12 +206,12 @@ class TestDeleteDagRun(TestDagRunEndpoint):
             "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1",
         )
 
-        assert_401(response)
+        assert response.status_code == 401
 
     def test_should_raise_403_forbidden(self):
         response = self.client.get(
             "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID",
-            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+            headers={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403
 
@@ -231,10 +232,10 @@ class TestGetDagRun(TestDagRunEndpoint):
         result = session.query(DagRun).all()
         assert len(result) == 1
         response = self.client.get(
-            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID", environ_overrides={"REMOTE_USER": "test"}
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID", headers={"REMOTE_USER": "test"}
         )
         assert response.status_code == 200
-        assert response.json == {
+        assert response.json() == {
             "dag_id": "TEST_DAG_ID",
             "dag_run_id": "TEST_DAG_RUN_ID",
             "end_date": None,
@@ -253,16 +254,16 @@ class TestGetDagRun(TestDagRunEndpoint):
 
     def test_should_respond_404(self):
         response = self.client.get(
-            "api/v1/dags/invalid-id/dagRuns/invalid-id", environ_overrides={"REMOTE_USER": "test"}
+            "api/v1/dags/invalid-id/dagRuns/invalid-id", headers={"REMOTE_USER": "test"}
         )
         assert response.status_code == 404
         expected_resp = {
             "detail": "DAGRun with DAG ID: 'invalid-id' and DagRun ID: 'invalid-id' not found",
             "status": 404,
-            "title": "DAGRun not found",
-            "type": EXCEPTIONS_LINK_MAP[404],
+            "title": "Not Found",
+            "type": "about:blank",
         }
-        assert expected_resp == response.json
+        assert expected_resp == response.json()
 
     def test_should_raises_401_unauthenticated(self, session):
         dagrun_model = DagRun(
@@ -278,7 +279,7 @@ class TestGetDagRun(TestDagRunEndpoint):
 
         response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID")
 
-        assert_401(response)
+        assert response.status_code == 401
 
     @pytest.mark.parametrize(
         "fields",
@@ -303,11 +304,10 @@ class TestGetDagRun(TestDagRunEndpoint):
         assert len(result) == 1
         response = self.client.get(
             f"api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID?fields={','.join(fields)}",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
-        res_json = response.json
-        print("get dagRun", res_json)
+        res_json = response.json()
         assert len(res_json.keys()) == len(fields)
         for field in fields:
             assert field in res_json
@@ -329,7 +329,7 @@ class TestGetDagRun(TestDagRunEndpoint):
         fields = ["#caw&c"]
         response = self.client.get(
             f"api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID?fields={','.join(fields)}",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400, f"Current code: {response.status_code}"
 
@@ -339,11 +339,9 @@ class TestGetDagRuns(TestDagRunEndpoint):
         self._create_test_dag_run()
         result = session.query(DagRun).all()
         assert len(result) == 2
-        response = self.client.get(
-            "api/v1/dags/TEST_DAG_ID/dagRuns", environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns", headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert response.json == {
+        assert response.json() == {
             "dag_runs": [
                 {
                     "dag_id": "TEST_DAG_ID",
@@ -386,22 +384,22 @@ class TestGetDagRuns(TestDagRunEndpoint):
         self._create_test_dag_run(state="queued", idx_start=3)
         assert session.query(DagRun).count() == 4
         response = self.client.get(
-            "api/v1/dags/TEST_DAG_ID/dagRuns?state=running,queued", environ_overrides={"REMOTE_USER": "test"}
+            "api/v1/dags/TEST_DAG_ID/dagRuns?state=running,queued", headers={"REMOTE_USER": "test"}
         )
         assert response.status_code == 200
-        assert response.json["total_entries"] == 4
-        assert response.json["dag_runs"][0]["state"] == response.json["dag_runs"][1]["state"] == "running"
-        assert response.json["dag_runs"][2]["state"] == response.json["dag_runs"][3]["state"] == "queued"
+        assert response.json()["total_entries"] == 4
+        assert response.json()["dag_runs"][0]["state"] == response.json()["dag_runs"][1]["state"] == "running"
+        assert response.json()["dag_runs"][2]["state"] == response.json()["dag_runs"][3]["state"] == "queued"
 
     def test_invalid_order_by_raises_400(self):
         self._create_test_dag_run()
 
         response = self.client.get(
-            "api/v1/dags/TEST_DAG_ID/dagRuns?order_by=invalid", environ_overrides={"REMOTE_USER": "test"}
+            "api/v1/dags/TEST_DAG_ID/dagRuns?order_by=invalid", headers={"REMOTE_USER": "test"}
         )
         assert response.status_code == 400
         msg = "Ordering with 'invalid' is disallowed or the attribute does not exist on the model"
-        assert response.json["detail"] == msg
+        assert response.json()["detail"] == msg
 
     def test_return_correct_results_with_order_by(self, session):
         self._create_test_dag_run()
@@ -409,13 +407,13 @@ class TestGetDagRuns(TestDagRunEndpoint):
         assert len(result) == 2
         response = self.client.get(
             "api/v1/dags/TEST_DAG_ID/dagRuns?order_by=-execution_date",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
 
         assert response.status_code == 200
         assert self.default_time < self.default_time_2
         # - means descending
-        assert response.json == {
+        assert response.json() == {
             "dag_runs": [
                 {
                     "dag_id": "TEST_DAG_ID",
@@ -456,19 +454,19 @@ class TestGetDagRuns(TestDagRunEndpoint):
     def test_should_return_all_with_tilde_as_dag_id_and_all_dag_permissions(self):
         self._create_test_dag_run(extra_dag=True)
         expected_dag_run_ids = ["TEST_DAG_ID", "TEST_DAG_ID", "TEST_DAG_ID_3", "TEST_DAG_ID_4"]
-        response = self.client.get("api/v1/dags/~/dagRuns", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get("api/v1/dags/~/dagRuns", headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        dag_run_ids = [dag_run["dag_id"] for dag_run in response.json["dag_runs"]]
+        dag_run_ids = [dag_run["dag_id"] for dag_run in response.json()["dag_runs"]]
         assert dag_run_ids == expected_dag_run_ids
 
     def test_should_return_accessible_with_tilde_as_dag_id_and_dag_level_permissions(self):
         self._create_test_dag_run(extra_dag=True)
         expected_dag_run_ids = ["TEST_DAG_ID", "TEST_DAG_ID"]
         response = self.client.get(
-            "api/v1/dags/~/dagRuns", environ_overrides={"REMOTE_USER": "test_granular_permissions"}
+            "api/v1/dags/~/dagRuns", headers={"REMOTE_USER": "test_granular_permissions"}
         )
         assert response.status_code == 200
-        dag_run_ids = [dag_run["dag_id"] for dag_run in response.json["dag_runs"]]
+        dag_run_ids = [dag_run["dag_id"] for dag_run in response.json()["dag_runs"]]
         assert dag_run_ids == expected_dag_run_ids
 
     def test_should_raises_401_unauthenticated(self):
@@ -476,7 +474,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
 
         response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns")
 
-        assert_401(response)
+        assert response.status_code == 401
 
     @pytest.mark.parametrize(
         "fields",
@@ -491,10 +489,10 @@ class TestGetDagRuns(TestDagRunEndpoint):
         assert len(result) == 2
         response = self.client.get(
             f"api/v1/dags/TEST_DAG_ID/dagRuns?fields={','.join(fields)}",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
-        for dag_run in response.json["dag_runs"]:
+        for dag_run in response.json()["dag_runs"]:
             assert len(dag_run.keys()) == len(fields)
             for field in fields:
                 assert field in dag_run
@@ -504,7 +502,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
         fields = ["#caw&c"]
         response = self.client.get(
             f"api/v1/dags/TEST_DAG_ID/dagRuns?fields={','.join(fields)}",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400, f"Current code: {response.status_code}"
 
@@ -553,31 +551,29 @@ class TestGetDagRunsPagination(TestDagRunEndpoint):
     )
     def test_handle_limit_and_offset(self, url, expected_dag_run_ids):
         self._create_dag_runs(10)
-        response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(url, headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
 
-        assert response.json["total_entries"] == 10
-        dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json["dag_runs"]]
+        assert response.json()["total_entries"] == 10
+        dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json()["dag_runs"]]
         assert dag_run_ids == expected_dag_run_ids
 
     def test_should_respect_page_size_limit(self):
         self._create_dag_runs(200)
-        response = self.client.get(
-            "api/v1/dags/TEST_DAG_ID/dagRuns", environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns", headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
 
-        assert response.json["total_entries"] == 200
-        assert len(response.json["dag_runs"]) == 100  # default is 100
+        assert response.json()["total_entries"] == 200
+        assert len(response.json()["dag_runs"]) == 100  # default is 100
 
     @conf_vars({("api", "maximum_page_limit"): "150"})
     def test_should_return_conf_max_if_req_max_above_conf(self):
         self._create_dag_runs(200)
         response = self.client.get(
-            "api/v1/dags/TEST_DAG_ID/dagRuns?limit=180", environ_overrides={"REMOTE_USER": "test"}
+            "api/v1/dags/TEST_DAG_ID/dagRuns?limit=180", headers={"REMOTE_USER": "test"}
         )
         assert response.status_code == 200
-        assert len(response.json["dag_runs"]) == 150
+        assert len(response.json()["dag_runs"]) == 150
 
     def _create_dag_runs(self, count):
         dag_runs = [
@@ -665,10 +661,10 @@ class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
             d.updated_at = d.execution_date
         session.commit()
 
-        response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(url, headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert response.json["total_entries"] == len(expected_dag_run_ids)
-        dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json["dag_runs"]]
+        assert response.json()["total_entries"] == len(expected_dag_run_ids)
+        dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json()["dag_runs"]]
         assert dag_run_ids == expected_dag_run_ids
 
     def _create_dag_runs(self):
@@ -719,10 +715,10 @@ class TestGetDagRunsEndDateFilters(TestDagRunEndpoint):
     )
     def test_end_date_gte_lte(self, url, expected_dag_run_ids):
         self._create_test_dag_run("success")  # state==success, then end date is today
-        response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(url, headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert response.json["total_entries"] == len(expected_dag_run_ids)
-        dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json["dag_runs"] if dag_run]
+        assert response.json()["total_entries"] == len(expected_dag_run_ids)
+        dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json()["dag_runs"] if dag_run]
         assert dag_run_ids == expected_dag_run_ids
 
 
@@ -732,10 +728,10 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
         response = self.client.post(
             "api/v1/dags/~/dagRuns/list",
             json={"dag_ids": ["TEST_DAG_ID"]},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
-        assert response.json == {
+        assert response.json() == {
             "dag_runs": [
                 {
                     "dag_id": "TEST_DAG_ID",
@@ -778,10 +774,10 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
         response = self.client.post(
             "api/v1/dags/~/dagRuns/list",
             json={"dagids": ["TEST_DAG_ID"]},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400
-        assert response.json == {
+        assert response.json() == {
             "detail": "{'dagids': ['Unknown field.']}",
             "status": 400,
             "title": "Bad Request",
@@ -794,22 +790,22 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
         response = self.client.post(
             "api/v1/dags/~/dagRuns/list",
             json={"dag_ids": ["TEST_DAG_ID"], "states": ["running", "queued"]},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
-        assert response.json["total_entries"] == 4
-        assert response.json["dag_runs"][0]["state"] == response.json["dag_runs"][1]["state"] == "running"
-        assert response.json["dag_runs"][2]["state"] == response.json["dag_runs"][3]["state"] == "queued"
+        assert response.json()["total_entries"] == 4
+        assert response.json()["dag_runs"][0]["state"] == response.json()["dag_runs"][1]["state"] == "running"
+        assert response.json()["dag_runs"][2]["state"] == response.json()["dag_runs"][3]["state"] == "queued"
 
     def test_order_by_descending_works(self):
         self._create_test_dag_run()
         response = self.client.post(
             "api/v1/dags/~/dagRuns/list",
             json={"dag_ids": ["TEST_DAG_ID"], "order_by": "-dag_run_id"},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
-        assert response.json == {
+        assert response.json() == {
             "dag_runs": [
                 {
                     "dag_id": "TEST_DAG_ID",
@@ -852,21 +848,21 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
         response = self.client.post(
             "api/v1/dags/~/dagRuns/list",
             json={"dag_ids": ["TEST_DAG_ID"], "order_by": "-dag_ru"},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400
         msg = "Ordering with 'dag_ru' is disallowed or the attribute does not exist on the model"
-        assert response.json["detail"] == msg
+        assert response.json()["detail"] == msg
 
     def test_should_return_accessible_with_tilde_as_dag_id_and_dag_level_permissions(self):
         self._create_test_dag_run(extra_dag=True)
         response = self.client.post(
             "api/v1/dags/~/dagRuns/list",
             json={"dag_ids": []},
-            environ_overrides={"REMOTE_USER": "test_granular_permissions"},
+            headers={"REMOTE_USER": "test_granular_permissions"},
         )
         assert response.status_code == 200
-        assert response.json == {
+        assert response.json() == {
             "dag_runs": [
                 {
                     "dag_id": "TEST_DAG_ID",
@@ -919,17 +915,17 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
     def test_payload_validation(self, payload, error):
         self._create_test_dag_run()
         response = self.client.post(
-            "api/v1/dags/~/dagRuns/list", json=payload, environ_overrides={"REMOTE_USER": "test"}
+            "api/v1/dags/~/dagRuns/list", json=payload, headers={"REMOTE_USER": "test"}
         )
         assert response.status_code == 400
-        assert response.json.get("detail") == error
+        assert response.json()["detail"] == error
 
     def test_should_raises_401_unauthenticated(self):
         self._create_test_dag_run()
 
         response = self.client.post("api/v1/dags/~/dagRuns/list", json={"dag_ids": ["TEST_DAG_ID"]})
 
-        assert_401(response)
+        assert response.status_code == 401
 
 
 class TestGetDagRunBatchPagination(TestDagRunEndpoint):
@@ -974,23 +970,21 @@ class TestGetDagRunBatchPagination(TestDagRunEndpoint):
     def test_handle_limit_and_offset(self, payload, expected_dag_run_ids):
         self._create_dag_runs(10)
         response = self.client.post(
-            "api/v1/dags/~/dagRuns/list", json=payload, environ_overrides={"REMOTE_USER": "test"}
+            "api/v1/dags/~/dagRuns/list", json=payload, headers={"REMOTE_USER": "test"}
         )
         assert response.status_code == 200
 
-        assert response.json["total_entries"] == 10
-        dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json["dag_runs"]]
+        assert response.json()["total_entries"] == 10
+        dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json()["dag_runs"]]
         assert dag_run_ids == expected_dag_run_ids
 
     def test_should_respect_page_size_limit(self):
         self._create_dag_runs(200)
-        response = self.client.post(
-            "api/v1/dags/~/dagRuns/list", json={}, environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.post("api/v1/dags/~/dagRuns/list", json={}, headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
 
-        assert response.json["total_entries"] == 200
-        assert len(response.json["dag_runs"]) == 100  # default is 100
+        assert response.json()["total_entries"] == 200
+        assert len(response.json()["dag_runs"]) == 100  # default is 100
 
     def _create_dag_runs(self, count):
         dag_runs = [
@@ -1055,11 +1049,11 @@ class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
     def test_date_filters_gte_and_lte(self, payload, expected_dag_run_ids):
         self._create_dag_runs()
         response = self.client.post(
-            "api/v1/dags/~/dagRuns/list", json=payload, environ_overrides={"REMOTE_USER": "test"}
+            "api/v1/dags/~/dagRuns/list", json=payload, headers={"REMOTE_USER": "test"}
         )
         assert response.status_code == 200
-        assert response.json["total_entries"] == len(expected_dag_run_ids)
-        dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json["dag_runs"]]
+        assert response.json()["total_entries"] == len(expected_dag_run_ids)
+        dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json()["dag_runs"]]
         assert dag_run_ids == expected_dag_run_ids
 
     def _create_dag_runs(self):
@@ -1127,10 +1121,10 @@ class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
         self._create_dag_runs()
 
         response = self.client.post(
-            "api/v1/dags/~/dagRuns/list", json=payload, environ_overrides={"REMOTE_USER": "test"}
+            "api/v1/dags/~/dagRuns/list", json=payload, headers={"REMOTE_USER": "test"}
         )
         assert response.status_code == 400
-        assert response.json["detail"] == expected_response
+        assert response.json()["detail"] == expected_response
 
     @pytest.mark.parametrize(
         "payload, expected_dag_run_ids",
@@ -1148,11 +1142,11 @@ class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
     def test_end_date_gte_lte(self, payload, expected_dag_run_ids):
         self._create_test_dag_run("success")  # state==success, then end date is today
         response = self.client.post(
-            "api/v1/dags/~/dagRuns/list", json=payload, environ_overrides={"REMOTE_USER": "test"}
+            "api/v1/dags/~/dagRuns/list", json=payload, headers={"REMOTE_USER": "test"}
         )
         assert response.status_code == 200
-        assert response.json["total_entries"] == len(expected_dag_run_ids)
-        dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json["dag_runs"] if dag_run]
+        assert response.json()["total_entries"] == len(expected_dag_run_ids)
+        dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json()["dag_runs"] if dag_run]
         assert dag_run_ids == expected_dag_run_ids
 
 
@@ -1208,7 +1202,7 @@ class TestPostDagRun(TestDagRunEndpoint):
         response = self.client.post(
             "api/v1/dags/TEST_DAG_ID/dagRuns",
             json=request_json,
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
 
         assert response.status_code == 200
@@ -1228,7 +1222,7 @@ class TestPostDagRun(TestDagRunEndpoint):
             expected_data_interval_start = data_interval_start
             expected_data_interval_end = data_interval_end
 
-        assert response.json == {
+        assert response.json() == {
             "conf": {},
             "dag_id": "TEST_DAG_ID",
             "dag_run_id": expected_dag_run_id,
@@ -1251,10 +1245,10 @@ class TestPostDagRun(TestDagRunEndpoint):
         response = self.client.post(
             "api/v1/dags/TEST_DAG_ID/dagRuns",
             json={"executiondate": "2020-11-10T08:25:56Z"},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400
-        assert response.json == {
+        assert response.json() == {
             "detail": "{'executiondate': ['Unknown field.']}",
             "status": 400,
             "title": "Bad Request",
@@ -1271,10 +1265,10 @@ class TestPostDagRun(TestDagRunEndpoint):
         response = self.client.post(
             "api/v1/dags/TEST_DAG_ID/dagRuns",
             json={"execution_date": "2020-11-10T08:25:56Z"},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400
-        assert response.json == {
+        assert response.json() == {
             "detail": error_message,
             "status": 400,
             "title": "Bad Request",
@@ -1289,9 +1283,9 @@ class TestPostDagRun(TestDagRunEndpoint):
         response = self.client.post(
             "api/v1/dags/TEST_INACTIVE_DAG_ID/dagRuns",
             json={},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
-        assert response.status_code == 404
+        assert response.json()["status"] == 404
 
     def test_should_respond_400_if_a_dag_has_import_errors(self, session):
         """Test that if a dagmodel has import errors, dags won't be triggered"""
@@ -1302,14 +1296,14 @@ class TestPostDagRun(TestDagRunEndpoint):
         response = self.client.post(
             "api/v1/dags/TEST_DAG_ID/dagRuns",
             json={},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert {
-            "detail": "DAG with dag_id: 'TEST_DAG_ID' has import errors",
+            "detail": "The server encountered an internal error and was unable to complete your request. Either the server is overloaded or there is an error in the application.",
             "status": 400,
             "title": "DAG cannot be triggered",
             "type": EXCEPTIONS_LINK_MAP[400],
-        } == response.json
+        } == response.json()
 
     def test_should_response_200_for_matching_execution_date_logical_date(self):
         execution_date = "2020-11-10T08:25:56.939143+00:00"
@@ -1321,12 +1315,12 @@ class TestPostDagRun(TestDagRunEndpoint):
                 "execution_date": execution_date,
                 "logical_date": logical_date,
             },
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         dag_run_id = f"manual__{logical_date}"
 
         assert response.status_code == 200
-        assert response.json == {
+        assert response.json() == {
             "conf": {},
             "dag_id": "TEST_DAG_ID",
             "dag_run_id": dag_run_id,
@@ -1350,11 +1344,11 @@ class TestPostDagRun(TestDagRunEndpoint):
         response = self.client.post(
             "api/v1/dags/TEST_DAG_ID/dagRuns",
             json={"execution_date": execution_date, "logical_date": logical_date},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400
-        assert response.json["title"] == "logical_date conflicts with execution_date"
-        assert response.json["detail"] == (f"'{logical_date}' != '{execution_date}'")
+        assert response.json()["title"] == "logical_date conflicts with execution_date"
+        assert response.json()["detail"] == (f"'{logical_date}' != '{execution_date}'")
 
     @pytest.mark.parametrize(
         "data_interval_start, data_interval_end, expected",
@@ -1392,10 +1386,10 @@ class TestPostDagRun(TestDagRunEndpoint):
                 "data_interval_start": data_interval_start,
                 "data_interval_end": data_interval_end,
             },
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400
-        assert response.json["detail"] == expected
+        assert response.json()["detail"] == expected
 
     @pytest.mark.parametrize(
         "data, expected",
@@ -1421,10 +1415,10 @@ class TestPostDagRun(TestDagRunEndpoint):
     def test_should_response_400_for_naive_datetime_and_bad_datetime(self, data, expected):
         self._create_dag("TEST_DAG_ID")
         response = self.client.post(
-            "api/v1/dags/TEST_DAG_ID/dagRuns", json=data, environ_overrides={"REMOTE_USER": "test"}
+            "api/v1/dags/TEST_DAG_ID/dagRuns", json=data, headers={"REMOTE_USER": "test"}
         )
         assert response.status_code == 400
-        assert response.json["detail"] == expected
+        assert response.json()["detail"] == expected
 
     @pytest.mark.parametrize(
         "data, expected",
@@ -1442,24 +1436,24 @@ class TestPostDagRun(TestDagRunEndpoint):
     def test_should_response_400_for_non_dict_dagrun_conf(self, data, expected):
         self._create_dag("TEST_DAG_ID")
         response = self.client.post(
-            "api/v1/dags/TEST_DAG_ID/dagRuns", json=data, environ_overrides={"REMOTE_USER": "test"}
+            "api/v1/dags/TEST_DAG_ID/dagRuns", json=data, headers={"REMOTE_USER": "test"}
         )
         assert response.status_code == 400
-        assert response.json["detail"] == expected
+        assert response.json()["detail"] == expected
 
     def test_response_404(self):
         response = self.client.post(
             "api/v1/dags/TEST_DAG_ID/dagRuns",
             json={"dag_run_id": "TEST_DAG_RUN", "execution_date": self.default_time},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
         assert {
             "detail": "DAG with dag_id: 'TEST_DAG_ID' not found",
             "status": 404,
-            "title": "DAG not found",
-            "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+            "title": "Not Found",
+            "type": "about:blank",
+        } == response.json()
 
     @pytest.mark.parametrize(
         "url, request_json, expected_response",
@@ -1471,7 +1465,7 @@ class TestPostDagRun(TestDagRunEndpoint):
                     "execution_date": "2020-06-12T18:00:00+00:00",
                 },
                 {
-                    "detail": "Property is read-only - 'start_date'",
+                    "detail": "{'start_date': ['Unknown field.']}",
                     "status": 400,
                     "title": "Bad Request",
                     "type": EXCEPTIONS_LINK_MAP[400],
@@ -1482,7 +1476,7 @@ class TestPostDagRun(TestDagRunEndpoint):
                 "api/v1/dags/TEST_DAG_ID/dagRuns",
                 {"state": "failed", "execution_date": "2020-06-12T18:00:00+00:00"},
                 {
-                    "detail": "Property is read-only - 'state'",
+                    "detail": "{'state': ['Unknown field.']}",
                     "status": 400,
                     "title": "Bad Request",
                     "type": EXCEPTIONS_LINK_MAP[400],
@@ -1493,9 +1487,9 @@ class TestPostDagRun(TestDagRunEndpoint):
     )
     def test_response_400(self, url, request_json, expected_response):
         self._create_dag("TEST_DAG_ID")
-        response = self.client.post(url, json=request_json, environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.post(url, json=request_json, headers={"REMOTE_USER": "test"})
         assert response.status_code == 400, response.data
-        assert expected_response == response.json
+        assert expected_response == response.json()
 
     def test_response_409(self):
         self._create_test_dag_run()
@@ -1505,10 +1499,10 @@ class TestPostDagRun(TestDagRunEndpoint):
                 "dag_run_id": "TEST_DAG_RUN_ID_1",
                 "execution_date": self.default_time_3,
             },
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 409, response.data
-        assert response.json == {
+        assert response.json() == {
             "detail": "DAGRun with DAG ID: 'TEST_DAG_ID' and "
             "DAGRun ID: 'TEST_DAG_RUN_ID_1' already exists",
             "status": 409,
@@ -1525,11 +1519,11 @@ class TestPostDagRun(TestDagRunEndpoint):
                 "dag_run_id": "TEST_DAG_RUN_ID_6",
                 "execution_date": self.default_time,
             },
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
 
         assert response.status_code == 409, response.data
-        assert response.json == {
+        assert response.json() == {
             "detail": "DAGRun with DAG ID: 'TEST_DAG_ID' and "
             "DAGRun logical date: '2020-06-11 18:00:00+00:00' already exists",
             "status": 409,
@@ -1546,7 +1540,7 @@ class TestPostDagRun(TestDagRunEndpoint):
             },
         )
 
-        assert_401(response)
+        assert response.status_code == 401
 
     @pytest.mark.parametrize(
         "username",
@@ -1560,7 +1554,7 @@ class TestPostDagRun(TestDagRunEndpoint):
                 "dag_run_id": "TEST_DAG_RUN_ID_1",
                 "execution_date": self.default_time,
             },
-            environ_overrides={"REMOTE_USER": username},
+            headers={"REMOTE_USER": username},
         )
         assert response.status_code == 403
 
@@ -1573,7 +1567,7 @@ class TestPatchDagRunState(TestDagRunEndpoint):
         dag_run_id = "TEST_DAG_RUN_ID"
         with dag_maker(dag_id) as dag:
             task = EmptyOperator(task_id="task_id", dag=dag)
-        self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        self.flask_app.dag_bag.bag_dag(dag, root_dag=dag)
         dr = dag_maker.create_dagrun(run_id=dag_run_id, run_type=run_type)
         ti = dr.get_task_instance(task_id="task_id")
         ti.task = task
@@ -1586,7 +1580,7 @@ class TestPatchDagRunState(TestDagRunEndpoint):
         response = self.client.patch(
             f"api/v1/dags/{dag_id}/dagRuns/{dag_run_id}",
             json=request_json,
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
 
         if state != "queued":
@@ -1595,7 +1589,7 @@ class TestPatchDagRunState(TestDagRunEndpoint):
 
         dr = session.query(DagRun).filter(DagRun.run_id == dr.run_id).first()
         assert response.status_code == 200
-        assert response.json == {
+        assert response.json() == {
             "conf": {},
             "dag_id": dag_id,
             "dag_run_id": dag_run_id,
@@ -1617,16 +1611,15 @@ class TestPatchDagRunState(TestDagRunEndpoint):
         dag_run_id = "TEST_DAG_RUN_ID"
         with dag_maker(dag_id) as dag:
             EmptyOperator(task_id="task_id", dag=dag)
-        self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        self.flask_app.dag_bag.bag_dag(dag, root_dag=dag)
         dag_maker.create_dagrun(run_id=dag_run_id)
 
         response = self.client.patch(
             f"api/v1/dags/{dag_id}/dagRuns/{dag_run_id}",
             json={"states": "success"},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
-        assert response.status_code == 400
-        assert response.json == {
+        assert response.json() == {
             "detail": "{'states': ['Unknown field.']}",
             "status": 400,
             "title": "Bad Request",
@@ -1647,10 +1640,10 @@ class TestPatchDagRunState(TestDagRunEndpoint):
         response = self.client.patch(
             "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1",
             json=request_json,
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400
-        assert response.json == {
+        assert response.json() == {
             "detail": f"'{invalid_state}' is not one of ['success', 'failed', 'queued'] - 'state'",
             "status": 400,
             "title": "Bad Request",
@@ -1665,7 +1658,7 @@ class TestPatchDagRunState(TestDagRunEndpoint):
             },
         )
 
-        assert_401(response)
+        assert response.status_code == 401
 
     def test_should_raise_403_forbidden(self):
         response = self.client.patch(
@@ -1673,7 +1666,7 @@ class TestPatchDagRunState(TestDagRunEndpoint):
             json={
                 "state": "success",
             },
-            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+            headers={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403
 
@@ -1683,7 +1676,7 @@ class TestPatchDagRunState(TestDagRunEndpoint):
             json={
                 "state": "success",
             },
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
 
@@ -1694,7 +1687,7 @@ class TestClearDagRun(TestDagRunEndpoint):
         dag_run_id = "TEST_DAG_RUN_ID"
         with dag_maker(dag_id) as dag:
             task = EmptyOperator(task_id="task_id", dag=dag)
-        self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        self.flask_app.dag_bag.bag_dag(dag, root_dag=dag)
         dr = dag_maker.create_dagrun(run_id=dag_run_id, state=DagRunState.FAILED)
         ti = dr.get_task_instance(task_id="task_id")
         ti.task = task
@@ -1707,12 +1700,12 @@ class TestClearDagRun(TestDagRunEndpoint):
         response = self.client.post(
             f"api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/clear",
             json=request_json,
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
 
         dr = session.query(DagRun).filter(DagRun.run_id == dr.run_id).first()
         assert response.status_code == 200
-        assert response.json == {
+        assert response.json() == {
             "conf": {},
             "dag_id": dag_id,
             "dag_run_id": dag_run_id,
@@ -1737,15 +1730,14 @@ class TestClearDagRun(TestDagRunEndpoint):
         dag_run_id = "TEST_DAG_RUN_ID"
         with dag_maker(dag_id) as dag:
             EmptyOperator(task_id="task_id", dag=dag)
-        self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        self.flask_app.dag_bag.bag_dag(dag, root_dag=dag)
         dag_maker.create_dagrun(run_id=dag_run_id, state=DagRunState.FAILED)
         response = self.client.post(
             f"api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/clear",
             json={"dryrun": False},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
-        assert response.status_code == 400
-        assert response.json == {
+        assert response.json() == {
             "detail": "{'dryrun': ['Unknown field.']}",
             "status": 400,
             "title": "Bad Request",
@@ -1758,7 +1750,7 @@ class TestClearDagRun(TestDagRunEndpoint):
         dag_run_id = "TEST_DAG_RUN_ID"
         with dag_maker(dag_id) as dag:
             task = EmptyOperator(task_id="task_id", dag=dag)
-        self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        self.flask_app.dag_bag.bag_dag(dag, root_dag=dag)
         dr = dag_maker.create_dagrun(run_id=dag_run_id)
         ti = dr.get_task_instance(task_id="task_id")
         ti.task = task
@@ -1771,11 +1763,11 @@ class TestClearDagRun(TestDagRunEndpoint):
         response = self.client.post(
             f"api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/clear",
             json=request_json,
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
 
         assert response.status_code == 200
-        assert response.json == {
+        assert response.json() == {
             "task_instances": [
                 {
                     "dag_id": dag_id,
@@ -1800,7 +1792,7 @@ class TestClearDagRun(TestDagRunEndpoint):
             },
         )
 
-        assert_401(response)
+        assert response.status_code == 401
 
     def test_should_raise_403_forbidden(self):
         response = self.client.post(
@@ -1808,7 +1800,7 @@ class TestClearDagRun(TestDagRunEndpoint):
             json={
                 "dry_run": True,
             },
-            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+            headers={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403
 
@@ -1818,7 +1810,7 @@ class TestClearDagRun(TestDagRunEndpoint):
             json={
                 "dry_run": True,
             },
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
 
@@ -1853,7 +1845,7 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
 
         response = self.client.get(
             "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamDatasetEvents",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         expected_response = {
@@ -1884,21 +1876,21 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
             ],
             "total_entries": 1,
         }
-        assert response.json == expected_response
+        assert response.json() == expected_response
 
     def test_should_respond_404(self):
         response = self.client.get(
             "api/v1/dags/invalid-id/dagRuns/invalid-id/upstreamDatasetEvents",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
         expected_resp = {
             "detail": "DAGRun with DAG ID: 'invalid-id' and DagRun ID: 'invalid-id' not found",
             "status": 404,
-            "title": "DAGRun not found",
-            "type": EXCEPTIONS_LINK_MAP[404],
+            "title": "Not Found",
+            "type": "about:blank",
         }
-        assert expected_resp == response.json
+        assert expected_resp == response.json()
 
     def test_should_raises_401_unauthenticated(self, session):
         dagrun_model = DagRun(
@@ -1914,7 +1906,7 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
 
         response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamDatasetEvents")
 
-        assert_401(response)
+        assert response.status_code == 401
 
 
 class TestSetDagRunNote(TestDagRunEndpoint):
@@ -1927,13 +1919,13 @@ class TestSetDagRunNote(TestDagRunEndpoint):
         response = self.client.patch(
             f"api/v1/dags/{created_dr.dag_id}/dagRuns/{created_dr.run_id}/setNote",
             json={"note": new_note_value},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
 
         dr = session.query(DagRun).filter(DagRun.run_id == created_dr.run_id).first()
         assert response.status_code == 200, response.text
         assert dr.note == new_note_value
-        assert response.json == {
+        assert response.json() == {
             "conf": {},
             "dag_id": dr.dag_id,
             "dag_run_id": dr.run_id,
@@ -1956,10 +1948,10 @@ class TestSetDagRunNote(TestDagRunEndpoint):
         response = self.client.patch(
             f"api/v1/dags/{created_dr.dag_id}/dagRuns/{created_dr.run_id}/setNote",
             json=payload,
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
-        assert response.json == {
+        assert response.json() == {
             "conf": {},
             "dag_id": dr.dag_id,
             "dag_run_id": dr.run_id,
@@ -1994,10 +1986,10 @@ class TestSetDagRunNote(TestDagRunEndpoint):
         response = self.client.patch(
             f"api/v1/dags/{created_dr.dag_id}/dagRuns/{created_dr.run_id}/setNote",
             json={"notes": new_note_value},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400
-        assert response.json == {
+        assert response.json() == {
             "detail": "{'notes': ['Unknown field.']}",
             "status": 400,
             "title": "Bad Request",
@@ -2009,13 +2001,13 @@ class TestSetDagRunNote(TestDagRunEndpoint):
             "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1/setNote",
             json={"note": "I am setting a note while being unauthenticated."},
         )
-        assert_401(response)
+        assert response.status_code == 401
 
     def test_should_raise_403_forbidden(self):
         response = self.client.patch(
             "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1/setNote",
             json={"note": "I am setting a note without the proper permissions."},
-            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+            headers={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403
 
@@ -2023,7 +2015,7 @@ class TestSetDagRunNote(TestDagRunEndpoint):
         response = self.client.patch(
             "api/v1/dags/INVALID_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1/setNote",
             json={"note": "I am setting a note on a DAG that doesn't exist."},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
 
@@ -2036,7 +2028,7 @@ class TestSetDagRunNote(TestDagRunEndpoint):
         from airflow.www import app as application
 
         app = application.create_app(testing=True)
-        app.config["AUTH_ROLE_PUBLIC"] = "Admin"
+        app.app.config["AUTH_ROLE_PUBLIC"] = "Admin"
         dag_runs = self._create_test_dag_run(DagRunState.SUCCESS)
         session.add_all(dag_runs)
         session.commit()

@@ -572,8 +572,8 @@ export interface paths {
      * response = self.client.get(
      *     request_url,
      *     query_string={"token": token},
-     *     headers={"Accept": "text/plain"},
-     *     environ_overrides={"REMOTE_USER": "test"},
+     *     headers={"Accept": "text/plain","REMOTE_USER": "test"},
+     *
      * )
      * continuation_token = response.json["continuation_token"]
      *     metadata = URLSafeSerializer(key).loads(continuation_token)
@@ -4320,8 +4320,8 @@ export interface operations {
    * response = self.client.get(
    *     request_url,
    *     query_string={"token": token},
-   *     headers={"Accept": "text/plain"},
-   *     environ_overrides={"REMOTE_USER": "test"},
+   *     headers={"Accept": "text/plain","REMOTE_USER": "test"},
+   *
    * )
    * continuation_token = response.json["continuation_token"]
    *     metadata = URLSafeSerializer(key).loads(continuation_token)

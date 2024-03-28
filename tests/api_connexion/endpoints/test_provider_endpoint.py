@@ -52,26 +52,26 @@ MOCK_PROVIDERS = {
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
-    app = minimal_app_for_api
+    connexion_app = minimal_app_for_api
     create_user(
-        app,  # type: ignore
+        connexion_app.app,  # type: ignore
         username="test",
         role_name="Test",
         permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_PROVIDER)],
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(connexion_app.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
-    yield app
+    yield connexion_app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_user(connexion_app.app, username="test")  # type: ignore
+    delete_user(connexion_app.app, username="test_no_permissions")  # type: ignore
 
 
 class TestBaseProviderEndpoint:
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app, cleanup_providers_manager) -> None:
-        self.app = configured_app
-        self.client = self.app.test_client()  # type:ignore
+        self.connexion_app = configured_app
+        self.client = self.connexion_app.test_client()  # type:ignore
 
 
 class TestGetProviders(TestBaseProviderEndpoint):
@@ -81,9 +81,9 @@ class TestGetProviders(TestBaseProviderEndpoint):
         return_value={},
     )
     def test_response_200_empty_list(self, mock_providers):
-        response = self.client.get("/api/v1/providers", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get("/api/v1/providers", headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert response.json == {"providers": [], "total_entries": 0}
+        assert response.json() == {"providers": [], "total_entries": 0}
 
     @mock.patch(
         "airflow.providers_manager.ProvidersManager.providers",
@@ -91,9 +91,9 @@ class TestGetProviders(TestBaseProviderEndpoint):
         return_value=MOCK_PROVIDERS,
     )
     def test_response_200(self, mock_providers):
-        response = self.client.get("/api/v1/providers", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get("/api/v1/providers", headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert response.json == {
+        assert response.json() == {
             "providers": [
                 {
                     "description": "Amazon Web Services (AWS) https://aws.amazon.com/",
@@ -114,7 +114,5 @@ class TestGetProviders(TestBaseProviderEndpoint):
         assert response.status_code == 401
 
     def test_should_raise_403_forbidden(self):
-        response = self.client.get(
-            "/api/v1/providers", environ_overrides={"REMOTE_USER": "test_no_permissions"}
-        )
+        response = self.client.get("/api/v1/providers", headers={"REMOTE_USER": "test_no_permissions"})
         assert response.status_code == 403

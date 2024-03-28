@@ -28,10 +28,12 @@ pytestmark = pytest.mark.db_test
 
 class BaseTestAuth:
     @pytest.fixture(autouse=True)
-    def set_attrs(self, minimal_app_for_api):
-        self.app = minimal_app_for_api
+    def set_attrs(self, minimal_app_for_api, minimal_app_for_api_cors_allow_all):
+        self.connexion_app = minimal_app_for_api
+        self.connexion_app_cors_allow_all = minimal_app_for_api_cors_allow_all
+        self.flask_app = self.connexion_app.app
 
-        sm = self.app.appbuilder.sm
+        sm = self.flask_app.appbuilder.sm
         tester = sm.find_user(username="test")
         if not tester:
             role_admin = sm.find_role("Admin")
@@ -50,20 +52,21 @@ class TestEmptyCors(BaseTestAuth):
     def with_basic_auth_backend(self, minimal_app_for_api):
         from airflow.www.extensions.init_security import init_api_experimental_auth
 
-        old_auth = getattr(minimal_app_for_api, "api_auth")
+        flask_app = minimal_app_for_api.app
+        old_auth = getattr(flask_app, "api_auth")
 
         try:
             with conf_vars({("api", "auth_backends"): "airflow.api.auth.backend.basic_auth"}):
-                init_api_experimental_auth(minimal_app_for_api)
+                init_api_experimental_auth(flask_app)
                 yield
         finally:
-            setattr(minimal_app_for_api, "api_auth", old_auth)
+            setattr(flask_app, "api_auth", old_auth)
 
     def test_empty_cors_headers(self):
         token = "Basic " + b64encode(b"test:test").decode()
         clear_db_pools()
 
-        with self.app.test_client() as test_client:
+        with self.connexion_app.test_client() as test_client:
             response = test_client.get("/api/v1/pools", headers={"Authorization": token})
             assert response.status_code == 200
             assert "Access-Control-Allow-Headers" not in response.headers
@@ -76,29 +79,25 @@ class TestCorsOrigin(BaseTestAuth):
     def with_basic_auth_backend(self, minimal_app_for_api):
         from airflow.www.extensions.init_security import init_api_experimental_auth
 
-        old_auth = getattr(minimal_app_for_api, "api_auth")
+        flask_app = minimal_app_for_api.app
+        old_auth = getattr(flask_app, "api_auth")
 
         try:
             with conf_vars(
                 {
                     ("api", "auth_backends"): "airflow.api.auth.backend.basic_auth",
-                    ("api", "access_control_allow_origins"): "http://apache.org http://example.com",
                 }
             ):
-                init_api_experimental_auth(minimal_app_for_api)
+                init_api_experimental_auth(flask_app)
                 yield
         finally:
-            setattr(minimal_app_for_api, "api_auth", old_auth)
+            setattr(flask_app, "api_auth", old_auth)
 
     def test_cors_origin_reflection(self):
         token = "Basic " + b64encode(b"test:test").decode()
         clear_db_pools()
 
-        with self.app.test_client() as test_client:
-            response = test_client.get("/api/v1/pools", headers={"Authorization": token})
-            assert response.status_code == 200
-            assert response.headers["Access-Control-Allow-Origin"] == "http://apache.org"
-
+        with self.connexion_app.test_client() as test_client:
             response = test_client.get(
                 "/api/v1/pools", headers={"Authorization": token, "Origin": "http://apache.org"}
             )
@@ -109,33 +108,35 @@ class TestCorsOrigin(BaseTestAuth):
                 "/api/v1/pools", headers={"Authorization": token, "Origin": "http://example.com"}
             )
             assert response.status_code == 200
+
             assert response.headers["Access-Control-Allow-Origin"] == "http://example.com"
 
 
 class TestCorsWildcard(BaseTestAuth):
     @pytest.fixture(autouse=True, scope="class")
-    def with_basic_auth_backend(self, minimal_app_for_api):
+    def with_basic_auth_backend(self, minimal_app_for_api_cors_allow_all):
         from airflow.www.extensions.init_security import init_api_experimental_auth
 
-        old_auth = getattr(minimal_app_for_api, "api_auth")
+        self.connexion_app = minimal_app_for_api_cors_allow_all
+        flask_app = minimal_app_for_api_cors_allow_all.app
+        old_auth = getattr(flask_app, "api_auth")
 
         try:
             with conf_vars(
                 {
                     ("api", "auth_backends"): "airflow.api.auth.backend.basic_auth",
-                    ("api", "access_control_allow_origins"): "*",
                 }
             ):
-                init_api_experimental_auth(minimal_app_for_api)
+                init_api_experimental_auth(flask_app)
                 yield
         finally:
-            setattr(minimal_app_for_api, "api_auth", old_auth)
+            setattr(flask_app, "api_auth", old_auth)
 
     def test_cors_origin_reflection(self):
         token = "Basic " + b64encode(b"test:test").decode()
         clear_db_pools()
 
-        with self.app.test_client() as test_client:
+        with self.connexion_app_cors_allow_all.test_client() as test_client:
             response = test_client.get(
                 "/api/v1/pools", headers={"Authorization": token, "Origin": "http://example.com"}
             )

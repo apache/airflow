@@ -33,17 +33,17 @@ class TestRoleCollectionItemSchema:
     @pytest.fixture(scope="class")
     def role(self, minimal_app_for_api):
         yield create_role(
-            minimal_app_for_api,  # type: ignore
+            minimal_app_for_api.app,  # type: ignore
             name="Test",
             permissions=[
                 (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION),
             ],
         )
-        delete_role(minimal_app_for_api, "Test")
+        delete_role(minimal_app_for_api.app, "Test")
 
     @pytest.fixture(autouse=True)
     def _set_attrs(self, minimal_app_for_api, role):
-        self.app = minimal_app_for_api
+        self.connexion_app = minimal_app_for_api
         self.role = role
 
     def test_serialize(self):
@@ -69,24 +69,24 @@ class TestRoleCollectionSchema:
     @pytest.fixture(scope="class")
     def role1(self, minimal_app_for_api):
         yield create_role(
-            minimal_app_for_api,  # type: ignore
+            minimal_app_for_api.app,  # type: ignore
             name="Test1",
             permissions=[
                 (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION),
             ],
         )
-        delete_role(minimal_app_for_api, "Test1")
+        delete_role(minimal_app_for_api.app, "Test1")
 
     @pytest.fixture(scope="class")
     def role2(self, minimal_app_for_api):
         yield create_role(
-            minimal_app_for_api,  # type: ignore
+            minimal_app_for_api.app,  # type: ignore
             name="Test2",
             permissions=[
                 (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             ],
         )
-        delete_role(minimal_app_for_api, "Test2")
+        delete_role(minimal_app_for_api.app, "Test2")
 
     def test_serialize(self, role1, role2):
         instance = RoleCollection([role1, role2], total_entries=2)

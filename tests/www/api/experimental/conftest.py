@@ -40,10 +40,10 @@ def experiemental_api_app():
     )
     def factory():
         app = application.create_app(testing=True)
-        app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///"
-        app.config["SECRET_KEY"] = "secret_key"
-        app.config["CSRF_ENABLED"] = False
-        app.config["WTF_CSRF_ENABLED"] = False
+        app.app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///"
+        app.app.config["SECRET_KEY"] = "secret_key"
+        app.app.config["CSRF_ENABLED"] = False
+        app.app.config["WTF_CSRF_ENABLED"] = False
         return app
 
     return factory()

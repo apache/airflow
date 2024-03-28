@@ -163,14 +163,14 @@ class TestUtils:
     def test_task_instance_link(self):
         from airflow.www.app import cached_app
 
-        with cached_app(testing=True).test_request_context():
+        with cached_app(testing=True).app.test_request_context():
             html = str(
                 utils.task_instance_link(
                     {"dag_id": "<a&1>", "task_id": "<b2>", "execution_date": datetime.now()}
                 )
             )
 
-        assert "%3Ca%261%3E" in html
+        assert "%3Ca&amp;1%3E" in html
         assert "%3Cb2%3E" in html
         assert "<a&1>" not in html
         assert "<b2>" not in html
@@ -179,10 +179,10 @@ class TestUtils:
     def test_dag_link(self):
         from airflow.www.app import cached_app
 
-        with cached_app(testing=True).test_request_context():
+        with cached_app(testing=True).app.test_request_context():
             html = str(utils.dag_link({"dag_id": "<a&1>", "execution_date": datetime.now()}))
 
-        assert "%3Ca%261%3E" in html
+        assert "%3Ca&amp;1%3E" in html
         assert "<a&1>" not in html
 
     @pytest.mark.db_test
@@ -190,7 +190,7 @@ class TestUtils:
         """Test that when there is no dag_id, dag_link does not contain hyperlink"""
         from airflow.www.app import cached_app
 
-        with cached_app(testing=True).test_request_context():
+        with cached_app(testing=True).app.test_request_context():
             html = str(utils.dag_link({}))
 
         assert "None" in html
@@ -200,12 +200,12 @@ class TestUtils:
     def test_dag_run_link(self):
         from airflow.www.app import cached_app
 
-        with cached_app(testing=True).test_request_context():
+        with cached_app(testing=True).app.test_request_context():
             html = str(
                 utils.dag_run_link({"dag_id": "<a&1>", "run_id": "<b2>", "execution_date": datetime.now()})
             )
 
-        assert "%3Ca%261%3E" in html
+        assert "%3Ca&amp;1%3E" in html
         assert "%3Cb2%3E" in html
         assert "<a&1>" not in html
         assert "<b2>" not in html

@@ -22,8 +22,8 @@ from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Container
 
-from connexion import FlaskApi
-from flask import Blueprint, url_for
+from connexion.options import SwaggerUIOptions
+from flask import url_for
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
@@ -82,10 +82,12 @@ from airflow.security.permissions import (
 )
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.yaml import safe_load
-from airflow.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
-from airflow.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
+from airflow.www.constants import SWAGGER_BUNDLE
+from airflow.www.extensions.init_views import _LazyResolver
 
 if TYPE_CHECKING:
+    import connexion
+
     from airflow.auth.managers.models.base_user import BaseUser
     from airflow.cli.cli_config import (
         CLICommand,
@@ -147,19 +149,24 @@ class FabAuthManager(BaseAuthManager):
             SYNC_PERM_COMMAND,  # not in a command group
         ]
 
-    def get_api_endpoints(self) -> None | Blueprint:
+    def set_api_endpoints(self, connexion_app: connexion.FlaskApp) -> None:
         folder = Path(__file__).parents[0].resolve()  # this is airflow/auth/managers/fab/
         with folder.joinpath("openapi", "v1.yaml").open() as f:
             specification = safe_load(f)
-        return FlaskApi(
+
+        swagger_ui_options = SwaggerUIOptions(
+            swagger_ui=conf.getboolean("webserver", "enable_swagger_ui", fallback=True),
+            swagger_ui_template_dir=SWAGGER_BUNDLE,
+        )
+
+        connexion_app.add_api(
             specification=specification,
             resolver=_LazyResolver(),
             base_path="/auth/fab/v1",
-            options={"swagger_ui": SWAGGER_ENABLED, "swagger_path": SWAGGER_BUNDLE.__fspath__()},
+            swagger_ui_options=swagger_ui_options,
             strict_validation=True,
             validate_responses=True,
-            validator_map={"body": _CustomErrorRequestBodyValidator},
-        ).blueprint
+        )
 
     def get_user_display_name(self) -> str:
         """Return the user's display name associated to the user in session."""

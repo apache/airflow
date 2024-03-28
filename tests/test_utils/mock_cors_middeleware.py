@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,25 +17,19 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
+import connexion
 
-from airflow.www import app
-from tests.test_utils.config import conf_vars
-from tests.test_utils.decorators import dont_initialize_flask_app_submodules
+from airflow.configuration import conf
 
 
-@pytest.fixture(scope="session")
-def minimal_app_for_auth_api():
-    @dont_initialize_flask_app_submodules(
-        skip_all_except=[
-            "init_appbuilder",
-            "init_api_experimental_auth",
-            "init_api_auth_manager",
-            "init_api_error_handlers",
-        ]
+def init_mock_cors_middleware(connexion_app: connexion.FlaskApp, allow_origins: list):
+    from starlette.middleware.cors import CORSMiddleware
+
+    connexion_app.add_middleware(
+        CORSMiddleware,
+        connexion.middleware.MiddlewarePosition.BEFORE_ROUTING,
+        allow_origins=allow_origins,
+        allow_credentials=True,
+        allow_methods=conf.get("api", "access_control_allow_methods"),
+        allow_headers=conf.get("api", "access_control_allow_headers"),
     )
-    def factory():
-        with conf_vars({("api", "auth_backends"): "tests.test_utils.remote_user_api_auth_backend"}):
-            return app.create_app(testing=True, config={"WTF_CSRF_ENABLED": False})  # type:ignore
-
-    return factory()

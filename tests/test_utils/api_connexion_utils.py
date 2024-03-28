@@ -121,7 +121,7 @@ def delete_users(app):
 
 def assert_401(response):
     assert response.status_code == 401, f"Current code: {response.status_code}"
-    assert response.json == {
+    assert response.json() == {
         "detail": None,
         "status": 401,
         "title": "Unauthorized",

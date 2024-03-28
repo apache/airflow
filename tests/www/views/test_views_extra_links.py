@@ -96,7 +96,7 @@ def dag_run(create_dag_run, session):
 
 @pytest.fixture(scope="module", autouse=True)
 def patched_app(app, dag):
-    with mock.patch.object(app, "dag_bag") as mock_dag_bag:
+    with mock.patch.object(app.app, "dag_bag") as mock_dag_bag:
         mock_dag_bag.get_dag.return_value = dag
         yield
 
