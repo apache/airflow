@@ -51,6 +51,7 @@ jobs:
   build-info:
     timeout-minutes: 10
     name: "Build Info"
+    # At build-info stage we do not yet have outputs so we need to hard-code the runs-on to public runners
     runs-on: ["ubuntu-22.04"]
     env:
       TARGET_BRANCH: ${{ github.event.pull_request.base.ref }}
@@ -67,7 +68,9 @@ jobs:
       docker-cache: ${{ steps.selective-checks.outputs.docker-cache }}
       default-branch: ${{ steps.selective-checks.outputs.default-branch }}
       constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
-      runs-on: ${{steps.selective-checks.outputs.runs-on}}
+      default-runs-on-as-string: ${{ steps.selective-checks.outputs.default-runs-on-as-string }}
+      self-hosted-runs-on-as-string: ${{ steps.selective-checks.outputs.self-hosted-runs-on-as-string }}
+      public-runs-on-as-string: ${{ steps.selective-checks.outputs.public-runs-on-as-string }}
       is-self-hosted-runner: ${{ steps.selective-checks.outputs.is-self-hosted-runner }}
       is-committer-build: ${{ steps.selective-checks.outputs.is-committer-build }}
       is-airflow-runner: ${{ steps.selective-checks.outputs.is-airflow-runner }}
@@ -171,7 +174,7 @@ jobs:
       needs.build-info.outputs.ci-image-build == 'true' &&
       github.event.pull_request.head.repo.full_name != 'apache/airflow'
     with:
-      runs-on: '["ubuntu-22.04"]'
+      default-runs-on-as-string: ${{ needs.build-info.outputs.public-runs-on-as-string }}
       do-build: ${{ needs.build-info.outputs.ci-image-build }}
       target-commit-sha: ${{ needs.build-info.outputs.target-commit-sha }}
       pull-request-target: "true"
@@ -191,6 +194,7 @@ jobs:
     needs: [build-info, build-ci-images]
     uses: ./.github/workflows/generate-constraints.yml
     with:
+      public-runs-on-as-string: ${{ needs.build-info.outputs.public-runs-on-as-string }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       # For regular PRs we do not need "no providers" constraints - they are only needed in canary builds
       generate-no-providers-constraints: "false"
@@ -211,7 +215,7 @@ jobs:
       needs.build-info.outputs.prod-image-build == 'true' &&
       github.event.pull_request.head.repo.full_name != 'apache/airflow'
     with:
-      runs-on: '["ubuntu-22.04"]'
+      public-runs-on-as-string: ${{ needs.build-info.outputs.public-runs-on-as-string }}
       build-type: "Regular"
       do-build: ${{ needs.build-info.outputs.ci-image-build }}
       upload-package-artifact: "true"
