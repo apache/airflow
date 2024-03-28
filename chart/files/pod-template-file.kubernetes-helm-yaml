@@ -51,7 +51,7 @@ spec:
       {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 4 }}
     {{- end }}
     {{- if .Values.workers.extraInitContainers }}
-      {{- toYaml .Values.workers.extraInitContainers | nindent 4 }}
+      {{- tpl (toYaml .Values.workers.extraInitContainers) . | nindent 4 }}
     {{- end }}
   {{- end }}
   containers:
@@ -84,7 +84,7 @@ spec:
           {{- tpl (toYaml .Values.workers.extraVolumeMounts) . | nindent 8 }}
         {{- end }}
     {{- if .Values.workers.extraContainers }}
-      {{- toYaml .Values.workers.extraContainers | nindent 4 }}
+      {{- tpl (toYaml .Values.workers.extraContainers) . | nindent 4 }}
     {{- end }}
   {{- if .Values.workers.priorityClassName }}
   priorityClassName: {{ .Values.workers.priorityClassName }}

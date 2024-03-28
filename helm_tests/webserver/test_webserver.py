@@ -200,6 +200,24 @@ class TestWebserverDeployment:
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
 
+    def test_should_template_extra_containers(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "webserver": {
+                    "extraContainers": [
+                        {"name": "{{ .Release.Name }}-test-container"}
+                    ],
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert {
+            "name": "release-name-test-container",
+        } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
+
+
     def test_should_add_extraEnvs(self):
         docs = render_chart(
             values={
@@ -314,6 +332,23 @@ class TestWebserverDeployment:
             "name": "test-init-container",
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.initContainers[-1]", docs[0])
+
+    def test_should_template_extra_init_containers(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "extraInitContainers": [
+                        {"name": "{{ .Release.Name }}-init-container"}
+                    ],
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert {
+            "name": "release-name-init-container",
+        } == jmespath.search("spec.template.spec.initContainers[-1]", docs[0])
+
 
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
