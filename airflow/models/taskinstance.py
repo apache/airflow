@@ -752,10 +752,11 @@ def _get_template_context(
     except NotMapped:
         expanded_ti_count = None
 
-    # NOTE: If you add anything to this dict, make sure to also update the
-    # definition in airflow/utils/context.pyi, and KNOWN_CONTEXT_KEYS in
-    # airflow/utils/context.py!
-    context = {
+    # NOTE: If you add to this dict, make sure to also update the following:
+    # * Context in airflow/utils/context.pyi
+    # * KNOWN_CONTEXT_KEYS in airflow/utils/context.py
+    # * Table in docs/apache-airflow/templates-ref.rst
+    context: dict[str, Any] = {
         "conf": conf,
         "dag": dag,
         "dag_run": dag_run,
