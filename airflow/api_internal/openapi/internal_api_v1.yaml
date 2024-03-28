@@ -67,7 +67,7 @@ paths:
                   description: Method name
                 params:
                   title: Parameters
-                  type: string
+                  type: object
   "/health":
     get:
       operationId: health
