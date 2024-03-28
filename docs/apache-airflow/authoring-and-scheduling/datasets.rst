@@ -23,7 +23,7 @@ Data-aware scheduling
 Quickstart
 ----------
 
-In addition to scheduling DAGs based upon time, they can also be scheduled based upon a task updating a dataset.
+In addition to scheduling DAGs based on time, you can also schedule DAGs to run based on when a task updates a dataset.
 
 .. code-block:: python
 
@@ -51,9 +51,9 @@ In addition to scheduling DAGs based upon time, they can also be scheduled based
 What is a "dataset"?
 --------------------
 
-An Airflow dataset is a stand-in for a logical grouping of data. Datasets may be updated by upstream "producer" tasks, and dataset updates contribute to scheduling downstream "consumer" DAGs.
+An Airflow Dataset is a logical grouping of data. Upstream producer tasks can update datasets, and dataset updates contribute to scheduling downstream consumer DAGs.
 
-A dataset is defined by a Uniform Resource Identifier (URI):
+Uniform Resource Identifier (URI) define datasets:
 
 .. code-block:: python
 
@@ -61,9 +61,9 @@ A dataset is defined by a Uniform Resource Identifier (URI):
 
     example_dataset = Dataset("s3://dataset-bucket/example.csv")
 
-Airflow makes no assumptions about the content or location of the data represented by the URI. It is treated as a string, so any use of regular expressions (eg ``input_\d+.csv``) or file glob patterns (eg ``input_2022*.csv``) as an attempt to create multiple datasets from one declaration will not work.
+Airflow makes no assumptions about the content or location of the data represented by the URI. Airflow treats the URI like a string. This means that Airflow treats any regular expressions, like ``input_\d+.csv``, or file glob patterns, such as ``input_2022*.csv``, as an attempt to create multiple datasets from one declaration, and they will not work.
 
-A dataset should be created with a valid URI. Airflow core and providers define various URI schemes that you can use, such as ``file`` (core), ``postgres`` (by the Postgres provider), and ``s3`` (by the Amazon provider). Third-party providers and plugins may also provide their own schemes. These pre-defined schemes have individual semantics that are expected to be followed.
+You must create datsets with a valid URI. Airflow core and providers define various URI schemes that you can use, such as ``file`` (core), ``postgres`` (by the Postgres provider), and ``s3`` (by the Amazon provider). Third-party providers and plugins mightalso provide their own schemes. These pre-defined schemes have individual semantics that are expected to be followed.
 
 What is valid URI?
 ------------------
