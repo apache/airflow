@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import datetime
-import json
 
 import pytest
 
@@ -122,7 +121,7 @@ def test_health(request, admin_client, heartbeat):
     # Load the corresponding fixture by name.
     scheduler_status, last_scheduler_heartbeat = request.getfixturevalue(heartbeat)
     resp = admin_client.get("health", follow_redirects=True)
-    resp_json = json.loads(resp.data.decode("utf-8"))
+    resp_json = resp.json()
     assert "healthy" == resp_json["metadatabase"]["status"]
     assert scheduler_status == resp_json["scheduler"]["status"]
     assert last_scheduler_heartbeat == resp_json["scheduler"]["latest_scheduler_heartbeat"]
@@ -253,7 +252,7 @@ def test_views_get(request, url, client, content):
 
 
 def _check_task_stats_json(resp):
-    return set(next(iter(resp.json.items()))[1][0]) == {"state", "count"}
+    return set(next(iter(resp.json().items()))[1][0]) == {"state", "count"}
 
 
 @pytest.mark.parametrize(
