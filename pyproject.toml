@@ -472,10 +472,17 @@ filterwarnings = [
     "error::pytest.PytestCollectionWarning",
     "ignore::DeprecationWarning:flask_appbuilder.filemanager",
     "ignore::DeprecationWarning:flask_appbuilder.widgets",
+    # FAB do not support SQLAclhemy 2
+    "ignore::sqlalchemy.exc.MovedIn20Warning:flask_appbuilder",
+    # https://github.com/dpgaspar/Flask-AppBuilder/issues/2194
+    "ignore::DeprecationWarning:marshmallow_sqlalchemy.convert",
     # https://github.com/dpgaspar/Flask-AppBuilder/pull/1940
     "ignore::DeprecationWarning:flask_sqlalchemy",
     # https://github.com/dpgaspar/Flask-AppBuilder/pull/1903
     "ignore::DeprecationWarning:apispec.utils",
+    # Connexion 2 use Validator.iter_errors, should be resolved into Connexion 3
+    # https://github.com/spec-first/connexion/pull/1536
+    "ignore::DeprecationWarning:connexion.spec",
 ]
 python_files = [
     "test_*.py",
