@@ -104,7 +104,7 @@ def test_historical_metrics_data(admin_client, session, time_machine):
         follow_redirects=True,
     )
     assert resp.status_code == 200
-    assert resp.json == {
+    assert resp.json() == {
         "dag_run_states": {"failed": 1, "queued": 0, "running": 1, "success": 1},
         "dag_run_types": {"backfill": 0, "dataset_triggered": 1, "manual": 0, "scheduled": 2},
         "task_instance_states": {
@@ -133,7 +133,7 @@ def test_historical_metrics_data_date_filters(admin_client, session):
         follow_redirects=True,
     )
     assert resp.status_code == 200
-    assert resp.json == {
+    assert resp.json() == {
         "dag_run_states": {"failed": 1, "queued": 0, "running": 0, "success": 0},
         "dag_run_types": {"backfill": 0, "dataset_triggered": 1, "manual": 0, "scheduled": 0},
         "task_instance_states": {
