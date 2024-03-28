@@ -107,7 +107,7 @@ Preparation step
 
 For each operator you must prepare and create dataset. Then put dataset id to ``dataset_id`` parameter in operator.
 
-How to run Container Training Job
+How to run a Custom Container Training Job
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomContainerTrainingJobOperator`
 
 Before start running this Job you should create a docker image with training script inside. Documentation how to
@@ -121,7 +121,16 @@ for container which will be created from this image in ``command`` parameter.
     :start-after: [START how_to_cloud_vertex_ai_create_custom_container_training_job_operator]
     :end-before: [END how_to_cloud_vertex_ai_create_custom_container_training_job_operator]
 
-How to run Python Package Training Job
+The :class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomContainerTrainingJobOperator`
+also provides the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_custom_container.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_custom_container_training_job_operator_deferrable]
+    :end-before: [END how_to_cloud_vertex_ai_create_custom_container_training_job_operator_deferrable]
+
+How to run a Python Package Training Job
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomPythonPackageTrainingJobOperator`
 
 Before start running this Job you should create a python package with training script inside. Documentation how to
@@ -135,10 +144,19 @@ parameter should has the name of script which will run your training task.
     :start-after: [START how_to_cloud_vertex_ai_create_custom_python_package_training_job_operator]
     :end-before: [END how_to_cloud_vertex_ai_create_custom_python_package_training_job_operator]
 
-How to run Training Job
+The :class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomPythonPackageTrainingJobOperator`
+also provides the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_custom_job_python_package.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_custom_python_package_training_job_operator_deferrable]
+    :end-before: [END how_to_cloud_vertex_ai_create_custom_python_package_training_job_operator_deferrable]
+
+How to run a Custom Training Job
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomTrainingJobOperator`.
 
-For this Job you should put path to your local training script inside ``script_path`` parameter.
+To create and run a Custom Training Job you should put the path to your local training script inside the ``script_path`` parameter.
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_custom_job.py
     :language: python
@@ -146,15 +164,31 @@ For this Job you should put path to your local training script inside ``script_p
     :start-after: [START how_to_cloud_vertex_ai_create_custom_training_job_operator]
     :end-before: [END how_to_cloud_vertex_ai_create_custom_training_job_operator]
 
-Additionally, you can create new version of existing Training Job instead. In this case, the result will be new
-version of existing Model instead of new Model created in Model Registry. This can be done by specifying
-``parent_model`` parameter when running Training Job.
+The same operation can be performed in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_custom_job.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_custom_training_job_operator_deferrable]
+    :end-before: [END how_to_cloud_vertex_ai_create_custom_training_job_operator_deferrable]
+
+Additionally, you can create a new version of an existing Custom Training Job. It will replace the existing
+Model with another version, instead of creating a new Model in the Model Registry.
+This can be done by specifying the ``parent_model`` parameter when running a Custom Training Job.
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_custom_job.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_custom_training_job_v2_operator]
     :end-before: [END how_to_cloud_vertex_ai_create_custom_training_job_v2_operator]
+
+The same operation can be performed in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_custom_job.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_custom_training_job_v2_operator_deferrable]
+    :end-before: [END how_to_cloud_vertex_ai_create_custom_training_job_v2_operator_deferrable]
 
 
 You can get a list of Training Jobs using

@@ -102,7 +102,6 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param deferrable: If True, run the task in the deferrable mode.
-        Note that it requires calling the operator with `sync=False` parameter.
     :param poll_interval: Time (seconds) to wait between two consecutive calls to check the job.
         The default is 300 seconds.
     """
