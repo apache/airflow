@@ -292,7 +292,7 @@ const MarkInstanceAs = ({
           {...otherProps}
         >
           <Flex>
-            Mark state as…
+            Mark task as…
             <MdArrowDropDown size="16px" />
           </Flex>
         </MenuButton>

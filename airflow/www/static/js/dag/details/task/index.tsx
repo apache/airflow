@@ -37,7 +37,7 @@ const TaskDetails = () => {
   const task = getTask({ taskId, task: groups });
 
   return (
-    <Box height="50%">
+    <Box height="50%" p={3}>
       <Text as="strong">Task Instance Duration</Text>
       <TaskDuration />
       <Text as="strong">Task Details</Text>

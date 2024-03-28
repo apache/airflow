@@ -34,6 +34,7 @@ import {
 import { isEmpty, debounce } from "lodash";
 import { MdDoubleArrow } from "react-icons/md";
 import { useSearchParams } from "react-router-dom";
+import { FaCompressArrowsAlt, FaExpandArrowsAlt } from "react-icons/fa";
 
 import { useGridData } from "src/api";
 import { hoverDelay } from "src/utils";
@@ -229,6 +230,7 @@ const MainInContext = () => {
         color="gray.400"
         top={0}
         left={0}
+        zIndex={6}
         onClick={toggleFilterCollapsed}
         icon={<MdDoubleArrow />}
         aria-label="Toggle filters bar"
@@ -254,7 +256,26 @@ const MainInContext = () => {
           </AccordionPanel>
         </AccordionItem>
       </Accordion>
-      <Flex height="100%">
+      <Flex height="100%" position="relative">
+        <IconButton
+          position="absolute"
+          top={isFullScreen || isGridCollapsed || isFilterCollapsed ? 10 : 0}
+          left={0}
+          variant="ghost"
+          aria-label="Toggle full screen"
+          title="Toggle full screen"
+          onClick={toggleFullScreen}
+          color="gray.400"
+          zIndex={6}
+          p={0}
+          icon={
+            isFullScreen ? (
+              <FaCompressArrowsAlt height="24px" />
+            ) : (
+              <FaExpandArrowsAlt height="24px" />
+            )
+          }
+        />
         {isLoading || isEmpty(groups) ? (
           <Spinner />
         ) : (
@@ -300,8 +321,6 @@ const MainInContext = () => {
                     hoveredTaskState={hoveredTaskState}
                     gridScrollRef={gridScrollRef}
                     ganttScrollRef={ganttScrollRef}
-                    isFullScreen={isFullScreen}
-                    toggleFullScreen={toggleFullScreen}
                   />
                 </Box>
               </>

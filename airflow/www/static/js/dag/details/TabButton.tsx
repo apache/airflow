@@ -18,22 +18,30 @@
  */
 
 import React from "react";
-import { Box, BoxProps, Heading } from "@chakra-ui/react";
+import { Button, ButtonProps } from "@chakra-ui/react";
 
-interface Props extends BoxProps {
-  label: string;
-  value: React.ReactNode;
+interface Props extends ButtonProps {
+  isActive?: boolean;
 }
 
-const BreadcrumbText = ({ label, value, ...otherProps }: Props) => (
-  <Box position="relative" py={2} pr={3} borderRightWidth={2} {...otherProps}>
-    <Heading as="h5" size="sm" color="gray.300" whiteSpace="nowrap">
-      {label}
-    </Heading>
-    <Heading as="h2" size="md">
-      {value}
-    </Heading>
-  </Box>
+const TabButton = ({ children, isActive, ...otherProps }: Props) => (
+  <Button
+    variant="ghost"
+    display="flex"
+    alignItems="center"
+    fontSize="lg"
+    py={3}
+    pl={4}
+    pr={4}
+    mt="4px"
+    borderRadius={0}
+    colorScheme={isActive ? "blue" : undefined}
+    borderBottomWidth={isActive ? 2 : 0}
+    borderBottomColor={isActive ? "blue.400" : undefined}
+    {...otherProps}
+  >
+    {children}
+  </Button>
 );
 
-export default BreadcrumbText;
+export default TabButton;

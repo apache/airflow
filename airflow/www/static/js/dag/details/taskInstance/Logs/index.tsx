@@ -27,10 +27,8 @@ import {
   Icon,
   Spinner,
   Select,
-  IconButton,
 } from "@chakra-ui/react";
 import { MdWarning } from "react-icons/md";
-import { BiCollapse, BiExpand } from "react-icons/bi";
 
 import { getMetaValue } from "src/utils";
 import useTaskLog from "src/api/useTaskLog";
@@ -96,8 +94,6 @@ interface Props {
   executionDate: DagRun["executionDate"];
   tryNumber: TaskInstance["tryNumber"];
   state?: TaskInstance["state"];
-  isFullScreen?: boolean;
-  toggleFullScreen?: () => void;
 }
 
 const Logs = ({
@@ -108,8 +104,6 @@ const Logs = ({
   executionDate,
   tryNumber,
   state,
-  isFullScreen,
-  toggleFullScreen,
 }: Props) => {
   const [internalIndexes, externalIndexes] = getLinkIndexes(tryNumber);
   const [selectedTryNumber, setSelectedTryNumber] = useState<
@@ -184,7 +178,7 @@ const Logs = ({
   }, [data, fileSourceFilters, fileSources, taskTryNumber, tryNumber]);
 
   return (
-    <>
+    <Box p={2}>
       {externalLogName && externalIndexes.length > 0 && (
         <Box my={1}>
           <Text>View Logs in {externalLogName} (by attempts):</Text>
@@ -297,19 +291,6 @@ const Logs = ({
             <LinkButton href={`${logUrl}&${params.toString()}`}>
               See More
             </LinkButton>
-            <IconButton
-              variant="ghost"
-              aria-label="Toggle full screen"
-              title="Toggle full screen"
-              onClick={toggleFullScreen}
-              icon={
-                isFullScreen ? (
-                  <BiCollapse height="24px" />
-                ) : (
-                  <BiExpand height="24px" />
-                )
-              }
-            />
           </Flex>
         </Flex>
       </Box>
@@ -338,7 +319,7 @@ const Logs = ({
           />
         )
       )}
-    </>
+    </Box>
   );
 };
 

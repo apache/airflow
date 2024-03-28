@@ -122,6 +122,7 @@ const AuditLog = ({ taskId, run }: Props) => {
       maxHeight={`calc(100% - ${offsetTop}px)`}
       ref={logRef}
       overflowY="auto"
+      p={3}
     >
       <Flex justifyContent="right" mb={2}>
         <Button

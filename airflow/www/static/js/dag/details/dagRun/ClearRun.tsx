@@ -101,7 +101,7 @@ const ClearRun = ({ runId, ...otherProps }: Props) => {
           mt={2}
         >
           <Flex>
-            Clear
+            Clear run
             <MdArrowDropDown size="16px" />
           </Flex>
         </MenuButton>

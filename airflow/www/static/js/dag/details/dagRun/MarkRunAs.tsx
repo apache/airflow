@@ -138,7 +138,7 @@ const MarkRunAs = ({ runId, state, ...otherProps }: Props) => {
           mt={2}
         >
           <Flex>
-            Mark state as...
+            Mark run as...
             <MdArrowDropDown size="16px" />
           </Flex>
         </MenuButton>

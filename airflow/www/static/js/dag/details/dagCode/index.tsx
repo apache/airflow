@@ -41,7 +41,14 @@ const DagCode = () => {
   return (
     <Box ref={dagCodeRef} height={`calc(100% - ${offsetTop}px)`}>
       {dagData?.lastParsedTime && (
-        <Heading as="h4" size="md" paddingBottom="10px" fontSize="14px">
+        <Heading
+          as="h4"
+          size="md"
+          paddingBottom="10px"
+          fontSize="14px"
+          mt={3}
+          mx={3}
+        >
           Parsed at: <Time dateTime={dagData.lastParsedTime} />
         </Heading>
       )}

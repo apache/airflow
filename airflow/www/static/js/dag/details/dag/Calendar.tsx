@@ -33,7 +33,7 @@ const Calendar = () => {
   const { data: calendarData, isLoading } = useCalendarData();
 
   if (isLoading) return <Spinner />;
-  if (!calendarData) return null;
+  if (!calendarData || !calendarData.dagStates.length) return null;
 
   const { dagStates } = calendarData;
 

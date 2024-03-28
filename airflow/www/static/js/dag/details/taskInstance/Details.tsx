@@ -98,7 +98,7 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
   const isOverall = (isMapped || isGroup) && "Overall ";
 
   return (
-    <Box mt={3} flexGrow={1}>
+    <Box p={3} flexGrow={1}>
       <Text as="strong" mb={3}>
         Task Instance Details
       </Text>
