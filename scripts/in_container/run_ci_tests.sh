@@ -19,7 +19,7 @@
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
 echo
-echo "Starting the tests with those pytest arguments:" "${@}"
+echo "Starting the ci tests with those pytest arguments:" "${@}"
 echo
 set +e
 
