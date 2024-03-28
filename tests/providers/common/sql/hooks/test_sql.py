@@ -231,6 +231,7 @@ def test_no_query(empty_statement):
     assert err.value.args[0] == "List of SQL statements is empty"
 
 
+@pytest.mark.db_test
 def test_make_common_data_structure_hook_has_deprecated_method():
     """If hook implements ``_make_serializable`` warning should be raised on call."""
 
@@ -243,6 +244,7 @@ def test_make_common_data_structure_hook_has_deprecated_method():
         hook._make_common_data_structure(["foo", "bar", "baz"])
 
 
+@pytest.mark.db_test
 def test_make_common_data_structure_no_deprecated_method():
     """If hook not implements ``_make_serializable`` there is no warning should be raised on call."""
     with warnings.catch_warnings():
