@@ -97,10 +97,7 @@ class TestAppriseHook:
         apprise_obj.add = MagicMock()
         with patch.object(apprise, "Apprise", return_value=apprise_obj):
             hook = AppriseHook()
-            hook.notify(
-                body="test",
-                config=True,
-            )
+            hook.notify(body="test", config=True)
             apprise_obj.notify.assert_called_once_with(
                 body="test",
                 title="",

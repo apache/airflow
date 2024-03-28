@@ -18,13 +18,12 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Iterable
+from typing import Iterable
+
+from apprise import AppriseConfig, NotifyFormat, NotifyType
 
 from airflow.notifications.basenotifier import BaseNotifier
 from airflow.providers.apprise.hooks.apprise import AppriseHook
-
-if TYPE_CHECKING:
-    from apprise import AppriseConfig, NotifyFormat, NotifyType
 
 
 class AppriseNotifier(BaseNotifier):
@@ -52,9 +51,9 @@ class AppriseNotifier(BaseNotifier):
         *,
         body: str,
         title: str | None = None,
-        notify_type: NotifyType | None = None,
-        body_format: NotifyFormat | None = None,
-        tag: str | Iterable[str] | None = None,
+        notify_type: NotifyType = NotifyType.INFO,
+        body_format: NotifyFormat = NotifyFormat.TEXT,
+        tag: str | Iterable[str] = "all",
         attach: str | None = None,
         interpret_escapes: bool | None = None,
         config: AppriseConfig | None = None,
