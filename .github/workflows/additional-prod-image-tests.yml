@@ -20,10 +20,9 @@ name: Additional PROD image tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on:
-        description: "The array of labels (in json form) determining type of the runner to use for the build."
-        required: false
-        default: '["ubuntu-22.04"]'
+      runs-on-as-json-public:
+        description: "The array of labels (in json form) determining public runners."
+        required: true
         type: string
       default-branch:
         description: "The default branch for the repository"
@@ -62,6 +61,7 @@ jobs:
     name: PROD image extra checks (main)
     uses: ./.github/workflows/prod-image-extra-checks.yml
     with:
+      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
       python-versions: "[ '${{ inputs.default-python-version }}' ]"
       default-python-version: ${{ inputs.default-python-version }}
       branch: ${{ inputs.default-branch }}
@@ -77,6 +77,7 @@ jobs:
     name: PROD image extra checks (release)
     uses: ./.github/workflows/prod-image-extra-checks.yml
     with:
+      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
       python-versions: "[ '${{ inputs.default-python-version }}' ]"
       default-python-version: ${{ inputs.default-python-version }}
       branch: ${{ inputs.default-branch }}
@@ -91,7 +92,7 @@ jobs:
   test-examples-of-prod-image-building:
     timeout-minutes: 60
     name: "Test examples of POD image building"
-    runs-on: ["ubuntu-22.04"]
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -135,7 +136,7 @@ jobs:
   test-docker-compose-quick-start:
     timeout-minutes: 60
     name: "Docker-compose quick start with PROD image verifying"
-    runs-on: ["ubuntu-22.04"]
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
     env:
       IMAGE_TAG: "${{ inputs.image-tag }}"
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"

@@ -223,7 +223,9 @@ Github Actions to pass the list of parameters to a command to execute
 | run-kubernetes-tests                   | Whether Kubernetes tests should be run ("true"/"false")                                              | true                                      |                |
 | run-tests                              | Whether unit tests should be run ("true"/"false")                                                    | true                                      |                |
 | run-www-tests                          | Whether WWW tests should be run ("true"/"false")                                                     | true                                      |                |
-| runs-on                                | List of labels assigned for runners for that build (used to select runners)                          | ["ubuntu-22.04"]                          |                |
+| runs-on-as-json-default                | List of labels assigned for runners for that build for default runs for that build (as string)       | ["ubuntu-22.04"]                          |                |
+| runs-on-as-json-self-hosted            | List of labels assigned for runners for that build for self hosted runners                           | ["self-hosted", "Linux", "X64"]           |                |
+| runs-on-as-json-public                 | List of labels assigned for runners for that build for public runners                                | ["ubuntu-22.04"]                          |                |
 | skip-pre-commits                       | Which pre-commits should be skipped during the static-checks run                                     | check-provider-yaml-valid,flynt,identity  |                |
 | skip-provider-tests                    | When provider tests should be skipped (on non-main branch or when no provider changes detected)      | true                                      |                |
 | sqlite-exclude                         | Which versions of Sqlite to exclude for tests as JSON array                                          | []                                        |                |
@@ -308,7 +310,7 @@ am overview of possible labels and their meaning:
 | full tests needed             | full-tests-needed             | Run complete set of tests (might be with default or all python/k8s versions)                                    |
 | non committer build           | is-committer-build            | If set then even for non-committer builds, the scripts used for images are used from target branch.             |
 | upgrade to newer dependencies | upgrade-to-newer-dependencies | If set then dependencies in the CI image build are upgraded to the newer ones.                                  |
-| use public runners            | runs-on                       | Force using public runners even for Committer runs.                                                             |
+| use public runners            | runs-on-as-json-default       | Force using public runners even for Committer runs.                                                             |
 
 
 -----
