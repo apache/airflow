@@ -612,6 +612,7 @@
   "hashicorp": {
     "deps": [
       "apache-airflow>=2.6.0",
+      "boto3>=1.33.0",
       "hvac>=1.1.0"
     ],
     "devel-deps": [],

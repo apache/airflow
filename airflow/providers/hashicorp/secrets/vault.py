@@ -73,12 +73,11 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     :param password: Password for Authentication (for ``ldap`` and ``userpass`` auth_type).
     :param key_id: Key ID for Authentication (for ``aws_iam`` and ''azure`` auth_type).
     :param secret_id: Secret ID for Authentication (for ``approle``, ``aws_iam`` and ``azure`` auth_types).
-    :param session_token: The AWS session token to use. Defaults to None.,
+    :param arn_role: The Amazon Resource Name (ARN) of the role to assume
     :param header_value: additional header to mitigate replay attacks, potentially necessitating an argument
         depending on AWS auth backend configuration. Defaults to None.
     :param role_id: Role ID for Authentication (for ``approle``, ``aws_iam`` auth_types).
     :param use_token: A flag indicating whether to use the token. Defaults to True.,
-    :param region: The AWS region to use. Defaults to ``us-east-1``
     :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type).
     :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, default:
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``).
@@ -111,11 +110,11 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         password: str | None = None,
         key_id: str | None = None,
         secret_id: str | None = None,
-        session_token: str | None = None,
+        role_arn: str | None = None,
+        federation_user: str | None = None,
         header_value: str | None = None,
         role_id: str | None = None,
         use_token: bool = True,
-        region: str = "us-east-1",
         kubernetes_role: str | None = None,
         kubernetes_jwt_path: str = "/var/run/secrets/kubernetes.io/serviceaccount/token",
         gcp_key_path: str | None = None,
@@ -155,11 +154,11 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
             password=password,
             key_id=key_id,
             secret_id=secret_id,
-            session_token=session_token,
+            role_arn=role_arn,
+            federation_user=federation_user,
             header_value=header_value,
             role_id=role_id,
             use_token=use_token,
-            region=region,
             kubernetes_role=kubernetes_role,
             kubernetes_jwt_path=kubernetes_jwt_path,
             gcp_key_path=gcp_key_path,
