@@ -456,7 +456,8 @@ fixture-parentheses = false
 # * Disable `flaky` plugin for pytest. This plugin conflicts with `rerunfailures` because provide same marker.
 # * Disable `nose` builtin plugin for pytest. This feature deprecated in 7.2 and will be removed in pytest>=8
 # * And we focus on use native pytest capabilities rather than adopt another frameworks.
-addopts = "-rasl --verbosity=2 -p no:flaky -p no:nose --asyncio-mode=strict"
+# * Disable warnings summary, because we use our warning summary.
+addopts = "-rasl --verbosity=2 -p no:flaky -p no:nose --asyncio-mode=strict --disable-warnings"
 norecursedirs = [
     ".eggs",
     "airflow",
@@ -480,9 +481,12 @@ filterwarnings = [
     "ignore::DeprecationWarning:flask_sqlalchemy",
     # https://github.com/dpgaspar/Flask-AppBuilder/pull/1903
     "ignore::DeprecationWarning:apispec.utils",
-    # Connexion 2 use Validator.iter_errors, should be resolved into Connexion 3
+    # Connexion 2 use different deprecated objects, this should be resolved into Connexion 3
     # https://github.com/spec-first/connexion/pull/1536
-    "ignore::DeprecationWarning:connexion.spec",
+    'ignore::DeprecationWarning:connexion.spec',
+    'ignore:jsonschema\.RefResolver:DeprecationWarning:connexion.json_schema',
+    'ignore:jsonschema\.exceptions\.RefResolutionError:DeprecationWarning:connexion.json_schema',
+    'ignore:Accessing jsonschema\.draft4_format_checker:DeprecationWarning:connexion.decorators.validation',
 ]
 python_files = [
     "test_*.py",

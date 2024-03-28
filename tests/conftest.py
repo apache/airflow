@@ -1306,11 +1306,12 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config=None):
     yield
 
     if captured_warnings:
-        print("\n ======================== Warning summary =============================\n")
-        print(f"   The tests generated {sum(captured_warnings_count.values())} warnings.")
-        print(f"   After removing duplicates, {len(captured_warnings.values())} of them remained.")
-        print(f"   They are stored in {warning_output_path} file.")
-        print("\n ======================================================================\n")
+        terminalreporter.section(
+            f"Warning summary. Total: {sum(captured_warnings_count.values())}, "
+            f"Unique: {len(captured_warnings.values())}",
+            yellow=True,
+            bold=True,
+        )
         warnings_as_json = []
 
         for warning in captured_warnings.values():
@@ -1340,6 +1341,9 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config=None):
             for i in warnings_as_json:
                 f.write(f'{i["path"]}:{i["lineno"]}: [W0513(warning), ] {i["warning_message"]}')
                 f.write("\n")
+        terminalreporter.write("Warnings saved into ")
+        terminalreporter.write(os.fspath(warning_output_path), yellow=True)
+        terminalreporter.write(" file.")
     else:
         # nothing, clear file
         with warning_output_path.open("w") as f:
