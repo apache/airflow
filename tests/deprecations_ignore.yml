@@ -16,9 +16,14 @@
 # under the License.
 ---
 
-# Skip Integration and System Tests
+# Skip: Integration and System Tests
 - tests/integration/
 - tests/system/
+# Skip: DAGs for tests
+- tests/dags/
+- tests/dags_corrupted/
+- tests/dags_with_system_exit/
+
 
 # Always
 - tests/always/test_connection.py::TestConnection::test_connection_extra_no_encryption
@@ -30,6 +35,7 @@
 - tests/always/test_connection.py::TestConnection::test_connection_test_success
 - tests/always/test_connection.py::TestConnection::test_from_json_extra
 - tests/always/test_example_dags.py::test_should_be_importable
+
 
 # API
 - tests/api_connexion/endpoints/test_connection_endpoint.py::TestConnection::test_connection_env_is_cleaned_after_run
@@ -48,6 +54,7 @@
 - tests/api_connexion/endpoints/test_task_instance_endpoint.py::TestPostClearTaskInstances::test_should_respond_200
 - tests/api_connexion/schemas/test_connection_schema.py::TestConnectionSchema::test_serialize
 
+
 # CLI
 - tests/cli/commands/test_connection_command.py::TestCliAddConnections::test_cli_connection_add
 - tests/cli/commands/test_connection_command.py::TestCliImportConnections::test_cli_connections_import_should_load_connections
@@ -65,6 +72,7 @@
 - tests/cli/commands/test_task_command.py::TestCliTasks::test_test
 - tests/cli/commands/test_task_command.py::TestCliTasks::test_test_no_execution_date
 - tests/cli/commands/test_task_command.py::TestCliTasks::test_test_with_existing_dag_run
+
 
 # Core
 - tests/core/test_core.py::TestCore::test_dag_params_and_task_params
@@ -239,6 +247,7 @@
 - tests/utils/test_task_handler_with_custom_formatter.py::test_custom_formatter_default_format
 - tests/utils/test_types.py::test_runtype_enum_escape
 
+
 # Operators
 - tests/operators/test_bash.py::TestBashOperator::test_echo_env_variables
 - tests/operators/test_branch_operator.py::TestBranchOperator::test_with_dag_run
@@ -301,12 +310,14 @@
 - tests/operators/test_weekday.py::TestBranchDayOfWeekOperator::test_branch_follow_true_with_execution_date
 - tests/operators/test_weekday.py::TestBranchDayOfWeekOperator::test_branch_xcom_push_true_branch
 
+
 # BranchPythonVenv
 - tests/operators/test_python.py::TestBranchPythonVirtualenvOperator::test_clear_skipped_downstream_task
 - tests/operators/test_python.py::TestBranchPythonVirtualenvOperator::test_with_dag_run
 - tests/operators/test_python.py::TestBranchPythonVirtualenvOperator::test_with_skip_in_branch_downstream_dependencies
 - tests/operators/test_python.py::TestBranchPythonVirtualenvOperator::test_with_skip_in_branch_downstream_dependencies2
 - tests/operators/test_python.py::TestBranchPythonVirtualenvOperator::test_xcom_push
+
 
 # BranchExternalPython
 - tests/operators/test_python.py::TestBranchExternalPythonOperator::test_clear_skipped_downstream_task
@@ -315,18 +326,22 @@
 - tests/operators/test_python.py::TestBranchExternalPythonOperator::test_with_skip_in_branch_downstream_dependencies2
 - tests/operators/test_python.py::TestBranchExternalPythonOperator::test_xcom_push
 
+
 # PythonVenv
 - tests/operators/test_python.py::TestPythonVirtualenvOperator::test_base_context
 - tests/operators/test_python.py::TestPythonVirtualenvOperator::test_pendulum_context
 
+
 # PlainAsserts
 - tests/operators/test_python.py::TestPythonVirtualenvOperator::test_airflow_context
+
 
 # Serialization
 - tests/serialization/test_dag_serialization.py::TestStringifiedDAGs::test_custom_dep_detector
 - tests/serialization/test_dag_serialization.py::TestStringifiedDAGs::test_dag_params_roundtrip
 - tests/serialization/test_dag_serialization.py::TestStringifiedDAGs::test_task_params_roundtrip
 - tests/serialization/test_pydantic_models.py::test_serializing_pydantic_dataset_event
+
 
 # WWW
 - tests/www/test_utils.py::test_dag_run_custom_sqla_interface_delete_no_collateral_damage
@@ -370,115 +385,59 @@
 - tests/www/views/test_views_tasks.py::test_views_post
 - tests/www/views/test_views_tasks.py::test_xcom_return_value_is_not_bytes
 
+
 # Unclassified (OTHER)
-- tests/dag_processing/test_job_runner.py
-- tests/dag_processing/test_processor.py
-- tests/dags/subdir1/test_ignore_this.py
-- tests/dags/subdir2/subdir3/test_nested_dag.py
-- tests/dags/subdir2/test_dont_ignore_this.py
-- tests/dags/test_backfill_with_upstream_failed_task.py
-- tests/dags/test_clear_subdag.py
-- tests/dags/test_cli_triggered_dags.py
-- tests/dags/test_dag_parsing_context.py
-- tests/dags/test_dag_with_no_tags.py
-- tests/dags/test_dag_xcom_openlineage.py
-- tests/dags/test_dagrun_fast_follow.py
-- tests/dags/test_dags_folder.py
-- tests/dags/test_datasets.py
-- tests/dags/test_default_impersonation.py
-- tests/dags/test_default_views.py
-- tests/dags/test_double_trigger.py
-- tests/dags/test_example_bash_operator.py
-- tests/dags/test_external_task_sensor_check_existense.py
-- tests/dags/test_failing.py
-- tests/dags/test_heartbeat_failed_fast.py
-- tests/dags/test_impersonation.py
-- tests/dags/test_impersonation_subdag.py
-- tests/dags/test_imports.py
-- tests/dags/test_invalid_cron.py
-- tests/dags/test_invalid_dup_task.py
-- tests/dags/test_invalid_param.py
-- tests/dags/test_invalid_param2.py
-- tests/dags/test_invalid_param3.py
-- tests/dags/test_invalid_param4.py
-- tests/dags/test_issue_1225.py
-- tests/dags/test_latest_runs.py
-- tests/dags/test_logging_in_dag.py
-- tests/dags/test_mapped_classic.py
-- tests/dags/test_mapped_taskflow.py
-- tests/dags/test_mark_state.py
-- tests/dags/test_miscellaneous.py
-- tests/dags/test_missing_owner.py
-- tests/dags/test_multiple_dags.py
-- tests/dags/test_no_impersonation.py
-- tests/dags/test_on_failure_callback.py
-- tests/dags/test_on_kill.py
-- tests/dags/test_only_empty_tasks.py
-- tests/dags/test_parsing_context.py
-- tests/dags/test_prev_dagrun_dep.py
-- tests/dags/test_retry_handling_job.py
-- tests/dags/test_scheduler_dags.py
-- tests/dags/test_sensor.py
-- tests/dags/test_subdag.py
-- tests/dags/test_task_view_type_check.py
-- tests/dags/test_valid_param.py
-- tests/dags/test_valid_param2.py
-- tests/dags/test_with_non_default_owner.py
-- tests/dags/test_workday_timetable.py
-- tests/dags_corrupted/test_impersonation_custom.py
-- tests/dags_corrupted/test_nonstring_owner.py
-- tests/datasets/test_dataset.py
-- tests/datasets/test_manager.py
-- tests/decorators/test_bash.py
-- tests/decorators/test_branch_external_python.py
-- tests/decorators/test_branch_python.py
-- tests/decorators/test_branch_virtualenv.py
-- tests/decorators/test_external_python.py
-- tests/decorators/test_mapped.py
-- tests/decorators/test_python.py
-- tests/decorators/test_python_virtualenv.py
-- tests/decorators/test_sensor.py
-- tests/decorators/test_setup_teardown.py
-- tests/decorators/test_short_circuit.py
-- tests/decorators/test_task_group.py
-- tests/hooks/test_base.py
-- tests/hooks/test_package_index.py
-- tests/hooks/test_subprocess.py
-- tests/io/test_path.py
-- tests/lineage/test_lineage.py
-- tests/listeners/test_dataset_listener.py
-- tests/listeners/test_listeners.py
-- tests/macros/test_macros.py
-- tests/notifications/test_basenotifier.py
-- tests/plugins/test_plugin.py
-- tests/plugins/test_plugin_ignore.py
-- tests/plugins/test_plugins_manager.py
-- tests/secrets/test_cache.py
-- tests/security/test_kerberos.py
-- tests/sensors/test_base.py
-- tests/sensors/test_bash.py
-- tests/sensors/test_date_time.py
-- tests/sensors/test_external_task_sensor.py
-- tests/sensors/test_filesystem.py
-- tests/sensors/test_python.py
-- tests/sensors/test_time_delta.py
-- tests/sensors/test_time_sensor.py
-- tests/sensors/test_timeout_sensor.py
-- tests/sensors/test_weekday_sensor.py
-- tests/task/task_runner/test_base_task_runner.py
-- tests/task/task_runner/test_cgroup_task_runner.py
-- tests/task/task_runner/test_standard_task_runner.py
-- tests/task/task_runner/test_task_runner.py
-- tests/template/test_templater.py
-- tests/timetables/test_continuous_timetable.py
-- tests/timetables/test_datasets_timetable.py
-- tests/timetables/test_events_timetable.py
-- tests/timetables/test_interval_timetable.py
-- tests/timetables/test_trigger_timetable.py
-- tests/timetables/test_workday_timetable.py
-- tests/triggers/test_external_task.py
-- tests/triggers/test_file.py
-- tests/triggers/test_temporal.py
+- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_dag_file_processor_only_collect_emails_from_sla_missed_tasks
+- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_dag_file_processor_sla_miss_callback
+- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_dag_file_processor_sla_miss_callback_exception
+- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_dag_file_processor_sla_miss_callback_invalid_sla
+- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_dag_file_processor_sla_miss_callback_sent_notification
+- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_dag_file_processor_sla_miss_continue_checking_the_task_instances_after_recording_missing_sla
+- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_dag_file_processor_sla_miss_deleted_task
+- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_dag_file_processor_sla_miss_doesnot_raise_integrity_error
+- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_dag_file_processor_sla_miss_email_exception
+- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_execute_on_failure_callbacks
+- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_execute_on_failure_callbacks_without_dag
+- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_failure_callbacks_should_not_drop_hostname
+- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_process_file_should_failure_callback
+- tests/decorators/test_python.py::TestAirflowTaskDecorator::test_fail_multiple_outputs_key_type
+- tests/decorators/test_python.py::TestAirflowTaskDecorator::test_fail_multiple_outputs_no_dict
+- tests/decorators/test_python.py::TestAirflowTaskDecorator::test_manual_multiple_outputs_false_with_typings
+- tests/decorators/test_python.py::TestAirflowTaskDecorator::test_multiple_outputs
+- tests/decorators/test_python.py::TestAirflowTaskDecorator::test_multiple_outputs_empty_dict
+- tests/decorators/test_python.py::TestAirflowTaskDecorator::test_multiple_outputs_ignore_typing
+- tests/decorators/test_python.py::TestAirflowTaskDecorator::test_multiple_outputs_return_none
+- tests/decorators/test_python.py::TestAirflowTaskDecorator::test_python_callable_arguments_are_templatized
+- tests/decorators/test_python.py::TestAirflowTaskDecorator::test_python_callable_keyword_arguments_are_templatized
+- tests/decorators/test_python.py::TestAirflowTaskDecorator::test_xcom_arg
+- tests/decorators/test_python.py::test_task_decorator_dataset
+- tests/decorators/test_python_virtualenv.py::TestPythonVirtualenvDecorator::test_no_system_site_packages
+- tests/decorators/test_python_virtualenv.py::TestPythonVirtualenvDecorator::test_python_3
+- tests/decorators/test_python_virtualenv.py::TestPythonVirtualenvDecorator::test_system_site_packages
+- tests/decorators/test_python_virtualenv.py::TestPythonVirtualenvDecorator::test_unpinned_requirements
+- tests/decorators/test_python_virtualenv.py::TestPythonVirtualenvDecorator::test_with_requirements_file
+- tests/decorators/test_python_virtualenv.py::TestPythonVirtualenvDecorator::test_with_requirements_pinned
+- tests/lineage/test_lineage.py::TestLineage::test_lineage_is_sent_to_backend
+- tests/listeners/test_dataset_listener.py::test_dataset_listener_on_dataset_changed_gets_calls
+- tests/sensors/test_external_task_sensor.py::TestExternalTaskSensor::test_external_dag_sensor
+- tests/sensors/test_external_task_sensor.py::TestExternalTaskSensor::test_external_dag_sensor_log
+- tests/sensors/test_external_task_sensor.py::TestExternalTaskSensor::test_external_dag_sensor_soft_fail_as_skipped
+- tests/sensors/test_external_task_sensor.py::TestExternalTaskSensor::test_external_task_group_not_exists_without_check_existence
+- tests/sensors/test_external_task_sensor.py::TestExternalTaskSensor::test_external_task_group_sensor_failed_states
+- tests/sensors/test_external_task_sensor.py::TestExternalTaskSensor::test_external_task_group_sensor_success
+- tests/sensors/test_external_task_sensor.py::TestExternalTaskSensor::test_external_task_group_when_there_is_no_TIs
+- tests/sensors/test_external_task_sensor.py::TestExternalTaskSensor::test_external_task_group_with_mapped_tasks_failed_states
+- tests/sensors/test_external_task_sensor.py::TestExternalTaskSensor::test_external_task_group_with_mapped_tasks_sensor_success
+- tests/sensors/test_external_task_sensor.py::TestExternalTaskSensor::test_external_task_sensor_with_task_group
+- tests/sensors/test_external_task_sensor.py::test_clear_multiple_external_task_marker
+- tests/sensors/test_external_task_sensor.py::test_external_task_marker_clear_activate
+- tests/sensors/test_external_task_sensor.py::test_external_task_marker_cyclic_deep
+- tests/sensors/test_external_task_sensor.py::test_external_task_marker_cyclic_shallow
+- tests/sensors/test_external_task_sensor.py::test_external_task_marker_exception
+- tests/sensors/test_external_task_sensor.py::test_external_task_marker_future
+- tests/sensors/test_external_task_sensor.py::test_external_task_marker_transitive
+- tests/sensors/test_timeout_sensor.py::TestSensorTimeout::test_timeout
+- tests/triggers/test_external_task.py::TestTaskStateTrigger::test_task_state_trigger_success
 
 
 # Providers
