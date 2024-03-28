@@ -367,6 +367,7 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
                     f"a chicken egg provider"
                 )
                 packages_to_install.append(f"{provider_package} @ file://{file.as_posix()}")
+                break
             else:
                 console.print(
                     f"[yellow]Skipping {provider_package} as it is not found in dist folder to install."

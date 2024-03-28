@@ -123,12 +123,9 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
         if "cls" in arguments_dict:  # used by @classmethod
             del arguments_dict["cls"]
 
-        args_json = json.dumps(
-            BaseSerialization.serialize(arguments_dict, use_pydantic_models=True),
-            default=BaseSerialization.serialize,
-        )
+        args_dict = BaseSerialization.serialize(arguments_dict, use_pydantic_models=True)
         method_name = f"{func.__module__}.{func.__qualname__}"
-        result = make_jsonrpc_request(method_name, args_json)
+        result = make_jsonrpc_request(method_name, args_dict)
         if result is None or result == b"":
             return None
         return BaseSerialization.deserialize(json.loads(result), use_pydantic_models=True)

@@ -993,7 +993,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                     )
                 value = getattr(op, template_field, None)
                 if not cls._is_excluded(value, template_field, op):
-                    serialize_op[template_field] = serialize_template_field(value)
+                    serialize_op[template_field] = serialize_template_field(value, template_field)
 
         if op.params:
             serialize_op["params"] = cls._serialize_params_dict(op.params)
@@ -1395,6 +1395,7 @@ class SerializedDAG(DAG, BaseSerialization):
     def __get_constructor_defaults():
         param_to_attr = {
             "max_active_tasks": "_max_active_tasks",
+            "dag_display_name": "_dag_display_property_value",
             "description": "_description",
             "default_view": "_default_view",
             "access_control": "_access_control",

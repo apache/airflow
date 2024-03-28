@@ -146,7 +146,8 @@ class TestPsrpHook:
             on_output_callback=on_output_callback,
             **options,
         ) as hook, patch.object(type(hook), "log") as logger:
-            with pytest.raises(AirflowException, match="Process had one or more errors"):
+            error_match = "Process had one or more errors"
+            with pytest.raises(AirflowException, match=error_match):  # noqa: PT012 error happen on context exit
                 with hook.invoke() as ps:
                     assert ps.state == PSInvocationState.NOT_STARTED
 

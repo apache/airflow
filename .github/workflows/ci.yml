@@ -34,22 +34,11 @@ permissions:
   # changes. If it is for a fork, then the token is read-only anyway.
   packages: write
 env:
-  DB_RESET: "true"
-  VERBOSE: "true"
   GITHUB_REPOSITORY: ${{ github.repository }}
-  GITHUB_USERNAME: ${{ github.actor }}
-  # You can override CONSTRAINTS_GITHUB_REPOSITORY by setting secret in your repo but by default the
-  # Airflow one is going to be used
-  CONSTRAINTS_GITHUB_REPOSITORY: >-
-    ${{ secrets.CONSTRAINTS_GITHUB_REPOSITORY != '' &&
-        secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
-  # In builds from forks, this token is read-only. For scheduled/direct push it is WRITE one
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  GITHUB_USERNAME: ${{ github.actor }}
   IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
-  USE_SUDO: "true"
-  INCLUDE_NOT_READY_PROVIDERS: "true"
-  AIRFLOW_ENABLE_AIP_44: "true"
-  MOUNT_SOURCES: "skip"
+  VERBOSE: "true"
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -68,7 +57,7 @@ jobs:
       GITHUB_CONTEXT: ${{ toJson(github) }}
     outputs:
       image-tag: ${{ github.event.pull_request.head.sha || github.sha }}
-      cache-directive: ${{ steps.selective-checks.outputs.cache-directive }}
+      docker-cache: ${{ steps.selective-checks.outputs.docker-cache }}
       affected-providers-list-as-string: >-
         ${{ steps.selective-checks.outputs.affected-providers-list-as-string }}
       upgrade-to-newer-dependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
@@ -194,15 +183,16 @@ jobs:
       packages: write
     secrets: inherit
     with:
+      runs-on: '["ubuntu-22.04"]'
       do-build: ${{ needs.build-info.outputs.in-workflow-build }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
+      platform: "linux/amd64"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
-      upload-constraints: "true"
       branch: ${{ needs.build-info.outputs.default-branch }}
       use-uv: "true"
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
-      docker-cache: ${{ needs.build-info.outputs.cache-directive }}
+      docker-cache: ${{ needs.build-info.outputs.docker-cache }}
 
   wait-for-ci-images:
     timeout-minutes: 120
@@ -242,104 +232,62 @@ jobs:
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
         if: needs.build-info.outputs.in-workflow-build == 'false'
 
-  early-image-checks:
-    name: "Early image checks"
+  additional-ci-image-checks:
+    name: "Additional CI image checks"
     needs: [build-info, wait-for-ci-images]
-    uses: ./.github/workflows/early-image-checks.yml
+    uses: ./.github/workflows/additional-ci-image-checks.yml
     with:
-      runs-on: ${{needs.build-info.outputs.runs-on}}
+      runs-on: ${{ needs.build-info.outputs.runs-on }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
-      python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-      chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
-      ci-image-build: ${{ needs.build-info.outputs.ci-image-build }}
-      docker-cache: ${{ needs.build-info.outputs.cache-directive }}
+      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+      skip-pre-commits: ${{ needs.build-info.outputs.skip-pre-commits }}
+      docker-cache: ${{ needs.build-info.outputs.docker-cache }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
+      mypy-folders: ${{ needs.build-info.outputs.mypy-folders }}
+      needs-mypy: ${{ needs.build-info.outputs.needs-mypy }}
+      latest-versions-only: ${{ needs.build-info.outputs.latest-versions-only }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
 
-  static-checks:
-    timeout-minutes: 45
-    name: "Static checks"
-    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
-    needs: [build-info, wait-for-ci-images]
-    env:
-      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
-      UPGRADE_TO_NEWER_DEPENDENCIES: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
-    if: >
-      needs.build-info.outputs.basic-checks-only == 'false' &&
-      needs.build-info.outputs.latest-versions-only != 'true'
-    steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
-      - name: >
-          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
-        uses: ./.github/actions/prepare_breeze_and_image
-        id: breeze
-      - name: Cache pre-commit envs
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pre-commit
-          # yamllint disable-line rule:line-length
-          key: "pre-commit-${{steps.breeze.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
-          restore-keys: |
-            pre-commit-${{steps.breeze.outputs.host-python-version}}-
-      - name: "Static checks"
-        run: breeze static-checks --all-files --show-diff-on-failure --color always --initialize-environment
-        env:
-          VERBOSE: "false"
-          SKIP: ${{ needs.build-info.outputs.skip-pre-commits }}
-          COLUMNS: "250"
-          SKIP_GROUP_OUTPUT: "true"
-          DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
-          RUFF_FORMAT: "github"
 
-  mypy:
-    name: "MyPy tests"
-    uses: ./.github/workflows/mypy.yml
+  generate-constraints:
+    name: "Generate constraints"
     needs: [build-info, wait-for-ci-images]
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
+    uses: ./.github/workflows/generate-constraints.yml
+    if: needs.build-info.outputs.ci-image-build == 'true'
     with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
-      mypy-folders: ${{ needs.build-info.outputs.mypy-folders }}
+      python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+      # generate no providers constraints only in canary builds - they take quite some time to generate
+      # they are not needed for regular builds, they are only needed to update constraints in canaries
+      generate-no-providers-constraints: ${{ needs.build-info.outputs.canary-run }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-      needs-mypy: ${{ needs.build-info.outputs.needs-mypy }}
-    if: needs.build-info.outputs.latest-versions-only != 'true'
+      chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
+      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
 
-  docs:
-    name: "Docs"
-    uses: ./.github/workflows/docs.yml
+  static-checks-mypy-docs:
+    name: "Static checks, mypy, docs"
     needs: [build-info, wait-for-ci-images]
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    if: >
-      needs.build-info.outputs.docs-build == 'true' &&
-      needs.build-info.outputs.latest-versions-only != 'true'
+    uses: ./.github/workflows/static-checks-mypy-docs.yml
     with:
       runs-on: ${{ needs.build-info.outputs.runs-on }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
-      default-branch: ${{ needs.build-info.outputs.default-branch }}
-      docs-list-as-string: ${{ needs.build-info.outputs.docs-list-as-string }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+      python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+      branch: ${{ needs.build-info.outputs.default-branch }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
+      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+      docs-list-as-string: ${{ needs.build-info.outputs.docs-list-as-string }}
+      latest-versions-only: ${{ needs.build-info.outputs.latest-versions-only }}
+      basic-checks-only: ${{ needs.build-info.outputs.basic-checks-only }}
+      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+      skip-pre-commits: ${{ needs.build-info.outputs.skip-pre-commits }}
+      chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
+      ci-image-build: ${{ needs.build-info.outputs.ci-image-build }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
 
   providers:
     name: "Provider checks"
@@ -361,43 +309,6 @@ jobs:
       providers-compatibility-checks: ${{ needs.build-info.outputs.providers-compatibility-checks }}
       skip-provider-tests: ${{ needs.build-info.outputs.skip-provider-tests }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
-
-  test-airflow-release-commands:
-    timeout-minutes: 80
-    name: "Test Airflow release commands"
-    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
-    needs: [build-info, wait-for-ci-images]
-    if: >
-      needs.build-info.outputs.is-self-hosted-runner == 'true'
-      && needs.build-info.outputs.is-airflow-runner == 'false'
-    env:
-      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
-    steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
-      - name: >
-          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
-        uses: ./.github/actions/prepare_breeze_and_image
-      - name: "Cleanup dist files"
-        run: rm -fv ./dist/*
-      - name: "Install required packages"
-        run: python -m pip install --editable ./dev/breeze/
-      - name: "Check Airflow create minor branch command"
-        run: breeze release-management create-minor-branch --version-branch 2-4 -a y
-      - name: "Check Airflow RC process command"
-        run: |
-          breeze release-management start-rc-process --version 2.4.3rc1 --previous-version 2.4.2  -a y
-      - name: "Check Airflow release process command"
-        run: |
-          breeze release-management start-release --release-candidate 2.4.3rc1 --previous-release 2.4.2 -a y
 
   tests-helm:
     name: "Helm tests"
@@ -531,6 +442,8 @@ jobs:
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
+      canary-run: ${{ needs.build-info.outputs.canary-run }}
+      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
     if: needs.build-info.outputs.run-tests == 'true'
 
@@ -559,7 +472,7 @@ jobs:
     name: >
       ${{ needs.build-info.outputs.in-workflow-build == 'true' && 'Build' || 'Skip building' }}
       PROD images in-workflow
-    needs: [build-info, build-ci-images]
+    needs: [build-info, build-ci-images, generate-constraints]
     uses: ./.github/workflows/prod-image-build.yml
     permissions:
       contents: read
@@ -570,10 +483,14 @@ jobs:
       packages: write
     secrets: inherit
     with:
+      runs-on: '["ubuntu-22.04"]'
       build-type: "Regular"
       do-build: ${{ needs.build-info.outputs.in-workflow-build }}
+      upload-package-artifact: "true"
       image-tag: ${{ needs.build-info.outputs.image-tag }}
+      platform: "linux/amd64"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
+      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       push-image: "true"
       use-uv: "true"
@@ -581,7 +498,7 @@ jobs:
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
-      docker-cache: ${{ needs.build-info.outputs.cache-directive }}
+      docker-cache: ${{ needs.build-info.outputs.docker-cache }}
 
   wait-for-prod-images:
     timeout-minutes: 80
@@ -628,7 +545,7 @@ jobs:
 
   additional-prod-image-tests:
     name: "Additional PROD image tests"
-    needs: [build-info, wait-for-prod-images, early-image-checks]
+    needs: [build-info, wait-for-prod-images, generate-constraints]
     uses: ./.github/workflows/additional-prod-image-tests.yml
     with:
       runs-on: ${{ needs.build-info.outputs.runs-on }}
@@ -637,7 +554,7 @@ jobs:
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
-      docker-cache: ${{ needs.build-info.outputs.cache-directive }}
+      docker-cache: ${{ needs.build-info.outputs.docker-cache }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
     if: needs.build-info.outputs.prod-image-build == 'true'
@@ -670,18 +587,16 @@ jobs:
     secrets: inherit
     needs:
       - build-info
-      - docs
+      - generate-constraints
       - wait-for-ci-images
       - wait-for-prod-images
-      - static-checks
-      - mypy
+      - static-checks-mypy-docs
       - tests-sqlite
       - tests-mysql
       - tests-postgres
       - tests-non-db
       - tests-special
       - tests-integration
-      - early-image-checks
     uses: ./.github/workflows/finalize-tests.yml
     with:
       runs-on: ${{ needs.build-info.outputs.runs-on }}
@@ -694,5 +609,5 @@ jobs:
       in-workflow-build: ${{ needs.build-info.outputs.in-workflow-build }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
-      docker-cache: ${{ needs.build-info.outputs.cache-directive }}
+      docker-cache: ${{ needs.build-info.outputs.docker-cache }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}

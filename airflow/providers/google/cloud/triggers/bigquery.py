@@ -160,7 +160,6 @@ class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
                                 "records": None,
                             }
                         )
-                        return
                     else:
                         # Extract only first record from the query results
                         first_record = records.pop(0)
@@ -171,7 +170,7 @@ class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
                                 "records": first_record,
                             }
                         )
-                        return
+                    return
                 elif job_status["status"] == "error":
                     yield TriggerEvent({"status": "error", "message": job_status["message"]})
                     return

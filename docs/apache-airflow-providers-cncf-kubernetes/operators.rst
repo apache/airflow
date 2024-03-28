@@ -618,6 +618,15 @@ to ``~/.kube/config``. It also allows users to supply a template YAML file using
     :start-after: [START howto_operator_k8s_job]
     :end-before: [END howto_operator_k8s_job]
 
+The :class:`~airflow.providers.cncf.kubernetes.operators.job.KubernetesJobOperator` also supports deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/cncf/kubernetes/example_kubernetes_job.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_k8s_job_deferrable]
+    :end-before: [END howto_operator_k8s_job_deferrable]
+
+
 Difference between ``KubernetesPodOperator`` and ``KubernetesJobOperator``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 The :class:`~airflow.providers.cncf.kubernetes.operators.job.KubernetesJobOperator` is operator for creating Job.
@@ -643,3 +652,18 @@ you to delete Jobs on a Kubernetes cluster.
     :dedent: 4
     :start-after: [START howto_operator_delete_k8s_job]
     :end-before: [END howto_operator_delete_k8s_job]
+
+
+.. _howto/operator:KubernetesPatchJobOperator:
+
+KubernetesPatchJobOperator
+==========================
+
+The :class:`~airflow.providers.cncf.kubernetes.operators.job.KubernetesPatchJobOperator` allows
+you to update Jobs on a Kubernetes cluster.
+
+.. exampleinclude:: /../../tests/system/providers/cncf/kubernetes/example_kubernetes_job.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_update_job]
+    :end-before: [END howto_operator_update_job]

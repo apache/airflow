@@ -30,6 +30,8 @@ from airflow.providers.openlineage.utils.utils import (
     get_airflow_run_facet,
     get_custom_facets,
     get_job_name,
+    is_operator_disabled,
+    is_selective_lineage_enabled,
     print_warning,
 )
 from airflow.stats import Stats
@@ -74,6 +76,16 @@ class OpenLineageListener:
         if TYPE_CHECKING:
             assert task
         dag = task.dag
+        if is_operator_disabled(task):
+            self.log.debug(
+                "Skipping OpenLineage event emission for operator %s "
+                "due to its presence in [openlineage] disabled_for_operators.",
+                task.task_type,
+            )
+            return None
+
+        if not is_selective_lineage_enabled(task):
+            return
 
         @print_warning(self.log)
         def on_running():
@@ -134,6 +146,16 @@ class OpenLineageListener:
         if TYPE_CHECKING:
             assert task
         dag = task.dag
+        if is_operator_disabled(task):
+            self.log.debug(
+                "Skipping OpenLineage event emission for operator %s "
+                "due to its presence in [openlineage] disabled_for_operators.",
+                task.task_type,
+            )
+            return None
+
+        if not is_selective_lineage_enabled(task):
+            return
 
         @print_warning(self.log)
         def on_success():
@@ -179,6 +201,16 @@ class OpenLineageListener:
         if TYPE_CHECKING:
             assert task
         dag = task.dag
+        if is_operator_disabled(task):
+            self.log.debug(
+                "Skipping OpenLineage event emission for operator %s "
+                "due to its presence in [openlineage] disabled_for_operators.",
+                task.task_type,
+            )
+            return None
+
+        if not is_selective_lineage_enabled(task):
+            return
 
         @print_warning(self.log)
         def on_failure():
@@ -228,12 +260,13 @@ class OpenLineageListener:
     @hookimpl
     def before_stopping(self, component):
         self.log.debug("before_stopping: %s", component.__class__.__name__)
-        # TODO: configure this with Airflow config
         with timeout(30):
             self.executor.shutdown(wait=True)
 
     @hookimpl
     def on_dag_run_running(self, dag_run: DagRun, msg: str):
+        if not is_selective_lineage_enabled(dag_run.dag):
+            return
         data_interval_start = dag_run.data_interval_start.isoformat() if dag_run.data_interval_start else None
         data_interval_end = dag_run.data_interval_end.isoformat() if dag_run.data_interval_end else None
         self.executor.submit(
@@ -246,6 +279,8 @@ class OpenLineageListener:
 
     @hookimpl
     def on_dag_run_success(self, dag_run: DagRun, msg: str):
+        if not is_selective_lineage_enabled(dag_run.dag):
+            return
         if not self.executor:
             self.log.debug("Executor have not started before `on_dag_run_success`")
             return
@@ -253,6 +288,8 @@ class OpenLineageListener:
 
     @hookimpl
     def on_dag_run_failed(self, dag_run: DagRun, msg: str):
+        if not is_selective_lineage_enabled(dag_run.dag):
+            return
         if not self.executor:
             self.log.debug("Executor have not started before `on_dag_run_failed`")
             return

@@ -35,6 +35,7 @@ import re2
 from sqlalchemy import select
 
 from airflow import settings
+from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.utils import cli_action_loggers, timezone
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
@@ -104,7 +105,7 @@ def action_cli(func=None, check_db=True):
                     handler.setLevel(logging.DEBUG)
             try:
                 # Check and run migrations if necessary
-                if check_db:
+                if check_db and not InternalApiConfig.get_use_internal_api():
                     from airflow.configuration import conf
                     from airflow.utils.db import check_and_run_migrations, synchronize_log_template
 

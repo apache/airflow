@@ -245,15 +245,15 @@ class TestOracleHookConn:
         assert oracledb.defaults.fetch_lobs is False
 
     def test_type_checking_thick_mode_lib_dir(self):
+        thick_mode_lib_dir_test = {"thick_mode": True, "thick_mode_lib_dir": 1}
+        self.connection.extra = json.dumps(thick_mode_lib_dir_test)
         with pytest.raises(TypeError, match=r"thick_mode_lib_dir expected str or None, got.*"):
-            thick_mode_lib_dir_test = {"thick_mode": True, "thick_mode_lib_dir": 1}
-            self.connection.extra = json.dumps(thick_mode_lib_dir_test)
             self.db_hook.get_conn()
 
     def test_type_checking_thick_mode_config_dir(self):
+        thick_mode_config_dir_test = {"thick_mode": True, "thick_mode_config_dir": 1}
+        self.connection.extra = json.dumps(thick_mode_config_dir_test)
         with pytest.raises(TypeError, match=r"thick_mode_config_dir expected str or None, got.*"):
-            thick_mode_config_dir_test = {"thick_mode": True, "thick_mode_config_dir": 1}
-            self.connection.extra = json.dumps(thick_mode_config_dir_test)
             self.db_hook.get_conn()
 
 

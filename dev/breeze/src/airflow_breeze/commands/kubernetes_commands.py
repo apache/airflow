@@ -562,7 +562,11 @@ def _rebuild_k8s_image(
 ) -> tuple[int, str]:
     params = BuildProdParams(python=python, image_tag=image_tag, use_uv=use_uv)
     if rebuild_base_image:
-        run_build_production_image(prod_image_params=params, output=output)
+        run_build_production_image(
+            prod_image_params=params,
+            param_description=f"Python: {params.python}, Platform: {params.platform}",
+            output=output,
+        )
     else:
         if not check_if_base_image_exists(params):
             get_console(output=output).print(
@@ -1287,10 +1291,10 @@ def k9s(python: str, kubernetes_version: str, use_docker: bool, k9s_args: tuple[
             )
             get_console().print(
                 "\n[info]In such case you might want to pull latest `kindest` images. "
-                "For example if you run kubernetes version v1.25.16 you might need to run:\n"
+                "For example if you run kubernetes version v1.26.14 you might need to run:\n"
                 "[special]* run `breeze k8s delete-cluster` (note k8s version printed after "
                 "Python version)\n"
-                "* run `docker pull kindest/node:v1.25.16`\n"
+                "* run `docker pull kindest/node:v1.26.14`\n"
                 "* restart docker engine\n\n"
             )
         sys.exit(result.returncode)

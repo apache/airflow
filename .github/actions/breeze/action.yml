@@ -38,15 +38,6 @@ runs:
         python-version: ${{ inputs.python-version }}
         cache: 'pip'
         cache-dependency-path: ./dev/breeze/pyproject.toml
-    - name: Cache breeze
-      uses: actions/cache@v4
-      with:
-        path: ~/.local/pipx
-        # README has the latest breeze's hash and python location is used to distinguish between
-        # different minor versions of python
-        key: "breeze-${{inputs.python-version}}-${{env.pythonLocation}}-\
-          ${{hashFiles('dev/breeze/README.md')}}"
-        restore-keys: breeze-${{inputs.python-version}}-${{ env.pythonLocation }}
     - name: "Install Breeze"
       shell: bash
       run: ./scripts/ci/install_breeze.sh

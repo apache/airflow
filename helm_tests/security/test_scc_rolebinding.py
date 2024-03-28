@@ -63,13 +63,15 @@ class TestSCCActivation:
             assert "release-name-airflow-cleanup" == jmespath.search("subjects[8].name", docs[0])
 
     @pytest.mark.parametrize(
-        "rbac_enabled,scc_enabled,created",
+        "rbac_enabled,scc_enabled,created,namespace,expected_name",
         [
-            (True, True, True),
+            (True, True, True, "default", "default-release-name-scc-rolebinding"),
+            (True, True, True, "other-ns", "other-ns-release-name-scc-rolebinding"),
         ],
     )
-    def test_create_scc_multinamespace(self, rbac_enabled, scc_enabled, created):
+    def test_create_scc_multinamespace(self, rbac_enabled, scc_enabled, created, namespace, expected_name):
         docs = render_chart(
+            namespace=namespace,
             values={
                 "multiNamespaceMode": True,
                 "webserver": {"defaultUser": {"enabled": False}},
@@ -84,7 +86,7 @@ class TestSCCActivation:
         if created:
             assert "ClusterRoleBinding" == jmespath.search("kind", docs[0])
             assert "ClusterRole" == jmespath.search("roleRef.kind", docs[0])
-            assert "release-name-scc-rolebinding" == jmespath.search("metadata.name", docs[0])
+            assert expected_name == jmespath.search("metadata.name", docs[0])
             assert "system:openshift:scc:anyuid" == jmespath.search("roleRef.name", docs[0])
 
     @pytest.mark.parametrize(

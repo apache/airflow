@@ -21,6 +21,7 @@ import operator
 import os
 import random
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -29,7 +30,7 @@ import textwrap
 import time
 from collections import defaultdict
 from copy import deepcopy
-from datetime import datetime
+from datetime import date, datetime
 from functools import partial
 from multiprocessing import Pool
 from pathlib import Path
@@ -155,6 +156,7 @@ from airflow_breeze.utils.run_utils import (
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 from airflow_breeze.utils.versions import is_pre_release
+from airflow_breeze.utils.virtualenv_utils import create_pip_command, create_venv
 
 argument_provider_packages = click.argument(
     "provider_packages",
@@ -449,36 +451,8 @@ def _check_sdist_to_wheel_dists(dists_info: tuple[DistributionPackageInfo, ...])
                 continue
 
             if not venv_created:
-                venv_path = (Path(tmp_dir_name) / ".venv").resolve().absolute()
-                venv_command_result = run_command(
-                    [sys.executable, "-m", "venv", venv_path.as_posix()],
-                    check=False,
-                    capture_output=True,
-                )
-                if venv_command_result.returncode != 0:
-                    get_console().print(
-                        f"[error]Error when initializing virtualenv in {venv_path.as_posix()}:[/]\n"
-                        f"{venv_command_result.stdout}\n{venv_command_result.stderr}"
-                    )
-                python_path = venv_path / "bin" / "python"
-                if not python_path.exists():
-                    get_console().print(
-                        f"\n[errors]Python interpreter is not exist in path {python_path}. Exiting!\n"
-                    )
-                    sys.exit(1)
-                pip_command = (python_path.as_posix(), "-m", "pip")
-                result = run_command(
-                    [*pip_command, "install", f"pip=={AIRFLOW_PIP_VERSION}"],
-                    check=False,
-                    capture_output=True,
-                    text=True,
-                )
-                if result.returncode != 0:
-                    get_console().print(
-                        f"[error]Error when installing pip in {venv_path.as_posix()}[/]\n"
-                        f"{result.stdout}\n{result.stderr}"
-                    )
-                    sys.exit(1)
+                python_path = create_venv(Path(tmp_dir_name) / ".venv", pip_version=AIRFLOW_PIP_VERSION)
+                pip_command = create_pip_command(python_path)
                 venv_created = True
 
             returncode = _check_sdist_to_wheel(di, pip_command, str(tmp_dir_name))
@@ -492,7 +466,7 @@ def _check_sdist_to_wheel_dists(dists_info: tuple[DistributionPackageInfo, ...])
         sys.exit(1)
 
 
-def _check_sdist_to_wheel(dist_info: DistributionPackageInfo, pip_command: tuple[str, ...], cwd: str) -> int:
+def _check_sdist_to_wheel(dist_info: DistributionPackageInfo, pip_command: list[str], cwd: str) -> int:
     get_console().print(
         f"[info]Validate build wheel from sdist distribution for package {dist_info.package!r}.[/]"
     )
@@ -974,6 +948,81 @@ def run_generate_constraints_in_parallel(
         summarize_on_ci=SummarizeAfter.SUCCESS,
         summary_start_regexp=".*Constraints generated in.*",
     )
+
+
+@release_management.command(
+    name="tag-providers",
+    help="Generates tags for airflow provider releases.",
+)
+@click.option(
+    "--clean-local-tags/--no-clean-local-tags",
+    default=True,
+    is_flag=True,
+    envvar="CLEAN_LOCAL_TAGS",
+    help="Delete local tags that are created due to github connectivity issues to avoid errors. "
+    "The default behaviour would be to clean such local tags.",
+    show_default=True,
+)
+@option_dry_run
+@option_verbose
+def tag_providers(
+    clean_local_tags: bool,
+):
+    found_remote = None
+    remotes = ["origin", "apache"]
+    for remote in remotes:
+        try:
+            command = ["git", "remote", "get-url", "--push", shlex.quote(remote)]
+            result = run_command(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+            if "apache/airflow.git" in result.stdout:
+                found_remote = remote
+                break
+        except subprocess.CalledProcessError:
+            pass
+
+    if found_remote is None:
+        raise ValueError("Could not find remote configured to push to apache/airflow")
+
+    tags = []
+    for file in os.listdir(os.path.join(SOURCE_DIR_PATH, "dist")):
+        if file.endswith(".whl"):
+            match = re.match(r".*airflow_providers_(.*)-(.*)-py3.*", file)
+            if match:
+                provider = f"providers-{match.group(1).replace('_', '-')}"
+                tag = f"{provider}/{match.group(2)}"
+                try:
+                    run_command(
+                        ["git", "tag", shlex.quote(tag), "-m", f"Release {date.today()} of providers"],
+                        check=True,
+                    )
+                    tags.append(tag)
+                except subprocess.CalledProcessError:
+                    pass
+
+    if tags:
+        try:
+            push_command = ["git", "push", remote] + [shlex.quote(tag) for tag in tags]
+            push_result = run_command(
+                push_command,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            if push_result.returncode == 0:
+                get_console().print("\n[success]Tags pushed successfully.[/]")
+        except subprocess.CalledProcessError:
+            get_console().print("\n[error]Failed to push tags, probably a connectivity issue to Github.[/]")
+            if clean_local_tags:
+                for tag in tags:
+                    try:
+                        run_command(["git", "tag", "-d", shlex.quote(tag)], check=True)
+                    except subprocess.CalledProcessError:
+                        pass
+                get_console().print("\n[success]Cleaning up local tags...[/]")
+            else:
+                get_console().print(
+                    "\n[success]Local tags are not cleaned up, unset CLEAN_LOCAL_TAGS or set to true.[/]"
+                )
 
 
 @release_management.command(
@@ -1990,6 +2039,12 @@ def generate_issue_content_providers(
                 )
                 continue
             prs = get_prs_for_package(provider_id)
+            if not prs:
+                get_console().print(
+                    f"[warning]Skipping provider {provider_id}. "
+                    "The changelog file doesn't contain any PRs for the release.\n"
+                )
+                return
             provider_prs[provider_id] = [pr for pr in prs if pr not in excluded_prs]
             all_prs.update(provider_prs[provider_id])
         g = Github(github_token)
@@ -2142,12 +2197,18 @@ def get_change_from_line(line: str):
 
 
 def get_changes(
-    verbose: bool, previous_release: str, current_release: str, is_helm_chart: bool = False
+    verbose: bool,
+    previous_release: str,
+    current_release: str,
+    is_helm_chart: bool = False,
 ) -> list[Change]:
     print(MY_DIR_PATH, SOURCE_DIR_PATH)
     change_strings = subprocess.check_output(
         get_git_log_command(
-            verbose, from_commit=previous_release, to_commit=current_release, is_helm_chart=is_helm_chart
+            verbose,
+            from_commit=previous_release,
+            to_commit=current_release,
+            is_helm_chart=is_helm_chart,
         ),
         cwd=SOURCE_DIR_PATH,
         text=True,
@@ -2254,7 +2315,13 @@ def generate_issue_content_helm_chart(
     limit_pr_count: int | None,
 ):
     generate_issue_content(
-        github_token, previous_release, current_release, excluded_pr_list, limit_pr_count, is_helm_chart=True
+        github_token,
+        previous_release,
+        current_release,
+        excluded_pr_list,
+        limit_pr_count,
+        is_helm_chart=True,
+        latest=False,
     )
 
 
@@ -2275,13 +2342,11 @@ def generate_issue_content_helm_chart(
 @click.option(
     "--previous-release",
     type=str,
-    required=True,
     help="commit reference (for example hash or tag) of the previous release.",
 )
 @click.option(
     "--current-release",
     type=str,
-    required=True,
     help="commit reference (for example hash or tag) of the current release.",
 )
 @click.option("--excluded-pr-list", type=str, help="Coma-separated list of PRs to exclude from the issue.")
@@ -2291,6 +2356,11 @@ def generate_issue_content_helm_chart(
     default=None,
     help="Limit PR count processes (useful for testing small subset of PRs).",
 )
+@click.option(
+    "--latest",
+    is_flag=True,
+    help="Run the command against latest released version of airflow",
+)
 @option_verbose
 def generate_issue_content_core(
     github_token: str,
@@ -2298,9 +2368,16 @@ def generate_issue_content_core(
     current_release: str,
     excluded_pr_list: str,
     limit_pr_count: int | None,
+    latest: bool,
 ):
     generate_issue_content(
-        github_token, previous_release, current_release, excluded_pr_list, limit_pr_count, is_helm_chart=False
+        github_token,
+        previous_release,
+        current_release,
+        excluded_pr_list,
+        limit_pr_count,
+        is_helm_chart=False,
+        latest=latest,
     )
 
 
@@ -3176,12 +3253,31 @@ def generate_issue_content(
     excluded_pr_list: str,
     limit_pr_count: int | None,
     is_helm_chart: bool,
+    latest: bool,
 ):
     from github import Github, Issue, PullRequest, UnknownObjectException
 
     PullRequestOrIssue = Union[PullRequest.PullRequest, Issue.Issue]
     verbose = get_verbose()
-    changes = get_changes(verbose, previous_release, current_release, is_helm_chart)
+
+    previous = previous_release
+    current = current_release
+
+    if latest:
+        import requests
+
+        response = requests.get("https://pypi.org/pypi/apache-airflow/json")
+        response.raise_for_status()
+        latest_released_version = response.json()["info"]["version"]
+        previous = str(latest_released_version)
+        current = os.getenv("VERSION", "HEAD")
+        if current == "HEAD":
+            get_console().print(
+                "\n[warning]Environment variable VERSION not set, setting current release "
+                "version as 'HEAD'\n"
+            )
+
+    changes = get_changes(verbose, previous, current, is_helm_chart)
     change_prs = [change.pr for change in changes]
     if excluded_pr_list:
         excluded_prs = [int(pr) for pr in excluded_pr_list.split(",")]

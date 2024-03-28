@@ -230,7 +230,8 @@ def set_is_paused(is_paused: bool, args) -> None:
     ]
 
     if not dags:
-        raise AirflowException(f"No {'un' if is_paused else ''}paused DAGs were found")
+        print(f"No {'un' if is_paused else ''}paused DAGs were found")
+        return
 
     if not args.yes and args.treat_dag_id_as_regex:
         dags_ids = [dag.dag_id for dag in dags]
@@ -326,6 +327,7 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
     """Return a dagbag dag details dict."""
     return {
         "dag_id": dag.dag_id,
+        "dag_display_name": dag.dag_display_name,
         "root_dag_id": dag.parent_dag.dag_id if dag.parent_dag else None,
         "is_paused": dag.get_is_paused(),
         "is_active": dag.get_is_active(),

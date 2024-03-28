@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import os
 import uuid
 from contextlib import ExitStack
 from typing import TYPE_CHECKING
@@ -37,8 +36,7 @@ from openlineage.client.facet import (
 )
 from openlineage.client.run import Job, Run, RunEvent, RunState
 
-from airflow.configuration import conf
-from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION
+from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION, conf
 from airflow.providers.openlineage.utils.utils import OpenLineageRedactor
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -47,12 +45,6 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.log.secrets_masker import SecretsMasker
-
-_DAG_DEFAULT_NAMESPACE = "default"
-
-_DAG_NAMESPACE = conf.get(
-    "openlineage", "namespace", fallback=os.getenv("OPENLINEAGE_NAMESPACE", _DAG_DEFAULT_NAMESPACE)
-)
 
 _PRODUCER = f"https://github.com/apache/airflow/tree/providers-openlineage/{OPENLINEAGE_PROVIDER_VERSION}"
 
@@ -88,18 +80,16 @@ class OpenLineageAdapter(LoggingMixin):
 
     def get_openlineage_config(self) -> dict | None:
         # First, try to read from YAML file
-        openlineage_config_path = conf.get("openlineage", "config_path", fallback="")
+        openlineage_config_path = conf.config_path(check_legacy_env_var=False)
         if openlineage_config_path:
             config = self._read_yaml_config(openlineage_config_path)
             if config:
                 return config.get("transport", None)
         # Second, try to get transport config
-        transport = conf.getjson("openlineage", "transport", fallback="")
-        if not transport:
+        transport_config = conf.transport()
+        if not transport_config:
             return None
-        elif not isinstance(transport, dict):
-            raise ValueError(f"{transport} is not a dict")
-        return transport
+        return transport_config
 
     def _read_yaml_config(self, path: str) -> dict | None:
         with open(path) as config_file:
@@ -107,14 +97,14 @@ class OpenLineageAdapter(LoggingMixin):
 
     @staticmethod
     def build_dag_run_id(dag_id, dag_run_id):
-        return str(uuid.uuid3(uuid.NAMESPACE_URL, f"{_DAG_NAMESPACE}.{dag_id}.{dag_run_id}"))
+        return str(uuid.uuid3(uuid.NAMESPACE_URL, f"{conf.namespace()}.{dag_id}.{dag_run_id}"))
 
     @staticmethod
     def build_task_instance_run_id(dag_id, task_id, execution_date, try_number):
         return str(
             uuid.uuid3(
                 uuid.NAMESPACE_URL,
-                f"{_DAG_NAMESPACE}.{dag_id}.{task_id}.{execution_date}.{try_number}",
+                f"{conf.namespace()}.{dag_id}.{task_id}.{execution_date}.{try_number}",
             )
         )
 
@@ -353,7 +343,7 @@ class OpenLineageAdapter(LoggingMixin):
         if parent_run_id:
             parent_run_facet = ParentRunFacet.create(
                 runId=parent_run_id,
-                namespace=_DAG_NAMESPACE,
+                namespace=conf.namespace(),
                 name=parent_job_name or job_name,
             )
             facets.update(
@@ -396,4 +386,4 @@ class OpenLineageAdapter(LoggingMixin):
 
         facets.update({"jobType": job_type})
 
-        return Job(_DAG_NAMESPACE, job_name, facets)
+        return Job(conf.namespace(), job_name, facets)

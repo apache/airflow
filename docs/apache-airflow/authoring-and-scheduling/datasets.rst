@@ -224,13 +224,6 @@ If one dataset is updated multiple times before all consumed datasets have been 
 
     }
 
-Notes on schedules
-------------------
-
-The ``schedule`` parameter to your DAG can take either a list of datasets to consume or a timetable-based option. The two cannot currently be mixed.
-
-When using datasets, in this first release (v2.4) waiting for all datasets in the list to be updated is the only option when multiple datasets are consumed by a DAG. A later release may introduce more fine-grained options allowing for greater flexibility.
-
 Fetching information from a Triggering Dataset Event
 ----------------------------------------------------
 
@@ -337,8 +330,6 @@ Combining Dataset and Time-Based Schedules
 
 DatasetTimetable Integration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-With the introduction of ``DatasetTimetable``, it is now possible to schedule DAGs based on both dataset events and time-based schedules. This feature offers flexibility for scenarios where a DAG needs to be triggered by data updates as well as run periodically according to a fixed timetable.
+With the introduction of ``DatasetOrTimeSchedule``, it is now possible to schedule DAGs based on both dataset events and time-based schedules. This feature offers flexibility for scenarios where a DAG needs to be triggered by data updates as well as run periodically according to a fixed timetable.
 
-For more detailed information on ``DatasetTimetable`` and its usage, refer to the corresponding section in :ref:`DatasetTimetable <dataset-timetable-section>`.
-
-These examples illustrate how Airflow's conditional dataset expressions can be used to create complex data-dependent scheduling scenarios, providing precise control over when DAGs are triggered in response to data updates.
+For more detailed information on ``DatasetOrTimeSchedule`` and its usage, refer to the corresponding section in :ref:`DatasetOrTimeSchedule <dataset-timetable-section>`.

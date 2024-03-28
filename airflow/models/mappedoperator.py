@@ -387,6 +387,10 @@ class MappedOperator(AbstractOperator):
         return [self]
 
     @property
+    def task_display_name(self) -> str:
+        return self.partial_kwargs.get("task_display_name") or self.task_id
+
+    @property
     def owner(self) -> str:  # type: ignore[override]
         return self.partial_kwargs.get("owner", DEFAULT_OWNER)
 
@@ -655,6 +659,10 @@ class MappedOperator(AbstractOperator):
     @property
     def doc_rst(self) -> str | None:
         return self.partial_kwargs.get("doc_rst")
+
+    @property
+    def allow_nested_operators(self) -> bool:
+        return bool(self.partial_kwargs.get("allow_nested_operators"))
 
     def get_dag(self) -> DAG | None:
         """Implement Operator."""

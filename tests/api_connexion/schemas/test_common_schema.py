@@ -140,5 +140,5 @@ class TestScheduleIntervalSchema:
     def test_should_error_unknown_obj_type(self):
         instance = 342
         schema_instance = ScheduleIntervalSchema()
-        with pytest.raises(Exception, match="Unknown object type: int"):
+        with pytest.raises(TypeError, match="Unknown object type: int"):
             schema_instance.dump(instance)

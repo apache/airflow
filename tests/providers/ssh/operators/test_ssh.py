@@ -167,11 +167,10 @@ class TestSSHOperator:
             AirflowException, match="SSH operator error: SSH command not specified. Aborting."
         ):
             SSHOperator(
-                task_id="test_4",
+                task_id="test_5",
                 ssh_hook=self.hook,
                 command=None,
             ).execute(None)
-            task_0.execute(None)
 
     @pytest.mark.parametrize(
         "command, get_pty_in, get_pty_out",

@@ -53,8 +53,7 @@ from moto.eks.models import (
 )
 
 from airflow.providers.amazon.aws.hooks.eks import COMMAND, EksHook
-
-from ..utils.eks_test_constants import (
+from tests.providers.amazon.aws.utils.eks_test_constants import (
     DEFAULT_CONN_ID,
     DEFAULT_NAMESPACE,
     DISK_SIZE,
@@ -83,7 +82,7 @@ from ..utils.eks_test_constants import (
     RegExTemplates,
     ResponseAttributes,
 )
-from ..utils.eks_test_utils import (
+from tests.providers.amazon.aws.utils.eks_test_utils import (
     attributes_to_test,
     generate_clusters,
     generate_dict,

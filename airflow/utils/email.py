@@ -133,7 +133,7 @@ def send_email_smtp(
         mail_from = smtp_mail_from
     else:
         if from_email is None:
-            raise Exception(
+            raise ValueError(
                 "You should set from email - either by smtp/smtp_mail_from config or `from_email` parameter"
             )
         mail_from = from_email

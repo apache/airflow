@@ -121,7 +121,8 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
             self.k8s_pod_yaml = render_k8s_pod_yaml(ti)
         self.rendered_fields = {
-            field: serialize_template_field(getattr(self.task, field)) for field in self.task.template_fields
+            field: serialize_template_field(getattr(self.task, field), field)
+            for field in self.task.template_fields
         }
 
         self._redact()

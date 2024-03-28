@@ -1270,7 +1270,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         DagScheduleDatasetReference,
                         DatasetEvent.dataset_id == DagScheduleDatasetReference.dataset_id,
                     )
-                    .join(DatasetEvent.source_dag_run)
                     .where(*dataset_event_filters)
                 ).all()
 

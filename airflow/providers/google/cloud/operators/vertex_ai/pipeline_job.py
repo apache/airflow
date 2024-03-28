@@ -19,21 +19,26 @@
 
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.aiplatform_v1.types import PipelineJob
+from google.cloud.aiplatform_v1 import types
 
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.vertex_ai.pipeline_job import PipelineJobHook
 from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAIPipelineJobLink,
     VertexAIPipelineJobListLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.cloud.triggers.vertex_ai import RunPipelineJobTrigger
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
+    from google.cloud.aiplatform import PipelineJob
     from google.cloud.aiplatform.metadata import experiment_resources
 
     from airflow.utils.context import Context
@@ -41,7 +46,7 @@ if TYPE_CHECKING:
 
 class RunPipelineJobOperator(GoogleCloudBaseOperator):
     """
-    Run Pipeline job.
+    Create and run a Pipeline job.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -83,9 +88,9 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
         Private services access must already be configured for the network. If left unspecified, the
         network set in aiplatform.init will be used. Otherwise, the job is not peered with any network.
     :param create_request_timeout: Optional. The timeout for the create request in seconds.
-    :param experiment: Optional. The Vertex AI experiment name or instance to associate to this
-        PipelineJob. Metrics produced by the PipelineJob as system.Metric Artifacts will be associated as
-        metrics to the current Experiment Run. Pipeline parameters will be associated as parameters to
+    :param experiment: Optional. The Vertex AI experiment name or instance to associate to this PipelineJob.
+        Metrics produced by the PipelineJob as system.Metric Artifacts will be associated as metrics
+        to the current Experiment Run. Pipeline parameters will be associated as parameters to
         the current Experiment Run.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
@@ -96,6 +101,10 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param deferrable: If True, run the task in the deferrable mode.
+        Note that it requires calling the operator with `sync=False` parameter.
+    :param poll_interval: Time (seconds) to wait between two consecutive calls to check the job.
+        The default is 300 seconds.
     """
 
     template_fields = [
@@ -127,6 +136,8 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
         experiment: str | experiment_resources.Experiment | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        poll_interval: int = 5 * 60,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -148,15 +159,12 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
         self.experiment = experiment
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-        self.hook: PipelineJobHook | None = None
+        self.deferrable = deferrable
+        self.poll_interval = poll_interval
 
     def execute(self, context: Context):
         self.log.info("Running Pipeline job")
-        self.hook = PipelineJobHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
-        result = self.hook.run_pipeline_job(
+        pipeline_job_obj: PipelineJob = self.hook.submit_pipeline_job(
             project_id=self.project_id,
             region=self.region,
             display_name=self.display_name,
@@ -174,19 +182,45 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
             create_request_timeout=self.create_request_timeout,
             experiment=self.experiment,
         )
-
-        pipeline_job = result.to_dict()
-        pipeline_job_id = self.hook.extract_pipeline_job_id(pipeline_job)
+        pipeline_job_id = pipeline_job_obj.job_id
         self.log.info("Pipeline job was created. Job id: %s", pipeline_job_id)
-
         self.xcom_push(context, key="pipeline_job_id", value=pipeline_job_id)
         VertexAIPipelineJobLink.persist(context=context, task_instance=self, pipeline_id=pipeline_job_id)
+
+        if self.deferrable:
+            pipeline_job_obj.wait_for_resource_creation()
+            self.defer(
+                trigger=RunPipelineJobTrigger(
+                    conn_id=self.gcp_conn_id,
+                    project_id=self.project_id,
+                    location=pipeline_job_obj.location,
+                    job_id=pipeline_job_id,
+                    poll_interval=self.poll_interval,
+                    impersonation_chain=self.impersonation_chain,
+                ),
+                method_name="execute_complete",
+            )
+
+        pipeline_job_obj.wait()
+        pipeline_job = pipeline_job_obj.to_dict()
         return pipeline_job
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> dict[str, Any]:
+        if event["status"] == "error":
+            raise AirflowException(event["message"])
+        return event["job"]
 
     def on_kill(self) -> None:
         """Act as a callback called when the operator is killed; cancel any running job."""
         if self.hook:
             self.hook.cancel_pipeline_job()
+
+    @cached_property
+    def hook(self) -> PipelineJobHook:
+        return PipelineJobHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
 
 
 class GetPipelineJobOperator(GoogleCloudBaseOperator):
@@ -262,7 +296,7 @@ class GetPipelineJobOperator(GoogleCloudBaseOperator):
                 context=context, task_instance=self, pipeline_id=self.pipeline_job_id
             )
             self.log.info("Pipeline job was gotten.")
-            return PipelineJob.to_dict(result)
+            return types.PipelineJob.to_dict(result)
         except NotFound:
             self.log.info("The Pipeline job %s does not exist.", self.pipeline_job_id)
 
@@ -390,7 +424,7 @@ class ListPipelineJobOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
         VertexAIPipelineJobListLink.persist(context=context, task_instance=self)
-        return [PipelineJob.to_dict(result) for result in results]
+        return [types.PipelineJob.to_dict(result) for result in results]
 
 
 class DeletePipelineJobOperator(GoogleCloudBaseOperator):

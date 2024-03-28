@@ -421,6 +421,9 @@ def apply_version_suffix(install_clause: str, version_suffix: str) -> str:
         from packaging.version import Version
 
         base_version = Version(version).base_version
+        # always use `pre-release`+ `0` as the version suffix
+        version_suffix = version_suffix.rstrip("0123456789") + "0"
+
         target_version = Version(str(base_version) + "." + version_suffix)
         return prefix + ">=" + str(target_version)
     return install_clause
