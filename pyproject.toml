@@ -22,7 +22,7 @@
 # The dependencies can be automatically upgraded by running:
 # pre-commit run --hook-stage manual update-build-dependencies --all-files
 requires = [
-    "GitPython==3.1.42",
+    "GitPython==3.1.43",
     "gitdb==4.0.11",
     "hatchling==1.22.4",
     "packaging==24.0",

@@ -48,10 +48,7 @@ jobs:
 
   build-info:
     name: "Build info"
-    # The runs-on cannot refer to env. or secrets. context, so we have no
-    # option but to specify a hard-coded list here. This is "safe", the
-    # runner checks if the user is an owner or collaborator of the repo
-    # before running the workflow.
+    # At build-info stage we do not yet have outputs so we need to hard-code the runs-on to public runners
     runs-on: ["ubuntu-22.04"]
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
@@ -105,7 +102,9 @@ jobs:
       providers-compatibility-checks: ${{ steps.selective-checks.outputs.providers-compatibility-checks }}
       helm-test-packages: ${{ steps.selective-checks.outputs.helm-test-packages }}
       debug-resources: ${{ steps.selective-checks.outputs.debug-resources }}
-      runs-on: ${{steps.selective-checks.outputs.runs-on}}
+      runs-on-as-json-default: ${{ steps.selective-checks.outputs.runs-on-as-json-default }}
+      runs-on-as-json-public: ${{ steps.selective-checks.outputs.runs-on-as-json-public }}
+      runs-on-as-json-self-hosted: ${{ steps.selective-checks.outputs.runs-on-as-json-self-hosted }}
       is-self-hosted-runner: ${{ steps.selective-checks.outputs.is-self-hosted-runner }}
       is-airflow-runner: ${{ steps.selective-checks.outputs.is-airflow-runner }}
       is-amd-runner: ${{ steps.selective-checks.outputs.is-amd-runner }}
@@ -160,6 +159,7 @@ jobs:
     needs: [build-info]
     uses: ./.github/workflows/basic-tests.yml
     with:
+      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
       run-www-tests: ${{needs.build-info.outputs.run-www-tests}}
       needs-api-codegen: ${{needs.build-info.outputs.needs-api-codegen}}
       default-python-version: ${{needs.build-info.outputs.default-python-version}}
@@ -183,7 +183,8 @@ jobs:
       packages: write
     secrets: inherit
     with:
-      runs-on: '["ubuntu-22.04"]'
+      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+      runs-on-as-json-self-hosted: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted }}
       do-build: ${{ needs.build-info.outputs.in-workflow-build }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       platform: "linux/amd64"
@@ -197,7 +198,7 @@ jobs:
   wait-for-ci-images:
     timeout-minutes: 120
     name: "Wait for CI images"
-    runs-on: ["ubuntu-22.04"]
+    runs-on: ${{ fromJSON(needs.build-info.outputs.runs-on-as-json-public) }}
     needs: [build-info, build-ci-images]
     if: needs.build-info.outputs.ci-image-build == 'true'
     env:
@@ -238,7 +239,9 @@ jobs:
     uses: ./.github/workflows/additional-ci-image-checks.yml
     if: needs.build-info.outputs.canary-run == 'true'
     with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
+      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+      runs-on-as-json-self-hosted: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       branch: ${{ needs.build-info.outputs.default-branch }}
@@ -259,6 +262,7 @@ jobs:
     uses: ./.github/workflows/generate-constraints.yml
     if: needs.build-info.outputs.ci-image-build == 'true'
     with:
+      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       # generate no providers constraints only in canary builds - they take quite some time to generate
       # they are not needed for regular builds, they are only needed to update constraints in canaries
@@ -273,7 +277,7 @@ jobs:
     uses: ./.github/workflows/static-checks-mypy-docs.yml
     secrets: inherit
     with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
+      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       needs-mypy: ${{ needs.build-info.outputs.needs-mypy }}
       mypy-folders: ${{ needs.build-info.outputs.mypy-folders }}
@@ -303,7 +307,7 @@ jobs:
       needs.build-info.outputs.skip-providers-tests != 'true' &&
       needs.build-info.outputs.latest-versions-only != 'true'
     with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
+      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
@@ -321,7 +325,8 @@ jobs:
       packages: read
     secrets: inherit
     with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
+      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
       helm-test-packages: ${{ needs.build-info.outputs.helm-test-packages }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
@@ -339,7 +344,7 @@ jobs:
       packages: read
     secrets: inherit
     with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
+      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       backend: "postgres"
       test-name: "Postgres"
       test-scope: "DB"
@@ -363,7 +368,7 @@ jobs:
       packages: read
     secrets: inherit
     with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
+      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       backend: "mysql"
       test-name: "MySQL"
       test-scope: "DB"
@@ -387,7 +392,7 @@ jobs:
       packages: read
     secrets: inherit
     with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
+      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       backend: "sqlite"
       test-name: "Sqlite"
       test-name-separator: ""
@@ -413,7 +418,7 @@ jobs:
       packages: read
     secrets: inherit
     with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
+      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       backend: "sqlite"
       test-name: ""
       test-name-separator: ""
@@ -443,7 +448,7 @@ jobs:
        needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' ||
        needs.build-info.outputs.full-tests-needed == 'true')
     with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
+      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
@@ -462,7 +467,7 @@ jobs:
       packages: read
     secrets: inherit
     with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
+      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
@@ -489,7 +494,7 @@ jobs:
       packages: write
     secrets: inherit
     with:
-      runs-on: '["ubuntu-22.04"]'
+      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
       build-type: "Regular"
       do-build: ${{ needs.build-info.outputs.in-workflow-build }}
       upload-package-artifact: "true"
@@ -509,7 +514,7 @@ jobs:
   wait-for-prod-images:
     timeout-minutes: 80
     name: "Wait for PROD images"
-    runs-on: ["ubuntu-22.04"]
+    runs-on: ${{ fromJSON(needs.build-info.outputs.runs-on-as-json-public) }}
     needs: [build-info, wait-for-ci-images, build-prod-images]
     if: needs.build-info.outputs.prod-image-build == 'true'
     env:
@@ -554,7 +559,7 @@ jobs:
     needs: [build-info, wait-for-prod-images, generate-constraints]
     uses: ./.github/workflows/additional-prod-image-tests.yml
     with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
+      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
       default-branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
@@ -574,7 +579,7 @@ jobs:
       packages: read
     secrets: inherit
     with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
+      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       kubernetes-versions-list-as-string: ${{ needs.build-info.outputs.kubernetes-versions-list-as-string }}
@@ -605,7 +610,8 @@ jobs:
       - tests-special
     uses: ./.github/workflows/finalize-tests.yml
     with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
+      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+      runs-on-as-json-self-hosted: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
