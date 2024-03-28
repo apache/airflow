@@ -55,11 +55,11 @@ OAUTH_TOKEN = "my_oauth_token"
 
 # Ssh public keys will be placed to Dataproc cluster nodes, allowing to get a root shell at the nodes
 SSH_PUBLIC_KEYS = [
-    "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAYQCxO38tKAJXIs9ivPxt7AYdfybgtAR1ow3Qkb9GPQ6wkFHQq"
-    "cFDe6faKCxH6iDRteo4D8L8BxwzN42uZSB0nfmjkIxFTcEU3mFSXEbWByg78aoddMrAAjatyrhH1pON6P0="
+    "ssh-rsa AAA5B3NzaC1yc2EAA1ADA2ABA3AA4QCxO38tKA0XIs9ivPxt7AYdf3bgtAR1ow3Qkb9GPQ6wkFHQq"
+    "cFDe6faKCxH6iDRt2o4D8L8Bx6zN42uZSB0nf8jkIxFTcEU3mFSXEbWByg78ao3dMrAAj1tyr1H1pON6P0="
 ]
 
-# https://cloud.yandex.com/en-ru/docs/logging/concepts/log-group
+# https://cloud.yandex.com/docs/logging/concepts/log-group
 LOG_GROUP_ID = "my_log_group_id"
 
 
@@ -120,8 +120,8 @@ class TestDataprocClusterCreateOperator:
             service_account_id=None,
             services=("HDFS", "YARN", "MAPREDUCE", "HIVE", "SPARK"),
             ssh_public_keys=[
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAYQCxO38tKAJXIs9ivPxt7AYdfybgtAR1ow3Qkb9GPQ6wkFHQqcFD"
-                "e6faKCxH6iDRteo4D8L8BxwzN42uZSB0nfmjkIxFTcEU3mFSXEbWByg78aoddMrAAjatyrhH1pON6P0="
+                "ssh-rsa AAA5B3NzaC1yc2EAA1ADA2ABA3AA4QCxO38tKA0XIs9ivPxt7AYdf3bgtAR1ow3Qkb9GPQ6wkFHQq"
+                "cFDe6faKCxH6iDRt2o4D8L8Bx6zN42uZSB0nf8jkIxFTcEU3mFSXEbWByg78ao3dMrAAj1tyr1H1pON6P0="
             ],
             subnet_id="my_subnet_id",
             zone="ru-central1-c",

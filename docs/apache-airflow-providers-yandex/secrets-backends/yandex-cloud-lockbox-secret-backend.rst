@@ -19,11 +19,11 @@
 Yandex.Cloud Lockbox Secret Backend
 ===================================
 
-This topic describes how to configure Apache Airflow to use `Yandex Lockbox <https://cloud.yandex.com/en/docs/lockbox>`__
+This topic describes how to configure Apache Airflow to use `Yandex Lockbox <https://cloud.yandex.com/docs/lockbox>`__
 as a secret backend and how to manage secrets.
 
-Before you begin
-----------------
+Getting started
+---------------
 
 Before you start, make sure you have installed the ``yandex`` provider in your Apache Airflow installation:
 
@@ -34,9 +34,9 @@ Before you start, make sure you have installed the ``yandex`` provider in your A
 Enabling the Yandex Lockbox secret backend
 ------------------------------------------
 
-To enable Yandex Lockbox as secrets backend,
+To enable Yandex Lockbox as a secret backend,
 specify :py:class:`~airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend`
-as the ``backend`` in  ``[secrets]`` section of ``airflow.cfg`` file.
+as your ``backend`` in the ``[secrets]`` section of the ``airflow.cfg`` file.
 
 Here is a sample configuration:
 
@@ -51,7 +51,8 @@ You can also set this with an environment variable:
 
     export AIRFLOW__SECRETS__BACKEND=airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend
 
-You can verify the correct setting of the configuration options by using the ``airflow config get-value`` command:
+You can verify whether the configuration options have been set up correctly
+using the ``airflow config get-value`` command:
 
 .. code-block:: console
 
@@ -61,24 +62,24 @@ You can verify the correct setting of the configuration options by using the ``a
 Backend parameters
 ------------------
 
-The next step is to configure backend parameters using the ``backend_kwargs`` options.
-You can pass the following parameters:
+The next step is to configure backend parameters using the ``backend_kwargs`` options
+that allow you to provide the following parameters:
 
-* ``yc_oauth_token``: Specifies the user account OAuth token to connect to Yandex Lockbox with. Looks like ``y3_xxxxx``.
-* ``yc_sa_key_json``: Specifies the service account auth JSON. Looks like ``{"id": "...", "service_account_id": "...", "private_key": "..."}``.
-* ``yc_sa_key_json_path``: Specifies the service account auth JSON file path. Looks like ``/home/airflow/authorized_key.json``. File content looks like ``{"id": "...", "service_account_id": "...", "private_key": "..."}``.
-* ``yc_connection_id``: Specifies the connection ID to connect to Yandex Lockbox with. Default: "yandexcloud_default"
-* ``folder_id``: Specifies the folder ID to search for Yandex Lockbox secrets in. If set to None (null in JSON), requests will use the connection folder_id if specified.
-* ``connections_prefix``: Specifies the prefix of the secret to read to get Connections. If set to None (null in JSON), requests for connections will not be sent to Yandex Lockbox. Default: "airflow/connections"
-* ``variables_prefix``: Specifies the prefix of the secret to read to get Variables. If set to None (null in JSON), requests for variables will not be sent to Yandex Lockbox. Default: "airflow/variables"
-* ``config_prefix``: Specifies the prefix of the secret to read to get Configurations. If set to None (null in JSON), requests for variables will not be sent to Yandex Lockbox. Default: "airflow/config"
-* ``sep``: Specifies the separator used to concatenate secret_prefix and secret_id. Default: "/"
-* ``endpoint``: Specifies an API endpoint. If set to None (null in JSON), requests will use the connection endpoint, if specified, or the default endpoint.
+* ``yc_oauth_token``: Specifies the user account OAuth token to connect to Yandex Lockbox. The parameter value should look like ``y3_xx123``.
+* ``yc_sa_key_json``: Specifies the service account key in JSON. The parameter value should look like ``{"id": "...", "service_account_id": "...", "private_key": "..."}``.
+* ``yc_sa_key_json_path``: Specifies the service account key in JSON file path. The parameter value should look like ``/home/airflow/authorized_key.json``, while the file content should have the following format: ``{"id": "...", "service_account_id": "...", "private_key": "..."}``.
+* ``yc_connection_id``: Specifies the connection ID to connect to Yandex Lockbox. The default value is ``yandexcloud_default``.
+* ``folder_id``: Specifies the folder ID to search for Yandex Lockbox secrets in. If set to ``None`` (``null`` in JSON), the requests will use the connection ``folder_id``, if specified.
+* ``connections_prefix``: Specifies the prefix of the secret to read to get connections. If set to ``None`` (``null`` in JSON), the requests for connections will not be sent to Yandex Lockbox. The default value is ``airflow/connections``.
+* ``variables_prefix``: Specifies the prefix of the secret to read to get variables. If set to ``None`` (``null`` in JSON), the requests for variables will not be sent to Yandex Lockbox. The default value is ``airflow/variables``.
+* ``config_prefix``: Specifies the prefix of the secret to read to get configurations. If set to ``None`` (``null`` in JSON), the requests for variables will not be sent to Yandex Lockbox. The default value is ``airflow/config``.
+* ``sep``: Specifies the separator to concatenate ``secret_prefix`` and ``secret_id``. The default value is ``/``.
+* ``endpoint``: Specifies the API endpoint. If set to ``None`` (``null`` in JSON), the requests will use the connection endpoint, if specified; otherwise, they will use the default endpoint.
 
-All options should be passed as a JSON dictionary.
+Make sure to provide all options as a JSON dictionary.
 
-For example, if you want to set parameter ``connections_prefix`` to ``"example-connections-prefix"``
-and parameter ``variables_prefix`` to ``"example-variables-prefix"``,
+For example, if you want to set ``connections_prefix`` to ``"example-connections-prefix"``
+and ``variables_prefix`` to ``"example-variables-prefix"``,
 your configuration file should look like this:
 
 .. code-block:: ini
@@ -87,93 +88,96 @@ your configuration file should look like this:
     backend = airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend
     backend_kwargs = {"connections_prefix": "example-connections-prefix", "variables_prefix": "example-variables-prefix"}
 
-Set-up credentials
-------------------
+Setting up credentials
+----------------------
 
-You need to specify credentials or id of yandexcloud connection to connect to Yandex Lockbox with.
-Credentials will be used with this priority:
+You need to specify credentials or the ID of the ``yandexcloud`` connection to connect to Yandex Lockbox.
 
-* OAuth Token
-* Service Account JSON file
-* Service Account JSON
-* Yandex Cloud Connection
+The credentials will be used with the following priority:
 
-If no credentials specified, default connection id ``yandexcloud_default`` will be used.
+* OAuth token
+* Service account key in JSON from file
+* Service account key in JSON
+* Yandex Cloud connection
 
-Using OAuth token for authorization as users account
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+If you do not specify any credentials, the system will use the default connection ID: ``yandexcloud_default``.
 
-First, you need to create `OAuth token <https://cloud.yandex.com/en/docs/iam/concepts/authorization/oauth-token>`__ for user account.
-It will looks like ``y3_Vdheub7w9bIut67GHeL345gfb5GAnd3dZnf08FRbvjeUFvetYiohGvc``.
+Using an OAuth token to authorize as a user account
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Then you need to specify the ``folder_id`` and token in the ``backend_kwargs``:
+First, you need to create
+an `OAuth token <https://cloud.yandex.com/docs/iam/concepts/authorization/oauth-token>`__ for your user account.
+Your token will look like this: ``y3_Vd3eub7w9bIut67GHeL345gfb5GAnd3dZnf08FR1vjeUFve7Yi8hGvc``.
 
-.. code-block:: ini
-
-    [secrets]
-    backend_kwargs = {"folder_id": "b1g66mft1vopnevbn57j", "yc_oauth_token": "y3_Vdheub7w9bIut67GHeL345gfb5GAnd3dZnf08FRbvjeUFvetYiohGvc"}
-
-Using Authorized keys for authorization as service account
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Before you start, make sure you have `created <https://cloud.yandex.com/en/docs/iam/operations/sa/create>`__
-a Yandex Cloud `Service Account <https://cloud.yandex.com/en/docs/iam/concepts/users/service-accounts>`__
-with the permissions ``lockbox.viewer`` and ``lockbox.payloadViewer``.
-
-First, you need to create `Authorized key <https://cloud.yandex.com/en/docs/iam/concepts/authorization/key>`__
-for your service account and save the generated JSON file with public and private key parts.
-
-Then you need to specify the ``folder_id`` and key in the ``backend_kwargs``:
+Then, you need to specify the ``folder_id`` and your token in ``backend_kwargs``:
 
 .. code-block:: ini
 
     [secrets]
-    backend_kwargs = {"folder_id": "b1g66mft1vopnevbn57j", "yc_sa_key_json": {"id": "...", "service_account_id": "...", "private_key": "..."}"}
+    backend_kwargs = {"folder_id": "b1g66mft1vo1n4vbn57j", "yc_oauth_token": "y3_Vd3eub7w9bIut67GHeL345gfb5GAnd3dZnf08FR1vjeUFve7Yi8hGvc"}
 
-Alternatively, you can specify the path to JSON file in the ``backend_kwargs``:
+Using authorized keys to authorize as a service account
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Before you start, make sure you have `created <https://cloud.yandex.com/docs/iam/operations/sa/create>`__
+a Yandex Cloud `service account <https://cloud.yandex.com/docs/iam/concepts/users/service-accounts>`__
+with the ``lockbox.viewer`` and ``lockbox.payloadViewer`` permissions.
+
+First, you need to create an `authorized key <https://cloud.yandex.com/docs/iam/concepts/authorization/key>`__
+for your service account and save the generated JSON file with both public and private key parts.
+
+Then, you need to specify the ``folder_id`` and key in ``backend_kwargs``:
 
 .. code-block:: ini
 
     [secrets]
-    backend_kwargs = {"folder_id": "b1g66mft1vopnevbn57j", "yc_sa_key_json_path": "/home/airflow/authorized_key.json"}
+    backend_kwargs = {"folder_id": "b1g66mft1vo1n4vbn57j", "yc_sa_key_json": {"id": "...", "service_account_id": "...", "private_key": "..."}"}
 
-Using Yandex Cloud Connection for authorization
+Alternatively, you can specify the path to the JSON file in ``backend_kwargs``:
+
+.. code-block:: ini
+
+    [secrets]
+    backend_kwargs = {"folder_id": "b1g66mft1vo1n4vbn57j", "yc_sa_key_json_path": "/home/airflow/authorized_key.json"}
+
+Using Yandex Cloud connection for authorization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-First, you need to create :ref:`Yandex Cloud Connection <yandex_cloud_connection>`.
+First, you need to create :ref:`Yandex Cloud connection <yandex_cloud_connection>`.
 
-Then you need to specify the ``connection_id`` in the ``backend_kwargs``:
+Then, you need to specify the ``connection_id`` in ``backend_kwargs``:
 
 .. code-block:: ini
 
     [secrets]
     backend_kwargs = {"yc_connection_id": "my_yc_connection"}
 
-If no credentials specified, Lockbox Secret Backend will try to use default connection id ``yandexcloud_default``.
+If you do not specify any credentials,
+Lockbox Secret Backend will try to use the default connection ID: ``yandexcloud_default``.
 
-Lockbox Secret Backend will try to use default folder id from Connection,
-also you can specify the ``folder_id`` in the ``backend_kwargs``:
+Lockbox Secret Backend will try to use the default folder ID from your connection.
+You can also specify the ``folder_id`` in the ``backend_kwargs``:
 
 .. code-block:: ini
 
     [secrets]
-    backend_kwargs = {"folder_id": "b1g66mft1vopnevbn57j", "yc_connection_id": "my_yc_connection"}
+    backend_kwargs = {"folder_id": "b1g66mft1vo1n4vbn57j", "yc_connection_id": "my_yc_connection"}
 
-Storing and Retrieving Connections
+Storing and retrieving connections
 ----------------------------------
 
-To store a Connection, you need to `create secret <https://cloud.yandex.com/en/docs/lockbox/operations/secret-create>`__
-with name in format ``{connections_prefix}{sep}{connection_name}``
-and payload contains text value with any key.
+To store a connection, you need to `create a secret <https://cloud.yandex.com/docs/lockbox/operations/secret-create>`__
+with a name in the following format: ``{connections_prefix}{sep}{connection_name}``.
 
-Storing a Connection as a URI
+The payload must contain a text value with any key.
+
+Storing a connection as a URI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The main way is to save connections as a :ref:`connection URI representation <generating_connection_uri>`.
+The main way to save connections is using a :ref:`connection URI representation <generating_connection_uri>`, such as
+``mysql://myname:mypassword@myhost.com?this_param=some+val&that_param=other+val%2A``.
 
-Example: ``mysql://myname:mypassword@myhost.com?this_param=some+val&that_param=other+val%2A``
-
-Here is an example of secret creation with the ``yc`` cli:
+Here is an example of creating a secret with the ``yc`` CLI:
 
 .. code-block:: console
 
@@ -183,16 +187,16 @@ Here is an example of secret creation with the ``yc`` cli:
     done (1s)
     name: airflow/connections/mysqldb
 
-Storing a Connection as a JSON
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Storing a connection as JSON
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Alternatively, you can save connections in JSON format:
+Another way to store connections is using JSON format:
 
 .. code-block:: json
 
     {
       "conn_type": "mysql",
-      "host": "myhost.com",
+      "host": "host.com",
       "login": "myname",
       "password": "mypassword",
       "extra": {
@@ -201,17 +205,17 @@ Alternatively, you can save connections in JSON format:
       }
     }
 
-Here is an example of secret creation with the ``yc`` cli:
+Here is an example of creating a secret with the ``yc`` CLI:
 
 .. code-block:: console
 
     $ yc lockbox secret create \
-        --name airflow/connections/mysqldbjson \
-        --payload '[{"key": "value", "text_value": "{\"conn_type\": \"mysql\", \"host\": \"myhost.com\", \"login\": \"myname\", \"password\": \"mypassword\", \"extra\": {\"this_param\": \"some val\", \"that_param\": \"other val*\"}}"}]'
+        --name airflow/connections/my_sql_db_json \
+        --payload '[{"key": "value", "text_value": "{\"conn_type\": \"mysql\", \"host\": \"host.com\", \"login\": \"myname\", \"password\": \"mypassword\", \"extra\": {\"this_param\": \"some val\", \"that_param\": \"other val*\"}}"}]'
     done (1s)
-    name: airflow/connections/mysqldbjson
+    name: airflow/connections/my_sql_db_json
 
-Retrieving Connection
+Retrieving connection
 ~~~~~~~~~~~~~~~~~~~~~
 
 To check the connection is correctly read from the Lockbox Secret Backend, you can use ``airflow connections get``:
@@ -219,18 +223,18 @@ To check the connection is correctly read from the Lockbox Secret Backend, you c
 .. code-block:: console
 
     $ airflow connections get mysqldb -o json
-    [{"id": null, "conn_id": "mysqldb", "conn_type": "mysql", "description": null, "host": "myhost.com", "schema": "", "login": "myname", "password": "mypassword", "port": null, "is_encrypted": "False", "is_extra_encrypted": "False", "extra_dejson": {"this_param": "some val", "that_param": "other val*"}, "get_uri": "mysql://myname:mypassword@myhost.com/?this_param=some+val&that_param=other+val%2A"}]
+    [{"id": null, "conn_id": "mysqldb", "conn_type": "mysql", "description": null, "host": "host.com", "schema": "", "login": "myname", "password": "mypassword", "port": null, "is_encrypted": "False", "is_extra_encrypted": "False", "extra_dejson": {"this_param": "some val", "that_param": "other val*"}, "get_uri": "mysql://myname:mypassword@myhost.com/?this_param=some+val&that_param=other+val%2A"}]
 
-Storing and Retrieving Variables
+Storing and retrieving variables
 --------------------------------
 
-To store a Variable, you need to `create secret <https://cloud.yandex.com/en/docs/lockbox/operations/secret-create>`__
-with name in format ``{variables_prefix}{sep}{variable_name}``
-and payload contains text value with any key.
+To store a variable, you need to `create a secret <https://cloud.yandex.com/docs/lockbox/operations/secret-create>`__
+with a name in the following format: ``{variables_prefix}{sep}{variable_name}``.
+The payload must contain a text value with any key.
 
-This is an example variable value: ``some_secret_data``
+Here is how a variable value may look like: ``some_secret_data``.
 
-Here is an example of secret creation with the ``yc`` cli:
+Here is an example of creating a secret with the ``yc`` CLI:
 
 .. code-block:: console
 
@@ -247,18 +251,19 @@ To check the variable is correctly read from the Lockbox Secret Backend, you can
     $ airflow variables get my_variable
     some_secret_data
 
-Storing and Retrieving Configs
+Storing and retrieving configs
 ------------------------------
 
-You can store some sensitive configs in the Lockbox Secret Backend.
+Lockbox Secret Backend is also suitable for storing sensitive configurations.
 
-For example, we will provide a secret for ``sentry.sentry_dsn`` and use ``sentry_dsn_value`` as the config value name.
+For example, we will provide you with a secret for ``sentry.sentry_dsn``
+and use ``sentry_dsn_value`` as the config value name.
 
-To store a Config, you need to `create secret <https://cloud.yandex.com/en/docs/lockbox/operations/secret-create>`__
-with name in format ``{config_prefix}{sep}{config_value_name}``
-and payload contains text value with any key.
+To store a config, you need to `create a secret <https://cloud.yandex.com/docs/lockbox/operations/secret-create>`__
+with a name in the following format: ``{config_prefix}{sep}{config_value_name}``.
+The payload must contain a text value with any key.
 
-Here is an example of secret creation with the ``yc`` cli:
+Here is an example of creating a secret with the ``yc`` CLI:
 
 .. code-block:: console
 
@@ -282,10 +287,10 @@ To check the config value is correctly read from the Lockbox Secret Backend, you
     $ airflow config get-value sentry sentry_dsn
     https://public@sentry.example.com/1
 
-Clean up
---------
+Cleaning up your secret
+-----------------------
 
-You can easily delete your secret with the ``yc`` cli:
+You can easily delete your secret with the ``yc`` CLI:
 
 .. code-block:: console
 

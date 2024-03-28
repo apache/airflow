@@ -19,15 +19,19 @@
 Yandex.Cloud Data Proc Operators
 ================================
 
-The `Yandex.Cloud Data Proc <https://cloud.yandex.com/services/data-proc>`__ is a service that helps to deploy Apache Hadoop®* and Apache Spark™ clusters in the Yandex.Cloud infrastructure.
+`Yandex Data Proc <https://cloud.yandex.com/services/data-proc>`__ is a service
+that helps you deploy Apache Hadoop®* and Apache Spark™ clusters in the Yandex Cloud infrastructure.
 
-You can control the cluster size, node capacity, and set of Apache® services
-(Spark, HDFS, YARN, Hive, HBase, Oozie, Sqoop, Flume, Tez, Zeppelin).
+With Data Proc, you can manage the cluster size and node capacity,
+as well as work with various Apache® services,
+such as Spark, HDFS, YARN, Hive, HBase, Oozie, Sqoop, Flume, Tez, and Zeppelin.
 
 Apache Hadoop is used for storing and analyzing structured and unstructured big data.
 
-Apache Spark is a tool for quick data-processing that can be integrated with Apache Hadoop as well as with other storage systems.
+Apache Spark is a tool for quick data processing
+that can be integrated with Apache Hadoop and other storage systems.
 
 Using the operators
-^^^^^^^^^^^^^^^^^^^^^
-See the usage examples in `example DAGs <https://github.com/apache/airflow/tree/providers-yandex/|version|/tests/system/providers/yandex/example_yandexcloud_dataproc.py>`_
+^^^^^^^^^^^^^^^^^^^
+To learn how to use Data Proc operators,
+see `example DAGs <https://github.com/apache/airflow/tree/providers-yandex/|version|/tests/system/providers/yandex/example_yandexcloud_dataproc.py>`_.
