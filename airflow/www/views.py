@@ -2796,6 +2796,9 @@ class Airflow(AirflowBaseView):
         wwwutils.check_import_errors(dag.fileloc, session)
         wwwutils.check_dag_warnings(dag.dag_id, session)
 
+        included_events_raw = conf.get("webserver", "audit_view_included_events", fallback="")
+        excluded_events_raw = conf.get("webserver", "audit_view_excluded_events", fallback="")
+
         root = request.args.get("root")
         if root:
             dag = dag.partial_subset(task_ids_or_regex=root, include_downstream=False, include_upstream=True)
@@ -2840,6 +2843,8 @@ class Airflow(AirflowBaseView):
                     "numRuns": num_runs_options,
                 }
             ),
+            included_events_raw=included_events_raw,
+            excluded_events_raw=excluded_events_raw,
         )
 
     @expose("/calendar")
