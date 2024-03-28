@@ -219,6 +219,7 @@ Name                                                Description
 =================================================== ========================================================================
 ``dagbag_size``                                     Number of DAGs found when the scheduler ran a scan based on its
                                                     configuration
+``dag_processing.processes_count``                  Number of currently running DAG parsing processes
 ``dag_processing.import_errors``                    Number of errors from trying to parse DAG files
 ``dag_processing.total_parse_time``                 Seconds taken to scan and import ``dag_processing.file_path_queue_size`` DAG files
 ``dag_processing.file_path_queue_size``             Number of DAG files to be considered for the next scan
