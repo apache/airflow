@@ -91,7 +91,7 @@ class AirflowDocsBuilder:
     @property
     def _current_version(self):
         if not self.is_versioned:
-            raise Exception("This documentation package is not versioned")
+            raise ValueError("This documentation package is not versioned")
         if self.package_name == "apache-airflow":
             from airflow.version import version as airflow_version
 

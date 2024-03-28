@@ -133,7 +133,7 @@ def refresh_provider_metadata_from_yaml_file(provider_yaml_path: Path):
         try:
             jsonschema.validate(provider, schema=schema)
         except jsonschema.ValidationError:
-            raise Exception(f"Unable to parse: {provider_yaml_path}.")
+            raise ValueError(f"Unable to parse: {provider_yaml_path}.")
     except ImportError:
         # we only validate the schema if jsonschema is available. This is needed for autocomplete
         # to not fail with import error if jsonschema is not installed
@@ -177,7 +177,7 @@ def validate_provider_info_with_runtime_schema(provider_info: dict[str, Any]) ->
         jsonschema.validate(provider_info, schema=schema)
     except jsonschema.ValidationError as ex:
         get_console().print("[red]Provider info not validated against runtime schema[/]")
-        raise Exception(
+        raise ValueError(
             "Error when validating schema. The schema must be compatible with "
             "airflow/provider_info.schema.json.",
             ex,
