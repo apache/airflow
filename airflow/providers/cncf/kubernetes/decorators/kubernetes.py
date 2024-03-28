@@ -20,14 +20,16 @@ import base64
 import os
 import pickle
 import uuid
+import warnings
 from shlex import quote
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Callable, Sequence
 
-import dill
+import cloudpickle
 from kubernetes.client import models as k8s
 
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.python_kubernetes_script import (
     write_python_script,
@@ -65,8 +67,18 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
     # there are some cases we can't deepcopy the objects (e.g protobuf).
     shallow_copy_attrs: Sequence[str] = ("python_callable",)
 
-    def __init__(self, namespace: str = "default", use_dill: bool = False, **kwargs) -> None:
-        self.use_dill = use_dill
+    def __init__(
+        self, namespace: str = "default", use_dill: bool = False, use_cloudpickle: bool = False, **kwargs
+    ) -> None:
+        if use_dill:
+            warnings.warn(
+                "The 'use_dill' parameter is deprecated and will be removed after 01.10.2024. Please use "
+                "'use_cloudpickle' instead. ",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            self.use_cloudpickle = use_dill
+        self.use_cloudpickle = use_cloudpickle
         super().__init__(
             namespace=namespace,
             name=kwargs.pop("name", f"k8s_airflow_pod_{uuid.uuid4().hex}"),
@@ -100,7 +112,7 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
 
     def execute(self, context: Context):
         with TemporaryDirectory(prefix="venv") as tmp_dir:
-            pickling_library = dill if self.use_dill else pickle
+            pickling_library = cloudpickle if self.use_cloudpickle else pickle
             script_filename = os.path.join(tmp_dir, "script.py")
             input_filename = os.path.join(tmp_dir, "script.in")
 

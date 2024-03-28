@@ -21,7 +21,7 @@ import json
 from datetime import datetime
 from unittest import mock
 
-import dill
+import cloudpickle
 import pytest
 
 from airflow.exceptions import AirflowException
@@ -116,7 +116,7 @@ class TestMlengineOperatorUtils:
         # importing apache_beam elsewhere modifies the metrics. In order to avoid metrics being modified
         # by apache_beam import happening after importing this test, we retrieve the metrics here rather than
         # at the top of the file.
-        METRIC_FN_ENCODED = base64.b64encode(dill.dumps(METRIC_FN, recurse=True)).decode()
+        METRIC_FN_ENCODED = base64.b64encode(cloudpickle.dumps(METRIC_FN)).decode()
 
         assert TASK_PREFIX_PREDICTION == evaluate_prediction.task_id
         assert PROJECT_ID == evaluate_prediction.project_id
@@ -162,7 +162,7 @@ class TestMlengineOperatorUtils:
         # importing apache_beam elsewhere modifies the metrics. In order to avoid metrics being modified
         # by apache_beam import happening after importing this test, we retrieve the metrics here rather than
         # at the top of the file.
-        METRIC_FN_ENCODED = base64.b64encode(dill.dumps(METRIC_FN, recurse=True)).decode()
+        METRIC_FN_ENCODED = base64.b64encode(cloudpickle.dumps(METRIC_FN)).decode()
 
         assert TASK_PREFIX_PREDICTION == evaluate_prediction.task_id
         assert PROJECT_ID == evaluate_prediction.project_id
@@ -205,7 +205,7 @@ class TestMlengineOperatorUtils:
         # importing apache_beam elsewhere modifies the metrics. In order to avoid metrics being modified
         # by apache_beam import happening after importing this test, we retrieve the metrics here rather than
         # at the top of the file.
-        METRIC_FN_ENCODED = base64.b64encode(dill.dumps(METRIC_FN, recurse=True)).decode()
+        METRIC_FN_ENCODED = base64.b64encode(cloudpickle.dumps(METRIC_FN)).decode()
 
         assert TASK_PREFIX_PREDICTION == evaluate_prediction.task_id
         assert PROJECT_ID == evaluate_prediction.project_id

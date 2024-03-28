@@ -54,42 +54,42 @@ def venv_python():
 
 
 @pytest.fixture
-def venv_python_with_dill():
+def venv_python_with_cloudpickle():
     with TemporaryDirectory() as d:
         venv.create(d, with_pip=True)
         python_path = Path(d) / "bin" / "python"
-        subprocess.call([python_path, "-m", "pip", "install", "dill"])
+        subprocess.call([python_path, "-m", "pip", "install", "cloudpickle"])
         yield python_path
 
 
 class TestExternalPythonDecorator:
-    def test_with_dill_works(self, dag_maker, venv_python_with_dill):
-        @task.external_python(python=venv_python_with_dill, use_dill=True)
+    def test_with_cloudpickle_works(self, dag_maker, venv_python_with_cloudpickle):
+        @task.external_python(python=venv_python_with_cloudpickle, use_cloudpickle=True)
         def f():
-            """Import dill to double-check it is installed ."""
-            import dill  # noqa: F401
+            """Import cloudpickle to double-check it is installed ."""
+            import cloudpickle  # noqa: F401
 
         with dag_maker():
             ret = f()
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    def test_with_templated_python(self, dag_maker, venv_python_with_dill):
+    def test_with_templated_python(self, dag_maker, venv_python_with_cloudpickle):
         # add template that produces empty string when rendered
-        templated_python_with_dill = venv_python_with_dill.as_posix() + "{{ '' }}"
+        templated_python_with_cloudpickle = venv_python_with_cloudpickle.as_posix() + "{{ '' }}"
 
-        @task.external_python(python=templated_python_with_dill, use_dill=True)
+        @task.external_python(python=templated_python_with_cloudpickle, use_cloudpickle=True)
         def f():
-            """Import dill to double-check it is installed ."""
-            import dill  # noqa: F401
+            """Import cloudpickle to double-check it is installed ."""
+            import cloudpickle  # noqa: F401
 
         with dag_maker():
             ret = f()
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    def test_no_dill_installed_raises_exception_when_use_dill(self, dag_maker, venv_python):
-        @task.external_python(python=venv_python, use_dill=True)
+    def test_no_cloudpickle_installed_raises_exception_when_use_cloudpickle(self, dag_maker, venv_python):
+        @task.external_python(python=venv_python, use_cloudpickle=True)
         def f():
             pass
 

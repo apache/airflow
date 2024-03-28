@@ -921,12 +921,12 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         with pytest.raises(AirflowException, match="requires virtualenv"):
             self.run_as_task(f)
 
-    def test_add_dill(self):
+    def test_add_cloudpickle(self):
         def f():
-            """Ensure dill is correctly installed."""
-            import dill  # noqa: F401
+            """Ensure cloudpickle is correctly installed."""
+            import cloudpickle  # noqa: F401
 
-        self.run_as_task(f, use_dill=True, system_site_packages=False)
+        self.run_as_task(f, use_cloudpickle=True, system_site_packages=False)
 
     def test_no_requirements(self):
         """Tests that the python callable is invoked on task run."""
@@ -944,7 +944,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
                 return True
             raise RuntimeError
 
-        self.run_as_task(f, system_site_packages=False, requirements=["dill"])
+        self.run_as_task(f, system_site_packages=False, requirements=["cloudpickle"])
 
     def test_system_site_packages(self):
         def f():
@@ -981,13 +981,13 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         def f():
             import funcsigs  # noqa: F401
 
-        self.run_as_task(f, requirements=["funcsigs", "dill"], system_site_packages=False)
+        self.run_as_task(f, requirements=["funcsigs", "cloudpickle"], system_site_packages=False)
 
     def test_range_requirements(self):
         def f():
             import funcsigs  # noqa: F401
 
-        self.run_as_task(f, requirements=["funcsigs>1.0", "dill"], system_site_packages=False)
+        self.run_as_task(f, requirements=["funcsigs>1.0", "cloudpickle"], system_site_packages=False)
 
     def test_requirements_file(self):
         def f():
@@ -1026,7 +1026,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         self.run_as_operator(
             f,
             requirements="requirements.txt",
-            use_dill=True,
+            use_cloudpickle=True,
             params={"environ": "templated_unit_test"},
             system_site_packages=False,
         )
@@ -1042,13 +1042,13 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
                 return
             raise RuntimeError
 
-        self.run_as_task(f, python_version="3", use_dill=False, requirements=["dill"])
+        self.run_as_task(f, python_version="3", use_cloudpickle=False, requirements=["cloudpickle"])
 
-    def test_without_dill(self):
+    def test_without_cloudpickle(self):
         def f(a):
             return a
 
-        self.run_as_task(f, system_site_packages=False, use_dill=False, op_args=[4])
+        self.run_as_task(f, system_site_packages=False, use_cloudpickle=False, op_args=[4])
 
     def test_with_index_urls(self):
         def f(a):
@@ -1073,17 +1073,17 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             self.run_as_task(f, venv_cache_path=tmp_dir, op_args=[4])
 
     # This tests might take longer than default 60 seconds as it is serializing a lot of
-    # context using dill (which is slow apparently).
+    # context using cloudpickle (which is slow apparently).
     @pytest.mark.execution_timeout(120)
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     @pytest.mark.skipif(
-        os.environ.get("PYTEST_PLAIN_ASSERTS") != "true" or PY311,
-        reason="assertion rewriting breaks this test because dill will try to serialize "
+        os.environ.get("PYTEST_PLAIN_ASSERTS") != "true",
+        reason="assertion rewriting breaks this test because cloudpickle will try to serialize "
         "AssertRewritingHook including captured stdout and we need to run "
         "it with `--assert=plain`pytest option and PYTEST_PLAIN_ASSERTS=true ."
         "Also this test is skipped on Python 3.11 because of impact of regression in Python 3.11 "
         "connected likely with CodeType behaviour https://github.com/python/cpython/issues/100316 "
-        "That likely causes that dill is not able to serialize the `conf` correctly "
+        "That likely causes that cloudpickle is not able to serialize the `conf` correctly "
         "Issue about fixing it is captured in https://github.com/apache/airflow/issues/35307",
     )
     def test_airflow_context(self):
@@ -1125,7 +1125,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         ):
             pass
 
-        self.run_as_operator(f, use_dill=True, system_site_packages=True, requirements=None)
+        self.run_as_operator(f, use_cloudpickle=True, system_site_packages=True, requirements=None)
 
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_pendulum_context(self):
@@ -1160,7 +1160,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         ):
             pass
 
-        self.run_as_task(f, use_dill=True, system_site_packages=False, requirements=["pendulum"])
+        self.run_as_task(f, use_cloudpickle=True, system_site_packages=False, requirements=["pendulum"])
 
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_base_context(self):
@@ -1188,7 +1188,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         ):
             pass
 
-        self.run_as_task(f, use_dill=True, system_site_packages=False, requirements=None)
+        self.run_as_task(f, use_cloudpickle=True, system_site_packages=False, requirements=None)
 
 
 # when venv tests are run in parallel to other test they create new processes and this might take

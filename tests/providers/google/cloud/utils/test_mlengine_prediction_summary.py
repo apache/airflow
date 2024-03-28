@@ -21,7 +21,7 @@ import binascii
 import sys
 from unittest import mock
 
-import dill
+import cloudpickle
 import pytest
 
 if sys.version_info < (3, 12):
@@ -75,7 +75,7 @@ class TestMakeSummary:
 
     def test_run_should_fail_if_enc_fn_is_not_callable(self):
         non_callable_value = 1
-        fn_enc = base64.b64encode(dill.dumps(non_callable_value)).decode("utf-8")
+        fn_enc = base64.b64encode(cloudpickle.dumps(non_callable_value)).decode("utf-8")
 
         with pytest.raises(ValueError):
             mlengine_prediction_summary.run(
@@ -98,7 +98,7 @@ class TestMakeSummary:
             def metric_function():
                 return 1
 
-            fn_enc = base64.b64encode(dill.dumps(metric_function)).decode("utf-8")
+            fn_enc = base64.b64encode(cloudpickle.dumps(metric_function)).decode("utf-8")
 
             mlengine_prediction_summary.run(
                 [

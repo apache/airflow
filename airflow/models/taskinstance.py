@@ -33,7 +33,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, Mapping, Tuple
 from urllib.parse import quote
 
-import dill
+import cloudpickle
 import jinja2
 import lazy_object_proxy
 import pendulum
@@ -1291,7 +1291,7 @@ class TaskInstance(Base, LoggingMixin):
     queued_dttm = Column(UtcDateTime)
     queued_by_job_id = Column(Integer)
     pid = Column(Integer)
-    executor_config = Column(ExecutorConfigType(pickler=dill))
+    executor_config = Column(ExecutorConfigType(pickler=cloudpickle))
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
     rendered_map_index = Column(String(250))
 

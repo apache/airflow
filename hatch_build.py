@@ -421,6 +421,7 @@ DEPENDENCIES = [
     "blinker>=1.6.2",
     # Colorlog 6.x merges TTYColoredFormatter into ColoredFormatter, breaking backwards compatibility with 4.x
     # Update CustomTTYColoredFormatter to remove
+    "cloudpickle>=2.0.0",
     "colorlog>=4.0.2, <5.0",
     "configupdater>=3.1.1",
     # `airflow/www/extensions/init_views` imports `connexion.decorators.validation.RequestBodyValidator`

@@ -33,11 +33,11 @@ PYTHON_VERSION = sys.version_info[0]
 
 
 class TestPythonVirtualenvDecorator:
-    def test_add_dill(self, dag_maker):
-        @task.virtualenv(use_dill=True, system_site_packages=False)
+    def test_add_cloudpickle(self, dag_maker):
+        @task.virtualenv(use_cloudpickle=True, system_site_packages=False)
         def f():
-            """Ensure dill is correctly installed."""
-            import dill  # noqa: F401
+            """Ensure cloudpickle is correctly installed."""
+            import cloudpickle  # noqa: F401
 
         with dag_maker():
             ret = f()
@@ -57,7 +57,7 @@ class TestPythonVirtualenvDecorator:
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_no_system_site_packages(self, dag_maker):
-        @task.virtualenv(system_site_packages=False, python_version=PYTHON_VERSION, use_dill=True)
+        @task.virtualenv(system_site_packages=False, python_version=PYTHON_VERSION, use_cloudpickle=True)
         def f():
             try:
                 import funcsigs  # noqa: F401
@@ -75,7 +75,7 @@ class TestPythonVirtualenvDecorator:
             system_site_packages=False,
             requirements=["funcsigs"],
             python_version=PYTHON_VERSION,
-            use_dill=True,
+            use_cloudpickle=True,
         )
         def f():
             import funcsigs  # noqa: F401
@@ -90,7 +90,7 @@ class TestPythonVirtualenvDecorator:
             system_site_packages=False,
             requirements=["funcsigs==0.4"],
             python_version=PYTHON_VERSION,
-            use_dill=True,
+            use_cloudpickle=True,
         )
         def f():
             import funcsigs
@@ -111,7 +111,7 @@ class TestPythonVirtualenvDecorator:
             system_site_packages=False,
             requirements="requirements.txt",
             python_version=PYTHON_VERSION,
-            use_dill=True,
+            use_cloudpickle=True,
         )
         def f():
             import funcsigs
@@ -132,9 +132,9 @@ class TestPythonVirtualenvDecorator:
     def test_unpinned_requirements(self, dag_maker):
         @task.virtualenv(
             system_site_packages=False,
-            requirements=["funcsigs", "dill"],
+            requirements=["funcsigs", "cloudpickle"],
             python_version=PYTHON_VERSION,
-            use_dill=True,
+            use_cloudpickle=True,
         )
         def f():
             import funcsigs  # noqa: F401
@@ -156,7 +156,7 @@ class TestPythonVirtualenvDecorator:
             ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_python_3(self, dag_maker):
-        @task.virtualenv(python_version=3, use_dill=False, requirements=["dill"])
+        @task.virtualenv(python_version=3, use_cloudpickle=False, requirements=["cloudpickle"])
         def f():
             import sys
 
