@@ -26,6 +26,7 @@ import math
 import operator
 import os
 import signal
+import threading
 import warnings
 from collections import defaultdict
 from datetime import timedelta
@@ -1367,7 +1368,9 @@ class TaskInstance(Base, LoggingMixin):
         cascade="all, delete, delete-orphan",
     )
     note = association_proxy("task_instance_note", "content", creator=_creator_note)
+
     task: Operator | None = None
+    _thread_local_data = threading.local()
     test_mode: bool = False
     is_trigger_log_context: bool = False
     run_as_user: str | None = None
@@ -2875,6 +2878,15 @@ class TaskInstance(Base, LoggingMixin):
             tb = tb.tb_next
         return tb or error.__traceback__
 
+    def get_last_error(self) -> None | str | BaseException:
+        """
+        Returns the last recorded error for this task instance, if any.
+
+        This is meant to be used by implementers of the on_task_instance_failed callback to access the error
+        that caused the failure.
+        """
+        return getattr(self._thread_local_data, "last_error", None)
+
     @classmethod
     @internal_api_call
     @provide_session
@@ -2888,6 +2900,8 @@ class TaskInstance(Base, LoggingMixin):
         session: Session = NEW_SESSION,
     ):
         """Handle Failure for the TaskInstance."""
+        # save the error so that it's available in the callback via get_last_error
+        ti._thread_local_data.last_error = error
         get_listener_manager().hook.on_task_instance_failed(
             previous_state=TaskInstanceState.RUNNING, task_instance=ti, session=session
         )
