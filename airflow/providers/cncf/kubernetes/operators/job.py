@@ -366,10 +366,17 @@ class KubernetesDeleteJobOperator(BaseOperator):
     :param in_cluster: run kubernetes client with in_cluster configuration.
     :param cluster_context: context that points to kubernetes cluster.
         Ignored when in_cluster is True. If None, current-context is used. (templated)
+    :param delete_on_status: Condition for performing delete operation depending on the job status. Values:
+        ``None`` - delete the job regardless of its status, "Complete" - delete only successfully completed
+        jobs, "Failed" - delete only failed jobs. (default: ``None``)
+    :param wait_for_completion: Whether to wait for the job to complete. (default: ``False``)
+    :param poll_interval: Interval in seconds between polling the job status. Used when the `delete_on_status`
+        parameter is set. (default: 10.0)
     """
 
     template_fields: Sequence[str] = (
         "config_file",
+        "name",
         "namespace",
         "cluster_context",
     )
@@ -383,6 +390,9 @@ class KubernetesDeleteJobOperator(BaseOperator):
         config_file: str | None = None,
         in_cluster: bool | None = None,
         cluster_context: str | None = None,
+        delete_on_status: str | None = None,
+        wait_for_completion: bool = False,
+        poll_interval: float = 10.0,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -392,6 +402,9 @@ class KubernetesDeleteJobOperator(BaseOperator):
         self.config_file = config_file
         self.in_cluster = in_cluster
         self.cluster_context = cluster_context
+        self.delete_on_status = delete_on_status
+        self.wait_for_completion = wait_for_completion
+        self.poll_interval = poll_interval
 
     @cached_property
     def hook(self) -> KubernetesHook:
@@ -408,9 +421,34 @@ class KubernetesDeleteJobOperator(BaseOperator):
 
     def execute(self, context: Context):
         try:
-            self.log.info("Deleting kubernetes Job: %s", self.name)
-            self.client.delete_namespaced_job(name=self.name, namespace=self.namespace)
-            self.log.info("Kubernetes job was deleted.")
+            if self.delete_on_status not in ("Complete", "Failed", None):
+                raise AirflowException(
+                    "The `delete_on_status` parameter must be one of 'Complete', 'Failed' or None. "
+                    "The current value is %s",
+                    str(self.delete_on_status),
+                )
+
+            if self.wait_for_completion:
+                job = self.hook.wait_until_job_complete(
+                    job_name=self.name, namespace=self.namespace, job_poll_interval=self.poll_interval
+                )
+            else:
+                job = self.hook.get_job_status(job_name=self.name, namespace=self.namespace)
+
+            if (
+                self.delete_on_status is None
+                or (self.delete_on_status == "Complete" and self.hook.is_job_successful(job=job))
+                or (self.delete_on_status == "Failed" and self.hook.is_job_failed(job=job))
+            ):
+                self.log.info("Deleting kubernetes Job: %s", self.name)
+                self.client.delete_namespaced_job(name=self.name, namespace=self.namespace)
+                self.log.info("Kubernetes job was deleted.")
+            else:
+                self.log.info(
+                    "Deletion of the job %s was skipped due to settings of on_status=%s",
+                    self.name,
+                    self.delete_on_status,
+                )
         except ApiException as e:
             if e.status == 404:
                 self.log.info("The Kubernetes job %s does not exist.", self.name)
@@ -442,6 +480,7 @@ class KubernetesPatchJobOperator(BaseOperator):
 
     template_fields: Sequence[str] = (
         "config_file",
+        "name",
         "namespace",
         "body",
         "cluster_context",
