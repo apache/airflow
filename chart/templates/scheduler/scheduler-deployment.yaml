@@ -53,7 +53,7 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    executor: {{ .Values.executor }}
+    executor: {{ trunc -50 .Values.executor }}  # AWS ECS Executor name is too long.
     {{- with .Values.labels }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
