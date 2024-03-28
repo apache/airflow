@@ -311,9 +311,19 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     git checkout main
     git pull # Ensure that the script is up-to-date
     breeze release-management start-rc-process --version ${VERSION} --previous-version <PREVIOUS_VERSION>
-    # Create issue in github for testing the release using this subject:
-    # Status of testing of Apache Airflow {VERSION} RC
-    # Generate the body of the issue using the below command:
+   ```
+
+- Create issue in github for testing the release using this subject:
+
+  ```shell script
+  cat <<EOF
+  Status of testing of Apache Airflow {VERSION}
+  EOF
+  ```
+
+- Generate the body of the issue using the below command:
+
+  ```shell script
     breeze release-management generate-issue-content-core --previous-release <PREVIOUS_VERSION>
     --current-release ${VERSION}
     ```
