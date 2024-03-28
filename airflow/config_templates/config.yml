@@ -848,7 +848,7 @@ logging:
         Specify prefix pattern like mentioned below with stream handler TaskHandlerWithCustomFormatter
       version_added: 2.0.0
       type: string
-      example: "{ti.dag_id}-{ti.task_id}-{execution_date}-{try_number}"
+      example: "{{ti.dag_id}}-{{ti.task_id}}-{{execution_date}}-{{ti.try_number}}"
       is_template: true
       default: ""
     log_filename_template:
