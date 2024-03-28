@@ -272,6 +272,7 @@ jobs:
     name: "Static checks, mypy, docs"
     needs: [build-info, wait-for-ci-images]
     uses: ./.github/workflows/static-checks-mypy-docs.yml
+    secrets: inherit
     with:
       runs-on: ${{ needs.build-info.outputs.runs-on }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
