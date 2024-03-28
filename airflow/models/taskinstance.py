@@ -515,7 +515,6 @@ def _refresh_from_db(
         task_id=task_instance.task_id,
         run_id=task_instance.run_id,
         map_index=task_instance.map_index,
-        select_columns=True,
         lock_for_update=lock_for_update,
         session=session,
     )
@@ -1785,14 +1784,10 @@ class TaskInstance(Base, LoggingMixin):
         run_id: str,
         task_id: str,
         map_index: int,
-        select_columns: bool = False,
         lock_for_update: bool = False,
         session: Session = NEW_SESSION,
     ) -> TaskInstance | TaskInstancePydantic | None:
-        query = (
-            session.query(*TaskInstance.__table__.columns) if select_columns else session.query(TaskInstance)
-        )
-        query = query.filter_by(
+        query = session.query(TaskInstance).filter_by(
             dag_id=dag_id,
             run_id=run_id,
             task_id=task_id,
