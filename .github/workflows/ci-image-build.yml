@@ -20,10 +20,9 @@ name: Build CI images
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on:
-        description: "The array of labels (in json form) determining type of the runner to use for the build."
-        required: false
-        default: '["ubuntu-22.04"]'
+      default-runs-on-as-string:
+        description: "The array of labels (in json form) determining default runner used for the build."
+        required: true
         type: string
       do-build:
         description: >
@@ -105,7 +104,7 @@ ${{ inputs.do-build == 'true' && 'Build' || 'Skip building' }} \
 CI ${{ inputs.platform }} image\
 ${{ matrix.python-version }}${{ inputs.do-build == 'true' && ':' || '' }}\
 ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
-    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    runs-on: ${{ fromJSON(inputs.default-runs-on-as-string) }}
     env:
       BACKEND: sqlite
       DEFAULT_BRANCH: ${{ inputs.branch }}

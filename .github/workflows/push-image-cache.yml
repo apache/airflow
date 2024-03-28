@@ -20,10 +20,9 @@ name: Push image cache
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on:
-        description: "The array of labels (in json form) determining type of the runner to use for the build."
-        required: false
-        default: "[\"ubuntu-22.04\"]"
+      runs-on-as-string:
+        description: "The array of labels (in json form) determining where the job should run on."
+        required: true
         type: string
       cache-type:
         description: "Type of cache to push (Early / Regular)."
@@ -76,7 +75,7 @@ on:  # yamllint disable-line rule:truthy
 jobs:
   push-ci-image-cache:
     name: "Push CI ${{ inputs.cache-type }}:${{ matrix.python }} image cache "
-    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    runs-on: ${{ fromJSON(inputs.runs-on-as-string) }}
     strategy:
       fail-fast: false
       matrix:
@@ -134,7 +133,7 @@ jobs:
 
   push-prod-image-cache:
     name: "Push PROD ${{ inputs.cache-type }}:${{ matrix.python }} image cache"
-    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    runs-on: ${{ fromJSON(inputs.runs-on-as-string) }}
     strategy:
       fail-fast: false
       matrix:
