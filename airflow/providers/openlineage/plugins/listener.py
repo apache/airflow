@@ -265,7 +265,7 @@ class OpenLineageListener:
 
     @hookimpl
     def on_dag_run_running(self, dag_run: DagRun, msg: str):
-        if not is_selective_lineage_enabled(dag_run.dag):
+        if dag_run.dag and not is_selective_lineage_enabled(dag_run.dag):
             return
         data_interval_start = dag_run.data_interval_start.isoformat() if dag_run.data_interval_start else None
         data_interval_end = dag_run.data_interval_end.isoformat() if dag_run.data_interval_end else None
@@ -279,7 +279,7 @@ class OpenLineageListener:
 
     @hookimpl
     def on_dag_run_success(self, dag_run: DagRun, msg: str):
-        if not is_selective_lineage_enabled(dag_run.dag):
+        if dag_run.dag and not is_selective_lineage_enabled(dag_run.dag):
             return
         if not self.executor:
             self.log.debug("Executor have not started before `on_dag_run_success`")
@@ -288,7 +288,7 @@ class OpenLineageListener:
 
     @hookimpl
     def on_dag_run_failed(self, dag_run: DagRun, msg: str):
-        if not is_selective_lineage_enabled(dag_run.dag):
+        if dag_run.dag and not is_selective_lineage_enabled(dag_run.dag):
             return
         if not self.executor:
             self.log.debug("Executor have not started before `on_dag_run_failed`")

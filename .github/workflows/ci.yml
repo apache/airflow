@@ -247,8 +247,6 @@ jobs:
       skip-pre-commits: ${{ needs.build-info.outputs.skip-pre-commits }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
-      mypy-folders: ${{ needs.build-info.outputs.mypy-folders }}
-      needs-mypy: ${{ needs.build-info.outputs.needs-mypy }}
       latest-versions-only: ${{ needs.build-info.outputs.latest-versions-only }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
@@ -276,6 +274,8 @@ jobs:
     with:
       runs-on: ${{ needs.build-info.outputs.runs-on }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
+      needs-mypy: ${{ needs.build-info.outputs.needs-mypy }}
+      mypy-folders: ${{ needs.build-info.outputs.mypy-folders }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
