@@ -2511,3 +2511,119 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
                 environ_overrides={"REMOTE_USER": "test"},
             )
             assert response.status_code == 404
+
+
+class TestGetTaskDependencies(TestTaskInstanceEndpoint):
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    @provide_session
+    def test_should_respond_empty_non_scheduled(self, session):
+        self.create_task_instances(session)
+        response = self.client.get(
+            "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
+            "print_the_context/dependencies",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200, response.text
+        assert response.json == {"dependencies": []}
+
+    @pytest.mark.parametrize(
+        "state, dependencies",
+        [
+            (
+                State.SCHEDULED,
+                {
+                    "dependencies": [
+                        {
+                            "name": "Execution Date",
+                            "reason": "The execution date is 2020-01-01T00:00:00+00:00 but this is "
+                            "before the task's start date 2021-01-01T00:00:00+00:00.",
+                        },
+                        {
+                            "name": "Execution Date",
+                            "reason": "The execution date is 2020-01-01T00:00:00+00:00 but this is "
+                            "before the task's DAG's start date 2021-01-01T00:00:00+00:00.",
+                        },
+                    ],
+                },
+            ),
+            (
+                State.NONE,
+                {
+                    "dependencies": [
+                        {
+                            "name": "Execution Date",
+                            "reason": "The execution date is 2020-01-01T00:00:00+00:00 but this is before the task's start date 2021-01-01T00:00:00+00:00.",
+                        },
+                        {
+                            "name": "Execution Date",
+                            "reason": "The execution date is 2020-01-01T00:00:00+00:00 but this is before the task's DAG's start date 2021-01-01T00:00:00+00:00.",
+                        },
+                        {"name": "Task Instance State", "reason": "Task is in the 'None' state."},
+                    ]
+                },
+            ),
+        ],
+    )
+    @provide_session
+    def test_should_respond_dependencies(self, session, state, dependencies):
+        self.create_task_instances(session, task_instances=[{"state": state}], update_extras=True)
+
+        response = self.client.get(
+            "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
+            "print_the_context/dependencies",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200, response.text
+        assert response.json == dependencies
+
+    def test_should_respond_dependencies_mapped(self, session):
+        tis = self.create_task_instances(
+            session, task_instances=[{"state": State.SCHEDULED}], update_extras=True
+        )
+        old_ti = tis[0]
+
+        ti = TaskInstance(task=old_ti.task, run_id=old_ti.run_id, map_index=0, state=old_ti.state)
+        session.add(ti)
+        session.commit()
+
+        response = self.client.get(
+            "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
+            "print_the_context/0/dependencies",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200, response.text
+
+    def test_should_raises_401_unauthenticated(self):
+        for map_index in ["", "/0"]:
+            url = (
+                "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
+                f"print_the_context{map_index}/dependencies"
+            )
+            response = self.client.get(
+                url,
+            )
+            assert_401(response)
+
+    def test_should_raise_403_forbidden(self):
+        for map_index in ["", "/0"]:
+            response = self.client.get(
+                "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
+                f"print_the_context{map_index}/dependencies",
+                environ_overrides={"REMOTE_USER": "test_no_permissions"},
+            )
+            assert response.status_code == 403
+
+    def test_should_respond_404(self, session):
+        self.create_task_instances(session)
+        for map_index in ["", "/0"]:
+            response = self.client.get(
+                f"api/v1/dags/INVALID_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
+                f"{map_index}/dependencies",
+                environ_overrides={"REMOTE_USER": "test"},
+            )
+            assert response.status_code == 404
