@@ -446,6 +446,7 @@ addopts = [
     # Disable warnings summary, because we use our warning summary.
     "--disable-warnings",
     "--asyncio-mode=strict",
+    "--import-mode=importlib",
 ]
 norecursedirs = [
     ".eggs",
