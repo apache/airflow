@@ -361,20 +361,16 @@ class _VaultClient(LoggingMixin):
                 }
             }
 
-        login_args = {
-            "access_key": response["Credentials"]["AccessKeyId"],
-            "secret_key": response["Credentials"]["SecretAccessKey"],
-            "session_token": response["Credentials"]["SessionToken"],
-            "header_value": self.header_value,
-            "role": self.role_id,
-            "use_token": self.use_token,
-            "region": region,
-        }
-
-        if self.auth_mount_point:
-            login_args["mount_point"] = self.auth_mount_point
-
-        _client.auth.aws.iam_login(**login_args)
+        _client.auth.aws.iam_login(
+            access_key=response["Credentials"]["AccessKeyId"],
+            secret_key=response["Credentials"]["SecretAccessKey"],
+            session_token=response["Credentials"]["SessionToken"],
+            header_value=self.header_value,
+            role=self.role_id,
+            use_token=self.use_token,
+            region=region,
+            mount_point=self.auth_mount_point,
+        )
 
     def _auth_approle(self, _client: hvac.Client) -> None:
         if self.auth_mount_point:
