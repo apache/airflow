@@ -56,10 +56,6 @@ on:  # yamllint disable-line rule:truthy
         required: false
         default: "true"
         type: string
-      upload-constraints:
-        description: "Whether to upload constraints artifacts"
-        default: "false"
-        type: string
       debian-version:
         description: "Base Debian distribution to use for the build (bookworm/bullseye)"
         type: string
@@ -216,17 +212,3 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
         if: always() && inputs.do-build == 'true' && inputs.platform == 'linux/arm64'
-      - name: "Source constraints: ${{ matrix.python-version }}"
-        shell: bash
-        run: >
-          breeze release-management generate-constraints --python "${{ matrix.python-version }}"
-          --airflow-constraints-mode constraints-source-providers --answer yes
-        if: inputs.do-build == 'true' && inputs.upload-constraints == 'true'
-      - name: "Upload constraint artifacts"
-        uses: actions/upload-artifact@v4
-        with:
-          name: source-constraints-${{ matrix.python-version }}
-          path: ./files/constraints-*/constraints-source-providers-*.txt
-          retention-days: 7
-          if-no-files-found: error
-        if: inputs.do-build == 'true' && inputs.upload-constraints == 'true'
