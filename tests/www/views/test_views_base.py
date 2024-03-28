@@ -35,8 +35,9 @@ pytestmark = pytest.mark.db_test
 
 def test_index_redirect(admin_client):
     resp = admin_client.get("/")
-    assert resp.status_code == 302
-    assert "/home" in resp.headers.get("Location")
+    # Starlette TestCliente used by connexion v3 responds after following the redirect
+    # therefore, the status code is 200
+    assert resp.url.raw_path == b"/home"
 
     resp = admin_client.get("/", follow_redirects=True)
     check_content_in_response("DAGs", resp)
