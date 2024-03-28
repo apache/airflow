@@ -330,7 +330,7 @@
   "cohere": {
     "deps": [
       "apache-airflow>=2.6.0",
-      "cohere>=4.37,<5"
+      "cohere>=5.0.0"
     ],
     "devel-deps": [],
     "cross-providers-deps": [],
