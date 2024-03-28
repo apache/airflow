@@ -55,7 +55,9 @@ class VariableAccessor:
 class ConnectionAccessor:
     def get(self, key: str, default_conn: Any = None) -> Any: ...
 
-# NOTE: Please keep this in sync with KNOWN_CONTEXT_KEYS in airflow/utils/context.py.
+# NOTE: Please keep this in sync with the following:
+# * KNOWN_CONTEXT_KEYS in airflow/utils/context.py
+# * Table in docs/apache-airflow/templates-ref.rst
 class Context(TypedDict, total=False):
     conf: AirflowConfigParser
     conn: Any

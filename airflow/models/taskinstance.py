@@ -491,7 +491,10 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
 
 
 def _refresh_from_db(
-    *, task_instance: TaskInstance | TaskInstancePydantic, session: Session, lock_for_update: bool = False
+    *,
+    task_instance: TaskInstance | TaskInstancePydantic,
+    session: Session | None = None,
+    lock_for_update: bool = False,
 ) -> None:
     """
     Refresh the task instance from the database based on the primary key.
@@ -504,7 +507,7 @@ def _refresh_from_db(
 
     :meta private:
     """
-    if task_instance in session:
+    if session and task_instance in session:
         session.refresh(task_instance, TaskInstance.__mapper__.column_attrs.keys())
 
     ti = TaskInstance.get_task_instance(
@@ -753,10 +756,11 @@ def _get_template_context(
     except NotMapped:
         expanded_ti_count = None
 
-    # NOTE: If you add anything to this dict, make sure to also update the
-    # definition in airflow/utils/context.pyi, and KNOWN_CONTEXT_KEYS in
-    # airflow/utils/context.py!
-    context = {
+    # NOTE: If you add to this dict, make sure to also update the following:
+    # * Context in airflow/utils/context.pyi
+    # * KNOWN_CONTEXT_KEYS in airflow/utils/context.py
+    # * Table in docs/apache-airflow/templates-ref.rst
+    context: dict[str, Any] = {
         "conf": conf,
         "dag": dag,
         "dag_run": dag_run,
@@ -2224,10 +2228,15 @@ class TaskInstance(Base, LoggingMixin):
 
         if isinstance(task_instance, TaskInstance):
             ti: TaskInstance = task_instance
-        else:  # isinstance(task_instance,TaskInstancePydantic)
+        else:  # isinstance(task_instance, TaskInstancePydantic)
             filters = (col == getattr(task_instance, col.name) for col in inspect(TaskInstance).primary_key)
             ti = session.query(TaskInstance).filter(*filters).scalar()
+            dag = ti.dag_model.serialized_dag.dag
+            task_instance.task = dag.task_dict[ti.task_id]
+            ti.task = task_instance.task
         task = task_instance.task
+        if TYPE_CHECKING:
+            assert task
         ti.refresh_from_task(task, pool_override=pool)
         ti.test_mode = test_mode
         ti.refresh_from_db(session=session, lock_for_update=True)

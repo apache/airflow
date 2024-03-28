@@ -65,7 +65,7 @@ jobs:
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
       ci-image-build: ${{ steps.selective-checks.outputs.ci-image-build }}
       prod-image-build: ${{ steps.selective-checks.outputs.prod-image-build }}
-      cache-directive: ${{ steps.selective-checks.outputs.cache-directive }}
+      docker-cache: ${{ steps.selective-checks.outputs.docker-cache }}
       default-branch: ${{ steps.selective-checks.outputs.default-branch }}
       constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
       runs-on: ${{steps.selective-checks.outputs.runs-on}}
@@ -186,7 +186,7 @@ jobs:
       branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.constraints-branch }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      docker-cache: ${{ needs.build-info.outputs.cache-directive }}
+      docker-cache: ${{ needs.build-info.outputs.docker-cache }}
 
   build-prod-images:
     name: Build PROD images
@@ -220,4 +220,4 @@ jobs:
       build-provider-packages: "true"
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
-      docker-cache: ${{ needs.build-info.outputs.cache-directive }}
+      docker-cache: ${{ needs.build-info.outputs.docker-cache }}

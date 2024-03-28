@@ -115,7 +115,7 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     params = {}
     try:
         if body.get("params"):
-            params_json = json.loads(str(body.get("params")))
+            params_json = body.get("params")
             params = BaseSerialization.deserialize(params_json, use_pydantic_models=True)
     except Exception as e:
         log.error("Error when deserializing parameters for method: %s.", method_name)
