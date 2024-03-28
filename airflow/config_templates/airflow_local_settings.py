@@ -286,7 +286,7 @@ if REMOTE_LOGGING:
             "task": {
                 "class": "airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverTaskHandler",
                 "formatter": "airflow",
-                "name": log_name,
+                "gcp_log_name": log_name,
                 "gcp_key_path": key_path,
             }
         }
