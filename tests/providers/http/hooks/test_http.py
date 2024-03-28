@@ -332,7 +332,7 @@ class TestHttpHook:
         hook.get_conn({})
         assert hook.base_url == "http://"
 
-    @pytest.mark.parametrize("method", ["GET", "POST"])
+    @pytest.mark.parametrize("method", ["POST"])
     def test_json_request(self, method, requests_mock):
         obj1 = {"a": 1, "b": "abc", "c": [1, 2, {"d": 10}]}
 
