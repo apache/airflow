@@ -93,6 +93,21 @@ class TestPodManager:
             ]
         )
 
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
+    def test_fetch_container_logs_do_not_log_none(self, mock_container_is_running, caplog):
+        MockWrapper.reset()
+        caplog.set_level(logging.INFO)
+
+        def consumer_iter():
+            """This will simulate a container that hasn't produced any logs in the last read_timeout window"""
+            yield from ()
+
+        with mock.patch.object(PodLogsConsumer, "__iter__") as mock_consumer_iter:
+            mock_consumer_iter.side_effect = consumer_iter
+            mock_container_is_running.side_effect = [True, True, False]
+            self.pod_manager.fetch_container_logs(mock.MagicMock(), "container-name", follow=True)
+            assert "[container-name] None" not in (record.message for record in caplog.records)
+
     def test_read_pod_logs_retries_fails(self):
         mock.sentinel.metadata = mock.MagicMock()
         self.mock_kube_client.read_namespaced_pod_log.side_effect = [
