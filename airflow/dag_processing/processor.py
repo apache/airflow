@@ -645,26 +645,34 @@ class DagFileProcessor(LoggingMixin):
 
         session.commit()
 
-    @provide_session
-    def _validate_task_pools(self, *, dagbag: DagBag, session: Session = NEW_SESSION):
+    def _convert_user_code_warnings(self, *, dagbag: DagBag, session: Session) -> Iterator[DagWarning]:
+        """Convert collected DagUserCodeWarning instances to DagWarning in db."""
+        for warning in dagbag.user_code_warnings:
+            yield DagWarning(
+                source_loc=f"{warning.filename}:{warning.lineno}",
+                warning_type=DagWarningType.AUTH_IN_DATASET_URI,
+                message=str(warning.message),
+            )
+
+    def _validate_task_pools(self, *, dagbag: DagBag, session: Session) -> Iterator[DagWarning]:
         """Validate and raise exception if any task in a dag is using a non-existent pool."""
         from airflow.models.pool import Pool
 
-        def check_pools(dag):
+        def check_pools(dag: DAG) -> Iterator[DagWarning]:
             task_pools = {task.pool for task in dag.tasks}
-            nonexistent_pools = task_pools - pools
-            if nonexistent_pools:
-                return f"Dag '{dag.dag_id}' references non-existent pools: {sorted(nonexistent_pools)!r}"
+            if not (nonexistent_pools := task_pools - pools):
+                return
+            yield DagWarning(
+                dag_id=dag.dag_id,
+                warning_type=DagWarningType.NONEXISTENT_POOL,
+                message=f"DAG '{dag.dag_id}' references non-existent pools: {sorted(nonexistent_pools)!r}",
+            )
 
         pools = {p.pool for p in Pool.get_pools(session)}
         for dag in dagbag.dags.values():
-            message = check_pools(dag)
-            if message:
-                self.dag_warnings.add(DagWarning(dag.dag_id, DagWarningType.NONEXISTENT_POOL, message))
+            yield from check_pools(dag)
             for subdag in dag.subdags:
-                message = check_pools(subdag)
-                if message:
-                    self.dag_warnings.add(DagWarning(subdag.dag_id, DagWarningType.NONEXISTENT_POOL, message))
+                yield from check_pools(subdag)
 
     def update_dag_warnings(self, *, session: Session, dagbag: DagBag) -> None:
         """
@@ -677,7 +685,8 @@ class DagFileProcessor(LoggingMixin):
         :param session: session for ORM operations
         :param dagbag: DagBag containing DAGs with configuration warnings
         """
-        self._validate_task_pools(dagbag=dagbag)
+        self.dag_warnings.update(self._convert_user_code_warnings(dagbag=dagbag, session=session))
+        self.dag_warnings.update(self._validate_task_pools(dagbag=dagbag, session=session))
 
         stored_warnings = set(session.query(DagWarning).filter(DagWarning.dag_id.in_(dagbag.dags)).all())
 

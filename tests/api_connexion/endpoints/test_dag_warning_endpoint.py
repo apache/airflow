@@ -88,8 +88,8 @@ class TestGetDagWarningEndpoint(TestBaseDagWarning):
             session.add(DagModel(dag_id="dag1"))
             session.add(DagModel(dag_id="dag2"))
             session.add(DagModel(dag_id="dag3"))
-            session.add(DagWarning("dag1", "non-existent pool", "test message"))
-            session.add(DagWarning("dag2", "non-existent pool", "test message"))
+            session.add(DagWarning(dag_id="dag1", warning_type="non-existent pool", message="test message"))
+            session.add(DagWarning(dag_id="dag2", warning_type="non-existent pool", message="test message"))
             session.commit()
 
     def test_response_one(self):

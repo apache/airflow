@@ -20,7 +20,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, ForeignKeyConstraint, String, Text, delete, false, select
+from sqlalchemy import Column, ForeignKeyConstraint, Index, String, Text, delete, false, select
 
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.models.base import Base, StringID
@@ -42,13 +42,15 @@ class DagWarning(Base):
     when parsing DAG and displayed on the Webserver in a flash message.
     """
 
-    dag_id = Column(StringID(), primary_key=True)
-    warning_type = Column(String(50), primary_key=True)
+    dag_id = Column(StringID())
+    source_loc = Column(String(2000))
+    warning_type = Column(String(50))
     message = Column(Text, nullable=False)
     timestamp = Column(UtcDateTime, nullable=False, default=timezone.utcnow)
 
     __tablename__ = "dag_warning"
     __table_args__ = (
+        Index("idx_dag_loc_type_unique", dag_id, source_loc, warning_type, unique=True),
         ForeignKeyConstraint(
             ("dag_id",),
             ["dag.dag_id"],
@@ -57,10 +59,21 @@ class DagWarning(Base):
         ),
     )
 
-    def __init__(self, dag_id: str, error_type: str, message: str, **kwargs):
+    def __init__(
+        self,
+        *,
+        dag_id: str | None = None,
+        source_loc: str | None = None,
+        warning_type: str,
+        message: str,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
+        if dag_id is None and source_loc is None:
+            raise TypeError("must provide either dag_id or source_loc")
         self.dag_id = dag_id
-        self.warning_type = DagWarningType(error_type).value  # make sure valid type
+        self.source_loc = source_loc
+        self.warning_type = DagWarningType(warning_type).value  # make sure valid type
         self.message = message
 
     def __eq__(self, other) -> bool:
@@ -104,3 +117,4 @@ class DagWarningType(str, Enum):
     """
 
     NONEXISTENT_POOL = "non-existent pool"
+    AUTH_IN_DATASET_URI = "auth in dataset URI"
