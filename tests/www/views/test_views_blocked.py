@@ -81,7 +81,7 @@ def test_blocked_subdag_success(admin_client, running_subdag):
     """
     resp = admin_client.post("/blocked", data={"dag_ids": [running_subdag.dag_id]})
     assert resp.status_code == 200
-    assert resp.json == [
+    assert resp.json() == [
         {
             "dag_id": running_subdag.dag_id,
             "active_dag_run": 1,
