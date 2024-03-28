@@ -66,6 +66,8 @@ class DepContext:
         trigger rule
     :param ignore_ti_state: Ignore the task instance's previous failure/success
     :param finished_tis: A list of all the finished task instances of this run
+    :param ti_schedule_decision: boolean, whether to evaluate the dependencies which should be used by the
+        DagRun object to make decision if a TI should be scheduled at the moment. Defaults to False.
     """
 
     deps: set = attr.ib(factory=set)
@@ -80,6 +82,7 @@ class DepContext:
     ignore_unmapped_tasks: bool = False
     finished_tis: list[TaskInstance] | None = None
     description: str | None = None
+    ti_schedule_decision: bool = False
 
     have_changed_ti_states: bool = False
     """Have any of the TIs state's been changed as a result of evaluating dependencies"""

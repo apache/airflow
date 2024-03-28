@@ -20,6 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Iterator, NamedTuple
 
 from airflow.ti_deps.dep_context import DepContext
+from airflow.utils.module_loading import qualname
 from airflow.utils.session import provide_session
 
 if TYPE_CHECKING:
@@ -44,6 +45,10 @@ class BaseTIDep:
     # Whether this dependency is not a global task instance dependency but specific
     # to some tasks (e.g. depends_on_past is not specified by all tasks).
     IS_TASK_DEP = False
+
+    # Whether this dependency should be considered when a DagRun makes decision if
+    # a TI should be scheduled
+    TI_SCHEDULE_DECISION = False
 
     def __eq__(self, other: Any) -> bool:
         """Check if two task instance dependencies are equal by comparing their types."""
@@ -102,6 +107,25 @@ class BaseTIDep:
         :param dep_context: the context for which this dependency should be evaluated for
         """
         cxt = DepContext() if dep_context is None else dep_context
+
+        if self.TI_SCHEDULE_DECISION:
+            if not cxt.ti_schedule_decision:
+                yield self._passing_status(
+                    reason="Context specified to not check dependencies whose TI_SCHEDULE_DECISION is True"
+                )
+                return
+        else:
+            from airflow import plugins_manager
+
+            is_custom_dep = (
+                plugins_manager.registered_ti_dep_classes
+                and qualname(self.__class__) in plugins_manager.registered_ti_dep_classes
+            )
+            if cxt.ti_schedule_decision and is_custom_dep:
+                yield self._passing_status(
+                    reason="Context specified to not check dependencies whose TI_SCHEDULE_DECISION is True"
+                )
+                return
 
         if self.IGNORABLE and cxt.ignore_all_deps:
             yield self._passing_status(reason="Context specified all dependencies should be ignored.")
