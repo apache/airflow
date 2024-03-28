@@ -18,13 +18,13 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Iterable
+from typing import Iterable
 
 from airflow.notifications.basenotifier import BaseNotifier
 from airflow.providers.apprise.hooks.apprise import AppriseHook
 
-if TYPE_CHECKING:
-    from apprise import AppriseConfig, NotifyFormat, NotifyType
+from apprise import AppriseConfig, NotifyFormat, NotifyType
+from apprise.common import MATCH_ALL_TAG
 
 
 class AppriseNotifier(BaseNotifier):
@@ -52,9 +52,9 @@ class AppriseNotifier(BaseNotifier):
         *,
         body: str,
         title: str | None = None,
-        notify_type: NotifyType | None = None,
-        body_format: NotifyFormat | None = None,
-        tag: str | Iterable[str] | None = None,
+        notify_type: NotifyType = NotifyType.INFO,
+        body_format: NotifyFormat = NotifyFormat.TEXT,
+        tag: str | Iterable[str] = MATCH_ALL_TAG,
         attach: str | None = None,
         interpret_escapes: bool | None = None,
         config: AppriseConfig | None = None,
@@ -78,16 +78,10 @@ class AppriseNotifier(BaseNotifier):
 
     def notify(self, context):
         """Send a alert to a apprise configured service."""
-        self.hook.notify(
-            body=self.body,
-            title=self.title,
-            notify_type=self.notify_type,
-            body_format=self.body_format,
-            tag=self.tag,
-            attach=self.attach,
-            interpret_escapes=self.interpret_escapes,
-            config=self.config,
-        )
+        self.hook.notify(body=self.body, title=self.title, notify_type=self.notify_type,
+                         body_format=self.body_format,
+                         tag=self.tag, attach=self.attach, interpret_escapes=self.interpret_escapes,
+                         config=self.config)
 
 
 send_apprise_notification = AppriseNotifier
