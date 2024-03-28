@@ -73,6 +73,7 @@ class _VaultClient(LoggingMixin):
     :param password: Password for Authentication (for ``ldap`` and ``userpass`` auth_types).
     :param key_id: Key ID for Authentication (for ``aws_iam`` and ''azure`` auth_type).
     :param secret_id: Secret ID for Authentication (for ``approle``, ``aws_iam`` and ``azure`` auth_types).
+    :param session_token: The AWS session token to use. Defaults to None.
     :param arn_role: The Amazon Resource Name (ARN) of the role to assume,
     :param federation_user: The name of the federated user
     :param header_value: additional header to mitigate replay attacks, potentially necessitating an argument
@@ -108,6 +109,7 @@ class _VaultClient(LoggingMixin):
         password: str | None = None,
         key_id: str | None = None,
         secret_id: str | None = None,
+        session_token: str | None = None,
         role_arn: str | None = None,
         federation_user: str | None = None,
         header_value: str | None = None,
@@ -169,6 +171,7 @@ class _VaultClient(LoggingMixin):
         self.password = password
         self.key_id = key_id
         self.secret_id = secret_id
+        self.session_token = session_token
         self.role_arn = role_arn
         self.federation_user = federation_user
         self.header_value = header_value
@@ -354,7 +357,7 @@ class _VaultClient(LoggingMixin):
                 "Credentials": {
                     "AccessKeyId": self.key_id,
                     "SecretAccessKey": self.secret_id,
-                    "SessionToken": None,
+                    "SessionToken": self.session_token,
                 }
             }
 
