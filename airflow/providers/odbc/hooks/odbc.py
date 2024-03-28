@@ -27,8 +27,6 @@ from pyodbc import Connection, Row, connect
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.helpers import merge_dicts
 
-DEFAULT_ODBC_PLACEHOLDERS = frozenset({"%s", "?"})
-
 
 class OdbcHook(DbApiHook):
     """
@@ -201,20 +199,6 @@ class OdbcHook(DbApiHook):
         """Return ``pyodbc`` connection object."""
         conn = connect(self.odbc_connection_string, **self.connect_kwargs)
         return conn
-
-    @property
-    def placeholder(self):
-        placeholder = self.connection.extra_dejson.get("placeholder")
-        if placeholder in DEFAULT_ODBC_PLACEHOLDERS:
-            return placeholder
-        else:
-            self.log.warning(
-                "Placeholder defined in Connection '%s' is not listed in 'DEFAULT_ODBC_PLACEHOLDERS' "
-                "and got ignored. Falling back to the default placeholder '%s'.",
-                placeholder,
-                self._placeholder,
-            )
-            return self._placeholder
 
     def get_uri(self) -> str:
         """URI invoked in :meth:`~airflow.providers.common.sql.hooks.sql.DbApiHook.get_sqlalchemy_engine`."""
