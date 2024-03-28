@@ -142,6 +142,12 @@ integrations:
       - /docs/apache-airflow-providers-amazon/operators/athena/athena_boto.rst
       - /docs/apache-airflow-providers-amazon/operators/athena/athena_sql.rst
     tags: [aws]
+  - integration-name: Amazon Bedrock
+    external-doc-url: https://aws.amazon.com/bedrock/
+    logo: /integration-logos/aws/Amazon-Bedrock_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/bedrock.rst
+    tags: [aws]
   - integration-name: Amazon Chime
     external-doc-url: https://aws.amazon.com/chime/
     logo: /integration-logos/aws/Amazon-Chime-light-bg.png
@@ -363,6 +369,9 @@ operators:
   - integration-name: AWS Batch
     python-modules:
       - airflow.providers.amazon.aws.operators.batch
+  - integration-name: Amazon Bedrock
+    python-modules:
+      - airflow.providers.amazon.aws.operators.bedrock
   - integration-name: Amazon CloudFormation
     python-modules:
       - airflow.providers.amazon.aws.operators.cloud_formation
@@ -514,6 +523,9 @@ hooks:
     python-modules:
       - airflow.providers.amazon.aws.hooks.athena
       - airflow.providers.amazon.aws.hooks.athena_sql
+  - integration-name: Amazon Bedrock
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.bedrock
   - integration-name: Amazon Chime
     python-modules:
       - airflow.providers.amazon.aws.hooks.chime
