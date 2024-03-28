@@ -55,6 +55,11 @@ class VariableAccessor:
 class ConnectionAccessor:
     def get(self, key: str, default_conn: Any = None) -> Any: ...
 
+class DatasetEventAccessor:
+    extra: dict[str, Any]
+
+class DatasetEventAccessors(Mapping[str, DatasetEventAccessor]): ...
+
 # NOTE: Please keep this in sync with the following:
 # * KNOWN_CONTEXT_KEYS in airflow/utils/context.py
 # * Table in docs/apache-airflow/templates-ref.rst
@@ -65,6 +70,7 @@ class Context(TypedDict, total=False):
     dag_run: DagRun | DagRunPydantic
     data_interval_end: DateTime
     data_interval_start: DateTime
+    dataset_events: DatasetEventAccessors
     ds: str
     ds_nodash: str
     exception: BaseException | str | None

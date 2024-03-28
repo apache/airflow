@@ -74,6 +74,8 @@ Variable                                    Type                  Description
 ``{{ var.value }}``                                               Airflow variables. See `Airflow Variables in Templates`_ below.
 ``{{ var.json }}``                                                Airflow variables. See `Airflow Variables in Templates`_ below.
 ``{{ conn }}``                                                    Airflow connections. See `Airflow Connections in Templates`_ below.
+``{{ dataset_events }}``                    dict[str, ...]        | Accessors to attach information to dataset events that will be emitted by the current task.
+                                                                  | See :doc:`Datasets <authoring-and-scheduling/datasets>`. Added in version 2.10.
 ``{{ task_instance_key_str }}``             str                   | A unique, human-readable key to the task instance. The format is
                                                                   | ``{dag_id}__{task_id}__{ds_nodash}``.
 ``{{ conf }}``                              AirflowConfigParser   | The full configuration object representing the content of your

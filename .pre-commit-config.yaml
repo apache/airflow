@@ -629,6 +629,11 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_sync_init_decorator.py
         pass_filenames: false
         files: ^airflow/models/dag\.py$|^airflow/(?:decorators|utils)/task_group\.py$
+      - id: check-template-context-variable-in-sync
+        name: Check all template context variable references are in sync
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_template_context_key_sync.py
+        files: ^airflow/models/taskinstance\.py$|^airflow/utils/context\.pyi?$|^docs/apache-airflow/templates-ref\.rst$
       - id: check-base-operator-usage
         language: pygrep
         name: Check BaseOperator core imports

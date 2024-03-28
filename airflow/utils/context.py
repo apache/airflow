@@ -36,8 +36,10 @@ from typing import (
     ValuesView,
 )
 
+import attrs
 import lazy_object_proxy
 
+from airflow.datasets import Dataset, sanitize_uri
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.types import NOTSET
 
@@ -54,6 +56,7 @@ KNOWN_CONTEXT_KEYS: set[str] = {
     "dag_run",
     "data_interval_end",
     "data_interval_start",
+    "dataset_events",
     "ds",
     "ds_nodash",
     "execution_date",
@@ -144,6 +147,37 @@ class ConnectionAccessor:
             return Connection.get_connection_from_secrets(key)
         except AirflowNotFoundException:
             return default_conn
+
+
+@attrs.define()
+class DatasetEventAccessor:
+    """Wrapper to access a DatasetEvent instance in template."""
+
+    extra: dict[str, Any]
+
+
+class DatasetEventAccessors(Mapping[str, DatasetEventAccessor]):
+    """Lazy mapping of dataset event accessors."""
+
+    def __init__(self) -> None:
+        self._dict: dict[str, DatasetEventAccessor] = {}
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._dict)
+
+    def __len__(self) -> int:
+        return len(self._dict)
+
+    def __getitem__(self, key: str | Dataset) -> DatasetEventAccessor:
+        if isinstance(key, str):
+            uri = sanitize_uri(key)
+        elif isinstance(key, Dataset):
+            uri = key.uri
+        else:
+            return NotImplemented
+        if uri not in self._dict:
+            self._dict[uri] = DatasetEventAccessor({})
+        return self._dict[uri]
 
 
 class AirflowContextDeprecationWarning(RemovedInAirflow3Warning):
