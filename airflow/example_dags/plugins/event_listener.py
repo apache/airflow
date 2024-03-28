@@ -105,8 +105,12 @@ def on_task_instance_failed(previous_state: TaskInstanceState, task_instance: Ta
 
     dag = task_instance.task.dag
 
+    error = task_instance.get_last_error()
+
     print(f"Task start:{start_date} end:{end_date} duration:{duration}")
     print(f"Task:{task} dag:{dag} dagrun:{dagrun}")
+    if error:
+        print(f"Failure caused by {error}")
 
 
 # [END howto_listen_ti_failure_task]
