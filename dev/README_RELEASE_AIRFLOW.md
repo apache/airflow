@@ -857,7 +857,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 
     ```shell script
     cd "${AIRFLOW_REPO_ROOT}"
-    breeze build-docs --package-filter apache-airflow --package-filter docker-stack --clean-build
+    breeze build-docs apache-airflow docker-stack --clean-build
     ```
 
 - Now you can preview the documentation.
