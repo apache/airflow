@@ -257,7 +257,7 @@ class TestDockerDecorator:
         with dag_maker():
             ret = f()
 
-        assert ret.operator.docker_url == "tcp://docker-host-from-env:2375"
+        assert ret.operator.docker_url == ["tcp://docker-host-from-env:2375"]
 
     def test_docker_host_env_empty(self, monkeypatch, dag_maker):
         monkeypatch.setenv("DOCKER_HOST", "")
@@ -271,7 +271,7 @@ class TestDockerDecorator:
 
         # The docker CLI ignores the empty string and defaults to unix://var/run/docker.sock
         # We want to ensure the same behavior.
-        assert ret.operator.docker_url == "unix://var/run/docker.sock"
+        assert ret.operator.docker_url == ["unix://var/run/docker.sock"]
 
     def test_docker_host_env_unset(self, monkeypatch, dag_maker):
         monkeypatch.delenv("DOCKER_HOST", raising=False)
@@ -283,4 +283,4 @@ class TestDockerDecorator:
         with dag_maker():
             ret = f()
 
-        assert ret.operator.docker_url == "unix://var/run/docker.sock"
+        assert ret.operator.docker_url == ["unix://var/run/docker.sock"]
