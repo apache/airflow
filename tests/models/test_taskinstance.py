@@ -2315,22 +2315,43 @@ class TestTaskInstance:
     def test_outlet_dataset_extra(self, dag_maker, session):
         from airflow.datasets import Dataset
 
-        with dag_maker(schedule=None, session=session):
+        with dag_maker(schedule=None, session=session) as dag:
 
-            @task(outlets=Dataset("test_outlet_dataset_extra"))
-            def write(*, dataset_events):
-                dataset_events["test_outlet_dataset_extra"].extra = {"foo": "bar"}
+            @task(outlets=Dataset("test_outlet_dataset_extra_1"))
+            def write1(*, dataset_events):
+                dataset_events["test_outlet_dataset_extra_1"].extra = {"foo": "bar"}
 
-            write()
+            write1()
+
+            def _write2_post_execute(context, _):
+                context["dataset_events"]["test_outlet_dataset_extra_2"].extra = {"x": 1}
+
+            BashOperator(
+                task_id="write2",
+                bash_command=":",
+                outlets=Dataset("test_outlet_dataset_extra_2"),
+                post_execute=_write2_post_execute,
+            )
 
         dr: DagRun = dag_maker.create_dagrun()
-        dr.get_task_instance("write").run(session=session)
+        for ti in dr.get_task_instances(session=session):
+            ti.refresh_from_task(dag.get_task(ti.task_id))
+            ti.run(session=session)
 
-        event = session.scalars(select(DatasetEvent)).one()
-        assert event.source_dag_id == dr.dag_id
-        assert event.source_run_id == dr.run_id
-        assert event.source_task_id == "write"
-        assert event.extra == {"foo": "bar"}
+        events = dict(iter(session.execute(select(DatasetEvent.source_task_id, DatasetEvent))))
+        assert set(events) == {"write1", "write2"}
+
+        assert events["write1"].source_dag_id == dr.dag_id
+        assert events["write1"].source_run_id == dr.run_id
+        assert events["write1"].source_task_id == "write1"
+        assert events["write1"].dataset.uri == "test_outlet_dataset_extra_1"
+        assert events["write1"].extra == {"foo": "bar"}
+
+        assert events["write2"].source_dag_id == dr.dag_id
+        assert events["write2"].source_run_id == dr.run_id
+        assert events["write2"].source_task_id == "write2"
+        assert events["write2"].dataset.uri == "test_outlet_dataset_extra_2"
+        assert events["write2"].extra == {"x": 1}
 
     def test_outlet_dataset_extra_ignore_different(self, dag_maker, session):
         from airflow.datasets import Dataset
