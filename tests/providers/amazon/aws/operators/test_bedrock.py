@@ -32,12 +32,10 @@ PROMPT = "A very important question."
 GENERATED_RESPONSE = "An important answer."
 MOCK_RESPONSE = json.dumps(
     {
-        "body": {
-            "generation": GENERATED_RESPONSE,
-            "prompt_token_count": len(PROMPT),
-            "generation_token_count": len(GENERATED_RESPONSE),
-            "stop_reason": "stop",
-        }
+        "generation": GENERATED_RESPONSE,
+        "prompt_token_count": len(PROMPT),
+        "generation_token_count": len(GENERATED_RESPONSE),
+        "stop_reason": "stop",
     }
 )
 
@@ -65,7 +63,7 @@ class TestBedrockInvokeModelOperator:
         mock_conn.invoke_model.return_value["body"].read.return_value = MOCK_RESPONSE
         operator = BedrockInvokeModelOperator(task_id="test_task", model_id=MODEL_ID, **prompt_values)
 
-        response = operator.execute({})["body"]
+        response = operator.execute({})
 
         assert response["generation"] == GENERATED_RESPONSE
 
