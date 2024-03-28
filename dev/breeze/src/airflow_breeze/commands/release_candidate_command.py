@@ -224,6 +224,9 @@ def push_artifacts_to_asf_repo(version, repo_root):
             check=True,
         )
         console_print("[success]Files pushed to svn")
+        console_print(
+            "Verify that the files are available here: https://dist.apache.org/repos/dist/dev/airflow/"
+        )
 
 
 def delete_asf_repo(repo_root):
