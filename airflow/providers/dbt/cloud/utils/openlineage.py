@@ -23,13 +23,14 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
-    from airflow.providers.dbt.cloud.operators.dbt import DbtCloudRunJobOperator
+    from airflow.providers.dbt.cloud.operators.dbt import DbtCloudRetryJobOperator, DbtCloudRunJobOperator
     from airflow.providers.dbt.cloud.sensors.dbt import DbtCloudJobRunSensor
     from airflow.providers.openlineage.extractors.base import OperatorLineage
 
 
 def generate_openlineage_events_from_dbt_cloud_run(
-    operator: DbtCloudRunJobOperator | DbtCloudJobRunSensor, task_instance: TaskInstance
+    operator: DbtCloudRunJobOperator | DbtCloudRetryJobOperator | DbtCloudJobRunSensor,
+    task_instance: TaskInstance,
 ) -> OperatorLineage:
     """
     Generate OpenLineage events from the DBT Cloud run.

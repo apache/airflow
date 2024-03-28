@@ -431,6 +431,20 @@ class DbtCloudHook(HttpHook):
         )
 
     @fallback_to_default_account
+    def retry_job_run(self, job_id: int, account_id: int | None = None) -> Response:
+        """
+        Retry a failed run for a job from the point of failure, if the run failed. Otherwise trigger a new run.
+
+        :param job_id: The ID of a dbt Cloud job.
+        :param account_id: Optional. The ID of a dbt Cloud account.
+        :return: The request response.
+        """
+        return self._run_and_get_response(
+            method="POST",
+            endpoint=f"{account_id}/jobs/{job_id}/rerun/",
+        )
+
+    @fallback_to_default_account
     def list_job_runs(
         self,
         account_id: int | None = None,

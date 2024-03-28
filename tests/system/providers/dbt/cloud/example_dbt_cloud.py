@@ -23,6 +23,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.providers.dbt.cloud.operators.dbt import (
     DbtCloudGetJobRunArtifactOperator,
     DbtCloudListJobsOperator,
+    DbtCloudRetryJobOperator,
     DbtCloudRunJobOperator,
 )
 from airflow.providers.dbt.cloud.sensors.dbt import DbtCloudJobRunAsyncSensor, DbtCloudJobRunSensor
@@ -66,6 +67,25 @@ with DAG(
     )
     # [END howto_operator_dbt_cloud_run_job_async]
 
+    # [START howto_operator_dbt_cloud_retry_job]
+    retry_job_run1 = DbtCloudRetryJobOperator(
+        task_id="retry_job_run1",
+        trigger_rule="one_failed",
+        job_id=48617,
+        check_interval=10,
+        timeout=300,
+    )
+    # [END howto_operator_dbt_cloud_retry_job]
+
+    # [START howto_operator_dbt_cloud_retry_job_async]
+    retry_job_run2 = DbtCloudRetryJobOperator(
+        task_id="retry_job_run2",
+        trigger_rule="one_failed",
+        job_id=48617,
+        wait_for_termination=False,
+    )
+    # [END howto_operator_dbt_cloud_retry_job_async]
+
     # [START howto_operator_dbt_cloud_run_job_sensor]
     job_run_sensor = DbtCloudJobRunSensor(
         task_id="job_run_sensor", run_id=trigger_job_run2.output, timeout=20
@@ -88,8 +108,8 @@ with DAG(
     list_dbt_jobs = DbtCloudListJobsOperator(task_id="list_dbt_jobs", account_id=106277, project_id=160645)
     # [END howto_operator_dbt_cloud_list_jobs]
 
-    begin >> Label("No async wait") >> trigger_job_run1
-    begin >> Label("Do async wait with sensor") >> trigger_job_run2
+    begin >> Label("No async wait") >> trigger_job_run1 >> retry_job_run1
+    begin >> Label("Do async wait with sensor") >> trigger_job_run2 >> retry_job_run2
     [get_run_results_artifact, job_run_sensor, list_dbt_jobs] >> end
 
     # Task dependency created via `XComArgs`:

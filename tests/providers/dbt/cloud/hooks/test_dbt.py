@@ -396,6 +396,26 @@ class TestDbtCloudHook:
     )
     @patch.object(DbtCloudHook, "run")
     @patch.object(DbtCloudHook, "_paginate")
+    def test_retry_job_run(self, mock_http_run, mock_paginate, conn_id, account_id):
+        hook = DbtCloudHook(conn_id)
+        hook.retry_job_run(job_id=JOB_ID, account_id=account_id)
+
+        assert hook.method == "POST"
+
+        _account_id = account_id or DEFAULT_ACCOUNT_ID
+        hook.run.assert_called_once_with(
+            endpoint=f"{_account_id}/jobs/{JOB_ID}/rerun/",
+            data=None,
+        )
+        hook._paginate.assert_not_called()
+
+    @pytest.mark.parametrize(
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        ids=["default_account", "explicit_account"],
+    )
+    @patch.object(DbtCloudHook, "run")
+    @patch.object(DbtCloudHook, "_paginate")
     def test_list_job_runs(self, mock_http_run, mock_paginate, conn_id, account_id):
         hook = DbtCloudHook(conn_id)
         hook.list_job_runs(account_id=account_id)
