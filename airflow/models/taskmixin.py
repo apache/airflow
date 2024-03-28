@@ -206,19 +206,66 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         from airflow.models.baseoperator import BaseOperator
         from airflow.models.mappedoperator import MappedOperator
 
+        def find_roots(arg: DependencyMixin | Sequence[DependencyMixin]):
+            if not isinstance(arg, Sequence):
+                arg = [arg]
+
+            all_roots = set()
+            for elem in arg:
+                elem: DAGNode
+
+                if not elem.get_direct_relatives(True):
+                    all_roots.add(elem)
+                else:
+                    to_compute = elem.get_direct_relatives(True)
+                    while len(to_compute) > 0:
+                        to_add = []
+                        for t in to_compute:
+                            if not t.get_direct_relatives(True):
+                                all_roots.add(t)
+                            else:
+                                rela = t.get_direct_relatives(True)
+                                for a in rela:
+                                    to_add.append(a)
+
+                        to_compute = to_add
+
+            return list(all_roots)
+
+        task_list: list[Operator] = []
+        iter_it = False
+
+        if isinstance(task_or_task_list, Sequence):
+            iter_it = True
+            to_check = len(task_or_task_list)
+            rst = task_or_task_list
+
+            # remove inner list. [[[ a , b]]] -> [a,b]
+            while to_check == 1:
+                rst = rst[0]
+                if isinstance(rst, Sequence):
+                    to_check = len(rst)
+                else:
+                    task_or_task_list = rst
+                    break
         if not isinstance(task_or_task_list, Sequence):
             task_or_task_list = [task_or_task_list]
 
-        task_list: list[Operator] = []
         for task_object in task_or_task_list:
-            task_object.update_relative(self, not upstream, edge_modifier=edge_modifier)
-            relatives = task_object.leaves if upstream else task_object.roots
-            for task in relatives:
-                if not isinstance(task, (BaseOperator, MappedOperator)):
-                    raise AirflowException(
-                        f"Relationships can only be set between Operators; received {task.__class__.__name__}"
-                    )
-                task_list.append(task)
+            if iter_it:
+                task_object = find_roots(task_object)
+            else:
+                task_object = [task_object]
+
+            for sub_task_object in task_object:
+                sub_task_object.update_relative(self, not upstream, edge_modifier=edge_modifier)
+                relatives = sub_task_object.leaves if upstream else sub_task_object.roots
+                for task in relatives:
+                    if not isinstance(task, (BaseOperator, MappedOperator)):
+                        raise AirflowException(
+                            f"Relationships can only be set between Operators; received {task.__class__.__name__}"
+                        )
+                    task_list.append(task)
 
         # relationships can only be set if the tasks share a single DAG. Tasks
         # without a DAG are assigned to that DAG.
