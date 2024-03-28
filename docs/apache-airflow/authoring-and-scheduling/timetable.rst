@@ -241,7 +241,7 @@ When ``catchup`` is ``False``, there is difference in how a new DAG run is trigg
 
 `CronTriggerTimetable`_ and `CronDataIntervalTimetable`_ trigger DAG runs at the same time. However, the timestamp for the ``run_id`` is different for each.
 
-- `CronTriggerTimetable`_ has a ``run_id`` timestamp showing when DAG run started.
+- `CronTriggerTimetable`_ has a ``run_id`` timestamp showing when DAG run is able to start.
 - `CronDataIntervalTimetable`_ has a ``run_id`` timestamp for when the interval started, which is before the DAG run started.
 
 For example, suppose there is a cron expression ``@daily`` or ``0 0 * * *``, which is scheduled to run at 12AM every day. If you enable DAGs using the two timetables at 3PM on January
