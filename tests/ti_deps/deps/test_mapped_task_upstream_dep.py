@@ -377,7 +377,7 @@ def test_no_mapped_dependencies(dag_maker, session: Session, testcase: str):
     expected_statuses = TIDepStatus(
         dep_name="Mapped dependencies have succeeded",
         passed=True,
-        reason="There are no mapped dependencies!",
+        reason="There are no (unexpanded) mapped dependencies!",
     )
     assert get_dep_statuses(dr, mapped_task, session) == [expected_statuses]
 

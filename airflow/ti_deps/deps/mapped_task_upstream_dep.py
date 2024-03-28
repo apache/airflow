@@ -20,13 +20,15 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
+from sqlalchemy import and_, select
+
+from airflow.models.taskinstance import TaskInstance
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models.taskinstance import TaskInstance
     from airflow.ti_deps.dep_context import DepContext
     from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 
@@ -58,20 +60,31 @@ class MappedTaskUpstreamDep(BaseTIDep):
         else:
             return
 
-        mapped_dependency_tis = [
-            ti.get_dagrun(session).get_task_instance(operator.task_id, session=session)
-            for operator in mapped_dependencies
-        ]
+        # Get the tis of all mapped dependencies. In case a mapped dependency is itself mapped, we are
+        # only interested in it if it hasn't been expanded yet, i.e., we filter by map_index=-1. This is
+        # because if it has been expanded, it did not fail and was not skipped outright which is all we need
+        # to know for the purposes of this check.
+        mapped_dependency_tis = (
+            session.scalars(
+                select(TaskInstance).where(
+                    and_(
+                        TaskInstance.task_id.in_([operator.task_id for operator in mapped_dependencies]),
+                        TaskInstance.dag_id == ti.dag_id,
+                        TaskInstance.run_id == ti.run_id,
+                        TaskInstance.map_index == -1,
+                    )
+                )
+            ).all()
+            if mapped_dependencies
+            else []
+        )
         if not mapped_dependency_tis:
-            yield self._passing_status(reason="There are no mapped dependencies!")
-            return
-        # ti can be None if the mapped dependency is a mapped operator, and it has already been expanded. In
-        # this case, we don't need to check it any further as it didn't fail or was skipped altogether
-        finished_tis = [ti for ti in mapped_dependency_tis if ti is not None and ti.state in State.finished]
-        if not finished_tis:
+            yield self._passing_status(reason="There are no (unexpanded) mapped dependencies!")
             return
 
-        finished_states = {finished_ti.state for finished_ti in finished_tis}
+        finished_states = {ti.state for ti in mapped_dependency_tis if ti.state in State.finished}
+        if not finished_states:
+            return
         if finished_states == {TaskInstanceState.SUCCESS}:
             # Mapped dependencies are at least partially done and only feature successes
             return
