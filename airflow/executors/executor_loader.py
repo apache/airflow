@@ -279,6 +279,15 @@ class ExecutorLoader:
         return _import_and_validate(executor_name.module_path), executor_name.connector_source
 
     @classmethod
+    def import_all_executors(cls) -> list[tuple[type[BaseExecutor], ConnectorSource]]:
+        executor_names = cls._get_executor_names()
+        executor_classes = []
+        for executor_name in executor_names:
+            executor_class = cls.import_executor_cls(executor_name, validate=False)
+            executor_classes.append(executor_class)
+        return executor_classes
+
+    @classmethod
     def import_default_executor_cls(cls, validate: bool = True) -> tuple[type[BaseExecutor], ConnectorSource]:
         """
         Import the default executor class.

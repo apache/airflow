@@ -26,6 +26,7 @@ from airflow import plugins_manager
 from airflow.exceptions import AirflowConfigException
 from airflow.executors import executor_loader
 from airflow.executors.executor_loader import ConnectorSource, ExecutorLoader, ExecutorName
+from airflow.providers.amazon.aws.executors.ecs.ecs_executor import AwsEcsExecutor
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from tests.test_utils.config import conf_vars
 
@@ -97,6 +98,45 @@ class TestExecutorLoader:
             assert executor.name is not None
             assert executor.name == ExecutorName("tests.executors.test_executor_loader.FakeExecutor")
             assert executor.name.connector_source == ConnectorSource.CUSTOM_PATH
+
+    @pytest.mark.parametrize(
+        ("executor_config", "expected_executor_classes", "expected_connector_sources"),
+        [
+            # Just one executor
+            (
+                "CeleryExecutor",
+                [
+                    CeleryExecutor,
+                ],
+                [
+                    ConnectorSource.CORE,
+                ],
+            ),
+            # Multiple Executors,
+            (
+                "CeleryExecutor, airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor",
+                [
+                    CeleryExecutor,
+                    AwsEcsExecutor,
+                ],
+                [
+                    ConnectorSource.CORE,
+                    ConnectorSource.CUSTOM_PATH,
+                ],
+            ),
+        ],
+    )
+    def test_import_all_executors(
+        self, executor_config, expected_executor_classes, expected_connector_sources
+    ):
+        ExecutorLoader.block_use_of_hybrid_exec = mock.Mock()
+        with conf_vars({("core", "executor"): executor_config}):
+            executors = [executor for executor, _ in ExecutorLoader.import_all_executors()]
+            connector_sources = [
+                connector_source for _, connector_source in ExecutorLoader.import_all_executors()
+            ]
+            assert executors == expected_executor_classes
+            assert connector_sources == expected_connector_sources
 
     @pytest.mark.parametrize(
         ("executor_config", "expected_executors_list"),
