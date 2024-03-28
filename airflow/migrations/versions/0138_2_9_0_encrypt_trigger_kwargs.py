@@ -48,6 +48,7 @@ def upgrade():
     """Apply encrypt trigger kwargs"""
     session = get_session()
     try:
+        op.alter_column(table_name="trigger", column_name="kwargs", type_=sa.String())
         for trigger in session.query(Trigger).all():
             # convert dict to string and encrypt it
             trigger.encrypted_kwargs = trigger._encrypt_kwargs(trigger.encrypted_kwargs)
@@ -60,10 +61,11 @@ def downgrade():
     """Unapply encrypt trigger kwargs"""
     session = get_session()
     try:
-        fernet = get_fernet()
+        op.alter_column(table_name="trigger", column_name="kwargs", type_=ExtendedJSON(),
+                        postgresql_using='kwargs::json')
         for trigger in session.query(Trigger).all():
             # decrypt string and convert it to dict
-            trigger.encrypted_kwargs = trigger._decrypt_kwargs(trigger.encrypted_kwargs, fernet)
+            trigger.encrypted_kwargs = trigger._decrypt_kwargs(trigger.encrypted_kwargs)
         session.commit()
     finally:
         session.close()
