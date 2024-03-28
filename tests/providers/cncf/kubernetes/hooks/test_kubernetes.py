@@ -578,10 +578,10 @@ class TestKubernetesHookIncorrectConfiguration:
         ),
     )
     def test_should_raise_exception_on_invalid_configuration(self, conn_uri):
+        kubernetes_hook = KubernetesHook()
         with mock.patch.dict("os.environ", AIRFLOW_CONN_KUBERNETES_DEFAULT=conn_uri), pytest.raises(
             AirflowException, match="Invalid connection configuration"
         ):
-            kubernetes_hook = KubernetesHook()
             kubernetes_hook.get_conn()
 
 
@@ -700,13 +700,13 @@ class TestAsyncKubernetesHook:
     async def test_load_config_with_several_params(
         self,
     ):
+        hook = AsyncKubernetesHook(
+            conn_id=CONN_ID,
+            in_cluster=True,
+            config_file=ASYNC_CONFIG_PATH,
+            cluster_context=None,
+        )
         with pytest.raises(AirflowException):
-            hook = AsyncKubernetesHook(
-                conn_id=CONN_ID,
-                in_cluster=True,
-                config_file=ASYNC_CONFIG_PATH,
-                cluster_context=None,
-            )
             await hook._load_config()
 
     @pytest.mark.asyncio
