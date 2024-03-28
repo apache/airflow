@@ -61,14 +61,6 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether this is a canary run (true/false)"
         required: true
         type: string
-      mypy-folders:
-        description: "The list of folders to run mypy on"
-        required: true
-        type: string
-      needs-mypy:
-        description: "Whether to run mypy checks (true) or not (false)"
-        required: true
-        type: string
       latest-versions-only:
         description: "Whether to run only latest versions (true/false)"
         required: true

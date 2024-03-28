@@ -29,6 +29,14 @@ on:  # yamllint disable-line rule:truthy
         description: "Tag to set for the image"
         required: true
         type: string
+      needs-mypy:
+        description: "Whether to run mypy checks (true/false)"
+        required: true
+        type: string
+      mypy-folders:
+        description: "List of folders to run mypy checks on"
+        required: false
+        type: string
       python-versions-list-as-string:
         description: "The list of python versions as string separated by spaces"
         required: true
@@ -131,7 +139,7 @@ jobs:
 
   mypy:
     timeout-minutes: 45
-    name: MyPy checks
+    name: "MyPy checks"
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     if: inputs.needs-mypy == 'true'
     strategy:
@@ -152,7 +160,6 @@ jobs:
           persist-credentials: false
       - name: Cleanup docker
         uses: ./.github/actions/cleanup-docker
-        if: inputs.needs-mypy == 'true'
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}"
         uses: ./.github/actions/prepare_breeze_and_image
         id: breeze
