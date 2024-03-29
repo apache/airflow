@@ -17,25 +17,17 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import pytest
 
 import airflow.models.xcom
 from airflow.io.path import ObjectStoragePath
-from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import BaseXCom, resolve_xcom_backend
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.common.io.xcom.backend import XComObjectStorageBackend
 from airflow.utils import timezone
-from airflow.utils.types import DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.test_utils import db
 from tests.test_utils.config import conf_vars
-
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
 
 pytestmark = pytest.mark.db_test
 
@@ -51,37 +43,11 @@ def reset_db():
 
 
 @pytest.fixture
-def task_instance_factory(request, session: Session):
-    def func(*, dag_id, task_id, execution_date):
-        run_id = DagRun.generate_run_id(DagRunType.SCHEDULED, execution_date)
-        run = DagRun(
-            dag_id=dag_id,
-            run_type=DagRunType.SCHEDULED,
-            run_id=run_id,
-            execution_date=execution_date,
-        )
-        session.add(run)
-        ti = TaskInstance(EmptyOperator(task_id=task_id), run_id=run_id)
-        ti.dag_id = dag_id
-        session.add(ti)
-        session.commit()
-
-        def cleanup_database():
-            # This should also clear task instances by cascading.
-            session.query(DagRun).filter_by(id=run.id).delete()
-            session.commit()
-
-        request.addfinalizer(cleanup_database)
-        return ti
-
-    return func
-
-
-@pytest.fixture
-def task_instance(task_instance_factory):
-    return task_instance_factory(
-        dag_id="dag",
-        task_id="task_1",
+def task_instance(create_task_instance_of_operator):
+    return create_task_instance_of_operator(
+        EmptyOperator,
+        dag_id="test-dag-id",
+        task_id="test-task-id",
         execution_date=timezone.datetime(2021, 12, 3, 4, 56),
     )
 
