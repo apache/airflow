@@ -20,7 +20,6 @@ import pathlib
 import random
 import re
 import string
-import sys
 from datetime import datetime, timedelta
 from unittest import mock
 
@@ -115,7 +114,7 @@ class TestAirflowKubernetesScheduler:
     )
     @mock.patch("airflow.providers.cncf.kubernetes.pod_generator.PodGenerator")
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubeConfig")
-    def test_get_base_pod_from_template(self, mock_kubeconfig, mock_generator):
+    def test_get_base_pod_from_template(self, mock_kubeconfig, mock_generator, data_file):
         # Provide non-existent file path,
         # so None will be passed to deserialize_model_dict().
         pod_template_file_path = "/bar/biz"
@@ -130,16 +129,16 @@ class TestAirflowKubernetesScheduler:
 
         # Provide existent file path,
         # so loaded YAML file content should be used to call deserialize_model_dict(), rather than None.
-        path = sys.path[0] + "/tests/providers/cncf/kubernetes/pod.yaml"
-        with open(path) as stream:
+        pod_template_file = data_file("pod.yaml")
+        with open(pod_template_file) as stream:
             expected_pod_dict = yaml.safe_load(stream)
 
-        pod_template_file_path = path
+        pod_template_file_path = pod_template_file.as_posix()
         get_base_pod_from_template(pod_template_file_path, None)
         assert "deserialize_model_dict" == mock_generator.mock_calls[2][0]
         assert mock_generator.mock_calls[2][1][0] == expected_pod_dict
 
-        mock_kubeconfig.pod_template_file = path
+        mock_kubeconfig.pod_template_file = pod_template_file.as_posix()
         get_base_pod_from_template(None, mock_kubeconfig)
         assert "deserialize_model_dict" == mock_generator.mock_calls[3][0]
         assert mock_generator.mock_calls[3][1][0] == expected_pod_dict
@@ -390,6 +389,7 @@ class TestKubernetesExecutor:
         task_publish_max_retries,
         should_requeue,
         task_expected_state,
+        data_file,
     ):
         """
         When pod scheduling fails with any reason not yet
@@ -411,8 +411,7 @@ class TestKubernetesExecutor:
             - your request parameters are valid but unsupported e.g. limits lower than requests.
 
         """
-        path = sys.path[0] + "/tests/providers/cncf/kubernetes/pod_generator_base_with_secrets.yaml"
-
+        template_file = data_file("pod_generator_base_with_secrets.yaml").as_posix()
         # A mock kube_client that throws errors when making a pod
         mock_kube_client = mock.patch("kubernetes.client.CoreV1Api", autospec=True)
         mock_kube_client.create_namespaced_pod = mock.MagicMock(side_effect=ApiException(http_resp=response))
@@ -421,7 +420,7 @@ class TestKubernetesExecutor:
         mock_api_client.sanitize_for_serialization.return_value = {}
         mock_kube_client.api_client = mock_api_client
         config = {
-            ("kubernetes", "pod_template_file"): path,
+            ("kubernetes", "pod_template_file"): template_file,
         }
         with conf_vars(config):
             kubernetes_executor = self.kubernetes_executor
@@ -506,11 +505,13 @@ class TestKubernetesExecutor:
     )
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
-    def test_run_next_pod_reconciliation_error(self, mock_get_kube_client, mock_kubernetes_job_watcher):
+    def test_run_next_pod_reconciliation_error(
+        self, mock_get_kube_client, mock_kubernetes_job_watcher, data_file
+    ):
         """
         When construct_pod raises PodReconciliationError, we should fail the task.
         """
-        path = sys.path[0] + "/tests/providers/cncf/kubernetes/pod_generator_base_with_secrets.yaml"
+        template_file = data_file("pod_generator_base_with_secrets.yaml").as_posix()
 
         mock_kube_client = mock.patch("kubernetes.client.CoreV1Api", autospec=True)
         fail_msg = "test message"
@@ -519,7 +520,7 @@ class TestKubernetesExecutor:
         mock_api_client = mock.MagicMock()
         mock_api_client.sanitize_for_serialization.return_value = {}
         mock_kube_client.api_client = mock_api_client
-        config = {("kubernetes", "pod_template_file"): path}
+        config = {("kubernetes", "pod_template_file"): template_file}
         with conf_vars(config):
             kubernetes_executor = self.kubernetes_executor
             kubernetes_executor.start()

@@ -22,6 +22,7 @@ import os
 import shutil
 import sys
 from copy import copy
+from pathlib import Path
 from unittest import mock
 from unittest.mock import ANY, MagicMock
 from uuid import uuid4
@@ -48,6 +49,7 @@ from kubernetes_tests.test_base import BaseK8STest, StringContainingId
 
 HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesHook"
 POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
+BASIC_POD = Path(__file__).parent.absolute().resolve() / "basic_pod.yaml"
 
 
 def create_context(task) -> Context:
@@ -726,12 +728,11 @@ class TestKubernetesPodOperatorSystem:
 
     def test_pod_template_file_system(self, mock_get_connection):
         """Note: this test requires that you have a namespace ``mem-example`` in your cluster."""
-        fixture = sys.path[0] + "/tests/providers/cncf/kubernetes/basic_pod.yaml"
         k = KubernetesPodOperator(
             task_id=str(uuid4()),
             in_cluster=False,
             labels=self.labels,
-            pod_template_file=fixture,
+            pod_template_file=BASIC_POD.as_posix(),
             do_xcom_push=True,
         )
 
@@ -748,13 +749,12 @@ class TestKubernetesPodOperatorSystem:
         ],
     )
     def test_pod_template_file_with_overrides_system(self, env_vars, test_label, mock_get_connection):
-        fixture = sys.path[0] + "/tests/providers/cncf/kubernetes/basic_pod.yaml"
         k = KubernetesPodOperator(
             task_id=str(uuid4()),
             labels=self.labels,
             env_vars=env_vars,
             in_cluster=False,
-            pod_template_file=fixture,
+            pod_template_file=BASIC_POD.as_posix(),
             do_xcom_push=True,
         )
 
@@ -775,7 +775,6 @@ class TestKubernetesPodOperatorSystem:
         assert result == {"hello": "world"}
 
     def test_pod_template_file_with_full_pod_spec(self, test_label, mock_get_connection):
-        fixture = sys.path[0] + "/tests/providers/cncf/kubernetes/basic_pod.yaml"
         pod_spec = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
                 labels={"test_label": test_label, "fizz": "buzz"},
@@ -793,7 +792,7 @@ class TestKubernetesPodOperatorSystem:
             task_id=str(uuid4()),
             labels=self.labels,
             in_cluster=False,
-            pod_template_file=fixture,
+            pod_template_file=BASIC_POD.as_posix(),
             full_pod_spec=pod_spec,
             do_xcom_push=True,
         )
