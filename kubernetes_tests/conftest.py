@@ -20,7 +20,7 @@ from pathlib import Path
 
 import pytest
 
-DATA_FILES_DIRECTORY = Path(__file__).absolute().parent
+DATA_FILES_DIRECTORY = Path(__file__).resolve().parent
 
 
 @pytest.fixture(autouse=True)
