@@ -40,7 +40,7 @@ on:  # yamllint disable-line rule:truthy
 jobs:
   tests-helm:
     timeout-minutes: 80
-    name: "Unit tests Helm: ${{ matrix.helm-test-package }}:${{ inputs.image-tag }}"
+    name: "Unit tests Helm: ${{ matrix.helm-test-package }}"
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     strategy:
       fail-fast: false
