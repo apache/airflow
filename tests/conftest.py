@@ -1343,7 +1343,7 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config=None):
                 f.write("\n")
         terminalreporter.write("Warnings saved into ")
         terminalreporter.write(os.fspath(warning_output_path), yellow=True)
-        terminalreporter.write(" file.")
+        terminalreporter.write(" file.\n")
     else:
         # nothing, clear file
         with warning_output_path.open("w") as f:

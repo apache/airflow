@@ -204,6 +204,8 @@
 - tests/models/test_taskinstance.py::TestTaskInstance::test_template_with_custom_timetable_deprecated_context
 - tests/models/test_taskinstance.py::TestTaskInstance::test_xcom_pull
 - tests/models/test_taskinstance.py::TestTaskInstance::test_xcom_pull_different_execution_date
+- tests/models/test_taskinstance.py::TestTaskInstance::test_outlet_dataset_extra
+- tests/models/test_taskinstance.py::TestTaskInstance::test_outlet_dataset_extra_ignore_different
 - tests/models/test_timestamp.py::test_timestamp_behaviour
 - tests/models/test_timestamp.py::test_timestamp_behaviour_with_timezone
 - tests/models/test_xcom.py::TestXCom::test_set_serialize_call_old_signature
