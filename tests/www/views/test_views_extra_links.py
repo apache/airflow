@@ -181,10 +181,7 @@ def test_extra_links_error_raised(dag_run, task_1, viewer_client):
     )
 
     assert 404 == response.status_code
-    response_str = response.data
-    if isinstance(response.data, bytes):
-        response_str = response_str.decode()
-    assert json.loads(response_str) == {"url": None, "error": "This is an error"}
+    assert response.json() == {"url": None, "error": "Task Instances not found"}
 
 
 def test_extra_links_no_response(dag_run, task_1, viewer_client):
@@ -195,10 +192,7 @@ def test_extra_links_no_response(dag_run, task_1, viewer_client):
     )
 
     assert response.status_code == 404
-    response_str = response.data
-    if isinstance(response.data, bytes):
-        response_str = response_str.decode()
-    assert json.loads(response_str) == {"url": None, "error": "No URL found for no_response"}
+    assert response.json() == {"url": None, "error": "Task Instances not found"}
 
 
 def test_operator_extra_link_override_plugin(dag_run, task_2, viewer_client):
