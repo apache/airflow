@@ -21,7 +21,6 @@ import logging
 import os
 import shutil
 from copy import copy
-from pathlib import Path
 from unittest import mock
 from unittest.mock import ANY, MagicMock
 from uuid import uuid4
@@ -48,7 +47,6 @@ from kubernetes_tests.test_base import BaseK8STest, StringContainingId
 
 HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesHook"
 POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
-BASIC_POD = Path(__file__).parent.absolute().resolve() / "basic_pod.yaml"
 
 
 def create_context(task) -> Context:
@@ -725,13 +723,13 @@ class TestKubernetesPodOperatorSystem:
         ]
         assert self.expected_pod == actual_pod
 
-    def test_pod_template_file_system(self, mock_get_connection):
+    def test_pod_template_file_system(self, mock_get_connection, basic_pod_template):
         """Note: this test requires that you have a namespace ``mem-example`` in your cluster."""
         k = KubernetesPodOperator(
             task_id=str(uuid4()),
             in_cluster=False,
             labels=self.labels,
-            pod_template_file=BASIC_POD.as_posix(),
+            pod_template_file=basic_pod_template.as_posix(),
             do_xcom_push=True,
         )
 
@@ -747,13 +745,15 @@ class TestKubernetesPodOperatorSystem:
             pytest.param({"env_name": "value"}, id="backcompat"),  # todo: remove?
         ],
     )
-    def test_pod_template_file_with_overrides_system(self, env_vars, test_label, mock_get_connection):
+    def test_pod_template_file_with_overrides_system(
+        self, env_vars, test_label, mock_get_connection, basic_pod_template
+    ):
         k = KubernetesPodOperator(
             task_id=str(uuid4()),
             labels=self.labels,
             env_vars=env_vars,
             in_cluster=False,
-            pod_template_file=BASIC_POD.as_posix(),
+            pod_template_file=basic_pod_template.as_posix(),
             do_xcom_push=True,
         )
 
@@ -773,7 +773,7 @@ class TestKubernetesPodOperatorSystem:
         assert k.pod.spec.containers[0].env == [k8s.V1EnvVar(name="env_name", value="value")]
         assert result == {"hello": "world"}
 
-    def test_pod_template_file_with_full_pod_spec(self, test_label, mock_get_connection):
+    def test_pod_template_file_with_full_pod_spec(self, test_label, mock_get_connection, basic_pod_template):
         pod_spec = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
                 labels={"test_label": test_label, "fizz": "buzz"},
@@ -791,7 +791,7 @@ class TestKubernetesPodOperatorSystem:
             task_id=str(uuid4()),
             labels=self.labels,
             in_cluster=False,
-            pod_template_file=BASIC_POD.as_posix(),
+            pod_template_file=basic_pod_template.as_posix(),
             full_pod_spec=pod_spec,
             do_xcom_push=True,
         )
@@ -925,6 +925,7 @@ class TestKubernetesPodOperatorSystem:
         await_xcom_sidecar_container_start_mock,
         caplog,
         test_label,
+        pod_template,
     ):
         # todo: This isn't really a system test
         await_xcom_sidecar_container_start_mock.return_value = None
@@ -937,7 +938,7 @@ class TestKubernetesPodOperatorSystem:
             task_id=str(uuid4()),
             labels=self.labels,
             random_name_suffix=False,
-            pod_template_file=BASIC_POD.as_posix(),
+            pod_template_file=pod_template.as_posix(),
             do_xcom_push=True,
         )
         pod_mock = MagicMock()

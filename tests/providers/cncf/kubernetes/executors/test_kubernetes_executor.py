@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import pathlib
 import random
 import re
 import string
@@ -129,7 +128,7 @@ class TestAirflowKubernetesScheduler:
 
         # Provide existent file path,
         # so loaded YAML file content should be used to call deserialize_model_dict(), rather than None.
-        pod_template_file = data_file("pod.yaml")
+        pod_template_file = data_file("pods/template.yaml")
         with open(pod_template_file) as stream:
             expected_pod_dict = yaml.safe_load(stream)
 
@@ -411,7 +410,7 @@ class TestKubernetesExecutor:
             - your request parameters are valid but unsupported e.g. limits lower than requests.
 
         """
-        template_file = data_file("pod_generator_base_with_secrets.yaml").as_posix()
+        template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
         # A mock kube_client that throws errors when making a pod
         mock_kube_client = mock.patch("kubernetes.client.CoreV1Api", autospec=True)
         mock_kube_client.create_namespaced_pod = mock.MagicMock(side_effect=ApiException(http_resp=response))
@@ -511,7 +510,7 @@ class TestKubernetesExecutor:
         """
         When construct_pod raises PodReconciliationError, we should fail the task.
         """
-        template_file = data_file("pod_generator_base_with_secrets.yaml").as_posix()
+        template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
 
         mock_kube_client = mock.patch("kubernetes.client.CoreV1Api", autospec=True)
         fail_msg = "test message"
@@ -597,16 +596,14 @@ class TestKubernetesExecutor:
         "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.run_pod_async"
     )
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
-    def test_pod_template_file_override_in_executor_config(self, mock_get_kube_client, mock_run_pod_async):
-        current_folder = pathlib.Path(__file__).parent.resolve()
-        template_file = str(
-            (current_folder / "kubernetes_executor_template_files" / "basic_template.yaml").resolve()
-        )
-
+    def test_pod_template_file_override_in_executor_config(
+        self, mock_get_kube_client, mock_run_pod_async, data_file
+    ):
+        executor_template_file = data_file("executor/basic_template.yaml")
         mock_kube_client = mock.patch("kubernetes.client.CoreV1Api", autospec=True)
         mock_get_kube_client.return_value = mock_kube_client
 
-        with conf_vars({("kubernetes", "pod_template_file"): ""}):
+        with conf_vars({("kubernetes", "pod_template_file"): None}):
             executor = self.kubernetes_executor
             executor.start()
             try:
@@ -618,7 +615,7 @@ class TestKubernetesExecutor:
                     queue=None,
                     command=["airflow", "tasks", "run", "true", "some_parameter"],
                     executor_config={
-                        "pod_template_file": template_file,
+                        "pod_template_file": executor_template_file,
                         "pod_override": k8s.V1Pod(
                             metadata=k8s.V1ObjectMeta(labels={"release": "stable"}),
                             spec=k8s.V1PodSpec(
@@ -634,7 +631,7 @@ class TestKubernetesExecutor:
                 executor.task_queue.task_done()
                 # Test that the correct values have been put to queue
                 assert expected_executor_config.metadata.labels == {"release": "stable"}
-                assert expected_pod_template_file == template_file
+                assert expected_pod_template_file == executor_template_file
 
                 self.kubernetes_executor.kube_scheduler.run_next(task)
                 mock_run_pod_async.assert_called_once_with(
@@ -671,9 +668,11 @@ class TestKubernetesExecutor:
                                     env=[k8s.V1EnvVar(name="AIRFLOW_IS_K8S_EXECUTOR_POD", value="True")],
                                 )
                             ],
-                            image_pull_secrets=[k8s.V1LocalObjectReference(name="airflow-registry")],
+                            image_pull_secrets=[
+                                k8s.V1LocalObjectReference(name="all-right-then-keep-your-secrets")
+                            ],
                             scheduler_name="default-scheduler",
-                            security_context=k8s.V1PodSecurityContext(fs_group=50000, run_as_user=50000),
+                            security_context=k8s.V1PodSecurityContext(fs_group=50000, run_as_user=50001),
                         ),
                     )
                 )

@@ -68,7 +68,7 @@ class TestSecret:
         mock_uuid.return_value = static_uuid
         rand_str = "abcd1234"
         mock_rand_str.return_value = rand_str
-        template_file = data_file("pod_generator_base.yaml").as_posix()
+        template_file = data_file("pods/generator_base.yaml").as_posix()
         pod = PodGenerator(pod_template_file=template_file).ud_pod
         secrets = [
             # This should be a secretRef
