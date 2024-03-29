@@ -15,7 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 [tool.pytest.ini_options]
-addopts = "-rasl --verbosity=2 -p no:flaky -p no:nose -p no:legacypath"
+addopts = [
+    "-rasl",
+    "--verbosity=2",
+    "-p", "no:flaky",
+    "-p", "no:nose",
+    "-p", "no:legacypath",
+    "--import-mode=importlib",
+]
 norecursedirs = [
     ".eggs",
 ]
