@@ -30,7 +30,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import BaseXCom, resolve_xcom_backend
 from airflow.operators.empty import EmptyOperator
-from airflow.providers.common.io.xcom.backend import XComObjectStoreBackend
+from airflow.providers.common.io.xcom.backend import XComObjectStorageBackend
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
@@ -85,7 +85,7 @@ def task_instance(task_instance_factory):
     )
 
 
-class TestXcomObjectStoreBackend:
+class TestXComObjectStorageBackend:
     path = "file:/tmp/xcom"
 
     def setup_method(self):
@@ -93,7 +93,7 @@ class TestXcomObjectStoreBackend:
             conf.add_section("common.io")
         except DuplicateSectionError:
             pass
-        conf.set("core", "xcom_backend", "airflow.providers.common.io.xcom.backend.XComObjectStoreBackend")
+        conf.set("core", "xcom_backend", "airflow.providers.common.io.xcom.backend.XComObjectStorageBackend")
         conf.set("common.io", "xcom_objectstorage_path", self.path)
         conf.set("common.io", "xcom_objectstorage_threshold", "50")
         settings.configure_vars()
@@ -164,7 +164,7 @@ class TestXcomObjectStoreBackend:
         )
 
         data = BaseXCom.deserialize_value(res)
-        p = ObjectStoragePath(self.path) / XComObjectStoreBackend._get_key(data)
+        p = ObjectStoragePath(self.path) / XComObjectStorageBackend._get_key(data)
         assert p.exists() is True
 
         value = XCom.get_value(
@@ -210,7 +210,7 @@ class TestXcomObjectStoreBackend:
         )
 
         data = BaseXCom.deserialize_value(res)
-        p = ObjectStoragePath(self.path) / XComObjectStoreBackend._get_key(data)
+        p = ObjectStoragePath(self.path) / XComObjectStorageBackend._get_key(data)
         assert p.exists() is True
 
         XCom.clear(
@@ -250,7 +250,7 @@ class TestXcomObjectStoreBackend:
         )
 
         data = BaseXCom.deserialize_value(res)
-        p = ObjectStoragePath(self.path) / XComObjectStoreBackend._get_key(data)
+        p = ObjectStoragePath(self.path) / XComObjectStorageBackend._get_key(data)
         assert p.exists() is True
         assert p.suffix == ".gz"
 
