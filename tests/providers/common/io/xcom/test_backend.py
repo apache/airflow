@@ -130,6 +130,7 @@ class TestXComObjectStorageBackend:
         )
         assert qry.first().value == {"key": "value"}
 
+    @pytest.mark.db_test
     def test_value_storage(self, task_instance, session):
         XCom = resolve_xcom_backend()
         airflow.models.xcom.XCom = XCom
@@ -175,6 +176,7 @@ class TestXComObjectStorageBackend:
         )
         assert str(p) == qry.first().value
 
+    @pytest.mark.db_test
     def test_clear(self, task_instance, session):
         XCom = resolve_xcom_backend()
         airflow.models.xcom.XCom = XCom
@@ -213,6 +215,7 @@ class TestXComObjectStorageBackend:
 
         assert p.exists() is False
 
+    @pytest.mark.db_test
     @conf_vars({("common.io", "xcom_objectstorage_compression"): "gzip"})
     def test_compression(self, task_instance, session):
         XCom = resolve_xcom_backend()
