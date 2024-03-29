@@ -124,7 +124,7 @@ class LivyOperator(BaseOperator):
         self._extra_options = extra_options or {}
         self._extra_headers = extra_headers or {}
 
-        self._batch_id: int | str
+        self._batch_id: int | str = None
         self.retry_args = retry_args
         self.deferrable = deferrable
 
