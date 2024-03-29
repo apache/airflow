@@ -114,7 +114,6 @@ const LogBlock = ({
       maxHeight={`calc(100% - ${offsetTop}px)`}
       overflowY="auto"
       p={3}
-      pb={0}
       display="block"
       whiteSpace={wrap ? "pre-wrap" : "pre"}
       border="1px solid"
