@@ -357,6 +357,38 @@ def find_all_providers_affected(
     return sorted(all_providers)
 
 
+def _match_files_with_regexps(files: tuple[str, ...], matched_files, matching_regexps):
+    for file in files:
+        if any(re.match(regexp, file) for regexp in matching_regexps):
+            matched_files.append(file)
+
+
+def _exclude_files_with_regexps(files: tuple[str, ...], matched_files, exclude_regexps):
+    for file in files:
+        if any(re.match(regexp, file) for regexp in exclude_regexps):
+            if file in matched_files:
+                matched_files.remove(file)
+
+
+@lru_cache(maxsize=None)
+def _matching_files(
+    files: tuple[str, ...], match_group: FileGroupForCi, match_dict: HashableDict, exclude_dict: HashableDict
+) -> list[str]:
+    matched_files: list[str] = []
+    match_regexps = match_dict[match_group]
+    excluded_regexps = exclude_dict.get(match_group)
+    _match_files_with_regexps(files, matched_files, match_regexps)
+    if excluded_regexps:
+        _exclude_files_with_regexps(files, matched_files, excluded_regexps)
+    count = len(matched_files)
+    if count > 0:
+        get_console().print(f"[warning]{match_group} matched {count} files.[/]")
+        get_console().print(matched_files)
+    else:
+        get_console().print(f"[warning]{match_group} did not match any file.[/]")
+    return matched_files
+
+
 class SelectiveChecks:
     __HASHABLE_FIELDS = {"_files", "_default_branch", "_commit_ref", "_pr_labels", "_github_event"}
 
@@ -588,34 +620,10 @@ class SelectiveChecks:
         )
         return " ".join(short_combo_titles)
 
-    def _match_files_with_regexps(self, matched_files, matching_regexps):
-        for file in self._files:
-            if any(re.match(regexp, file) for regexp in matching_regexps):
-                matched_files.append(file)
-
-    def _exclude_files_with_regexps(self, matched_files, exclude_regexps):
-        for file in self._files:
-            if any(re.match(regexp, file) for regexp in exclude_regexps):
-                if file in matched_files:
-                    matched_files.remove(file)
-
-    @lru_cache(maxsize=None)
     def _matching_files(
-        self, match_group: T, match_dict: dict[T, list[str]], exclude_dict: dict[T, list[str]]
+        self, match_group: FileGroupForCi, match_dict: HashableDict, exclude_dict: HashableDict
     ) -> list[str]:
-        matched_files: list[str] = []
-        match_regexps = match_dict[match_group]
-        excluded_regexps = exclude_dict.get(match_group)
-        self._match_files_with_regexps(matched_files, match_regexps)
-        if excluded_regexps:
-            self._exclude_files_with_regexps(matched_files, excluded_regexps)
-        count = len(matched_files)
-        if count > 0:
-            get_console().print(f"[warning]{match_group} matched {count} files.[/]")
-            get_console().print(matched_files)
-        else:
-            get_console().print(f"[warning]{match_group} did not match any file.[/]")
-        return matched_files
+        return _matching_files(self._files, match_group, match_dict, exclude_dict)
 
     def _should_be_run(self, source_area: FileGroupForCi) -> bool:
         if self.full_tests_needed:
