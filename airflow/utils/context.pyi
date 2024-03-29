@@ -26,11 +26,12 @@
 # declare "these are defined, but don't error if others are accessed" someday.
 from __future__ import annotations
 
-from typing import Any, Collection, Container, Iterable, Mapping, overload
+from typing import Any, Collection, Container, Iterable, Iterator, Mapping, overload
 
 from pendulum import DateTime
 
 from airflow.configuration import AirflowConfigParser
+from airflow.datasets import Dataset
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
@@ -58,7 +59,10 @@ class ConnectionAccessor:
 class DatasetEventAccessor:
     extra: dict[str, Any]
 
-class DatasetEventAccessors(Mapping[str, DatasetEventAccessor]): ...
+class DatasetEventAccessors(Mapping[str, DatasetEventAccessor]):
+    def __iter__(self) -> Iterator[str]: ...
+    def __len__(self) -> int: ...
+    def __getitem__(self, key: str | Dataset) -> DatasetEventAccessor: ...
 
 # NOTE: Please keep this in sync with the following:
 # * KNOWN_CONTEXT_KEYS in airflow/utils/context.py
