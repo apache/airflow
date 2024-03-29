@@ -963,6 +963,7 @@ class TestDatabricksSubmitRunDeferrableOperator:
             "run_id": RUN_ID,
             "run_page_url": RUN_PAGE_URL,
             "run_state": run_state_failed.to_json(),
+            "repair_run": False,
         }
 
         op = DatabricksSubmitRunDeferrableOperator(task_id=TASK_ID, json=run)
@@ -1063,6 +1064,7 @@ class TestDatabricksRunNowOperator:
             "python_params": PYTHON_PARAMS,
             "spark_submit_params": SPARK_SUBMIT_PARAMS,
             "job_id": JOB_ID,
+            "repair_run": False,
         }
         op = DatabricksRunNowOperator(task_id=TASK_ID, json=json)
 
@@ -1073,6 +1075,7 @@ class TestDatabricksRunNowOperator:
                 "python_params": PYTHON_PARAMS,
                 "spark_submit_params": SPARK_SUBMIT_PARAMS,
                 "job_id": JOB_ID,
+                "repair_run": False,
             }
         )
 
@@ -1442,6 +1445,7 @@ class TestDatabricksRunNowDeferrableOperator:
             "run_id": RUN_ID,
             "run_page_url": RUN_PAGE_URL,
             "run_state": RunState("TERMINATED", "SUCCESS", "").to_json(),
+            "repair_run": False,
         }
 
         op = DatabricksRunNowDeferrableOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
@@ -1458,6 +1462,7 @@ class TestDatabricksRunNowDeferrableOperator:
             "run_id": RUN_ID,
             "run_page_url": RUN_PAGE_URL,
             "run_state": run_state_failed.to_json(),
+            "repair_run": False,
         }
 
         op = DatabricksRunNowDeferrableOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
