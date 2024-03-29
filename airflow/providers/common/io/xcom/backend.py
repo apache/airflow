@@ -65,7 +65,7 @@ def _get_compression_suffix(compression: str) -> str:
     raise ValueError(f"Compression {compression} is not supported. Make sure it is installed.")
 
 
-class XComObjectStoreBackend(BaseXCom):
+class XComObjectStorageBackend(BaseXCom):
     """XCom backend that stores data in an object store or database depending on the size of the data.
 
     If the value is larger than the configured threshold, it will be stored in an object store.
@@ -155,7 +155,7 @@ class XComObjectStoreBackend(BaseXCom):
         path = conf.get(SECTION, "xcom_objectstorage_path", fallback="")
 
         try:
-            p = ObjectStoragePath(path) / XComObjectStoreBackend._get_key(data)
+            p = ObjectStoragePath(path) / XComObjectStorageBackend._get_key(data)
             return json.load(p.open(mode="rb", compression="infer"), cls=XComDecoder)
         except TypeError:
             return data
@@ -167,7 +167,7 @@ class XComObjectStoreBackend(BaseXCom):
         path = conf.get(SECTION, "xcom_objectstorage_path", fallback="")
         if isinstance(xcom.value, str):
             try:
-                p = ObjectStoragePath(path) / XComObjectStoreBackend._get_key(xcom.value)
+                p = ObjectStoragePath(path) / XComObjectStorageBackend._get_key(xcom.value)
                 p.unlink(missing_ok=True)
             except TypeError:
                 pass
