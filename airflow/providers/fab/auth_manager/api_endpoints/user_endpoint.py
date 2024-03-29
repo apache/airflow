@@ -65,7 +65,7 @@ def get_users(*, limit: int, order_by: str = "id", offset: str | None = None) ->
     to_replace = {"user_id": "id"}
     order_param = order_by.strip("-")
     order_param = to_replace.get(order_param, order_param)
-    allowed_filter_attrs = [
+    allowed_sort_attrs = [
         "id",
         "first_name",
         "last_name",
@@ -74,7 +74,7 @@ def get_users(*, limit: int, order_by: str = "id", offset: str | None = None) ->
         "is_active",
         "role",
     ]
-    if order_by not in allowed_filter_attrs:
+    if order_by not in allowed_sort_attrs:
         raise BadRequest(
             detail=f"Ordering with '{order_by}' is disallowed or "
             f"the attribute does not exist on the model"
