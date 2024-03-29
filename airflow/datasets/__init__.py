@@ -42,7 +42,14 @@ def _get_uri_normalizer(scheme: str) -> Callable[[SplitResult], SplitResult] | N
     return ProvidersManager().dataset_uri_handlers.get(scheme)
 
 
-def _sanitize_uri(uri: str) -> str:
+def sanitize_uri(uri: str) -> str:
+    """Sanitize a dataset URI.
+
+    This checks for URI validity, and normalizes the URI if needed. A fully
+    normalized URI is returned.
+
+    :meta private:
+    """
     if not uri:
         raise ValueError("Dataset URI cannot be empty")
     if uri.isspace():
@@ -110,7 +117,7 @@ class Dataset(os.PathLike, BaseDatasetEventInput):
     """A representation of data dependencies between workflows."""
 
     uri: str = attr.field(
-        converter=_sanitize_uri,
+        converter=sanitize_uri,
         validator=[attr.validators.min_len(1), attr.validators.max_len(3000)],
     )
     extra: dict[str, Any] | None = None
