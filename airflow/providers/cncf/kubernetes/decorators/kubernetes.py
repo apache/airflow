@@ -17,19 +17,19 @@
 from __future__ import annotations
 
 import base64
+import importlib
+import logging
 import os
-import pickle
+import shutil
 import uuid
-import warnings
 from shlex import quote
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Callable, Sequence
 
-import cloudpickle
 from kubernetes.client import models as k8s
 
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.python_kubernetes_script import (
     write_python_script,
@@ -37,6 +37,16 @@ from airflow.providers.cncf.kubernetes.python_kubernetes_script import (
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
+log = logging.getLogger(__name__)
+
+if shutil.which("cloudpickle") or importlib.util.find_spec("cloudpickle"):
+    import cloudpickle as serialization_library
+elif shutil.which("dill") or importlib.util.find_spec("dill"):
+    import dill as serialization_library
+else:
+    log.warning("Neither dill and cloudpickle are installed. Please install one with: pip install [name]")
+    import pickle
 
 _PYTHON_SCRIPT_ENV = "__PYTHON_SCRIPT"
 _PYTHON_INPUT_ENV = "__PYTHON_INPUT"
@@ -70,14 +80,13 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
     def __init__(
         self, namespace: str = "default", use_dill: bool = False, use_cloudpickle: bool = False, **kwargs
     ) -> None:
-        if use_dill:
-            warnings.warn(
-                "The 'use_dill' parameter is deprecated and will be removed after 01.10.2024. Please use "
-                "'use_cloudpickle' instead. ",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
+        if use_dill and use_cloudpickle:
+            raise AirflowException(
+                "Both 'use_dill' and 'use_cloudpickle' parameters are set to True. Please,"
+                " choose only one."
             )
-            self.use_cloudpickle = use_dill
+        if use_dill:
+            use_cloudpickle = use_dill
         self.use_cloudpickle = use_cloudpickle
         super().__init__(
             namespace=namespace,
@@ -112,7 +121,7 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
 
     def execute(self, context: Context):
         with TemporaryDirectory(prefix="venv") as tmp_dir:
-            pickling_library = cloudpickle if self.use_cloudpickle else pickle
+            pickling_library = serialization_library if self.use_cloudpickle else pickle
             script_filename = os.path.join(tmp_dir, "script.py")
             input_filename = os.path.join(tmp_dir, "script.in")
 

@@ -111,13 +111,24 @@ from __future__ import annotations
 
 import argparse
 import base64
+import importlib
 import json
 import logging
 import os
+import shutil
 
 import apache_beam as beam
-import cloudpickle
 from apache_beam.coders.coders import Coder
+
+log = logging.getLogger(__name__)
+
+if shutil.which("cloudpickle") or importlib.util.find_spec("cloudpickle"):
+    import cloudpickle as serialization_library
+elif shutil.which("dill") or importlib.util.find_spec("dill"):
+    import dill as serialization_library
+else:
+    log.warning("Neither dill and cloudpickle are installed. Please install one with: pip install [name]")
+    import pickle as serialization_library
 
 
 class JsonCoder(Coder):
@@ -170,7 +181,7 @@ def run(argv=None):
         help=(
             "An encoded function that calculates and returns a tuple of "
             "metric(s) for a given instance (as a dictionary). It should be "
-            "encoded via base64.b64encode(cloudpickle.dumps(fn))."
+            "encoded via base64.b64encode(cloudpickle.dumps(fn)) or base64.b64encode(dill.dumps(fn))."
         ),
     )
     parser.add_argument(
@@ -185,8 +196,7 @@ def run(argv=None):
         ),
     )
     known_args, pipeline_args = parser.parse_known_args(argv)
-
-    metric_fn = cloudpickle.loads(base64.b64decode(known_args.metric_fn_encoded))
+    metric_fn = serialization_library.loads(base64.b64decode(known_args.metric_fn_encoded))
     if not callable(metric_fn):
         raise ValueError("--metric_fn_encoded must be an encoded callable.")
     metric_keys = known_args.metric_keys.split(",")

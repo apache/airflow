@@ -145,6 +145,12 @@ CORE_EXTRAS: dict[str, list[str]] = {
     "virtualenv": [
         "virtualenv",
     ],
+    "dill": [
+        "dill",
+    ],
+    "cloudpickle": [
+        "cloudpickle",
+    ],
 }
 
 DOC_EXTRAS: dict[str, list[str]] = {
@@ -416,7 +422,6 @@ DEPENDENCIES = [
     "blinker>=1.6.2",
     # Colorlog 6.x merges TTYColoredFormatter into ColoredFormatter, breaking backwards compatibility with 4.x
     # Update CustomTTYColoredFormatter to remove
-    "cloudpickle>=2.0.0",
     "colorlog>=4.0.2, <5.0",
     "configupdater>=3.1.1",
     # `airflow/www/extensions/init_views` imports `connexion.decorators.validation.RequestBodyValidator`
@@ -430,7 +435,6 @@ DEPENDENCIES = [
     "croniter>=2.0.2",
     "cryptography>=39.0.0",
     "deprecated>=1.2.13",
-    "dill>=0.2.2",
     "flask-caching>=1.5.0",
     # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
     # all parameters now are mandatory which make AirflowDatabaseSessionInterface incopatible with this version.

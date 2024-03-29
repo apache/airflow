@@ -23,7 +23,6 @@ import inspect
 import json
 import logging
 import os
-import pickle
 import shutil
 import subprocess
 import sys
@@ -36,13 +35,10 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, NamedTuple, Sequence, cast
 
-import cloudpickle
-
 from airflow.compat.functools import cache
 from airflow.exceptions import (
     AirflowConfigException,
     AirflowException,
-    AirflowProviderDeprecationWarning,
     AirflowSkipException,
     DeserializingResultError,
     RemovedInAirflow3Warning,
@@ -58,6 +54,16 @@ from airflow.utils.file import get_unique_dag_module_name
 from airflow.utils.operator_helpers import ExecutionCallableRunner, KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
+
+log = logging.getLogger(__name__)
+
+if shutil.which("cloudpickle") or importlib.util.find_spec("cloudpickle"):
+    import cloudpickle as serialization_library
+elif shutil.which("dill") or importlib.util.find_spec("dill"):
+    import dill as serialization_library
+else:
+    log.warning("Neither dill and cloudpickle are installed. Please install one with: pip install [name]")
+    import pickle
 
 if TYPE_CHECKING:
     from pendulum.datetime import DateTime
@@ -422,16 +428,15 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             **kwargs,
         )
         self.string_args = string_args or []
-        if use_dill:
-            warnings.warn(
-                "The 'use_dill' parameter is deprecated and will be removed after 01.10.2024. Please use "
-                "'use_cloudpickle' instead. ",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
+        if use_dill and use_cloudpickle:
+            raise AirflowException(
+                "Both 'use_dill' and 'use_cloudpickle' parameters are set to True. Please,"
+                " choose only one."
             )
+        if use_dill:
             use_cloudpickle = use_dill
         self.use_cloudpickle = use_cloudpickle
-        self.pickling_library = cloudpickle if self.use_cloudpickle else pickle
+        self.pickling_library = serialization_library if self.use_cloudpickle else pickle
         self.expect_airflow = expect_airflow
         self.skip_on_exit_code = (
             skip_on_exit_code
@@ -562,6 +567,9 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         "requirements file" as specified by pip.
     :param python_version: The Python version to run the virtual environment with. Note that
         both 2 and 2.7 are acceptable forms.
+    :param use_dill: Whether to use dill to serialize
+        the args and result (pickle is default). This allow more complex types
+        but requires you to include dill in your requirements.
     :param use_cloudpickle: Whether to use cloudpickle to serialize
         the args and result (pickle is default). This allows more complex types
         but requires you to include cloudpickle in your requirements.
@@ -638,13 +646,12 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
                 RemovedInAirflow3Warning,
                 stacklevel=2,
             )
-        if use_dill:
-            warnings.warn(
-                "The 'use_dill' parameter is deprecated and will be removed after 01.10.2024. Please use "
-                "'use_cloudpickle' instead. ",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
+        if use_dill and use_cloudpickle:
+            raise AirflowException(
+                "Both 'use_dill' and 'use_cloudpickle' parameters are set to True. Please, "
+                "choose only one."
             )
+        if use_dill:
             use_cloudpickle = use_dill
         if not is_venv_installed():
             raise AirflowException("PythonVirtualenvOperator requires virtualenv, please install it.")
@@ -840,6 +847,9 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
         (so usually start with "/" or "X:/" depending on the filesystem/os used).
     :param python_callable: A python function with no references to outside variables,
         defined with def, which will be run in a virtual environment.
+    :param use_dill: Whether to use dill to serialize
+        the args and result (pickle is default). This allow more complex types
+        but requires you to include dill in your requirements.
     :param use_cloudpickle: Whether to use cloudpickle to serialize
         the args and result (pickle is default). This allows more complex types
         but if cloudpickle is not preinstalled in your virtual environment, the task will fail
@@ -884,13 +894,11 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
     ):
         if not python:
             raise ValueError("Python Path must be defined in ExternalPythonOperator")
-        if use_dill:
-            warnings.warn(
-                "The 'use_dill' parameter is deprecated and will be removed after 01.10.2024. Please use "
-                "'use_cloudpickle' instead. ",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
+        if use_dill and use_cloudpickle:
+            raise AirflowException(
+                "Both 'use_dill' and 'use_cloudpickle' parameters are set to True. Please, choose only one."
             )
+        if use_dill:
             use_cloudpickle = use_dill
         self.python = python
         self.expect_pendulum = expect_pendulum

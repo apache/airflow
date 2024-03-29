@@ -17,18 +17,27 @@
 from __future__ import annotations
 
 import base64
+import importlib
+import logging
 import os
-import pickle
-import warnings
+import shutil
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Callable, Sequence
 
-import cloudpickle
-
 from airflow.decorators.base import DecoratedOperator, task_decorator_factory
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.utils.python_virtualenv import write_python_script
+
+log = logging.getLogger(__name__)
+
+if shutil.which("cloudpickle") or importlib.util.find_spec("cloudpickle"):
+    import cloudpickle as serialization_library
+elif shutil.which("dill") or importlib.util.find_spec("dill"):
+    import dill as serialization_library
+else:
+    log.warning("Neither dill and cloudpickle are installed. Please install one with: pip install [name]")
+    import pickle
 
 if TYPE_CHECKING:
     from airflow.decorators.base import TaskDecorator
@@ -55,6 +64,7 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
 
     :param python_callable: A reference to an object that is callable
     :param python: Python binary name to use
+    :param use_dill: Whether dill should be used to serialize the callable
     :param use_cloudpickle: Whether cloudpickle should be used to serialize the callable
     :param expect_airflow: whether to expect airflow to be installed in the docker environment. if this
           one is specified, the script to run callable will attempt to load Airflow macros.
@@ -82,13 +92,12 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
         command = "placeholder command"
         self.python_command = python_command
         self.expect_airflow = expect_airflow
-        if use_dill:
-            warnings.warn(
-                "The 'use_dill' parameter is deprecated and will be removed after 01.10.2024. Please use "
-                "'use_cloudpickle' instead. ",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
+        if use_dill and use_cloudpickle:
+            raise AirflowException(
+                "Both 'use_dill' and 'use_cloudpickle' parameters are set to True. Please,"
+                " choose only one."
             )
+        if use_dill:
             use_cloudpickle = use_dill
         self.use_cloudpickle = use_cloudpickle
         super().__init__(
@@ -140,7 +149,7 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
     @property
     def pickling_library(self):
         if self.use_cloudpickle:
-            return cloudpickle
+            return serialization_library
         return pickle
 
 

@@ -19,13 +19,14 @@
 from __future__ import annotations
 
 import base64
+import importlib
 import json
+import logging
 import os
 import re
+import shutil
 from typing import TYPE_CHECKING, Callable, Iterable, TypeVar
 from urllib.parse import urlsplit
-
-import cloudpickle
 
 from airflow.exceptions import AirflowException
 from airflow.operators.python import PythonOperator
@@ -36,6 +37,16 @@ from airflow.providers.google.cloud.operators.mlengine import MLEngineStartBatch
 
 if TYPE_CHECKING:
     from airflow import DAG
+
+log = logging.getLogger(__name__)
+
+if shutil.which("cloudpickle") or importlib.util.find_spec("cloudpickle"):
+    import cloudpickle as serialization_library
+elif shutil.which("dill") or importlib.util.find_spec("dill"):
+    import dill as serialization_library
+else:
+    log.warning("Neither dill and cloudpickle are installed. Please install one with: pip install [name]")
+    import pickle as serialization_library
 
 T = TypeVar("T", bound=Callable)
 
@@ -233,8 +244,7 @@ def create_evaluate_ops(
         version_name=version_name,
         dag=dag,
     )
-
-    metric_fn_encoded = base64.b64encode(cloudpickle.dumps(metric_fn)).decode()
+    metric_fn_encoded = base64.b64encode(serialization_library.dumps(metric_fn)).decode()
     evaluate_summary = BeamRunPythonPipelineOperator(
         task_id=(task_prefix + "-summary"),
         runner=BeamRunnerType.DataflowRunner,
