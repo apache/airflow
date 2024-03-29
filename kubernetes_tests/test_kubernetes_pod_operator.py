@@ -20,7 +20,6 @@ import json
 import logging
 import os
 import shutil
-import sys
 from copy import copy
 from pathlib import Path
 from unittest import mock
@@ -934,12 +933,11 @@ class TestKubernetesPodOperatorSystem:
         hook_mock.return_value.get_xcom_sidecar_container_resources.return_value = None
         hook_mock.return_value.get_connection.return_value = Connection(conn_id="kubernetes_default")
         extract_xcom_mock.return_value = "{}"
-        path = sys.path[0] + "/tests/providers/cncf/kubernetes/pod.yaml"
         k = KubernetesPodOperator(
             task_id=str(uuid4()),
             labels=self.labels,
             random_name_suffix=False,
-            pod_template_file=path,
+            pod_template_file=BASIC_POD.as_posix(),
             do_xcom_push=True,
         )
         pod_mock = MagicMock()
