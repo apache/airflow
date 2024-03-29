@@ -14,27 +14,27 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
 from pathlib import Path
 
 import pytest
 
-DATA_FILES_DIRECTORY = Path(__file__).resolve().parent
-
-
-@pytest.fixture(autouse=True)
-def initialize_providers_manager():
-    from airflow.providers_manager import ProvidersManager
-
-    ProvidersManager().initialize_providers_configuration()
+DATA_FILE_DIRECTORY = Path(__file__).resolve().parent / "data_files"
 
 
 @pytest.fixture
-def pod_template() -> Path:
-    return (DATA_FILES_DIRECTORY / "pod.yaml").resolve(strict=True)
+def data_file():
+    """Helper fixture for obtain data file from data directory."""
+    if not DATA_FILE_DIRECTORY.exists():
+        msg = f"Data Directory {DATA_FILE_DIRECTORY.as_posix()!r} does not exist."
+        raise FileNotFoundError(msg)
+    elif not DATA_FILE_DIRECTORY.is_dir():
+        msg = f"Data Directory {DATA_FILE_DIRECTORY.as_posix()!r} expected to be a directory."
+        raise NotADirectoryError(msg)
 
+    def wrapper(filepath: str | Path) -> Path:
+        return DATA_FILE_DIRECTORY.joinpath(filepath).resolve(strict=True)
 
-@pytest.fixture
-def basic_pod_template() -> Path:
-    return (DATA_FILES_DIRECTORY / "basic_pod.yaml").resolve(strict=True)
+    return wrapper
