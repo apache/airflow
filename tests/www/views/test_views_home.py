@@ -447,7 +447,7 @@ def test_dashboard_flash_messages_type(user_client):
 )
 def test_sorting_home_view(url, lower_key, greater_key, user_client, working_dags):
     resp = user_client.get(url, follow_redirects=True)
-    resp_html = resp.data.decode("utf-8")
+    resp_html = resp.text
     lower_index = resp_html.find(lower_key)
     greater_index = resp_html.find(greater_key)
     assert lower_index < greater_index
