@@ -442,8 +442,8 @@ class TestEmrServerlessStartJobOperator:
             configuration_overrides=configuration_overrides,
         )
         with pytest.raises(AirflowException) as ex_message:
-            id = operator.execute(self.mock_context)
-            assert id == job_run_id
+            operator.execute(self.mock_context)
+
         assert "Serverless Job failed:" in str(ex_message.value)
         default_name = operator.name
 
