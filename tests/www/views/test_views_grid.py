@@ -101,8 +101,8 @@ def dag_with_runs(dag_without_runs):
 
 def test_no_runs(admin_client, dag_without_runs):
     resp = admin_client.get(f"/object/grid_data?dag_id={DAG_ID}", follow_redirects=True)
-    assert resp.status_code == 200, resp.json
-    assert resp.json == {
+    assert resp.status_code == 200, resp.json()
+    assert resp.json() == {
         "dag_runs": [],
         "groups": {
             "children": [
@@ -176,9 +176,9 @@ def test_grid_data_filtered_on_run_type_and_run_state(admin_client, dag_with_run
         ),
     ]:
         resp = admin_client.get(f"/object/grid_data?dag_id={DAG_ID}&{uri_params}", follow_redirects=True)
-        assert resp.status_code == 200, resp.json
-        actual_run_types = list(map(lambda x: x["run_type"], resp.json["dag_runs"]))
-        actual_run_states = list(map(lambda x: x["state"], resp.json["dag_runs"]))
+        assert resp.status_code == 200, resp.json()
+        actual_run_types = list(map(lambda x: x["run_type"], resp.json()["dag_runs"]))
+        actual_run_states = list(map(lambda x: x["state"], resp.json()["dag_runs"]))
         assert actual_run_types == expected_run_types
         assert actual_run_states == expected_run_states
 
@@ -218,9 +218,9 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
 
     resp = admin_client.get(f"/object/grid_data?dag_id={DAG_ID}", follow_redirects=True)
 
-    assert resp.status_code == 200, resp.json
+    assert resp.status_code == 200, resp.json()
 
-    assert resp.json == {
+    assert resp.json() == {
         "dag_runs": [
             {
                 "conf": None,
@@ -443,8 +443,8 @@ def test_has_outlet_dataset_flag(admin_client, dag_maker, session, app, monkeypa
             "trigger_rule": "all_success",
         }
 
-    assert resp.status_code == 200, resp.json
-    assert resp.json == {
+    assert resp.status_code == 200, resp.json()
+    assert resp.json() == {
         "dag_runs": [],
         "groups": {
             "children": [
@@ -499,8 +499,8 @@ def test_next_run_datasets(admin_client, dag_maker, session, app, monkeypatch):
 
         resp = admin_client.get(f"/object/next_run_datasets/{DAG_ID}", follow_redirects=True)
 
-    assert resp.status_code == 200, resp.json
-    assert resp.json == {
+    assert resp.status_code == 200, resp.json()
+    assert resp.json() == {
         "dataset_expression": {"all": ["s3://bucket/key/1", "s3://bucket/key/2"]},
         "events": [
             {"id": ds1_id, "uri": "s3://bucket/key/1", "lastUpdate": "2022-08-02T02:00:00+00:00"},
@@ -511,5 +511,5 @@ def test_next_run_datasets(admin_client, dag_maker, session, app, monkeypatch):
 
 def test_next_run_datasets_404(admin_client):
     resp = admin_client.get("/object/next_run_datasets/missingdag", follow_redirects=True)
-    assert resp.status_code == 404, resp.json
-    assert resp.json == {"error": "can't find dag missingdag"}
+    assert resp.status_code == 404, resp.json()
+    assert resp.json() == {"error": "can't find dag missingdag"}
