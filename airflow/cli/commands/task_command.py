@@ -112,18 +112,17 @@ def _get_dag_run(
        the logical date; otherwise use it as a run ID and set the logical date
        to the current time.
     """
-    session_kwarg = {"session": session} if session else {}
     if not exec_date_or_run_id and not create_if_necessary:
         raise ValueError("Must provide `exec_date_or_run_id` if not `create_if_necessary`.")
     execution_date: pendulum.DateTime | None = None
     if exec_date_or_run_id:
-        dag_run = DAG.fetch_dagrun(dag_id=dag.dag_id, run_id=exec_date_or_run_id, **session_kwarg)
+        dag_run = DAG.fetch_dagrun(dag_id=dag.dag_id, run_id=exec_date_or_run_id)
         if dag_run:
             return dag_run, False
         with suppress(ParserError, TypeError):
             execution_date = timezone.parse(exec_date_or_run_id)
         if execution_date:
-            dag_run = DAG.fetch_dagrun(dag_id=dag.dag_id, execution_date=execution_date, **session_kwarg)
+            dag_run = DAG.fetch_dagrun(dag_id=dag.dag_id, execution_date=execution_date)
         if dag_run:
             return dag_run, False
         elif not create_if_necessary:
@@ -151,7 +150,6 @@ def _get_dag_run(
             execution_date=dag_run_execution_date,
             run_id=_generate_temporary_run_id(),
             data_interval=dag.timetable.infer_manual_data_interval(run_after=dag_run_execution_date),
-            **session_kwarg,
         )
         return dag_run, True
     raise ValueError(f"unknown create_if_necessary value: {create_if_necessary!r}")
@@ -164,14 +162,8 @@ def _get_ti(
     exec_date_or_run_id: str | None = None,
     pool: str | None = None,
     create_if_necessary: CreateIfNecessary = False,
-    session: Session | None = None,
 ) -> tuple[TaskInstance | TaskInstancePydantic, bool]:
     """Get the task instance through DagRun.run_id, if that fails, get the TI the old way."""
-    # this is required by AIP-44; if there's a session here, let's use it
-    # if it's None, don't pass it (because @provide_session does not check
-    # whether the provided session is None or not
-    session_kwarg = {"session": session} if session else {}
-
     dag = task.dag
     if dag is None:
         raise ValueError("Cannot get task instance for a task not assigned to a DAG")
@@ -186,10 +178,9 @@ def _get_ti(
         dag=dag,
         exec_date_or_run_id=exec_date_or_run_id,
         create_if_necessary=create_if_necessary,
-        **session_kwarg,
     )
 
-    ti_or_none = dag_run.get_task_instance(task.task_id, map_index=map_index, **session_kwarg)
+    ti_or_none = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index)
     ti: TaskInstance | TaskInstancePydantic
     if ti_or_none is None:
         if not create_if_necessary:
@@ -522,8 +513,7 @@ def task_list(args, dag: DAG | None = None) -> None:
 
 
 class _SupportedDebugger(Protocol):
-    def post_mortem(self) -> None:
-        ...
+    def post_mortem(self) -> None: ...
 
 
 SUPPORTED_DEBUGGER_MODULES = [
