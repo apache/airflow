@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-DATA_FILE_DIRECTORY = Path(__file__).parent.resolve().absolute() / "data_files"
+DATA_FILE_DIRECTORY = Path(__file__).resolve().parent / "data_files"
 
 
 @pytest.fixture
