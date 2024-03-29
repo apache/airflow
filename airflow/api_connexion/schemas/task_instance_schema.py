@@ -70,8 +70,8 @@ class TaskInstanceSchema(SQLAlchemySchema):
     sla_miss = fields.Nested(SlaMissSchema, dump_default=None, dump_only=True)
     rendered_map_index = auto_field(dump_only=True)
     rendered_fields = JsonObjectField(dump_default={}, dump_only=True)
-    trigger = fields.Nested(TriggerSchema)
-    triggerer_job = fields.Nested(JobSchema)
+    trigger = fields.Nested(TriggerSchema, dump_only=True)
+    triggerer_job = fields.Nested(JobSchema, dump_only=True)
 
     def get_attribute(self, obj, attr, default):
         if attr == "sla_miss":
