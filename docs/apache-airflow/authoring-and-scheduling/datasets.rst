@@ -99,8 +99,8 @@ The identifier does not have to be absolute; it can be a scheme-less, relative U
 
 Non-absolute identifiers are considered plain strings that do not carry any semantic meanings to Airflow.
 
-Extra information
------------------
+Extra information on Dataset
+----------------------------
 
 If needed, an extra dictionary can be included in a Dataset:
 
@@ -111,7 +111,7 @@ If needed, an extra dictionary can be included in a Dataset:
         extra={"team": "trainees"},
     )
 
-This extra information does not affect a dataset's identity. This means a DAG will be triggered by a dataset with an identical URI, even if the extra dict is different:
+This can be used to supply custom description to the dataset, such as who has ownership to the target file, or what the file is for. The extra information does not affect a dataset's identity. This means a DAG will be triggered by a dataset with an identical URI, even if the extra dict is different:
 
 .. code-block:: python
 
@@ -224,6 +224,29 @@ If one dataset is updated multiple times before all consumed datasets have been 
 
     }
 
+Attaching extra information to an emitting Dataset Event
+--------------------------------------------------------
+
+.. versionadded:: 2.10.0
+
+A task with a dataset outlet can optionally attach extra information before it emits a dataset event. This is different
+from `Extra information on Dataset`_. Extra information on a dataset statically describes the entity pointed to by the dataset URI; extra information on the *dataset event* instead should be used to annotate the triggering data change, such as how many rows in the database are changed by the update, or the date range covered by it.
+
+The easiest way to attach extra information to the dataset event is by accessing ``dataset_events`` in a task's execution context:
+
+.. code-block:: python
+
+    example_s3_dataset = Dataset("s3://dataset/example.csv")
+
+
+    @task(outlets=[example_s3_dataset])
+    def write_to_s3(*, dataset_events):
+        df = ...  # Get a Pandas DataFrame to write.
+        # Write df to dataset...
+        dataset_events[example_s3_dataset].extras = {"row_count": len(df)}
+
+This can also be done in classic operators by either subclassing the operator and overriding ``execute``, or by supplying a pre- or post-execution function.
+
 Fetching information from a Triggering Dataset Event
 ----------------------------------------------------
 
@@ -234,7 +257,7 @@ Example:
 
 .. code-block:: python
 
-    example_snowflake_dataset = Dataset("snowflake://my_db.my_schema.my_table")
+    example_snowflake_dataset = Dataset("snowflake://my_db/my_schema/my_table")
 
     with DAG(dag_id="load_snowflake_data", schedule="@hourly", ...):
         SQLExecuteQueryOperator(
@@ -330,8 +353,6 @@ Combining Dataset and Time-Based Schedules
 
 DatasetTimetable Integration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-With the introduction of ``DatasetTimetable``, it is now possible to schedule DAGs based on both dataset events and time-based schedules. This feature offers flexibility for scenarios where a DAG needs to be triggered by data updates as well as run periodically according to a fixed timetable.
+With the introduction of ``DatasetOrTimeSchedule``, it is now possible to schedule DAGs based on both dataset events and time-based schedules. This feature offers flexibility for scenarios where a DAG needs to be triggered by data updates as well as run periodically according to a fixed timetable.
 
-For more detailed information on ``DatasetTimetable`` and its usage, refer to the corresponding section in :ref:`DatasetTimetable <dataset-timetable-section>`.
-
-These examples illustrate how Airflow's conditional dataset expressions can be used to create complex data-dependent scheduling scenarios, providing precise control over when DAGs are triggered in response to data updates.
+For more detailed information on ``DatasetOrTimeSchedule`` and its usage, refer to the corresponding section in :ref:`DatasetOrTimeSchedule <dataset-timetable-section>`.

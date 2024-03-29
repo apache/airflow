@@ -707,10 +707,20 @@ class TestCliDags:
         with pytest.raises(AirflowException):
             dag_command.dag_pause(args)
 
-    def test_unpause_already_unpaused_dag_error(self):
+    def test_unpause_already_unpaused_dag_do_not_error(self):
         args = self.parser.parse_args(["dags", "unpause", "example_bash_operator", "--yes"])
-        with pytest.raises(AirflowException, match="No paused DAGs were found"):
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             dag_command.dag_unpause(args)
+            out = temp_stdout.getvalue().strip().splitlines()[-1]
+        assert out == "No paused DAGs were found"
+
+    def test_pausing_already_paused_dag_do_not_error(self):
+        args = self.parser.parse_args(["dags", "pause", "example_bash_operator", "--yes"])
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            dag_command.dag_pause(args)
+            dag_command.dag_pause(args)
+            out = temp_stdout.getvalue().strip().splitlines()[-1]
+        assert out == "No unpaused DAGs were found"
 
     def test_trigger_dag(self):
         dag_command.dag_trigger(

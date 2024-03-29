@@ -126,6 +126,12 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     def set_state(self, state, session: Session | None = None) -> bool:
         return TaskInstance._set_state(ti=self, state=state, session=session)
 
+    def _run_execute_callback(self, context, task):
+        TaskInstance._run_execute_callback(self=self, context=context, task=task)  # type: ignore[arg-type]
+
+    def render_templates(self, context: Context | None = None, jinja_env=None):
+        return TaskInstance.render_templates(self=self, context=context, jinja_env=jinja_env)  # type: ignore[arg-type]
+
     def init_run_context(self, raw: bool = False) -> None:
         """Set the log context."""
         self.raw = raw

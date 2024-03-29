@@ -104,7 +104,13 @@ from airflow.templates import SandboxedEnvironment
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.utils import timezone
-from airflow.utils.context import ConnectionAccessor, Context, VariableAccessor, context_merge
+from airflow.utils.context import (
+    ConnectionAccessor,
+    Context,
+    DatasetEventAccessors,
+    VariableAccessor,
+    context_merge,
+)
 from airflow.utils.email import send_email
 from airflow.utils.helpers import prune_dict, render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -491,7 +497,10 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
 
 
 def _refresh_from_db(
-    *, task_instance: TaskInstance | TaskInstancePydantic, session: Session, lock_for_update: bool = False
+    *,
+    task_instance: TaskInstance | TaskInstancePydantic,
+    session: Session | None = None,
+    lock_for_update: bool = False,
 ) -> None:
     """
     Refresh the task instance from the database based on the primary key.
@@ -504,7 +513,7 @@ def _refresh_from_db(
 
     :meta private:
     """
-    if task_instance in session:
+    if session and task_instance in session:
         session.refresh(task_instance, TaskInstance.__mapper__.column_attrs.keys())
 
     ti = TaskInstance.get_task_instance(
@@ -753,15 +762,17 @@ def _get_template_context(
     except NotMapped:
         expanded_ti_count = None
 
-    # NOTE: If you add anything to this dict, make sure to also update the
-    # definition in airflow/utils/context.pyi, and KNOWN_CONTEXT_KEYS in
-    # airflow/utils/context.py!
-    context = {
+    # NOTE: If you add to this dict, make sure to also update the following:
+    # * Context in airflow/utils/context.pyi
+    # * KNOWN_CONTEXT_KEYS in airflow/utils/context.py
+    # * Table in docs/apache-airflow/templates-ref.rst
+    context: dict[str, Any] = {
         "conf": conf,
         "dag": dag,
         "dag_run": dag_run,
         "data_interval_end": timezone.coerce_datetime(data_interval.end),
         "data_interval_start": timezone.coerce_datetime(data_interval.start),
+        "dataset_events": DatasetEventAccessors(),
         "ds": ds,
         "ds_nodash": ds_nodash,
         "execution_date": logical_date,
@@ -2224,10 +2235,15 @@ class TaskInstance(Base, LoggingMixin):
 
         if isinstance(task_instance, TaskInstance):
             ti: TaskInstance = task_instance
-        else:  # isinstance(task_instance,TaskInstancePydantic)
+        else:  # isinstance(task_instance, TaskInstancePydantic)
             filters = (col == getattr(task_instance, col.name) for col in inspect(TaskInstance).primary_key)
             ti = session.query(TaskInstance).filter(*filters).scalar()
+            dag = ti.dag_model.serialized_dag.dag
+            task_instance.task = dag.task_dict[ti.task_id]
+            ti.task = task_instance.task
         task = task_instance.task
+        if TYPE_CHECKING:
+            assert task
         ti.refresh_from_task(task, pool_override=pool)
         ti.test_mode = test_mode
         ti.refresh_from_db(session=session, lock_for_update=True)
@@ -2560,7 +2576,7 @@ class TaskInstance(Base, LoggingMixin):
                 session.add(Log(self.state, self))
                 session.merge(self).task = self.task
                 if self.state == TaskInstanceState.SUCCESS:
-                    self._register_dataset_changes(session=session)
+                    self._register_dataset_changes(events=context["dataset_events"], session=session)
 
                 session.commit()
                 if self.state == TaskInstanceState.SUCCESS:
@@ -2570,7 +2586,7 @@ class TaskInstance(Base, LoggingMixin):
 
             return None
 
-    def _register_dataset_changes(self, *, session: Session) -> None:
+    def _register_dataset_changes(self, *, events: DatasetEventAccessors, session: Session) -> None:
         if TYPE_CHECKING:
             assert self.task
 
@@ -2581,6 +2597,7 @@ class TaskInstance(Base, LoggingMixin):
                 dataset_manager.register_dataset_change(
                     task_instance=self,
                     dataset=obj,
+                    extra=events[obj].extra,
                     session=session,
                 )
 

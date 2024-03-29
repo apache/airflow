@@ -16,7 +16,7 @@
 # under the License.
 #
 ---
-name: Documentation
+name: Static checks, mypy, docs
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
@@ -29,27 +29,152 @@ on:  # yamllint disable-line rule:truthy
         description: "Tag to set for the image"
         required: true
         type: string
-      default-branch:
-        description: "Default branch of the repository"
+      needs-mypy:
+        description: "Whether to run mypy checks (true/false)"
         required: true
         type: string
-      docs-list-as-string:
-        description: "Stringified list of docs to build (space separated)"
+      mypy-folders:
+        description: "List of folders to run mypy checks on"
+        required: false
+        type: string
+      python-versions-list-as-string:
+        description: "The list of python versions as string separated by spaces"
         required: true
         type: string
-      default-python-version:
-        description: Which version of python should be used get CI image
-        required: true
-        type: string
-      include-success-outputs:
-        description: "Whether to include success outputs"
+      branch:
+        description: "Branch used to run the CI jobs in (main/v2_*_test)."
         required: true
         type: string
       canary-run:
         description: "Whether this is a canary run (true/false)"
         required: true
         type: string
+      default-python-version:
+        description: "Which version of python should be used by default"
+        required: true
+        type: string
+      docs-list-as-string:
+        description: "Stringified list of docs to build (space separated)"
+        required: true
+        type: string
+      upgrade-to-newer-dependencies:
+        description: "Whether to upgrade to newer dependencies (true/false)"
+        required: true
+        type: string
+      chicken-egg-providers:
+        description: "List of providers that should be prepared from sources"
+        required: false
+        type: string
+      basic-checks-only:
+        description: "Whether to run only basic checks (true/false)"
+        required: true
+        type: string
+      latest-versions-only:
+        description: "Whether to run only latest versions (true/false)"
+        required: true
+        type: string
+      ci-image-build:
+        description: "Whether to build CI images (true/false)"
+        required: true
+        type: string
+      skip-pre-commits:
+        description: "Whether to skip pre-commits (true/false)"
+        required: true
+        type: string
+      include-success-outputs:
+        description: "Whether to include success outputs"
+        required: true
+        type: string
+      debug-resources:
+        description: "Whether to debug resources (true/false)"
+        required: true
+        type: string
 jobs:
+  static-checks:
+    timeout-minutes: 45
+    name: "Static checks"
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    env:
+      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
+      UPGRADE_TO_NEWER_DEPENDENCIES: "${{ inputs.upgrade-to-newer-dependencies }}"
+      IMAGE_TAG: ${{ inputs.image-tag }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    if: inputs.basic-checks-only == 'false' && inputs.latest-versions-only != 'true'
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: "Setup python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.default-python-version }}
+          cache: 'pip'
+          cache-dependency-path: ./dev/breeze/pyproject.toml
+      - name: Cleanup docker
+        uses: ./.github/actions/cleanup-docker
+      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version}}:${{ inputs.image-tag }}"
+        uses: ./.github/actions/prepare_breeze_and_image
+        id: breeze
+      - name: Cache pre-commit envs
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          # yamllint disable-line rule:line-length
+          key: "pre-commit-${{steps.breeze.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
+          restore-keys: |
+            pre-commit-${{steps.breeze.outputs.host-python-version}}-
+      - name: "Static checks"
+        run: breeze static-checks --all-files --show-diff-on-failure --color always --initialize-environment
+        env:
+          VERBOSE: "false"
+          SKIP: ${{ inputs.skip-pre-commits }}
+          COLUMNS: "250"
+          SKIP_GROUP_OUTPUT: "true"
+          DEFAULT_BRANCH: ${{ inputs.branch }}
+          RUFF_FORMAT: "github"
+
+  mypy:
+    timeout-minutes: 45
+    name: "MyPy checks"
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    if: inputs.needs-mypy == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        mypy-folder: ${{ fromJson(inputs.mypy-folders) }}
+    env:
+      PYTHON_MAJOR_MINOR_VERSION: "${{inputs.default-python-version}}"
+      IMAGE_TAG: "${{ inputs.image-tag }}"
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Cleanup docker
+        uses: ./.github/actions/cleanup-docker
+      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}"
+        uses: ./.github/actions/prepare_breeze_and_image
+        id: breeze
+      - name: "MyPy checks for ${{ matrix.mypy-folder }}"
+        run: |
+          pip install pre-commit
+          pre-commit run --color always --verbose --hook-stage manual mypy-${{matrix.mypy-folder}} --all-files
+        env:
+          VERBOSE: "false"
+          COLUMNS: "250"
+          SKIP_GROUP_OUTPUT: "true"
+          DEFAULT_BRANCH: ${{ inputs.branch }}
+          RUFF_FORMAT: "github"
+          INCLUDE_MYPY_VOLUME: "false"
+
   build-docs:
     timeout-minutes: 60
     name: "Build documentation"
@@ -116,7 +241,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@010d0da01d0b5a38af31e9c3470dbfdabdecca3a  # v4.0.1
         if: >
           inputs.canary-run == 'true' &&
-          inputs.default-branch == 'main' &&
+          inputs.branch == 'main' &&
           matrix.flag == '--docs-only'
         with:
           aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
@@ -125,6 +250,6 @@ jobs:
       - name: "Upload documentation to AWS S3"
         if: >
           inputs.canary-run == 'true' &&
-          inputs.default-branch == 'main' &&
+          inputs.branch == 'main' &&
           matrix.flag == '--docs-only'
         run: aws s3 sync --delete ./files/documentation s3://apache-airflow-docs
