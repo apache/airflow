@@ -19,7 +19,7 @@
 Timetables
 ==========
 
-For DAGs with time-based schedules (as opposed to event-driven), the DAGs internal "timetable"
+For a DAG with a time-based schedule (as opposed to event-driven), the DAG's internal "timetable"
 drives scheduling.  The timetable also determines the data interval and the logical date of
 each run created for the DAG.
 
