@@ -64,7 +64,6 @@ jobs:
       contents: read
       packages: read
     secrets: inherit
-    if: inputs.canary-run == 'true' || inputs.upgrade-to-newer-dependencies == 'true'
     with:
       runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       downgrade-sqlalchemy: "true"
@@ -87,7 +86,6 @@ jobs:
       contents: read
       packages: read
     secrets: inherit
-    if: inputs.canary-run == 'true' || inputs.upgrade-to-newer-dependencies == 'true'
     with:
       runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       upgrade-boto: "true"
@@ -110,7 +108,6 @@ jobs:
       contents: read
       packages: read
     secrets: inherit
-    if: inputs.canary-run == 'true' || inputs.upgrade-to-newer-dependencies == 'true'
     with:
       runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       pydantic: "v1"
@@ -133,7 +130,6 @@ jobs:
       contents: read
       packages: read
     secrets: inherit
-    if: inputs.canary-run == 'true' || inputs.upgrade-to-newer-dependencies == 'true'
     with:
       runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       pydantic: "none"
@@ -156,7 +152,6 @@ jobs:
       contents: read
       packages: read
     secrets: inherit
-    if: inputs.canary-run == 'true' || inputs.upgrade-to-newer-dependencies == 'true'
     with:
       runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       downgrade-pendulum: "true"
@@ -179,7 +174,6 @@ jobs:
       contents: read
       packages: read
     secrets: inherit
-    if: inputs.canary-run == 'true' || inputs.upgrade-to-newer-dependencies == 'true'
     with:
       runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       enable-aip-44: "false"
@@ -202,7 +196,6 @@ jobs:
       contents: read
       packages: read
     secrets: inherit
-    if: inputs.canary-run == 'true' || inputs.upgrade-to-newer-dependencies == 'true'
     with:
       runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       test-name: "Postgres"
@@ -224,7 +217,6 @@ jobs:
       contents: read
       packages: read
     secrets: inherit
-    if: inputs.canary-run == 'true' || inputs.upgrade-to-newer-dependencies == 'true'
     with:
       runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       test-name: "Postgres"

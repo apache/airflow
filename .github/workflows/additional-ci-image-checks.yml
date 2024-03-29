@@ -112,7 +112,7 @@ jobs:
       use-uv: "true"
       include-success-outputs: ${{ inputs.include-success-outputs }}
       docker-cache: ${{ inputs.docker-cache }}
-    if: inputs.canary-run == 'true' && inputs.branch == 'main'
+    if: inputs.branch == 'main'
 
   # Check that after earlier cache push, breeze command will build quickly
   check-that-image-builds-quickly:
@@ -127,7 +127,7 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
       VERBOSE: "true"
-    if: inputs.canary-run == 'true' && inputs.branch == 'main'
+    if: inputs.branch == 'main'
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -168,4 +168,3 @@ jobs:
       use-uv: "true"
       upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
       docker-cache: ${{ inputs.docker-cache }}
-    if: inputs.canary-run == 'true'
