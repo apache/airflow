@@ -236,6 +236,7 @@ jobs:
     name: "Additional CI image checks"
     needs: [build-info, wait-for-ci-images]
     uses: ./.github/workflows/additional-ci-image-checks.yml
+    if: needs.build-info.outputs.canary-run == 'true'
     with:
       runs-on: ${{ needs.build-info.outputs.runs-on }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
@@ -436,6 +437,11 @@ jobs:
       contents: read
       packages: read
     secrets: inherit
+    if: >
+      needs.build-info.outputs.run-tests == 'true' &&
+      (needs.build-info.outputs.canary-run == 'true' ||
+       needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' ||
+       needs.build-info.outputs.full-tests-needed == 'true')
     with:
       runs-on: ${{ needs.build-info.outputs.runs-on }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
@@ -446,7 +452,6 @@ jobs:
       canary-run: ${{ needs.build-info.outputs.canary-run }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-    if: needs.build-info.outputs.run-tests == 'true'
 
   tests-integration:
     name: Integration Tests
@@ -596,8 +601,8 @@ jobs:
       - tests-mysql
       - tests-postgres
       - tests-non-db
-      - tests-special
       - tests-integration
+      - tests-special
     uses: ./.github/workflows/finalize-tests.yml
     with:
       runs-on: ${{ needs.build-info.outputs.runs-on }}
