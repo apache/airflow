@@ -14,18 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-[tool.pytest.ini_options]
-addopts = "-rasl --verbosity=2 -p no:flaky -p no:nose -p no:legacypath"
-norecursedirs = [
-    ".eggs",
-]
-log_level = "INFO"
-filterwarnings = [
-    "error::pytest.PytestCollectionWarning",
-]
-python_files = [
-    "*.py",
-]
-# Keep temporary directories (created by `tmp_path`) for 2 recent runs only failed tests.
-tmp_path_retention_count = "2"
-tmp_path_retention_policy = "failed"
+from __future__ import annotations
+
+from airflow.providers.amazon.aws.hooks.bedrock import BedrockRuntimeHook
+
+
+class TestBedrockRuntimeHook:
+    def test_conn_returns_a_boto3_connection(self):
+        hook = BedrockRuntimeHook()
+
+        assert hook.conn is not None
+        assert hook.conn.meta.service_model.service_name == "bedrock-runtime"

@@ -56,6 +56,7 @@ from sqlalchemy import create_engine
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.cloud.utils.bigquery import bq_cast
+from airflow.providers.google.cloud.utils.credentials_provider import _get_scopes
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook, get_field
 
@@ -92,6 +93,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         Google BigQuery jobs.
     :param impersonation_chain: This is the optional service account to
         impersonate using short term credentials.
+    :param impersonation_scopes: Optional list of scopes for impersonated account.
+        Will override scopes from connection.
     :param labels: The BigQuery resource label.
     """
 
@@ -108,6 +111,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         priority: str = "INTERACTIVE",
         api_resource_configs: dict | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        impersonation_scopes: str | Sequence[str] | None = None,
         labels: dict | None = None,
         **kwargs,
     ) -> None:
@@ -127,6 +131,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         self.api_resource_configs: dict = api_resource_configs or {}
         self.labels = labels
         self.credentials_path = "bigquery_hook_credentials.json"
+        self.impersonation_scopes = impersonation_scopes
 
     def get_conn(self) -> BigQueryConnection:
         """Get a BigQuery PEP 249 connection object."""
@@ -2334,6 +2339,20 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             project_id = default_project_id
 
         return project_id, dataset_id, table_id
+
+    @property
+    def scopes(self) -> Sequence[str]:
+        """
+        Return OAuth 2.0 scopes.
+
+        :return: Returns the scope defined in impersonation_scopes, the connection configuration, or the default scope
+        """
+        scope_value: str | None
+        if self.impersonation_chain and self.impersonation_scopes:
+            scope_value = ",".join(self.impersonation_scopes)
+        else:
+            scope_value = self._get_field("scope", None)
+        return _get_scopes(scope_value)
 
 
 class BigQueryConnection:
