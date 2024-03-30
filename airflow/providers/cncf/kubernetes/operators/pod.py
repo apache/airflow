@@ -62,8 +62,8 @@ from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode, Kubernete
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     POD_NAME_MAX_LENGTH,
-    create_unique_id,
     add_unique_suffix,
+    create_unique_id,
 )
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
