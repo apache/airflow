@@ -1890,10 +1890,11 @@ class TaskInstance(Base, LoggingMixin):
         current_time = timezone.utcnow()
         ti.log.debug("Setting task state for %s to %s", ti, state)
         ti.state = state
-        ti.start_date = ti.start_date or current_time
-        if ti.state in State.finished or ti.state == TaskInstanceState.UP_FOR_RETRY:
-            ti.end_date = ti.end_date or current_time
-            ti.duration = (ti.end_date - ti.start_date).total_seconds()
+        if ti.state not in (TaskInstanceState.SCHEDULED, TaskInstanceState.QUEUED):
+            ti.start_date = ti.start_date or current_time
+            if ti.state in State.finished or ti.state == TaskInstanceState.UP_FOR_RETRY:
+                ti.end_date = ti.end_date or current_time
+                ti.duration = (ti.end_date - ti.start_date).total_seconds()
         session.merge(ti)
         return True
 
