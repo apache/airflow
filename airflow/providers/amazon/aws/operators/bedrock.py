@@ -21,13 +21,11 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockRuntimeHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-
-DEFAULT_CONN_ID = "aws_default"
 
 
 class BedrockInvokeModelOperator(AwsBaseOperator[BedrockRuntimeHook]):
@@ -54,10 +52,16 @@ class BedrockInvokeModelOperator(AwsBaseOperator[BedrockRuntimeHook]):
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
     aws_hook_class = BedrockRuntimeHook
-    template_fields: Sequence[str] = ("model_id", "input_data", "content_type", "accept_type")
+    template_fields: Sequence[str] = aws_template_fields(
+        "model_id", "input_data", "content_type", "accept_type"
+    )
 
     def __init__(
         self,
@@ -67,11 +71,11 @@ class BedrockInvokeModelOperator(AwsBaseOperator[BedrockRuntimeHook]):
         accept_type: str | None = None,
         **kwargs,
     ):
+        super().__init__(**kwargs)
         self.model_id = model_id
         self.input_data = input_data
         self.content_type = content_type
         self.accept_type = accept_type
-        super().__init__(**kwargs)
 
     def execute(self, context: Context) -> dict[str, str | int]:
         # These are optional values which the API defaults to "application/json" if not provided here.
