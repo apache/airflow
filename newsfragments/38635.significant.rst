@@ -1,0 +1,7 @@
+Support for AutoML operators and hooks has been limited only to AutoML Translation.
+
+As of March 31, 2024, GCP has shut down most of the AutoML domains (AutoML Tables, AutoML Video Intelligence,
+AutoML Vision, and AutoML Natural Language) in favor of equivalent domains of Vertex AI AutoML, and retained only AutoML
+Translation. For that reason, AutoML operators and hooks that utilize obsolete APIs have been deprecated and will
+raise ``AirflowException`` upon initialization. Using ``AutoMLTrainModelOperator`` for AutoML domains
+other than translation will raise an exception as well.

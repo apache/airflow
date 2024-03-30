@@ -24,6 +24,7 @@ import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.automl_v1beta1 import BatchPredictResult, Dataset, Model, PredictResponse
 
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.operators.automl import (
     AutoMLBatchPredictOperator,
@@ -39,6 +40,7 @@ from airflow.providers.google.cloud.operators.automl import (
     AutoMLTablesListTableSpecsOperator,
     AutoMLTablesUpdateDatasetOperator,
     AutoMLTrainModelOperator,
+    AutoMLUpdateDatasetOperator,
 )
 from airflow.utils import timezone
 
@@ -52,7 +54,7 @@ DATASET_ID = "TBL123456789"
 MODEL = {
     "display_name": MODEL_NAME,
     "dataset_id": DATASET_ID,
-    "tables_model_metadata": {"train_budget_milli_node_hours": 1000},
+    "translation_model_metadata": {"base_model": "some_base_model"},
 }
 
 LOCATION_PATH = f"projects/{GCP_PROJECT_ID}/locations/{GCP_LOCATION}"
@@ -71,8 +73,6 @@ extract_object_id = CloudAutoMLHook.extract_object_id
 class TestAutoMLTrainModelOperator:
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
     def test_execute(self, mock_hook):
-        mock_hook.return_value.create_model.return_value.result.return_value = Model(name=MODEL_PATH)
-        mock_hook.return_value.extract_object_id = extract_object_id
         mock_hook.return_value.wait_for_operation.return_value = Model()
         op = AutoMLTrainModelOperator(
             model=MODEL,
@@ -89,6 +89,18 @@ class TestAutoMLTrainModelOperator:
             timeout=None,
             metadata=(),
         )
+
+    def test_execute_deprecated_model_types(self):
+        invalid_model = MODEL.copy()
+        invalid_model.pop("translation_model_metadata")
+        op = AutoMLTrainModelOperator(
+            model=invalid_model,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT_ID,
+            task_id=TASK_ID,
+        )
+        with pytest.raises(AirflowException):
+            op.execute(context=mock.MagicMock())
 
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator):
@@ -258,62 +270,18 @@ class TestAutoMLCreateImportOperator:
 
 
 class TestAutoMLListColumnsSpecsOperator:
-    @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
-    def test_execute(self, mock_hook):
-        table_spec = "table_spec_id"
-        filter_ = "filter"
-        page_size = 42
-
-        op = AutoMLTablesListColumnSpecsOperator(
-            dataset_id=DATASET_ID,
-            table_spec_id=table_spec,
-            location=GCP_LOCATION,
-            project_id=GCP_PROJECT_ID,
-            field_mask=MASK,
-            filter_=filter_,
-            page_size=page_size,
-            task_id=TASK_ID,
-        )
-        op.execute(context=mock.MagicMock())
-        mock_hook.return_value.list_column_specs.assert_called_once_with(
-            dataset_id=DATASET_ID,
-            field_mask=MASK,
-            filter_=filter_,
-            location=GCP_LOCATION,
-            metadata=(),
-            page_size=page_size,
-            project_id=GCP_PROJECT_ID,
-            retry=DEFAULT,
-            table_spec_id=table_spec,
-            timeout=None,
-        )
-
-    @pytest.mark.db_test
-    def test_templating(self, create_task_instance_of_operator):
-        ti = create_task_instance_of_operator(
-            AutoMLTablesListColumnSpecsOperator,
-            # Templated fields
-            dataset_id="{{ 'dataset-id' }}",
-            table_spec_id="{{ 'table-spec-id' }}",
-            field_mask="{{ 'field-mask' }}",
-            filter_="{{ 'filter-' }}",
-            location="{{ 'location' }}",
-            project_id="{{ 'project-id' }}",
-            impersonation_chain="{{ 'impersonation-chain' }}",
-            # Other parameters
-            dag_id="test_template_body_templating_dag",
-            task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
-        )
-        ti.render_templates()
-        task: AutoMLTablesListColumnSpecsOperator = ti.task
-        assert task.dataset_id == "dataset-id"
-        assert task.table_spec_id == "table-spec-id"
-        assert task.field_mask == "field-mask"
-        assert task.filter_ == "filter-"
-        assert task.location == "location"
-        assert task.project_id == "project-id"
-        assert task.impersonation_chain == "impersonation-chain"
+    def test_deprecation(self):
+        with pytest.raises(AirflowException):
+            AutoMLTablesListColumnSpecsOperator(
+                dataset_id=DATASET_ID,
+                table_spec_id="table_spec",
+                location=GCP_LOCATION,
+                project_id=GCP_PROJECT_ID,
+                field_mask=MASK,
+                filter_="filter_",
+                page_size=10,
+                task_id=TASK_ID,
+            )
 
 
 class TestAutoMLUpdateDatasetOperator:
@@ -324,7 +292,7 @@ class TestAutoMLUpdateDatasetOperator:
         dataset = copy.deepcopy(DATASET)
         dataset["name"] = DATASET_ID
 
-        op = AutoMLTablesUpdateDatasetOperator(
+        op = AutoMLUpdateDatasetOperator(
             dataset=dataset,
             update_mask=MASK,
             location=GCP_LOCATION,
@@ -342,7 +310,7 @@ class TestAutoMLUpdateDatasetOperator:
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator):
         ti = create_task_instance_of_operator(
-            AutoMLTablesUpdateDatasetOperator,
+            AutoMLUpdateDatasetOperator,
             # Templated fields
             dataset="{{ 'dataset' }}",
             update_mask="{{ 'update-mask' }}",
@@ -354,7 +322,61 @@ class TestAutoMLUpdateDatasetOperator:
             execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
         ti.render_templates()
-        task: AutoMLTablesUpdateDatasetOperator = ti.task
+        task: AutoMLUpdateDatasetOperator = ti.task
+        assert task.dataset == "dataset"
+        assert task.update_mask == "update-mask"
+        assert task.location == "location"
+        assert task.impersonation_chain == "impersonation-chain"
+
+
+class TestAutoMLTablesUpdateDatasetOperator:
+    def test_deprecation(self):
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            AutoMLTablesUpdateDatasetOperator(
+                dataset={},
+                update_mask=MASK,
+                location=GCP_LOCATION,
+                task_id=TASK_ID,
+            )
+
+    @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
+    def test_execute(self, mock_hook):
+        mock_hook.return_value.update_dataset.return_value = Dataset(name=DATASET_PATH)
+
+        dataset = copy.deepcopy(DATASET)
+        dataset["name"] = DATASET_ID
+
+        op = AutoMLUpdateDatasetOperator(
+            dataset=dataset,
+            update_mask=MASK,
+            location=GCP_LOCATION,
+            task_id=TASK_ID,
+        )
+        op.execute(context=mock.MagicMock())
+        mock_hook.return_value.update_dataset.assert_called_once_with(
+            dataset=dataset,
+            metadata=(),
+            retry=DEFAULT,
+            timeout=None,
+            update_mask=MASK,
+        )
+
+    @pytest.mark.db_test
+    def test_templating(self, create_task_instance_of_operator):
+        ti = create_task_instance_of_operator(
+            AutoMLUpdateDatasetOperator,
+            # Templated fields
+            dataset="{{ 'dataset' }}",
+            update_mask="{{ 'update-mask' }}",
+            location="{{ 'location' }}",
+            impersonation_chain="{{ 'impersonation-chain' }}",
+            # Other parameters
+            dag_id="test_template_body_templating_dag",
+            task_id="test_template_body_templating_task",
+            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+        )
+        ti.render_templates()
+        task: AutoMLUpdateDatasetOperator = ti.task
         assert task.dataset == "dataset"
         assert task.update_mask == "update-mask"
         assert task.location == "location"
@@ -447,47 +469,15 @@ class TestAutoMLDeleteModelOperator:
 
 
 class TestAutoMLDeployModelOperator:
-    @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
-    def test_execute(self, mock_hook):
-        image_detection_metadata = {}
-        op = AutoMLDeployModelOperator(
-            model_id=MODEL_ID,
-            image_detection_metadata=image_detection_metadata,
-            location=GCP_LOCATION,
-            project_id=GCP_PROJECT_ID,
-            task_id=TASK_ID,
-        )
-        op.execute(context=None)
-        mock_hook.return_value.deploy_model.assert_called_once_with(
-            image_detection_metadata={},
-            location=GCP_LOCATION,
-            metadata=(),
-            model_id=MODEL_ID,
-            project_id=GCP_PROJECT_ID,
-            retry=DEFAULT,
-            timeout=None,
-        )
-
-    @pytest.mark.db_test
-    def test_templating(self, create_task_instance_of_operator):
-        ti = create_task_instance_of_operator(
-            AutoMLDeployModelOperator,
-            # Templated fields
-            model_id="{{ 'model-id' }}",
-            location="{{ 'location' }}",
-            project_id="{{ 'project-id' }}",
-            impersonation_chain="{{ 'impersonation-chain' }}",
-            # Other parameters
-            dag_id="test_template_body_templating_dag",
-            task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
-        )
-        ti.render_templates()
-        task: AutoMLDeployModelOperator = ti.task
-        assert task.model_id == "model-id"
-        assert task.location == "location"
-        assert task.project_id == "project-id"
-        assert task.impersonation_chain == "impersonation-chain"
+    def test_deprecation(self):
+        with pytest.raises(AirflowException):
+            AutoMLDeployModelOperator(
+                model_id=MODEL_ID,
+                image_detection_metadata={},
+                location=GCP_LOCATION,
+                project_id=GCP_PROJECT_ID,
+                task_id=TASK_ID,
+            )
 
 
 class TestAutoMLDatasetImportOperator:
@@ -536,53 +526,16 @@ class TestAutoMLDatasetImportOperator:
 
 
 class TestAutoMLTablesListTableSpecsOperator:
-    @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
-    def test_execute(self, mock_hook):
-        filter_ = "filter"
-        page_size = 42
-
-        op = AutoMLTablesListTableSpecsOperator(
-            dataset_id=DATASET_ID,
-            location=GCP_LOCATION,
-            project_id=GCP_PROJECT_ID,
-            filter_=filter_,
-            page_size=page_size,
-            task_id=TASK_ID,
-        )
-        op.execute(context=mock.MagicMock())
-        mock_hook.return_value.list_table_specs.assert_called_once_with(
-            dataset_id=DATASET_ID,
-            filter_=filter_,
-            location=GCP_LOCATION,
-            metadata=(),
-            page_size=page_size,
-            project_id=GCP_PROJECT_ID,
-            retry=DEFAULT,
-            timeout=None,
-        )
-
-    @pytest.mark.db_test
-    def test_templating(self, create_task_instance_of_operator):
-        ti = create_task_instance_of_operator(
-            AutoMLTablesListTableSpecsOperator,
-            # Templated fields
-            dataset_id="{{ 'dataset-id' }}",
-            filter_="{{ 'filter-' }}",
-            location="{{ 'location' }}",
-            project_id="{{ 'project-id' }}",
-            impersonation_chain="{{ 'impersonation-chain' }}",
-            # Other parameters
-            dag_id="test_template_body_templating_dag",
-            task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
-        )
-        ti.render_templates()
-        task: AutoMLTablesListTableSpecsOperator = ti.task
-        assert task.dataset_id == "dataset-id"
-        assert task.filter_ == "filter-"
-        assert task.location == "location"
-        assert task.project_id == "project-id"
-        assert task.impersonation_chain == "impersonation-chain"
+    def test_deprecation(self):
+        with pytest.raises(AirflowException):
+            AutoMLTablesListTableSpecsOperator(
+                dataset_id=DATASET_ID,
+                location=GCP_LOCATION,
+                project_id=GCP_PROJECT_ID,
+                filter_="filter",
+                page_size=10,
+                task_id=TASK_ID,
+            )
 
 
 class TestAutoMLDatasetListOperator:

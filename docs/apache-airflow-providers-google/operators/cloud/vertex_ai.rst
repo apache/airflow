@@ -15,10 +15,10 @@
     specific language governing permissions and limitations
     under the License.
 
-Google Cloud VertexAI Operators
+Google Cloud Vertex AI Operators
 =======================================
 
-The `Google Cloud VertexAI <https://cloud.google.com/vertex-ai/docs>`__
+The `Google Cloud Vertex AI <https://cloud.google.com/vertex-ai/docs>`__
 brings AutoML and AI Platform together into a unified API, client library, and user
 interface. AutoML lets you train models on image, tabular, text, and video datasets
 without writing code, while training in AI Platform lets you run custom training code.
@@ -29,7 +29,7 @@ request predictions with Vertex AI.
 Creating Datasets
 ^^^^^^^^^^^^^^^^^
 
-To create a Google VertexAI dataset you can use
+To create a Google Vertex AI dataset you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.dataset.CreateDatasetOperator`.
 The operator returns dataset id in :ref:`XCom <concepts:xcom>` under ``dataset_id`` key.
 
@@ -177,13 +177,45 @@ If you wish to delete a Custom Training Job you can use
 
 Creating an AutoML Training Jobs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Before running a Vertex AI Operator for AutoML training jobs, please ensure that your data is correctly stored in Vertex AI
+datasets. To create and import data to the dataset please use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.dataset.CreateDatasetOperator`
+and
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.dataset.ImportDataOperator`.
 
-To create a Google Vertex AI Auto ML training jobs you have five operators
+To create a Google Vertex AI Auto ML training jobs you have the following operators
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLForecastingTrainingJobOperator`
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLImageTrainingJobOperator`
+
+You can find example on how to use ``CreateAutoMLImageTrainingJobOperator`` for AutoML image classification here:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/automl/example_automl_vision_classification.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_cloud_create_image_classification_training_job_operator]
+    :end-before: [END howto_cloud_create_image_classification_training_job_operator]
+
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTabularTrainingJobOperator`
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTextTrainingJobOperator`
+
+You can find example on how to use ``CreateAutoMLTextTrainingJobOperator`` for AutoML text classification here:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/automl/example_automl_nl_text_classification.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_cloud_create_text_classification_training_job_operator]
+    :end-before: [END howto_cloud_create_text_classification_training_job_operator]
+
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLVideoTrainingJobOperator`
+
+You can find an example on how to use ``CreateAutoMLVideoTrainingJobOperator`` for Auto ML Video Intelligence classification here:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/automl/example_automl_video_classification.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_cloud_create_video_classification_training_job_operator]
+    :end-before: [END howto_cloud_create_video_classification_training_job_operator]
+
 Each of them will wait for the operation to complete. The results of each operator will be a model
 which was trained by user using these operators.
 
@@ -278,7 +310,7 @@ If you wish to delete a Auto ML Training Job you can use
 Creating a Batch Prediction Jobs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To create a Google VertexAI Batch Prediction Job you can use
+To create a Google Vertex AI Batch Prediction Job you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.CreateBatchPredictionJobOperator`.
 The operator returns batch prediction job id in :ref:`XCom <concepts:xcom>` under ``batch_prediction_job_id`` key.
 
@@ -319,7 +351,7 @@ To get a batch prediction job list you can use
 Creating an Endpoint Service
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To create a Google VertexAI endpoint you can use
+To create a Google Vertex AI endpoint you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.CreateEndpointOperator`.
 The operator returns endpoint id in :ref:`XCom <concepts:xcom>` under ``endpoint_id`` key.
 
@@ -368,7 +400,7 @@ To get an endpoint list you can use
 Creating a Hyperparameter Tuning Jobs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To create a Google VertexAI hyperparameter tuning job you can use
+To create a Google Vertex AI hyperparameter tuning job you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_job.CreateHyperparameterTuningJobOperator`.
 The operator returns hyperparameter tuning job id in :ref:`XCom <concepts:xcom>` under ``hyperparameter_tuning_job_id`` key.
 
@@ -417,7 +449,7 @@ To get a hyperparameter tuning job list you can use
 Creating a Model Service
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-To upload a Google VertexAI model you can use
+To upload a Google Vertex AI model you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.UploadModelOperator`.
 The operator returns model id in :ref:`XCom <concepts:xcom>` under ``model_id`` key.
 
@@ -511,7 +543,7 @@ To delete specific version of model you can use
 Running a Pipeline Jobs
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-To run a Google VertexAI Pipeline Job you can use
+To run a Google Vertex AI Pipeline Job you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.pipeline_job.RunPipelineJobOperator`.
 The operator returns pipeline job id in :ref:`XCom <concepts:xcom>` under ``pipeline_job_id`` key.
 

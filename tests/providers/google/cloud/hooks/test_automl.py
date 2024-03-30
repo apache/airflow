@@ -21,8 +21,8 @@ from unittest import mock
 
 import pytest
 from google.api_core.gapic_v1.method import DEFAULT
-from google.cloud.automl_v1beta1 import AutoMlClient
 
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
@@ -150,23 +150,16 @@ class TestAutoMLHook:
         filter_ = "filter"
         page_size = 42
 
-        self.hook.list_column_specs(
-            dataset_id=DATASET_ID,
-            table_spec_id=table_spec,
-            location=GCP_LOCATION,
-            project_id=GCP_PROJECT_ID,
-            field_mask=MASK,
-            filter_=filter_,
-            page_size=page_size,
-        )
-
-        parent = AutoMlClient.table_spec_path(GCP_PROJECT_ID, GCP_LOCATION, DATASET_ID, table_spec)
-        mock_list_column_specs.assert_called_once_with(
-            request=dict(parent=parent, field_mask=MASK, filter=filter_, page_size=page_size),
-            retry=DEFAULT,
-            timeout=None,
-            metadata=(),
-        )
+        with pytest.raises(AirflowException):
+            self.hook.list_column_specs(
+                dataset_id=DATASET_ID,
+                table_spec_id=table_spec,
+                location=GCP_LOCATION,
+                project_id=GCP_PROJECT_ID,
+                field_mask=MASK,
+                filter_=filter_,
+                page_size=page_size,
+            )
 
     @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.get_model")
     def test_get_model(self, mock_get_model):
@@ -195,46 +188,28 @@ class TestAutoMLHook:
             request=dict(dataset=DATASET, update_mask=MASK), retry=DEFAULT, timeout=None, metadata=()
         )
 
-    @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.deploy_model")
-    def test_deploy_model(self, mock_deploy_model):
-        image_detection_metadata = {}
+    def test_deploy_model(
+        self,
+    ):
+        with pytest.raises(AirflowException):
+            self.hook.deploy_model(
+                model_id=MODEL_ID,
+                image_detection_metadata={},
+                location=GCP_LOCATION,
+                project_id=GCP_PROJECT_ID,
+            )
 
-        self.hook.deploy_model(
-            model_id=MODEL_ID,
-            image_detection_metadata=image_detection_metadata,
-            location=GCP_LOCATION,
-            project_id=GCP_PROJECT_ID,
-        )
-
-        mock_deploy_model.assert_called_once_with(
-            request=dict(
-                name=MODEL_PATH,
-                image_object_detection_model_deployment_metadata=image_detection_metadata,
-            ),
-            retry=DEFAULT,
-            timeout=None,
-            metadata=(),
-        )
-
-    @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.list_table_specs")
-    def test_list_table_specs(self, mock_list_table_specs):
+    def test_list_table_specs(self):
         filter_ = "filter"
         page_size = 42
-
-        self.hook.list_table_specs(
-            dataset_id=DATASET_ID,
-            location=GCP_LOCATION,
-            project_id=GCP_PROJECT_ID,
-            filter_=filter_,
-            page_size=page_size,
-        )
-
-        mock_list_table_specs.assert_called_once_with(
-            request=dict(parent=DATASET_PATH, filter=filter_, page_size=page_size),
-            retry=DEFAULT,
-            timeout=None,
-            metadata=(),
-        )
+        with pytest.raises(AirflowException):
+            self.hook.list_table_specs(
+                dataset_id=DATASET_ID,
+                location=GCP_LOCATION,
+                project_id=GCP_PROJECT_ID,
+                filter_=filter_,
+                page_size=page_size,
+            )
 
     @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.list_datasets")
     def test_list_datasets(self, mock_list_datasets):

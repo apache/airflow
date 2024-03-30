@@ -24,16 +24,9 @@ import warnings
 from typing import TYPE_CHECKING, Sequence, Tuple
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.automl_v1beta1 import (
-    BatchPredictResult,
-    ColumnSpec,
-    Dataset,
-    Model,
-    PredictResponse,
-    TableSpec,
-)
+from google.cloud.automl_v1beta1 import BatchPredictResult, Dataset, Model, PredictResponse
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.links.automl import (
     AutoMLDatasetLink,
@@ -56,9 +49,10 @@ class AutoMLTrainModelOperator(GoogleCloudBaseOperator):
     """
     Creates Google Cloud AutoML model.
 
-    AutoMLTrainModelOperator for text prediction is deprecated. Please use
-    :class:`airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTextTrainingJobOperator`
-    instead.
+    AutoMLTrainModelOperator for tables, video intelligence, vision and natural language is deprecated,
+    and can only be used for translation.
+    All the functionality of legacy features are available on the Vertex AI AutoML Operators,
+    which can be used instead.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -82,6 +76,8 @@ class AutoMLTrainModelOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+
+    :raises: AirflowException: if model type is legacy
     """
 
     template_fields: Sequence[str] = (
@@ -121,15 +117,11 @@ class AutoMLTrainModelOperator(GoogleCloudBaseOperator):
     def execute(self, context: Context):
         # Output warning if running not AutoML Translation prediction job
         if "translation_model_metadata" not in self.model:
-            warnings.warn(
-                "AutoMLTrainModelOperator for text, image and video prediction is deprecated. "
-                "All the functionality of legacy "
-                "AutoML Natural Language, Vision and Video Intelligence and new features are available "
-                "on the Vertex AI platform. "
-                "Please use `CreateAutoMLTextTrainingJobOperator`, `CreateAutoMLImageTrainingJobOperator` or"
-                " `CreateAutoMLVideoTrainingJobOperator` from VertexAI.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=3,
+            raise AirflowException(
+                "Using AutoMLTrainModelOperator for tables, video intelligence, vision and natural language"
+                " is deprecated, and can only be used for translation. "
+                "All the functionality of legacy domains are available on the Vertex AI platform. "
+                "Please use equivalent AutoML operators of Vertex AI."
             )
         hook = CloudAutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -553,121 +545,27 @@ class AutoMLImportDataOperator(GoogleCloudBaseOperator):
 
 class AutoMLTablesListColumnSpecsOperator(GoogleCloudBaseOperator):
     """
-    Lists column specs in a table.
+    Lists column specs in a table (Deprecated).
 
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:AutoMLTablesListColumnSpecsOperator`
-
-    :param dataset_id: Name of the dataset.
-    :param table_spec_id: table_spec_id for path builder.
-    :param field_mask: Mask specifying which fields to read. If a dict is provided, it must be of the same
-        form as the protobuf message `google.cloud.automl_v1beta1.types.FieldMask`
-    :param filter_: Filter expression, see go/filtering.
-    :param page_size: The maximum number of resources contained in the
-        underlying API response. If page streaming is performed per
-        resource, this parameter does not affect the return value. If page
-        streaming is performed per page, this determines the maximum number
-        of resources in a page.
-    :param project_id: ID of the Google Cloud project where dataset is located if None then
-        default project_id is used.
-    :param location: The location of the project.
-    :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
-        retried.
-    :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
-        `retry` is specified, the timeout applies to each individual attempt.
-    :param metadata: Additional metadata that is provided to the method.
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
-    :param impersonation_chain: Optional service account to impersonate using short-term
-        credentials, or chained list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account (templated).
+    :raises: AirflowException
     """
 
-    template_fields: Sequence[str] = (
-        "dataset_id",
-        "table_spec_id",
-        "field_mask",
-        "filter_",
-        "location",
-        "project_id",
-        "impersonation_chain",
-    )
-    operator_extra_links = (AutoMLDatasetLink(),)
-
-    def __init__(
-        self,
-        *,
-        dataset_id: str,
-        table_spec_id: str,
-        location: str,
-        field_mask: dict | None = None,
-        filter_: str | None = None,
-        page_size: int | None = None,
-        project_id: str | None = None,
-        metadata: MetaData = (),
-        timeout: float | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
-        gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
-    ) -> None:
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.dataset_id = dataset_id
-        self.table_spec_id = table_spec_id
-        self.field_mask = field_mask
-        self.filter_ = filter_
-        self.page_size = page_size
-        self.location = location
-        self.project_id = project_id
-        self.metadata = metadata
-        self.timeout = timeout
-        self.retry = retry
-        self.gcp_conn_id = gcp_conn_id
-        self.impersonation_chain = impersonation_chain
-
-    def execute(self, context: Context):
-        hook = CloudAutoMLHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
+        raise AirflowException(
+            "AutoMLTablesListColumnSpecsOperator is deprecated as corresponding API becomes no longer"
+            " available. See: "
+            "https://cloud.google.com/automl/docs/reference/rest/v1beta1/projects.locations.datasets.tableSpecs.columnSpecs/list"
         )
-        self.log.info("Requesting column specs.")
-        page_iterator = hook.list_column_specs(
-            dataset_id=self.dataset_id,
-            table_spec_id=self.table_spec_id,
-            field_mask=self.field_mask,
-            filter_=self.filter_,
-            page_size=self.page_size,
-            location=self.location,
-            project_id=self.project_id,
-            retry=self.retry,
-            timeout=self.timeout,
-            metadata=self.metadata,
-        )
-        result = [ColumnSpec.to_dict(spec) for spec in page_iterator]
-        self.log.info("Columns specs obtained.")
-        project_id = self.project_id or hook.project_id
-        if project_id:
-            AutoMLDatasetLink.persist(
-                context=context,
-                task_instance=self,
-                dataset_id=self.dataset_id,
-                project_id=project_id,
-            )
-        return result
 
 
-class AutoMLTablesUpdateDatasetOperator(GoogleCloudBaseOperator):
+class AutoMLUpdateDatasetOperator(GoogleCloudBaseOperator):
     """
     Updates a dataset.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:AutoMLTablesUpdateDatasetOperator`
+        :ref:`howto/operator:AutoMLUpdateDatasetOperator`
 
     :param dataset: The dataset which replaces the resource on the server.
         If a dict is provided, it must be of the same form as the protobuf message Dataset.
@@ -713,7 +611,6 @@ class AutoMLTablesUpdateDatasetOperator(GoogleCloudBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
         self.dataset = dataset
         self.update_mask = update_mask
         self.location = location
@@ -746,6 +643,37 @@ class AutoMLTablesUpdateDatasetOperator(GoogleCloudBaseOperator):
                 project_id=project_id,
             )
         return Dataset.to_dict(result)
+
+
+class AutoMLTablesUpdateDatasetOperator(AutoMLUpdateDatasetOperator):
+    """
+    Updates a dataset (Deprecated).
+
+    This operator has been renamed to AutoMLUpdateDatasetOperator.
+    """
+
+    template_fields: Sequence[str] = (
+        "dataset",
+        "update_mask",
+        "location",
+        "impersonation_chain",
+    )
+    operator_extra_links = (AutoMLDatasetLink(),)
+
+    def __init__(
+        self,
+        *,
+        dataset: dict,
+        location: str,
+        update_mask: dict | None = None,
+        **kwargs,
+    ) -> None:
+        warnings.warn(
+            "This operator is deprecated and has been renamed to AutoMLUpdateDatasetOperator",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(dataset=dataset, update_mask=update_mask, location=location, **kwargs)
 
 
 class AutoMLGetModelOperator(GoogleCloudBaseOperator):
@@ -913,194 +841,26 @@ class AutoMLDeleteModelOperator(GoogleCloudBaseOperator):
 
 
 class AutoMLDeployModelOperator(GoogleCloudBaseOperator):
-    """
-    Deploys a model; if a model is already deployed, deploying it with the same parameters has no effect.
+    """Deploys a model (Deprecated)."""
 
-    Deploying with different parameters (as e.g. changing node_number) will
-    reset the deployment state without pausing the model_id's availability.
-
-    Only applicable for Text Classification, Image Object Detection and Tables; all other
-    domains manage deployment automatically.
-
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:AutoMLDeployModelOperator`
-
-    :param model_id: Name of the model to be deployed.
-    :param image_detection_metadata: Model deployment metadata specific to Image Object Detection.
-        If a dict is provided, it must be of the same form as the protobuf message
-        ImageObjectDetectionModelDeploymentMetadata
-    :param project_id: ID of the Google Cloud project where model is located if None then
-        default project_id is used.
-    :param location: The location of the project.
-    :param params: Additional domain-specific parameters for the predictions.
-    :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
-        retried.
-    :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
-        `retry` is specified, the timeout applies to each individual attempt.
-    :param metadata: Additional metadata that is provided to the method.
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
-    :param impersonation_chain: Optional service account to impersonate using short-term
-        credentials, or chained list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account (templated).
-    """
-
-    template_fields: Sequence[str] = (
-        "model_id",
-        "location",
-        "project_id",
-        "impersonation_chain",
-    )
-
-    def __init__(
-        self,
-        *,
-        model_id: str,
-        location: str,
-        project_id: str | None = None,
-        image_detection_metadata: dict | None = None,
-        metadata: Sequence[tuple[str, str]] = (),
-        timeout: float | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
-        gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
-    ) -> None:
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-
-        self.model_id = model_id
-        self.image_detection_metadata = image_detection_metadata
-        self.location = location
-        self.project_id = project_id
-        self.metadata = metadata
-        self.timeout = timeout
-        self.retry = retry
-        self.gcp_conn_id = gcp_conn_id
-        self.impersonation_chain = impersonation_chain
-
-    def execute(self, context: Context):
-        hook = CloudAutoMLHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
+        raise AirflowException(
+            "AutoMLDeployModelOperator is deprecated as corresponding API becomes no longer available. See:"
+            "https://cloud.google.com/automl/docs/reference/rest/v1beta1/projects.locations.models/deploy"
         )
-        self.log.info("Deploying model_id %s", self.model_id)
-
-        operation = hook.deploy_model(
-            model_id=self.model_id,
-            location=self.location,
-            project_id=self.project_id,
-            image_detection_metadata=self.image_detection_metadata,
-            retry=self.retry,
-            timeout=self.timeout,
-            metadata=self.metadata,
-        )
-        hook.wait_for_operation(timeout=self.timeout, operation=operation)
-        self.log.info("Model was deployed successfully.")
 
 
 class AutoMLTablesListTableSpecsOperator(GoogleCloudBaseOperator):
-    """
-    Lists table specs in a dataset.
+    """Lists table specs in a dataset (Deprecated)."""
 
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:AutoMLTablesListTableSpecsOperator`
-
-    :param dataset_id: Name of the dataset.
-    :param filter_: Filter expression, see go/filtering.
-    :param page_size: The maximum number of resources contained in the
-        underlying API response. If page streaming is performed per
-        resource, this parameter does not affect the return value. If page
-        streaming is performed per-page, this determines the maximum number
-        of resources in a page.
-    :param project_id: ID of the Google Cloud project if None then
-        default project_id is used.
-    :param location: The location of the project.
-    :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
-        retried.
-    :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
-        `retry` is specified, the timeout applies to each individual attempt.
-    :param metadata: Additional metadata that is provided to the method.
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
-    :param impersonation_chain: Optional service account to impersonate using short-term
-        credentials, or chained list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account (templated).
-    """
-
-    template_fields: Sequence[str] = (
-        "dataset_id",
-        "filter_",
-        "location",
-        "project_id",
-        "impersonation_chain",
-    )
-    operator_extra_links = (AutoMLDatasetLink(),)
-
-    def __init__(
-        self,
-        *,
-        dataset_id: str,
-        location: str,
-        page_size: int | None = None,
-        filter_: str | None = None,
-        project_id: str | None = None,
-        metadata: MetaData = (),
-        timeout: float | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
-        gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
-    ) -> None:
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.dataset_id = dataset_id
-        self.filter_ = filter_
-        self.page_size = page_size
-        self.location = location
-        self.project_id = project_id
-        self.metadata = metadata
-        self.timeout = timeout
-        self.retry = retry
-        self.gcp_conn_id = gcp_conn_id
-        self.impersonation_chain = impersonation_chain
-
-    def execute(self, context: Context):
-        hook = CloudAutoMLHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
+        raise AirflowException(
+            "AutoMLTablesListTableSpecsOperator is deprecated as corresponding API becomes"
+            " no longer available. See:"
+            " https://cloud.google.com/automl/docs/reference/rest/v1beta1/projects.locations.datasets.tableSpecs.columnSpecs/list "
         )
-        self.log.info("Requesting table specs for %s.", self.dataset_id)
-        page_iterator = hook.list_table_specs(
-            dataset_id=self.dataset_id,
-            filter_=self.filter_,
-            page_size=self.page_size,
-            location=self.location,
-            project_id=self.project_id,
-            retry=self.retry,
-            timeout=self.timeout,
-            metadata=self.metadata,
-        )
-        result = [TableSpec.to_dict(spec) for spec in page_iterator]
-        self.log.info(result)
-        self.log.info("Table specs obtained.")
-        project_id = self.project_id or hook.project_id
-        if project_id:
-            AutoMLDatasetLink.persist(
-                context=context,
-                task_instance=self,
-                dataset_id=self.dataset_id,
-                project_id=project_id,
-            )
-        return result
 
 
 class AutoMLListDatasetOperator(GoogleCloudBaseOperator):

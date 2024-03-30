@@ -372,6 +372,10 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
     CLASS_DIRS = ProjectStructureTest.CLASS_DIRS | {"operators/vertex_ai"}
 
     DEPRECATED_CLASSES = {
+        "airflow.providers.google.cloud.operators.automl.AutoMLDeployModelOperator",
+        "airflow.providers.google.cloud.operators.automl.AutoMLTablesListColumnSpecsOperator",
+        "airflow.providers.google.cloud.operators.automl.AutoMLTablesListTableSpecsOperator",
+        "airflow.providers.google.cloud.operators.automl.AutoMLTablesUpdateDatasetOperator",
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service"
         ".CloudDataTransferServiceS3ToGCSOperator",
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service"
@@ -416,6 +420,11 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
     }
 
     MISSING_EXAMPLES_FOR_CLASSES = {
+        "airflow.providers.google.cloud.operators.automl.AutoMLBatchPredictOperator",
+        "airflow.providers.google.cloud.operators.automl.AutoMLGetModelOperator",
+        "airflow.providers.google.cloud.operators.automl.AutoMLListDatasetOperator",
+        "airflow.providers.google.cloud.operators.automl.AutoMLPredictOperator",
+        "airflow.providers.google.cloud.operators.automl.AutoMLUpdateDatasetOperator",
         "airflow.providers.google.cloud.operators.mlengine.MLEngineTrainingCancelJobOperator",
         "airflow.providers.google.cloud.operators.dlp.CloudDLPRedactImageOperator",
         "airflow.providers.google.cloud.transfers.cassandra_to_gcs.CassandraToGCSOperator",
