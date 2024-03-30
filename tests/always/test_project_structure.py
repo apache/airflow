@@ -429,6 +429,8 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
     }
 
     ASSETS_NOT_REQUIRED = {
+        "airflow.providers.google.cloud.operators.automl.AutoMLDeleteDatasetOperator",
+        "airflow.providers.google.cloud.operators.automl.AutoMLDeleteModelOperator",
         "airflow.providers.google.cloud.operators.bigquery.BigQueryCheckOperator",
         "airflow.providers.google.cloud.operators.bigquery.BigQueryDeleteDatasetOperator",
         "airflow.providers.google.cloud.operators.bigquery.BigQueryDeleteTableOperator",
