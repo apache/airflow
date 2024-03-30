@@ -62,8 +62,8 @@ from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode, Kubernete
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     POD_NAME_MAX_LENGTH,
-    add_pod_suffix,
     create_pod_id,
+    add_unique_suffix,
 )
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
@@ -1054,7 +1054,7 @@ class KubernetesPodOperator(BaseOperator):
             )
         elif self.random_name_suffix:
             # user has supplied pod name, we're just adding suffix
-            pod.metadata.name = add_pod_suffix(pod_name=pod.metadata.name)
+            pod.metadata.name = add_unique_suffix(name=pod.metadata.name)
 
         if not pod.metadata.namespace:
             hook_namespace = self.hook.get_namespace()
