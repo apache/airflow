@@ -62,7 +62,7 @@ from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode, Kubernete
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     POD_NAME_MAX_LENGTH,
-    create_pod_id,
+    create_unique_id,
     add_unique_suffix,
 )
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
@@ -1049,7 +1049,7 @@ class KubernetesPodOperator(BaseOperator):
         pod = PodGenerator.reconcile_pods(pod_template, pod)
 
         if not pod.metadata.name:
-            pod.metadata.name = create_pod_id(
+            pod.metadata.name = create_unique_id(
                 task_id=self.task_id, unique=self.random_name_suffix, max_length=POD_NAME_MAX_LENGTH
             )
         elif self.random_name_suffix:
