@@ -235,8 +235,9 @@ class TestDbApiHook:
         """If hook implements ``_make_serializable`` warning should be raised on call."""
         hook = mock_hook(DbApiHook)
         hook._make_serializable = lambda result: result
-        with pytest.warns(AirflowProviderDeprecationWarning,
-                          match="`_make_serializable` method is deprecated"):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match="`_make_serializable` method is deprecated"
+        ):
             hook._make_common_data_structure(["foo", "bar", "baz"])
 
     @pytest.mark.db_test
