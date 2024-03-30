@@ -554,6 +554,7 @@ class TestBigQueryOperator:
         mock_hook.assert_called_with(
             gcp_conn_id="google_cloud_default",
             use_legacy_sql=True,
+            location=None,
             impersonation_chain=["service-account@myproject.iam.gserviceaccount.com"],
             impersonation_scopes=[
                 "https://www.googleapis.com/auth/cloud-platform",
