@@ -207,7 +207,7 @@ class _VaultClient(LoggingMixin):
             session = Session()
             session.mount("http://", adapter)
             session.mount("https://", adapter)
-            if self.kwargs is not None and "verify" in self.kwargs:
+            if self.kwargs and "verify" in self.kwargs:
                 if self.kwargs["verify"] is not None:
                     session.verify = self.kwargs["verify"]
             self.kwargs["session"] = session
