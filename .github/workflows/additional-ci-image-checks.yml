@@ -24,6 +24,10 @@ on:  # yamllint disable-line rule:truthy
         description: "The array of labels (in json form) determining default runner used for the build."
         required: true
         type: string
+      macos-runs-on-as-string:
+        description: "The array of labels (in json form) determining macos runners."
+        required: true
+        type: string
       public-runs-on-as-string:
         description: "The array of labels (in json form) determining public runners."
         required: true
@@ -96,7 +100,7 @@ jobs:
       packages: write
     secrets: inherit
     with:
-      runs-on-as-string: ${{ inputs.public-runs-on-as-string }}
+      runs-on-as-string: ${{ inputs.macos-runs-on-as-string }}
       cache-type: "Early"
       include-prod-images: "false"
       push-latest-images: "false"

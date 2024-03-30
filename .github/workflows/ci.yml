@@ -103,8 +103,9 @@ jobs:
       helm-test-packages: ${{ steps.selective-checks.outputs.helm-test-packages }}
       debug-resources: ${{ steps.selective-checks.outputs.debug-resources }}
       default-runs-on-as-string: ${{ steps.selective-checks.outputs.default-runs-on-as-string }}
-      self-hosted-runs-on-as-string: ${{ steps.selective-checks.outputs.self-hosted-runs-on-as-string }}
+      macos-runs-on-as-string: ${{ steps.selective-checks.outputs.macos-runs-on-as-string }}
       public-runs-on-as-string: ${{ steps.selective-checks.outputs.public-runs-on-as-string }}
+      self-hosted-runs-on-as-string: ${{ steps.selective-checks.outputs.self-hosted-runs-on-as-string }}
       is-self-hosted-runner: ${{ steps.selective-checks.outputs.is-self-hosted-runner }}
       is-airflow-runner: ${{ steps.selective-checks.outputs.is-airflow-runner }}
       is-amd-runner: ${{ steps.selective-checks.outputs.is-amd-runner }}
@@ -239,6 +240,7 @@ jobs:
     if: needs.build-info.outputs.canary-run == 'true'
     with:
       default-runs-on-as-string: ${{ needs.build-info.outputs.default-runs-on-as-string }}
+      macos-runs-on-as-string: ${{ needs.build-info.outputs.macos-runs-on-as-string }}
       public-runs-on-as-string: ${{ needs.build-info.outputs.public-runs-on-as-string }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
@@ -609,6 +611,7 @@ jobs:
     uses: ./.github/workflows/finalize-tests.yml
     with:
       public-runs-on-as-string: ${{ needs.build-info.outputs.public-runs-on-as-string }}
+      macos-runs-on-as-string: ${{ needs.build-info.outputs.macos-runs-on-as-string }}
       self-hosted-runs-on-as-string: ${{ needs.build-info.outputs.self-hosted-runs-on-as-string }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
