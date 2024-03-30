@@ -1512,6 +1512,24 @@ class TestTaskInstance:
             assert ti.are_dependencies_met()
 
     @pytest.mark.parametrize(
+        "before_state, after_state, expected_has_start_date",
+        [
+            (TaskInstanceState.SCHEDULED, TaskInstanceState.QUEUED, False),
+            (TaskInstanceState.SCHEDULED, TaskInstanceState.RUNNING, True),
+            (TaskInstanceState.SCHEDULED, TaskInstanceState.SUCCESS, True),
+        ],
+    )
+    @provide_session
+    def test_set_state(
+        self, before_state, after_state, expected_has_start_date, create_task_instance, session=None
+    ):
+        ti = create_task_instance(session=session)
+        ti.set_state(before_state)
+        ti.set_state(after_state)
+        actual_has_start_date = ti.start_date is not None
+        assert actual_has_start_date == expected_has_start_date
+
+    @pytest.mark.parametrize(
         "downstream_ti_state, expected_are_dependents_done",
         [
             (State.SUCCESS, True),
