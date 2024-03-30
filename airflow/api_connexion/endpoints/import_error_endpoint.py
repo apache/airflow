@@ -84,10 +84,10 @@ def get_import_errors(
 ) -> APIResponse:
     """Get all import errors."""
     to_replace = {"import_error_id": "id"}
-    allowed_filter_attrs = ["import_error_id", "timestamp", "filename"]
+    allowed_sort_attrs = ["import_error_id", "timestamp", "filename"]
     count_query = select(func.count(ImportErrorModel.id))
     query = select(ImportErrorModel)
-    query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
+    query = apply_sorting(query, order_by, to_replace, allowed_sort_attrs)
 
     can_read_all_dags = get_auth_manager().is_authorized_dag(method="GET")
 
