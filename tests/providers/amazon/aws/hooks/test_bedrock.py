@@ -16,25 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-from pathlib import Path
-
-import pytest
-
-DATA_FILES_DIRECTORY = Path(__file__).resolve().parent
+from airflow.providers.amazon.aws.hooks.bedrock import BedrockRuntimeHook
 
 
-@pytest.fixture(autouse=True)
-def initialize_providers_manager():
-    from airflow.providers_manager import ProvidersManager
+class TestBedrockRuntimeHook:
+    def test_conn_returns_a_boto3_connection(self):
+        hook = BedrockRuntimeHook()
 
-    ProvidersManager().initialize_providers_configuration()
-
-
-@pytest.fixture
-def pod_template() -> Path:
-    return (DATA_FILES_DIRECTORY / "pod.yaml").resolve(strict=True)
-
-
-@pytest.fixture
-def basic_pod_template() -> Path:
-    return (DATA_FILES_DIRECTORY / "basic_pod.yaml").resolve(strict=True)
+        assert hook.conn is not None
+        assert hook.conn.meta.service_model.service_name == "bedrock-runtime"

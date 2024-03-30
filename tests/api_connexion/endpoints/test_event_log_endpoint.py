@@ -281,23 +281,27 @@ class TestGetEventLogs(TestEventLogEndpoint):
                 f"/api/v1/eventLogs?{attr}={attr_value}", environ_overrides={"REMOTE_USER": "test_granular"}
             )
             assert response.status_code == 200
-            assert {eventlog[attr] for eventlog in response.json["event_logs"]} == {attr_value}
+            assert response.json["total_entries"] == 1
+            assert len(response.json["event_logs"]) == 1
+            assert response.json["event_logs"][0][attr] == attr_value
 
     def test_should_filter_eventlogs_by_when(self, create_log_model, session):
         eventlog1 = create_log_model(event="TEST_EVENT_1", when=self.default_time)
         eventlog2 = create_log_model(event="TEST_EVENT_2", when=self.default_time_2)
         session.add_all([eventlog1, eventlog2])
         session.commit()
-        for when_attr, expected_eventlogs in {
-            "before": {"TEST_EVENT_1"},
-            "after": {"TEST_EVENT_2"},
+        for when_attr, expected_eventlog_event in {
+            "before": "TEST_EVENT_1",
+            "after": "TEST_EVENT_2",
         }.items():
             response = self.client.get(
                 f"/api/v1/eventLogs?{when_attr}=2020-06-10T20%3A00%3A01%2B00%3A00",  # self.default_time + 1s
                 environ_overrides={"REMOTE_USER": "test"},
             )
             assert response.status_code == 200
-            assert {eventlog["event"] for eventlog in response.json["event_logs"]} == expected_eventlogs
+            assert response.json["total_entries"] == 1
+            assert len(response.json["event_logs"]) == 1
+            assert response.json["event_logs"][0]["event"] == expected_eventlog_event
 
     def test_should_filter_eventlogs_by_run_id(self, create_log_model, session):
         eventlog1 = create_log_model(event="TEST_EVENT_1", when=self.default_time, run_id="run_1")
@@ -314,6 +318,8 @@ class TestGetEventLogs(TestEventLogEndpoint):
                 environ_overrides={"REMOTE_USER": "test"},
             )
             assert response.status_code == 200
+            assert response.json["total_entries"] == len(expected_eventlogs)
+            assert len(response.json["event_logs"]) == len(expected_eventlogs)
             assert {eventlog["event"] for eventlog in response.json["event_logs"]} == expected_eventlogs
             assert all({eventlog["run_id"] == run_id for eventlog in response.json["event_logs"]})
 
@@ -327,6 +333,7 @@ class TestGetEventLogs(TestEventLogEndpoint):
         assert response.status_code == 200
         response_data = response.json
         assert len(response_data["event_logs"]) == 2
+        assert response_data["total_entries"] == 2
         assert {"TEST_EVENT_1", "TEST_EVENT_2"} == {x["event"] for x in response_data["event_logs"]}
 
     def test_should_filter_eventlogs_by_excluded_events(self, create_log_model):
@@ -339,6 +346,7 @@ class TestGetEventLogs(TestEventLogEndpoint):
         assert response.status_code == 200
         response_data = response.json
         assert len(response_data["event_logs"]) == 1
+        assert response_data["total_entries"] == 1
         assert {"cli_scheduler"} == {x["event"] for x in response_data["event_logs"]}
 
 

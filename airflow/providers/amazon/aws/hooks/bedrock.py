@@ -14,21 +14,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-kind: Pod
-apiVersion: v1
-metadata:
-  name: dummy-name-dont-delete
-  namespace: dummy-name-dont-delete
-  labels:
-    mylabel: foo
-spec:
-  containers:
-    - name: base
-      image: dummy-name-dont-delete
-  securityContext:
-    runAsUser: 50000
-    fsGroup: 50000
-  imagePullSecrets:
-    - name: airflow-registry
-  schedulerName: default-scheduler
+from __future__ import annotations
+
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+
+
+class BedrockRuntimeHook(AwsBaseHook):
+    """
+    Interact with the Amazon Bedrock Runtime.
+
+    Provide thin wrapper around :external+boto3:py:class:`boto3.client("bedrock-runtime") <BedrockRuntime.Client>`.
+
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+    """
+
+    client_type = "bedrock-runtime"
+
+    def __init__(self, *args, **kwargs) -> None:
+        kwargs["client_type"] = self.client_type
+        super().__init__(*args, **kwargs)

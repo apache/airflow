@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
@@ -31,6 +31,7 @@ from airflow.api_connexion.schemas.event_log_schema import (
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.models import Log
 from airflow.utils import timezone
+from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
@@ -70,7 +71,7 @@ def get_event_logs(
 ) -> APIResponse:
     """Get all log entries from event log."""
     to_replace = {"event_log_id": "id", "when": "dttm"}
-    allowed_filter_attrs = [
+    allowed_sort_attrs = [
         "event_log_id",
         "when",
         "dag_id",
@@ -81,7 +82,6 @@ def get_event_logs(
         "owner",
         "extra",
     ]
-    total_entries = session.scalars(func.count(Log.id)).one()
     query = select(Log)
 
     if dag_id:
@@ -105,7 +105,9 @@ def get_event_logs(
     if after:
         query = query.where(Log.dttm > timezone.parse(after))
 
-    query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
+    total_entries = get_query_count(query, session=session)
+
+    query = apply_sorting(query, order_by, to_replace, allowed_sort_attrs)
     event_logs = session.scalars(query.offset(offset).limit(limit)).all()
     return event_log_collection_schema.dump(
         EventLogCollection(event_logs=event_logs, total_entries=total_entries)
