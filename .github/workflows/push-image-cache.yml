@@ -24,8 +24,8 @@ on:  # yamllint disable-line rule:truthy
         description: "The array of labels (in json form) determining public runners."
         required: true
         type: string
-      runs-on-as-json-self-hosted:
-        description: "The array of labels (in json form) determining self-hosted runners."
+      runs-on-as-json-macos:
+        description: "The array of labels (in json form) determining macos runners."
         required: true
         type: string
       cache-type:
@@ -83,7 +83,7 @@ jobs:
     # adding space before (with >) apparently turns the `runs-on` processed line into a string "Array"
     # instead of an array of strings.
     # yamllint disable-line rule:line-length
-    runs-on: ${{ (inputs.platform == 'linux/amd64') && fromJSON(inputs.runs-on-as-json-public) || fromJSON(inputs.runs-on-as-json-self-hosted) }}
+    runs-on: ${{ (inputs.platform == 'linux/amd64') && fromJSON(inputs.runs-on-as-json-public) || fromJSON(inputs.runs-on-as-json-macos) }}
     strategy:
       fail-fast: false
       matrix:
@@ -117,22 +117,21 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Install docker on macos"
+        run: ./scripts/ci/images/ci_install_docker_macos.sh
+        if: inputs.platform == 'linux/arm64'
+      - name: "Cleanup docker"
+        run: ./scripts/ci/images/ci_cleanup_docker.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-      - name: "Start ARM instance"
-        run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
-        if: inputs.platform == 'linux/arm64'
+        with:
+          python-version: ${{ inputs.platform == 'linux/arm64' && '3.10' || '3.9' }}
       - name: Login to ghcr.io
         run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
       - name: "Push CI ${{ inputs.cache-type }} cache: ${{ matrix.python }} ${{ inputs.platform }}"
         run: >
           breeze ci-image build --builder airflow_cache --prepare-buildx-cache
           --platform "${{ inputs.platform }}" --python ${{ matrix.python }}
-      - name: "Stop ARM instance"
-        run: ./scripts/ci/images/ci_stop_arm_instance.sh
-        if: always() && inputs.platform == 'linux/arm64'
       - name: "Push CI latest images: ${{ matrix.python }} (linux/amd64 only)"
         run: >
           breeze ci-image build --builder airflow_cache --push
@@ -145,7 +144,7 @@ jobs:
     # adding space before (with >) apparently turns the `runs-on` processed line into a string "Array"
     # instead of an array of strings.
     # yamllint disable-line rule:line-length
-    runs-on: ${{ (inputs.platform == 'linux/amd64') && fromJSON(inputs.runs-on-as-json-public) || fromJSON(inputs.runs-on-as-json-self-hosted) }}
+    runs-on: ${{ (inputs.platform == 'linux/amd64') && fromJSON(inputs.runs-on-as-json-public) || fromJSON(inputs.runs-on-as-json-macos) }}
     strategy:
       fail-fast: false
       matrix:
@@ -179,10 +178,15 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Install docker on macos"
+        run: ./scripts/ci/images/ci_install_docker_macos.sh
+        if: inputs.platform == 'linux/arm64'
+      - name: "Cleanup docker"
+        run: ./scripts/ci/images/ci_cleanup_docker.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          python-version: ${{ inputs.platform == 'linux/arm64' && '3.10' || '3.9' }}
       - name: "Cleanup dist and context file"
         run: rm -fv ./dist/* ./docker-context-files/*
       - name: "Download packages prepared as artifacts"
@@ -190,9 +194,6 @@ jobs:
         with:
           name: prod-packages
           path: ./docker-context-files
-      - name: "Start ARM instance"
-        run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
-        if: inputs.platform == 'linux/arm64'
       - name: Login to ghcr.io
         run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
       - name: "Push PROD ${{ inputs.cache-type }} cache: ${{ matrix.python-version }} ${{ inputs.platform }}"
@@ -201,9 +202,6 @@ jobs:
           --prepare-buildx-cache --platform "${{ inputs.platform }}"
           --install-packages-from-context --airflow-constraints-mode constraints-source-providers
           --python ${{ matrix.python }}
-      - name: "Stop ARM instance"
-        run: ./scripts/ci/images/ci_stop_arm_instance.sh
-        if: always() && inputs.platform == 'linux/arm64'
         # We only push "AMD" images as it is really only needed for any kind of automated builds in CI
         # and currently there is not an easy way to make multi-platform image from two separate builds
         # and we can do it after we stopped the ARM instance as it is not needed anymore

@@ -43,6 +43,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     HELM_VERSION,
     KIND_VERSION,
+    RUNS_ON_MACOS_RUNNER,
     RUNS_ON_PUBLIC_RUNNER,
     RUNS_ON_SELF_HOSTED_RUNNER,
     GithubEvents,
@@ -1142,6 +1143,10 @@ class SelectiveChecks:
         return RUNS_ON_PUBLIC_RUNNER
 
     @cached_property
+    def runs_on_as_json_macos(self) -> str:
+        return RUNS_ON_MACOS_RUNNER
+
+    @cached_property
     def is_self_hosted_runner(self) -> bool:
         """
         True if the job has runs_on labels indicating It should run on "self-hosted" runner.
@@ -1180,7 +1185,7 @@ class SelectiveChecks:
                 or "x64" == label.lower()
                 or "asf-runner" == label
                 or ("ubuntu" in label and "arm" not in label.lower())
-                for label in json.loads(self.runs_on_as_json_public)
+                for label in json.loads(self.runs_on_as_json_default)
             ]
         )
 
@@ -1195,8 +1200,11 @@ class SelectiveChecks:
         """
         return any(
             [
-                "arm" == label.lower() or "arm64" == label.lower() or "asf-arm" == label
-                for label in json.loads(self.runs_on_as_json_public)
+                "arm" == label.lower()
+                or "arm64" == label.lower()
+                or "asf-arm" == label
+                or "macos-14" == label
+                for label in json.loads(self.runs_on_as_json_default)
             ]
         )
 

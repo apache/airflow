@@ -24,8 +24,8 @@ on:  # yamllint disable-line rule:truthy
         description: "The array of labels (in json form) determining public runners."
         required: true
         type: string
-      runs-on-as-json-self-hosted:
-        description: "The array of labels (in json form) determining self-hosted runners."
+      runs-on-as-json-macos:
+        description: "The array of labels (in json form) determining macos runners."
         required: true
         type: string
       do-build:
@@ -118,7 +118,7 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
     # adding space before (with >) apparently turns the `runs-on` processed line into a string "Array"
     # instead of an array of strings.
     # yamllint disable-line rule:line-length
-    runs-on: ${{ (inputs.platform == 'linux/amd64') && fromJSON(inputs.runs-on-as-json-public) || fromJSON(inputs.runs-on-as-json-self-hosted) }}
+    runs-on: ${{ (inputs.platform == 'linux/amd64') && fromJSON(inputs.runs-on-as-json-public) || fromJSON(inputs.runs-on-as-json-macos) }}
     env:
       BACKEND: sqlite
       DEFAULT_BRANCH: ${{ inputs.branch }}
@@ -133,7 +133,7 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
       - name: "Cleanup repo"
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-        if: inputs.do-build == 'true'
+        if: inputs.do-build == 'true' && inputs.platform == 'linux/amd64'
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.target-commit-sha }}
@@ -182,21 +182,22 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
       #  BE RUN SAFELY AS PART OF DOCKER BUILD. BECAUSE IT RUNS INSIDE THE DOCKER CONTAINER AND IT IS
       #  ISOLATED FROM THE RUNNER.
       ####################################################################################################
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Install docker on macos"
+        run: ./scripts/ci/images/ci_install_docker_macos.sh
+        if: inputs.do-build == 'true' && inputs.platform == 'linux/arm64'
+      - name: "Cleanup docker"
+        run: ./scripts/ci/images/ci_cleanup_docker.sh
         if: inputs.do-build == 'true'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          python-version: ${{ inputs.platform == 'linux/arm64' && '3.10' || '3.9' }}
         if: inputs.do-build == 'true'
       - name: "Regenerate dependencies in case they were modified manually so that we can build an image"
-        shell: bash
         run: |
           pip install rich>=12.4.4 pyyaml
           python scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
         if: inputs.do-build == 'true' && inputs.upgrade-to-newer-dependencies != 'false'
-      - name: "Start ARM instance"
-        run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
-        if: inputs.do-build == 'true' && inputs.platform == 'linux/arm64'
       - name: Login to ghcr.io
         run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
         if: inputs.do-build == 'true'
@@ -222,6 +223,3 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
           PUSH: ${{ inputs.push-image }}
           VERBOSE: "true"
         if: inputs.do-build == 'true'
-      - name: "Stop ARM instance"
-        run: ./scripts/ci/images/ci_stop_arm_instance.sh
-        if: always() && inputs.do-build == 'true' && inputs.platform == 'linux/arm64'

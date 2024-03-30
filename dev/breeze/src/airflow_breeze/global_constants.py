@@ -30,6 +30,7 @@ from typing import Iterable
 from airflow_breeze.utils.host_info_utils import Architecture
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
+RUNS_ON_MACOS_RUNNER = '["macos-14"]'
 RUNS_ON_PUBLIC_RUNNER = '["ubuntu-22.04"]'
 # we should get more sophisticated logic here in the future, but for now we just check if
 # we use self airflow, vm-based, amd hosted runner as a default

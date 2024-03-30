@@ -75,8 +75,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/images/ci_cleanup_docker.sh
       - name: >
           Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}
         uses: ./.github/actions/prepare_breeze_and_image
@@ -140,8 +140,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/images/ci_cleanup_docker.sh
       - name: >
           Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}
         uses: ./.github/actions/prepare_breeze_and_image
@@ -214,8 +214,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/images/ci_cleanup_docker.sh
       - name: "Prepare breeze & CI image: ${{ matrix.python-version }}:${{ inputs.image-tag }}"
         uses: ./.github/actions/prepare_breeze_and_image
       - name: "Cleanup dist files"

@@ -15,20 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-set -euxo pipefail
+function install_docker {
+    brew install docker docker-buildx
+}
 
-cd "$( dirname "${BASH_SOURCE[0]}" )/../../"
+function prepare_opt_dir {
+    sudo mkdir -p /usr/local/opt
+    sudo chown -R "$(id -u):$(id -g)" /usr/local/opt
+}
 
-PYTHON_ARG=""
 
-if [[ ${PYTHON_VERSION=} != "" ]]; then
-    PYTHON_ARG="--python=$(which python"${PYTHON_VERSION}") "
-fi
-
-python -m pip install --upgrade pip==24.0
-python -m pip install "pipx>=1.4.1"
-python -m pipx uninstall apache-airflow-breeze >/dev/null 2>&1 || true
-# shellcheck disable=SC2086
-python -m pipx install ${PYTHON_ARG} --force --editable ./dev/breeze/
-echo '/home/runner/.local/bin' >> "${GITHUB_PATH}"
-python -m pipx ensurepath
+install_docker

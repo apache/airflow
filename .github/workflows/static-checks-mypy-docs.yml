@@ -113,8 +113,8 @@ jobs:
           python-version: ${{ inputs.default-python-version }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/pyproject.toml
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/images/ci_cleanup_docker.sh
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version}}:${{ inputs.image-tag }}"
         uses: ./.github/actions/prepare_breeze_and_image
         id: breeze
@@ -157,8 +157,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/images/ci_cleanup_docker.sh
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}"
         uses: ./.github/actions/prepare_breeze_and_image
         id: breeze
@@ -199,8 +199,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/images/ci_cleanup_docker.sh
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}"
         uses: ./.github/actions/prepare_breeze_and_image
       - uses: actions/cache@v4

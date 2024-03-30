@@ -28,8 +28,8 @@ on:  # yamllint disable-line rule:truthy
         description: "The array of labels (in json form) determining public runners."
         required: true
         type: string
-      runs-on-as-json-self-hosted:
-        description: "The array of labels (in json form) determining self-hosted runners."
+      runs-on-as-json-macos:
+        description: "The array of labels (in json form) determining macos runners."
         required: true
         type: string
       image-tag:
@@ -101,7 +101,7 @@ jobs:
     secrets: inherit
     with:
       runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
-      runs-on-as-json-self-hosted: ${{ inputs.runs-on-as-json-self-hosted }}
+      runs-on-as-json-macos: ${{ inputs.runs-on-as-json-macos }}
       cache-type: "Early"
       include-prod-images: "false"
       push-latest-images: "false"
@@ -136,8 +136,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/images/ci_cleanup_docker.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: "Login to ghcr.io"
@@ -159,7 +159,7 @@ jobs:
     with:
       push-image: "false"
       runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
-      runs-on-as-json-self-hosted: ${{ inputs.runs-on-as-json-self-hosted }}
+      runs-on-as-json-macos: ${{ inputs.runs-on-as-json-macos }}
       image-tag: ${{ inputs.image-tag }}
       python-versions: ${{ inputs.python-versions }}
       platform: "linux/arm64"

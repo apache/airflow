@@ -24,8 +24,8 @@ on:  # yamllint disable-line rule:truthy
         description: "The array of labels (in json form) determining public runners."
         required: true
         type: string
-      runs-on-as-json-self-hosted:
-        description: "The array of labels (in json form) determining self-hosted runners."
+      runs-on-as-json-macos:
+        description: "The array of labels (in json form) determining macos runners."
         required: true
         type: string
       image-tag:
@@ -98,8 +98,8 @@ jobs:
         with:
           # Needed to perform push action
           persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/images/ci_cleanup_docker.sh
       - name: "Set constraints branch name"
         id: constraints-branch
         run: ./scripts/ci/constraints/ci_branch_constraints.sh >> ${GITHUB_OUTPUT}
@@ -137,7 +137,7 @@ jobs:
     secrets: inherit
     with:
       runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
-      runs-on-as-json-self-hosted: ${{ inputs.runs-on-as-json-self-hosted }}
+      runs-on-as-json-macos: ${{ inputs.runs-on-as-json-macos }}
       cache-type: "Regular AMD"
       include-prod-images: "true"
       push-latest-images: "true"
@@ -160,7 +160,7 @@ jobs:
     secrets: inherit
     with:
       runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
-      runs-on-as-json-self-hosted: ${{ inputs.runs-on-as-json-self-hosted }}
+      runs-on-as-json-macos: ${{ inputs.runs-on-as-json-macos }}
       cache-type: "Regular ARM"
       include-prod-images: "true"
       push-latest-images: "true"
@@ -185,8 +185,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/images/ci_cleanup_docker.sh
       - name: "Download all artifacts from the current build"
         uses: actions/download-artifact@v4
         with:
