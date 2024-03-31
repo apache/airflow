@@ -98,7 +98,7 @@ class TestDagProcessor:
                 "dagProcessor": {
                     "enabled": True,
                     "extraContainers": [
-                        {"name": "test-container", "image": "test-registry/test-repo:test-tag"}
+                        {"name": "{{ .Chart.Name }}", "image": "test-registry/test-repo:test-tag"}
                     ],
                 },
             },
@@ -106,7 +106,7 @@ class TestDagProcessor:
         )
 
         assert {
-            "name": "test-container",
+            "name": "airflow",
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
 

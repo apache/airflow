@@ -119,7 +119,7 @@ spec:
               {{- tpl (toYaml .Values.createUserJob.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
         {{- if .Values.createUserJob.extraContainers }}
-          {{- toYaml .Values.createUserJob.extraContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.createUserJob.extraContainers) . | nindent 8 }}
         {{- end }}
       volumes:
         - name: config
