@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""encrypt trigger kwargs
+"""update trigger kwargs type
 
 Revision ID: 1949afb29106
 Revises: ee1467d4aa35
@@ -45,26 +45,10 @@ def get_session() -> sa.orm.Session:
 
 
 def upgrade():
-    """Apply encrypt trigger kwargs"""
-    session = get_session()
-    try:
-        op.alter_column(table_name="trigger", column_name="kwargs", type_=sa.String())
-        for trigger in session.query(Trigger).all():
-            # convert dict to string and encrypt it
-            trigger.encrypted_kwargs = trigger._encrypt_kwargs(trigger.encrypted_kwargs)
-        session.commit()
-    finally:
-        session.close()
+    """Update trigger kwargs type to string"""
+    op.alter_column(table_name="trigger", column_name="kwargs", type_=sa.String())
 
 
 def downgrade():
-    """Unapply encrypt trigger kwargs"""
-    session = get_session()
-    try:
-        op.alter_column(table_name="trigger", column_name="kwargs", type_=ExtendedJSON())
-        for trigger in session.query(Trigger).all():
-            # decrypt string and convert it to dict
-            trigger.encrypted_kwargs = trigger._decrypt_kwargs(trigger.encrypted_kwargs)
-        session.commit()
-    finally:
-        session.close()
+    """Unapply update trigger kwargs type to string"""
+    op.alter_column(table_name="trigger", column_name="kwargs", type_=ExtendedJSON())

@@ -972,6 +972,26 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
         session.add(LogTemplate(filename=filename, elasticsearch_id=elasticsearch_id))
 
 
+def encrypt_trigger_kwargs(*, session: Session) -> None:
+    """Encrypt trigger kwargs."""
+    from airflow.models.trigger import Trigger
+
+    for trigger in session.query(Trigger):
+        # convert dict to string and encrypt it
+        trigger.encrypted_kwargs = trigger._encrypt_kwargs(trigger.encrypted_kwargs)
+    session.commit()
+
+
+def decrypt_trigger_kwargs(*, session: Session) -> None:
+    """Decrypt trigger kwargs."""
+    from airflow.models.trigger import Trigger
+
+    for trigger in session.query(Trigger):
+        # decrypt the string and convert it to dict
+        trigger.encrypted_kwargs = trigger._decrypt_kwargs(trigger.encrypted_kwargs)
+    session.commit()
+
+
 def check_conn_id_duplicates(session: Session) -> Iterable[str]:
     """
     Check unique conn_id in connection table.
@@ -1639,6 +1659,12 @@ def upgradedb(
         _reserialize_dags(session=session)
     add_default_pool_if_not_exists(session=session)
     synchronize_log_template(session=session)
+    if _revision_greater(
+        config,
+        _REVISION_HEADS_MAP["2.9.0"],
+        _get_current_revision(session=session),
+    ):
+        encrypt_trigger_kwargs(session=session)
 
 
 @provide_session
@@ -1711,6 +1737,12 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
         else:
             log.info("Applying downgrade migrations.")
             command.downgrade(config, revision=to_revision, sql=show_sql_only)
+    if _revision_greater(
+        config,
+        _REVISION_HEADS_MAP["2.9.0"],
+        to_revision,
+    ):
+        decrypt_trigger_kwargs(session=session)
 
 
 def drop_airflow_models(connection):
