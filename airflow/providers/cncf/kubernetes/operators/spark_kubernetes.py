@@ -71,6 +71,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     template_fields_renderers = {"template_spec": "py"}
     template_ext = ("yaml", "yml", "json")
     ui_color = "#f4a460"
+    BASE_CONTAINER_NAME = "spark-kubernetes-driver"
 
     def __init__(
         self,
@@ -273,7 +274,6 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             template_body=self.template_body,
         )
         self.pod = self.get_or_create_spark_crd(self.launcher, context)
-        self.BASE_CONTAINER_NAME = "spark-kubernetes-driver"
         self.pod_request_obj = self.launcher.pod_spec
 
         return super().execute(context=context)
