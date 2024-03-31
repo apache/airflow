@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-03-29T21:00:07.137357
+# This constraints file was automatically generated on 2024-03-31T12:31:20.703288
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -102,7 +102,7 @@ ldap3==2.9.1
 limits==3.10.1
 linkify-it-py==2.0.3
 lockfile==0.12.2
-lxml==5.1.1
+lxml==5.2.0
 markdown-it-py==3.0.0
 marshmallow-oneofschema==3.1.1
 marshmallow-sqlalchemy==0.28.2
@@ -135,7 +135,7 @@ psutil==5.9.8
 pure-sasl==0.6.2
 pyasn1==0.6.0
 pyasn1_modules==0.4.0
-pycparser==2.21
+pycparser==2.22
 pydantic==2.6.4
 pydantic_core==2.16.3
 pykerberos==1.2.4

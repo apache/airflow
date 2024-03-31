@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-03-29T20:55:03.916900
+# This constraints file was automatically generated on 2024-03-31T12:26:20.328395
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -24,7 +24,7 @@ Flask-SQLAlchemy==2.5.1
 Flask-Session==0.5.0
 Flask-WTF==1.2.1
 Flask==2.2.5
-GitPython==3.1.42
+GitPython==3.1.43
 JPype1==1.5.0
 JayDeBeApi==1.2.3
 Jinja2==3.1.3
@@ -74,7 +74,7 @@ anyascii==0.3.2
 anyio==4.3.0
 apache-beam==2.55.0
 apispec==6.6.0
-apprise==1.7.4
+apprise==1.7.5
 argcomplete==3.2.3
 asana==3.2.2
 asgiref==3.8.1
@@ -291,7 +291,7 @@ ipykernel==6.29.4
 ipython==8.22.2
 isodate==0.6.1
 itsdangerous==2.1.2
-jaraco.classes==3.3.1
+jaraco.classes==3.4.0
 jaraco.context==4.3.0
 jaraco.functools==4.0.0
 jedi==0.19.1
@@ -324,7 +324,7 @@ linkify-it-py==2.0.3
 lockfile==0.12.2
 loguru==0.7.2
 looker-sdk==24.2.1
-lxml==5.1.1
+lxml==5.2.0
 lz4==4.3.3
 markdown-it-py==3.0.0
 marshmallow-oneofschema==3.1.1
@@ -429,7 +429,7 @@ pyarrow==14.0.2
 pyasn1-modules==0.3.0
 pyasn1==0.5.1
 pycountry==23.12.11
-pycparser==2.21
+pycparser==2.22
 pycryptodome==3.20.0
 pydantic==2.6.4
 pydantic_core==2.16.3
@@ -484,7 +484,7 @@ requests-file==2.0.0
 requests-kerberos==0.14.0
 requests-mock==1.12.1
 requests-ntlm==1.2.0
-requests-oauthlib==1.4.1
+requests-oauthlib==1.3.1
 requests-toolbelt==1.0.0
 requests==2.31.0
 responses==0.25.0
@@ -573,10 +573,10 @@ types-Deprecated==1.2.9.20240311
 types-Markdown==3.6.0.20240316
 types-PyMySQL==1.1.0.1
 types-PyYAML==6.0.12.20240311
-types-aiofiles==23.2.0.20240311
+types-aiofiles==23.2.0.20240331
 types-certifi==2021.10.8.3
 types-croniter==2.0.0.20240321
-types-docutils==0.20.0.20240317
+types-docutils==0.20.0.20240331
 types-paramiko==3.4.0.20240311
 types-protobuf==4.24.0.20240311
 types-pyOpenSSL==24.0.0.20240311
