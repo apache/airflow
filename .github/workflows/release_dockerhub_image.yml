@@ -42,7 +42,7 @@ jobs:
     name: "Build Info"
     # TODO: when we have it properly set-up with labels we should check for
     #       "airflow-runner" presence in runs_on
-    runs-on: ["self-hosted", "Linux", "X64"]
+    runs-on: ["ubuntu-22.04"]
     outputs:
       pythonVersions: ${{ steps.selective-checks.outputs.python-versions }}
       allPythonVersions: ${{ steps.selective-checks.outputs.all-python-versions }}
@@ -81,8 +81,6 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
-    env:
-      RUNS_ON: '["self-hosted", "Linux", "X64"]'
     if: contains(fromJSON('[
       "ashb",
       "eladkal",

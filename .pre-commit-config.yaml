@@ -335,7 +335,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ["ruff==0.3.3"]
+        additional_dependencies: ["ruff==0.3.4"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
       - id: ruff-format
         name: Run 'ruff format' for extremely fast Python formatting
@@ -345,7 +345,7 @@ repos:
         types_or: [python, pyi]
         args: []
         require_serial: true
-        additional_dependencies: ["ruff==0.3.3"]
+        additional_dependencies: ["ruff==0.3.4"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^airflow/contrib/
       - id: replace-bad-characters
         name: Replace bad characters
@@ -432,26 +432,26 @@ repos:
         additional_dependencies: ['setuptools', 'rich>=12.4.4', 'pyyaml', 'tomli']
       - id: check-extra-packages-references
         name: Checks setup extra packages
-        description: Checks if all the extras defined in pyproject.toml are listed in extra-packages-ref.rst file
+        description: Checks if all the extras defined in hatch_build.py are listed in extra-packages-ref.rst file
         language: python
-        files: ^docs/apache-airflow/extra-packages-ref\.rst$|^pyproject.toml
+        files: ^docs/apache-airflow/extra-packages-ref\.rst$|^hatch_build.py
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/pre_commit_check_extra_packages_ref.py
-        additional_dependencies: ['rich>=12.4.4', 'tomli', 'tabulate']
-      - id: check-pyproject-toml-order
-        name: Check order of dependencies in pyproject.toml
+        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.22.4', 'tabulate']
+      - id: check-hatch-build-order
+        name: Check order of dependencies in hatch_build.py
         language: python
-        files: ^pyproject\.toml$
+        files: ^hatch_build.py$
         pass_filenames: false
-        entry: ./scripts/ci/pre_commit/pre_commit_check_order_pyproject_toml.py
-        additional_dependencies: ['rich>=12.4.4']
+        entry: ./scripts/ci/pre_commit/pre_commit_check_order_hatch_build.py
+        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.22.4']
       - id: update-extras
         name: Update extras in documentation
         entry: ./scripts/ci/pre_commit/pre_commit_insert_extras.py
         language: python
         files: ^contributing-docs/12_airflow_dependencies_and_extras.rst$|^INSTALL$|^airflow/providers/.*/provider\.yaml$|^Dockerfile.*
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'tomli']
+        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.22.4']
       - id: check-extras-order
         name: Check order of extras in Dockerfile
         entry: ./scripts/ci/pre_commit/pre_commit_check_order_dockerfile_extras.py
@@ -531,14 +531,6 @@ repos:
         entry: "^\\s*DeprecationWarning*"
         pass_filenames: true
         files: ^airflow/providers/.*\.py$
-      - id: check-no-relative-imports
-        language: pygrep
-        name: No relative imports
-        description: Airflow style is to use absolute imports only (except docs building)
-        entry: "^\\s*from\\s+\\."
-        pass_filenames: true
-        files: \.py$
-        exclude: ^.*/.*_vendor/|^docs/|^tests/
       - id: check-urlparse-usage-in-code
         language: pygrep
         name: Don't use urlparse in code
@@ -637,6 +629,11 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_sync_init_decorator.py
         pass_filenames: false
         files: ^airflow/models/dag\.py$|^airflow/(?:decorators|utils)/task_group\.py$
+      - id: check-template-context-variable-in-sync
+        name: Check all template context variable references are in sync
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_template_context_key_sync.py
+        files: ^airflow/models/taskinstance\.py$|^airflow/utils/context\.pyi?$|^docs/apache-airflow/templates-ref\.rst$
       - id: check-base-operator-usage
         language: pygrep
         name: Check BaseOperator core imports
@@ -863,6 +860,14 @@ repos:
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['click', 'rich>=12.4.4', 'pyyaml']
+      - id: check-tests-in-the-right-folders
+        name: Check if tests are in the right folders
+        entry: ./scripts/ci/pre_commit/pre_commit_check_tests_in_right_folders.py
+        language: python
+        files: ^tests/.*\.py
+        pass_filenames: true
+        require_serial: true
+        additional_dependencies: ['rich>=12.4.4']
       - id: check-system-tests-present
         name: Check if system tests have required segments of code
         entry: ./scripts/ci/pre_commit/pre_commit_check_system_tests.py

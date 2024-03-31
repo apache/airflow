@@ -24,6 +24,10 @@ on:  # yamllint disable-line rule:truthy
         description: "JSON-formatted array of Python versions to build images from"
         required: true
         type: string
+      default-python-version:
+        description: "Default Python version to use for the image"
+        required: true
+        type: string
       branch:
         description: "Branch used to run the CI jobs in (main/v2_*_test)."
         required: true
@@ -56,9 +60,12 @@ jobs:
     uses: ./.github/workflows/prod-image-build.yml
     with:
       build-type: "Bullseye"
+      upload-package-artifact: "false"
       image-tag: bullseye-${{ inputs.image-tag }}
       debian-version: "bullseye"
       python-versions: ${{ inputs.python-versions }}
+      default-python-version: ${{ inputs.default-python-version }}
+      platform: "linux/amd64"
       branch: ${{ inputs.branch }}
       # Always build images during the extra checks and never push them
       push-image: "false"
@@ -73,9 +80,12 @@ jobs:
     uses: ./.github/workflows/prod-image-build.yml
     with:
       build-type: "MySQL Client"
+      upload-package-artifact: "false"
       image-tag: mysql-${{ inputs.image-tag }}
       install-mysql-client-type: "mysql"
       python-versions: ${{ inputs.python-versions }}
+      default-python-version: ${{ inputs.default-python-version }}
+      platform: "linux/amd64"
       branch: ${{ inputs.branch }}
       # Always build images during the extra checks and never push them
       push-image: "false"
@@ -90,9 +100,12 @@ jobs:
     uses: ./.github/workflows/prod-image-build.yml
     with:
       build-type: "pip"
+      upload-package-artifact: "false"
       image-tag: mysql-${{ inputs.image-tag }}
       install-mysql-client-type: "mysql"
       python-versions: ${{ inputs.python-versions }}
+      default-python-version: ${{ inputs.default-python-version }}
+      platform: "linux/amd64"
       branch: ${{ inputs.branch }}
       # Always build images during the extra checks and never push them
       push-image: "false"

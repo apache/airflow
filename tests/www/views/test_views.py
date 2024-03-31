@@ -508,18 +508,6 @@ INVALID_DATETIME_RESPONSE = re.compile(r"Invalid datetime: &#x?\d+;invalid&#x?\d
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            "dags/example_bash_operator/duration?base_date=invalid",
-            INVALID_DATETIME_RESPONSE,
-        ),
-        (
-            "dags/example_bash_operator/tries?base_date=invalid",
-            INVALID_DATETIME_RESPONSE,
-        ),
-        (
-            "dags/example_bash_operator/landing-times?base_date=invalid",
-            INVALID_DATETIME_RESPONSE,
-        ),
-        (
             "dags/example_bash_operator/gantt?execution_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),

@@ -68,6 +68,7 @@ DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
 NON_COMMITTER_BUILD_LABEL = "non committer build"
 DEFAULT_VERSIONS_ONLY_LABEL = "default versions only"
+ALL_VERSIONS_LABEL = "all versions"
 LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
 DISABLE_IMAGE_CACHE_LABEL = "disable image cache"
 INCLUDE_SUCCESS_OUTPUTS_LABEL = "include success outputs"
@@ -128,6 +129,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
             r"^airflow/.*\.py",
             r"^pyproject.toml",
+            r"^hatch_build.py",
         ],
         FileGroupForCi.JAVASCRIPT_PRODUCTION_FILES: [
             r"^airflow/.*\.[jt]sx?",
@@ -355,6 +357,38 @@ def find_all_providers_affected(
     return sorted(all_providers)
 
 
+def _match_files_with_regexps(files: tuple[str, ...], matched_files, matching_regexps):
+    for file in files:
+        if any(re.match(regexp, file) for regexp in matching_regexps):
+            matched_files.append(file)
+
+
+def _exclude_files_with_regexps(files: tuple[str, ...], matched_files, exclude_regexps):
+    for file in files:
+        if any(re.match(regexp, file) for regexp in exclude_regexps):
+            if file in matched_files:
+                matched_files.remove(file)
+
+
+@lru_cache(maxsize=None)
+def _matching_files(
+    files: tuple[str, ...], match_group: FileGroupForCi, match_dict: HashableDict, exclude_dict: HashableDict
+) -> list[str]:
+    matched_files: list[str] = []
+    match_regexps = match_dict[match_group]
+    excluded_regexps = exclude_dict.get(match_group)
+    _match_files_with_regexps(files, matched_files, match_regexps)
+    if excluded_regexps:
+        _exclude_files_with_regexps(files, matched_files, excluded_regexps)
+    count = len(matched_files)
+    if count > 0:
+        get_console().print(f"[warning]{match_group} matched {count} files.[/]")
+        get_console().print(matched_files)
+    else:
+        get_console().print(f"[warning]{match_group} did not match any file.[/]")
+    return matched_files
+
+
 class SelectiveChecks:
     __HASHABLE_FIELDS = {"_files", "_default_branch", "_commit_ref", "_pr_labels", "_github_event"}
 
@@ -431,26 +465,49 @@ class SelectiveChecks:
     def default_constraints_branch(self) -> str:
         return self._default_constraints_branch
 
+    def _should_run_all_tests_and_versions(self) -> bool:
+        if self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]:
+            get_console().print(f"[warning]Running everything because event is {self._github_event}[/]")
+            return True
+        if not self._commit_ref:
+            get_console().print("[warning]Running everything in all versions as commit is missing[/]")
+            return True
+        if self.hatch_build_changed:
+            get_console().print("[warning]Running everything with all versions: hatch_build.py changed[/]")
+            return True
+        if self.pyproject_toml_changed and self.build_system_changed_in_pyproject_toml:
+            get_console().print(
+                "[warning]Running everything with all versions: build-system changed in pyproject.toml[/]"
+            )
+            return True
+        if self.generated_dependencies_changed:
+            get_console().print(
+                "[warning]Running everything with all versions: provider dependencies changed[/]"
+            )
+            return True
+        return False
+
+    @cached_property
+    def all_versions(self) -> bool:
+        if DEFAULT_VERSIONS_ONLY_LABEL in self._pr_labels:
+            return False
+        if LATEST_VERSIONS_ONLY_LABEL in self._pr_labels:
+            return False
+        if ALL_VERSIONS_LABEL in self._pr_labels:
+            return True
+        if self._should_run_all_tests_and_versions():
+            return True
+        return False
+
     @cached_property
     def full_tests_needed(self) -> bool:
-        if not self._commit_ref:
-            get_console().print("[warning]Running everything as commit is missing[/]")
-            return True
-        if self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]:
-            get_console().print(f"[warning]Full tests needed because event is {self._github_event}[/]")
+        if self._should_run_all_tests_and_versions():
             return True
         if self._matching_files(
             FileGroupForCi.ENVIRONMENT_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
         ):
-            get_console().print("[warning]Running everything because env files changed[/]")
+            get_console().print("[warning]Running full set of tests because env files changed[/]")
             return True
-        if self.pyproject_toml_changed:
-            if self.build_system_changed_in_pyproject_toml:
-                get_console().print("[warning]Running everything: build-system changed in pyproject.toml[/]")
-                return True
-            if self.dependencies_changed_in_pyproject_toml:
-                get_console().print("[warning]Running everything: dependencies changed in pyproject.toml[/]")
-                return True
         if FULL_TESTS_NEEDED_LABEL in self._pr_labels:
             get_console().print(
                 "[warning]Full tests needed because "
@@ -461,13 +518,10 @@ class SelectiveChecks:
 
     @cached_property
     def python_versions(self) -> list[str]:
-        if self.full_tests_needed:
-            if DEFAULT_VERSIONS_ONLY_LABEL in self._pr_labels:
-                return [DEFAULT_PYTHON_MAJOR_MINOR_VERSION]
-            elif LATEST_VERSIONS_ONLY_LABEL in self._pr_labels:
-                return CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[-1:]
-            else:
-                return CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
+        if self.all_versions:
+            return CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
+        if self.latest_versions_only:
+            return [CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[-1]]
         return [DEFAULT_PYTHON_MAJOR_MINOR_VERSION]
 
     @cached_property
@@ -481,13 +535,10 @@ class SelectiveChecks:
         Even if we remove them from the main version. This is needed to make sure we can cherry-pick
         changes from main to the previous branch.
         """
-        if self.full_tests_needed:
-            if DEFAULT_VERSIONS_ONLY_LABEL in self._pr_labels:
-                return [DEFAULT_PYTHON_MAJOR_MINOR_VERSION]
-            elif LATEST_VERSIONS_ONLY_LABEL in self._pr_labels:
-                return ALL_PYTHON_MAJOR_MINOR_VERSIONS[-1:]
-            else:
-                return ALL_PYTHON_MAJOR_MINOR_VERSIONS
+        if self.all_versions:
+            return ALL_PYTHON_MAJOR_MINOR_VERSIONS
+        if self.latest_versions_only:
+            return [CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[-1]]
         return [DEFAULT_PYTHON_MAJOR_MINOR_VERSION]
 
     @cached_property
@@ -496,11 +547,19 @@ class SelectiveChecks:
 
     @cached_property
     def postgres_versions(self) -> list[str]:
-        return CURRENT_POSTGRES_VERSIONS if self.full_tests_needed else [DEFAULT_POSTGRES_VERSION]
+        if self.all_versions:
+            return CURRENT_POSTGRES_VERSIONS
+        if self.latest_versions_only:
+            return [CURRENT_POSTGRES_VERSIONS[-1]]
+        return [DEFAULT_POSTGRES_VERSION]
 
     @cached_property
     def mysql_versions(self) -> list[str]:
-        return CURRENT_MYSQL_VERSIONS if self.full_tests_needed else [DEFAULT_MYSQL_VERSION]
+        if self.all_versions:
+            return CURRENT_MYSQL_VERSIONS
+        if self.latest_versions_only:
+            return [CURRENT_MYSQL_VERSIONS[-1]]
+        return [DEFAULT_MYSQL_VERSION]
 
     @cached_property
     def kind_version(self) -> str:
@@ -512,7 +571,7 @@ class SelectiveChecks:
 
     @cached_property
     def postgres_exclude(self) -> list[dict[str, str]]:
-        if not self.full_tests_needed:
+        if not self.all_versions:
             # Only basic combination so we do not need to exclude anything
             return []
         return [
@@ -525,7 +584,7 @@ class SelectiveChecks:
 
     @cached_property
     def mysql_exclude(self) -> list[dict[str, str]]:
-        if not self.full_tests_needed:
+        if not self.all_versions:
             # Only basic combination so we do not need to exclude anything
             return []
         return [
@@ -542,13 +601,10 @@ class SelectiveChecks:
 
     @cached_property
     def kubernetes_versions(self) -> list[str]:
-        if self.full_tests_needed:
-            if DEFAULT_VERSIONS_ONLY_LABEL in self._pr_labels:
-                return [DEFAULT_KUBERNETES_VERSION]
-            elif LATEST_VERSIONS_ONLY_LABEL in self._pr_labels:
-                return CURRENT_KUBERNETES_VERSIONS[-1:]
-            else:
-                return CURRENT_KUBERNETES_VERSIONS
+        if self.all_versions:
+            return CURRENT_KUBERNETES_VERSIONS
+        if self.latest_versions_only:
+            return [CURRENT_KUBERNETES_VERSIONS[-1]]
         return [DEFAULT_KUBERNETES_VERSION]
 
     @cached_property
@@ -564,34 +620,10 @@ class SelectiveChecks:
         )
         return " ".join(short_combo_titles)
 
-    def _match_files_with_regexps(self, matched_files, matching_regexps):
-        for file in self._files:
-            if any(re.match(regexp, file) for regexp in matching_regexps):
-                matched_files.append(file)
-
-    def _exclude_files_with_regexps(self, matched_files, exclude_regexps):
-        for file in self._files:
-            if any(re.match(regexp, file) for regexp in exclude_regexps):
-                if file in matched_files:
-                    matched_files.remove(file)
-
-    @lru_cache(maxsize=None)
     def _matching_files(
-        self, match_group: T, match_dict: dict[T, list[str]], exclude_dict: dict[T, list[str]]
+        self, match_group: FileGroupForCi, match_dict: HashableDict, exclude_dict: HashableDict
     ) -> list[str]:
-        matched_files: list[str] = []
-        match_regexps = match_dict[match_group]
-        excluded_regexps = exclude_dict.get(match_group)
-        self._match_files_with_regexps(matched_files, match_regexps)
-        if excluded_regexps:
-            self._exclude_files_with_regexps(matched_files, excluded_regexps)
-        count = len(matched_files)
-        if count > 0:
-            get_console().print(f"[warning]{match_group} matched {count} files.[/]")
-            get_console().print(matched_files)
-        else:
-            get_console().print(f"[warning]{match_group} did not match any file.[/]")
-        return matched_files
+        return _matching_files(self._files, match_group, match_dict, exclude_dict)
 
     def _should_be_run(self, source_area: FileGroupForCi) -> bool:
         if self.full_tests_needed:
@@ -850,6 +882,14 @@ class SelectiveChecks:
         get_console().print(diff)
 
     @cached_property
+    def generated_dependencies_changed(self) -> bool:
+        return "generated/provider_dependencies.json" in self._files
+
+    @cached_property
+    def hatch_build_changed(self) -> bool:
+        return "hatch_build.py" in self._files
+
+    @cached_property
     def pyproject_toml_changed(self) -> bool:
         if not self._commit_ref:
             get_console().print("[warning]Cannot determine pyproject.toml changes as commit is missing[/]")
@@ -908,28 +948,6 @@ class SelectiveChecks:
         return False
 
     @cached_property
-    def dependencies_changed_in_pyproject_toml(self) -> bool:
-        if not self.pyproject_toml_changed:
-            return False
-        new_deps = self._new_toml["project"]["dependencies"]
-        old_deps = self._old_toml["project"]["dependencies"]
-        if new_deps != old_deps:
-            get_console().print("[warning]Project dependencies changed [/]")
-            self._print_diff(old_deps, new_deps)
-            return True
-        new_optional_deps = self._new_toml["project"].get("optional-dependencies", {})
-        old_optional_deps = self._old_toml["project"].get("optional-dependencies", {})
-        if new_optional_deps != old_optional_deps:
-            get_console().print("[warning]Optional dependencies changed [/]")
-            all_dep_keys = set(new_optional_deps.keys()).union(old_optional_deps.keys())
-            for dep in all_dep_keys:
-                if new_optional_deps.get(dep) != old_optional_deps.get(dep):
-                    get_console().print(f"[warning]Optional dependency {dep} changed[/]")
-                    self._print_diff(old_optional_deps.get(dep, []), new_optional_deps.get(dep, []))
-            return True
-        return False
-
-    @cached_property
     def upgrade_to_newer_dependencies(self) -> bool:
         if (
             len(
@@ -941,10 +959,8 @@ class SelectiveChecks:
         ):
             get_console().print("[warning]Upgrade to newer dependencies: Dependency files changed[/]")
             return True
-        if self.dependencies_changed_in_pyproject_toml:
-            get_console().print(
-                "[warning]Upgrade to newer dependencies: Dependencies changed in pyproject.toml[/]"
-            )
+        if self.hatch_build_changed:
+            get_console().print("[warning]Upgrade to newer dependencies: hatch_build.py changed[/]")
             return True
         if self.build_system_changed_in_pyproject_toml:
             get_console().print(
@@ -1061,7 +1077,7 @@ class SelectiveChecks:
         return True
 
     @cached_property
-    def cache_directive(self) -> str:
+    def docker_cache(self) -> str:
         return (
             "disabled"
             if (self._github_event == GithubEvents.SCHEDULE or DISABLE_IMAGE_CACHE_LABEL in self._pr_labels)

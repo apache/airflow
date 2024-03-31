@@ -115,14 +115,16 @@ class TestDotRenderer:
 
     def test_should_render_dag_with_mapped_operator(self, session, dag_maker):
         with dag_maker(dag_id="DAG_ID", session=session) as dag:
-            BashOperator.partial(task_id="first").expand(bash_command=["echo hello", "echo world"])
+            BashOperator.partial(task_id="first", task_display_name="First Task").expand(
+                bash_command=["echo hello", "echo world"]
+            )
 
         dot = dot_renderer.render_dag(dag)
         source = dot.source
         # Should render DAG title
         assert "label=DAG_ID" in source
         assert (
-            'first [color="#000000" fillcolor="#f0ede4" label=first shape=rectangle style="filled,rounded"]'
+            'first [color="#000000" fillcolor="#f0ede4" label="First Task" shape=rectangle style="filled,rounded"]'
             in source
         )
 

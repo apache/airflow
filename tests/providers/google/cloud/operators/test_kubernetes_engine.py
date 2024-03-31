@@ -71,6 +71,7 @@ TASK_NAME = "test-task-name"
 JOB_NAME = "test-job"
 NAMESPACE = ("default",)
 IMAGE = "bash"
+JOB_POLL_INTERVAL = 20.0
 
 GCLOUD_COMMAND = "gcloud container clusters get-credentials {} --zone {} --project {}"
 KUBE_ENV_VAR = "KUBECONFIG"
@@ -671,11 +672,11 @@ class TestGKEPodOperatorAsync:
         Asserts that a task is deferred and the GKEStartPodTrigger will be fired
         when the GKEStartPodOperator is executed in deferrable mode when deferrable=True.
         """
+        self.gke_op._cluster_url = CLUSTER_URL
+        self.gke_op._ssl_ca_cert = SSL_CA_CERT
         with pytest.raises(TaskDeferred) as exc:
-            self.gke_op._cluster_url = CLUSTER_URL
-            self.gke_op._ssl_ca_cert = SSL_CA_CERT
             self.gke_op.execute(context=mock.MagicMock())
-            fetch_cluster_info_mock.assert_called_once()
+        fetch_cluster_info_mock.assert_called_once()
         assert isinstance(exc.value.trigger, GKEStartPodTrigger)
 
 
@@ -707,6 +708,81 @@ class TestGKEStartJobOperator:
         fetch_cluster_info_mock.return_value = (CLUSTER_URL, SSL_CA_CERT)
         self.gke_op.execute(context=mock.MagicMock())
         fetch_cluster_info_mock.assert_called_once()
+
+    @mock.patch(KUB_JOB_OPERATOR_EXEC)
+    @mock.patch(f"{GKE_CLUSTER_AUTH_DETAILS_PATH}.fetch_cluster_info")
+    @mock.patch(GKE_HOOK_PATH)
+    @mock.patch(f"{GKE_HOOK_MODULE_PATH}.ProvidersManager")
+    def test_execute_in_deferrable_mode(
+        self, mock_providers_manager, mock_hook, fetch_cluster_info_mock, exec_mock
+    ):
+        kubernetes_package_name = "apache-airflow-providers-cncf-kubernetes"
+        mock_providers_manager.return_value.providers = {
+            kubernetes_package_name: mock.MagicMock(
+                data={
+                    "package-name": kubernetes_package_name,
+                },
+                version="8.0.2",
+            )
+        }
+        self.gke_op.deferrable = True
+
+        fetch_cluster_info_mock.return_value = (CLUSTER_URL, SSL_CA_CERT)
+        self.gke_op.execute(context=mock.MagicMock())
+        fetch_cluster_info_mock.assert_called_once()
+
+    @mock.patch(f"{GKE_HOOK_MODULE_PATH}.ProvidersManager")
+    def test_execute_in_deferrable_mode_exception(self, mock_providers_manager):
+        kubernetes_package_name = "apache-airflow-providers-cncf-kubernetes"
+        mock_providers_manager.return_value.providers = {
+            kubernetes_package_name: mock.MagicMock(
+                data={
+                    "package-name": kubernetes_package_name,
+                },
+                version="8.0.1",
+            )
+        }
+        self.gke_op.deferrable = True
+        with pytest.raises(AirflowException):
+            self.gke_op.execute({})
+
+    @mock.patch(f"{GKE_HOOK_MODULE_PATH}.GKEJobTrigger")
+    def test_execute_deferrable(self, mock_trigger):
+        mock_trigger_instance = mock_trigger.return_value
+
+        op = GKEStartJobOperator(
+            project_id=TEST_GCP_PROJECT_ID,
+            location=PROJECT_LOCATION,
+            cluster_name=CLUSTER_NAME,
+            task_id=PROJECT_TASK_ID,
+            name=TASK_NAME,
+            namespace=NAMESPACE,
+            image=IMAGE,
+            job_poll_interval=JOB_POLL_INTERVAL,
+        )
+        op._ssl_ca_cert = SSL_CA_CERT
+        op._cluster_url = CLUSTER_URL
+
+        with mock.patch.object(op, "job") as mock_job:
+            mock_metadata = mock_job.metadata
+            mock_metadata.name = TASK_NAME
+            mock_metadata.namespace = NAMESPACE
+            with mock.patch.object(op, "defer") as mock_defer:
+                op.execute_deferrable()
+
+        mock_trigger.assert_called_once_with(
+            cluster_url=CLUSTER_URL,
+            ssl_ca_cert=SSL_CA_CERT,
+            job_name=TASK_NAME,
+            job_namespace=NAMESPACE,
+            gcp_conn_id="google_cloud_default",
+            poll_interval=JOB_POLL_INTERVAL,
+            impersonation_chain=None,
+        )
+        mock_defer.assert_called_once_with(
+            trigger=mock_trigger_instance,
+            method_name="execute_complete",
+        )
 
     def test_config_file_throws_error(self):
         with pytest.raises(AirflowException):

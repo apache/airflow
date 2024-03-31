@@ -147,7 +147,6 @@ VALID_TRANSFER_JOB_AWS_RAW = deepcopy(VALID_TRANSFER_JOB_RAW)
 VALID_TRANSFER_JOB_AWS_RAW[TRANSFER_SPEC].update(deepcopy(SOURCE_AWS))
 VALID_TRANSFER_JOB_AWS_RAW[TRANSFER_SPEC][AWS_S3_DATA_SOURCE][AWS_ACCESS_KEY] = TEST_AWS_ACCESS_KEY
 
-
 VALID_OPERATION = {NAME: "operation-name"}
 
 
@@ -439,16 +438,9 @@ class TestGcpStorageTransferJobDeleteOperator:
         assert dag_id == ti.task.gcp_conn_id
         assert dag_id == ti.task.api_version
 
-    @mock.patch(
-        "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
-    )
-    def test_job_delete_should_throw_ex_when_name_none(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
-            op = CloudDataTransferServiceDeleteJobOperator(job_name="", task_id="task-id")
-            op.execute(None)
-        err = ctx.value
-        assert "The required parameter 'job_name' is empty or None" in str(err)
-        mock_hook.assert_not_called()
+    def test_job_delete_should_throw_ex_when_name_none(self):
+        with pytest.raises(AirflowException, match="The required parameter 'job_name' is empty or None"):
+            CloudDataTransferServiceDeleteJobOperator(job_name="", task_id="task-id")
 
 
 class TestGpcStorageTransferOperationsGetOperator:
@@ -489,16 +481,11 @@ class TestGpcStorageTransferOperationsGetOperator:
         ti.render_templates()
         assert dag_id == ti.task.operation_name
 
-    @mock.patch(
-        "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
-    )
-    def test_operation_get_should_throw_ex_when_operation_name_none(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
-            op = CloudDataTransferServiceGetOperationOperator(operation_name="", task_id=TASK_ID)
-            op.execute(None)
-        err = ctx.value
-        assert "The required parameter 'operation_name' is empty or None" in str(err)
-        mock_hook.assert_not_called()
+    def test_operation_get_should_throw_ex_when_operation_name_none(self):
+        with pytest.raises(
+            AirflowException, match="The required parameter 'operation_name' is empty or None"
+        ):
+            CloudDataTransferServiceGetOperationOperator(operation_name="", task_id=TASK_ID)
 
 
 class TestGcpStorageTransferOperationListOperator:
@@ -583,16 +570,11 @@ class TestGcpStorageTransferOperationsPauseOperator:
         assert dag_id == ti.task.gcp_conn_id
         assert dag_id == ti.task.api_version
 
-    @mock.patch(
-        "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
-    )
-    def test_operation_pause_should_throw_ex_when_name_none(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
-            op = CloudDataTransferServicePauseOperationOperator(operation_name="", task_id="task-id")
-            op.execute(None)
-        err = ctx.value
-        assert "The required parameter 'operation_name' is empty or None" in str(err)
-        mock_hook.assert_not_called()
+    def test_operation_pause_should_throw_ex_when_name_none(self):
+        with pytest.raises(
+            AirflowException, match="The required parameter 'operation_name' is empty or None"
+        ):
+            CloudDataTransferServicePauseOperationOperator(operation_name="", task_id="task-id")
 
 
 class TestGcpStorageTransferOperationsResumeOperator:
@@ -642,12 +624,10 @@ class TestGcpStorageTransferOperationsResumeOperator:
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
     def test_operation_resume_should_throw_ex_when_name_none(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
-            op = CloudDataTransferServiceResumeOperationOperator(operation_name="", task_id=TASK_ID)
-            op.execute(None)
-        err = ctx.value
-        assert "The required parameter 'operation_name' is empty or None" in str(err)
-        mock_hook.assert_not_called()
+        with pytest.raises(
+            AirflowException, match="The required parameter 'operation_name' is empty or None"
+        ):
+            CloudDataTransferServiceResumeOperationOperator(operation_name="", task_id=TASK_ID)
 
 
 class TestGcpStorageTransferOperationsCancelOperator:
@@ -697,12 +677,10 @@ class TestGcpStorageTransferOperationsCancelOperator:
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
     def test_operation_cancel_should_throw_ex_when_name_none(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
-            op = CloudDataTransferServiceCancelOperationOperator(operation_name="", task_id=TASK_ID)
-            op.execute(None)
-        err = ctx.value
-        assert "The required parameter 'operation_name' is empty or None" in str(err)
-        mock_hook.assert_not_called()
+        with pytest.raises(
+            AirflowException, match="The required parameter 'operation_name' is empty or None"
+        ):
+            CloudDataTransferServiceCancelOperationOperator(operation_name="", task_id=TASK_ID)
 
 
 class TestS3ToGoogleCloudStorageTransferOperator:
@@ -839,8 +817,10 @@ class TestS3ToGoogleCloudStorageTransferOperator:
             TEST_AWS_ACCESS_KEY_ID, TEST_AWS_ACCESS_SECRET, None
         )
 
-        with pytest.raises(AirflowException) as ctx:
-            operator = CloudDataTransferServiceS3ToGCSOperator(
+        with pytest.raises(
+            AirflowException, match="If 'delete_job_after_completion' is True, then 'wait' must also be True."
+        ):
+            CloudDataTransferServiceS3ToGCSOperator(
                 task_id=TASK_ID,
                 s3_bucket=AWS_BUCKET_NAME,
                 gcs_bucket=GCS_BUCKET_NAME,
@@ -849,13 +829,6 @@ class TestS3ToGoogleCloudStorageTransferOperator:
                 wait=False,
                 delete_job_after_completion=True,
             )
-
-            operator.execute(None)
-
-        err = ctx.value
-        assert "If 'delete_job_after_completion' is True, then 'wait' must also be True." in str(err)
-        mock_aws_hook.assert_not_called()
-        mock_transfer_hook.assert_not_called()
 
 
 class TestGoogleCloudStorageToGoogleCloudStorageTransferOperator:
@@ -969,8 +942,10 @@ class TestGoogleCloudStorageToGoogleCloudStorageTransferOperator:
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
     def test_execute_should_throw_ex_when_delete_job_without_wait(self, mock_transfer_hook):
-        with pytest.raises(AirflowException) as ctx:
-            operator = CloudDataTransferServiceS3ToGCSOperator(
+        with pytest.raises(
+            AirflowException, match="If 'delete_job_after_completion' is True, then 'wait' must also be True."
+        ):
+            CloudDataTransferServiceS3ToGCSOperator(
                 task_id=TASK_ID,
                 s3_bucket=AWS_BUCKET_NAME,
                 gcs_bucket=GCS_BUCKET_NAME,
@@ -979,9 +954,3 @@ class TestGoogleCloudStorageToGoogleCloudStorageTransferOperator:
                 wait=False,
                 delete_job_after_completion=True,
             )
-
-            operator.execute(None)
-
-        err = ctx.value
-        assert "If 'delete_job_after_completion' is True, then 'wait' must also be True." in str(err)
-        mock_transfer_hook.assert_not_called()

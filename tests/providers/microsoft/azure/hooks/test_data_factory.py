@@ -163,8 +163,8 @@ def test_provide_targeted_factory():
     assert provide_targeted_factory(echo)(hook, None, FACTORY) == (DEFAULT_RESOURCE_GROUP, FACTORY)
     assert provide_targeted_factory(echo)(hook, None, None) == (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY)
 
-    with pytest.raises(AirflowException):
-        conn.extra_dejson = {}
+    conn.extra_dejson = {}
+    with pytest.raises(AirflowException, match="Could not determine the targeted data factory"):
         provide_targeted_factory(echo)(hook)
 
 

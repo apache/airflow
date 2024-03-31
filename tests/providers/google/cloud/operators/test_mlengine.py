@@ -271,29 +271,23 @@ class TestMLEngineStartBatchPredictionJobOperator:
             resp=httplib2.Response({"status": http_error_code}), content=b"Forbidden"
         )
 
-        with pytest.raises(HttpError) as ctx:
-            prediction_task = MLEngineStartBatchPredictionJobOperator(
-                job_id="test_prediction",
-                project_id="test-project",
-                region=input_with_model["region"],
-                data_format=input_with_model["dataFormat"],
-                input_paths=input_with_model["inputPaths"],
-                output_path=input_with_model["outputPath"],
-                model_name=input_with_model["modelName"].split("/")[-1],
-                dag=self.dag,
-                task_id="test-prediction",
-            )
+        prediction_task = MLEngineStartBatchPredictionJobOperator(
+            job_id="test_prediction",
+            project_id="test-project",
+            region=input_with_model["region"],
+            data_format=input_with_model["dataFormat"],
+            input_paths=input_with_model["inputPaths"],
+            output_path=input_with_model["outputPath"],
+            model_name=input_with_model["modelName"].split("/")[-1],
+            dag=self.dag,
+            task_id="test-prediction",
+        )
+        with pytest.raises(HttpError):
             prediction_task.execute(None)
-
-            mock_hook.assert_called_once_with(
-                gcp_conn_id="google_cloud_default",
-                impersonation_chain=None,
-            )
-            hook_instance.create_job.assert_called_once_with(
-                "test-project", {"jobId": "test_prediction", "predictionInput": input_with_model}, ANY
-            )
-
-        assert http_error_code == ctx.value.resp.status
+        mock_hook.assert_called_once_with(
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
+        )
 
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
     def test_failed_job_error(self, mock_hook):
@@ -374,8 +368,8 @@ class TestMLEngineTrainingCancelJobOperator:
             resp=httplib2.Response({"status": http_error_code}), content=b"Forbidden"
         )
 
+        cancel_training_op = MLEngineTrainingCancelJobOperator(**self.TRAINING_DEFAULT_ARGS)
         with pytest.raises(HttpError) as ctx:
-            cancel_training_op = MLEngineTrainingCancelJobOperator(**self.TRAINING_DEFAULT_ARGS)
             cancel_training_op.execute(context=MagicMock())
 
         mock_hook.assert_called_once_with(
@@ -683,25 +677,25 @@ class TestMLEngineCreateVersion:
         )
 
     def test_missing_model_name(self):
+        task = MLEngineCreateVersionOperator(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            model_name=None,
+            version=TEST_VERSION,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+        )
         with pytest.raises(AirflowException):
-            task = MLEngineCreateVersionOperator(
-                task_id="task-id",
-                project_id=TEST_PROJECT_ID,
-                model_name=None,
-                version=TEST_VERSION,
-                gcp_conn_id=TEST_GCP_CONN_ID,
-            )
             task.execute(context=MagicMock())
 
     def test_missing_version(self):
+        task = MLEngineCreateVersionOperator(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            model_name=TEST_MODEL_NAME,
+            version=None,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+        )
         with pytest.raises(AirflowException):
-            task = MLEngineCreateVersionOperator(
-                task_id="task-id",
-                project_id=TEST_PROJECT_ID,
-                model_name=TEST_MODEL_NAME,
-                version=None,
-                gcp_conn_id=TEST_GCP_CONN_ID,
-            )
             task.execute(context=MagicMock())
 
     @pytest.mark.db_test
@@ -749,25 +743,25 @@ class TestMLEngineSetDefaultVersion:
         )
 
     def test_missing_model_name(self):
+        task = MLEngineSetDefaultVersionOperator(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            model_name=None,
+            version_name=TEST_VERSION_NAME,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+        )
         with pytest.raises(AirflowException):
-            task = MLEngineSetDefaultVersionOperator(
-                task_id="task-id",
-                project_id=TEST_PROJECT_ID,
-                model_name=None,
-                version_name=TEST_VERSION_NAME,
-                gcp_conn_id=TEST_GCP_CONN_ID,
-            )
             task.execute(context=MagicMock())
 
     def test_missing_version_name(self):
+        task = MLEngineSetDefaultVersionOperator(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            model_name=TEST_MODEL_NAME,
+            version_name=None,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+        )
         with pytest.raises(AirflowException):
-            task = MLEngineSetDefaultVersionOperator(
-                task_id="task-id",
-                project_id=TEST_PROJECT_ID,
-                model_name=TEST_MODEL_NAME,
-                version_name=None,
-                gcp_conn_id=TEST_GCP_CONN_ID,
-            )
             task.execute(context=MagicMock())
 
     @pytest.mark.db_test
@@ -815,13 +809,13 @@ class TestMLEngineListVersions:
         )
 
     def test_missing_model_name(self):
+        task = MLEngineListVersionsOperator(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            model_name=None,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+        )
         with pytest.raises(AirflowException):
-            task = MLEngineListVersionsOperator(
-                task_id="task-id",
-                project_id=TEST_PROJECT_ID,
-                model_name=None,
-                gcp_conn_id=TEST_GCP_CONN_ID,
-            )
             task.execute(context=MagicMock())
 
     @pytest.mark.db_test
@@ -867,25 +861,25 @@ class TestMLEngineDeleteVersion:
         )
 
     def test_missing_version_name(self):
+        task = MLEngineDeleteVersionOperator(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            model_name=TEST_MODEL_NAME,
+            version_name=None,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+        )
         with pytest.raises(AirflowException):
-            task = MLEngineDeleteVersionOperator(
-                task_id="task-id",
-                project_id=TEST_PROJECT_ID,
-                model_name=TEST_MODEL_NAME,
-                version_name=None,
-                gcp_conn_id=TEST_GCP_CONN_ID,
-            )
             task.execute(context=MagicMock())
 
     def test_missing_model_name(self):
+        task = MLEngineDeleteVersionOperator(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            model_name=None,
+            version_name=TEST_VERSION_NAME,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+        )
         with pytest.raises(AirflowException):
-            task = MLEngineDeleteVersionOperator(
-                task_id="task-id",
-                project_id=TEST_PROJECT_ID,
-                model_name=None,
-                version_name=TEST_VERSION_NAME,
-                gcp_conn_id=TEST_GCP_CONN_ID,
-            )
             task.execute(context=MagicMock())
 
     @pytest.mark.db_test
@@ -1138,8 +1132,8 @@ class TestMLEngineStartTrainingJobOperator:
             resp=httplib2.Response({"status": "403"}), content=b"content"
         )
 
+        training_op = MLEngineStartTrainingJobOperator(**self.TRAINING_DEFAULT_ARGS)
         with pytest.raises(HttpError):
-            training_op = MLEngineStartTrainingJobOperator(**self.TRAINING_DEFAULT_ARGS)
             training_op.execute(MagicMock())
 
         mock_hook.assert_called_once_with(
@@ -1155,8 +1149,8 @@ class TestMLEngineStartTrainingJobOperator:
         mock_wait_for_job.return_value = {"state": "FAILED", "errorMessage": "A failure message"}
         mock_hook.return_value.create_job_without_waiting_result.return_value = failure_response
 
+        training_op = MLEngineStartTrainingJobOperator(**self.TRAINING_DEFAULT_ARGS)
         with pytest.raises(RuntimeError) as ctx:
-            training_op = MLEngineStartTrainingJobOperator(**self.TRAINING_DEFAULT_ARGS)
             training_op.execute(MagicMock())
 
         mock_hook.assert_called_once_with(
@@ -1357,109 +1351,109 @@ def test_async_create_training_job_with_conflict_should_execute_successfully(moc
 
 
 def test_async_create_training_job_should_throw_exception_if_job_id_none():
+    op = MLEngineStartTrainingJobOperator(
+        task_id=TEST_TASK_ID,
+        project_id=TEST_GCP_PROJECT_ID,
+        region=TEST_REGION,
+        job_id=None,
+        runtime_version=TEST_RUNTIME_VERSION,
+        python_version=TEST_PYTHON_VERSION,
+        job_dir=TEST_JOB_DIR,
+        package_uris=TEST_PACKAGE_URIS,
+        training_python_module=TEST_TRAINING_PYTHON_MODULE,
+        training_args=TEST_TRAINING_ARGS,
+        labels=TEST_LABELS,
+        deferrable=True,
+    )
     with pytest.raises(
         AirflowException, match=r"An unique job id is required for Google MLEngine training job."
     ):
-        op = MLEngineStartTrainingJobOperator(
-            task_id=TEST_TASK_ID,
-            project_id=TEST_GCP_PROJECT_ID,
-            region=TEST_REGION,
-            job_id=None,
-            runtime_version=TEST_RUNTIME_VERSION,
-            python_version=TEST_PYTHON_VERSION,
-            job_dir=TEST_JOB_DIR,
-            package_uris=TEST_PACKAGE_URIS,
-            training_python_module=TEST_TRAINING_PYTHON_MODULE,
-            training_args=TEST_TRAINING_ARGS,
-            labels=TEST_LABELS,
-            deferrable=True,
-        )
         op.execute(create_context(op))
 
 
 def test_async_create_training_job_should_throw_exception_if_project_id_none():
+    op = MLEngineStartTrainingJobOperator(
+        task_id=TEST_TASK_ID,
+        project_id=None,
+        region=TEST_REGION,
+        job_id=TEST_JOB_ID,
+        runtime_version=TEST_RUNTIME_VERSION,
+        python_version=TEST_PYTHON_VERSION,
+        job_dir=TEST_JOB_DIR,
+        package_uris=TEST_PACKAGE_URIS,
+        training_python_module=TEST_TRAINING_PYTHON_MODULE,
+        training_args=TEST_TRAINING_ARGS,
+        labels=TEST_LABELS,
+        deferrable=True,
+    )
     with pytest.raises(AirflowException, match=r"Google Cloud project id is required."):
-        op = MLEngineStartTrainingJobOperator(
-            task_id=TEST_TASK_ID,
-            project_id=None,
-            region=TEST_REGION,
-            job_id=TEST_JOB_ID,
-            runtime_version=TEST_RUNTIME_VERSION,
-            python_version=TEST_PYTHON_VERSION,
-            job_dir=TEST_JOB_DIR,
-            package_uris=TEST_PACKAGE_URIS,
-            training_python_module=TEST_TRAINING_PYTHON_MODULE,
-            training_args=TEST_TRAINING_ARGS,
-            labels=TEST_LABELS,
-            deferrable=True,
-        )
         op.execute(create_context(op))
 
 
 def test_async_create_training_job_should_throw_exception_if_custom_none():
+    op = MLEngineStartTrainingJobOperator(
+        task_id=TEST_TASK_ID,
+        project_id=TEST_PROJECT_ID,
+        region=TEST_REGION,
+        job_id=TEST_JOB_ID,
+        runtime_version=TEST_RUNTIME_VERSION,
+        python_version=TEST_PYTHON_VERSION,
+        job_dir=TEST_JOB_DIR,
+        package_uris=TEST_PACKAGE_URIS,
+        training_python_module=TEST_TRAINING_PYTHON_MODULE,
+        training_args=TEST_TRAINING_ARGS,
+        labels=TEST_LABELS,
+        master_config={"config": "config"},
+        master_type=None,
+        deferrable=True,
+    )
     with pytest.raises(AirflowException, match=r"master_type must be set when master_config is provided"):
-        op = MLEngineStartTrainingJobOperator(
-            task_id=TEST_TASK_ID,
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            job_id=TEST_JOB_ID,
-            runtime_version=TEST_RUNTIME_VERSION,
-            python_version=TEST_PYTHON_VERSION,
-            job_dir=TEST_JOB_DIR,
-            package_uris=TEST_PACKAGE_URIS,
-            training_python_module=TEST_TRAINING_PYTHON_MODULE,
-            training_args=TEST_TRAINING_ARGS,
-            labels=TEST_LABELS,
-            master_config={"config": "config"},
-            master_type=None,
-            deferrable=True,
-        )
         op.execute(create_context(op))
 
 
 def test_async_create_training_job_should_throw_exception_if_package_none():
+    op = MLEngineStartTrainingJobOperator(
+        task_id=TEST_TASK_ID,
+        project_id=TEST_PROJECT_ID,
+        region=TEST_REGION,
+        job_id=TEST_JOB_ID,
+        runtime_version=TEST_RUNTIME_VERSION,
+        python_version=TEST_PYTHON_VERSION,
+        job_dir=TEST_JOB_DIR,
+        package_uris=None,
+        training_python_module=None,
+        training_args=TEST_TRAINING_ARGS,
+        labels=TEST_LABELS,
+        deferrable=True,
+    )
     with pytest.raises(
         AirflowException,
         match=r"Either a Python package with a Python module or a custom "
         r"Docker image should be provided.",
     ):
-        op = MLEngineStartTrainingJobOperator(
-            task_id=TEST_TASK_ID,
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            job_id=TEST_JOB_ID,
-            runtime_version=TEST_RUNTIME_VERSION,
-            python_version=TEST_PYTHON_VERSION,
-            job_dir=TEST_JOB_DIR,
-            package_uris=None,
-            training_python_module=None,
-            training_args=TEST_TRAINING_ARGS,
-            labels=TEST_LABELS,
-            deferrable=True,
-        )
         op.execute(create_context(op))
 
 
 def test_async_create_training_job_should_throw_exception_if_uris_none():
+    op = MLEngineStartTrainingJobOperator(
+        task_id=TEST_TASK_ID,
+        project_id=TEST_PROJECT_ID,
+        region=TEST_REGION,
+        job_id=TEST_JOB_ID,
+        runtime_version=TEST_RUNTIME_VERSION,
+        python_version=TEST_PYTHON_VERSION,
+        job_dir=TEST_JOB_DIR,
+        package_uris=None,
+        training_python_module=TEST_TRAINING_PYTHON_MODULE,
+        training_args=TEST_TRAINING_ARGS,
+        labels=TEST_LABELS,
+        master_config={"config": "config"},
+        master_type="type",
+        deferrable=True,
+    )
     with pytest.raises(
         AirflowException,
         match=r"Either a Python package with a Python module or a custom "
         r"Docker image should be provided.",
     ):
-        op = MLEngineStartTrainingJobOperator(
-            task_id=TEST_TASK_ID,
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            job_id=TEST_JOB_ID,
-            runtime_version=TEST_RUNTIME_VERSION,
-            python_version=TEST_PYTHON_VERSION,
-            job_dir=TEST_JOB_DIR,
-            package_uris=None,
-            training_python_module=TEST_TRAINING_PYTHON_MODULE,
-            training_args=TEST_TRAINING_ARGS,
-            labels=TEST_LABELS,
-            master_config={"config": "config"},
-            master_type="type",
-            deferrable=True,
-        )
         op.execute(create_context(op))

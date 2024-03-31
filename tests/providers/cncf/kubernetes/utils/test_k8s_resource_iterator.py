@@ -40,20 +40,19 @@ items:
 
 
 def test_k8s_resource_iterator():
-    exception_k8s = namedtuple("Exception_k8s", "reason body")
+    exception_k8s = namedtuple("Exception_k8s", ["reason", "body"])
 
     def test_callback_failing(yml_doc: dict) -> None:
-        raise FailToCreateError(exception_k8s("the_reason", "the_body "))
+        raise FailToCreateError([exception_k8s(reason="the_reason", body="the_body ")])
 
     with pytest.raises(FailToCreateError) as exc_info:
         k8s_resource_iterator(
             test_callback_failing, resources=yaml.safe_load_all(TEST_VALID_LIST_RESOURCE_YAML)
         )
-
-        assert (
-            str(exc_info.value)
-            == "Error from server (the_reason): the_body Error from server (the_reason): the_body "
-        )
+    assert (
+        str(exc_info.value)
+        == "Error from server (the_reason): the_body Error from server (the_reason): the_body "
+    )
 
     def callback_success(yml_doc: dict) -> None:
         return

@@ -90,10 +90,9 @@ class TestQuotaRetry:
         assert 5 == custom_fn.counter
 
     def test_raise_exception_on_non_quota_exception(self):
+        message = "POST https://translation.googleapis.com/language/translate/v2: Daily Limit Exceeded"
+        errors = [mock.MagicMock(details=mock.PropertyMock(return_value="dailyLimitExceeded"))]
         with pytest.raises(Forbidden, match="Daily Limit Exceeded"):
-            message = "POST https://translation.googleapis.com/language/translate/v2: Daily Limit Exceeded"
-            errors = [mock.MagicMock(details=mock.PropertyMock(return_value="dailyLimitExceeded"))]
-
             _retryable_test_with_temporary_quota_retry(
                 NoForbiddenAfterCount(5, message=message, errors=errors)
             )

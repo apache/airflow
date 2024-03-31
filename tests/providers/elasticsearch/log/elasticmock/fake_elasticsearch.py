@@ -22,7 +22,11 @@ import json
 from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import NotFoundError
 
-from .utilities import MissingIndexException, get_random_id, query_params
+from tests.providers.elasticsearch.log.elasticmock.utilities import (
+    MissingIndexException,
+    get_random_id,
+    query_params,
+)
 
 #
 # The MIT License (MIT)

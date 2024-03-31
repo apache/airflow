@@ -86,7 +86,7 @@ from airflow.exceptions import (
     XComForMappingNotPushed,
 )
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.base import Base, StringID, TaskInstanceDependencies
+from airflow.models.base import Base, StringID, TaskInstanceDependencies, _sentinel
 from airflow.models.dagbag import DagBag
 from airflow.models.log import Log
 from airflow.models.mappedoperator import MappedOperator
@@ -98,12 +98,19 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import LazyXComAccess, XCom
 from airflow.plugins_manager import integrate_macros_plugins
 from airflow.sentry import Sentry
+from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
 from airflow.templates import SandboxedEnvironment
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.utils import timezone
-from airflow.utils.context import ConnectionAccessor, Context, VariableAccessor, context_merge
+from airflow.utils.context import (
+    ConnectionAccessor,
+    Context,
+    DatasetEventAccessors,
+    VariableAccessor,
+    context_merge,
+)
 from airflow.utils.email import send_email
 from airflow.utils.helpers import prune_dict, render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -411,11 +418,17 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
     execute_callable_kwargs: dict[str, Any] = {}
     execute_callable: Callable
     if task_instance.next_method:
+        if task_instance.next_method == "execute":
+            if not task_instance.next_kwargs:
+                task_instance.next_kwargs = {}
+            task_instance.next_kwargs[f"{task_to_execute.__class__.__name__}__sentinel"] = _sentinel
         execute_callable = task_to_execute.resume_execution
         execute_callable_kwargs["next_method"] = task_instance.next_method
         execute_callable_kwargs["next_kwargs"] = task_instance.next_kwargs
     else:
         execute_callable = task_to_execute.execute
+        if execute_callable.__name__ == "execute":
+            execute_callable_kwargs[f"{task_to_execute.__class__.__name__}__sentinel"] = _sentinel
 
     def _execute_callable(context, **execute_callable_kwargs):
         try:
@@ -484,7 +497,10 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
 
 
 def _refresh_from_db(
-    *, task_instance: TaskInstance | TaskInstancePydantic, session: Session, lock_for_update: bool = False
+    *,
+    task_instance: TaskInstance | TaskInstancePydantic,
+    session: Session | None = None,
+    lock_for_update: bool = False,
 ) -> None:
     """
     Refresh the task instance from the database based on the primary key.
@@ -497,7 +513,7 @@ def _refresh_from_db(
 
     :meta private:
     """
-    if task_instance in session:
+    if session and task_instance in session:
         session.refresh(task_instance, TaskInstance.__mapper__.column_attrs.keys())
 
     ti = TaskInstance.get_task_instance(
@@ -746,15 +762,17 @@ def _get_template_context(
     except NotMapped:
         expanded_ti_count = None
 
-    # NOTE: If you add anything to this dict, make sure to also update the
-    # definition in airflow/utils/context.pyi, and KNOWN_CONTEXT_KEYS in
-    # airflow/utils/context.py!
-    context = {
+    # NOTE: If you add to this dict, make sure to also update the following:
+    # * Context in airflow/utils/context.pyi
+    # * KNOWN_CONTEXT_KEYS in airflow/utils/context.py
+    # * Table in docs/apache-airflow/templates-ref.rst
+    context: dict[str, Any] = {
         "conf": conf,
         "dag": dag,
         "dag_run": dag_run,
         "data_interval_end": timezone.coerce_datetime(data_interval.end),
         "data_interval_start": timezone.coerce_datetime(data_interval.start),
+        "dataset_events": DatasetEventAccessors(),
         "ds": ds,
         "ds_nodash": ds_nodash,
         "execution_date": logical_date,
@@ -937,6 +955,8 @@ def _refresh_from_task(
     task_instance.executor_config = task.executor_config
     task_instance.operator = task.task_type
     task_instance.custom_operator_name = getattr(task, "custom_operator_name", None)
+    # Re-apply cluster policy here so that task default do not overload previous data
+    task_instance_mutation_hook(task_instance)
 
 
 def _record_task_map_for_downstreams(
@@ -1298,6 +1318,7 @@ class TaskInstance(Base, LoggingMixin):
     next_method = Column(String(1000))
     next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
 
+    _task_display_property_value = Column("task_display_name", String(2000), nullable=True)
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they won't display in the UI correctly
 
@@ -1466,6 +1487,7 @@ class TaskInstance(Base, LoggingMixin):
             "operator": task.task_type,
             "custom_operator_name": getattr(task, "custom_operator_name", None),
             "map_index": map_index,
+            "_task_display_property_value": task.task_display_name,
         }
 
     @reconstructor
@@ -1525,6 +1547,10 @@ class TaskInstance(Base, LoggingMixin):
     def operator_name(self) -> str | None:
         """@property: use a more friendly display name for the operator, if set."""
         return self.custom_operator_name or self.operator
+
+    @hybrid_property
+    def task_display_name(self) -> str:
+        return self._task_display_property_value or self.task_id
 
     @staticmethod
     def _command_as_list(
@@ -2209,10 +2235,15 @@ class TaskInstance(Base, LoggingMixin):
 
         if isinstance(task_instance, TaskInstance):
             ti: TaskInstance = task_instance
-        else:  # isinstance(task_instance,TaskInstancePydantic)
+        else:  # isinstance(task_instance, TaskInstancePydantic)
             filters = (col == getattr(task_instance, col.name) for col in inspect(TaskInstance).primary_key)
             ti = session.query(TaskInstance).filter(*filters).scalar()
+            dag = ti.dag_model.serialized_dag.dag
+            task_instance.task = dag.task_dict[ti.task_id]
+            ti.task = task_instance.task
         task = task_instance.task
+        if TYPE_CHECKING:
+            assert task
         ti.refresh_from_task(task, pool_override=pool)
         ti.test_mode = test_mode
         ti.refresh_from_db(session=session, lock_for_update=True)
@@ -2376,8 +2407,10 @@ class TaskInstance(Base, LoggingMixin):
         elif new_state == TaskInstanceState.QUEUED:
             metric_name = "scheduled_duration"
             if self.start_date is None:
-                # same comment as above
-                self.log.warning(
+                # This check does not work correctly before fields like `scheduled_dttm` are implemented.
+                # TODO: Change the level to WARNING once it's viable.
+                # see #30612 #34493 and #34771 for more details
+                self.log.debug(
                     "cannot record %s for task %s because previous state change time has not been saved",
                     metric_name,
                     self.task_id,
@@ -2543,7 +2576,7 @@ class TaskInstance(Base, LoggingMixin):
                 session.add(Log(self.state, self))
                 session.merge(self).task = self.task
                 if self.state == TaskInstanceState.SUCCESS:
-                    self._register_dataset_changes(session=session)
+                    self._register_dataset_changes(events=context["dataset_events"], session=session)
 
                 session.commit()
                 if self.state == TaskInstanceState.SUCCESS:
@@ -2553,7 +2586,7 @@ class TaskInstance(Base, LoggingMixin):
 
             return None
 
-    def _register_dataset_changes(self, *, session: Session) -> None:
+    def _register_dataset_changes(self, *, events: DatasetEventAccessors, session: Session) -> None:
         if TYPE_CHECKING:
             assert self.task
 
@@ -2564,6 +2597,7 @@ class TaskInstance(Base, LoggingMixin):
                 dataset_manager.register_dataset_change(
                     task_instance=self,
                     dataset=obj,
+                    extra=events[obj].extra,
                     session=session,
                 )
 
