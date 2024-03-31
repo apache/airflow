@@ -975,20 +975,22 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
 def encrypt_trigger_kwargs(*, session: Session) -> None:
     """Encrypt trigger kwargs."""
     from airflow.models.trigger import Trigger
+    from airflow.serialization.serialized_objects import BaseSerialization
 
     for trigger in session.query(Trigger):
-        # convert dict to string and encrypt it
-        trigger.encrypted_kwargs = trigger._encrypt_kwargs(trigger.encrypted_kwargs)
+        # convert serialized dict to string and encrypt it
+        trigger.kwargs = BaseSerialization.deserialize(json.loads(trigger.encrypted_kwargs))
     session.commit()
 
 
 def decrypt_trigger_kwargs(*, session: Session) -> None:
     """Decrypt trigger kwargs."""
     from airflow.models.trigger import Trigger
+    from airflow.serialization.serialized_objects import BaseSerialization
 
     for trigger in session.query(Trigger):
-        # decrypt the string and convert it to dict
-        trigger.encrypted_kwargs = trigger._decrypt_kwargs(trigger.encrypted_kwargs)
+        # decrypt the string and convert it to serialized dict
+        trigger.encrypted_kwargs = json.dumps(BaseSerialization.serialize(trigger.kwargs))
     session.commit()
 
 
