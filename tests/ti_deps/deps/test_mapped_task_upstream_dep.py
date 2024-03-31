@@ -212,17 +212,18 @@ def test_step_by_step(
 
     mapped_task_1 = "m1"
     mapped_task_2 = "m2" if testcase == "task" else "tg.m2"
+    expect_passed = failure_mode is None and not skip_upstream
 
     # Initial decision, t1, t2 and t3 can be scheduled
     schedulable_tis, finished_tis_states = _one_scheduling_decision_iteration(dr, session)
     assert sorted(schedulable_tis) == ["t1", "t2_a", "t3", "t4"]
     assert not finished_tis_states
 
-    # Run first schedulable task - expect no dep statuses for m1 as only one of its 3 mapped dependencies is
-    # finished
+    # Run first schedulable task
     schedulable_tis["t1"].run()
-    _one_scheduling_decision_iteration(dr, session)
-    assert not get_dep_statuses(dr, mapped_task_1, session)
+    schedulable_tis, finished_tis_states = _one_scheduling_decision_iteration(dr, session)
+    assert sorted(schedulable_tis) == ["t2_a", "t3", "t4"]
+    assert finished_tis_states == {"t1": SUCCESS}
 
     # Run remaining schedulable tasks
     if failure_mode == UPSTREAM_FAILED:
@@ -242,28 +243,7 @@ def test_step_by_step(
     # Decision after running all tasks
     _one_scheduling_decision_iteration(dr, session)
 
-    # Standalone test of the mapped task upstream dependency status
-    expect_passed = not failure_mode and not skip_upstream
-    expected_statuses = (
-        []
-        if expect_passed
-        else [
-            TIDepStatus(
-                dep_name="Mapped dependencies have succeeded",
-                passed=expect_passed,
-                reason=(
-                    "The task's mapped dependencies have all succeeded!"
-                    if expect_passed
-                    else "At least one of task's mapped dependencies has not succeeded!"
-                ),
-            )
-        ]
-    )
-    assert get_dep_statuses(dr, mapped_task_1, session) == expected_statuses
-    if not expect_passed:
-        assert get_dep_statuses(dr, mapped_task_2, session) == expected_statuses
-
-    # Full test of the mapped task upstream dependency status
+    # Test the mapped task upstream dependency status
     schedulable_tis, finished_tis_states = _one_scheduling_decision_iteration(dr, session)
     expected_finished_tis_states = {
         "t1": SUCCESS,
@@ -283,14 +263,15 @@ def test_step_by_step(
             schedulable_tis[f"{mapped_task_1}_{i}"].run()
             expected_finished_tis_states[f"{mapped_task_1}_{i}"] = SUCCESS
         schedulable_tis, finished_tis_states = _one_scheduling_decision_iteration(dr, session)
-        # Since m1 was expanded successfully, the upstream dep check does not do anything
-        assert not get_dep_statuses(dr, mapped_task_2, session)
+        assert sorted(schedulable_tis) == [f"{mapped_task_2}_{i}" for i in range(4)]
+        assert finished_tis_states == expected_finished_tis_states
         # Run the m2 tasks
         for i in range(4):
             schedulable_tis[f"{mapped_task_2}_{i}"].run()
             expected_finished_tis_states[f"{mapped_task_2}_{i}"] = SUCCESS
         schedulable_tis, finished_tis_states = _one_scheduling_decision_iteration(dr, session)
         assert finished_tis_states == expected_finished_tis_states
+        assert not schedulable_tis
 
 
 def test_nested_mapped_task_groups(dag_maker, session: Session):
