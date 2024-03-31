@@ -116,13 +116,13 @@ def _get_dag_run(
         raise ValueError("Must provide `exec_date_or_run_id` if not `create_if_necessary`.")
     execution_date: pendulum.DateTime | None = None
     if exec_date_or_run_id:
-        dag_run = DAG.fetch_dagrun(dag_id=dag.dag_id, run_id=exec_date_or_run_id)
+        dag_run = DAG.fetch_dagrun(dag_id=dag.dag_id, run_id=exec_date_or_run_id, session=session)
         if dag_run:
             return dag_run, False
         with suppress(ParserError, TypeError):
             execution_date = timezone.parse(exec_date_or_run_id)
         if execution_date:
-            dag_run = DAG.fetch_dagrun(dag_id=dag.dag_id, execution_date=execution_date)
+            dag_run = DAG.fetch_dagrun(dag_id=dag.dag_id, execution_date=execution_date, session=session)
         if dag_run:
             return dag_run, False
         elif not create_if_necessary:
@@ -150,11 +150,13 @@ def _get_dag_run(
             execution_date=dag_run_execution_date,
             run_id=_generate_temporary_run_id(),
             data_interval=dag.timetable.infer_manual_data_interval(run_after=dag_run_execution_date),
+            session=session,
         )
         return dag_run, True
     raise ValueError(f"unknown create_if_necessary value: {create_if_necessary!r}")
 
 
+@provide_session
 def _get_ti(
     task: Operator,
     map_index: int,
@@ -162,6 +164,7 @@ def _get_ti(
     exec_date_or_run_id: str | None = None,
     pool: str | None = None,
     create_if_necessary: CreateIfNecessary = False,
+    session: Session = NEW_SESSION,
 ) -> tuple[TaskInstance | TaskInstancePydantic, bool]:
     """Get the task instance through DagRun.run_id, if that fails, get the TI the old way."""
     dag = task.dag
@@ -178,9 +181,10 @@ def _get_ti(
         dag=dag,
         exec_date_or_run_id=exec_date_or_run_id,
         create_if_necessary=create_if_necessary,
+        session=session,
     )
 
-    ti_or_none = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index)
+    ti_or_none = dag_run.get_task_instance(task.task_id, map_index=map_index, session=session)
     ti: TaskInstance | TaskInstancePydantic
     if ti_or_none is None:
         if not create_if_necessary:
