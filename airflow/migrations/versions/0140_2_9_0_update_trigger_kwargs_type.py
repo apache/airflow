@@ -51,4 +51,6 @@ def upgrade():
 
 def downgrade():
     """Unapply update trigger kwargs type to string"""
-    op.alter_column(table_name="trigger", column_name="kwargs", type_=ExtendedJSON())
+    op.alter_column(
+        table_name="trigger", column_name="kwargs", type_=ExtendedJSON(), postgresql_using="kwargs::json"
+    )
