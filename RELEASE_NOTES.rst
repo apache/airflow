@@ -21,7 +21,7 @@
 
 .. towncrier release notes start
 
-Airflow 2.9.0 (2024-04-04)
+Airflow 2.9.0 (2024-04-08)
 --------------------------
 
 Significant Changes
@@ -154,6 +154,10 @@ New Features
 
 Improvements
 """"""""""""
+- More human friendly "show tables" output for db cleanup (#38654)
+- Improve trigger assign_unassigned by merging alive_triggerer_ids and get_sorted_triggers queries (#38664)
+- Add exclude/include events filters to audit log (#38506)
+- Clean up unused triggers in a single query for all dialects except MySQL (#38663)
 - Update Confirmation Logic for Config Changes on Sensitive Environments Like Production (#38299)
 - Improve datasets graph UX (#38476)
 - Only show latest dataset event timestamp after last run (#38340)
@@ -166,7 +170,7 @@ Improvements
 - Add CLI support for bulk pause and resume of DAGs (#38265)
 - Implement methods on TaskInstancePydantic and DagRunPydantic (#38295, #38302, #38303, #38297)
 - Made filters bar collapsible and add a full screen toggle (#38296)
-- Encrypt all trigger attributes (#38233)
+- Encrypt all trigger attributes (#38233, #38358)
 - Upgrade react-table package. Use with Audit Log table (#38092)
 - Show if dag page filters are active (#38080)
 - Add try number to mapped instance (#38097)
@@ -224,6 +228,13 @@ Improvements
 
 Bug Fixes
 """""""""
+- Add a task instance dependency for mapped dependencies (#37498)
+- Improve stability of remove_task_decorator function (#38649)
+- Mark more fields on API as dump-only (#38616)
+- Fix ``total_entries`` count on the event logs endpoint (#38625)
+- Add padding to bottom of log block. (#38610)
+- Properly serialize nested attrs classes (#38591)
+- Fixing the ``tz`` in next run ID info (#38482)
 - Show abandoned tasks in Grid View (#38511)
 - Apply task instance mutation hook consistently (#38440)
 - Override ``chakra`` styles to keep ``dropdowns`` in filter bar (#38456)
@@ -250,6 +261,8 @@ Bug Fixes
 
 Miscellaneous
 """""""""""""
+- Remove display of param from the UI (#38660)
+- Update log level to debug from warning about scheduled_duration metric (#38180)
 - Use ``importlib_metadata`` with compat to Python 3.10/3.12 ``stdlib`` (#38366)
 - Refactored ``__new__`` magic method of BaseOperatorMeta to avoid bad mixing classic and decorated operators (#37937)
 - Use ``sys.version_info`` for determine Python Major.Minor (#38372)
@@ -281,7 +294,7 @@ Miscellaneous
 
 Doc Only Changes
 """"""""""""""""
-- Removed/Updated Outdated UI screenshots from documentation (#38403, #38438, #38435)
+- Update UI screenshots in the documentation (#38680, #38403, #38438, #38435)
 - Remove section as it's no longer true with dataset expressions PR (#38370)
 - Refactor DatasetOrTimeSchedule timetable docs (#37771)
 - Migrate executor docs to respective providers (#37728)
