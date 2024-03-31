@@ -55,7 +55,7 @@ class MappedTaskUpstreamDep(BaseTIDep):
 
         if isinstance(ti.task, MappedOperator):
             mapped_dependencies = ti.task.iter_mapped_dependencies()
-        elif (task_group := ti.task.get_closest_mapped_task_group()) is not None:
+        elif ti.task is not None and (task_group := ti.task.get_closest_mapped_task_group()) is not None:
             mapped_dependencies = task_group.iter_mapped_dependencies()
         else:
             return
@@ -90,9 +90,9 @@ class MappedTaskUpstreamDep(BaseTIDep):
             return
 
         # At least one mapped dependency was not successful
-        # - If another dependency (such as the trigger rule dependency) has not already marked the task as
-        # FAILED or UPSTREAM_FAILED then we update the state
         if ti.state not in {TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED}:
+            # If another dependency (such as the trigger rule dependency) has not already marked the task as
+            # FAILED or UPSTREAM_FAILED then we update the state
             new_state = None
             if (
                 TaskInstanceState.FAILED in finished_states
@@ -103,5 +103,4 @@ class MappedTaskUpstreamDep(BaseTIDep):
                 new_state = TaskInstanceState.SKIPPED
             if new_state is not None and ti.set_state(new_state, session):
                 dep_context.have_changed_ti_states = True
-        # - Return a failing status
         yield self._failing_status(reason="At least one of task's mapped dependencies has not succeeded!")
