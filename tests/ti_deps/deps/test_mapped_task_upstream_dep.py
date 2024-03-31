@@ -229,9 +229,10 @@ def test_step_by_step(
     if failure_mode == UPSTREAM_FAILED:
         with pytest.raises(AirflowFailException):
             schedulable_tis["t2_a"].run()
+        _one_scheduling_decision_iteration(dr, session)
     else:
         schedulable_tis["t2_a"].run()
-        schedulable_tis, finished_tis_states = _one_scheduling_decision_iteration(dr, session)
+        schedulable_tis, _ = _one_scheduling_decision_iteration(dr, session)
         if not failure_mode:
             schedulable_tis["t2_b"].run()
         else:
@@ -239,11 +240,9 @@ def test_step_by_step(
                 schedulable_tis["t2_b"].run()
     schedulable_tis["t3"].run()
     schedulable_tis["t4"].run()
-
-    # Decision after running all tasks
     _one_scheduling_decision_iteration(dr, session)
 
-    # Test the mapped task upstream dependency status
+    # Test the mapped task upstream dependency checks
     schedulable_tis, finished_tis_states = _one_scheduling_decision_iteration(dr, session)
     expected_finished_tis_states = {
         "t1": SUCCESS,
