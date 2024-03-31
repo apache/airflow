@@ -51,10 +51,10 @@ def test_spark_kubernetes_operator(mock_kubernetes_hook, data_file):
     assert "hook" not in operator.__dict__  # Cached property has not been accessed as part of construction.
 
 
-def test_init_spark_kubernetes_operator():
+def test_init_spark_kubernetes_operator(data_file):
     operator = SparkKubernetesOperator(
         task_id="task_id",
-        application_file=join(Path(__file__).parent, "spark_application_test.yaml"),
+        application_file=data_file("spark/application_test.yaml").as_posix(),
         kubernetes_conn_id="kubernetes_conn_id",
         in_cluster=True,
         cluster_context="cluster_context",
@@ -535,9 +535,10 @@ class TestSparkKubernetesOperator:
         mock_await_pod_start,
         mock_await_pod_completion,
         mock_fetch_requested_container_logs,
+        data_file,
     ):
         task_name = "test_get_logs_from_driver"
-        job_spec = yaml.safe_load(open(join(Path(__file__).parent, "spark_application_template.yaml")))
+        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
         op = self.execute_operator(task_name, mock_create_job_name, job_spec=job_spec)
 
         mock_fetch_requested_container_logs.assert_called_once_with(

@@ -27,6 +27,7 @@ from kubernetes.client import CoreV1Api, CustomObjectsApi, models as k8s
 from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook, _load_body_to_dict
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import add_unique_suffix
 from airflow.providers.cncf.kubernetes.operators.custom_object_launcher import CustomObjectLauncher
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.pod_generator import MAX_LABEL_LEN, PodGenerator
@@ -158,7 +159,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         return template_body
 
     def create_job_name(self):
-        initial_name = PodGenerator.make_unique_pod_id(self.task_id)[:MAX_LABEL_LEN]
+        initial_name = add_unique_suffix(name=self.task_id, max_len=MAX_LABEL_LEN)
         return re.sub(r"[^a-z0-9-]+", "-", initial_name.lower())
 
     @staticmethod
