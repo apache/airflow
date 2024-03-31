@@ -318,6 +318,7 @@ class HttpAsyncHook(BaseHook):
         self,
         endpoint: str | None = None,
         data: dict[str, Any] | str | None = None,
+        json: dict[str, Any] | str | None = None,
         headers: dict[str, Any] | None = None,
         extra_options: dict[str, Any] | None = None,
     ) -> ClientResponse:
@@ -325,6 +326,7 @@ class HttpAsyncHook(BaseHook):
 
         :param endpoint: Endpoint to be called, i.e. ``resource/v1/query?``.
         :param data: Payload to be uploaded or request parameters.
+        :param json: Payload to be uploaded as JSON.
         :param headers: Additional headers to be passed through as a dict.
         :param extra_options: Additional kwargs to pass when creating a request.
             For example, ``run(json=obj)`` is passed as
@@ -385,8 +387,9 @@ class HttpAsyncHook(BaseHook):
             for attempt in range(1, 1 + self.retry_limit):
                 response = await request_func(
                     url,
-                    json=data if self.method in ("POST", "PUT", "PATCH") else None,
                     params=data if self.method == "GET" else None,
+                    data=data if self.method in ("POST", "PUT", "PATCH") else None,
+                    json=json,
                     headers=_headers,
                     auth=auth,
                     **extra_options,
