@@ -250,7 +250,7 @@ The easiest way to attach extra information to the dataset event is by ``yield``
 
 Airflow automatically collects all yielded metadata, and populates dataset events with extra information for corresponding metadata objects.
 
-This can also be done in classic operators. The best way is to subclass the operator and override ``execute``. Alternatively, extras can also be added in a task's ``pre_execute`` or ``post_execute`` hook.
+This can also be done in classic operators. The best way is to subclass the operator and override ``execute``. Alternatively, extras can also be added in a task's ``pre_execute`` or ``post_execute`` hook. If you choose to use hooks, however, remember that they are not rerun when a task is retried, and may cause the extra information to not match actual data in certain scenarios.
 
 Another way to achieve the same is by accessing ``dataset_events`` in a task's execution context directly:
 
