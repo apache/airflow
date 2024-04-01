@@ -20,10 +20,9 @@ name: Provider tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on:
-        description: "The array of labels (in json form) determining type of the runner to use for the build."
-        required: false
-        default: '["ubuntu-22.04"]'
+      runs-on-as-json-default:
+        description: "The array of labels (in json form) determining default runner used for the build."
+        required: true
         type: string
       image-tag:
         description: "Tag to set for the image"
@@ -59,7 +58,7 @@ jobs:
   prepare-install-verify-provider-packages-wheel:
     timeout-minutes: 80
     name: "Provider packages wheel build and verify"
-    runs-on: ${{fromJSON(inputs.runs-on)}}
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -124,7 +123,7 @@ jobs:
   prepare-install-provider-packages-sdist:
     timeout-minutes: 80
     name: "Provider packages sdist build and install"
-    runs-on: ${{fromJSON(inputs.runs-on)}}
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -192,11 +191,11 @@ jobs:
   providers-compatibility-checks:
     timeout-minutes: 80
     name: Compat ${{ matrix.airflow-version }}:P${{ matrix.python-version }} provider check
-    runs-on: ${{fromJSON(inputs.runs-on)}}
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
     strategy:
       fail-fast: false
       matrix:
-        include: ${{fromJson(inputs.providers-compatibility-checks)}}
+        include: ${{fromJSON(inputs.providers-compatibility-checks)}}
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

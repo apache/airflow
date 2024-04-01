@@ -20,6 +20,10 @@ name: Generate constraints
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
+      runs-on-as-json-public:
+        description: "The array of labels (in json form) determining public runners."
+        required: true
+        type: string
       python-versions-list-as-string:
         description: "Stringified array of all Python versions to test - separated by spaces."
         required: true
@@ -46,7 +50,7 @@ jobs:
       contents: read
     timeout-minutes: 70
     name: Generate constraints ${{ inputs.python-versions-list-as-string }}
-    runs-on: ['ubuntu-22.04']
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
     env:
       DEBUG_RESOURCES: ${{ inputs.debug-resources }}
       GITHUB_REPOSITORY: ${{ github.repository }}

@@ -40,8 +40,6 @@ jobs:
   build-info:
     timeout-minutes: 10
     name: "Build Info"
-    # TODO: when we have it properly set-up with labels we should check for
-    #       "airflow-runner" presence in runs_on
     runs-on: ["ubuntu-22.04"]
     outputs:
       pythonVersions: ${{ steps.selective-checks.outputs.python-versions }}
@@ -73,14 +71,12 @@ jobs:
   release-images:
     timeout-minutes: 120
     name: "Release images: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}"
-    # TODO: when we have it properly set-up with labels we should check for
-    #       "airflow-runner" presence in runs_on
     runs-on: ["self-hosted", "Linux", "X64"]
     needs: [build-info]
     strategy:
       fail-fast: false
       matrix:
-        python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
+        python-version: ${{ fromJSON(needs.build-info.outputs.pythonVersions) }}
     if: contains(fromJSON('[
       "ashb",
       "eladkal",
