@@ -169,8 +169,8 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
       #  BE RUN SAFELY AS PART OF DOCKER BUILD. BECAUSE IT RUNS INSIDE THE DOCKER CONTAINER AND IT IS
       #  ISOLATED FROM THE RUNNER.
       ####################################################################################################
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
         if: inputs.do-build == 'true'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze

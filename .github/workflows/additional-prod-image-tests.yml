@@ -106,8 +106,8 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: Login to ghcr.io
@@ -152,8 +152,8 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: Login to ghcr.io
