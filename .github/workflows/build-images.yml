@@ -133,8 +133,8 @@ jobs:
       #  COMPOSITE ACTIONS. WE CAN RUN ANYTHING THAT IS IN THE TARGET BRANCH AND THERE IS NO RISK THAT
       #  CODE WILL BE RUN FROM THE PR.
       ####################################################################################################
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
       - name: "Setup python"
         uses: actions/setup-python@v5
         with:
