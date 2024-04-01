@@ -49,9 +49,9 @@ def skip_if_env_var_not_set(provider_env_vars):
 
 def pytest_collection_modifyitems(config, items):
     """Add @pytest.mark.system(provider_name) for every system test."""
-    rootdir = Path(config.rootdir)
+    rootdir = Path(config.rootpath)
     for item in items:
-        rel_path = Path(item.fspath).relative_to(rootdir)
+        rel_path = Path(item.path).relative_to(rootdir)
         match = re.match(".+/system/providers/([^/]+)", str(rel_path))
         if match:
             provider = match.group(1)
