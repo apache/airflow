@@ -1476,6 +1476,35 @@ class TestDatabricksRunNowDeferrableOperator:
         with pytest.raises(AirflowException, match=f"Job run failed with terminal state: {run_state_failed}"):
             op.execute_complete(context=None, event=event)
 
+    @mock.patch(
+        "airflow.providers.databricks.operators.databricks._handle_deferrable_databricks_operator_execution"
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_execute_complete_failure_and_repair_run(
+        self, db_mock_class, mock_handle_deferrable_databricks_operator_execution
+    ):
+        """
+        Test `execute_complete` function in case the Trigger has returned a failure event with repair_run=True.
+        """
+        run_state_failed = RunState("TERMINATED", "FAILED", "")
+        run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
+        event = {
+            "run_id": RUN_ID,
+            "run_page_url": RUN_PAGE_URL,
+            "run_state": run_state_failed.to_json(),
+            "repair_run": True,
+        }
+
+        op = DatabricksRunNowDeferrableOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
+        op.execute_complete(context=None, event=event)
+
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = 1
+        db_mock.get_run = make_run_with_state_mock("TERMINATED", "FAILED")
+        db_mock.get_latest_repair_id.assert_called_once()
+        db_mock.repair_run.assert_called_once()
+        mock_handle_deferrable_databricks_operator_execution.assert_called_once()
+
     def test_execute_complete_incorrect_event_validation_failure(self):
         event = {"event_id": "no such column"}
         op = DatabricksRunNowDeferrableOperator(task_id=TASK_ID, job_id=JOB_ID)
