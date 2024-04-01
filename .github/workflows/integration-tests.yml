@@ -97,8 +97,8 @@ jobs:
         with:
           persist-credentials: false
         if: inputs.is-airflow-runner == 'true' || matrix.backend == 'postgres'
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
         if: inputs.is-airflow-runner == 'true' || matrix.backend == 'postgres'
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}"
         uses: ./.github/actions/prepare_breeze_and_image
