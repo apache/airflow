@@ -18,17 +18,17 @@
 
 
 ============================
-Amazon S3 to Teradata
+Azure Blob to Teradata
 ============================
 
-Use the ``S3ToTeradataOperator`` transfer operator to copy CSV, JSON and Parquet format data from an Amazon Simple Storage Service (S3) to Teradata table.
+Use the ``AzureBlobStorageToTeradataOperator`` transfer operator to copy CSV, JSON and Parquet format data from Azure Blob Storage to Teradata table.
 
 Operators
 ---------
 
-.. _howto/operator:S3ToTeradataOperator:
+.. _howto/operator:AzureBlobStorageToTeradataOperator:
 
-Amazon S3 To Teradata transfer operator
+Azure Blob To Teradata transfer operator
 ==============================================
 
 This operator loads CSV, JSON and Parquet format data from Amazon S3 to Teradata table.
@@ -36,12 +36,12 @@ This operator loads CSV, JSON and Parquet format data from Amazon S3 to Teradata
 Using the Operator
 ^^^^^^^^^^^^^^^^^^
 
-To transfer CSV, JSON and Parquet data from Amazon S3 to Teradata, use the
-:class:`~airflow.providers.teradata.transfers.s3_to_teradata.S3ToTeradataOperator`.
+To transfer CSV, JSON and Parquet data from Azure Blob to Teradata, use the
+:class:`~airflow.providers.teradata.transfers.azure_blob_to_teradata.AzureBlobStorageToTeradataOperator`.
 
-An example usage of the S3ToTeradataOperator is as follows:
+An example usage of the AzureBlobStorageToTeradataOperator is as follows:
 
-.. exampleinclude:: /../../airflow/providers/teradata/example_dags/example_s3_to_teradata_transfer_operator.py
+.. exampleinclude:: /../../tests/system/providers/teradata/example_azure_blob_to_teradata_transfer_operator.py
     :language: python
-    :start-after: [START howto_transfer_operator_s3_to_teradata]
-    :end-before: [END howto_transfer_operator_s3_to_teradata]
+    :start-after: [START howto_transfer_operator_azure_blob_to_teradata]
+    :end-before: [END howto_transfer_operator_azure_blob_to_teradata]

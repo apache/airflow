@@ -16,13 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example Airflow DAG to show usage of teradata to teradata transfer operator
+Example Airflow DAG to show usage of S3StorageToTeradataOperator
 
-The transfer operator connects to source teradata server, runs query to fetch data from source
-and inserts that data into destination teradata database server. It assumes tables already exists.
-The example DAG below assumes Airflow Connection with connection id `teradata_default` already exists.
-It creates sample my_users table at source and destination, sets up sample data at source and then
-runs transfer operator to copy data to corresponding table on destination server.
+The transfer operator transfers CSV, JSON and PARQUET data format files from AWS S3 to teradata tables.
+The example DAG below assumes Airflow Connections with connection ids `teradata_default`
+and `aws_default` exists already. It creates tables with data from AWS S3 location, returns
+numbers of rows inserted into table and then drops this table.
 """
 from __future__ import annotations
 
@@ -43,10 +42,6 @@ except ImportError:
 
 # [START s3_to_teradata_transfer_operator_howto_guide]
 
-# transfer_data_csv, read_data_table_csv, drop_table_csv, transfer_data_json, read_data_table_json,
-# drop_table_json, transfer_data_parquet, read_data_table_parquet, drop_table_parquet
-# transfer_data_access, read_data_table_access, drop_table_access are examples of tasks created
-# by instantiating the S3ToTeradata Transfer Operator.
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_s3_to_teradata_transfer_operator"
