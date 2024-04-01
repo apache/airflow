@@ -71,6 +71,7 @@ from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.datasets import Dataset
 from airflow.datasets.manager import dataset_manager
+from airflow.datasets.metadata import Metadata
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -432,12 +433,32 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
         if execute_callable.__name__ == "execute":
             execute_callable_kwargs[f"{task_to_execute.__class__.__name__}__sentinel"] = _sentinel
 
-    def _execute_callable(context, **execute_callable_kwargs):
+    def _execute_callable(context: Context, **execute_callable_kwargs):
+        import inspect  # Name conflict with ``sqlalchemy.inspect``.
+
         try:
             # Print a marker for log grouping of details before task execution
             log.info("::endgroup::")
 
-            return execute_callable(context=context, **execute_callable_kwargs)
+            if not inspect.isgeneratorfunction(execute_callable):
+                return execute_callable(context=context, **execute_callable_kwargs)
+
+            # The function to execute contains at least one ``yield`` statement.
+            # Exhaust the generator while handling metadata it yields.
+            class _Runner:
+                def __iter__(self):
+                    self.result = yield from execute_callable(context=context, **execute_callable)
+
+            for metadata in (runner := _Runner()):
+                if isinstance(metadata, Metadata):
+                    context["dataset_events"][metadata.uri].extra.update(metadata.extra)
+                    continue
+                log.warning("Ignoring unknown data of %r received from task", type(metadata))
+                if log.isEnabledFor(logging.DEBUG):
+                    log.debug("Full yielded value: %r", metadata)
+
+            return runner.result
+
         except SystemExit as e:
             # Handle only successful cases here. Failure cases will be handled upper
             # in the exception chain.
