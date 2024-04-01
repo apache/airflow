@@ -134,6 +134,7 @@ from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.timeout import timeout
+from airflow.utils.types import NOTSET
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 TR = TaskReschedule
@@ -397,6 +398,29 @@ def _creator_note(val):
         return TaskInstanceNote(*val)
 
 
+def _run_task_callable(func: Callable, context: Context, **kwargs):
+    import inspect  # Name conflict with ``sqlalchemy.inspect``.
+
+    if not inspect.isgeneratorfunction(func):
+        return func(context=context, **kwargs)
+
+    result: Any = NOTSET
+
+    def _run():
+        nonlocal result
+        result = yield from func(context=context, **kwargs)
+
+    for metadata in _run():
+        if isinstance(metadata, Metadata):
+            context["dataset_events"][metadata.uri].extra.update(metadata.extra)
+            continue
+        log.warning("Ignoring unknown data of %r received from task", type(metadata))
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug("Full yielded value: %r", metadata)
+
+    return result
+
+
 def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: Context, task_orig: Operator):
     """
     Execute Task (optionally with a Timeout) and push Xcom results.
@@ -434,31 +458,11 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
             execute_callable_kwargs[f"{task_to_execute.__class__.__name__}__sentinel"] = _sentinel
 
     def _execute_callable(context: Context, **execute_callable_kwargs):
-        import inspect  # Name conflict with ``sqlalchemy.inspect``.
-
         try:
             # Print a marker for log grouping of details before task execution
             log.info("::endgroup::")
 
-            if not inspect.isgeneratorfunction(execute_callable):
-                return execute_callable(context=context, **execute_callable_kwargs)
-
-            # The function to execute contains at least one ``yield`` statement.
-            # Exhaust the generator while handling metadata it yields.
-            class _Runner:
-                def __iter__(self):
-                    self.result = yield from execute_callable(context=context, **execute_callable)
-
-            for metadata in (runner := _Runner()):
-                if isinstance(metadata, Metadata):
-                    context["dataset_events"][metadata.uri].extra.update(metadata.extra)
-                    continue
-                log.warning("Ignoring unknown data of %r received from task", type(metadata))
-                if log.isEnabledFor(logging.DEBUG):
-                    log.debug("Full yielded value: %r", metadata)
-
-            return runner.result
-
+            return _run_task_callable(execute_callable, context, **execute_callable_kwargs)
         except SystemExit as e:
             # Handle only successful cases here. Failure cases will be handled upper
             # in the exception chain.
@@ -2699,6 +2703,10 @@ class TaskInstance(Base, LoggingMixin):
                     jinja_env = None
                 task_orig = self.render_templates(context=context, jinja_env=jinja_env)
 
+            # The task is never MappedOperator at this point.
+            if TYPE_CHECKING:
+                assert isinstance(self.task, BaseOperator)
+
             if not test_mode:
                 rendered_fields = get_serialized_template_fields(task=self.task)
                 _update_rtif(ti=self, rendered_fields=rendered_fields)
@@ -2716,8 +2724,7 @@ class TaskInstance(Base, LoggingMixin):
                 )
 
             # Run pre_execute callback
-            # Is never MappedOperator at this point
-            self.task.pre_execute(context=context)  # type: ignore[union-attr]
+            _run_task_callable(self.task.pre_execute, context)
 
             # Run on_execute callback
             self._run_execute_callback(context, self.task)
@@ -2732,8 +2739,7 @@ class TaskInstance(Base, LoggingMixin):
                 result = self._execute_task(context, task_orig)
 
             # Run post_execute callback
-            # Is never MappedOperator at this point
-            self.task.post_execute(context=context, result=result)  # type: ignore[union-attr]
+            _run_task_callable(self.task.post_execute, context, result=result)
 
             # DAG authors define map_index_template at the task level
             if jinja_env is not None and (template := context.get("map_index_template")) is not None:
@@ -2745,7 +2751,7 @@ class TaskInstance(Base, LoggingMixin):
         Stats.incr("operator_successes", tags={**self.stats_tags, "task_type": self.task.task_type})
         Stats.incr("ti_successes", tags=self.stats_tags)
 
-    def _execute_task(self, context, task_orig):
+    def _execute_task(self, context: Context, task_orig: Operator):
         """
         Execute Task (optionally with a Timeout) and push Xcom results.
 
@@ -2796,16 +2802,15 @@ class TaskInstance(Base, LoggingMixin):
             else:
                 self.trigger_timeout = self.start_date + execution_timeout
 
-    def _run_execute_callback(self, context: Context, task: Operator) -> None:
+    def _run_execute_callback(self, context: Context, task: BaseOperator) -> None:
         """Functions that need to be run before a Task is executed."""
-        callbacks = task.on_execute_callback
-        if callbacks:
-            callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
-            for callback in callbacks:
-                try:
-                    callback(context)
-                except Exception:
-                    self.log.exception("Failed when executing execute callback")
+        if not (callbacks := task.on_execute_callback):
+            return
+        for callback in callbacks if isinstance(callbacks, list) else [callbacks]:
+            try:
+                _run_task_callable(callback, context)
+            except Exception:
+                self.log.exception("Failed when executing execute callback")
 
     @provide_session
     def run(
