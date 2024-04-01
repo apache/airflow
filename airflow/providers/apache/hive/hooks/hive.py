@@ -97,9 +97,13 @@ class HiveCliHook(BaseHook):
         hive_cli_params: str = "",
         auth: str | None = None,
         proxy_user: str | None = None,
+        high_availability: bool | None = None,
     ) -> None:
         super().__init__()
         conn = self.get_connection(hive_cli_conn_id)
+
+        print("conn is from __init__", conn)
+
         self.hive_cli_params: str = hive_cli_params
         self.use_beeline: bool = conn.extra_dejson.get("use_beeline", False)
         self.auth = auth
@@ -116,6 +120,7 @@ class HiveCliHook(BaseHook):
         self.mapred_queue_priority = mapred_queue_priority
         self.mapred_job_name = mapred_job_name
         self.proxy_user = proxy_user
+        self.high_availability = high_availability
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
@@ -130,6 +135,7 @@ class HiveCliHook(BaseHook):
             "principal": StringField(
                 lazy_gettext("Principal"), widget=BS3TextFieldWidget(), default="hive/_HOST@EXAMPLE.COM"
             ),
+            "high_availability": BooleanField(lazy_gettext("High Availability"), default=False),
         }
 
     @classmethod
@@ -160,6 +166,10 @@ class HiveCliHook(BaseHook):
             hive_bin = "beeline"
             self._validate_beeline_parameters(conn)
             jdbc_url = f"jdbc:hive2://{conn.host}:{conn.port}/{conn.schema}"
+            print("conn is", conn)
+            print("conn parameters", conn.host, conn.port, conn.schema)
+            if self.high_availability:
+                jdbc_url = f"jdbc:hive2://{conn.host}/{conn.schema}"
             if conf.get("core", "security") == "kerberos":
                 template = conn.extra_dejson.get("principal", "hive/_HOST@EXAMPLE.COM")
                 if "_HOST" in template:
@@ -169,7 +179,11 @@ class HiveCliHook(BaseHook):
                     raise RuntimeError("The principal should not contain the ';' character")
                 if ";" in proxy_user:
                     raise RuntimeError("The proxy_user should not contain the ';' character")
-                jdbc_url += f";principal={template};{proxy_user}"
+                if proxy_user:
+                    jdbc_url += f";principal={template};{proxy_user}"
+                else:
+                    jdbc_url += f";principal={template}" \
+                                f";serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2"
             elif self.auth:
                 jdbc_url += ";auth=" + self.auth
 
@@ -186,7 +200,13 @@ class HiveCliHook(BaseHook):
         return [hive_bin, *cmd_extra, *hive_params_list]
 
     def _validate_beeline_parameters(self, conn):
-        if ":" in conn.host or "/" in conn.host or ";" in conn.host:
+        if self.high_availability:
+            if ";" in conn.schema:
+                raise Exception(
+                    f"The schema used in beeline command ({conn.schema}) should not contain ';' character)"
+                )
+            return
+        elif ":" in conn.host or "/" in conn.host or ";" in conn.host:
             raise Exception(
                 f"The host used in beeline command ({conn.host}) should not contain ':/;' characters)"
             )

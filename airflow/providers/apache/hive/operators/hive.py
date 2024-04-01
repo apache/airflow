@@ -96,6 +96,7 @@ class HiveOperator(BaseOperator):
         hive_cli_params: str = "",
         auth: str | None = None,
         proxy_user: str | None = None,
+        high_availability: bool | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -111,6 +112,7 @@ class HiveOperator(BaseOperator):
         self.hive_cli_params = hive_cli_params
         self.auth = auth
         self.proxy_user = proxy_user
+        self.high_availability = high_availability
         job_name_template = conf.get_mandatory_value(
             "hive",
             "mapred_job_name_template",
@@ -129,6 +131,7 @@ class HiveOperator(BaseOperator):
             hive_cli_params=self.hive_cli_params,
             auth=self.auth,
             proxy_user=self.proxy_user,
+            high_availability=self.high_availability
         )
 
     @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
