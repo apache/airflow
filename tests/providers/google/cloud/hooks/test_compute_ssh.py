@@ -28,6 +28,7 @@ from paramiko.ssh_exception import SSHException
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.google.cloud.hooks.compute_ssh import ComputeEngineSSHHook
+from airflow.providers.google.cloud.hooks.os_login import OSLoginHook
 
 pytestmark = pytest.mark.db_test
 
@@ -48,22 +49,35 @@ class TestComputeEngineHookWithPassedProjectId:
         with pytest.raises(RuntimeError):
             ComputeEngineSSHHook(gcp_conn_id="gcpssh", delegate_to="delegate_to")
 
+    def test_os_login_hook(self, mocker):
+        mock_os_login_hook = mocker.patch.object(OSLoginHook, "__init__", return_value=None, spec=OSLoginHook)
+
+        # Default values
+        assert ComputeEngineSSHHook()._oslogin_hook
+        mock_os_login_hook.assert_called_with(gcp_conn_id="google_cloud_default")
+
+        # Custom conn_id
+        assert ComputeEngineSSHHook(gcp_conn_id="gcpssh")._oslogin_hook
+        mock_os_login_hook.assert_called_with(gcp_conn_id="gcpssh")
+
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineHook")
-    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.OSLoginHook")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.paramiko")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh._GCloudAuthorizedSSHClient")
-    def test_get_conn_default_configuration(
-        self, mock_ssh_client, mock_paramiko, mock_os_login_hook, mock_compute_hook
-    ):
-        mock_paramiko.SSHException = Exception
+    def test_get_conn_default_configuration(self, mock_ssh_client, mock_paramiko, mock_compute_hook, mocker):
+        mock_paramiko.SSHException = RuntimeError
         mock_paramiko.RSAKey.generate.return_value.get_name.return_value = "NAME"
         mock_paramiko.RSAKey.generate.return_value.get_base64.return_value = "AYZ"
 
         mock_compute_hook.return_value.project_id = TEST_PROJECT_ID
         mock_compute_hook.return_value.get_instance_address.return_value = EXTERNAL_IP
 
-        mock_os_login_hook.return_value._get_credentials_email.return_value = "test-example@example.org"
-        mock_os_login_hook.return_value.import_ssh_public_key.return_value.login_profile.posix_accounts = [
+        mock_os_login_hook = mocker.patch.object(
+            ComputeEngineSSHHook, "_oslogin_hook", spec=OSLoginHook, name="FakeOsLoginHook"
+        )
+        type(mock_os_login_hook)._get_credentials_email = mock.PropertyMock(
+            return_value="test-example@example.org"
+        )
+        mock_os_login_hook.import_ssh_public_key.return_value.login_profile.posix_accounts = [
             mock.MagicMock(username="test-username")
         ]
 
@@ -83,16 +97,10 @@ class TestComputeEngineHookWithPassedProjectId:
                 ),
             ]
         )
-        mock_os_login_hook.assert_has_calls(
-            [
-                mock.call(gcp_conn_id="google_cloud_default"),
-                mock.call()._get_credentials_email(),
-                mock.call().import_ssh_public_key(
-                    ssh_public_key={"key": "NAME AYZ root", "expiration_time_usec": mock.ANY},
-                    project_id="test-project-id",
-                    user=mock_os_login_hook.return_value._get_credentials_email.return_value,
-                ),
-            ]
+        mock_os_login_hook.import_ssh_public_key.assert_called_once_with(
+            ssh_public_key={"key": "NAME AYZ root", "expiration_time_usec": mock.ANY},
+            project_id="test-project-id",
+            user="test-example@example.org",
         )
         mock_ssh_client.assert_has_calls(
             [
@@ -113,7 +121,6 @@ class TestComputeEngineHookWithPassedProjectId:
         [(SSHException, r"Error occurred when establishing SSH connection using Paramiko")],
     )
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineHook")
-    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.OSLoginHook")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.paramiko")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh._GCloudAuthorizedSSHClient")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineSSHHook._connect_to_instance")
@@ -122,21 +129,26 @@ class TestComputeEngineHookWithPassedProjectId:
         mock_connect,
         mock_ssh_client,
         mock_paramiko,
-        mock_os_login_hook,
         mock_compute_hook,
         exception_type,
         error_message,
         caplog,
+        mocker,
     ):
-        mock_paramiko.SSHException = Exception
+        mock_paramiko.SSHException = RuntimeError
         mock_paramiko.RSAKey.generate.return_value.get_name.return_value = "NAME"
         mock_paramiko.RSAKey.generate.return_value.get_base64.return_value = "AYZ"
 
         mock_compute_hook.return_value.project_id = TEST_PROJECT_ID
         mock_compute_hook.return_value.get_instance_address.return_value = EXTERNAL_IP
 
-        mock_os_login_hook.return_value._get_credentials_email.return_value = "test-example@example.org"
-        mock_os_login_hook.return_value.import_ssh_public_key.return_value.login_profile.posix_accounts = [
+        mock_os_login_hook = mocker.patch.object(
+            ComputeEngineSSHHook, "_oslogin_hook", spec=OSLoginHook, name="FakeOsLoginHook"
+        )
+        type(mock_os_login_hook)._get_credentials_email = mock.PropertyMock(
+            return_value="test-example@example.org"
+        )
+        mock_os_login_hook.import_ssh_public_key.return_value.login_profile.posix_accounts = [
             mock.MagicMock(username="test-username")
         ]
 

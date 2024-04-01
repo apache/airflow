@@ -317,7 +317,7 @@ class GoogleBaseHook(BaseHook):
         credentials.refresh(auth_req)
         return credentials.token
 
-    @functools.lru_cache(maxsize=None)
+    @functools.cached_property
     def _get_credentials_email(self) -> str:
         """
         Return the email address associated with the currently logged in account.
