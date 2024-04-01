@@ -155,6 +155,7 @@ from airflow_breeze.utils.run_utils import (
     run_command,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
+from airflow_breeze.utils.version_utils import get_latest_airflow_version, get_latest_helm_chart_version
 from airflow_breeze.utils.versions import is_pre_release
 from airflow_breeze.utils.virtualenv_utils import create_pip_command, create_venv
 
@@ -3268,34 +3269,25 @@ def generate_issue_content(
     current = current_release
 
     if latest:
-        import requests
-
-        if not is_helm_chart:
-            response = requests.get("https://pypi.org/pypi/apache-airflow/json")
-            response.raise_for_status()
-            latest_released_version = response.json()["info"]["version"]
-            previous = str(latest_released_version)
+        if is_helm_chart:
+            latest_helm_version = get_latest_helm_chart_version()
+            get_console().print(f"\n[info] Latest stable version of helm chart is {latest_helm_version}\n")
+            previous = f"helm-chart/{latest_helm_version}"
+            current = os.getenv("VERSION", "HEAD")
+            if current == "HEAD":
+                get_console().print(
+                    "\n[warning]Environment variable VERSION not set, setting current release "
+                    "version as 'HEAD' for helm chart release\n"
+                )
+        else:
+            latest_airflow_version = get_latest_airflow_version()
+            previous = str(latest_airflow_version)
             current = os.getenv("VERSION", "HEAD")
             if current == "HEAD":
                 get_console().print(
                     "\n[warning]Environment variable VERSION not set, setting current release "
                     "version as 'HEAD'\n"
                 )
-        elif is_helm_chart:
-            response = requests.get("https://airflow.apache.org/_gen/packages-metadata.json")
-            data = response.json()
-            for package in data:
-                if package["package-name"] == "helm-chart":
-                    stable_version = package["stable-version"]
-                    get_console().print(f"\n[info] Latest stable version of helm chart is {stable_version}\n")
-                    previous = f"helm-chart/{stable_version}"
-                    current = os.getenv("VERSION", "HEAD")
-                    if current == "HEAD":
-                        get_console().print(
-                            "\n[warning]Environment variable VERSION not set, setting current release "
-                            "version as 'HEAD' for helm chart release\n"
-                        )
-                    break
 
     changes = get_changes(verbose, previous, current, is_helm_chart)
     change_prs = [change.pr for change in changes]
