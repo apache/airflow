@@ -1111,7 +1111,7 @@ class SelectiveChecks:
         return " ".join(sorted(affected_providers))
 
     @cached_property
-    def runs_on(self) -> str:
+    def runs_on_as_json_default(self) -> str:
         if self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY:
             if self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH]:
                 return RUNS_ON_SELF_HOSTED_RUNNER
@@ -1134,13 +1134,21 @@ class SelectiveChecks:
         return RUNS_ON_PUBLIC_RUNNER
 
     @cached_property
+    def runs_on_as_json_self_hosted(self) -> str:
+        return RUNS_ON_SELF_HOSTED_RUNNER
+
+    @cached_property
+    def runs_on_as_json_public(self) -> str:
+        return RUNS_ON_PUBLIC_RUNNER
+
+    @cached_property
     def is_self_hosted_runner(self) -> bool:
         """
         True if the job has runs_on labels indicating It should run on "self-hosted" runner.
 
         All self-hosted runners have "self-hosted" label.
         """
-        return "self-hosted" in json.loads(self.runs_on)
+        return "self-hosted" in json.loads(self.runs_on_as_json_default)
 
     @cached_property
     def is_airflow_runner(self) -> bool:
@@ -1151,7 +1159,7 @@ class SelectiveChecks:
         """
         # TODO: when we have it properly set-up with labels we should just check for
         #       "airflow-runner" presence in runs_on
-        runs_on_array = json.loads(self.runs_on)
+        runs_on_array = json.loads(self.runs_on_as_json_default)
         return "Linux" in runs_on_array and "X64" in runs_on_array and "self-hosted" in runs_on_array
 
     @cached_property
@@ -1172,7 +1180,7 @@ class SelectiveChecks:
                 or "x64" == label.lower()
                 or "asf-runner" == label
                 or ("ubuntu" in label and "arm" not in label.lower())
-                for label in json.loads(self.runs_on)
+                for label in json.loads(self.runs_on_as_json_public)
             ]
         )
 
@@ -1188,7 +1196,7 @@ class SelectiveChecks:
         return any(
             [
                 "arm" == label.lower() or "arm64" == label.lower() or "asf-arm" == label
-                for label in json.loads(self.runs_on)
+                for label in json.loads(self.runs_on_as_json_public)
             ]
         )
 
