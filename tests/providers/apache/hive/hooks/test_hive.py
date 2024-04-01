@@ -914,6 +914,12 @@ class TestHiveCli:
                 "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2",
             ),
             ({}, "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2"),
+            # with proxy user
+            (
+                {"proxy_user": "a_user_proxy", "high_availability": "true"},
+                "hive.server2.proxy.user=a_user_proxy;"
+                "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2",
+            ),
         ],
     )
     def test_high_availability(self, extra_dejson, expected_keys):
