@@ -73,7 +73,6 @@ paths:
       operationId: health
       deprecated: false
       x-openapi-router-controller: airflow.api_internal.endpoints.health_endpoint
-      operationId: health
       tags:
       - JSONRPC
       parameters: []
