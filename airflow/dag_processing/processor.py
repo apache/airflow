@@ -47,7 +47,7 @@ from airflow.models.dagrun import DagRun as DR
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import TaskInstance, TaskInstance as TI
+from airflow.models.taskinstance import TaskInstance, TaskInstance as TI, _run_finished_callback
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.email import get_email_address_list, send_email
@@ -763,8 +763,28 @@ class DagFileProcessor(LoggingMixin):
         if callbacks and context:
             DAG.execute_callback(callbacks, context, dag.dag_id)
 
-    def _execute_task_callbacks(self, dagbag: DagBag | None, request: TaskCallbackRequest, session: Session):
-        if not request.is_failure_callback:
+    def _execute_task_callbacks(
+        self, dagbag: DagBag | None, request: TaskCallbackRequest, session: Session
+    ) -> None:
+        """
+        Execute the task callbacks.
+
+        :param dagbag: the DagBag to use to get the task instance
+        :param request: the task callback request
+        :param session: the session to use
+        """
+        try:
+            callback_type = TaskInstanceState(request.task_callback_type)
+        except ValueError:
+            callback_type = None
+        is_remote = callback_type in (TaskInstanceState.SUCCESS, TaskInstanceState.FAILED)
+
+        # previously we ignored any request besides failures. now if given callback type directly,
+        # then we respect it and execute it. additionally because in this scenario the callback
+        # is submitted remotely, we assume there is no need to mess with state; we simply run
+        # the callback
+
+        if not is_remote and not request.is_failure_callback:
             return
 
         simple_ti = request.simple_task_instance
@@ -775,6 +795,7 @@ class DagFileProcessor(LoggingMixin):
             map_index=simple_ti.map_index,
             session=session,
         )
+
         if not ti:
             return
 
@@ -796,8 +817,16 @@ class DagFileProcessor(LoggingMixin):
         if task:
             ti.refresh_from_task(task)
 
-        ti.handle_failure(error=request.msg, test_mode=self.UNIT_TEST_MODE, session=session)
-        self.log.info("Executed failure callback for %s in state %s", ti, ti.state)
+        if callback_type is TaskInstanceState.SUCCESS:
+            context = ti.get_template_context(session=session)
+            if TYPE_CHECKING:
+                assert ti.task
+            callbacks = ti.task.on_success_callback
+            _run_finished_callback(callbacks=callbacks, context=context)
+            self.log.info("Executed callback for %s in state %s", ti, ti.state)
+        elif not is_remote or callback_type is TaskInstanceState.FAILED:
+            ti.handle_failure(error=request.msg, test_mode=self.UNIT_TEST_MODE, session=session)
+            self.log.info("Executed callback for %s in state %s", ti, ti.state)
         session.flush()
 
     @classmethod

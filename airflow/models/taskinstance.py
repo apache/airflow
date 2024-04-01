@@ -94,7 +94,6 @@ from airflow.models.base import Base, StringID, TaskInstanceDependencies, _senti
 from airflow.models.dagbag import DagBag
 from airflow.models.dataset import DatasetAliasModel, DatasetModel
 from airflow.models.log import Log
-from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import process_params
 from airflow.models.renderedtifields import get_serialized_template_fields
 from airflow.models.taskfail import TaskFail
@@ -699,6 +698,8 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
 
     :meta private:
     """
+    from airflow.models.mappedoperator import MappedOperator
+
     task_to_execute = task_instance.task
 
     if TYPE_CHECKING:
@@ -1288,6 +1289,8 @@ def _record_task_map_for_downstreams(
 
     :meta private:
     """
+    from airflow.models.mappedoperator import MappedOperator
+
     if task.dag is ATTRIBUTE_REMOVED:
         task.dag = dag  # required after deserialization
 
@@ -3454,6 +3457,8 @@ class TaskInstance(Base, LoggingMixin):
         the unmapped, fully rendered BaseOperator. The original ``self.task``
         before replacement is returned.
         """
+        from airflow.models.mappedoperator import MappedOperator
+
         if not context:
             context = self.get_template_context()
         original_task = self.task
@@ -3989,6 +3994,8 @@ def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> Mapp
 
 def _is_further_mapped_inside(operator: Operator, container: TaskGroup) -> bool:
     """Whether given operator is *further* mapped inside a task group."""
+    from airflow.models.mappedoperator import MappedOperator
+
     if isinstance(operator, MappedOperator):
         return True
     task_group = operator.task_group
