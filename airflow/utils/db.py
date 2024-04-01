@@ -988,6 +988,11 @@ def decrypt_trigger_kwargs(*, session: Session) -> None:
     from airflow.models.trigger import Trigger
     from airflow.serialization.serialized_objects import BaseSerialization
 
+    if not inspect(session.bind).has_table(Trigger.__tablename__):
+        # table does not exist, nothing to do
+        # this can happen when we downgrade to an old version before the Trigger table was added
+        return
+
     for trigger in session.query(Trigger):
         # decrypt the string and convert it to serialized dict
         trigger.encrypted_kwargs = json.dumps(BaseSerialization.serialize(trigger.kwargs))
