@@ -52,6 +52,7 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
     """
     if operator.do_xcom_push and context is not None:
         context["ti"].xcom_push(key=XCOM_RUN_ID_KEY, value=operator.run_id)
+
     log.info("Run submitted with run_id: %s", operator.run_id)
     run_page_url = hook.get_run_page_url(operator.run_id)
     if operator.do_xcom_push and context is not None:
@@ -66,52 +67,52 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
                     log.info("%s completed successfully.", operator.task_id)
                     log.info("View run status, Spark UI, and logs at %s", run_page_url)
                     return
-                else:
-                    if run_state.result_state == "FAILED":
-                        task_run_id = None
-                        if "tasks" in run_info:
-                            for task in run_info["tasks"]:
-                                if task.get("state", {}).get("result_state", "") == "FAILED":
-                                    task_run_id = task["run_id"]
-                        if task_run_id is not None:
-                            run_output = hook.get_run_output(task_run_id)
-                            if "error" in run_output:
-                                notebook_error = run_output["error"]
-                            else:
-                                notebook_error = run_state.state_message
+
+                if run_state.result_state == "FAILED":
+                    task_run_id = None
+                    if "tasks" in run_info:
+                        for task in run_info["tasks"]:
+                            if task.get("state", {}).get("result_state", "") == "FAILED":
+                                task_run_id = task["run_id"]
+                    if task_run_id is not None:
+                        run_output = hook.get_run_output(task_run_id)
+                        if "error" in run_output:
+                            notebook_error = run_output["error"]
                         else:
                             notebook_error = run_state.state_message
-                        error_message = (
-                            f"{operator.task_id} failed with terminal state: {run_state} "
-                            f"and with the error {notebook_error}"
-                        )
                     else:
-                        error_message = (
-                            f"{operator.task_id} failed with terminal state: {run_state} "
-                            f"and with the error {run_state.state_message}"
-                        )
-                    if isinstance(operator, DatabricksRunNowOperator) and operator.repair_run:
-                        operator.repair_run = False
-                        log.warning(
-                            "%s but since repair run is set, repairing the run with all failed tasks",
-                            error_message,
-                        )
+                        notebook_error = run_state.state_message
+                    error_message = (
+                        f"{operator.task_id} failed with terminal state: {run_state} "
+                        f"and with the error {notebook_error}"
+                    )
+                else:
+                    error_message = (
+                        f"{operator.task_id} failed with terminal state: {run_state} "
+                        f"and with the error {run_state.state_message}"
+                    )
 
-                        latest_repair_id = hook.get_latest_repair_id(operator.run_id)
-                        repair_json = {"run_id": operator.run_id, "rerun_all_failed_tasks": True}
-                        if latest_repair_id is not None:
-                            repair_json["latest_repair_id"] = latest_repair_id
-                        operator.json["latest_repair_id"] = hook.repair_run(operator, repair_json)
-                        _handle_databricks_operator_execution(operator, hook, log, context)
-                    raise AirflowException(error_message)
+                if isinstance(operator, DatabricksRunNowOperator) and operator.repair_run:
+                    operator.repair_run = False
+                    log.warning(
+                        "%s but since repair run is set, repairing the run with all failed tasks",
+                        error_message,
+                    )
 
-            else:
-                log.info("%s in run state: %s", operator.task_id, run_state)
-                log.info("View run status, Spark UI, and logs at %s", run_page_url)
-                log.info("Sleeping for %s seconds.", operator.polling_period_seconds)
-                time.sleep(operator.polling_period_seconds)
-    else:
-        log.info("View run status, Spark UI, and logs at %s", run_page_url)
+                    latest_repair_id = hook.get_latest_repair_id(operator.run_id)
+                    repair_json = {"run_id": operator.run_id, "rerun_all_failed_tasks": True}
+                    if latest_repair_id is not None:
+                        repair_json["latest_repair_id"] = latest_repair_id
+                    operator.json["latest_repair_id"] = hook.repair_run(operator, repair_json)
+                    _handle_databricks_operator_execution(operator, hook, log, context)
+                raise AirflowException(error_message)
+
+            log.info("%s in run state: %s", operator.task_id, run_state)
+            log.info("View run status, Spark UI, and logs at %s", run_page_url)
+            log.info("Sleeping for %s seconds.", operator.polling_period_seconds)
+            time.sleep(operator.polling_period_seconds)
+
+    log.info("View run status, Spark UI, and logs at %s", run_page_url)
 
 
 def _handle_deferrable_databricks_operator_execution(operator, hook, log, context) -> None:
@@ -146,6 +147,7 @@ def _handle_deferrable_databricks_operator_execution(operator, hook, log, contex
                     retry_delay=operator.databricks_retry_delay,
                     retry_args=operator.databricks_retry_args,
                     run_page_url=run_page_url,
+                    repair_run=getattr(operator, "repair_run", False),
                 ),
                 method_name=DEFER_METHOD_NAME,
             )
@@ -163,9 +165,15 @@ def _handle_deferrable_databricks_operator_completion(event: dict, log: Logger) 
     if run_state.is_successful:
         log.info("Job run completed successfully.")
         return
-    else:
-        error_message = f"Job run failed with terminal state: {run_state}"
-        raise AirflowException(error_message)
+
+    error_message = f"Job run failed with terminal state: {run_state}"
+    if event["repair_run"]:
+        log.warning(
+            "%s but since repair run is set, repairing the run with all failed tasks",
+            error_message,
+        )
+        return
+    raise AirflowException(error_message)
 
 
 class DatabricksJobRunLink(BaseOperatorLink):
@@ -584,9 +592,6 @@ class DatabricksSubmitRunDeferrableOperator(DatabricksSubmitRunOperator):
         self.run_id = hook.submit_run(json_normalised)
         _handle_deferrable_databricks_operator_execution(self, hook, self.log, context)
 
-    def execute_complete(self, context: dict | None, event: dict):
-        _handle_deferrable_databricks_operator_completion(event, self.log)
-
 
 class DatabricksRunNowOperator(BaseOperator):
     """
@@ -734,7 +739,7 @@ class DatabricksRunNowOperator(BaseOperator):
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
     :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
     :param deferrable: Run operator in the deferrable mode.
-    :param repair_run: Repair the databricks run in case of failure, doesn't work in deferrable mode
+    :param repair_run: Repair the databricks run in case of failure.
     """
 
     # Used in airflow.models.BaseOperator
@@ -825,6 +830,7 @@ class DatabricksRunNowOperator(BaseOperator):
                 raise AirflowException(f"Job ID for job name {self.json['job_name']} can not be found")
             self.json["job_id"] = job_id
             del self.json["job_name"]
+
         self.run_id = hook.run_now(self.json)
         if self.deferrable:
             _handle_deferrable_databricks_operator_execution(self, hook, self.log, context)
@@ -834,8 +840,17 @@ class DatabricksRunNowOperator(BaseOperator):
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         if event:
             _handle_deferrable_databricks_operator_completion(event, self.log)
+            if event["repair_run"]:
+                self.repair_run = False
+                self.run_id = event["run_id"]
+                latest_repair_id = self._hook.get_latest_repair_id(self.run_id)
+                repair_json = {"run_id": self.run_id, "rerun_all_failed_tasks": True}
+                if latest_repair_id is not None:
+                    repair_json["latest_repair_id"] = latest_repair_id
+                self.json["latest_srepair_id"] = self._hook.repair_run(repair_json)
+                _handle_deferrable_databricks_operator_execution(self, self._hook, self.log, context)
 
-    def on_kill(self):
+    def on_kill(self) -> None:
         if self.run_id:
             self._hook.cancel_run(self.run_id)
             self.log.info(
