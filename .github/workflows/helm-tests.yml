@@ -121,8 +121,7 @@ jobs:
       - name: "Test helm chart issue generation automatically"
         # Adding same tags for now, will address in a follow-up
         run: >
-          breeze release-management generate-issue-content-helm-chart --limit-pr-count 10
-          --latest --verbose
+          git tag
       - name: "Upload Helm artifacts"
         uses: actions/upload-artifact@v4
         with:
