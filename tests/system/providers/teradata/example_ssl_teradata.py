@@ -42,7 +42,7 @@ except ImportError:
 # the Teradata Operator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "example_teradata"
+DAG_ID = "example_ssl_teradata"
 
 with DAG(
     dag_id=DAG_ID,
