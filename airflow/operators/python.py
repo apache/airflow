@@ -52,7 +52,7 @@ from airflow.models.taskinstance import _CURRENT_CONTEXT
 from airflow.models.variable import Variable
 from airflow.operators.branch import BranchMixIn
 from airflow.utils import hashlib_wrapper
-from airflow.utils.context import context_copy_partial, context_merge
+from airflow.utils.context import DatasetEventAccessors, context_copy_partial, context_merge
 from airflow.utils.file import get_unique_dag_module_name
 from airflow.utils.operator_helpers import ExecutionCallableRunner, KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
@@ -61,7 +61,7 @@ from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_scr
 if TYPE_CHECKING:
     from pendulum.datetime import DateTime
 
-    from airflow.utils.context import Context, DatasetEventAccessors
+    from airflow.utils.context import Context
 
 
 def is_venv_installed() -> bool:
@@ -232,7 +232,11 @@ class PythonOperator(BaseOperator):
         context_merge(context, self.op_kwargs, templates_dict=self.templates_dict)
         self.op_kwargs = self.determine_kwargs(context)
 
-        return_value = self.execute_callable(context["dataset_events"])
+        try:
+            dataset_events = context["dataset_events"]
+        except KeyError:
+            dataset_events = context["dataset_events"] = DatasetEventAccessors()
+        return_value = self.execute_callable(dataset_events)
         if self.show_return_value_in_logs:
             self.log.info("Done. Returned value was: %s", return_value)
         else:
