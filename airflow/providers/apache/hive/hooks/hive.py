@@ -165,10 +165,9 @@ class HiveCliHook(BaseHook):
             hive_bin = "beeline"
             self._validate_beeline_parameters(conn)
             jdbc_url = f"jdbc:hive2://{conn.host}:{conn.port}/{conn.schema}"
-            print("conn is", conn)
-            print("conn parameters", conn.host, conn.port, conn.schema)
             if self.high_availability:
                 jdbc_url = f"jdbc:hive2://{conn.host}/{conn.schema}"
+                self.log.info("High Availability set, setting JDBC url as %s", jdbc_url)
             if conf.get("core", "security") == "kerberos":
                 template = conn.extra_dejson.get("principal", "hive/_HOST@EXAMPLE.COM")
                 if "_HOST" in template:
