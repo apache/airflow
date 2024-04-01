@@ -606,7 +606,7 @@ class BaseSerialization:
         elif var.__class__ == Context:
             d = {}
             for k, v in var._context.items():
-                obj = cls.serialize(v, use_pydantic_models=True)
+                obj = cls.serialize(v, strict=strict, use_pydantic_models=use_pydantic_models)
                 d[str(k)] = obj
             return cls._encode(d, type_=DAT.TASK_CONTEXT)
         elif use_pydantic_models and _ENABLE_AIP_44:
