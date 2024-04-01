@@ -29,8 +29,7 @@ from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from airflow.providers.openlineage.extractors.python import PythonExtractor
-from airflow.providers.openlineage.utils.utils import is_source_enabled
-from tests.test_utils.config import conf_vars
+from airflow.providers.openlineage.plugins.facets import UnknownOperatorAttributeRunFacet
 
 pytestmark = pytest.mark.db_test
 
@@ -58,110 +57,28 @@ def callable():
 CODE = "def callable():\n    print(10)\n"
 
 
-@pytest.fixture(autouse=True, scope="function")
-def clear_cache():
-    is_source_enabled.cache_clear()
-    try:
-        yield
-    finally:
-        is_source_enabled.cache_clear()
-
-
 def test_extract_source_code():
     code = inspect.getsource(callable)
     assert code == CODE
 
 
-def test_extract_operator_code_disables_on_no_env():
+@patch("airflow.providers.openlineage.conf.is_source_enabled")
+def test_extract_operator_code_disabled(mocked_source_enabled):
+    mocked_source_enabled.return_value = False
     operator = PythonOperator(task_id="taskid", python_callable=callable)
-    extractor = PythonExtractor(operator)
-    assert "sourceCode" not in extractor.extract().job_facets
+    result = PythonExtractor(operator).extract()
+    assert "sourceCode" not in result.job_facets
+    assert "unknownSourceAttribute" in result.run_facets
 
 
-@patch.dict(
-    os.environ,
-    {"AIRFLOW__OPENLINEAGE__DISABLED_FOR_OPERATORS": "airflow.operators.python.PythonOperator"},
-)
-def test_python_extraction_disabled_operator():
+@patch("airflow.providers.openlineage.conf.is_source_enabled")
+def test_extract_operator_code_enabled(mocked_source_enabled):
+    mocked_source_enabled.return_value = True
     operator = PythonOperator(task_id="taskid", python_callable=callable)
-    extractor = PythonExtractor(operator)
-    metadata = extractor.extract()
-    assert metadata is None
-    metadata = extractor.extract_on_complete(None)
-    assert metadata is None
-
-
-@patch.dict(os.environ, {"OPENLINEAGE_AIRFLOW_DISABLE_SOURCE_CODE": "False"})
-def test_extract_operator_code_enables_on_false_env():
-    operator = PythonOperator(task_id="taskid", python_callable=callable)
-    extractor = PythonExtractor(operator)
-    assert extractor.extract().job_facets["sourceCode"] == SourceCodeJobFacet("python", CODE)
-
-
-@conf_vars({("openlineage", "disable_source_code"): "False"})
-def test_extract_operator_code_enables_on_false_conf():
-    operator = PythonOperator(task_id="taskid", python_callable=callable)
-    extractor = PythonExtractor(operator)
-    assert extractor.extract().job_facets["sourceCode"] == SourceCodeJobFacet("python", CODE)
-
-
-def test_extract_dag_code_disables_on_no_env():
-    extractor = PythonExtractor(python_task_getcwd)
-    assert "sourceCode" not in extractor.extract().job_facets
-
-
-@patch.dict(os.environ, {"OPENLINEAGE_AIRFLOW_DISABLE_SOURCE_CODE": "False"})
-def test_extract_dag_code_enables_on_true_env():
-    extractor = PythonExtractor(python_task_getcwd)
-    assert extractor.extract().job_facets["sourceCode"] == SourceCodeJobFacet(
-        "python", "<built-in function getcwd>"
-    )
-
-
-@conf_vars({("openlineage", "disable_source_code"): "False"})
-def test_extract_dag_code_enables_on_true_conf():
-    extractor = PythonExtractor(python_task_getcwd)
-    assert extractor.extract().job_facets["sourceCode"] == SourceCodeJobFacet(
-        "python", "<built-in function getcwd>"
-    )
-
-
-@conf_vars({("openlineage", "disable_source_code"): "False"})
-@patch.dict(os.environ, {"OPENLINEAGE_AIRFLOW_DISABLE_SOURCE_CODE": "False"})
-def test_extract_dag_code_conf_precedence():
-    extractor = PythonExtractor(python_task_getcwd)
-    assert extractor.extract().job_facets["sourceCode"] == SourceCodeJobFacet(
-        "python", "<built-in function getcwd>"
-    )
-
-
-@patch.dict(os.environ, {"OPENLINEAGE_AIRFLOW_DISABLE_SOURCE_CODE": "True"})
-def test_extract_dag_code_env_disables_on_true():
-    extractor = PythonExtractor(python_task_getcwd)
-    metadata = extractor.extract()
-    assert metadata is not None
-    assert "sourceCode" not in metadata.job_facets
-
-
-@conf_vars({("openlineage", "disable_source_code"): "True"})
-def test_extract_dag_code_conf_disables_on_true():
-    extractor = PythonExtractor(python_task_getcwd)
-    metadata = extractor.extract()
-    assert metadata is not None
-    assert "sourceCode" not in metadata.job_facets
-
-
-@patch.dict(os.environ, {"OPENLINEAGE_AIRFLOW_DISABLE_SOURCE_CODE": "asdftgeragdsfgawef"})
-def test_extract_dag_code_env_does_not_disable_on_random_string():
-    extractor = PythonExtractor(python_task_getcwd)
-    assert extractor.extract().job_facets["sourceCode"] == SourceCodeJobFacet(
-        "python", "<built-in function getcwd>"
-    )
-
-
-@conf_vars({("openlineage", "disable_source_code"): "asdftgeragdsfgawef"})
-def test_extract_dag_code_conf_does_not_disable_on_random_string():
-    extractor = PythonExtractor(python_task_getcwd)
-    assert extractor.extract().job_facets["sourceCode"] == SourceCodeJobFacet(
-        "python", "<built-in function getcwd>"
-    )
+    result = PythonExtractor(operator).extract()
+    assert result.job_facets["sourceCode"] == SourceCodeJobFacet("python", CODE)
+    assert "unknownSourceAttribute" in result.run_facets
+    unknown_operator_facet = result.run_facets["unknownSourceAttribute"]
+    assert isinstance(unknown_operator_facet, UnknownOperatorAttributeRunFacet)
+    assert len(unknown_operator_facet.unknownItems) == 1
+    assert unknown_operator_facet.unknownItems[0].name == "PythonOperator"

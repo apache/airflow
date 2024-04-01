@@ -21,12 +21,14 @@ from __future__ import annotations
 import datetime
 import json
 import logging
+import math
 import re
 import shlex
 import string
 import warnings
 from collections.abc import Container
 from contextlib import AbstractContextManager
+from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence
 
@@ -93,6 +95,13 @@ if TYPE_CHECKING:
 alphanum_lower = string.ascii_lowercase + string.digits
 
 KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
+
+
+class PodEventType(Enum):
+    """Type of Events emitted by kubernetes pod."""
+
+    WARNING = "Warning"
+    NORMAL = "Normal"
 
 
 class PodReattachFailure(AirflowException):
@@ -266,7 +275,7 @@ class KubernetesPodOperator(BaseOperator):
         labels: dict | None = None,
         reattach_on_restart: bool = True,
         startup_timeout_seconds: int = 120,
-        startup_check_interval_seconds: int = 1,
+        startup_check_interval_seconds: int = 5,
         get_logs: bool = True,
         container_logs: Iterable[str] | str | Literal[True] = BASE_CONTAINER_NAME,
         image_pull_policy: str | None = None,
@@ -548,8 +557,7 @@ class KubernetesPodOperator(BaseOperator):
             )
         except PodLaunchFailedException:
             if self.log_events_on_failure:
-                for event in self.pod_manager.read_pod_events(pod).items:
-                    self.log.error("Pod Event: %s - %s", event.reason, event.message)
+                self._read_pod_events(pod, reraise=False)
             raise
 
     def extract_xcom(self, pod: k8s.V1Pod):
@@ -703,10 +711,13 @@ class KubernetesPodOperator(BaseOperator):
                     pod=self.pod, event=event, client=self.client, mode=ExecutionMode.SYNC
                 )
 
+            follow = self.logging_interval is None
+            last_log_time = event.get("last_log_time")
+
             if event["status"] in ("error", "failed", "timeout"):
                 # fetch some logs when pod is failed
                 if self.get_logs:
-                    self.write_logs(self.pod)
+                    self.write_logs(self.pod, follow=follow, since_time=last_log_time)
 
                 if self.do_xcom_push:
                     _ = self.extract_xcom(pod=self.pod)
@@ -716,13 +727,12 @@ class KubernetesPodOperator(BaseOperator):
 
             elif event["status"] == "running":
                 if self.get_logs:
-                    last_log_time = event.get("last_log_time")
                     self.log.info("Resuming logs read from time %r", last_log_time)
 
                     pod_log_status = self.pod_manager.fetch_container_logs(
                         pod=self.pod,
                         container_name=self.BASE_CONTAINER_NAME,
-                        follow=self.logging_interval is None,
+                        follow=follow,
                         since_time=last_log_time,
                     )
 
@@ -735,7 +745,7 @@ class KubernetesPodOperator(BaseOperator):
             elif event["status"] == "success":
                 # fetch some logs when pod is executed successfully
                 if self.get_logs:
-                    self.write_logs(self.pod)
+                    self.write_logs(self.pod, follow=follow, since_time=last_log_time)
 
                 if self.do_xcom_push:
                     xcom_sidecar_output = self.extract_xcom(pod=self.pod)
@@ -764,14 +774,20 @@ class KubernetesPodOperator(BaseOperator):
 
     @deprecated(reason="use `trigger_reentry` instead.", category=AirflowProviderDeprecationWarning)
     def execute_complete(self, context: Context, event: dict, **kwargs):
-        self.trigger_reentry(context=context, event=event)
+        return self.trigger_reentry(context=context, event=event)
 
-    def write_logs(self, pod: k8s.V1Pod):
+    def write_logs(self, pod: k8s.V1Pod, follow: bool = False, since_time: DateTime | None = None):
         try:
+            since_seconds = (
+                math.ceil((datetime.datetime.now(tz=datetime.timezone.utc) - since_time).total_seconds())
+                if since_time
+                else None
+            )
             logs = self.pod_manager.read_pod_logs(
                 pod=pod,
                 container_name=self.base_container_name,
-                follow=False,
+                follow=follow,
+                since_seconds=since_seconds,
             )
             for raw_line in logs:
                 line = raw_line.decode("utf-8", errors="backslashreplace").rstrip("\n")
@@ -793,9 +809,11 @@ class KubernetesPodOperator(BaseOperator):
             self.callbacks.on_pod_cleanup(pod=pod, client=self.client, mode=ExecutionMode.SYNC)
 
     def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
-        # If a task got marked as failed, "on_kill" method would be called and the pod will be cleaned up
+        # Skip cleaning the pod in the following scenarios.
+        # 1. If a task got marked as failed, "on_kill" method would be called and the pod will be cleaned up
         # there. Cleaning it up again will raise an exception (which might cause retry).
-        if self._killed:
+        # 2. remote pod is null (ex: pod creation failed)
+        if self._killed or not remote_pod:
             return
 
         istio_enabled = self.is_istio_enabled(remote_pod)
@@ -853,7 +871,10 @@ class KubernetesPodOperator(BaseOperator):
         """Will fetch and emit events from pod."""
         with _optionally_suppress(reraise=reraise):
             for event in self.pod_manager.read_pod_events(pod).items:
-                self.log.error("Pod Event: %s - %s", event.reason, event.message)
+                if event.type == PodEventType.NORMAL.value:
+                    self.log.info("Pod Event: %s - %s", event.reason, event.message)
+                else:
+                    self.log.error("Pod Event: %s - %s", event.reason, event.message)
 
     def is_istio_enabled(self, pod: V1Pod) -> bool:
         """Check if istio is enabled for the namespace of the pod by inspecting the namespace labels."""

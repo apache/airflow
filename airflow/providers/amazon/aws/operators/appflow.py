@@ -143,7 +143,11 @@ class AppflowRunOperator(AppflowBaseOperator):
     :param source: Obsolete, unnecessary for this operator
     :param flow_name: The flow name
     :param poll_interval: how often in seconds to check the query status
-    :param aws_conn_id: aws connection to use
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param region: aws region to use
     :param wait_for_completion: whether to wait for the run to end to return
     """
@@ -222,7 +226,11 @@ class AppflowRunBeforeOperator(AppflowBaseOperator):
     :param source_field: The field name to apply filters
     :param filter_date: The date value (or template) to be used in filters.
     :param poll_interval: how often in seconds to check the query status
-    :param aws_conn_id: aws connection to use
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param region: aws region to use
     :param wait_for_completion: whether to wait for the run to end to return
     """

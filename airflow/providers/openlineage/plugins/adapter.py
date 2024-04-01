@@ -16,8 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-import os
 import uuid
+from contextlib import ExitStack
 from typing import TYPE_CHECKING
 
 import yaml
@@ -36,8 +36,7 @@ from openlineage.client.facet import (
 )
 from openlineage.client.run import Job, Run, RunEvent, RunState
 
-from airflow.configuration import conf
-from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION
+from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION, conf
 from airflow.providers.openlineage.utils.utils import OpenLineageRedactor
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -46,12 +45,6 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.log.secrets_masker import SecretsMasker
-
-_DAG_DEFAULT_NAMESPACE = "default"
-
-_DAG_NAMESPACE = conf.get(
-    "openlineage", "namespace", fallback=os.getenv("OPENLINEAGE_NAMESPACE", _DAG_DEFAULT_NAMESPACE)
-)
 
 _PRODUCER = f"https://github.com/apache/airflow/tree/providers-openlineage/{OPENLINEAGE_PROVIDER_VERSION}"
 
@@ -87,18 +80,16 @@ class OpenLineageAdapter(LoggingMixin):
 
     def get_openlineage_config(self) -> dict | None:
         # First, try to read from YAML file
-        openlineage_config_path = conf.get("openlineage", "config_path")
+        openlineage_config_path = conf.config_path(check_legacy_env_var=False)
         if openlineage_config_path:
             config = self._read_yaml_config(openlineage_config_path)
             if config:
                 return config.get("transport", None)
         # Second, try to get transport config
-        transport = conf.getjson("openlineage", "transport")
-        if not transport:
+        transport_config = conf.transport()
+        if not transport_config:
             return None
-        elif not isinstance(transport, dict):
-            raise ValueError(f"{transport} is not a dict")
-        return transport
+        return transport_config
 
     def _read_yaml_config(self, path: str) -> dict | None:
         with open(path) as config_file:
@@ -106,28 +97,40 @@ class OpenLineageAdapter(LoggingMixin):
 
     @staticmethod
     def build_dag_run_id(dag_id, dag_run_id):
-        return str(uuid.uuid3(uuid.NAMESPACE_URL, f"{_DAG_NAMESPACE}.{dag_id}.{dag_run_id}"))
+        return str(uuid.uuid3(uuid.NAMESPACE_URL, f"{conf.namespace()}.{dag_id}.{dag_run_id}"))
 
     @staticmethod
     def build_task_instance_run_id(dag_id, task_id, execution_date, try_number):
         return str(
             uuid.uuid3(
                 uuid.NAMESPACE_URL,
-                f"{_DAG_NAMESPACE}.{dag_id}.{task_id}.{execution_date}.{try_number}",
+                f"{conf.namespace()}.{dag_id}.{task_id}.{execution_date}.{try_number}",
             )
         )
 
     def emit(self, event: RunEvent):
+        """Emit OpenLineage event.
+
+        :param event: Event to be emitted.
+        :return: Redacted Event.
+        """
         if not self._client:
             self._client = self.get_or_create_openlineage_client()
         redacted_event: RunEvent = self._redacter.redact(event, max_depth=20)  # type: ignore[assignment]
+        event_type = event.eventType.value.lower()
+        transport_type = f"{self._client.transport.kind}".lower()
+
         try:
-            with Stats.timer("ol.emit.attempts"):
-                return self._client.emit(redacted_event)
+            with ExitStack() as stack:
+                stack.enter_context(Stats.timer(f"ol.emit.attempts.{event_type}.{transport_type}"))
+                stack.enter_context(Stats.timer("ol.emit.attempts"))
+                self._client.emit(redacted_event)
         except Exception as e:
             Stats.incr("ol.emit.failed")
             self.log.warning("Failed to emit OpenLineage event of id %s", event.run.runId)
             self.log.debug("OpenLineage emission failure: %s", e)
+
+        return redacted_event
 
     def start_task(
         self,
@@ -143,7 +146,7 @@ class OpenLineageAdapter(LoggingMixin):
         owners: list[str],
         task: OperatorLineage | None,
         run_facets: dict[str, BaseFacet] | None = None,  # Custom run facets
-    ):
+    ) -> RunEvent:
         """
         Emit openlineage event of type START.
 
@@ -198,7 +201,7 @@ class OpenLineageAdapter(LoggingMixin):
             outputs=task.outputs if task else [],
             producer=_PRODUCER,
         )
-        self.emit(event)
+        return self.emit(event)
 
     def complete_task(
         self,
@@ -208,7 +211,7 @@ class OpenLineageAdapter(LoggingMixin):
         parent_run_id: str | None,
         end_time: str,
         task: OperatorLineage,
-    ):
+    ) -> RunEvent:
         """
         Emit openlineage event of type COMPLETE.
 
@@ -235,7 +238,7 @@ class OpenLineageAdapter(LoggingMixin):
             outputs=task.outputs,
             producer=_PRODUCER,
         )
-        self.emit(event)
+        return self.emit(event)
 
     def fail_task(
         self,
@@ -245,7 +248,7 @@ class OpenLineageAdapter(LoggingMixin):
         parent_run_id: str | None,
         end_time: str,
         task: OperatorLineage,
-    ):
+    ) -> RunEvent:
         """
         Emit openlineage event of type FAIL.
 
@@ -272,7 +275,7 @@ class OpenLineageAdapter(LoggingMixin):
             outputs=task.outputs,
             producer=_PRODUCER,
         )
-        self.emit(event)
+        return self.emit(event)
 
     def dag_started(
         self,
@@ -340,7 +343,7 @@ class OpenLineageAdapter(LoggingMixin):
         if parent_run_id:
             parent_run_facet = ParentRunFacet.create(
                 runId=parent_run_id,
-                namespace=_DAG_NAMESPACE,
+                namespace=conf.namespace(),
                 name=parent_job_name or job_name,
             )
             facets.update(
@@ -383,4 +386,4 @@ class OpenLineageAdapter(LoggingMixin):
 
         facets.update({"jobType": job_type})
 
-        return Job(_DAG_NAMESPACE, job_name, facets)
+        return Job(conf.namespace(), job_name, facets)

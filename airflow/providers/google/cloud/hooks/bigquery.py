@@ -49,13 +49,14 @@ from google.cloud.bigquery.table import EncryptionConfiguration, Row, RowIterato
 from google.cloud.exceptions import NotFound
 from googleapiclient.discovery import Resource, build
 from pandas_gbq import read_gbq
-from pandas_gbq.gbq import GbqConnector  # noqa
+from pandas_gbq.gbq import GbqConnector  # noqa: F401 Used in ``airflow.contrib.hooks.bigquery``
 from requests import Session
 from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.cloud.utils.bigquery import bq_cast
+from airflow.providers.google.cloud.utils.credentials_provider import _get_scopes
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook, get_field
 
@@ -92,6 +93,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         Google BigQuery jobs.
     :param impersonation_chain: This is the optional service account to
         impersonate using short term credentials.
+    :param impersonation_scopes: Optional list of scopes for impersonated account.
+        Will override scopes from connection.
     :param labels: The BigQuery resource label.
     """
 
@@ -108,6 +111,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         priority: str = "INTERACTIVE",
         api_resource_configs: dict | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        impersonation_scopes: str | Sequence[str] | None = None,
         labels: dict | None = None,
         **kwargs,
     ) -> None:
@@ -127,6 +131,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         self.api_resource_configs: dict = api_resource_configs or {}
         self.labels = labels
         self.credentials_path = "bigquery_hook_credentials.json"
+        self.impersonation_scopes = impersonation_scopes
 
     def get_conn(self) -> BigQueryConnection:
         """Get a BigQuery PEP 249 connection object."""
@@ -232,8 +237,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         target_fields: Any = None,
         commit_every: Any = 1000,
         replace: Any = False,
-        *,
-        executemany=False,
         **kwargs,
     ) -> None:
         """Insert rows.
@@ -2337,6 +2340,20 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         return project_id, dataset_id, table_id
 
+    @property
+    def scopes(self) -> Sequence[str]:
+        """
+        Return OAuth 2.0 scopes.
+
+        :return: Returns the scope defined in impersonation_scopes, the connection configuration, or the default scope
+        """
+        scope_value: str | None
+        if self.impersonation_chain and self.impersonation_scopes:
+            scope_value = ",".join(self.impersonation_scopes)
+        else:
+            scope_value = self._get_field("scope", None)
+        return _get_scopes(scope_value)
+
 
 class BigQueryConnection:
     """BigQuery connection.
@@ -3187,7 +3204,7 @@ def _validate_src_fmt_configs(
         if k not in src_fmt_configs and k in valid_configs:
             src_fmt_configs[k] = v
 
-    for k, v in src_fmt_configs.items():
+    for k in src_fmt_configs:
         if k not in valid_configs:
             raise ValueError(f"{k} is not a valid src_fmt_configs for type {source_format}.")
 
@@ -3313,6 +3330,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
     async def create_job_for_partition_get(
         self,
         dataset_id: str | None,
+        table_id: str | None = None,
         project_id: str | None = None,
     ):
         """Create a new job and get the job_id using gcloud-aio."""
@@ -3322,7 +3340,8 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
 
             query_request = {
                 "query": "SELECT partition_id "
-                f"FROM `{project_id}.{dataset_id}.INFORMATION_SCHEMA.PARTITIONS`",
+                f"FROM `{project_id}.{dataset_id}.INFORMATION_SCHEMA.PARTITIONS`"
+                + (f" WHERE table_id={table_id}" if table_id else ""),
                 "useLegacySql": False,
             }
             job_query_resp = await job_client.query(query_request, cast(Session, session))

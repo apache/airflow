@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Table to store information about mapped task instances (AIP-42)."""
+
 from __future__ import annotations
 
 import collections.abc

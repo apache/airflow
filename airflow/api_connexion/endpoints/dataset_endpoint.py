@@ -20,11 +20,13 @@ from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 from connexion import NoContent
+from marshmallow import ValidationError
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import joinedload, subqueryload
 
 from airflow.api_connexion import security
-from airflow.api_connexion.exceptions import NotFound
+from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
+from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_datetime, format_parameters
 from airflow.api_connexion.schemas.dataset_schema import (
     DagScheduleDatasetReference,
@@ -33,21 +35,29 @@ from airflow.api_connexion.schemas.dataset_schema import (
     QueuedEvent,
     QueuedEventCollection,
     TaskOutletDatasetReference,
+    create_dataset_event_schema,
     dataset_collection_schema,
     dataset_event_collection_schema,
+    dataset_event_schema,
     dataset_schema,
     queued_event_collection_schema,
     queued_event_schema,
 )
+from airflow.datasets import Dataset
+from airflow.datasets.manager import dataset_manager
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.utils import timezone
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.www.decorators import action_logging
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.api_connexion.types import APIResponse
+
+RESOURCE_EVENT_PREFIX = "dataset"
 
 
 @security.requires_access_dataset("GET")
@@ -195,6 +205,7 @@ def get_dag_dataset_queued_event(
 @security.requires_access_dataset("DELETE")
 @security.requires_access_dag("GET")
 @provide_session
+@action_logging
 def delete_dag_dataset_queued_event(
     *, dag_id: str, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
@@ -242,6 +253,7 @@ def get_dag_dataset_queued_events(
 
 @security.requires_access_dataset("DELETE")
 @security.requires_access_dag("GET")
+@action_logging
 @provide_session
 def delete_dag_dataset_queued_events(
     *, dag_id: str, before: str | None = None, session: Session = NEW_SESSION
@@ -291,6 +303,7 @@ def get_dataset_queued_events(
 
 
 @security.requires_access_dataset("DELETE")
+@action_logging
 @provide_session
 def delete_dataset_queued_events(
     *, uri: str, before: str | None = None, session: Session = NEW_SESSION
@@ -311,3 +324,33 @@ def delete_dataset_queued_events(
         "Queue event not found",
         detail=f"Queue event with dataset uri: `{uri}` was not found",
     )
+
+
+@security.requires_access_dataset("POST")
+@provide_session
+@action_logging
+def create_dataset_event(session: Session = NEW_SESSION) -> APIResponse:
+    """Create dataset event."""
+    body = get_json_request_dict()
+    try:
+        json_body = create_dataset_event_schema.load(body)
+    except ValidationError as err:
+        raise BadRequest(detail=str(err))
+
+    uri = json_body["dataset_uri"]
+    dataset = session.scalar(select(DatasetModel).where(DatasetModel.uri == uri).limit(1))
+    if not dataset:
+        raise NotFound(title="Dataset not found", detail=f"Dataset with uri: '{uri}' not found")
+    timestamp = timezone.utcnow()
+    extra = json_body.get("extra", {})
+    extra["from_rest_api"] = True
+    dataset_event = dataset_manager.register_dataset_change(
+        dataset=Dataset(uri),
+        timestamp=timestamp,
+        extra=extra,
+        session=session,
+    )
+    if not dataset_event:
+        raise NotFound(title="Dataset not found", detail=f"Dataset with uri: '{uri}' not found")
+    event = dataset_event_schema.dump(dataset_event)
+    return event

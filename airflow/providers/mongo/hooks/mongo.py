@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Mongo DB."""
+
 from __future__ import annotations
 
 import warnings
@@ -118,6 +119,7 @@ class MongoHook(BaseHook):
             self.allow_insecure = False
 
     def __enter__(self):
+        """Return the object when a context manager is created."""
         return self
 
     def __exit__(
@@ -126,6 +128,7 @@ class MongoHook(BaseHook):
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None:
+        """Close mongo connection when exiting the context manager."""
         if self.client is not None:
             self.client.close()
             self.client = None
@@ -198,8 +201,7 @@ class MongoHook(BaseHook):
         mongo_db: str | None = None,
         projection: list | dict | None = None,
         **kwargs,
-    ) -> pymongo.cursor.Cursor:
-        ...
+    ) -> pymongo.cursor.Cursor: ...
 
     @overload
     def find(
@@ -210,8 +212,7 @@ class MongoHook(BaseHook):
         mongo_db: str | None = None,
         projection: list | dict | None = None,
         **kwargs,
-    ) -> Any | None:
-        ...
+    ) -> Any | None: ...
 
     def find(
         self,

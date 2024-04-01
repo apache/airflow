@@ -16,34 +16,22 @@
 # under the License.
 from __future__ import annotations
 
-import subprocess
+from python_on_whales import DockerException
 
-from docker_tests.command_utils import run_command
-from docker_tests.docker_tests_utils import display_dependency_conflict_message, docker_image
+from docker_tests.docker_utils import display_dependency_conflict_message, run_bash_in_docker
 
 
-def test_pip_dependencies_conflict():
+def test_pip_dependencies_conflict(default_docker_image):
     try:
-        run_command(["docker", "run", "--rm", "--entrypoint", "/bin/bash", docker_image, "-c", "pip check"])
-    except subprocess.CalledProcessError as ex:
+        run_bash_in_docker("pip check", image=default_docker_image)
+    except DockerException:
         display_dependency_conflict_message()
-        raise ex
+        raise
 
 
 def test_providers_present():
     try:
-        run_command(
-            [
-                "docker",
-                "run",
-                "--rm",
-                "--entrypoint",
-                "/bin/bash",
-                docker_image,
-                "-c",
-                "airflow providers list",
-            ],
-        )
-    except subprocess.CalledProcessError as ex:
+        run_bash_in_docker("airflow providers list")
+    except DockerException:
         display_dependency_conflict_message()
-        raise ex
+        raise

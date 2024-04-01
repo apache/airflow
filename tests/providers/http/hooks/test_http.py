@@ -497,6 +497,18 @@ class TestHttpHook:
             tcp_keep_alive_send.assert_not_called()
             http_send.assert_called()
 
+    @pytest.mark.parametrize(
+        "base_url, endpoint, expected_url",
+        [
+            pytest.param("https://example.org", "/v1/test", "https://example.org/v1/test", id="both-set"),
+            pytest.param("", "http://foo/bar/v1/test", "http://foo/bar/v1/test", id="only-endpoint"),
+        ],
+    )
+    def test_url_from_endpoint(self, base_url: str, endpoint: str, expected_url: str):
+        hook = HttpHook()
+        hook.base_url = base_url
+        assert hook.url_from_endpoint(endpoint) == expected_url
+
 
 class TestHttpAsyncHook:
     @pytest.mark.asyncio
@@ -648,3 +660,25 @@ class TestHttpAsyncHook:
             "max_redirects": 3,
         }
         assert actual == {"bearer": "test"}
+
+    @pytest.mark.asyncio
+    async def test_build_request_url_from_connection(self):
+        conn = get_airflow_connection()
+        schema = conn.schema or "http"  # default to http
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+            hook = HttpAsyncHook()
+            with mock.patch("aiohttp.ClientSession.post", new_callable=mock.AsyncMock) as mocked_function:
+                await hook.run("v1/test")
+                assert mocked_function.call_args.args[0] == f"{schema}://{conn.host}v1/test"
+
+    @pytest.mark.asyncio
+    async def test_build_request_url_from_endpoint_param(self):
+        def get_empty_conn(conn_id: str = "http_default"):
+            return Connection(conn_id=conn_id, conn_type="http")
+
+        hook = HttpAsyncHook()
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_empty_conn), mock.patch(
+            "aiohttp.ClientSession.post", new_callable=mock.AsyncMock
+        ) as mocked_function:
+            await hook.run("test.com:8080/v1/test")
+            assert mocked_function.call_args.args[0] == "http://test.com:8080/v1/test"

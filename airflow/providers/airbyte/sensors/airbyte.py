@@ -16,11 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Airbyte Job sensor."""
+
 from __future__ import annotations
 
 import time
 import warnings
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, Literal, Sequence
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
@@ -41,6 +42,7 @@ class AirbyteJobSensor(BaseSensorOperator):
     :param deferrable: Run sensor in the deferrable mode.
         connection information for Airbyte. Defaults to "airbyte_default".
     :param api_version: Optional. Airbyte API version. Defaults to "v1".
+    :param api_type: Optional. The type of Airbyte API to use. Either "config" or "cloud". Defaults to "config".
     """
 
     template_fields: Sequence[str] = ("airbyte_job_id",)
@@ -53,6 +55,7 @@ class AirbyteJobSensor(BaseSensorOperator):
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         airbyte_conn_id: str = "airbyte_default",
         api_version: str = "v1",
+        api_type: Literal["config", "cloud"] = "config",
         **kwargs,
     ) -> None:
         if deferrable:
@@ -77,11 +80,17 @@ class AirbyteJobSensor(BaseSensorOperator):
         self.airbyte_conn_id = airbyte_conn_id
         self.airbyte_job_id = airbyte_job_id
         self.api_version = api_version
+        self.api_type = api_type
 
     def poke(self, context: Context) -> bool:
-        hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
+        hook = AirbyteHook(
+            airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version, api_type=self.api_type
+        )
         job = hook.get_job(job_id=self.airbyte_job_id)
-        status = job.json()["job"]["status"]
+        if self.api_type == "config":
+            status = job.json()["job"]["status"]
+        else:
+            status = job.json()["status"]
 
         if status == hook.FAILED:
             # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
@@ -109,9 +118,14 @@ class AirbyteJobSensor(BaseSensorOperator):
         if not self.deferrable:
             super().execute(context)
         else:
-            hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id)
+            hook = AirbyteHook(
+                airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version, api_type=self.api_type
+            )
             job = hook.get_job(job_id=(int(self.airbyte_job_id)))
-            state = job.json()["job"]["status"]
+            if self.api_type == "config":
+                state = job.json()["job"]["status"]
+            else:
+                state = job.json()["status"]
             end_time = time.time() + self.timeout
 
             self.log.info("Airbyte Job Id: Job %s", self.airbyte_job_id)
@@ -120,6 +134,7 @@ class AirbyteJobSensor(BaseSensorOperator):
                 self.defer(
                     timeout=self.execution_timeout,
                     trigger=AirbyteSyncTrigger(
+                        api_type=self.api_type,
                         conn_id=self.airbyte_conn_id,
                         job_id=self.airbyte_job_id,
                         end_time=end_time,

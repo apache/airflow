@@ -27,6 +27,25 @@
 Changelog
 ---------
 
+8.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Immediately fail the task in case of worker pod having a fatal container state (#37670)``
+* ``Skip pod cleanup in case of pod creation failed (#37671)``
+
+Misc
+~~~~
+
+* ``Avoid non-recommended usage of logging (#37792)``
+* ``Migrate executor docs to respective providers (#37728)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Avoid to use too broad 'noqa' (#37862)``
+
 8.0.0
 .....
 
@@ -932,6 +951,8 @@ Bug Fixes
 3.1.2 (YANKED)
 ..............
 
+.. warning:: This release has been **yanked** with a reason: ``Installing on Airflow 2.1, 2.2 allows to install unsupported kubernetes library > 11.0.0``
+
 Bug Fixes
 ~~~~~~~~~
 
@@ -946,6 +967,8 @@ Misc
 3.1.1 (YANKED)
 ..............
 
+.. warning:: This release has been **yanked** with a reason: ``Installing on Airflow 2.1, 2.2 allows to install unsupported kubernetes library > 11.0.0``
+
 Misc
 ~~~~~
 
@@ -953,6 +976,8 @@ Misc
 
 3.1.0 (YANKED)
 ..............
+
+.. warning:: This release has been **yanked** with a reason: ``Installing on Airflow 2.1, 2.2 allows to install unsupported kubernetes library > 11.0.0``
 
 Features
 ~~~~~~~~
@@ -974,6 +999,8 @@ Misc
 3.0.2 (YANKED)
 ..............
 
+.. warning:: This release has been **yanked** with a reason: ``Installing on Airflow 2.1, 2.2 allows to install unsupported kubernetes library > 11.0.0``
+
 Bug Fixes
 ~~~~~~~~~
 
@@ -990,6 +1017,7 @@ Bug Fixes
 3.0.1 (YANKED)
 ..............
 
+.. warning:: This release has been **yanked** with a reason: ``Installing on Airflow 2.1, 2.2 allows to install unsupported kubernetes library > 11.0.0``
 
 Misc
 ~~~~

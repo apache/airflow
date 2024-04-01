@@ -543,9 +543,24 @@ class TestBigQueryOperator:
             api_resource_configs=None,
             cluster_fields=None,
             encryption_configuration=encryption_configuration,
+            impersonation_chain=["service-account@myproject.iam.gserviceaccount.com"],
+            impersonation_scopes=[
+                "https://www.googleapis.com/auth/cloud-platform",
+                "https://www.googleapis.com/auth/drive",
+            ],
         )
 
         operator.execute(MagicMock())
+        mock_hook.assert_called_with(
+            gcp_conn_id="google_cloud_default",
+            use_legacy_sql=True,
+            location=None,
+            impersonation_chain=["service-account@myproject.iam.gserviceaccount.com"],
+            impersonation_scopes=[
+                "https://www.googleapis.com/auth/cloud-platform",
+                "https://www.googleapis.com/auth/drive",
+            ],
+        )
         mock_hook.return_value.run_query.assert_called_once_with(
             sql="Select * from test_table",
             destination_dataset_table=None,
@@ -1102,6 +1117,7 @@ class TestBigQueryInsertJobOperator:
             project_id=TEST_GCP_PROJECT_ID,
         )
         result = op.execute(context=MagicMock())
+        assert configuration["labels"] == {"airflow-dag": "adhoc_airflow", "airflow-task": "insert_query_job"}
 
         mock_hook.return_value.insert_job.assert_called_once_with(
             configuration=configuration,
@@ -1143,6 +1159,7 @@ class TestBigQueryInsertJobOperator:
             project_id=TEST_GCP_PROJECT_ID,
         )
         result = op.execute(context=MagicMock())
+        assert configuration["labels"] == {"airflow-dag": "adhoc_airflow", "airflow-task": "copy_query_job"}
 
         mock_hook.return_value.insert_job.assert_called_once_with(
             configuration=configuration,
@@ -1752,6 +1769,138 @@ class TestBigQueryInsertJobOperator:
             job_id=real_job_id,
             project_id=TEST_GCP_PROJECT_ID,
         )
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute_adds_to_existing_labels(self, mock_hook):
+        job_id = "123456"
+        hash_ = "hash"
+        real_job_id = f"{job_id}_{hash_}"
+
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            },
+            "labels": {"foo": "bar"},
+        }
+        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
+        mock_hook.return_value.generate_job_id.return_value = real_job_id
+
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=job_id,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+        op.execute(context=MagicMock())
+        assert configuration["labels"] == {
+            "foo": "bar",
+            "airflow-dag": "adhoc_airflow",
+            "airflow-task": "insert_query_job",
+        }
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute_respects_explicit_no_labels(self, mock_hook):
+        job_id = "123456"
+        hash_ = "hash"
+        real_job_id = f"{job_id}_{hash_}"
+
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            },
+            "labels": None,
+        }
+        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
+        mock_hook.return_value.generate_job_id.return_value = real_job_id
+
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=job_id,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+        op.execute(context=MagicMock())
+        assert configuration["labels"] is None
+
+    def test_task_label_too_big(self):
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            },
+        }
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job_except_this_task_id_is_really_really_really_really_long",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+        op._add_job_labels()
+        assert "labels" not in configuration
+
+    def test_dag_label_too_big(self, dag_maker):
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            },
+        }
+        with dag_maker("adhoc_airflow_except_this_task_id_is_really_really_really_really_long"):
+            op = BigQueryInsertJobOperator(
+                task_id="insert_query_job",
+                configuration=configuration,
+                location=TEST_DATASET_LOCATION,
+                project_id=TEST_GCP_PROJECT_ID,
+            )
+        op._add_job_labels()
+        assert "labels" not in configuration
+
+    def test_labels_lowercase(self, dag_maker):
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            },
+        }
+        with dag_maker("YELLING_DAG_NAME"):
+            op = BigQueryInsertJobOperator(
+                task_id="YELLING_TASK_ID",
+                configuration=configuration,
+                location=TEST_DATASET_LOCATION,
+                project_id=TEST_GCP_PROJECT_ID,
+            )
+        op._add_job_labels()
+        assert configuration["labels"]["airflow-dag"] == "yelling_dag_name"
+        assert configuration["labels"]["airflow-task"] == "yelling_task_id"
+
+    def test_labels_invalid_names(self, dag_maker):
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            },
+        }
+        op = BigQueryInsertJobOperator(
+            task_id="task.with.dots.is.allowed",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+        op._add_job_labels()
+        assert "labels" not in configuration
+
+        op = BigQueryInsertJobOperator(
+            task_id="123_task",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+        op._add_job_labels()
+        assert "labels" not in configuration
 
 
 class TestBigQueryIntervalCheckOperator:

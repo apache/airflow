@@ -23,6 +23,58 @@ Run ``helm repo update`` before upgrading the chart to the latest version.
 
 .. towncrier release notes start
 
+Airflow Helm Chart 1.13.1 (2024-03-25)
+--------------------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+Default Airflow image is updated to ``2.8.3`` (#38036)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default Airflow image that is used with the Chart is now ``2.8.3``, previously it was ``2.8.2``.
+
+Bug Fixes
+^^^^^^^^^
+- Don't overwrite ``.Values.airflowPodAnnotations`` (#37917)
+- Fix cluster-wide RBAC naming clash when using multiple ``multiNamespace`` releases with the same name (#37197)
+
+Misc
+^^^^
+- Chart: Default airflow version to 2.8.3 (#38036)
+
+Airflow Helm Chart 1.13.0 (2024-03-05)
+--------------------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+Default Airflow image is updated to ``2.8.2`` (#37704)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default Airflow image that is used with the Chart is now ``2.8.2``, previously it was ``2.8.1``.
+
+
+New Features
+^^^^^^^^^^^^
+
+- Support labels specific to the database migration objects and pods (#37490)
+
+Improvements
+^^^^^^^^^^^^
+
+- Flower K8s Probe config (#37528)
+
+Bug Fixes
+^^^^^^^^^
+- Remove duplicate ports key in webserver service (#37356)
+- Add ``AIRFLOW_HOME`` env var to log groomer sidecar (#37588)
+- Skip ``.`` path when preparing reproducible packages (#37402)
+
+Misc
+^^^^
+- Default airflow version to 2.8.2 (#37704)
+
 Airflow Helm Chart 1.12.0 (2024-02-11)
 --------------------------------------
 

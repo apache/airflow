@@ -60,9 +60,13 @@ class TestProjectStructure:
         # The test below had a but for quite a while and we missed a lot of modules to have tess
         # We should make sure that one goes to 0
         OVERLOOKED_TESTS = [
+            "tests/providers/amazon/aws/executors/batch/test_boto_schema.py",
+            "tests/providers/amazon/aws/executors/batch/test_batch_executor_config.py",
+            "tests/providers/amazon/aws/executors/batch/test_utils.py",
             "tests/providers/amazon/aws/executors/ecs/test_boto_schema.py",
             "tests/providers/amazon/aws/executors/ecs/test_ecs_executor_config.py",
             "tests/providers/amazon/aws/executors/ecs/test_utils.py",
+            "tests/providers/amazon/aws/executors/utils/test_base_config_keys.py",
             "tests/providers/amazon/aws/operators/test_emr.py",
             "tests/providers/amazon/aws/operators/test_sagemaker.py",
             "tests/providers/amazon/aws/sensors/test_emr.py",
@@ -82,10 +86,12 @@ class TestProjectStructure:
             "tests/providers/amazon/aws/utils/test_tags.py",
             "tests/providers/amazon/aws/waiters/test_base_waiter.py",
             "tests/providers/apache/cassandra/hooks/test_cassandra.py",
+            "tests/providers/apache/drill/operators/test_drill.py",
             "tests/providers/apache/druid/operators/test_druid_check.py",
             "tests/providers/apache/hdfs/hooks/test_hdfs.py",
             "tests/providers/apache/hdfs/log/test_hdfs_task_handler.py",
             "tests/providers/apache/hdfs/sensors/test_hdfs.py",
+            "tests/providers/apache/hive/transfers/test_mssql_to_hive.py",
             "tests/providers/apache/hive/plugins/test_hive.py",
             "tests/providers/apache/kafka/hooks/test_base.py",
             "tests/providers/celery/executors/test_celery_executor_utils.py",
@@ -145,7 +151,9 @@ class TestProjectStructure:
             "tests/providers/google/cloud/operators/vertex_ai/test_model_service.py",
             "tests/providers/google/cloud/operators/vertex_ai/test_pipeline_job.py",
             "tests/providers/google/cloud/sensors/test_dataform.py",
+            "tests/providers/google/cloud/transfers/test_bigquery_to_mssql.py",
             "tests/providers/google/cloud/transfers/test_bigquery_to_sql.py",
+            "tests/providers/google/cloud/transfers/test_mssql_to_gcs.py",
             "tests/providers/google/cloud/transfers/test_presto_to_gcs.py",
             "tests/providers/google/cloud/transfers/test_trino_to_gcs.py",
             "tests/providers/google/cloud/triggers/test_cloud_composer.py",
@@ -159,7 +167,6 @@ class TestProjectStructure:
             "tests/providers/microsoft/azure/operators/test_adls.py",
             "tests/providers/microsoft/azure/transfers/test_azure_blob_to_gcs.py",
             "tests/providers/mongo/sensors/test_mongo.py",
-            "tests/providers/openlineage/extractors/test_manager.py",
             "tests/providers/openlineage/plugins/test_adapter.py",
             "tests/providers/openlineage/plugins/test_facets.py",
             "tests/providers/openlineage/test_sqlparser.py",
@@ -422,8 +429,6 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
     }
 
     ASSETS_NOT_REQUIRED = {
-        "airflow.providers.google.cloud.operators.automl.AutoMLDeleteDatasetOperator",
-        "airflow.providers.google.cloud.operators.automl.AutoMLDeleteModelOperator",
         "airflow.providers.google.cloud.operators.bigquery.BigQueryCheckOperator",
         "airflow.providers.google.cloud.operators.bigquery.BigQueryDeleteDatasetOperator",
         "airflow.providers.google.cloud.operators.bigquery.BigQueryDeleteTableOperator",

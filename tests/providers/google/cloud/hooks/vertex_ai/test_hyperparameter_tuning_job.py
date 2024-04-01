@@ -20,8 +20,16 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+
+# For no Pydantic environment, we need to skip the tests
+pytest.importorskip("google.cloud.aiplatform_v1")
+
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud import aiplatform
+
+# For no Pydantic environment, we need to skip the tests
+pytest.importorskip("google.cloud.aiplatform_v1")
+
 from google.cloud.aiplatform_v1 import JobState
 
 from airflow.exceptions import AirflowException
@@ -350,7 +358,8 @@ class TestHyperparameterTuningJobAsyncHook:
     @pytest.mark.asyncio
     @mock.patch(HYPERPARAMETER_TUNING_JOB_ASYNC_HOOK_STRING.format("get_job_service_client"))
     async def test_get_hyperparameter_tuning_job(self, mock_get_job_service_client):
-        mock_client = mock_get_job_service_client.return_value
+        mock_client = mock.MagicMock()
+        mock_get_job_service_client.side_effect = mock.AsyncMock(return_value=mock_client)
         mock_job_name = mock_client.hyperparameter_tuning_job_path.return_value
         mock_job = mock.MagicMock()
         mock_async_get_hyperparameter_tuning_job = mock.AsyncMock(return_value=mock_job)

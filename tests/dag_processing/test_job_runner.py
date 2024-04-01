@@ -65,9 +65,8 @@ from tests.test_utils.db import clear_db_callbacks, clear_db_dags, clear_db_runs
 
 pytestmark = pytest.mark.db_test
 
-
+logger = logging.getLogger(__name__)
 TEST_DAG_FOLDER = pathlib.Path(__file__).parents[1].resolve() / "dags"
-
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
@@ -902,7 +901,7 @@ class TestDagProcessorJobRunner:
                     break
 
                 req = CallbackRequest(str(dag_filepath))
-                logging.info("Sending CallbackRequests %d", n)
+                logger.info("Sending CallbackRequests %d", n)
                 try:
                     pipe.send(req)
                 except TypeError:
@@ -911,7 +910,7 @@ class TestDagProcessorJobRunner:
                     break
                 except OSError:
                     break
-                logging.debug("   Sent %d CallbackRequests", n)
+                logger.debug("   Sent %d CallbackRequests", n)
 
         thread = threading.Thread(target=keep_pipe_full, args=(parent_pipe, exit_event))
 
@@ -943,13 +942,13 @@ class TestDagProcessorJobRunner:
             manager._run_parsing_loop()
             exit_event.set()
         finally:
-            logging.info("Closing pipes")
+            logger.info("Closing pipes")
             parent_pipe.close()
             child_pipe.close()
-            logging.info("Closed pipes")
-            logging.info("Joining thread")
+            logger.info("Closed pipes")
+            logger.info("Joining thread")
             thread.join(timeout=1.0)
-            logging.info("Joined thread")
+            logger.info("Joined thread")
 
     @conf_vars({("core", "load_examples"): "False"})
     @mock.patch("airflow.dag_processing.manager.Stats.timing")
@@ -1371,6 +1370,17 @@ class TestDagProcessorJobRunner:
         ]
 
 
+def _wait_for_processor_agent_to_complete_in_async_mode(processor_agent: DagFileProcessorAgent):
+    start_timer = time.monotonic()
+    while time.monotonic() - start_timer < 10:
+        if processor_agent.done and all(
+            [processor.done for processor in processor_agent._processors.values()]
+        ):
+            break
+        processor_agent.heartbeat()
+        time.sleep(0.1)
+
+
 class TestDagFileProcessorAgent:
     def setup_method(self):
         # Make sure that the configure_logging is not cached
@@ -1462,17 +1472,17 @@ class TestDagFileProcessorAgent:
         assert os.path.isfile(log_file_loc)
 
     def test_single_parsing_loop_no_parent_signal_conn(self):
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
+        processor_agent._process = Mock()
+        processor_agent._parent_signal_conn = None
         with pytest.raises(ValueError, match="Process not started"):
-            processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
-            processor_agent._process = Mock()
-            processor_agent._parent_signal_conn = None
             processor_agent.run_single_parsing_loop()
 
     def test_single_parsing_loop_no_process(self):
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
+        processor_agent._parent_signal_conn = Mock()
+        processor_agent._process = None
         with pytest.raises(ValueError, match="Process not started"):
-            processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
-            processor_agent._parent_signal_conn = Mock()
-            processor_agent._process = None
             processor_agent.run_single_parsing_loop()
 
     def test_single_parsing_loop_process_isnt_alive(self):
@@ -1499,15 +1509,15 @@ class TestDagFileProcessorAgent:
         assert retval == processor_agent._parent_signal_conn
 
     def test_get_callbacks_pipe_no_parent_signal_conn(self):
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
+        processor_agent._parent_signal_conn = None
         with pytest.raises(ValueError, match="Process not started"):
-            processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
-            processor_agent._parent_signal_conn = None
             processor_agent.get_callbacks_pipe()
 
     def test_wait_until_finished_no_parent_signal_conn(self):
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
+        processor_agent._parent_signal_conn = None
         with pytest.raises(ValueError, match="Process not started"):
-            processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
-            processor_agent._parent_signal_conn = None
             processor_agent.wait_until_finished()
 
     def test_wait_until_finished_poll_eof_error(self):
@@ -1520,9 +1530,9 @@ class TestDagFileProcessorAgent:
         assert ret_val is None
 
     def test_heartbeat_no_parent_signal_conn(self):
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
+        processor_agent._parent_signal_conn = None
         with pytest.raises(ValueError, match="Process not started"):
-            processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
-            processor_agent._parent_signal_conn = None
             processor_agent.heartbeat()
 
     def test_heartbeat_poll_eof_error(self):
@@ -1554,15 +1564,15 @@ class TestDagFileProcessorAgent:
             processor_agent._process_message.assert_called_with("testelem")
 
     def test_process_message_invalid_type(self):
+        message = "xyz"
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
         with pytest.raises(RuntimeError, match="Unexpected message received of type str"):
-            message = "xyz"
-            processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
             processor_agent._process_message(message)
 
     def test_heartbeat_manager(self):
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
+        processor_agent._parent_signal_conn = None
         with pytest.raises(ValueError, match="Process not started"):
-            processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
-            processor_agent._parent_signal_conn = None
             processor_agent._heartbeat_manager()
 
     @mock.patch("airflow.utils.process_utils.reap_process_group")
@@ -1645,6 +1655,8 @@ class TestDagFileProcessorAgent:
             processor_agent.run_single_parsing_loop()
 
         processor_agent._process.join()
+        if async_mode:
+            _wait_for_processor_agent_to_complete_in_async_mode(processor_agent)
 
         # Capture the stdout and stderr
         out, _ = capfd.readouterr()
@@ -1662,6 +1674,8 @@ class TestDagFileProcessorAgent:
             processor_agent.run_single_parsing_loop()
 
         processor_agent._process.join()
+        if async_mode:
+            _wait_for_processor_agent_to_complete_in_async_mode(processor_agent)
 
         # Capture the stdout and stderr
         out, _ = capfd.readouterr()

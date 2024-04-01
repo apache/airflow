@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import warnings
 from dataclasses import fields
 from unittest import mock
 
@@ -237,7 +238,8 @@ class TestAwsConnectionWrapper:
             expected["profile_name"] = profile_name
         if region_name:
             expected["region_name"] = region_name
-        with pytest.warns(None):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")  # Not expected any warnings here
             wrap_conn = AwsConnectionWrapper(conn=mock_conn)
         session_kwargs = wrap_conn.session_kwargs
         assert session_kwargs == expected
@@ -354,7 +356,7 @@ class TestAwsConnectionWrapper:
             " Please set extra['endpoint_url'] instead"
         )
 
-        with pytest.warns(None) as records:
+        with warnings.catch_warnings(record=True) as records:
             wrap_conn = AwsConnectionWrapper(conn=mock_conn)
 
         if extra.get("host"):

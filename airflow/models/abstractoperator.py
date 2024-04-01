@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime
 import inspect
+from abc import abstractproperty
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable, Iterator, Sequence
 
@@ -33,7 +34,6 @@ from airflow.template.templater import Templater
 from airflow.utils.context import Context
 from airflow.utils.db import exists_query
 from airflow.utils.log.secrets_masker import redact
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import State, TaskInstanceState
@@ -54,6 +54,7 @@ if TYPE_CHECKING:
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstance
+    from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.utils.task_group import TaskGroup
 
 DEFAULT_OWNER: str = conf.get_mandatory_value("operators", "default_owner")
@@ -98,7 +99,7 @@ class AbstractOperator(Templater, DAGNode):
 
     operator_class: type[BaseOperator] | dict[str, Any]
 
-    weight_rule: str
+    weight_rule: PriorityWeightStrategy
     priority_weight: int
 
     # Defines the operator level extra links.
@@ -157,6 +158,20 @@ class AbstractOperator(Templater, DAGNode):
 
     @property
     def node_id(self) -> str:
+        return self.task_id
+
+    @abstractproperty
+    def task_display_name(self) -> str: ...
+
+    @property
+    def label(self) -> str | None:
+        if self.task_display_name and self.task_display_name != self.task_id:
+            return self.task_display_name
+        # Prefix handling if no display is given is cloned from taskmixin for compatibility
+        tg = self.task_group
+        if tg and tg.node_id and tg.prefix_group_id:
+            # "task_group_id.task_id" -> "task_id"
+            return self.task_id[len(tg.node_id) + 1 :]
         return self.task_id
 
     @property
@@ -398,11 +413,17 @@ class AbstractOperator(Templater, DAGNode):
         - WeightRule.DOWNSTREAM - adds priority weight of all downstream tasks
         - WeightRule.UPSTREAM - adds priority weight of all upstream tasks
         """
-        if self.weight_rule == WeightRule.ABSOLUTE:
+        from airflow.task.priority_strategy import (
+            _AbsolutePriorityWeightStrategy,
+            _DownstreamPriorityWeightStrategy,
+            _UpstreamPriorityWeightStrategy,
+        )
+
+        if type(self.weight_rule) == _AbsolutePriorityWeightStrategy:
             return self.priority_weight
-        elif self.weight_rule == WeightRule.DOWNSTREAM:
+        elif type(self.weight_rule) == _DownstreamPriorityWeightStrategy:
             upstream = False
-        elif self.weight_rule == WeightRule.UPSTREAM:
+        elif type(self.weight_rule) == _UpstreamPriorityWeightStrategy:
             upstream = True
         else:
             upstream = False
@@ -659,7 +680,6 @@ class AbstractOperator(Templater, DAGNode):
             dag = self.get_dag()
         return super().get_template_env(dag=dag)
 
-    @provide_session
     def _do_render_template_fields(
         self,
         parent: Any,
@@ -667,8 +687,6 @@ class AbstractOperator(Templater, DAGNode):
         context: Context,
         jinja_env: jinja2.Environment,
         seen_oids: set[int],
-        *,
-        session: Session = NEW_SESSION,
     ) -> None:
         """Override the base to use custom error logging."""
         for attr_name in template_fields:

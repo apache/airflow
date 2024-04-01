@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud Storage to S3 operator."""
+
 from __future__ import annotations
 
 import os
@@ -105,7 +106,7 @@ class GCSToS3Operator(BaseOperator):
         prefix: str | None = None,
         delimiter: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        dest_aws_conn_id: str = "aws_default",
+        dest_aws_conn_id: str | None = "aws_default",
         dest_s3_key: str,
         dest_verify: str | bool | None = None,
         replace: bool = False,

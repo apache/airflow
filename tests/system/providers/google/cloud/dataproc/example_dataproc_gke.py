@@ -25,6 +25,7 @@ Define a namespace or assign a default one.
 Notice: optional kubernetes_namespace parameter in VIRTUAL_CLUSTER_CONFIG should be the same as GKE_NAMESPACE
 
 """
+
 from __future__ import annotations
 
 import os

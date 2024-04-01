@@ -34,7 +34,9 @@ class RdsBaseSensor(BaseSensorOperator):
     ui_color = "#ddbb77"
     ui_fgcolor = "#ffffff"
 
-    def __init__(self, *args, aws_conn_id: str = "aws_conn_id", hook_params: dict | None = None, **kwargs):
+    def __init__(
+        self, *args, aws_conn_id: str | None = "aws_conn_id", hook_params: dict | None = None, **kwargs
+    ):
         self.hook_params = hook_params or {}
         self.aws_conn_id = aws_conn_id
         self.target_statuses: list[str] = []
@@ -69,7 +71,7 @@ class RdsSnapshotExistenceSensor(RdsBaseSensor):
         db_type: str,
         db_snapshot_identifier: str,
         target_statuses: list[str] | None = None,
-        aws_conn_id: str = "aws_conn_id",
+        aws_conn_id: str | None = "aws_conn_id",
         **kwargs,
     ):
         super().__init__(aws_conn_id=aws_conn_id, **kwargs)
@@ -113,7 +115,7 @@ class RdsExportTaskExistenceSensor(RdsBaseSensor):
         *,
         export_task_identifier: str,
         target_statuses: list[str] | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
         super().__init__(aws_conn_id=aws_conn_id, **kwargs)
@@ -163,7 +165,7 @@ class RdsDbSensor(RdsBaseSensor):
         db_identifier: str,
         db_type: RdsDbType | str = RdsDbType.INSTANCE,
         target_statuses: list[str] | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
         super().__init__(aws_conn_id=aws_conn_id, **kwargs)

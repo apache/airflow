@@ -681,11 +681,10 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                             try:
                                 session.commit()
                             except OperationalError:
-                                self.log.error(
+                                self.log.exception(
                                     "Failed to commit task state due to operational error. "
                                     "The job will retry this operation so if your backfill succeeds, "
                                     "you can safely ignore this message.",
-                                    exc_info=True,
                                 )
                                 session.rollback()
                                 if i == max_attempts - 1:
@@ -986,10 +985,9 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
             # state to failed.
             self._set_unfinished_dag_runs_to_failed(ti_status.active_runs)
         except OperationalError:
-            self.log.error(
+            self.log.exception(
                 "Backfill job dead-locked. The job will retry the job so it is likely "
                 "to heal itself. If your backfill succeeds you can ignore this exception.",
-                exc_info=True,
             )
             raise
         finally:

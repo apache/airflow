@@ -597,13 +597,13 @@ class TestDagFileProcessor:
         assert msg in callback_file.read_text()
 
     @conf_vars({("core", "dagbag_import_error_tracebacks"): "False"})
-    def test_add_unparseable_file_before_sched_start_creates_import_error(self, tmpdir):
-        unparseable_filename = os.path.join(tmpdir, TEMP_DAG_FILENAME)
+    def test_add_unparseable_file_before_sched_start_creates_import_error(self, tmp_path):
+        unparseable_filename = tmp_path.joinpath(TEMP_DAG_FILENAME).as_posix()
         with open(unparseable_filename, "w") as unparseable_file:
             unparseable_file.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
 
         with create_session() as session:
-            self._process_file(unparseable_filename, dag_directory=tmpdir, session=session)
+            self._process_file(unparseable_filename, dag_directory=tmp_path, session=session)
             import_errors = session.query(errors.ImportError).all()
 
             assert len(import_errors) == 1
@@ -613,14 +613,14 @@ class TestDagFileProcessor:
             session.rollback()
 
     @conf_vars({("core", "dagbag_import_error_tracebacks"): "False"})
-    def test_add_unparseable_zip_file_creates_import_error(self, tmpdir):
-        zip_filename = os.path.join(tmpdir, "test_zip.zip")
+    def test_add_unparseable_zip_file_creates_import_error(self, tmp_path):
+        zip_filename = (tmp_path / "test_zip.zip").as_posix()
         invalid_dag_filename = os.path.join(zip_filename, TEMP_DAG_FILENAME)
         with ZipFile(zip_filename, "w") as zip_file:
             zip_file.writestr(TEMP_DAG_FILENAME, UNPARSEABLE_DAG_FILE_CONTENTS)
 
         with create_session() as session:
-            self._process_file(zip_filename, dag_directory=tmpdir, session=session)
+            self._process_file(zip_filename, dag_directory=tmp_path, session=session)
             import_errors = session.query(errors.ImportError).all()
 
             assert len(import_errors) == 1
@@ -630,14 +630,14 @@ class TestDagFileProcessor:
             session.rollback()
 
     @conf_vars({("core", "dagbag_import_error_tracebacks"): "False"})
-    def test_dag_model_has_import_error_is_true_when_import_error_exists(self, tmpdir, session):
+    def test_dag_model_has_import_error_is_true_when_import_error_exists(self, tmp_path, session):
         dag_file = os.path.join(TEST_DAGS_FOLDER, "test_example_bash_operator.py")
-        temp_dagfile = os.path.join(tmpdir, TEMP_DAG_FILENAME)
+        temp_dagfile = tmp_path.joinpath(TEMP_DAG_FILENAME).as_posix()
         with open(dag_file) as main_dag, open(temp_dagfile, "w") as next_dag:
             for line in main_dag:
                 next_dag.write(line)
         # first we parse the dag
-        self._process_file(temp_dagfile, dag_directory=tmpdir, session=session)
+        self._process_file(temp_dagfile, dag_directory=tmp_path, session=session)
         # assert DagModel.has_import_errors is false
         dm = session.query(DagModel).filter(DagModel.fileloc == temp_dagfile).first()
         assert not dm.has_import_errors
@@ -645,7 +645,7 @@ class TestDagFileProcessor:
         with open(temp_dagfile, "a") as file:
             file.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
 
-        self._process_file(temp_dagfile, dag_directory=tmpdir, session=session)
+        self._process_file(temp_dagfile, dag_directory=tmp_path, session=session)
         import_errors = session.query(errors.ImportError).all()
 
         assert len(import_errors) == 1
@@ -655,27 +655,25 @@ class TestDagFileProcessor:
         dm = session.query(DagModel).filter(DagModel.fileloc == temp_dagfile).first()
         assert dm.has_import_errors
 
-    def test_no_import_errors_with_parseable_dag(self, tmpdir):
-        parseable_filename = os.path.join(tmpdir, TEMP_DAG_FILENAME)
-
-        with open(parseable_filename, "w") as parseable_file:
-            parseable_file.writelines(PARSEABLE_DAG_FILE_CONTENTS)
+    def test_no_import_errors_with_parseable_dag(self, tmp_path):
+        parseable_filename = tmp_path / TEMP_DAG_FILENAME
+        parseable_filename.write_text(PARSEABLE_DAG_FILE_CONTENTS)
 
         with create_session() as session:
-            self._process_file(parseable_filename, dag_directory=tmpdir, session=session)
+            self._process_file(parseable_filename.as_posix(), dag_directory=tmp_path, session=session)
             import_errors = session.query(errors.ImportError).all()
 
             assert len(import_errors) == 0
 
             session.rollback()
 
-    def test_no_import_errors_with_parseable_dag_in_zip(self, tmpdir):
-        zip_filename = os.path.join(tmpdir, "test_zip.zip")
+    def test_no_import_errors_with_parseable_dag_in_zip(self, tmp_path):
+        zip_filename = (tmp_path / "test_zip.zip").as_posix()
         with ZipFile(zip_filename, "w") as zip_file:
             zip_file.writestr(TEMP_DAG_FILENAME, PARSEABLE_DAG_FILE_CONTENTS)
 
         with create_session() as session:
-            self._process_file(zip_filename, dag_directory=tmpdir, session=session)
+            self._process_file(zip_filename, dag_directory=tmp_path, session=session)
             import_errors = session.query(errors.ImportError).all()
 
             assert len(import_errors) == 0
@@ -683,43 +681,40 @@ class TestDagFileProcessor:
             session.rollback()
 
     @conf_vars({("core", "dagbag_import_error_tracebacks"): "False"})
-    def test_new_import_error_replaces_old(self, tmpdir):
-        unparseable_filename = os.path.join(tmpdir, TEMP_DAG_FILENAME)
-
+    def test_new_import_error_replaces_old(self, tmp_path):
+        unparseable_filename = tmp_path / TEMP_DAG_FILENAME
         # Generate original import error
-        with open(unparseable_filename, "w") as unparseable_file:
-            unparseable_file.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
+        unparseable_filename.write_text(UNPARSEABLE_DAG_FILE_CONTENTS)
+
         session = settings.Session()
-        self._process_file(unparseable_filename, dag_directory=tmpdir, session=session)
+        self._process_file(unparseable_filename.as_posix(), dag_directory=tmp_path, session=session)
 
         # Generate replacement import error (the error will be on the second line now)
-        with open(unparseable_filename, "w") as unparseable_file:
-            unparseable_file.writelines(
-                PARSEABLE_DAG_FILE_CONTENTS + os.linesep + UNPARSEABLE_DAG_FILE_CONTENTS
-            )
-        self._process_file(unparseable_filename, dag_directory=tmpdir, session=session)
+        unparseable_filename.write_text(
+            PARSEABLE_DAG_FILE_CONTENTS + os.linesep + UNPARSEABLE_DAG_FILE_CONTENTS
+        )
+        self._process_file(unparseable_filename.as_posix(), dag_directory=tmp_path, session=session)
 
         import_errors = session.query(errors.ImportError).all()
 
         assert len(import_errors) == 1
         import_error = import_errors[0]
-        assert import_error.filename == unparseable_filename
+        assert import_error.filename == unparseable_filename.as_posix()
         assert import_error.stacktrace == f"invalid syntax ({TEMP_DAG_FILENAME}, line 2)"
 
         session.rollback()
 
-    def test_import_error_record_is_updated_not_deleted_and_recreated(self, tmpdir):
+    def test_import_error_record_is_updated_not_deleted_and_recreated(self, tmp_path):
         """
         Test that existing import error is updated and new record not created
         for a dag with the same filename
         """
-        filename_to_parse = os.path.join(tmpdir, TEMP_DAG_FILENAME)
-
+        filename_to_parse = tmp_path.joinpath(TEMP_DAG_FILENAME).as_posix()
         # Generate original import error
         with open(filename_to_parse, "w") as file_to_parse:
             file_to_parse.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
         session = settings.Session()
-        self._process_file(filename_to_parse, dag_directory=tmpdir, session=session)
+        self._process_file(filename_to_parse, dag_directory=tmp_path, session=session)
 
         import_error_1 = (
             session.query(errors.ImportError).filter(errors.ImportError.filename == filename_to_parse).one()
@@ -727,7 +722,7 @@ class TestDagFileProcessor:
 
         # process the file multiple times
         for _ in range(10):
-            self._process_file(filename_to_parse, dag_directory=tmpdir, session=session)
+            self._process_file(filename_to_parse, dag_directory=tmp_path, session=session)
 
         import_error_2 = (
             session.query(errors.ImportError).filter(errors.ImportError.filename == filename_to_parse).one()
@@ -736,19 +731,19 @@ class TestDagFileProcessor:
         # assert that the ID of the import error did not change
         assert import_error_1.id == import_error_2.id
 
-    def test_remove_error_clears_import_error(self, tmpdir):
-        filename_to_parse = os.path.join(tmpdir, TEMP_DAG_FILENAME)
+    def test_remove_error_clears_import_error(self, tmp_path):
+        filename_to_parse = tmp_path.joinpath(TEMP_DAG_FILENAME).as_posix()
 
         # Generate original import error
         with open(filename_to_parse, "w") as file_to_parse:
             file_to_parse.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
         session = settings.Session()
-        self._process_file(filename_to_parse, dag_directory=tmpdir, session=session)
+        self._process_file(filename_to_parse, dag_directory=tmp_path, session=session)
 
         # Remove the import error from the file
         with open(filename_to_parse, "w") as file_to_parse:
             file_to_parse.writelines(PARSEABLE_DAG_FILE_CONTENTS)
-        self._process_file(filename_to_parse, dag_directory=tmpdir, session=session)
+        self._process_file(filename_to_parse, dag_directory=tmp_path, session=session)
 
         import_errors = session.query(errors.ImportError).all()
 
@@ -756,14 +751,14 @@ class TestDagFileProcessor:
 
         session.rollback()
 
-    def test_remove_error_clears_import_error_zip(self, tmpdir):
+    def test_remove_error_clears_import_error_zip(self, tmp_path):
         session = settings.Session()
 
         # Generate original import error
-        zip_filename = os.path.join(tmpdir, "test_zip.zip")
+        zip_filename = (tmp_path / "test_zip.zip").as_posix()
         with ZipFile(zip_filename, "w") as zip_file:
             zip_file.writestr(TEMP_DAG_FILENAME, UNPARSEABLE_DAG_FILE_CONTENTS)
-        self._process_file(zip_filename, dag_directory=tmpdir, session=session)
+        self._process_file(zip_filename, dag_directory=tmp_path, session=session)
 
         import_errors = session.query(errors.ImportError).all()
         assert len(import_errors) == 1
@@ -771,20 +766,20 @@ class TestDagFileProcessor:
         # Remove the import error from the file
         with ZipFile(zip_filename, "w") as zip_file:
             zip_file.writestr(TEMP_DAG_FILENAME, "import os # airflow DAG")
-        self._process_file(zip_filename, dag_directory=tmpdir, session=session)
+        self._process_file(zip_filename, dag_directory=tmp_path, session=session)
 
         import_errors = session.query(errors.ImportError).all()
         assert len(import_errors) == 0
 
         session.rollback()
 
-    def test_import_error_tracebacks(self, tmpdir):
-        unparseable_filename = os.path.join(tmpdir, TEMP_DAG_FILENAME)
+    def test_import_error_tracebacks(self, tmp_path):
+        unparseable_filename = (tmp_path / TEMP_DAG_FILENAME).as_posix()
         with open(unparseable_filename, "w") as unparseable_file:
             unparseable_file.writelines(INVALID_DAG_WITH_DEPTH_FILE_CONTENTS)
 
         with create_session() as session:
-            self._process_file(unparseable_filename, dag_directory=tmpdir, session=session)
+            self._process_file(unparseable_filename, dag_directory=tmp_path, session=session)
             import_errors = session.query(errors.ImportError).all()
 
             assert len(import_errors) == 1
@@ -815,13 +810,13 @@ class TestDagFileProcessor:
             session.rollback()
 
     @conf_vars({("core", "dagbag_import_error_traceback_depth"): "1"})
-    def test_import_error_traceback_depth(self, tmpdir):
-        unparseable_filename = os.path.join(tmpdir, TEMP_DAG_FILENAME)
+    def test_import_error_traceback_depth(self, tmp_path):
+        unparseable_filename = tmp_path.joinpath(TEMP_DAG_FILENAME).as_posix()
         with open(unparseable_filename, "w") as unparseable_file:
             unparseable_file.writelines(INVALID_DAG_WITH_DEPTH_FILE_CONTENTS)
 
         with create_session() as session:
-            self._process_file(unparseable_filename, dag_directory=tmpdir, session=session)
+            self._process_file(unparseable_filename, dag_directory=tmp_path, session=session)
             import_errors = session.query(errors.ImportError).all()
 
             assert len(import_errors) == 1
@@ -846,14 +841,14 @@ class TestDagFileProcessor:
 
             session.rollback()
 
-    def test_import_error_tracebacks_zip(self, tmpdir):
-        invalid_zip_filename = os.path.join(tmpdir, "test_zip_invalid.zip")
+    def test_import_error_tracebacks_zip(self, tmp_path):
+        invalid_zip_filename = (tmp_path / "test_zip_invalid.zip").as_posix()
         invalid_dag_filename = os.path.join(invalid_zip_filename, TEMP_DAG_FILENAME)
         with ZipFile(invalid_zip_filename, "w") as invalid_zip_file:
             invalid_zip_file.writestr(TEMP_DAG_FILENAME, INVALID_DAG_WITH_DEPTH_FILE_CONTENTS)
 
         with create_session() as session:
-            self._process_file(invalid_zip_filename, dag_directory=tmpdir, session=session)
+            self._process_file(invalid_zip_filename, dag_directory=tmp_path, session=session)
             import_errors = session.query(errors.ImportError).all()
 
             assert len(import_errors) == 1
@@ -884,14 +879,14 @@ class TestDagFileProcessor:
             session.rollback()
 
     @conf_vars({("core", "dagbag_import_error_traceback_depth"): "1"})
-    def test_import_error_tracebacks_zip_depth(self, tmpdir):
-        invalid_zip_filename = os.path.join(tmpdir, "test_zip_invalid.zip")
+    def test_import_error_tracebacks_zip_depth(self, tmp_path):
+        invalid_zip_filename = (tmp_path / "test_zip_invalid.zip").as_posix()
         invalid_dag_filename = os.path.join(invalid_zip_filename, TEMP_DAG_FILENAME)
         with ZipFile(invalid_zip_filename, "w") as invalid_zip_file:
             invalid_zip_file.writestr(TEMP_DAG_FILENAME, INVALID_DAG_WITH_DEPTH_FILE_CONTENTS)
 
         with create_session() as session:
-            self._process_file(invalid_zip_filename, dag_directory=tmpdir, session=session)
+            self._process_file(invalid_zip_filename, dag_directory=tmp_path, session=session)
             import_errors = session.query(errors.ImportError).all()
 
             assert len(import_errors) == 1
@@ -963,9 +958,9 @@ class TestDagFileProcessor:
 
     @mock.patch("airflow.dag_processing.processor.settings.dispose_orm", MagicMock)
     @mock.patch.object(DagFileProcessorProcess, "_get_multiprocessing_context")
-    def test_no_valueerror_with_parseable_dag_in_zip(self, mock_context, tmpdir):
+    def test_no_valueerror_with_parseable_dag_in_zip(self, mock_context, tmp_path):
         mock_context.return_value.Pipe.return_value = (MagicMock(), MagicMock())
-        zip_filename = os.path.join(tmpdir, "test_zip.zip")
+        zip_filename = (tmp_path / "test_zip.zip").as_posix()
         with ZipFile(zip_filename, "w") as zip_file:
             zip_file.writestr(TEMP_DAG_FILENAME, PARSEABLE_DAG_FILE_CONTENTS)
 
@@ -980,9 +975,9 @@ class TestDagFileProcessor:
 
     @mock.patch("airflow.dag_processing.processor.settings.dispose_orm", MagicMock)
     @mock.patch.object(DagFileProcessorProcess, "_get_multiprocessing_context")
-    def test_nullbyte_exception_handling_when_preimporting_airflow(self, mock_context, tmpdir):
+    def test_nullbyte_exception_handling_when_preimporting_airflow(self, mock_context, tmp_path):
         mock_context.return_value.Pipe.return_value = (MagicMock(), MagicMock())
-        dag_filename = os.path.join(tmpdir, "test_dag.py")
+        dag_filename = (tmp_path / "test_dag.py").as_posix()
         with open(dag_filename, "wb") as file:
             file.write(b"hello\x00world")
 

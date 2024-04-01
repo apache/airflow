@@ -18,6 +18,7 @@
 """
 Example Airflow DAG that demonstrates interactions with Google Cloud Transfer.
 """
+
 from __future__ import annotations
 
 import os

@@ -44,7 +44,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.6.0
-  - cassandra-driver>=3.13.0
+  - cassandra-driver>=3.29.1
 
 integrations:
   - integration-name: Apache Cassandra

@@ -45,7 +45,7 @@ from airflow.utils.pydantic import BaseModel
 from tests.test_utils.config import conf_vars
 
 
-@pytest.fixture()
+@pytest.fixture
 def recalculate_patterns():
     _get_patterns.cache_clear()
     _get_regexp_patterns.cache_clear()
@@ -114,6 +114,16 @@ class U(BaseModel):
     u: tuple
 
 
+@attr.define
+class T:
+    x: int
+    y: Y
+    u: tuple
+    w: W
+
+    __version__: ClassVar[int] = 1
+
+
 class C:
     def __call__(self):
         return None
@@ -178,12 +188,12 @@ class TestSerDe:
         e = serialize(i)
         assert i == e
 
+        i = {CLASSNAME: "cannot"}
         with pytest.raises(AttributeError, match="^reserved"):
-            i = {CLASSNAME: "cannot"}
             serialize(i)
 
+        i = {SCHEMA_ID: "cannot"}
         with pytest.raises(AttributeError, match="^reserved"):
-            i = {SCHEMA_ID: "cannot"}
             serialize(i)
 
     def test_ser_namedtuple(self):
@@ -195,8 +205,8 @@ class TestSerDe:
         assert i == e
 
     def test_no_serializer(self):
+        i = Exception
         with pytest.raises(TypeError, match="^cannot serialize"):
-            i = Exception
             serialize(i)
 
     def test_ser_registered(self):
@@ -323,7 +333,7 @@ class TestSerDe:
         """
         Verify deserialization of old-style encoded Xcom values including nested ones
         """
-        uri = "s3://does_not_exist"
+        uri = "s3://does/not/exist"
         data = {
             "__type": "airflow.datasets.Dataset",
             "__source": None,
@@ -365,6 +375,11 @@ class TestSerDe:
             if name == "airflow.serialization.serializers.iceberg":
                 try:
                     import pyiceberg  # noqa: F401
+                except ImportError:
+                    continue
+            if name == "airflow.serialization.serializers.deltalake":
+                try:
+                    import deltalake  # noqa: F401
                 except ImportError:
                     continue
             mod = import_module(name)
@@ -415,6 +430,12 @@ class TestSerDe:
         i = Z(10)
         e = deserialize(i)
         assert i == e
+
+    def test_attr(self):
+        i = T(y=Y(10), u=(1, 2), x=10, w=W(11))
+        e = serialize(i)
+        s = deserialize(e)
+        assert i == s
 
     def test_pydantic(self):
         pytest.importorskip("pydantic", minversion="2.0.0")

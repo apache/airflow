@@ -48,6 +48,7 @@ from airflow.models.expandinput import (
 )
 from airflow.models.pool import Pool
 from airflow.serialization.enums import DagAttributeTypes
+from airflow.task.priority_strategy import PriorityWeightStrategy, validate_and_load_priority_weight_strategy
 from airflow.ti_deps.deps.mapped_task_expanded import MappedTaskIsExpanded
 from airflow.typing_compat import Literal
 from airflow.utils.context import context_update_for_unmapped
@@ -58,6 +59,7 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
     import datetime
+    from typing import List
 
     import jinja2  # Slow import.
     import pendulum
@@ -82,6 +84,8 @@ if TYPE_CHECKING:
     from airflow.utils.operator_resources import Resources
     from airflow.utils.task_group import TaskGroup
     from airflow.utils.trigger_rule import TriggerRule
+
+    TaskStateChangeCallbackAttrType = Union[None, TaskStateChangeCallback, List[TaskStateChangeCallback]]
 
 ValidationSource = Union[Literal["expand"], Literal["partial"]]
 
@@ -211,7 +215,6 @@ class OperatorPartial:
             expand_input=expand_input,
             partial_kwargs=partial_kwargs,
             task_id=task_id,
-            map_index_template=partial_kwargs.pop("map_index_template", None),
             params=self.params,
             deps=MappedOperator.deps_for(self.operator_class),
             operator_extra_links=self.operator_class.operator_extra_links,
@@ -281,7 +284,6 @@ class MappedOperator(AbstractOperator):
     end_date: pendulum.DateTime | None
     upstream_task_ids: set[str] = attr.ib(factory=set, init=False)
     downstream_task_ids: set[str] = attr.ib(factory=set, init=False)
-    map_index_template: str | None
 
     _disallow_kwargs_override: bool
     """Whether execution fails if ``expand_input`` has duplicates to ``partial_kwargs``.
@@ -385,12 +387,24 @@ class MappedOperator(AbstractOperator):
         return [self]
 
     @property
+    def task_display_name(self) -> str:
+        return self.partial_kwargs.get("task_display_name") or self.task_id
+
+    @property
     def owner(self) -> str:  # type: ignore[override]
         return self.partial_kwargs.get("owner", DEFAULT_OWNER)
 
     @property
     def email(self) -> None | str | Iterable[str]:
         return self.partial_kwargs.get("email")
+
+    @property
+    def map_index_template(self) -> None | str:
+        return self.partial_kwargs.get("map_index_template")
+
+    @map_index_template.setter
+    def map_index_template(self, value: str | None) -> None:
+        self.partial_kwargs["map_index_template"] = value
 
     @property
     def trigger_rule(self) -> TriggerRule:
@@ -420,10 +434,18 @@ class MappedOperator(AbstractOperator):
     def depends_on_past(self) -> bool:
         return bool(self.partial_kwargs.get("depends_on_past"))
 
+    @depends_on_past.setter
+    def depends_on_past(self, value: bool) -> None:
+        self.partial_kwargs["depends_on_past"] = value
+
     @property
     def ignore_first_depends_on_past(self) -> bool:
         value = self.partial_kwargs.get("ignore_first_depends_on_past", DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST)
         return bool(value)
+
+    @ignore_first_depends_on_past.setter
+    def ignore_first_depends_on_past(self, value: bool) -> None:
+        self.partial_kwargs["ignore_first_depends_on_past"] = value
 
     @property
     def wait_for_past_depends_before_skipping(self) -> bool:
@@ -432,104 +454,166 @@ class MappedOperator(AbstractOperator):
         )
         return bool(value)
 
+    @wait_for_past_depends_before_skipping.setter
+    def wait_for_past_depends_before_skipping(self, value: bool) -> None:
+        self.partial_kwargs["wait_for_past_depends_before_skipping"] = value
+
     @property
     def wait_for_downstream(self) -> bool:
         return bool(self.partial_kwargs.get("wait_for_downstream"))
 
+    @wait_for_downstream.setter
+    def wait_for_downstream(self, value: bool) -> None:
+        self.partial_kwargs["wait_for_downstream"] = value
+
     @property
-    def retries(self) -> int | None:
+    def retries(self) -> int:
         return self.partial_kwargs.get("retries", DEFAULT_RETRIES)
+
+    @retries.setter
+    def retries(self, value: int) -> None:
+        self.partial_kwargs["retries"] = value
 
     @property
     def queue(self) -> str:
         return self.partial_kwargs.get("queue", DEFAULT_QUEUE)
 
+    @queue.setter
+    def queue(self, value: str) -> None:
+        self.partial_kwargs["queue"] = value
+
     @property
     def pool(self) -> str:
         return self.partial_kwargs.get("pool", Pool.DEFAULT_POOL_NAME)
 
+    @pool.setter
+    def pool(self, value: str) -> None:
+        self.partial_kwargs["pool"] = value
+
     @property
-    def pool_slots(self) -> str | None:
+    def pool_slots(self) -> int:
         return self.partial_kwargs.get("pool_slots", DEFAULT_POOL_SLOTS)
+
+    @pool_slots.setter
+    def pool_slots(self, value: int) -> None:
+        self.partial_kwargs["pool_slots"] = value
 
     @property
     def execution_timeout(self) -> datetime.timedelta | None:
         return self.partial_kwargs.get("execution_timeout")
 
+    @execution_timeout.setter
+    def execution_timeout(self, value: datetime.timedelta | None) -> None:
+        self.partial_kwargs["execution_timeout"] = value
+
     @property
     def max_retry_delay(self) -> datetime.timedelta | None:
         return self.partial_kwargs.get("max_retry_delay")
+
+    @max_retry_delay.setter
+    def max_retry_delay(self, value: datetime.timedelta | None) -> None:
+        self.partial_kwargs["max_retry_delay"] = value
 
     @property
     def retry_delay(self) -> datetime.timedelta:
         return self.partial_kwargs.get("retry_delay", DEFAULT_RETRY_DELAY)
 
+    @retry_delay.setter
+    def retry_delay(self, value: datetime.timedelta) -> None:
+        self.partial_kwargs["retry_delay"] = value
+
     @property
     def retry_exponential_backoff(self) -> bool:
         return bool(self.partial_kwargs.get("retry_exponential_backoff"))
+
+    @retry_exponential_backoff.setter
+    def retry_exponential_backoff(self, value: bool) -> None:
+        self.partial_kwargs["retry_exponential_backoff"] = value
 
     @property
     def priority_weight(self) -> int:  # type: ignore[override]
         return self.partial_kwargs.get("priority_weight", DEFAULT_PRIORITY_WEIGHT)
 
+    @priority_weight.setter
+    def priority_weight(self, value: int) -> None:
+        self.partial_kwargs["priority_weight"] = value
+
     @property
-    def weight_rule(self) -> str:  # type: ignore[override]
-        return self.partial_kwargs.get("weight_rule", DEFAULT_WEIGHT_RULE)
+    def weight_rule(self) -> PriorityWeightStrategy:  # type: ignore[override]
+        return validate_and_load_priority_weight_strategy(
+            self.partial_kwargs.get("weight_rule", DEFAULT_WEIGHT_RULE)
+        )
+
+    @weight_rule.setter
+    def weight_rule(self, value: str | PriorityWeightStrategy) -> None:
+        self.partial_kwargs["weight_rule"] = validate_and_load_priority_weight_strategy(value)
 
     @property
     def sla(self) -> datetime.timedelta | None:
         return self.partial_kwargs.get("sla")
 
+    @sla.setter
+    def sla(self, value: datetime.timedelta | None) -> None:
+        self.partial_kwargs["sla"] = value
+
     @property
     def max_active_tis_per_dag(self) -> int | None:
         return self.partial_kwargs.get("max_active_tis_per_dag")
 
+    @max_active_tis_per_dag.setter
+    def max_active_tis_per_dag(self, value: int | None) -> None:
+        self.partial_kwargs["max_active_tis_per_dag"] = value
+
     @property
     def max_active_tis_per_dagrun(self) -> int | None:
         return self.partial_kwargs.get("max_active_tis_per_dagrun")
+
+    @max_active_tis_per_dagrun.setter
+    def max_active_tis_per_dagrun(self, value: int | None) -> None:
+        self.partial_kwargs["max_active_tis_per_dagrun"] = value
 
     @property
     def resources(self) -> Resources | None:
         return self.partial_kwargs.get("resources")
 
     @property
-    def on_execute_callback(self) -> None | TaskStateChangeCallback | list[TaskStateChangeCallback]:
+    def on_execute_callback(self) -> TaskStateChangeCallbackAttrType:
         return self.partial_kwargs.get("on_execute_callback")
 
     @on_execute_callback.setter
-    def on_execute_callback(self, value: TaskStateChangeCallback | None) -> None:
+    def on_execute_callback(self, value: TaskStateChangeCallbackAttrType) -> None:
         self.partial_kwargs["on_execute_callback"] = value
 
     @property
-    def on_failure_callback(self) -> None | TaskStateChangeCallback | list[TaskStateChangeCallback]:
+    def on_failure_callback(self) -> TaskStateChangeCallbackAttrType:
         return self.partial_kwargs.get("on_failure_callback")
 
     @on_failure_callback.setter
-    def on_failure_callback(self, value: TaskStateChangeCallback | None) -> None:
+    def on_failure_callback(self, value: TaskStateChangeCallbackAttrType) -> None:
         self.partial_kwargs["on_failure_callback"] = value
 
     @property
-    def on_retry_callback(self) -> None | TaskStateChangeCallback | list[TaskStateChangeCallback]:
+    def on_retry_callback(self) -> TaskStateChangeCallbackAttrType:
         return self.partial_kwargs.get("on_retry_callback")
 
     @on_retry_callback.setter
-    def on_retry_callback(self, value: TaskStateChangeCallback | None) -> None:
+    def on_retry_callback(self, value: TaskStateChangeCallbackAttrType) -> None:
         self.partial_kwargs["on_retry_callback"] = value
 
     @property
-    def on_success_callback(self) -> None | TaskStateChangeCallback | list[TaskStateChangeCallback]:
+    def on_success_callback(self) -> TaskStateChangeCallbackAttrType:
         return self.partial_kwargs.get("on_success_callback")
 
     @on_success_callback.setter
-    def on_success_callback(self, value: TaskStateChangeCallback | None) -> None:
+    def on_success_callback(self, value: TaskStateChangeCallbackAttrType) -> None:
         self.partial_kwargs["on_success_callback"] = value
 
     @property
-    def on_skipped_callback(self) -> None | TaskStateChangeCallback | list[TaskStateChangeCallback]:
+    def on_skipped_callback(self) -> TaskStateChangeCallbackAttrType:
         return self.partial_kwargs.get("on_skipped_callback")
 
     @on_skipped_callback.setter
-    def on_skipped_callback(self, value: TaskStateChangeCallback | None) -> None:
+    def on_skipped_callback(self, value: TaskStateChangeCallbackAttrType) -> None:
         self.partial_kwargs["on_skipped_callback"] = value
 
     @property
@@ -575,6 +659,10 @@ class MappedOperator(AbstractOperator):
     @property
     def doc_rst(self) -> str | None:
         return self.partial_kwargs.get("doc_rst")
+
+    @property
+    def allow_nested_operators(self) -> bool:
+        return bool(self.partial_kwargs.get("allow_nested_operators"))
 
     def get_dag(self) -> DAG | None:
         """Implement Operator."""
@@ -752,5 +840,4 @@ class MappedOperator(AbstractOperator):
             context=context,
             jinja_env=jinja_env,
             seen_oids=seen_oids,
-            session=session,
         )

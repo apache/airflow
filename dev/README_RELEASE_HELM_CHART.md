@@ -202,7 +202,7 @@ breeze release-management prepare-helm-chart-tarball --version ${VERSION} --vers
 - Generate the binary Helm Chart release:
 
 ```shell
-breeze release-management prepare-helm-chart-packagte --sig jedcunningham@apache.org
+breeze release-management prepare-helm-chart-package --sign-email jedcunningham@apache.org
 ```
 
 Warning: you need the `helm gpg` plugin to sign the chart (instructions to install it above)
@@ -286,9 +286,8 @@ EOF
 Content is generated with:
 
 ```shell
-./dev/prepare_release_issue.py generate-issue-content --previous-release helm-chart/<PREVIOUS_RELEASE> \
-    --current-release helm-chart/${VERSION}${VERSION_SUFFIX} --is-helm-chart
-
+breeze release-management generate-issue-content-helm-chart
+--previous-release helm-chart/<PREVIOUS_RELEASE> --current-release helm-chart/${VERSION}${VERSION_SUFFIX}
 ```
 
 Copy the URL of the issue.
@@ -460,8 +459,8 @@ breeze release-management prepare-helm-chart-package
 
 ```shell
 
-diff ${AIRFLOW_REPO_ROOT}/dist/airflow-chart-${VERSION}-source.tar.gz ${SVN_REPO_ROOT}/airflow-chart/${VERSION}${VERSION_SUFFIX}/airflow-chart-${VERSION}-source.tar.gz
-diff ${AIRFLOW_REPO_ROOT}/dist/airflow-${VERSION}.tar.gz ${SVN_REPO_ROOT}/airflow-chart/${VERSION}${VERSION_SUFFIX}/airflow-${VERSION}.tar.gz
+diff ${AIRFLOW_REPO_ROOT}/dist/airflow-chart-${VERSION}-source.tar.gz ${SVN_REPO_ROOT}/dev/airflow/helm-chart/${VERSION}${VERSION_SUFFIX}/airflow-chart-${VERSION}-source.tar.gz
+diff ${AIRFLOW_REPO_ROOT}/dist/airflow-${VERSION}.tgz ${SVN_REPO_ROOT}/dev/airflow/helm-chart/${VERSION}${VERSION_SUFFIX}/airflow-${VERSION}.tgz
 ```
 
 There should be no differences reported. If you see "binary files differ" message, it means that
@@ -473,7 +472,7 @@ and we need to fix it (so checking the differences would be helpful also to find
 Before proceeding next you want to go to the SVN directory
 
 ```shell
-cd ${SVN_REPO_ROOT}/helm-chart/${VERSION}${VERSION_SUFFIX}
+cd ${SVN_REPO_ROOT}/dev/airflow/helm-chart/${VERSION}${VERSION_SUFFIX}
 ```
 
 ## Licence check

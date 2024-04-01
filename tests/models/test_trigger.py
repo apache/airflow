@@ -24,7 +24,7 @@ import pytz
 from cryptography.fernet import Fernet
 
 from airflow.jobs.job import Job
-from airflow.jobs.triggerer_job_runner import TriggererJobRunner, TriggerRunner
+from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import TaskInstance, Trigger
 from airflow.operators.empty import EmptyOperator
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -357,7 +357,7 @@ class SensitiveKwargsTrigger(BaseTrigger):
             "tests.models.test_trigger.SensitiveKwargsTrigger",
             {
                 "param1": self.param1,
-                "encrypted__param2": self.param2,
+                "param2": self.param2,
             },
         )
 
@@ -374,11 +374,7 @@ def test_serialize_sensitive_kwargs():
     trigger_row: Trigger = Trigger.from_object(trigger_instance)
 
     assert trigger_row.kwargs["param1"] == "value1"
-    assert "param2" not in trigger_row.kwargs
-    assert trigger_row.kwargs["encrypted__param2"] != "value2"
-
-    loaded_trigger: SensitiveKwargsTrigger = TriggerRunner().trigger_row_to_trigger_instance(
-        trigger_row, SensitiveKwargsTrigger
-    )
-    assert loaded_trigger.param1 == "value1"
-    assert loaded_trigger.param2 == "value2"
+    assert trigger_row.kwargs["param2"] == "value2"
+    assert isinstance(trigger_row.encrypted_kwargs, str)
+    assert "value1" not in trigger_row.encrypted_kwargs
+    assert "value2" not in trigger_row.encrypted_kwargs

@@ -16,10 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google BigQuery operators."""
+
 from __future__ import annotations
 
 import enum
 import json
+import re
 import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Iterable, Sequence, SupportsAbs
@@ -63,6 +65,8 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 BIGQUERY_JOB_DETAILS_LINK_FMT = "https://console.cloud.google.com/bigquery?j={job_id}"
+
+LABEL_REGEX = re.compile(r"^[a-z][\w-]{0,63}$")
 
 
 class BigQueryUIColors(enum.Enum):
@@ -1213,6 +1217,7 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
         location: str | None = None,
         encryption_configuration: dict | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        impersonation_scopes: str | Sequence[str] | None = None,
         job_id: str | list[str] | None = None,
         **kwargs,
     ) -> None:
@@ -1239,6 +1244,7 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
         self.encryption_configuration = encryption_configuration
         self.hook: BigQueryHook | None = None
         self.impersonation_chain = impersonation_chain
+        self.impersonation_scopes = impersonation_scopes
         self.job_id = job_id
 
     def execute(self, context: Context):
@@ -1249,6 +1255,7 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
                 use_legacy_sql=self.use_legacy_sql,
                 location=self.location,
                 impersonation_chain=self.impersonation_chain,
+                impersonation_scopes=self.impersonation_scopes,
             )
         if isinstance(self.sql, str):
             self.job_id = self.hook.run_query(
@@ -2768,11 +2775,25 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
             with open(self.configuration) as file:
                 self.configuration = json.loads(file.read())
 
+    def _add_job_labels(self) -> None:
+        dag_label = self.dag_id.lower()
+        task_label = self.task_id.lower()
+
+        if LABEL_REGEX.match(dag_label) and LABEL_REGEX.match(task_label):
+            automatic_labels = {"airflow-dag": dag_label, "airflow-task": task_label}
+            if isinstance(self.configuration.get("labels"), dict):
+                self.configuration["labels"].update(automatic_labels)
+            elif "labels" not in self.configuration:
+                self.configuration["labels"] = automatic_labels
+
     def _submit_job(
         self,
         hook: BigQueryHook,
         job_id: str,
     ) -> BigQueryJob:
+        # Annotate the job with dag and task id labels
+        self._add_job_labels()
+
         # Submit a new job without waiting for it to complete.
         return hook.insert_job(
             configuration=self.configuration,

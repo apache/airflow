@@ -25,6 +25,7 @@ RELEASE_AIRFLOW_COMMANDS: dict[str, str | list[str]] = {
         "start-rc-process",
         "start-release",
         "release-prod-images",
+        "generate-issue-content-core",
     ],
 }
 
@@ -33,6 +34,7 @@ RELEASE_HELM_COMMANDS: dict[str, str | list[str]] = {
     "commands": [
         "prepare-helm-chart-tarball",
         "prepare-helm-chart-package",
+        "generate-issue-content-helm-chart",
     ],
 }
 
@@ -46,6 +48,7 @@ RELEASE_PROVIDERS_COMMANDS: dict[str, str | list[str]] = {
         "generate-providers-metadata",
         "generate-issue-content-providers",
         "clean-old-provider-artifacts",
+        "tag-providers",
     ],
 }
 
@@ -98,6 +101,18 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Package flags",
             "options": [
                 "--sign-email",
+            ],
+        }
+    ],
+    "breeze release-management generate-issue-content-helm-chart": [
+        {
+            "name": "Generate issue flags",
+            "options": [
+                "--github-token",
+                "--previous-release",
+                "--current-release",
+                "--excluded-pr-list",
+                "--limit-pr-count",
             ],
         }
     ],
@@ -185,6 +200,14 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         }
     ],
+    "breeze release-management tag-providers": [
+        {
+            "name": "Add tags to providers",
+            "options": [
+                "--clean-local-tags",
+            ],
+        },
+    ],
     "breeze release-management prepare-provider-documentation": [
         {
             "name": "Provider documentation preparation flags",
@@ -217,21 +240,22 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Generate constraints flags",
             "options": [
-                "--image-tag",
-                "--python",
                 "--airflow-constraints-mode",
                 "--chicken-egg-providers",
                 "--github-repository",
+                "--image-tag",
+                "--python",
+                "--use-uv",
             ],
         },
         {
             "name": "Parallel running",
             "options": [
-                "--run-in-parallel",
+                "--debug-resources",
                 "--parallelism",
                 "--python-versions",
+                "--run-in-parallel",
                 "--skip-cleanup",
-                "--debug-resources",
             ],
         },
     ],
@@ -240,13 +264,26 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Release PROD IMAGE flags",
             "options": [
                 "--airflow-version",
+                "--chicken-egg-providers",
+                "--commit-sha",
                 "--dockerhub-repo",
-                "--slim-images",
                 "--limit-python",
                 "--limit-platform",
                 "--skip-latest",
-                "--commit-sha",
-                "--chicken-egg-providers",
+                "--slim-images",
+            ],
+        }
+    ],
+    "breeze release-management generate-issue-content-core": [
+        {
+            "name": "Generate issue flags",
+            "options": [
+                "--github-token",
+                "--previous-release",
+                "--current-release",
+                "--excluded-pr-list",
+                "--limit-pr-count",
+                "--latest",
             ],
         }
     ],
@@ -265,11 +302,11 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Parallel running",
             "options": [
-                "--run-in-parallel",
-                "--parallelism",
-                "--skip-cleanup",
                 "--debug-resources",
                 "--include-success-outputs",
+                "--parallelism",
+                "--run-in-parallel",
+                "--skip-cleanup",
             ],
         },
     ],

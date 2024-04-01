@@ -68,7 +68,7 @@ Gitpod default image have all the required packages installed.
   The workaround is to downgrade packaging to 23.1 and re-running the ``pipx install`` command. for example
   by running ``pip install "packaging<23.2"``.
 
-  .. code-block::bash
+  .. code-block:: bash
 
      pip install "packaging==23.1"
      pipx install -e ./dev/breeze --force
@@ -93,4 +93,4 @@ the first time you run tests.
   root@b76fcb399bb6:/opt/airflow# airflow users create --role Admin --username admin --password admin \
     --email admin@example.com --firstname foo --lastname bar
 
-Follow the `Quick start <03_contributors_quick_start.rst>`_ for typical development tasks.
+Follow the `Quick start <../03_contributors_quick_start.rst>`_ for typical development tasks.

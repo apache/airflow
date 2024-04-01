@@ -80,7 +80,7 @@ class AnalyticDBSparkHook(BaseHook, LoggingMixin):
     ) -> None:
         self.adb_spark_conn_id = adb_spark_conn_id
         self.adb_spark_conn = self.get_connection(adb_spark_conn_id)
-        self.region = self.get_default_region() if region is None else region
+        self.region = region or self.get_default_region()
         super().__init__(*args, **kwargs)
 
     def submit_spark_app(
@@ -327,8 +327,6 @@ class AnalyticDBSparkHook(BaseHook, LoggingMixin):
 
     def get_adb_spark_client(self) -> Client:
         """Get valid AnalyticDB MySQL Spark client."""
-        assert self.region is not None
-
         extra_config = self.adb_spark_conn.extra_dejson
         auth_type = extra_config.get("auth_type", None)
         if not auth_type:
@@ -352,7 +350,7 @@ class AnalyticDBSparkHook(BaseHook, LoggingMixin):
             )
         )
 
-    def get_default_region(self) -> str | None:
+    def get_default_region(self) -> str:
         """Get default region from connection."""
         extra_config = self.adb_spark_conn.extra_dejson
         auth_type = extra_config.get("auth_type", None)

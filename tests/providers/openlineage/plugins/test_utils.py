@@ -18,10 +18,10 @@ from __future__ import annotations
 
 import datetime
 import json
-import os
 import uuid
 from json import JSONEncoder
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 from attrs import define
@@ -29,22 +29,17 @@ from openlineage.client.utils import RedactMixin
 from pkg_resources import parse_version
 
 from airflow.models import DAG as AIRFLOW_DAG, DagModel
-from airflow.operators.empty import EmptyOperator
+from airflow.operators.bash import BashOperator
 from airflow.providers.openlineage.utils.utils import (
     InfoJsonEncodable,
     OpenLineageRedactor,
     _is_name_redactable,
-    get_connection,
-    to_json_encodable,
-    url_to_https,
+    get_fully_qualified_class_name,
+    is_operator_disabled,
 )
 from airflow.utils import timezone
 from airflow.utils.log.secrets_masker import _secrets_masker
 from airflow.utils.state import State
-
-AIRFLOW_CONN_ID = "test_db"
-AIRFLOW_CONN_URI = "postgres://localhost:5432/testdb"
-SNOWFLAKE_CONN_URI = "snowflake://12345.us-east-1.snowflakecomputing.com/MyTestRole?extra__snowflake__account=12345&extra__snowflake__database=TEST_DB&extra__snowflake__insecure_mode=false&extra__snowflake__region=us-east-1&extra__snowflake__role=MyTestRole&extra__snowflake__warehouse=TEST_WH&extra__snowflake__aws_access_key_id=123456&extra__snowflake__aws_secret_access_key=abcdefg"
 
 
 class SafeStrDict(dict):
@@ -57,21 +52,6 @@ class SafeStrDict(dict):
             except (TypeError, NotImplementedError):
                 continue
         return str(dict(castable))
-
-
-def test_get_connection():
-    os.environ["AIRFLOW_CONN_DEFAULT"] = AIRFLOW_CONN_URI
-
-    conn = get_connection("default")
-    assert conn.host == "localhost"
-    assert conn.port == 5432
-    assert conn.conn_type == "postgres"
-    assert conn
-
-
-def test_url_to_https_no_url():
-    assert url_to_https(None) is None
-    assert url_to_https("") is None
 
 
 @pytest.mark.db_test
@@ -103,18 +83,6 @@ def test_parse_version():
     assert parse_version("2.2.4") < parse_version("2.3.0.dev0")
     assert parse_version("1.10.15") < parse_version("2.3.0.dev0")
     assert parse_version("2.2.4.dev0") < parse_version("2.3.0.dev0")
-
-
-def test_to_json_encodable():
-    dag = AIRFLOW_DAG(
-        dag_id="test_dag", schedule_interval="*/2 * * * *", start_date=datetime.datetime.now(), catchup=False
-    )
-    task = EmptyOperator(task_id="test_task", dag=dag)
-
-    encodable = to_json_encodable(task)
-    encoded = json.dumps(encodable)
-    decoded = json.loads(encoded)
-    assert decoded == encodable
 
 
 def test_safe_dict():
@@ -206,3 +174,29 @@ def test_redact_with_exclusions(monkeypatch):
     assert redactor.redact({"password": "passwd"}) == {"password": "***"}
     redacted_nested = redactor.redact(NestedMixined("passwd", NestedMixined("passwd", None)))
     assert redacted_nested == NestedMixined("***", NestedMixined("passwd", None))
+
+
+def test_get_fully_qualified_class_name():
+    from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
+
+    result = get_fully_qualified_class_name(BashOperator(task_id="test", bash_command="exit 0;"))
+    assert result == "airflow.operators.bash.BashOperator"
+
+    result = get_fully_qualified_class_name(OpenLineageAdapter())
+    assert result == "airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter"
+
+
+@patch("airflow.providers.openlineage.conf.disabled_operators")
+def test_is_operator_disabled(mock_disabled_operators):
+    mock_disabled_operators.return_value = {}
+    op = BashOperator(task_id="test", bash_command="exit 0;")
+    assert is_operator_disabled(op) is False
+
+    mock_disabled_operators.return_value = {"random_string"}
+    assert is_operator_disabled(op) is False
+
+    mock_disabled_operators.return_value = {
+        "airflow.operators.bash.BashOperator",
+        "airflow.operators.python.PythonOperator",
+    }
+    assert is_operator_disabled(op) is True

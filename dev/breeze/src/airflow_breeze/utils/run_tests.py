@@ -22,10 +22,15 @@ import sys
 from itertools import chain
 from subprocess import DEVNULL
 
+from airflow_breeze.global_constants import PIP_VERSION
 from airflow_breeze.utils.console import Output, get_console
-from airflow_breeze.utils.packages import get_suspended_provider_folders
+from airflow_breeze.utils.packages import get_excluded_provider_folders, get_suspended_provider_folders
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.run_utils import run_command
+from airflow_breeze.utils.virtualenv_utils import create_temp_venv
+
+DOCKER_TESTS_ROOT = AIRFLOW_SOURCES_ROOT / "docker_tests"
+DOCKER_TESTS_REQUIREMENTS = DOCKER_TESTS_ROOT / "requirements.txt"
 
 
 def verify_an_image(
@@ -47,19 +52,20 @@ def verify_an_image(
         return command_result.returncode, f"Testing {image_type} python {image_name}"
     pytest_args = ("-n", str(os.cpu_count()), "--color=yes")
     if image_type == "PROD":
-        test_path = AIRFLOW_SOURCES_ROOT / "docker_tests" / "test_prod_image.py"
+        test_path = DOCKER_TESTS_ROOT / "test_prod_image.py"
     else:
-        test_path = AIRFLOW_SOURCES_ROOT / "docker_tests" / "test_ci_image.py"
+        test_path = DOCKER_TESTS_ROOT / "test_ci_image.py"
     env = os.environ.copy()
     env["DOCKER_IMAGE"] = image_name
     if slim_image:
         env["TEST_SLIM_IMAGE"] = "true"
-    command_result = run_command(
-        [sys.executable, "-m", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
-        env=env,
-        output=output,
-        check=False,
-    )
+    with create_temp_venv(pip_version=PIP_VERSION, requirements_file=DOCKER_TESTS_REQUIREMENTS) as py_exe:
+        command_result = run_command(
+            [py_exe, "-m", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
+            env=env,
+            output=output,
+            check=False,
+        )
     return command_result.returncode, f"Testing {image_type} python {image_name}"
 
 
@@ -73,16 +79,17 @@ def run_docker_compose_tests(
         get_console().print(f"[error]Error when inspecting PROD image: {command_result.returncode}[/]")
         return command_result.returncode, f"Testing docker-compose python with {image_name}"
     pytest_args = ("--color=yes",)
-    test_path = AIRFLOW_SOURCES_ROOT / "docker_tests" / "test_docker_compose_quick_start.py"
+    test_path = DOCKER_TESTS_ROOT / "test_docker_compose_quick_start.py"
     env = os.environ.copy()
     env["DOCKER_IMAGE"] = image_name
     if skip_docker_compose_deletion:
         env["SKIP_DOCKER_COMPOSE_DELETION"] = "true"
-    command_result = run_command(
-        [sys.executable, "-m", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
-        env=env,
-        check=False,
-    )
+    with create_temp_venv(pip_version=PIP_VERSION, requirements_file=DOCKER_TESTS_REQUIREMENTS) as py_exe:
+        command_result = run_command(
+            [py_exe, "-m", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
+            env=env,
+            check=False,
+        )
     return command_result.returncode, f"Testing docker-compose python with {image_name}"
 
 
@@ -105,6 +112,23 @@ def get_suspended_provider_args() -> list[str]:
     pytest_args = []
     suspended_folders = get_suspended_provider_folders()
     for providers in suspended_folders:
+        pytest_args.extend(
+            [
+                "--ignore",
+                f"tests/providers/{providers}",
+                "--ignore",
+                f"tests/system/providers/{providers}",
+                "--ignore",
+                f"tests/integration/providers/{providers}",
+            ]
+        )
+    return pytest_args
+
+
+def get_excluded_provider_args(python_version: str) -> list[str]:
+    pytest_args = []
+    excluded_folders = get_excluded_provider_folders(python_version)
+    for providers in excluded_folders:
         pytest_args.extend(
             [
                 "--ignore",
@@ -210,6 +234,7 @@ def convert_test_type_to_pytest_args(
     *,
     test_type: str,
     skip_provider_tests: bool,
+    python_version: str,
     helm_test_package: str | None = None,
 ) -> list[str]:
     if test_type == "None":
@@ -281,17 +306,23 @@ def generate_args_for_pytest(
     collect_only: bool,
     parallelism: int,
     parallel_test_types_list: list[str],
+    python_version: str,
     helm_test_package: str | None,
 ):
     result_log_file, warnings_file, coverage_file = test_paths(test_type, backend, helm_test_package)
     if skip_db_tests:
         if parallel_test_types_list:
-            args = convert_parallel_types_to_folders(parallel_test_types_list, skip_provider_tests)
+            args = convert_parallel_types_to_folders(
+                parallel_test_types_list, skip_provider_tests, python_version=python_version
+            )
         else:
             args = ["tests"] if test_type != "None" else []
     else:
         args = convert_test_type_to_pytest_args(
-            test_type=test_type, skip_provider_tests=skip_provider_tests, helm_test_package=helm_test_package
+            test_type=test_type,
+            skip_provider_tests=skip_provider_tests,
+            helm_test_package=helm_test_package,
+            python_version=python_version,
         )
     args.extend(
         [
@@ -337,9 +368,15 @@ def generate_args_for_pytest(
     if test_type not in ("Helm", "System"):
         args.append("--with-db-init")
     args.extend(get_suspended_provider_args())
+    args.extend(get_excluded_provider_args(python_version))
     if use_xdist:
         args.extend(["-n", str(parallelism) if parallelism else "auto"])
-    if enable_coverage:
+    # We have to disabke coverage for Python 3.12 because of the issue with coverage that takes too long, despite
+    # Using experimental support for Python 3.12 PEP 669. The coverage.py is not yet fully compatible with the
+    # full scope of PEP-669. That will be fully done when https://github.com/nedbat/coveragepy/issues/1746 is
+    # resolve for now we are disabling coverage for Python 3.12, and it causes slower execution and occasional
+    # timeouts
+    if enable_coverage and python_version != "3.12":
         args.extend(
             [
                 "--cov=airflow",
@@ -360,12 +397,17 @@ def generate_args_for_pytest(
     return args
 
 
-def convert_parallel_types_to_folders(parallel_test_types_list: list[str], skip_provider_tests: bool):
+def convert_parallel_types_to_folders(
+    parallel_test_types_list: list[str], skip_provider_tests: bool, python_version: str
+):
     args = []
     for _test_type in parallel_test_types_list:
         args.extend(
             convert_test_type_to_pytest_args(
-                test_type=_test_type, skip_provider_tests=skip_provider_tests, helm_test_package=None
+                test_type=_test_type,
+                skip_provider_tests=skip_provider_tests,
+                helm_test_package=None,
+                python_version=python_version,
             )
         )
     # leave only folders, strip --pytest-args

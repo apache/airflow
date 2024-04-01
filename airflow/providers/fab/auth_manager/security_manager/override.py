@@ -248,6 +248,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DATASET),
     ]
     # [END security_user_perms]
 
@@ -275,6 +276,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_XCOM),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DATASET),
+        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DATASET),
     ]
     # [END security_op_perms]
 
@@ -337,6 +339,43 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         # Setup Flask-Jwt-Extended
         self.create_jwt_manager()
+
+    def _get_authentik_jwks(self, jwks_url) -> dict:
+        import requests
+
+        resp = requests.get(jwks_url)
+        if resp.status_code == 200:
+            return resp.json()
+        return {}
+
+    def _validate_jwt(self, id_token, jwks):
+        from authlib.jose import JsonWebKey, jwt as authlib_jwt
+
+        keyset = JsonWebKey.import_key_set(jwks)
+        claims = authlib_jwt.decode(id_token, keyset)
+        claims.validate()
+        log.info("JWT token is validated")
+        return claims
+
+    def _get_authentik_token_info(self, id_token):
+        me = jwt.decode(id_token, options={"verify_signature": False})
+
+        verify_signature = self.oauth_remotes["authentik"].client_kwargs.get("verify_signature", True)
+        if verify_signature:
+            # Validate the token using authentik certificate
+            jwks_uri = self.oauth_remotes["authentik"].server_metadata.get("jwks_uri")
+            if jwks_uri:
+                jwks = self._get_authentik_jwks(jwks_uri)
+                if jwks:
+                    return self._validate_jwt(id_token, jwks)
+            else:
+                log.error("jwks_uri not specified in OAuth Providers, could not verify token signature")
+        else:
+            # Return the token info without validating
+            log.warning("JWT token is not validated!")
+            return me
+
+        raise AirflowException("OAuth signature verify failed")
 
     def register_views(self):
         """Register FAB auth manager related views."""
@@ -511,9 +550,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def load_user_jwt(self, _jwt_header, jwt_data):
         identity = jwt_data["sub"]
         user = self.load_user(identity)
-        # Set flask g.user to JWT user, we can't do it on before request
-        g.user = user
-        return user
+        if user.is_active:
+            # Set flask g.user to JWT user, we can't do it on before request
+            g.user = user
+            return user
 
     @property
     def auth_type(self):
@@ -646,6 +686,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return self.appbuilder.get_app.config["AUTH_USER_REGISTRATION_ROLE_JMESPATH"]
 
     @property
+    def auth_remote_user_env_var(self) -> str:
+        return self.appbuilder.get_app.config["AUTH_REMOTE_USER_ENV_VAR"]
+
+    @property
     def api_login_allow_multiple_providers(self):
         return self.appbuilder.get_app.config["AUTH_API_LOGIN_ALLOW_MULTIPLE_PROVIDERS"]
 
@@ -725,8 +769,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         # If the user does not exist, make a random password and make it
         if not user_exists:
             print(f"FlaskAppBuilder Authentication Manager: Creating {user_name} user")
-            role = self.find_role("Admin")
-            assert role is not None
+            if (role := self.find_role("Admin")) is None:
+                raise AirflowException("Unable to find role 'Admin'")
             # password does not contain visually similar characters: ijlIJL1oO0
             password = "".join(random.choices("abcdefghkmnpqrstuvwxyzABCDEFGHKMNPQRSTUVWXYZ23456789", k=16))
             with open(password_path, "w") as file:
@@ -788,6 +832,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             app.config.setdefault("AUTH_LDAP_LASTNAME_FIELD", "sn")
             app.config.setdefault("AUTH_LDAP_EMAIL_FIELD", "mail")
 
+        if self.auth_type == AUTH_REMOTE_USER:
+            app.config.setdefault("AUTH_REMOTE_USER_ENV_VAR", "REMOTE_USER")
+
         # Rate limiting
         app.config.setdefault("AUTH_RATE_LIMITED", True)
         app.config.setdefault("AUTH_RATE_LIMIT", "5 per 40 second")
@@ -802,7 +849,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         if self.auth_type == AUTH_OID:
             from flask_openid import OpenID
 
+            log.warning(
+                "AUTH_OID is deprecated and will be removed in version 5. "
+                "Migrate to other authentication methods."
+            )
             self.oid = OpenID(app)
+
         if self.auth_type == AUTH_OAUTH:
             from authlib.integrations.flask_client import OAuth
 
@@ -1247,8 +1299,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         sesh = self.appbuilder.get_session
         perms = sesh.query(Permission).filter(
             or_(
-                Permission.action == None,  # noqa
-                Permission.resource == None,  # noqa
+                Permission.action == None,  # noqa: E711
+                Permission.resource == None,  # noqa: E711
             )
         )
         # Since FAB doesn't define ON DELETE CASCADE on these tables, we need
@@ -1469,8 +1521,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             return False
 
     def load_user(self, user_id):
-        """Load user by ID."""
-        return self.get_user_by_id(int(user_id))
+        user = self.get_user_by_id(int(user_id))
+        if user.is_active:
+            return user
 
     def get_user_by_id(self, pk):
         return self.get_session.get(self.user_model, pk)
@@ -2206,6 +2259,19 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 "last_name": data.get("family_name", ""),
                 "email": data.get("email", ""),
             }
+
+        # for Authentik
+        if provider == "authentik":
+            id_token = resp["id_token"]
+            me = self._get_authentik_token_info(id_token)
+            log.debug("User info from authentik: %s", me)
+            return {
+                "email": me["preferred_username"],
+                "first_name": me.get("given_name", ""),
+                "username": me["nickname"],
+                "role_keys": me.get("groups", []),
+            }
+
         else:
             return {}
 
@@ -2443,8 +2509,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         :param ldap: The ldap module reference
         :param con: The ldap connection
         """
-        # always check AUTH_LDAP_BIND_USER is set before calling this method
-        assert self.auth_ldap_bind_user, "AUTH_LDAP_BIND_USER must be set"
+        if not self.auth_ldap_bind_user:
+            # always check AUTH_LDAP_BIND_USER is set before calling this method
+            raise ValueError("AUTH_LDAP_BIND_USER must be set")
 
         try:
             log.debug("LDAP bind indirect TRY with username: %r", self.auth_ldap_bind_user)
@@ -2463,8 +2530,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         :param username: username to match with AUTH_LDAP_UID_FIELD
         :return: ldap object array
         """
-        # always check AUTH_LDAP_SEARCH is set before calling this method
-        assert self.auth_ldap_search, "AUTH_LDAP_SEARCH must be set"
+        if not self.auth_ldap_search:
+            # always check AUTH_LDAP_SEARCH is set before calling this method
+            raise ValueError("AUTH_LDAP_SEARCH must be set")
 
         # build the filter string for the LDAP search
         if self.auth_ldap_search_filter:

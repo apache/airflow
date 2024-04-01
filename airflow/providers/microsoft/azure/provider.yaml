@@ -20,9 +20,10 @@ name: Microsoft Azure
 description: |
   `Microsoft Azure <https://azure.microsoft.com/>`__
 state: ready
-source-date-epoch: 1703747626
+source-date-epoch: 1709555852
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 9.0.1
   - 9.0.0
   - 8.5.1
   - 8.5.0
@@ -77,7 +78,8 @@ dependencies:
   - apache-airflow>=2.6.0
   - adlfs>=2023.10.0
   - azure-batch>=8.0.0
-  - azure-cosmos>=4.0.0
+  # azure-cosmos 4.6.0 fail on mypy, limit version till we fix the issue
+  - azure-cosmos>=4.0.0,<4.6.0
   - azure-mgmt-cosmosdb
   - azure-datalake-store>=0.0.45
   - azure-identity>=1.3.1
@@ -87,7 +89,7 @@ dependencies:
   - azure-storage-blob>=12.14.0
   - azure-mgmt-storage>=16.0.0
   - azure-storage-file-share
-  - azure-servicebus>=7.6.1
+  - azure-servicebus>=7.12.1
   - azure-synapse-spark
   - azure-synapse-artifacts>=0.17.0
   - adal>=1.2.7

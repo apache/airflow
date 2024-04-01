@@ -41,10 +41,9 @@ from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from airflow.api_connexion.types import APIResponse, UpdateMask
-    from airflow.www.security_manager import AirflowSecurityManagerV2
 
 
-def _check_action_and_resource(sm: AirflowSecurityManagerV2, perms: list[tuple[str, str]]) -> None:
+def _check_action_and_resource(sm: FabAirflowSecurityManagerOverride, perms: list[tuple[str, str]]) -> None:
     """
     Check if the action or resource exists and otherwise raise 400.
 
@@ -57,7 +56,7 @@ def _check_action_and_resource(sm: AirflowSecurityManagerV2, perms: list[tuple[s
             raise BadRequest(detail=f"The specified resource: {resource!r} was not found")
 
 
-@requires_access_custom_view(permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE)
+@requires_access_custom_view("GET", permissions.RESOURCE_ROLE)
 def get_role(*, role_name: str) -> APIResponse:
     """Get role."""
     security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)
@@ -67,7 +66,7 @@ def get_role(*, role_name: str) -> APIResponse:
     return role_schema.dump(role)
 
 
-@requires_access_custom_view(permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE)
+@requires_access_custom_view("GET", permissions.RESOURCE_ROLE)
 @format_parameters({"limit": check_limit})
 def get_roles(*, order_by: str = "name", limit: int, offset: int | None = None) -> APIResponse:
     """Get roles."""
@@ -78,8 +77,8 @@ def get_roles(*, order_by: str = "name", limit: int, offset: int | None = None) 
     to_replace = {"role_id": "id"}
     order_param = order_by.strip("-")
     order_param = to_replace.get(order_param, order_param)
-    allowed_filter_attrs = ["role_id", "name"]
-    if order_by not in allowed_filter_attrs:
+    allowed_sort_attrs = ["role_id", "name"]
+    if order_by not in allowed_sort_attrs:
         raise BadRequest(
             detail=f"Ordering with '{order_by}' is disallowed or "
             f"the attribute does not exist on the model"
@@ -95,7 +94,7 @@ def get_roles(*, order_by: str = "name", limit: int, offset: int | None = None) 
     return role_collection_schema.dump(RoleCollection(roles=roles, total_entries=total_entries))
 
 
-@requires_access_custom_view(permissions.ACTION_CAN_READ, permissions.RESOURCE_ACTION)
+@requires_access_custom_view("GET", permissions.RESOURCE_ACTION)
 @format_parameters({"limit": check_limit})
 def get_permissions(*, limit: int, offset: int | None = None) -> APIResponse:
     """Get permissions."""
@@ -107,7 +106,7 @@ def get_permissions(*, limit: int, offset: int | None = None) -> APIResponse:
     return action_collection_schema.dump(ActionCollection(actions=actions, total_entries=total_entries))
 
 
-@requires_access_custom_view(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_ROLE)
+@requires_access_custom_view("DELETE", permissions.RESOURCE_ROLE)
 def delete_role(*, role_name: str) -> APIResponse:
     """Delete a role."""
     security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)
@@ -119,7 +118,7 @@ def delete_role(*, role_name: str) -> APIResponse:
     return NoContent, HTTPStatus.NO_CONTENT
 
 
-@requires_access_custom_view(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE)
+@requires_access_custom_view("PUT", permissions.RESOURCE_ROLE)
 def patch_role(*, role_name: str, update_mask: UpdateMask = None) -> APIResponse:
     """Update a role."""
     security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)
@@ -152,7 +151,7 @@ def patch_role(*, role_name: str, update_mask: UpdateMask = None) -> APIResponse
     return role_schema.dump(role)
 
 
-@requires_access_custom_view(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_ROLE)
+@requires_access_custom_view("POST", permissions.RESOURCE_ROLE)
 def post_role() -> APIResponse:
     """Create a new role."""
     security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)

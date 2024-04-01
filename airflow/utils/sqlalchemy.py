@@ -72,9 +72,8 @@ class UtcDateTime(TypeDecorator):
         elif value.tzinfo is None:
             raise ValueError("naive datetime is disallowed")
         elif dialect.name == "mysql":
-            # For mysql we should store timestamps as naive values
-            # In MySQL 5.7 inserting timezone value fails with 'invalid-date'
-            # See https://issues.apache.org/jira/browse/AIRFLOW-7001
+            # For mysql versions prior 8.0.19 we should send timestamps as naive values in UTC
+            # see: https://dev.mysql.com/doc/refman/8.0/en/date-and-time-literals.html
             return make_naive(value, timezone=utc)
         return value.astimezone(utc)
 
@@ -483,8 +482,7 @@ def is_lock_not_available_error(error: OperationalError):
 def tuple_in_condition(
     columns: tuple[ColumnElement, ...],
     collection: Iterable[Any],
-) -> ColumnOperators:
-    ...
+) -> ColumnOperators: ...
 
 
 @overload
@@ -493,8 +491,7 @@ def tuple_in_condition(
     collection: Select,
     *,
     session: Session,
-) -> ColumnOperators:
-    ...
+) -> ColumnOperators: ...
 
 
 def tuple_in_condition(
@@ -518,8 +515,7 @@ def tuple_in_condition(
 def tuple_not_in_condition(
     columns: tuple[ColumnElement, ...],
     collection: Iterable[Any],
-) -> ColumnOperators:
-    ...
+) -> ColumnOperators: ...
 
 
 @overload
@@ -528,8 +524,7 @@ def tuple_not_in_condition(
     collection: Select,
     *,
     session: Session,
-) -> ColumnOperators:
-    ...
+) -> ColumnOperators: ...
 
 
 def tuple_not_in_condition(

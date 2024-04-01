@@ -134,11 +134,9 @@ class TestAirflowTaskDecorator(BasePythonTest):
     def test_infer_multiple_outputs_forward_annotation(self):
         if TYPE_CHECKING:
 
-            class FakeTypeCheckingOnlyClass:
-                ...
+            class FakeTypeCheckingOnlyClass: ...
 
-            class UnresolveableName:
-                ...
+            class UnresolveableName: ...
 
         @task_decorator
         def t1(x: "FakeTypeCheckingOnlyClass", y: int) -> Dict[int, int]:  # type: ignore[empty-body]
@@ -158,10 +156,9 @@ class TestAirflowTaskDecorator(BasePythonTest):
             def t3(  # type: ignore[empty-body]
                 x: "FakeTypeCheckingOnlyClass",
                 y: int,
-            ) -> "UnresolveableName[int, int]":
-                ...
+            ) -> "UnresolveableName[int, int]": ...
 
-            line = sys._getframe().f_lineno - 6 if PY38 else sys._getframe().f_lineno - 3
+            line = sys._getframe().f_lineno - 5 if PY38 else sys._getframe().f_lineno - 2
             if PY311:
                 # extra line explaining the error location in Py311
                 line = line - 1
@@ -258,6 +255,17 @@ class TestAirflowTaskDecorator(BasePythonTest):
         with pytest.raises(TypeError):
             add_number()
         add_number("test")
+
+    def test_fails_context_parameter_other_than_none(self):
+        """Fail if a context parameter has a default and it's not None."""
+        error_message = "Context key parameter try_number can't have a default other than None"
+
+        @task_decorator
+        def add_number_to_try_number(num: int, try_number: int = 0):
+            return num + try_number
+
+        with pytest.raises(ValueError, match=error_message):
+            add_number_to_try_number(1)
 
     def test_fail_method(self):
         """Tests that @task will fail if signature is not binding."""
@@ -729,8 +737,7 @@ def test_mapped_decorator_unmap_merge_op_kwargs(dag_maker, session):
             return ["x"]
 
         @task_decorator
-        def task2(arg1, arg2):
-            ...
+        def task2(arg1, arg2): ...
 
         task2.partial(arg1=1).expand(arg2=task1())
 
@@ -757,8 +764,7 @@ def test_mapped_decorator_converts_partial_kwargs(dag_maker, session):
             return ["x" * arg]
 
         @task_decorator(retry_delay=30)
-        def task2(arg1, arg2):
-            ...
+        def task2(arg1, arg2): ...
 
         task2.partial(arg1=1).expand(arg2=task1.expand(arg=[1, 2]))
 
@@ -782,8 +788,7 @@ def test_mapped_decorator_converts_partial_kwargs(dag_maker, session):
 
 def test_mapped_render_template_fields(dag_maker, session):
     @task_decorator
-    def fn(arg1, arg2):
-        ...
+    def fn(arg1, arg2): ...
 
     with set_current_task_instance_session(session=session):
         with dag_maker(session=session):
@@ -921,8 +926,7 @@ def test_no_warnings(reset_logging_config, caplog):
         return 1
 
     @task_decorator
-    def other(x):
-        ...
+    def other(x): ...
 
     with DAG(dag_id="test", start_date=DEFAULT_DATE, schedule=None):
         other(some_task())
@@ -933,7 +937,7 @@ def test_task_decorator_dataset(dag_maker, session):
     from airflow.datasets import Dataset
 
     result = None
-    uri = "s3://test"
+    uri = "s3://bucket/name"
 
     with dag_maker(session=session) as dag:
 
