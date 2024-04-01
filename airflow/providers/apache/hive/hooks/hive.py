@@ -97,7 +97,6 @@ class HiveCliHook(BaseHook):
         hive_cli_params: str = "",
         auth: str | None = None,
         proxy_user: str | None = None,
-        high_availability: bool | None = None,
     ) -> None:
         super().__init__()
         conn = self.get_connection(hive_cli_conn_id)
@@ -120,7 +119,7 @@ class HiveCliHook(BaseHook):
         self.mapred_queue_priority = mapred_queue_priority
         self.mapred_job_name = mapred_job_name
         self.proxy_user = proxy_user
-        self.high_availability = high_availability
+        self.high_availability = self.conn.extra_dejson.get("high_availability", False)
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
@@ -179,11 +178,11 @@ class HiveCliHook(BaseHook):
                     raise RuntimeError("The principal should not contain the ';' character")
                 if ";" in proxy_user:
                     raise RuntimeError("The proxy_user should not contain the ';' character")
-                if proxy_user:
-                    jdbc_url += f";principal={template};{proxy_user}"
-                else:
-                    jdbc_url += f";principal={template}" \
-                                f";serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2"
+                jdbc_url += f";principal={template};{proxy_user}"
+                if self.high_availability:
+                    if proxy_user:
+                        jdbc_url += ";"
+                    jdbc_url += "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2"
             elif self.auth:
                 jdbc_url += ";auth=" + self.auth
 
