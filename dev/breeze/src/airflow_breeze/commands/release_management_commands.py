@@ -2290,13 +2290,11 @@ def print_issue_content(
 @click.option(
     "--previous-release",
     type=str,
-    required=True,
     help="commit reference (for example hash or tag) of the previous release.",
 )
 @click.option(
     "--current-release",
     type=str,
-    required=True,
     help="commit reference (for example hash or tag) of the current release.",
 )
 @click.option("--excluded-pr-list", type=str, help="Coma-separated list of PRs to exclude from the issue.")
@@ -2306,6 +2304,11 @@ def print_issue_content(
     default=None,
     help="Limit PR count processes (useful for testing small subset of PRs).",
 )
+@click.option(
+    "--latest",
+    is_flag=True,
+    help="Run the command against latest released version of airflow helm charts",
+)
 @option_verbose
 def generate_issue_content_helm_chart(
     github_token: str,
@@ -2313,6 +2316,7 @@ def generate_issue_content_helm_chart(
     current_release: str,
     excluded_pr_list: str,
     limit_pr_count: int | None,
+    latest: bool,
 ):
     generate_issue_content(
         github_token,
@@ -2321,7 +2325,7 @@ def generate_issue_content_helm_chart(
         excluded_pr_list,
         limit_pr_count,
         is_helm_chart=True,
-        latest=False,
+        latest=latest,
     )
 
 
@@ -3266,16 +3270,32 @@ def generate_issue_content(
     if latest:
         import requests
 
-        response = requests.get("https://pypi.org/pypi/apache-airflow/json")
-        response.raise_for_status()
-        latest_released_version = response.json()["info"]["version"]
-        previous = str(latest_released_version)
-        current = os.getenv("VERSION", "HEAD")
-        if current == "HEAD":
-            get_console().print(
-                "\n[warning]Environment variable VERSION not set, setting current release "
-                "version as 'HEAD'\n"
-            )
+        if not is_helm_chart:
+            response = requests.get("https://pypi.org/pypi/apache-airflow/json")
+            response.raise_for_status()
+            latest_released_version = response.json()["info"]["version"]
+            previous = str(latest_released_version)
+            current = os.getenv("VERSION", "HEAD")
+            if current == "HEAD":
+                get_console().print(
+                    "\n[warning]Environment variable VERSION not set, setting current release "
+                    "version as 'HEAD'\n"
+                )
+        elif is_helm_chart:
+            response = requests.get("https://airflow.apache.org/_gen/packages-metadata.json")
+            data = response.json()
+            for package in data:
+                if package["package-name"] == "helm-chart":
+                    stable_version = package["stable-version"]
+                    get_console().print(f"\n[info] Latest stable version of helm chart is {stable_version}\n")
+                    previous = f"helm-chart/{stable_version}"
+                    current = os.getenv("VERSION", "HEAD")
+                    if current == "HEAD":
+                        get_console().print(
+                            "\n[warning]Environment variable VERSION not set, setting current release "
+                            "version as 'HEAD' for helm chart release\n"
+                        )
+                    break
 
     changes = get_changes(verbose, previous, current, is_helm_chart)
     change_prs = [change.pr for change in changes]
@@ -3342,4 +3362,4 @@ def generate_issue_content(
                 users[pr_number].add(linked_issue.user.login)
             progress.advance(task)
 
-    print_issue_content(current_release, pull_requests, linked_issues, users, is_helm_chart)
+    print_issue_content(current, pull_requests, linked_issues, users, is_helm_chart)
