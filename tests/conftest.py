@@ -1156,24 +1156,23 @@ def clear_lru_cache():
 
 
 @pytest.fixture(autouse=True)
-def refuse_to_run_test_from_wrongly_named_files(request):
-    dirname: str = request.node.fspath.dirname
-    filename: str = request.node.fspath.basename
-    is_system_test: bool = "tests/system/" in dirname
-    if is_system_test and not (
-        request.node.fspath.basename.startswith("example_")
-        or request.node.fspath.basename.startswith("test_")
-    ):
-        raise Exception(
+def refuse_to_run_test_from_wrongly_named_files(request: pytest.FixtureRequest):
+    filepath = request.node.path
+    is_system_test: bool = "tests/system/" in os.fspath(filepath.parent)
+    test_name = request.node.name
+    if request.node.cls:
+        test_name = f"{request.node.cls.__name__}.{test_name}"
+    if is_system_test and not filepath.name.startswith(("example_", "test_")):
+        pytest.fail(
             f"All test method files in tests/system must start with 'example_' or 'test_'. "
-            f"Seems that {filename} contains {request.function} that looks like a test case. "
+            f"Seems that {os.fspath(filepath)!r} contains {test_name!r} that looks like a test case. "
             f"Please rename the file to follow the example_* or test_* pattern if you want to run the tests "
             f"in it."
         )
-    if not is_system_test and not request.node.fspath.basename.startswith("test_"):
-        raise Exception(
-            f"All test method files in tests/ must start with 'test_'. Seems that {filename} "
-            f"contains {request.function} that looks like a test case. Please rename the file to "
+    elif not is_system_test and not filepath.name.startswith("test_"):
+        pytest.fail(
+            f"All test method files in tests/ must start with 'test_'. Seems that {os.fspath(filepath)!r} "
+            f"contains {test_name!r} that looks like a test case. Please rename the file to "
             f"follow the test_* pattern if you want to run the tests in it."
         )
 
