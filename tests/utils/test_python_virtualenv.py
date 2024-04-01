@@ -128,7 +128,7 @@ class TestPrepareVirtualenv:
     def test_remove_decorator_including_comment(self):
         py_source = "@task.virtualenv\ndef f():\n# @task.virtualenv\nimport funcsigs"
         res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.virtualenv")
-        assert res == "def f():\n# @task.virtualenv\nimport funcsigss"
+        assert res == "def f():\n# @task.virtualenv\nimport funcsigs"
 
     def test_remove_decorator_nested(self):
         py_source = "@foo\n@task.virtualenv\n@bar\ndef f():\nimport funcsigs"
