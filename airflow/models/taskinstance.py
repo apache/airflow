@@ -71,7 +71,6 @@ from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.datasets import Dataset
 from airflow.datasets.manager import dataset_manager
-from airflow.datasets.metadata import Metadata
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -119,7 +118,7 @@ from airflow.utils.helpers import prune_dict, render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import qualname
 from airflow.utils.net import get_hostname
-from airflow.utils.operator_helpers import context_to_airflow_vars
+from airflow.utils.operator_helpers import ExecutionCallableRunner, context_to_airflow_vars
 from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -134,7 +133,6 @@ from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.timeout import timeout
-from airflow.utils.types import NOTSET
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 TR = TaskReschedule
@@ -398,29 +396,6 @@ def _creator_note(val):
         return TaskInstanceNote(*val)
 
 
-def _run_task_callable(func: Callable, context: Context, **kwargs):
-    import inspect  # Name conflict with ``sqlalchemy.inspect``.
-
-    if not inspect.isgeneratorfunction(func):
-        return func(context=context, **kwargs)
-
-    result: Any = NOTSET
-
-    def _run():
-        nonlocal result
-        result = yield from func(context=context, **kwargs)
-
-    for metadata in _run():
-        if isinstance(metadata, Metadata):
-            context["dataset_events"][metadata.uri].extra.update(metadata.extra)
-            continue
-        log.warning("Ignoring unknown data of %r received from task", type(metadata))
-        if log.isEnabledFor(logging.DEBUG):
-            log.debug("Full yielded value: %r", metadata)
-
-    return result
-
-
 def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: Context, task_orig: Operator):
     """
     Execute Task (optionally with a Timeout) and push Xcom results.
@@ -462,7 +437,8 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
             # Print a marker for log grouping of details before task execution
             log.info("::endgroup::")
 
-            return _run_task_callable(execute_callable, context, **execute_callable_kwargs)
+            runner = ExecutionCallableRunner(execute_callable, context["dataset_events"], logger=log)
+            return runner.run(context=context, **execute_callable_kwargs)
         except SystemExit as e:
             # Handle only successful cases here. Failure cases will be handled upper
             # in the exception chain.
@@ -2724,7 +2700,7 @@ class TaskInstance(Base, LoggingMixin):
                 )
 
             # Run pre_execute callback
-            _run_task_callable(self.task.pre_execute, context)
+            self.task.pre_execute(context=context)
 
             # Run on_execute callback
             self._run_execute_callback(context, self.task)
@@ -2739,7 +2715,7 @@ class TaskInstance(Base, LoggingMixin):
                 result = self._execute_task(context, task_orig)
 
             # Run post_execute callback
-            _run_task_callable(self.task.post_execute, context, result=result)
+            self.task.post_execute(context=context, result=result)
 
             # DAG authors define map_index_template at the task level
             if jinja_env is not None and (template := context.get("map_index_template")) is not None:
@@ -2808,7 +2784,7 @@ class TaskInstance(Base, LoggingMixin):
             return
         for callback in callbacks if isinstance(callbacks, list) else [callbacks]:
             try:
-                _run_task_callable(callback, context)
+                callback(context)
             except Exception:
                 self.log.exception("Failed when executing execute callback")
 

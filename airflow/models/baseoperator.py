@@ -28,12 +28,12 @@ import collections.abc
 import contextlib
 import copy
 import functools
+import inspect
 import logging
 import sys
 import warnings
 from datetime import datetime, timedelta
 from functools import total_ordering, wraps
-from inspect import signature
 from types import FunctionType
 from typing import (
     TYPE_CHECKING,
@@ -95,6 +95,7 @@ from airflow.utils.context import Context
 from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.helpers import validate_key
+from airflow.utils.operator_helpers import ExecutionCallableRunner
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
@@ -423,7 +424,7 @@ class BaseOperatorMeta(abc.ABCMeta):
         # at every decorated invocation. This is separate sig_cache created
         # per decoration, i.e. each function decorated using apply_defaults will
         # have a different sig_cache.
-        sig_cache = signature(func)
+        sig_cache = inspect.signature(func)
         non_variadic_params = {
             name: param
             for (name, param) in sig_cache.parameters.items()
@@ -1269,8 +1270,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     @prepare_lineage
     def pre_execute(self, context: Any):
         """Execute right before self.execute() is called."""
-        if self._pre_execute_hook is not None:
-            self._pre_execute_hook(context)
+        if self._pre_execute_hook is None:
+            return
+        runner = ExecutionCallableRunner(self._pre_execute_hook, context["dataset_events"], logger=self.log)
+        runner.run(context)
 
     def execute(self, context: Context) -> Any:
         """
@@ -1289,8 +1292,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         It is passed the execution context and any results returned by the operator.
         """
-        if self._post_execute_hook is not None:
-            self._post_execute_hook(context, result)
+        if self._post_execute_hook is None:
+            return
+        runner = ExecutionCallableRunner(self._post_execute_hook, context["dataset_events"], logger=self.log)
+        runner.run(context, result)
 
     def on_kill(self) -> None:
         """

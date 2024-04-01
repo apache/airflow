@@ -54,14 +54,14 @@ from airflow.operators.branch import BranchMixIn
 from airflow.utils import hashlib_wrapper
 from airflow.utils.context import context_copy_partial, context_merge
 from airflow.utils.file import get_unique_dag_module_name
-from airflow.utils.operator_helpers import KeywordParameters
+from airflow.utils.operator_helpers import ExecutionCallableRunner, KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
 
 if TYPE_CHECKING:
     from pendulum.datetime import DateTime
 
-    from airflow.utils.context import Context
+    from airflow.utils.context import Context, DatasetEventAccessors
 
 
 def is_venv_installed() -> bool:
@@ -232,7 +232,7 @@ class PythonOperator(BaseOperator):
         context_merge(context, self.op_kwargs, templates_dict=self.templates_dict)
         self.op_kwargs = self.determine_kwargs(context)
 
-        return_value = self.execute_callable()
+        return_value = self.execute_callable(context["dataset_events"])
         if self.show_return_value_in_logs:
             self.log.info("Done. Returned value was: %s", return_value)
         else:
@@ -243,13 +243,14 @@ class PythonOperator(BaseOperator):
     def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
         return KeywordParameters.determine(self.python_callable, self.op_args, context).unpacking()
 
-    def execute_callable(self) -> Any:
+    def execute_callable(self, dataset_events: DatasetEventAccessors) -> Any:
         """
         Call the python callable with the given arguments.
 
         :return: the return value of the call.
         """
-        return self.python_callable(*self.op_args, **self.op_kwargs)
+        runner = ExecutionCallableRunner(self.python_callable, dataset_events, logger=self.log)
+        return runner.run(*self.op_args, **self.op_kwargs)
 
 
 class BranchPythonOperator(PythonOperator, BranchMixIn):
@@ -406,7 +407,9 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             or isinstance(python_callable, types.LambdaType)
             and python_callable.__name__ == "<lambda>"
         ):
-            raise AirflowException("PythonVirtualenvOperator only supports functions for python_callable arg")
+            raise ValueError(f"{type(self).__name__} only supports functions for python_callable arg")
+        if inspect.isgeneratorfunction(python_callable):
+            raise ValueError(f"{type(self).__name__} does not support using 'yield' in python_callable")
         super().__init__(
             python_callable=python_callable,
             op_args=op_args,
@@ -746,7 +749,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             self.log.info("New Python virtual environment created in %s", venv_path)
             return venv_path
 
-    def execute_callable(self):
+    def execute_callable(self, dataset_events: DatasetEventAccessors) -> Any:
         if self.venv_cache_path:
             venv_path = self._ensure_venv_cache_exists(Path(self.venv_cache_path))
             python_path = venv_path / "bin" / "python"
@@ -874,7 +877,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             **kwargs,
         )
 
-    def execute_callable(self):
+    def execute_callable(self, dataset_events: DatasetEventAccessors) -> Any:
         python_path = Path(self.python)
         if not python_path.exists():
             raise ValueError(f"Python Path '{python_path}' must exists")
