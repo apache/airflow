@@ -653,18 +653,9 @@ def test_expected_output_pull_request_main(
                 "2bc8e175b3a4cc84fe33e687f1a00d2a49563090",
                 {
                     "full-tests-needed": "false",
+                    "all-versions": "false",
                 },
-                id="No full tests needed when pyproject.toml changes in insignificant way",
-            )
-        ),
-        (
-            pytest.param(
-                ("pyproject.toml",),
-                "90e2b12d6b99d2f7db43e45f5e8b97d3b8a43b36",
-                {
-                    "full-tests-needed": "true",
-                },
-                id="Full tests needed when only dependencies change in pyproject.toml",
+                id="No full tests needed / all versions when pyproject.toml changes in insignificant way",
             )
         ),
         (
@@ -673,8 +664,9 @@ def test_expected_output_pull_request_main(
                 "c381fdaff42bbda480eee70fb15c5b26a2a3a77d",
                 {
                     "full-tests-needed": "true",
+                    "all-versions": "true",
                 },
-                id="Full tests needed when build-system changes in pyproject.toml",
+                id="Full tests needed / all versions  when build-system changes in pyproject.toml",
             )
         ),
     ],
@@ -689,6 +681,21 @@ def test_full_test_needed_when_pyproject_toml_changes(
         default_branch="main",
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+def test_hatch_build_py_changes():
+    stderr = SelectiveChecks(
+        files=("hatch_build.py",),
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    assert_outputs_are_printed(
+        {
+            "full-tests-needed": "true",
+            "all-versions": "true",
+        },
+        str(stderr),
+    )
 
 
 @pytest.mark.parametrize(
@@ -748,17 +755,20 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
         (
             pytest.param(
                 ("INTHEWILD.md",),
-                ("full tests needed",),
+                ("full tests needed", "all versions"),
                 "main",
                 {
                     "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                    "all-versions": "true",
                     "all-python-versions": "['3.8', '3.9', '3.10', '3.11', '3.12']",
                     "all-python-versions-list-as-string": "3.8 3.9 3.10 3.11 3.12",
+                    "mysql-versions": "['8.0', '8.3']",
+                    "postgres-versions": "['12', '13', '14', '15', '16']",
                     "python-versions": "['3.8', '3.9', '3.10', '3.11', '3.12']",
                     "python-versions-list-as-string": "3.8 3.9 3.10 3.11 3.12",
-                    "kubernetes-versions": "['v1.25.16', 'v1.26.14', 'v1.27.11', 'v1.28.7', 'v1.29.2']",
-                    "kubernetes-versions-list-as-string": "v1.25.16 v1.26.14 v1.27.11 v1.28.7 v1.29.2",
-                    "kubernetes-combos-list-as-string": "3.8-v1.25.16 3.9-v1.26.14 3.10-v1.27.11 3.11-v1.28.7 3.12-v1.29.2",
+                    "kubernetes-versions": "['v1.26.14', 'v1.27.11', 'v1.28.7', 'v1.29.2']",
+                    "kubernetes-versions-list-as-string": "v1.26.14 v1.27.11 v1.28.7 v1.29.2",
+                    "kubernetes-combos-list-as-string": "3.8-v1.26.14 3.9-v1.27.11 3.10-v1.28.7 3.11-v1.29.2 3.12-v1.26.14",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-tests": "true",
@@ -771,7 +781,8 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "needs-mypy": "true",
                     "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
                 },
-                id="Everything should run including all providers when full tests are needed",
+                id="Everything should run including all providers when full tests are needed, "
+                "and all versions are required.",
             )
         ),
         (
@@ -783,11 +794,14 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
                     "all-python-versions": "['3.8']",
                     "all-python-versions-list-as-string": "3.8",
+                    "all-versions": "false",
+                    "mysql-versions": "['8.0']",
+                    "postgres-versions": "['12']",
                     "python-versions": "['3.8']",
                     "python-versions-list-as-string": "3.8",
-                    "kubernetes-versions": "['v1.25.16']",
-                    "kubernetes-versions-list-as-string": "v1.25.16",
-                    "kubernetes-combos-list-as-string": "3.8-v1.25.16",
+                    "kubernetes-versions": "['v1.26.14']",
+                    "kubernetes-versions-list-as-string": "v1.26.14",
+                    "kubernetes-combos-list-as-string": "3.8-v1.26.14",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-tests": "true",
@@ -807,13 +821,49 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
         (
             pytest.param(
                 ("INTHEWILD.md",),
+                ("full tests needed",),
+                "main",
+                {
+                    "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "all-versions": "false",
+                    "mysql-versions": "['8.0']",
+                    "postgres-versions": "['12']",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
+                    "kubernetes-versions": "['v1.26.14']",
+                    "kubernetes-versions-list-as-string": "v1.26.14",
+                    "kubernetes-combos-list-as-string": "3.8-v1.26.14",
+                    "ci-image-build": "true",
+                    "prod-image-build": "true",
+                    "run-tests": "true",
+                    "docs-build": "true",
+                    "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                    "full-tests-needed": "true",
+                    "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers",
+                    "upgrade-to-newer-dependencies": "false",
+                    "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                    "needs-mypy": "true",
+                    "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
+                },
+                id="Everything should run including all providers when full tests are needed "
+                "but with single python and kubernetes if no version label is set",
+            )
+        ),
+        (
+            pytest.param(
+                ("INTHEWILD.md",),
                 ("full tests needed", "latest versions only"),
                 "main",
                 {
                     "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
                     "all-python-versions": "['3.12']",
                     "all-python-versions-list-as-string": "3.12",
+                    "all-versions": "false",
                     "default-python-version": "3.12",
+                    "mysql-versions": "['8.3']",
+                    "postgres-versions": "['16']",
                     "python-versions": "['3.12']",
                     "python-versions-list-as-string": "3.12",
                     "kubernetes-versions": "['v1.29.2']",
@@ -832,7 +882,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
                 },
                 id="Everything should run including all providers when full tests are needed "
-                "but with single python and kubernetes if `default versions only` label is set",
+                "but with single python and kubernetes if `latest versions only` label is set",
             )
         ),
         (
@@ -845,10 +895,14 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                 "main",
                 {
                     "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                    "all-python-versions": "['3.8', '3.9', '3.10', '3.11', '3.12']",
-                    "all-python-versions-list-as-string": "3.8 3.9 3.10 3.11 3.12",
-                    "python-versions": "['3.8', '3.9', '3.10', '3.11', '3.12']",
-                    "python-versions-list-as-string": "3.8 3.9 3.10 3.11 3.12",
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "all-versions": "false",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
+                    "kubernetes-versions": "['v1.26.14']",
+                    "kubernetes-versions-list-as-string": "v1.26.14",
+                    "kubernetes-combos-list-as-string": "3.8-v1.26.14",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-tests": "true",
@@ -872,10 +926,14 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                 "main",
                 {
                     "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                    "all-python-versions": "['3.8', '3.9', '3.10', '3.11', '3.12']",
-                    "all-python-versions-list-as-string": "3.8 3.9 3.10 3.11 3.12",
-                    "python-versions": "['3.8', '3.9', '3.10', '3.11', '3.12']",
-                    "python-versions-list-as-string": "3.8 3.9 3.10 3.11 3.12",
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "all-versions": "false",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
+                    "kubernetes-versions": "['v1.26.14']",
+                    "kubernetes-versions-list-as-string": "v1.26.14",
+                    "kubernetes-combos-list-as-string": "3.8-v1.26.14",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-tests": "true",
@@ -899,10 +957,11 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                 "v2-7-stable",
                 {
                     "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                    "all-python-versions": "['3.8', '3.9', '3.10', '3.11', '3.12']",
-                    "all-python-versions-list-as-string": "3.8 3.9 3.10 3.11 3.12",
-                    "python-versions": "['3.8', '3.9', '3.10', '3.11', '3.12']",
-                    "python-versions-list-as-string": "3.8 3.9 3.10 3.11 3.12",
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
+                    "all-versions": "false",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-tests": "true",
@@ -1382,24 +1441,6 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             id="pyproject.toml changed but no dependency change",
         ),
         pytest.param(
-            ("pyproject.toml",),
-            {
-                "upgrade-to-newer-dependencies": "true",
-            },
-            (),
-            "90e2b12d6b99d2f7db43e45f5e8b97d3b8a43b36",
-            id="pyproject.toml changed with optional dependencies changed",
-        ),
-        pytest.param(
-            ("pyproject.toml",),
-            {
-                "upgrade-to-newer-dependencies": "true",
-            },
-            (),
-            "74baebe5e774ac575fe3a49291996473b1daa789",
-            id="pyproject.toml changed with core dependencies changed",
-        ),
-        pytest.param(
             ("airflow/providers/microsoft/azure/provider.yaml",),
             {
                 "upgrade-to-newer-dependencies": "false",
@@ -1583,9 +1624,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
 
 
 @pytest.mark.parametrize(
-    "github_event, github_actor, github_repository, pr_labels, github_context_dict, "
-    "runs_on, "
-    "is_self_hosted_runner, is_airflow_runner, is_amd_runner, is_arm_runner, is_vm_runner, is_k8s_runner",
+    "github_event, github_actor, github_repository, pr_labels, github_context_dict, default_runs_on_as_string, is_self_hosted_runner, is_airflow_runner, is_amd_runner, is_arm_runner, is_vm_runner, is_k8s_runner",
     [
         pytest.param(
             GithubEvents.PUSH,
@@ -1775,7 +1814,7 @@ def test_runs_on(
     github_repository: str,
     pr_labels: list[str],
     github_context_dict: dict[str, Any],
-    runs_on: str,
+    default_runs_on_as_string,
     is_self_hosted_runner: str,
     is_airflow_runner: str,
     is_amd_runner: str,
@@ -1793,7 +1832,7 @@ def test_runs_on(
         pr_labels=(),
         default_branch="main",
     )
-    assert_outputs_are_printed({"runs-on": runs_on}, str(stderr))
+    assert_outputs_are_printed({"runs-on-as-json-default": default_runs_on_as_string}, str(stderr))
     assert_outputs_are_printed({"is-self-hosted-runner": is_self_hosted_runner}, str(stderr))
     assert_outputs_are_printed({"is-airflow-runner": is_airflow_runner}, str(stderr))
     assert_outputs_are_printed({"is-amd-runner": is_amd_runner}, str(stderr))
@@ -1846,7 +1885,7 @@ def test_has_migrations(files: tuple[str, ...], has_migrations: bool):
             id="Regular tests",
         ),
         pytest.param(
-            ("full tests needed",),
+            ("all versions",),
             {"providers-compatibility-checks": json.dumps(BASE_PROVIDERS_COMPATIBILITY_CHECKS)},
             id="full tests",
         ),
@@ -1958,7 +1997,7 @@ def test_mypy_matches(
             ("README.md",),
             {
                 "is-committer-build": "false",
-                "runs-on": '["ubuntu-22.04"]',
+                "runs-on-as-json-default": '["ubuntu-22.04"]',
             },
             "",
             (),
@@ -1968,7 +2007,7 @@ def test_mypy_matches(
             ("README.md",),
             {
                 "is-committer-build": "true",
-                "runs-on": '["self-hosted", "Linux", "X64"]',
+                "runs-on-as-json-default": '["self-hosted", "Linux", "X64"]',
             },
             "potiuk",
             (),
@@ -1978,7 +2017,7 @@ def test_mypy_matches(
             ("README.md",),
             {
                 "is-committer-build": "false",
-                "runs-on": '["self-hosted", "Linux", "X64"]',
+                "runs-on-as-json-default": '["self-hosted", "Linux", "X64"]',
             },
             "potiuk",
             ("non committer build",),

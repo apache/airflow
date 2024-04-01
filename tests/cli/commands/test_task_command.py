@@ -165,12 +165,12 @@ class TestCliTasks:
             ["tasks", "test", "example_python_operator", "print_the_context", "2018-01-01"],
         )
 
-        with mock.patch("airflow.models.TaskInstance.run", new=lambda *_, **__: print(password)):
+        with mock.patch("airflow.models.TaskInstance.run", side_effect=lambda *_, **__: print(password)):
             task_command.task_test(args)
         assert capsys.readouterr().out.endswith("***\n")
 
         not_password = "!4321drowssapemos"
-        with mock.patch("airflow.models.TaskInstance.run", new=lambda *_, **__: print(not_password)):
+        with mock.patch("airflow.models.TaskInstance.run", side_effect=lambda *_, **__: print(not_password)):
             task_command.task_test(args)
         assert capsys.readouterr().out.endswith(f"{not_password}\n")
 
@@ -619,14 +619,13 @@ class TestCliTasks:
         task_states_for_dag_run should return an AirflowException when invalid dag id is passed
         """
         with pytest.raises(DagRunNotFound):
-            default_date2 = timezone.datetime(2016, 1, 9)
             task_command.task_states_for_dag_run(
                 self.parser.parse_args(
                     [
                         "tasks",
                         "states-for-dag-run",
                         "not_exists_dag",
-                        default_date2.isoformat(),
+                        timezone.datetime(2016, 1, 9).isoformat(),
                         "--output",
                         "json",
                     ]
@@ -1026,9 +1025,11 @@ class TestLoggerMutationHelper:
         assert tgt.handlers == [sentinel.handler]
         assert tgt.propagate is False
         assert tgt.level == -1
-        assert src.propagate is True and obj.propagate is False
+        assert src.propagate is True
+        assert obj.propagate is False
         assert src.level == obj.level
-        assert src.handlers == [] and obj.handlers == tgt.handlers
+        assert src.handlers == []
+        assert obj.handlers == tgt.handlers
 
     def test_reset(self):
         src = logging.getLogger("test_move_reset")

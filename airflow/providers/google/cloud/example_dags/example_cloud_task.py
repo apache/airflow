@@ -24,6 +24,7 @@ This DAG relies on the following OS environment variables
 * GCP_ZONE - Google Cloud zone where the cloud task queue exists.
 * QUEUE_NAME - Name of the cloud task queue.
 """
+
 from __future__ import annotations
 
 import os

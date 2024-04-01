@@ -230,7 +230,7 @@ class TestCliDags:
                         "--task-regex",
                         "run_this_first",
                         "--dry-run",
-                        "--treat-dag-as-regex",
+                        "--treat-dag-id-as-regex",
                         "--start-date",
                         DEFAULT_DATE.isoformat(),
                     ]
@@ -243,6 +243,24 @@ class TestCliDags:
         assert "Task run_this_first located in DAG example_branch_python_operator_decorator\n" in output
         assert f"Dry run of DAG example_branch_operator on {DEFAULT_DATE_REPR}\n" in output
         assert "Task run_this_first located in DAG example_branch_operator\n" in output
+
+    @mock.patch("airflow.cli.commands.dag_command._run_dag_backfill")
+    def test_backfill_treat_dag_as_regex_deprecation(self, _):
+        run_date = DEFAULT_DATE + timedelta(days=1)
+        cli_args = self.parser.parse_args(
+            [
+                "dags",
+                "backfill",
+                "example_bash_operator",
+                "--treat-dag-as-regex",
+                "--start-date",
+                run_date.isoformat(),
+            ]
+        )
+
+        with pytest.warns(DeprecationWarning, match="--treat-dag-as-regex is deprecated"):
+            dag_command.dag_backfill(cli_args)
+        assert cli_args.treat_dag_id_as_regex == cli_args.treat_dag_as_regex
 
     @mock.patch("airflow.cli.commands.dag_command.get_dag")
     def test_backfill_fails_without_loading_dags(self, mock_get_dag):
@@ -650,11 +668,59 @@ class TestCliDags:
     def test_pause(self):
         args = self.parser.parse_args(["dags", "pause", "example_bash_operator"])
         dag_command.dag_pause(args)
-        assert self.dagbag.dags["example_bash_operator"].get_is_paused() in [True, 1]
-
-        args = self.parser.parse_args(["dags", "unpause", "example_bash_operator"])
+        assert self.dagbag.dags["example_bash_operator"].get_is_paused()
         dag_command.dag_unpause(args)
-        assert self.dagbag.dags["example_bash_operator"].get_is_paused() in [False, 0]
+        assert not self.dagbag.dags["example_bash_operator"].get_is_paused()
+
+    @mock.patch("airflow.cli.commands.dag_command.ask_yesno")
+    def test_pause_regex(self, mock_yesno):
+        args = self.parser.parse_args(["dags", "pause", "^example_.*$", "--treat-dag-id-as-regex"])
+        dag_command.dag_pause(args)
+        mock_yesno.assert_called_once()
+        assert self.dagbag.dags["example_bash_decorator"].get_is_paused()
+        assert self.dagbag.dags["example_kubernetes_executor"].get_is_paused()
+        assert self.dagbag.dags["example_xcom_args"].get_is_paused()
+
+        args = self.parser.parse_args(["dags", "unpause", "^example_.*$", "--treat-dag-id-as-regex"])
+        dag_command.dag_unpause(args)
+        assert not self.dagbag.dags["example_bash_decorator"].get_is_paused()
+        assert not self.dagbag.dags["example_kubernetes_executor"].get_is_paused()
+        assert not self.dagbag.dags["example_xcom_args"].get_is_paused()
+
+    @mock.patch("airflow.cli.commands.dag_command.ask_yesno")
+    def test_pause_regex_operation_cancelled(self, ask_yesno, capsys):
+        args = self.parser.parse_args(["dags", "pause", "example_bash_operator", "--treat-dag-id-as-regex"])
+        ask_yesno.return_value = False
+        dag_command.dag_pause(args)
+        stdout = capsys.readouterr().out
+        assert "Operation cancelled by user" in stdout
+
+    @mock.patch("airflow.cli.commands.dag_command.ask_yesno")
+    def test_pause_regex_yes(self, mock_yesno):
+        args = self.parser.parse_args(["dags", "pause", ".*", "--treat-dag-id-as-regex", "--yes"])
+        dag_command.dag_pause(args)
+        mock_yesno.assert_not_called()
+        dag_command.dag_unpause(args)
+
+    def test_pause_non_existing_dag_error(self):
+        args = self.parser.parse_args(["dags", "pause", "non_existing_dag"])
+        with pytest.raises(AirflowException):
+            dag_command.dag_pause(args)
+
+    def test_unpause_already_unpaused_dag_do_not_error(self):
+        args = self.parser.parse_args(["dags", "unpause", "example_bash_operator", "--yes"])
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            dag_command.dag_unpause(args)
+            out = temp_stdout.getvalue().strip().splitlines()[-1]
+        assert out == "No paused DAGs were found"
+
+    def test_pausing_already_paused_dag_do_not_error(self):
+        args = self.parser.parse_args(["dags", "pause", "example_bash_operator", "--yes"])
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            dag_command.dag_pause(args)
+            dag_command.dag_pause(args)
+            out = temp_stdout.getvalue().strip().splitlines()[-1]
+        assert out == "No unpaused DAGs were found"
 
     def test_trigger_dag(self):
         dag_command.dag_trigger(

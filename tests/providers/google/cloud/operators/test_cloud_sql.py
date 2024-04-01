@@ -210,36 +210,22 @@ class TestCloudSql:
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_sql.CloudSQLHook")
     def test_create_should_throw_ex_when_empty_project_id(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
-            op = CloudSQLCreateInstanceOperator(
+        with pytest.raises(AirflowException, match="The required parameter 'project_id' is empty"):
+            CloudSQLCreateInstanceOperator(
                 project_id="", body=CREATE_BODY, instance=INSTANCE_NAME, task_id="id"
             )
-            op.execute(None)
-        err = ctx.value
-        assert "The required parameter 'project_id' is empty" in str(err)
-        mock_hook.assert_not_called()
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_sql.CloudSQLHook")
     def test_create_should_throw_ex_when_empty_body(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
-            op = CloudSQLCreateInstanceOperator(
+        with pytest.raises(AirflowException, match="The required parameter 'body' is empty"):
+            CloudSQLCreateInstanceOperator(
                 project_id=PROJECT_ID, body={}, instance=INSTANCE_NAME, task_id="id"
             )
-            op.execute(None)
-        err = ctx.value
-        assert "The required parameter 'body' is empty" in str(err)
-        mock_hook.assert_not_called()
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_sql.CloudSQLHook")
     def test_create_should_throw_ex_when_empty_instance(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
-            op = CloudSQLCreateInstanceOperator(
-                project_id=PROJECT_ID, body=CREATE_BODY, instance="", task_id="id"
-            )
-            op.execute(None)
-        err = ctx.value
-        assert "The required parameter 'instance' is empty" in str(err)
-        mock_hook.assert_not_called()
+        with pytest.raises(AirflowException, match="The required parameter 'instance' is empty"):
+            CloudSQLCreateInstanceOperator(project_id=PROJECT_ID, body=CREATE_BODY, instance="", task_id="id")
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_sql.CloudSQLHook")
     def test_create_should_validate_list_type(self, mock_hook):
@@ -253,10 +239,10 @@ class TestCloudSql:
                 },
             },
         }
+        op = CloudSQLCreateInstanceOperator(
+            project_id=PROJECT_ID, body=wrong_list_type_body, instance=INSTANCE_NAME, task_id="id"
+        )
         with pytest.raises(AirflowException) as ctx:
-            op = CloudSQLCreateInstanceOperator(
-                project_id=PROJECT_ID, body=wrong_list_type_body, instance=INSTANCE_NAME, task_id="id"
-            )
             op.execute(None)
         err = ctx.value
         assert (
@@ -278,10 +264,10 @@ class TestCloudSql:
                 # Testing if the validation catches this.
             },
         }
+        op = CloudSQLCreateInstanceOperator(
+            project_id=PROJECT_ID, body=empty_tier_body, instance=INSTANCE_NAME, task_id="id"
+        )
         with pytest.raises(AirflowException) as ctx:
-            op = CloudSQLCreateInstanceOperator(
-                project_id=PROJECT_ID, body=empty_tier_body, instance=INSTANCE_NAME, task_id="id"
-            )
             op.execute(None)
         err = ctx.value
         assert "The body field 'settings.tier' can't be empty. Please provide a value." in str(err)
@@ -330,10 +316,10 @@ class TestCloudSql:
     @mock.patch("airflow.providers.google.cloud.operators.cloud_sql.CloudSQLHook")
     def test_instance_patch_should_bubble_up_ex_if_not_exists(self, mock_hook, _check_if_instance_exists):
         _check_if_instance_exists.return_value = False
+        op = CloudSQLInstancePatchOperator(
+            project_id=PROJECT_ID, body=PATCH_BODY, instance=INSTANCE_NAME, task_id="id"
+        )
         with pytest.raises(AirflowException) as ctx:
-            op = CloudSQLInstancePatchOperator(
-                project_id=PROJECT_ID, body=PATCH_BODY, instance=INSTANCE_NAME, task_id="id"
-            )
             op.execute(None)
         err = ctx.value
         assert "specify another instance to patch" in str(err)
@@ -545,14 +531,14 @@ class TestCloudSql:
     @mock.patch("airflow.providers.google.cloud.operators.cloud_sql.CloudSQLHook")
     def test_instance_db_patch_should_throw_ex_if_not_exists(self, mock_hook, _check_if_db_exists):
         _check_if_db_exists.return_value = False
+        op = CloudSQLPatchInstanceDatabaseOperator(
+            project_id=PROJECT_ID,
+            instance=INSTANCE_NAME,
+            database=DB_NAME,
+            body=DATABASE_PATCH_BODY,
+            task_id="id",
+        )
         with pytest.raises(AirflowException) as ctx:
-            op = CloudSQLPatchInstanceDatabaseOperator(
-                project_id=PROJECT_ID,
-                instance=INSTANCE_NAME,
-                database=DB_NAME,
-                body=DATABASE_PATCH_BODY,
-                task_id="id",
-            )
             op.execute(None)
         err = ctx.value
         assert "Cloud SQL instance with ID" in str(err)
@@ -564,21 +550,15 @@ class TestCloudSql:
         )
         mock_hook.return_value.patch_database.assert_not_called()
 
-    @mock.patch("airflow.providers.google.cloud.operators.cloud_sql.CloudSQLHook")
-    def test_instance_db_patch_should_throw_ex_when_empty_database(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
-            op = CloudSQLPatchInstanceDatabaseOperator(
+    def test_instance_db_patch_should_throw_ex_when_empty_database(self):
+        with pytest.raises(AirflowException, match="The required parameter 'database' is empty"):
+            CloudSQLPatchInstanceDatabaseOperator(
                 project_id=PROJECT_ID,
                 instance=INSTANCE_NAME,
                 database="",
                 body=DATABASE_INSERT_BODY,
                 task_id="id",
             )
-            op.execute(None)
-        err = ctx.value
-        assert "The required parameter 'database' is empty" in str(err)
-        mock_hook.assert_not_called()
-        mock_hook.return_value.patch_database.assert_not_called()
 
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_sql"
@@ -822,8 +802,8 @@ class TestCloudSqlQueryValidation:
             f"&instance={instance_name}&use_proxy={use_proxy}&use_ssl={use_ssl}"
         )
         self._setup_connections(get_connection, uri)
+        op = CloudSQLExecuteQueryOperator(sql=sql, task_id="task_id")
         with pytest.raises(AirflowException) as ctx:
-            op = CloudSQLExecuteQueryOperator(sql=sql, task_id="task_id")
             op.execute(None)
         err = ctx.value
         assert message in str(err)

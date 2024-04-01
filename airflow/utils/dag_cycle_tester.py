@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """DAG Cycle tester."""
+
 from __future__ import annotations
 
 from collections import defaultdict, deque

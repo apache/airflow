@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Base executor - this is the base class for all the implemented executors."""
+
 from __future__ import annotations
 
 import logging
@@ -164,6 +165,9 @@ class BaseExecutor(LoggingMixin):
         cfg_path: str | None = None,
     ) -> None:
         """Queues task instance."""
+        if TYPE_CHECKING:
+            assert task_instance.task
+
         pool = pool or task_instance.pool
 
         command_list_to_run = task_instance.command_as_list(
@@ -185,7 +189,7 @@ class BaseExecutor(LoggingMixin):
         self.queue_command(
             task_instance,
             command_list_to_run,
-            priority=task_instance.task.priority_weight_total,
+            priority=task_instance.priority_weight,
             queue=task_instance.task.queue,
         )
 

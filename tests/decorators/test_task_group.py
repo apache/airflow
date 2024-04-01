@@ -38,8 +38,7 @@ def test_task_group_with_overridden_kwargs():
         },
         add_suffix_on_collision=True,
     )
-    def simple_tg():
-        ...
+    def simple_tg(): ...
 
     tg_with_overridden_kwargs = simple_tg.override(
         group_id="custom_group_id",

@@ -50,6 +50,7 @@ class DAGSchema(SQLAlchemySchema):
         model = DagModel
 
     dag_id = auto_field(dump_only=True)
+    dag_display_name = fields.String(attribute="dag_display_name", dump_only=True)
     root_dag_id = auto_field(dump_only=True)
     is_paused = auto_field()
     is_active = auto_field(dump_only=True)
@@ -95,21 +96,21 @@ class DAGDetailSchema(DAGSchema):
     """DAG details."""
 
     owners = fields.Method("get_owners", dump_only=True)
-    timezone = TimezoneField()
-    catchup = fields.Boolean()
-    orientation = fields.String()
-    concurrency = fields.Method("get_concurrency")  # TODO: Remove in Airflow 3.0
-    max_active_tasks = fields.Integer()
+    timezone = TimezoneField(dump_only=True)
+    catchup = fields.Boolean(dump_only=True)
+    orientation = fields.String(dump_only=True)
+    concurrency = fields.Method("get_concurrency", dump_only=True)  # TODO: Remove in Airflow 3.0
+    max_active_tasks = fields.Integer(dump_only=True)
     dataset_expression = fields.Dict(allow_none=True)
-    start_date = fields.DateTime()
-    dag_run_timeout = fields.Nested(TimeDeltaSchema, attribute="dagrun_timeout")
-    doc_md = fields.String()
-    default_view = fields.String()
+    start_date = fields.DateTime(dump_only=True)
+    dag_run_timeout = fields.Nested(TimeDeltaSchema, attribute="dagrun_timeout", dump_only=True)
+    doc_md = fields.String(dump_only=True)
+    default_view = fields.String(dump_only=True)
     params = fields.Method("get_params", dump_only=True)
     tags = fields.Method("get_tags", dump_only=True)  # type: ignore
     is_paused = fields.Method("get_is_paused", dump_only=True)
     is_active = fields.Method("get_is_active", dump_only=True)
-    is_paused_upon_creation = fields.Boolean()
+    is_paused_upon_creation = fields.Boolean(dump_only=True)
     end_date = fields.DateTime(dump_only=True)
     template_searchpath = fields.String(dump_only=True)
     render_template_as_native_obj = fields.Boolean(dump_only=True)

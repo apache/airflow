@@ -199,30 +199,8 @@ If you are new to writing asynchronous Python, be very careful when writing your
 
 Sensitive information in triggers
 '''''''''''''''''''''''''''''''''
+Since Airflow 2.9.0, triggers kwargs are serialized and encrypted before being stored in the database. This means that any sensitive information you pass to a trigger will be stored in the database in an encrypted form, and decrypted when it is read from the database.
 
-Triggers are serialized and stored in the database, so they can be re-instantiated on any triggerer process. This means that any sensitive information you pass to a trigger will be stored in the database.
-If you want to pass sensitive information to a trigger, you can encrypt it before passing it to the trigger, and decrypt it inside the trigger, or update the argument name in the ``serialize`` method by adding ``encrypted__`` as a prefix, and Airflow will automatically encrypt the argument before storing it in the database, and decrypt it when it is read from the database.
-
-.. code-block:: python
-
-    class MyTrigger(BaseTrigger):
-        def __init__(self, param, secret):
-            super().__init__()
-            self.param = param
-            self.secret = secret
-
-        def serialize(self):
-            return (
-                "airflow.triggers.MyTrigger",
-                {
-                    "param": self.param,
-                    "encrypted__secret": self.secret,
-                },
-            )
-
-        async def run(self):
-            # self.my_secret will be decrypted here
-            ...
 
 High Availability
 -----------------

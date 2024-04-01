@@ -2905,6 +2905,18 @@
   dependencies:
     "@sinonjs/commons" "^1.7.0"
 
+"@tanstack/react-table@^8.13.2":
+  version "8.13.2"
+  resolved "https://registry.yarnpkg.com/@tanstack/react-table/-/react-table-8.13.2.tgz#a3aa737ae464abc651f68daa7e82dca17813606c"
+  integrity sha512-b6mR3mYkjRtJ443QZh9sc7CvGTce81J35F/XMr0OoWbx0KIM7TTTdyNP2XKObvkLpYnLpCrYDwI3CZnLezWvpg==
+  dependencies:
+    "@tanstack/table-core" "8.13.2"
+
+"@tanstack/table-core@8.13.2":
+  version "8.13.2"
+  resolved "https://registry.yarnpkg.com/@tanstack/table-core/-/table-core-8.13.2.tgz#2512574dd3d20dc94b7db1f9f48090f0c18b5c85"
+  integrity sha512-/2saD1lWBUV6/uNAwrsg2tw58uvMJ07bO2F1IWMxjFRkJiXKQRuc3Oq2aufeobD3873+4oIM/DRySIw7+QsPPw==
+
 "@testing-library/dom@^8.5.0":
   version "8.13.0"
   resolved "https://registry.yarnpkg.com/@testing-library/dom/-/dom-8.13.0.tgz#bc00bdd64c7d8b40841e27a70211399ad3af46f5"
@@ -9007,11 +9019,6 @@ nth-check@^2.0.1:
   integrity sha512-lqjrjmaOoAnWfMmBPL+XNnynZh2+swxiX3WUE0s4yEHI6m+AwrK2UZOimIRl3X/4QctVqS8AiZjFqyOGrMXb/w==
   dependencies:
     boolbase "^1.0.0"
-
-nvd3@^1.8.6:
-  version "1.8.6"
-  resolved "https://registry.yarnpkg.com/nvd3/-/nvd3-1.8.6.tgz#2d3eba74bf33363b5101ebf1d093c59a53ae73c4"
-  integrity sha512-YGQ9hAQHuQCF0JmYkT2GhNMHb5pA+vDfQj6C2GdpQPzdRPj/srPG3mh/3fZzUFt+at1NusLk/RqICUWkxm4viQ==
 
 nwsapi@^2.2.0:
   version "2.2.0"

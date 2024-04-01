@@ -42,11 +42,10 @@ from airflow.providers.elasticsearch.log.es_task_handler import (
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.timezone import datetime
+from tests.providers.elasticsearch.log.elasticmock import elasticmock
+from tests.providers.elasticsearch.log.elasticmock.utilities import SearchFailedException
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
-
-from .elasticmock import elasticmock
-from .elasticmock.utilities import SearchFailedException
 
 pytestmark = pytest.mark.db_test
 
@@ -646,8 +645,7 @@ class TestElasticsearchTaskHandler:
 
 
 def test_safe_attrgetter():
-    class A:
-        ...
+    class A: ...
 
     a = A()
     a.b = "b"

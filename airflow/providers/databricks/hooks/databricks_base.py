@@ -22,6 +22,7 @@ This hook enable the submitting and running of jobs to the Databricks platform. 
 operators talk to the ``api/2.0/jobs/runs/submit``
 `endpoint <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_.
 """
+
 from __future__ import annotations
 
 import copy

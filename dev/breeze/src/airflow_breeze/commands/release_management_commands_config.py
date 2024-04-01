@@ -25,6 +25,7 @@ RELEASE_AIRFLOW_COMMANDS: dict[str, str | list[str]] = {
         "start-rc-process",
         "start-release",
         "release-prod-images",
+        "generate-issue-content-core",
     ],
 }
 
@@ -33,6 +34,7 @@ RELEASE_HELM_COMMANDS: dict[str, str | list[str]] = {
     "commands": [
         "prepare-helm-chart-tarball",
         "prepare-helm-chart-package",
+        "generate-issue-content-helm-chart",
     ],
 }
 
@@ -46,6 +48,7 @@ RELEASE_PROVIDERS_COMMANDS: dict[str, str | list[str]] = {
         "generate-providers-metadata",
         "generate-issue-content-providers",
         "clean-old-provider-artifacts",
+        "tag-providers",
     ],
 }
 
@@ -98,6 +101,19 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Package flags",
             "options": [
                 "--sign-email",
+            ],
+        }
+    ],
+    "breeze release-management generate-issue-content-helm-chart": [
+        {
+            "name": "Generate issue flags",
+            "options": [
+                "--github-token",
+                "--previous-release",
+                "--current-release",
+                "--excluded-pr-list",
+                "--limit-pr-count",
+                "--latest",
             ],
         }
     ],
@@ -185,6 +201,14 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         }
     ],
+    "breeze release-management tag-providers": [
+        {
+            "name": "Add tags to providers",
+            "options": [
+                "--clean-local-tags",
+            ],
+        },
+    ],
     "breeze release-management prepare-provider-documentation": [
         {
             "name": "Provider documentation preparation flags",
@@ -248,6 +272,19 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--limit-platform",
                 "--skip-latest",
                 "--slim-images",
+            ],
+        }
+    ],
+    "breeze release-management generate-issue-content-core": [
+        {
+            "name": "Generate issue flags",
+            "options": [
+                "--github-token",
+                "--previous-release",
+                "--current-release",
+                "--excluded-pr-list",
+                "--limit-pr-count",
+                "--latest",
             ],
         }
     ],

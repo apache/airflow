@@ -25,6 +25,7 @@ from collections import namedtuple
 from datetime import datetime, timedelta
 from io import BytesIO
 from unittest import mock
+from unittest.mock import MagicMock
 
 import dateutil
 import pytest
@@ -943,7 +944,8 @@ class TestGCSHook:
         )
 
         # Then
-        assert len(response) == 2 and all("in-interval" in b for b in response)
+        assert len(response) == 2
+        assert all("in-interval" in b for b in response)
 
 
 class TestGCSHookUpload:
@@ -1283,6 +1285,47 @@ class TestSyncGcsHook:
     @mock.patch(GCS_STRING.format("GCSHook.rewrite"))
     @mock.patch(GCS_STRING.format("GCSHook.delete"))
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_should_overwrite_cmek_files(self, mock_get_conn, mock_delete, mock_rewrite, mock_copy):
+        source_bucket = self._create_bucket(name="SOURCE_BUCKET")
+        source_bucket.list_blobs.return_value = [
+            self._create_blob("FILE_A", "C1", kms_key_name="KMS_KEY_1", generation=1),
+            self._create_blob("FILE_B", "C1"),
+        ]
+        destination_bucket = self._create_bucket(name="DEST_BUCKET")
+        destination_bucket.list_blobs.return_value = [
+            self._create_blob("FILE_A", "C2", kms_key_name="KMS_KEY_2", generation=2),
+            self._create_blob("FILE_B", "C2"),
+        ]
+        mock_get_conn.return_value.bucket.side_effect = [source_bucket, destination_bucket]
+        self.gcs_hook.sync(
+            source_bucket="SOURCE_BUCKET", destination_bucket="DEST_BUCKET", allow_overwrite=True
+        )
+        mock_delete.assert_not_called()
+        source_bucket.get_blob.assert_called_once_with("FILE_A", generation=1)
+        destination_bucket.get_blob.assert_called_once_with("FILE_A", generation=2)
+        mock_rewrite.assert_has_calls(
+            [
+                mock.call(
+                    source_bucket="SOURCE_BUCKET",
+                    source_object="FILE_B",
+                    destination_bucket="DEST_BUCKET",
+                    destination_object="FILE_B",
+                ),
+                mock.call(
+                    source_bucket="SOURCE_BUCKET",
+                    source_object=source_bucket.get_blob.return_value.name,
+                    destination_bucket="DEST_BUCKET",
+                    destination_object=source_bucket.get_blob.return_value.name.__getitem__.return_value,
+                ),
+            ],
+            any_order=True,
+        )
+        mock_copy.assert_not_called()
+
+    @mock.patch(GCS_STRING.format("GCSHook.copy"))
+    @mock.patch(GCS_STRING.format("GCSHook.rewrite"))
+    @mock.patch(GCS_STRING.format("GCSHook.delete"))
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_should_overwrite_files_to_subdirectory(
         self, mock_get_conn, mock_delete, mock_rewrite, mock_copy
     ):
@@ -1440,11 +1483,20 @@ class TestSyncGcsHook:
         mock_rewrite.assert_not_called()
         mock_copy.assert_not_called()
 
-    def _create_blob(self, name: str, crc32: str, bucket=None):
+    def _create_blob(
+        self,
+        name: str,
+        crc32: str,
+        bucket: MagicMock | None = None,
+        kms_key_name: str | None = None,
+        generation: int = 0,
+    ):
         blob = mock.MagicMock(name=f"BLOB:{name}")
         blob.name = name
         blob.crc32 = crc32
         blob.bucket = bucket
+        blob.kms_key_name = kms_key_name
+        blob.generation = generation
         return blob
 
     def _create_bucket(self, name: str):

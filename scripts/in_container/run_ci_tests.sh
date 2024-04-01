@@ -23,6 +23,7 @@ echo "Starting the tests with those pytest arguments:" "${@}"
 echo
 set +e
 
+
 pytest "${@}"
 RES=$?
 

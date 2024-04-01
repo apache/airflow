@@ -124,6 +124,10 @@ class Job(Base, LoggingMixin):
         return ExecutorLoader.get_default_executor()
 
     @cached_property
+    def executors(self):
+        return ExecutorLoader.init_executors()
+
+    @cached_property
     def heartrate(self) -> float:
         return Job._heartrate(self.job_type)
 

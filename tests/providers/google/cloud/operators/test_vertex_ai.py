@@ -20,6 +20,10 @@ from unittest import mock
 from unittest.mock import MagicMock, call
 
 import pytest
+
+# For no Pydantic environment, we need to skip the tests
+pytest.importorskip("google.cloud.aiplatform_v1")
+
 from google.api_core.gapic_v1.method import DEFAULT
 from google.api_core.retry import Retry
 
@@ -84,6 +88,7 @@ from airflow.providers.google.cloud.operators.vertex_ai.pipeline_job import (
     ListPipelineJobOperator,
     RunPipelineJobOperator,
 )
+from airflow.providers.google.cloud.triggers.vertex_ai import RunPipelineJobTrigger
 from airflow.utils import timezone
 
 VERTEX_AI_PATH = "airflow.providers.google.cloud.operators.vertex_ai.{}"
@@ -130,6 +135,7 @@ TEST_DATASET = {
     "metadata": "test-image-dataset",
 }
 TEST_DATASET_ID = "test-dataset-id"
+TEST_PARENT_MODEL = "test-parent-model"
 TEST_EXPORT_CONFIG = {
     "annotationsFilter": "test-filter",
     "gcs_destination": {"output_uri_prefix": "airflow-system-tests-data"},
@@ -190,8 +196,9 @@ TEST_TEMPLATE_PATH = "test_template_path"
 
 
 class TestVertexAICreateCustomContainerTrainingJobOperator:
+    @mock.patch(VERTEX_AI_PATH.format("custom_job.Dataset"))
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CustomJobHook"))
-    def test_execute(self, mock_hook):
+    def test_execute(self, mock_hook, mock_dataset):
         mock_hook.return_value.create_custom_container_training_job.return_value = (
             None,
             "training_id",
@@ -217,8 +224,11 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
             test_fraction_split=TEST_FRACTION_SPLIT,
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
+            dataset_id=TEST_DATASET_ID,
+            parent_model=TEST_PARENT_MODEL,
         )
         op.execute(context={"ti": mock.MagicMock()})
+        mock_dataset.assert_called_once_with(name=TEST_DATASET_ID)
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.create_custom_container_training_job.assert_called_once_with(
             staging_bucket=STAGING_BUCKET,
@@ -227,7 +237,7 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
             container_uri=CONTAINER_URI,
             model_serving_container_image_uri=CONTAINER_URI,
             command=COMMAND_2,
-            dataset=None,
+            dataset=mock_dataset.return_value,
             model_display_name=DISPLAY_NAME_2,
             replica_count=REPLICA_COUNT,
             machine_type=MACHINE_TYPE,
@@ -238,7 +248,7 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
             test_fraction_split=TEST_FRACTION_SPLIT,
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
-            parent_model=None,
+            parent_model=TEST_PARENT_MODEL,
             model_serving_container_predict_route=None,
             model_serving_container_health_route=None,
             model_serving_container_command=None,
@@ -276,8 +286,9 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
 
 
 class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
+    @mock.patch(VERTEX_AI_PATH.format("custom_job.Dataset"))
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CustomJobHook"))
-    def test_execute(self, mock_hook):
+    def test_execute(self, mock_hook, mock_dataset):
         mock_hook.return_value.create_custom_python_package_training_job.return_value = (
             None,
             "training_id",
@@ -304,8 +315,11 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
             test_fraction_split=TEST_FRACTION_SPLIT,
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
+            dataset_id=TEST_DATASET_ID,
+            parent_model=TEST_PARENT_MODEL,
         )
         op.execute(context={"ti": mock.MagicMock()})
+        mock_dataset.assert_called_once_with(name=TEST_DATASET_ID)
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.create_custom_python_package_training_job.assert_called_once_with(
             staging_bucket=STAGING_BUCKET,
@@ -315,7 +329,7 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
             model_serving_container_image_uri=CONTAINER_URI,
             python_package_gcs_uri=PYTHON_PACKAGE_GCS_URI,
             python_module_name=PYTHON_MODULE_NAME,
-            dataset=None,
+            dataset=mock_dataset.return_value,
             model_display_name=DISPLAY_NAME_2,
             replica_count=REPLICA_COUNT,
             machine_type=MACHINE_TYPE,
@@ -326,7 +340,7 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
             test_fraction_split=TEST_FRACTION_SPLIT,
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
-            parent_model=None,
+            parent_model=TEST_PARENT_MODEL,
             is_default_version=None,
             model_version_aliases=None,
             model_version_description=None,
@@ -364,8 +378,9 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
 
 
 class TestVertexAICreateCustomTrainingJobOperator:
+    @mock.patch(VERTEX_AI_PATH.format("custom_job.Dataset"))
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CustomJobHook"))
-    def test_execute(self, mock_hook):
+    def test_execute(self, mock_hook, mock_dataset):
         mock_hook.return_value.create_custom_training_job.return_value = (
             None,
             "training_id",
@@ -385,9 +400,12 @@ class TestVertexAICreateCustomTrainingJobOperator:
             replica_count=1,
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
+            dataset_id=TEST_DATASET_ID,
+            parent_model=TEST_PARENT_MODEL,
         )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_dataset.assert_called_once_with(name=TEST_DATASET_ID)
         mock_hook.return_value.create_custom_training_job.assert_called_once_with(
             staging_bucket=STAGING_BUCKET,
             display_name=DISPLAY_NAME,
@@ -396,7 +414,7 @@ class TestVertexAICreateCustomTrainingJobOperator:
             model_serving_container_image_uri=CONTAINER_URI,
             script_path=PYTHON_PACKAGE,
             requirements=[],
-            dataset=None,
+            dataset=mock_dataset.return_value,
             model_display_name=None,
             replica_count=REPLICA_COUNT,
             machine_type=MACHINE_TYPE,
@@ -405,7 +423,7 @@ class TestVertexAICreateCustomTrainingJobOperator:
             training_fraction_split=None,
             validation_fraction_split=None,
             test_fraction_split=None,
-            parent_model=None,
+            parent_model=TEST_PARENT_MODEL,
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
             model_serving_container_predict_route=None,
@@ -751,6 +769,7 @@ class TestVertexAICreateAutoMLForecastingTrainingJobOperator:
             sync=True,
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
+            parent_model=TEST_PARENT_MODEL,
         )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
@@ -768,7 +787,7 @@ class TestVertexAICreateAutoMLForecastingTrainingJobOperator:
             forecast_horizon=TEST_TRAINING_FORECAST_HORIZON,
             data_granularity_unit=TEST_TRAINING_DATA_GRANULARITY_UNIT,
             data_granularity_count=TEST_TRAINING_DATA_GRANULARITY_COUNT,
-            parent_model=None,
+            parent_model=TEST_PARENT_MODEL,
             optimization_objective=None,
             column_specs=None,
             column_transformations=None,
@@ -814,6 +833,7 @@ class TestVertexAICreateAutoMLImageTrainingJobOperator:
             sync=True,
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
+            parent_model=TEST_PARENT_MODEL,
         )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
@@ -824,7 +844,7 @@ class TestVertexAICreateAutoMLImageTrainingJobOperator:
             display_name=DISPLAY_NAME,
             dataset=mock_dataset.return_value,
             prediction_type="classification",
-            parent_model=None,
+            parent_model=TEST_PARENT_MODEL,
             multi_label=False,
             model_type="CLOUD",
             base_model=None,
@@ -869,6 +889,7 @@ class TestVertexAICreateAutoMLTabularTrainingJobOperator:
             sync=True,
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
+            parent_model=TEST_PARENT_MODEL,
         )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
@@ -880,7 +901,7 @@ class TestVertexAICreateAutoMLTabularTrainingJobOperator:
             region=GCP_LOCATION,
             display_name=DISPLAY_NAME,
             dataset=mock_dataset.return_value,
-            parent_model=None,
+            parent_model=TEST_PARENT_MODEL,
             target_column=None,
             optimization_prediction_type=None,
             optimization_objective=None,
@@ -928,6 +949,7 @@ class TestVertexAICreateAutoMLTextTrainingJobOperator:
             sync=True,
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
+            parent_model=TEST_PARENT_MODEL,
         )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
@@ -937,7 +959,7 @@ class TestVertexAICreateAutoMLTextTrainingJobOperator:
             region=GCP_LOCATION,
             display_name=DISPLAY_NAME,
             dataset=mock_dataset.return_value,
-            parent_model=None,
+            parent_model=TEST_PARENT_MODEL,
             prediction_type=None,
             multi_label=False,
             sentiment_max=10,
@@ -975,6 +997,7 @@ class TestVertexAICreateAutoMLVideoTrainingJobOperator:
             sync=True,
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
+            parent_model=TEST_PARENT_MODEL,
         )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
@@ -984,7 +1007,7 @@ class TestVertexAICreateAutoMLVideoTrainingJobOperator:
             region=GCP_LOCATION,
             display_name=DISPLAY_NAME,
             dataset=mock_dataset.return_value,
-            parent_model=None,
+            parent_model=TEST_PARENT_MODEL,
             prediction_type="classification",
             model_type="CLOUD",
             labels=None,
@@ -1996,9 +2019,9 @@ class TestVertexAIDeleteModelVersionOperator:
 
 
 class TestVertexAIRunPipelineJobOperator:
-    @mock.patch(VERTEX_AI_PATH.format("pipeline_job.PipelineJob.to_dict"))
     @mock.patch(VERTEX_AI_PATH.format("pipeline_job.PipelineJobHook"))
-    def test_execute(self, mock_hook, to_dict_mock):
+    @mock.patch("google.cloud.aiplatform_v1.types.PipelineJob.to_dict")
+    def test_execute(self, to_dict_mock, mock_hook):
         op = RunPipelineJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -2022,7 +2045,7 @@ class TestVertexAIRunPipelineJobOperator:
         )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
-        mock_hook.return_value.run_pipeline_job.assert_called_once_with(
+        mock_hook.return_value.submit_pipeline_job.assert_called_once_with(
             project_id=GCP_PROJECT,
             region=GCP_LOCATION,
             display_name=DISPLAY_NAME,
@@ -2041,9 +2064,68 @@ class TestVertexAIRunPipelineJobOperator:
             experiment=None,
         )
 
+    @mock.patch(VERTEX_AI_PATH.format("pipeline_job.PipelineJobHook"))
+    def test_execute_enters_deferred_state(self, mock_hook):
+        task = RunPipelineJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            display_name=DISPLAY_NAME,
+            template_path=TEST_TEMPLATE_PATH,
+            job_id=TEST_PIPELINE_JOB_ID,
+            deferrable=True,
+        )
+        mock_hook.return_value.exists.return_value = False
+        with pytest.raises(TaskDeferred) as exc:
+            task.execute(context={"ti": mock.MagicMock()})
+        assert isinstance(exc.value.trigger, RunPipelineJobTrigger), "Trigger is not a RunPipelineJobTrigger"
+
+    @mock.patch(VERTEX_AI_PATH.format("pipeline_job.RunPipelineJobOperator.xcom_push"))
+    @mock.patch(VERTEX_AI_PATH.format("pipeline_job.PipelineJobHook"))
+    def test_execute_complete_success(self, mock_hook, mock_xcom_push):
+        task = RunPipelineJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            display_name=DISPLAY_NAME,
+            template_path=TEST_TEMPLATE_PATH,
+            job_id=TEST_PIPELINE_JOB_ID,
+            deferrable=True,
+        )
+        expected_pipeline_job = expected_result = {
+            "name": f"projects/{GCP_PROJECT}/locations/{GCP_LOCATION}/pipelineJobs/{TEST_PIPELINE_JOB_ID}",
+        }
+        mock_hook.return_value.exists.return_value = False
+        mock_xcom_push.return_value = None
+        actual_result = task.execute_complete(
+            context=None, event={"status": "success", "message": "", "job": expected_pipeline_job}
+        )
+        assert actual_result == expected_result
+
+    def test_execute_complete_error_status_raises_exception(self):
+        task = RunPipelineJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            display_name=DISPLAY_NAME,
+            template_path=TEST_TEMPLATE_PATH,
+            job_id=TEST_PIPELINE_JOB_ID,
+            deferrable=True,
+        )
+        with pytest.raises(AirflowException):
+            task.execute_complete(
+                context=None, event={"status": "error", "message": "test message", "job": None}
+            )
+
 
 class TestVertexAIGetPipelineJobOperator:
-    @mock.patch(VERTEX_AI_PATH.format("pipeline_job.PipelineJob.to_dict"))
+    @mock.patch("google.cloud.aiplatform_v1.types.PipelineJob.to_dict")
     @mock.patch(VERTEX_AI_PATH.format("pipeline_job.PipelineJobHook"))
     def test_execute(self, mock_hook, to_dict_mock):
         op = GetPipelineJobOperator(

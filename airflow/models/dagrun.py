@@ -53,6 +53,7 @@ from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskNotFound
 from airflow.listeners.listener import get_listener_manager
+from airflow.models import Log
 from airflow.models.abstractoperator import NotMapped
 from airflow.models.base import Base, StringID
 from airflow.models.expandinput import NotFullyPopulated
@@ -594,6 +595,15 @@ class DagRun(Base, LoggingMixin):
                 .values(is_paused=True)
                 .execution_options(synchronize_session="fetch")
             )
+            session.add(
+                Log(
+                    event="paused",
+                    dag_id=self.dag_id,
+                    owner="scheduler",
+                    owner_display_name="Scheduler",
+                    extra=f"[('dag_id', '{self.dag_id}'), ('is_paused', True)]",
+                )
+            )
         else:
             self.log.debug(
                 "Limit of consecutive DAG failed dag runs is not reached, DAG %s will not be paused.",
@@ -770,9 +780,9 @@ class DagRun(Base, LoggingMixin):
             def should_schedule(self) -> bool:
                 return (
                     bool(self.tis)
-                    and all(not t.task.depends_on_past for t in self.tis)
-                    and all(t.task.max_active_tis_per_dag is None for t in self.tis)
-                    and all(t.task.max_active_tis_per_dagrun is None for t in self.tis)
+                    and all(not t.task.depends_on_past for t in self.tis)  # type: ignore[union-attr]
+                    and all(t.task.max_active_tis_per_dag is None for t in self.tis)  # type: ignore[union-attr]
+                    and all(t.task.max_active_tis_per_dagrun is None for t in self.tis)  # type: ignore[union-attr]
                     and all(t.state != TaskInstanceState.DEFERRED for t in self.tis)
                 )
 
@@ -1010,6 +1020,9 @@ class DagRun(Base, LoggingMixin):
             If the ti does not need expansion, either because the task is not
             mapped, or has already been expanded, *None* is returned.
             """
+            if TYPE_CHECKING:
+                assert ti.task
+
             if ti.map_index >= 0:  # Already expanded, we're good.
                 return None
 
@@ -1033,6 +1046,8 @@ class DagRun(Base, LoggingMixin):
         # Set of task ids for which was already done _revise_map_indexes_if_mapped
         revised_map_index_task_ids = set()
         for schedulable in itertools.chain(schedulable_tis, additional_tis):
+            if TYPE_CHECKING:
+                assert schedulable.task
             old_state = schedulable.state
             if not schedulable.are_dependencies_met(session=session, dep_context=dep_context):
                 old_states[schedulable.key] = old_state
@@ -1277,8 +1292,7 @@ class DagRun(Base, LoggingMixin):
         created_counts: dict[str, int],
         ti_mutation_hook: Callable,
         hook_is_noop: Literal[True],
-    ) -> Callable[[Operator, Iterable[int]], Iterator[dict[str, Any]]]:
-        ...
+    ) -> Callable[[Operator, Iterable[int]], Iterator[dict[str, Any]]]: ...
 
     @overload
     def _get_task_creator(
@@ -1286,8 +1300,7 @@ class DagRun(Base, LoggingMixin):
         created_counts: dict[str, int],
         ti_mutation_hook: Callable,
         hook_is_noop: Literal[False],
-    ) -> Callable[[Operator, Iterable[int]], Iterator[TI]]:
-        ...
+    ) -> Callable[[Operator, Iterable[int]], Iterator[TI]]: ...
 
     def _get_task_creator(
         self,
@@ -1517,6 +1530,8 @@ class DagRun(Base, LoggingMixin):
         dummy_ti_ids = []
         schedulable_ti_ids = []
         for ti in schedulable_tis:
+            if TYPE_CHECKING:
+                assert ti.task
             if (
                 ti.task.inherits_from_empty_operator
                 and not ti.task.on_execute_callback

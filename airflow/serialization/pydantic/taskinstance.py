@@ -47,10 +47,12 @@ if TYPE_CHECKING:
     from airflow.utils.state import DagRunState
 
 
-def serialize_operator(x: Operator) -> dict:
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
+def serialize_operator(x: Operator | None) -> dict | None:
+    if x:
+        from airflow.serialization.serialized_objects import SerializedBaseOperator
 
-    return SerializedBaseOperator.serialize_operator(x)
+        return SerializedBaseOperator.serialize_operator(x)
+    return None
 
 
 def validated_operator(x: dict[str, Any] | Operator, _info: ValidationInfo) -> Any:
@@ -94,7 +96,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     priority_weight: Optional[int]
     operator: str
     custom_operator_name: Optional[str]
-    queued_dttm: Optional[str]
+    queued_dttm: Optional[datetime]
     queued_by_job_id: Optional[int]
     pid: Optional[int]
     executor_config: Any
@@ -106,16 +108,29 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     next_method: Optional[str]
     next_kwargs: Optional[dict]
     run_as_user: Optional[str]
-    task: PydanticOperator
+    task: Optional[PydanticOperator]
     test_mode: bool
     dag_run: Optional[DagRunPydantic]
     dag_model: Optional[DagModelPydantic]
-
+    raw: Optional[bool]
+    is_trigger_log_context: Optional[bool]
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
     @property
     def _logger_name(self):
         return "airflow.task"
+
+    def clear_xcom_data(self, session: Session | None = None):
+        TaskInstance._clear_xcom_data(ti=self, session=session)
+
+    def set_state(self, state, session: Session | None = None) -> bool:
+        return TaskInstance._set_state(ti=self, state=state, session=session)
+
+    def _run_execute_callback(self, context, task):
+        TaskInstance._run_execute_callback(self=self, context=context, task=task)  # type: ignore[arg-type]
+
+    def render_templates(self, context: Context | None = None, jinja_env=None):
+        return TaskInstance.render_templates(self=self, context=context, jinja_env=jinja_env)  # type: ignore[arg-type]
 
     def init_run_context(self, raw: bool = False) -> None:
         """Set the log context."""
@@ -170,11 +185,9 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
 
         :param session: SQLAlchemy ORM Session
 
-        TODO: make it works for AIP-44
-
-        :return: Pydantic serialized version of DaGrun
+        :return: Pydantic serialized version of DagRun
         """
-        raise NotImplementedError()
+        return TaskInstance._get_dagrun(dag_id=self.dag_id, run_id=self.run_id, session=session)
 
     def _execute_task(self, context, task_orig):
         """

@@ -24,6 +24,7 @@ import time
 from threading import Thread
 from unittest.mock import MagicMock, patch
 
+import aiofiles
 import pendulum
 import pytest
 
@@ -58,8 +59,8 @@ class TimeDeltaTrigger_(TimeDeltaTrigger):
         self.delta = delta
 
     async def run(self):
-        with open(self.filename, "a") as f:
-            f.write("hi\n")
+        async with aiofiles.open(self.filename, mode="a") as f:
+            await f.write("hi\n")
         async for event in super().run():
             yield event
 
@@ -213,8 +214,8 @@ def test_capacity_decode():
         4 / 2,  # Resolves to a float, in addition to being just plain weird
     ]
     for input_str in variants:
+        job = Job()
         with pytest.raises(ValueError):
-            job = Job()
             TriggererJobRunner(job=job, capacity=input_str)
 
 

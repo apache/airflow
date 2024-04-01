@@ -469,36 +469,60 @@ def install_airflow_and_providers(
         use_packages_from_dist=use_packages_from_dist,
     )
     if installation_spec.airflow_package and install_airflow_with_constraints:
-        install_airflow_cmd = [
+        base_install_airflow_cmd = [
             "pip",
             "install",
             "--root-user-action",
             "ignore",
             installation_spec.airflow_package,
         ]
+        install_airflow_cmd = base_install_airflow_cmd.copy()
         console.print(f"\n[bright_blue]Installing airflow package: {installation_spec.airflow_package}")
         if installation_spec.airflow_constraints_location:
             console.print(f"[bright_blue]Use constraints: {installation_spec.airflow_constraints_location}")
             install_airflow_cmd.extend(["--constraint", installation_spec.airflow_constraints_location])
         console.print()
-        run_command(install_airflow_cmd, github_actions=github_actions, check=True)
+        result = run_command(install_airflow_cmd, github_actions=github_actions, check=False)
+        if result.returncode != 0:
+            console.print(
+                "[warning]Installation with constraints failed - might be because pre-installed provider"
+                " has conflicting dependencies in PyPI. Falling back to a non-constraint installation."
+            )
+            run_command(base_install_airflow_cmd, github_actions=github_actions, check=True)
     if installation_spec.provider_packages or not install_airflow_with_constraints:
-        install_providers_cmd = ["pip", "install", "--root-user-action", "ignore"]
+        base_install_providers_cmd = ["pip", "install", "--root-user-action", "ignore"]
         if not install_airflow_with_constraints and installation_spec.airflow_package:
-            install_providers_cmd.append(installation_spec.airflow_package)
+            base_install_providers_cmd.append(installation_spec.airflow_package)
         console.print("\n[bright_blue]Installing provider packages:")
         for provider_package in sorted(installation_spec.provider_packages):
             console.print(f"  {provider_package}")
         console.print()
         for provider_package in installation_spec.provider_packages:
-            install_providers_cmd.append(provider_package)
+            base_install_providers_cmd.append(provider_package)
+        install_providers_command = base_install_providers_cmd.copy()
+        # if airflow is also being installed we should add airflow to the base_install_providers_cmd
+        # to avoid accidentally upgrading airflow to a version that is different than installed in the
+        # previous step
+        if installation_spec.airflow_package:
+            base_install_providers_cmd.append(installation_spec.airflow_package)
+
         if installation_spec.provider_constraints_location:
             console.print(
                 f"[bright_blue]with constraints: {installation_spec.provider_constraints_location}\n"
             )
-            install_providers_cmd.extend(["--constraint", installation_spec.provider_constraints_location])
-        console.print()
-        run_command(install_providers_cmd, github_actions=github_actions, check=True)
+            install_providers_command.extend(
+                ["--constraint", installation_spec.provider_constraints_location]
+            )
+            console.print()
+            result = run_command(install_providers_command, github_actions=github_actions, check=False)
+            if result.returncode != 0:
+                console.print(
+                    "[warning]Installation with constraints failed - might be because pre-installed provider"
+                    " has conflicting dependencies in PyPI. Falling back to a non-constraint installation."
+                )
+                run_command(base_install_providers_cmd, github_actions=github_actions, check=True)
+        else:
+            run_command(base_install_providers_cmd, github_actions=github_actions, check=True)
     console.print("[green]Done!")
 
 

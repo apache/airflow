@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud Functions operators."""
+
 from __future__ import annotations
 
 import re

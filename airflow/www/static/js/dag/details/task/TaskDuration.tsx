@@ -50,6 +50,7 @@ const TaskDuration = () => {
   } = useGridData();
   let maxDuration = 0;
   let unit = "seconds";
+  let unitDivisor = 1;
 
   const task = getTask({ taskId, task: groups });
 
@@ -62,7 +63,7 @@ const TaskDuration = () => {
     if (!instance) return {};
     // @ts-ignore
     const runDuration = moment.duration(
-      instance.startDate && instance.endDate
+      instance.startDate
         ? getDuration(instance.startDate, instance?.endDate)
         : 0
     );
@@ -82,30 +83,20 @@ const TaskDuration = () => {
 
     if (maxDuration <= 60 * 2) {
       unit = "seconds";
+      unitDivisor = 1;
     } else if (maxDuration <= 60 * 60 * 2) {
       unit = "minutes";
+      unitDivisor = 60;
     } else if (maxDuration <= 24 * 60 * 60 * 2) {
       unit = "hours";
+      unitDivisor = 60 * 60;
     } else {
       unit = "days";
+      unitDivisor = 60 * 60 * 24;
     }
 
-    let runDurationUnit;
-    let queuedDurationUnit;
-
-    if (unit === "seconds") {
-      runDurationUnit = runDuration.asSeconds();
-      queuedDurationUnit = queuedDuration.asSeconds();
-    } else if (unit === "minutes") {
-      runDurationUnit = runDuration.asMinutes();
-      queuedDurationUnit = queuedDuration.asMinutes();
-    } else if (unit === "hours") {
-      runDurationUnit = runDuration.asHours();
-      queuedDurationUnit = queuedDuration.asHours();
-    } else {
-      runDurationUnit = runDuration.asDays();
-      queuedDurationUnit = queuedDuration.asDays();
-    }
+    const runDurationUnit = runDuration.asSeconds();
+    const queuedDurationUnit = queuedDuration.asSeconds();
 
     return {
       ...instance,
@@ -155,7 +146,33 @@ const TaskDuration = () => {
     `;
   }
 
+  function formatMarkLineLegendName(name: string) {
+    switch (name) {
+      case "runDurationUnit":
+        return "Median total duration";
+      case "queuedDurationUnit":
+        return "Median queued duration";
+      default:
+        return name;
+    }
+  }
+
   const option: ReactEChartsProps["option"] = {
+    legend: {
+      orient: "horizontal",
+      icon: "circle",
+      formatter: formatMarkLineLegendName,
+      data: [
+        {
+          name: "runDurationUnit",
+          itemStyle: { color: "blue" },
+        },
+        {
+          name: "queuedDurationUnit",
+          itemStyle: { color: stateColors.queued },
+        },
+      ],
+    },
     series: [
       {
         type: "bar",
@@ -165,6 +182,10 @@ const TaskDuration = () => {
           opacity: 0.6,
         },
         stack: "x",
+        markLine: {
+          silent: true,
+          data: [{ type: "median", lineStyle: { color: stateColors.queued } }],
+        },
       },
       {
         type: "bar",
@@ -174,12 +195,27 @@ const TaskDuration = () => {
           color: (params) => stateColors[params.data.state],
         },
         stack: "x",
+        markLine: {
+          silent: true,
+          data: [{ type: "median", lineStyle: { color: "blue" } }],
+        },
       },
     ],
     // @ts-ignore
     dataset: {
       dimensions: ["runId", "queuedDurationUnit", "runDurationUnit"],
-      source: durations,
+      source: durations.map((duration) => {
+        if (duration) {
+          const durationInSeconds = duration as TaskInstanceDuration;
+          return {
+            ...durationInSeconds,
+            queuedDurationUnit:
+              durationInSeconds.queuedDurationUnit / unitDivisor,
+            runDurationUnit: durationInSeconds.runDurationUnit / unitDivisor,
+          };
+        }
+        return duration;
+      }),
     },
     tooltip: {
       trigger: "axis",

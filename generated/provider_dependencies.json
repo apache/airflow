@@ -86,13 +86,11 @@
   "apache.cassandra": {
     "deps": [
       "apache-airflow>=2.6.0",
-      "cassandra-driver>=3.13.0"
+      "cassandra-driver>=3.29.1"
     ],
     "devel-deps": [],
     "cross-providers-deps": [],
-    "excluded-python-versions": [
-      "3.12"
-    ],
+    "excluded-python-versions": [],
     "state": "ready"
   },
   "apache.drill": {
@@ -293,7 +291,7 @@
   "celery": {
     "deps": [
       "apache-airflow>=2.6.0",
-      "celery>=5.3.0,<6,!=5.3.3,!=5.3.2",
+      "celery[redis]>=5.3.0,<6,!=5.3.3,!=5.3.2",
       "flower>=1.0.0",
       "google-re2>=1.0"
     ],
@@ -332,7 +330,7 @@
   "cohere": {
     "deps": [
       "apache-airflow>=2.6.0",
-      "cohere>=4.37"
+      "cohere>=4.37,<5"
     ],
     "devel-deps": [],
     "cross-providers-deps": [],
@@ -377,9 +375,7 @@
     "cross-providers-deps": [
       "common.sql"
     ],
-    "excluded-python-versions": [
-      "3.12"
-    ],
+    "excluded-python-versions": [],
     "state": "ready"
   },
   "datadog": {
@@ -472,7 +468,7 @@
   "fab": {
     "deps": [
       "apache-airflow>=2.9.0",
-      "flask-appbuilder==4.3.11",
+      "flask-appbuilder==4.4.1",
       "flask-login>=0.6.2",
       "flask>=2.2,<2.3",
       "google-re2>=1.0"
@@ -530,7 +526,6 @@
       "google-auth-httplib2>=0.0.1",
       "google-auth>=1.0.0",
       "google-cloud-aiplatform>=1.42.1",
-      "google-cloud-automl>=2.12.0",
       "google-cloud-batch>=0.13.0",
       "google-cloud-bigquery-datatransfer>=3.13.0",
       "google-cloud-bigtable>=2.17.0",
@@ -572,6 +567,7 @@
       "pandas-gbq",
       "pandas>=1.2.5,<2.2",
       "proto-plus>=1.19.6",
+      "python-slugify>=5.0",
       "sqlalchemy-bigquery>=1.2.1",
       "sqlalchemy-spanner>=1.6.2"
     ],
@@ -696,7 +692,7 @@
       "azure-mgmt-datalake-store>=0.5.0",
       "azure-mgmt-resource>=2.2.0",
       "azure-mgmt-storage>=16.0.0",
-      "azure-servicebus>=7.6.1",
+      "azure-servicebus>=7.12.1",
       "azure-storage-blob>=12.14.0",
       "azure-storage-file-datalake>=12.9.1",
       "azure-storage-file-share",
@@ -960,7 +956,7 @@
   "redis": {
     "deps": [
       "apache-airflow>=2.6.0",
-      "redis>=4.5.2,<5.0.0,!=4.5.5"
+      "redis>=4.5.2,!=4.5.5,!=5.0.2"
     ],
     "devel-deps": [],
     "cross-providers-deps": [],
@@ -1183,6 +1179,7 @@
   "yandex": {
     "deps": [
       "apache-airflow>=2.6.0",
+      "yandex-query-client>=0.1.2",
       "yandexcloud>=0.228.0"
     ],
     "devel-deps": [],

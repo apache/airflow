@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Vertex AI operators."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
@@ -467,8 +468,6 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        self.parent_model = self.parent_model.rpartition("@")[0] if self.parent_model else None
-
         model, training_id, custom_job_id = self.hook.create_custom_container_training_job(
             project_id=self.project_id,
             region=self.region,
@@ -849,7 +848,6 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        self.parent_model = self.parent_model.rpartition("@")[0] if self.parent_model else None
         model, training_id, custom_job_id = self.hook.create_custom_python_package_training_job(
             project_id=self.project_id,
             region=self.region,
@@ -1233,8 +1231,6 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        self.parent_model = self.parent_model.rpartition("@")[0] if self.parent_model else None
-
         model, training_id, custom_job_id = self.hook.create_custom_training_job(
             project_id=self.project_id,
             region=self.region,

@@ -354,6 +354,14 @@ option_use_uv_default_disabled = click.option(
     help="Use uv instead of pip as packaging tool to build the image.",
     envvar="USE_UV",
 )
+option_uv_request_timeout = click.option(
+    "--uv-request-timeout",
+    help="Timeout for requests that UV makes (only used in case of UV builds).",
+    type=click.IntRange(min=1),
+    default=300,
+    show_default=True,
+    envvar="UV_REQUEST_TIMEOUT",
+)
 option_pydantic = click.option(
     "--pydantic",
     help="Determines which pydantic should be used during tests.",

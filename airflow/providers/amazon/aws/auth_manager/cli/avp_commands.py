@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """User sub-commands."""
+
 from __future__ import annotations
 
 import json
@@ -119,7 +120,7 @@ def _create_policy_store(client: BaseClient, args) -> tuple[str | None, bool]:
 
         response = client.create_policy_store(
             validationSettings={
-                "mode": "OFF",
+                "mode": "STRICT",
             },
             description=args.policy_store_description,
         )
@@ -137,31 +138,7 @@ def _set_schema(client: BaseClient, policy_store_id: str, args) -> None:
         print(f"Dry run, not updating the schema of the policy store with ID '{policy_store_id}'.")
         return
 
-    if args.verbose:
-        log.debug("Getting the policy store details")
-
-    details = client.get_policy_store(
-        policyStoreId=policy_store_id,
-    )
-
-    if args.verbose:
-        log.debug("Response from get_policy_store: %s", details)
-
-    if args.verbose:
-        log.debug("Disabling schema validation before updating schema")
-
-    response = client.update_policy_store(
-        policyStoreId=policy_store_id,
-        validationSettings={
-            "mode": "OFF",
-        },
-        description=details["description"],
-    )
-
-    if args.verbose:
-        log.debug("Response from update_policy_store: %s", response)
-
-    schema_path = Path(__file__).parents[0].joinpath("schema.json").resolve()
+    schema_path = Path(__file__).parents[1] / "avp" / "schema.json"
     with open(schema_path) as schema_file:
         response = client.put_schema(
             policyStoreId=policy_store_id,
@@ -174,17 +151,3 @@ def _set_schema(client: BaseClient, policy_store_id: str, args) -> None:
             log.debug("Response from put_schema: %s", response)
 
     print("Policy store schema updated.")
-
-    if args.verbose:
-        log.debug("Enabling schema validation after updating schema")
-
-    response = client.update_policy_store(
-        policyStoreId=policy_store_id,
-        validationSettings={
-            "mode": "STRICT",
-        },
-        description=details["description"],
-    )
-
-    if args.verbose:
-        log.debug("Response from update_policy_store: %s", response)

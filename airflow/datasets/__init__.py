@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 import urllib.parse
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Iterator, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Iterator
 
 import attr
 
@@ -42,7 +42,14 @@ def _get_uri_normalizer(scheme: str) -> Callable[[SplitResult], SplitResult] | N
     return ProvidersManager().dataset_uri_handlers.get(scheme)
 
 
-def _sanitize_uri(uri: str) -> str:
+def sanitize_uri(uri: str) -> str:
+    """Sanitize a dataset URI.
+
+    This checks for URI validity, and normalizes the URI if needed. A fully
+    normalized URI is returned.
+
+    :meta private:
+    """
     if not uri:
         raise ValueError("Dataset URI cannot be empty")
     if uri.isspace():
@@ -82,17 +89,20 @@ def _sanitize_uri(uri: str) -> str:
     return urllib.parse.urlunsplit(parsed)
 
 
-@runtime_checkable
-class BaseDatasetEventInput(Protocol):
+class BaseDatasetEventInput:
     """Protocol for all dataset triggers to use in ``DAG(schedule=...)``.
 
     :meta private:
     """
 
     def __or__(self, other: BaseDatasetEventInput) -> DatasetAny:
+        if not isinstance(other, BaseDatasetEventInput):
+            return NotImplemented
         return DatasetAny(self, other)
 
     def __and__(self, other: BaseDatasetEventInput) -> DatasetAll:
+        if not isinstance(other, BaseDatasetEventInput):
+            return NotImplemented
         return DatasetAll(self, other)
 
     def evaluate(self, statuses: dict[str, bool]) -> bool:
@@ -107,7 +117,7 @@ class Dataset(os.PathLike, BaseDatasetEventInput):
     """A representation of data dependencies between workflows."""
 
     uri: str = attr.field(
-        converter=_sanitize_uri,
+        converter=sanitize_uri,
         validator=[attr.validators.min_len(1), attr.validators.max_len(3000)],
     )
     extra: dict[str, Any] | None = None
@@ -120,8 +130,7 @@ class Dataset(os.PathLike, BaseDatasetEventInput):
     def __eq__(self, other: Any) -> bool:
         if isinstance(other, self.__class__):
             return self.uri == other.uri
-        else:
-            return NotImplemented
+        return NotImplemented
 
     def __hash__(self) -> int:
         return hash(self.uri)
@@ -139,6 +148,8 @@ class _DatasetBooleanCondition(BaseDatasetEventInput):
     agg_func: Callable[[Iterable], bool]
 
     def __init__(self, *objects: BaseDatasetEventInput) -> None:
+        if not all(isinstance(o, BaseDatasetEventInput) for o in objects):
+            raise TypeError("expect dataset expressions in condition")
         self.objects = objects
 
     def evaluate(self, statuses: dict[str, bool]) -> bool:
@@ -160,6 +171,8 @@ class DatasetAny(_DatasetBooleanCondition):
     agg_func = any
 
     def __or__(self, other: BaseDatasetEventInput) -> DatasetAny:
+        if not isinstance(other, BaseDatasetEventInput):
+            return NotImplemented
         # Optimization: X | (Y | Z) is equivalent to X | Y | Z.
         return DatasetAny(*self.objects, other)
 
@@ -173,6 +186,8 @@ class DatasetAll(_DatasetBooleanCondition):
     agg_func = all
 
     def __and__(self, other: BaseDatasetEventInput) -> DatasetAll:
+        if not isinstance(other, BaseDatasetEventInput):
+            return NotImplemented
         # Optimization: X & (Y & Z) is equivalent to X & Y & Z.
         return DatasetAll(*self.objects, other)
 

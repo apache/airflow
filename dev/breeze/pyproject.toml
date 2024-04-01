@@ -50,10 +50,10 @@ dependencies = [
     "filelock>=3.13.0",
     "flit>=3.5.0",
     "gitpython>=3.1.40",
-    "hatch==1.9.1",
-    # Importib_resources 6.2.0 break pytest_rewrite
+    "hatch==1.9.4",
+    # Importib_resources 6.2.0-6.3.1 break pytest_rewrite
     # see https://github.com/python/importlib_resources/issues/299
-    "importlib_resources>=5.2,<6.2.0;python_version<\"3.9\"",
+    "importlib_resources>=5.2,!=6.2.0,!=6.3.0,!=6.3.1;python_version<\"3.9\"",
     "inputimeout>=1.0.4",
     "jinja2>=3.1.0",
     "jsonschema>=4.19.1",
@@ -101,6 +101,9 @@ python_files = [
 testpaths = [
     "tests",
 ]
+# Keep temporary directories (created by `tmp_path`) for 2 recent runs only failed tests.
+tmp_path_retention_count = "2"
+tmp_path_retention_policy = "failed"
 
 [tool.ruff]
 extend = "../../pyproject.toml"
