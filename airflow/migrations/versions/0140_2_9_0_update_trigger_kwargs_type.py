@@ -46,7 +46,7 @@ def get_session() -> sa.orm.Session:
 
 def upgrade():
     """Update trigger kwargs type to string"""
-    op.alter_column(table_name="trigger", column_name="kwargs", type_=sa.String())
+    op.alter_column(table_name="trigger", column_name="kwargs", type_=sa.Text())
 
 
 def downgrade():
