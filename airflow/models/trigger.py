@@ -35,6 +35,7 @@ from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+    from sqlalchemy.sql import Select
 
     from airflow.triggers.base import BaseTrigger
 
@@ -261,13 +262,11 @@ class Trigger(Base):
         if capacity <= 0:
             return
 
-        alive_triggerer_ids = session.scalars(
-            select(Job.id).where(
-                Job.end_date.is_(None),
-                Job.latest_heartbeat > timezone.utcnow() - datetime.timedelta(seconds=health_check_threshold),
-                Job.job_type == "TriggererJob",
-            )
-        ).all()
+        alive_triggerer_ids = select(Job.id).where(
+            Job.end_date.is_(None),
+            Job.latest_heartbeat > timezone.utcnow() - datetime.timedelta(seconds=health_check_threshold),
+            Job.job_type == "TriggererJob",
+        )
 
         # Find triggers who do NOT have an alive triggerer_id, and then assign
         # up to `capacity` of those to us.
@@ -285,7 +284,13 @@ class Trigger(Base):
         session.commit()
 
     @classmethod
-    def get_sorted_triggers(cls, capacity, alive_triggerer_ids, session):
+    def get_sorted_triggers(cls, capacity: int, alive_triggerer_ids: list[int] | Select, session: Session):
+        """Get sorted triggers based on capacity and alive triggerer ids.
+
+        :param capacity: The capacity of the triggerer.
+        :param alive_triggerer_ids: The alive triggerer ids as a list or a select query.
+        :param session: The database session.
+        """
         query = with_row_locks(
             select(cls.id)
             .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=False)
