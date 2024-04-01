@@ -38,19 +38,13 @@ depends_on = None
 airflow_version = "2.9.0"
 
 
-def get_session() -> sa.orm.Session:
-    conn = op.get_bind()
-    sessionmaker = sa.orm.sessionmaker()
-    return sessionmaker(bind=conn)
-
-
 def upgrade():
     """Update trigger kwargs type to string"""
-    op.alter_column(table_name="trigger", column_name="kwargs", type_=sa.Text())
+    with op.batch_alter_table("trigger") as batch_op:
+        batch_op.alter_column("kwargs", type_=sa.Text(), )
 
 
 def downgrade():
     """Unapply update trigger kwargs type to string"""
-    op.alter_column(
-        table_name="trigger", column_name="kwargs", type_=ExtendedJSON(), postgresql_using="kwargs::json"
-    )
+    with op.batch_alter_table("trigger") as batch_op:
+        batch_op.alter_column("kwargs", type_=ExtendedJSON(), postgresql_using="kwargs::json")
