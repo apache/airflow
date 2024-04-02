@@ -1624,9 +1624,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
 
 
 @pytest.mark.parametrize(
-    "github_event, github_actor, github_repository, pr_labels, github_context_dict, "
-    "runs_on, "
-    "is_self_hosted_runner, is_airflow_runner, is_amd_runner, is_arm_runner, is_vm_runner, is_k8s_runner",
+    "github_event, github_actor, github_repository, pr_labels, github_context_dict, default_runs_on_as_string, is_self_hosted_runner, is_airflow_runner, is_amd_runner, is_arm_runner, is_vm_runner, is_k8s_runner",
     [
         pytest.param(
             GithubEvents.PUSH,
@@ -1816,7 +1814,7 @@ def test_runs_on(
     github_repository: str,
     pr_labels: list[str],
     github_context_dict: dict[str, Any],
-    runs_on: str,
+    default_runs_on_as_string,
     is_self_hosted_runner: str,
     is_airflow_runner: str,
     is_amd_runner: str,
@@ -1834,7 +1832,7 @@ def test_runs_on(
         pr_labels=(),
         default_branch="main",
     )
-    assert_outputs_are_printed({"runs-on": runs_on}, str(stderr))
+    assert_outputs_are_printed({"runs-on-as-json-default": default_runs_on_as_string}, str(stderr))
     assert_outputs_are_printed({"is-self-hosted-runner": is_self_hosted_runner}, str(stderr))
     assert_outputs_are_printed({"is-airflow-runner": is_airflow_runner}, str(stderr))
     assert_outputs_are_printed({"is-amd-runner": is_amd_runner}, str(stderr))
@@ -1999,7 +1997,7 @@ def test_mypy_matches(
             ("README.md",),
             {
                 "is-committer-build": "false",
-                "runs-on": '["ubuntu-22.04"]',
+                "runs-on-as-json-default": '["ubuntu-22.04"]',
             },
             "",
             (),
@@ -2009,7 +2007,7 @@ def test_mypy_matches(
             ("README.md",),
             {
                 "is-committer-build": "true",
-                "runs-on": '["self-hosted", "Linux", "X64"]',
+                "runs-on-as-json-default": '["self-hosted", "Linux", "X64"]',
             },
             "potiuk",
             (),
@@ -2019,7 +2017,7 @@ def test_mypy_matches(
             ("README.md",),
             {
                 "is-committer-build": "false",
-                "runs-on": '["self-hosted", "Linux", "X64"]',
+                "runs-on-as-json-default": '["self-hosted", "Linux", "X64"]',
             },
             "potiuk",
             ("non committer build",),

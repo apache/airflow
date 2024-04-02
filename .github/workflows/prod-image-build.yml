@@ -20,10 +20,9 @@ name: Build PROD images
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on:
-        description: "The array of labels (in json form) determining type of the runner to use for the build."
-        required: false
-        default: '["ubuntu-22.04"]'
+      runs-on-as-json-public:
+        description: "The array of labels (in json form) determining default runner used for the build."
+        required: true
         type: string
       build-type:
         description: >
@@ -120,7 +119,7 @@ jobs:
   build-prod-packages:
     name: "${{ inputs.do-build == 'true' && 'Build' || 'Skip building' }} Airflow and provider packages"
     timeout-minutes: 10
-    runs-on: ["ubuntu-22.04"]
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
     steps:
@@ -133,8 +132,8 @@ jobs:
         with:
           persist-credentials: false
         if: inputs.do-build == 'true' && inputs.upload-package-artifact == 'true'
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
         if: inputs.do-build == 'true' && inputs.upload-package-artifact == 'true'
       - uses: actions/setup-python@v5
         with:
@@ -189,14 +188,14 @@ jobs:
       fail-fast: true
       matrix:
         # yamllint disable-line rule:line-length
-        python-version: ${{ inputs.do-build == 'true' && fromJson(inputs.python-versions) || fromJson('[""]') }}
+        python-version: ${{ inputs.do-build == 'true' && fromJSON(inputs.python-versions) || fromJSON('[""]') }}
     timeout-minutes: 80
     name: "\
 ${{ inputs.do-build == 'true' && 'Build' || 'Skip building' }} \
 PROD ${{ inputs.build-type }} image\
 ${{ matrix.python-version }}${{ inputs.do-build == 'true' && ':' || '' }}\
 ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
-    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
     needs:
       - build-prod-packages
     env:
@@ -269,8 +268,8 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
       #  BE RUN SAFELY AS PART OF DOCKER BUILD. BECAUSE IT RUNS INSIDE THE DOCKER CONTAINER AND IT IS
       #  ISOLATED FROM THE RUNNER.
       ####################################################################################################
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
         if: inputs.do-build == 'true'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
@@ -279,7 +278,7 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
         shell: bash
         run: |
           pip install rich>=12.4.4 pyyaml
-          python scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
+          python scripts/ci/pre_commit/update_providers_dependencies.py
         if: inputs.do-build == 'true' && inputs.upgrade-to-newer-dependencies != 'false'
       - name: "Cleanup dist and context file"
         shell: bash
