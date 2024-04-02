@@ -903,7 +903,7 @@ function install_airflow() {
         AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/postgres,}
         echo "${COLOR_YELLOW}Postgres client installation is disabled. Extra 'postgres' installations were therefore omitted.${COLOR_RESET}"
     fi
-    if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then
+    if [[ "${UPGRADE_INVALIDATION_STRING=}" != "" ]]; then
         echo
         echo "${COLOR_BLUE}Remove airflow and all provider packages installed before potentially${COLOR_RESET}"
         echo
@@ -961,13 +961,12 @@ COPY <<"EOF" /install_additional_dependencies.sh
 #!/usr/bin/env bash
 set -euo pipefail
 
-: "${UPGRADE_TO_NEWER_DEPENDENCIES:?Should be true or false}"
 : "${ADDITIONAL_PYTHON_DEPS:?Should be set}"
 
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
 function install_additional_dependencies() {
-    if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then
+    if [[ "${UPGRADE_INVALIDATION_STRING=}" != "" ]]; then
         echo
         echo "${COLOR_BLUE}Installing additional dependencies while upgrading to newer dependencies${COLOR_RESET}"
         echo
@@ -1489,7 +1488,7 @@ ARG AIRFLOW_VERSION_SPECIFICATION
 # set to "." and "/opt/airflow" respectively.
 ARG AIRFLOW_INSTALLATION_METHOD="apache-airflow"
 # By default we do not upgrade to latest dependencies
-ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
+ARG UPGRADE_INVALIDATION_STRING=""
 ARG AIRFLOW_SOURCES_FROM
 ARG AIRFLOW_SOURCES_TO
 
@@ -1533,7 +1532,7 @@ ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_USER_HOME_DIR=${AIRFLOW_USER_HOME_DIR} \
     AIRFLOW_HOME=${AIRFLOW_HOME} \
     AIRFLOW_UID=${AIRFLOW_UID} \
-    UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
+    UPGRADE_INVALIDATION_STRING=${UPGRADE_INVALIDATION_STRING}
 
 
 # Copy all scripts required for installation - changing any of those should lead to
@@ -1573,7 +1572,7 @@ RUN bash /scripts/docker/install_packaging_tools.sh; \
     bash /scripts/docker/create_prod_venv.sh; \
     if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
         ${INSTALL_PACKAGES_FROM_CONTEXT} == "false" && \
-        ${UPGRADE_TO_NEWER_DEPENDENCIES} == "false" ]]; then \
+        ${UPGRADE_INVALIDATION_STRING} == "" ]]; then \
         bash /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
     fi
 
