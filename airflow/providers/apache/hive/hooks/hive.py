@@ -100,9 +100,6 @@ class HiveCliHook(BaseHook):
     ) -> None:
         super().__init__()
         conn = self.get_connection(hive_cli_conn_id)
-
-        print("conn is from __init__", conn)
-
         self.hive_cli_params: str = hive_cli_params
         self.use_beeline: bool = conn.extra_dejson.get("use_beeline", False)
         self.auth = auth
