@@ -308,6 +308,7 @@ class TestTriggerRunner:
         assert "Trigger failed" in caplog.text
         assert "got an unexpected keyword argument 'not_exists_arg'" in caplog.text
 
+
 def test_trigger_create_race_condition_38599(session, tmp_path):
     """
     This verifies the resolution of race condition documented in github issue #38599.
@@ -357,14 +358,13 @@ def test_trigger_create_race_condition_38599(session, tmp_path):
         async def create_triggers(self):
             num_triggers_to_create = len(self.to_create)
             await super().create_triggers()
-            self.trigger_creation_count = (
-                getattr(self, "trigger_creation_count", 0) + num_triggers_to_create
-            )
+            self.trigger_creation_count = getattr(self, "trigger_creation_count", 0) + num_triggers_to_create
 
     class TriggerRunnerWithUpdateDelay_(TriggerRunnerWithCreateCount_):
         """TriggerRunner with a 5 second delay added at the beginning of update_triggers
         to increase the window that the race condition may occur.
         """
+
         def update_triggers(self, *args, **kwargs):
             # Delay calling update_triggers to increase the window of opportunity
             time.sleep(5)
@@ -372,27 +372,21 @@ def test_trigger_create_race_condition_38599(session, tmp_path):
 
         async def create_triggers(self):
             await super().create_triggers()
-            self.create_triggers_count = (
-                getattr(self, "create_triggers_count", 0) + 1
-            )
+            self.create_triggers_count = getattr(self, "create_triggers_count", 0) + 1
 
     class TriggererJobRunner_(TriggererJobRunner):
-        """TriggererJobRunner whose handle_events blocks until there is an event.
-        """
+        """TriggererJobRunner whose handle_events blocks until there is an event."""
+
         def load_triggers(self):
             super().load_triggers()
-            self.load_triggers_count = (
-                getattr(self, "load_triggers_count", 0) + 1
-            )
+            self.load_triggers_count = getattr(self, "load_triggers_count", 0) + 1
 
         def handle_events(self):
             # Wait for event during the first loop
             while not self.trigger_runner.events and getattr(self, "handle_events_count", 0) == 0:
                 time.sleep(0.1)
             super().handle_events()
-            self.handle_events_count = (
-                getattr(self, "handle_events_count", 0) + 1
-            )
+            self.handle_events_count = getattr(self, "handle_events_count", 0) + 1
             # Prevent Trigger.clean_unused() from deleting the trigger
             time.sleep(5)
 
