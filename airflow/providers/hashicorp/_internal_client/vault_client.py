@@ -208,8 +208,7 @@ class _VaultClient(LoggingMixin):
             session.mount("http://", adapter)
             session.mount("https://", adapter)
             if self.kwargs and "verify" in self.kwargs:
-                if self.kwargs["verify"]:
-                    session.verify = self.kwargs["verify"]
+                session.verify = self.kwargs["verify"]
             self.kwargs["session"] = session
 
         _client = hvac.Client(url=self.url, **self.kwargs)
