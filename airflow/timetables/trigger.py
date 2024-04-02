@@ -98,7 +98,11 @@ class CronTriggerTimetable(CronMixin, Timetable):
             else:
                 next_start_time = self._align_to_next(restriction.earliest)
         else:
-            start_time_candidates = [self._align_to_prev(timezone.coerce_datetime(timezone.utcnow()))]
+            utc_now = timezone.coerce_datetime(timezone.utcnow())
+            aligned_to_prev = self._align_to_prev(utc_now)
+            start_time_candidates = [aligned_to_prev]
+            if aligned_to_prev < utc_now:
+                start_time_candidates.append(self._get_next(aligned_to_prev))
             if last_automated_data_interval is not None:
                 start_time_candidates.append(self._get_next(last_automated_data_interval.end))
             if restriction.earliest is not None:
