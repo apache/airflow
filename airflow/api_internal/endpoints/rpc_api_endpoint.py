@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, Callable
 from flask import Response
 
 from airflow.jobs.job import Job, most_recent_job
+from airflow.models.taskinstance import _get_template_context
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils.session import create_session
 
@@ -48,6 +49,7 @@ def _initialize_map() -> dict[str, Callable]:
     from airflow.utils.log.file_task_handler import FileTaskHandler
 
     functions: list[Callable] = [
+        _get_template_context,
         DagFileProcessor.update_import_errors,
         DagFileProcessor.manage_slas,
         DagFileProcessorManager.deactivate_stale_dags,
