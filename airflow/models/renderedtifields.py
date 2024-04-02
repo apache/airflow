@@ -50,10 +50,17 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance, TaskInstancePydantic
 
 
-def _get_fields(ti):
-    return {
-        field: serialize_template_field(getattr(ti.task, field), field) for field in ti.task.template_fields
-    }
+def get_serialized_template_fields(task):
+    """
+    Get and serialize the template fields for a task.
+
+    Used in preparing to store them in RTIF table.
+
+    :param task: AbstractOperator
+
+    :meta private:
+    """
+    return {field: serialize_template_field(getattr(task, field), field) for field in task.template_fields}
 
 
 class RenderedTaskInstanceFields(TaskInstanceDependencies):
@@ -126,7 +133,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
             from airflow.providers.cncf.kubernetes.template_rendering import render_k8s_pod_yaml
 
             self.k8s_pod_yaml = render_k8s_pod_yaml(ti)
-        self.rendered_fields = rendered_fields or _get_fields(ti=ti)
+        self.rendered_fields = rendered_fields or get_serialized_template_fields(task=ti.task)
 
         self._redact()
 

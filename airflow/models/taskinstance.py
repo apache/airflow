@@ -92,7 +92,7 @@ from airflow.models.dagbag import DagBag
 from airflow.models.log import Log
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import process_params
-from airflow.models.renderedtifields import _get_fields
+from airflow.models.renderedtifields import get_serialized_template_fields
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
@@ -2679,7 +2679,7 @@ class TaskInstance(Base, LoggingMixin):
                 task_orig = self.render_templates(context=context, jinja_env=jinja_env)
 
             if not test_mode:
-                rendered_fields = _get_fields(ti=self)
+                rendered_fields = get_serialized_template_fields(task=self.task)
                 _update_rtif(ti=self, rendered_fields=rendered_fields)
             # Export context to make it available for operators to use.
             airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
