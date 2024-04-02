@@ -259,7 +259,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
 - Set your version in `airflow/__init__.py`, `airflow/api_connexion/openapi/v1.yaml` (without the RC tag).
 - Run `git commit` without a message to update versions in `docs`.
-- Add supported Airflow version to `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job again.
+- Add supported Airflow version to `./scripts/ci/pre_commit/supported_versions.py` and let pre-commit do the job again.
 - Replace the versions in `README.md` about installation and verify that installation instructions work fine.
 - Add entry for default python version to `BASE_PROVIDERS_COMPATIBILITY_CHECKS` in `src/airflow_breeze/global_constants.py`
   with the new Airflow version, and empty exclusion for providers. This list should be updated later when providers
@@ -1030,7 +1030,7 @@ EOF
 
 This includes:
 
-- Modify `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job.
+- Modify `./scripts/ci/pre_commit/supported_versions.py` and let pre-commit do the job.
 - For major/minor release, update version in `airflow/__init__.py`, `docs/docker-stack/` and `airflow/api_connexion/openapi/v1.yaml` to the next likely minor version release.
 - Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes.
 - Updating `Dockerfile` with the new version.

@@ -1526,6 +1526,7 @@ class TestStringifiedDAGs:
 
         deps = serialize_op["deps"]
         assert deps == [
+            "airflow.ti_deps.deps.mapped_task_upstream_dep.MappedTaskUpstreamDep",
             "airflow.ti_deps.deps.not_in_retry_period_dep.NotInRetryPeriodDep",
             "airflow.ti_deps.deps.not_previously_skipped_dep.NotPreviouslySkippedDep",
             "airflow.ti_deps.deps.prev_dagrun_dep.PrevDagrunDep",
@@ -1576,6 +1577,7 @@ class TestStringifiedDAGs:
         serialize_op = SerializedBaseOperator.serialize_operator(dag.task_dict["task1"])
 
         assert serialize_op["deps"] == [
+            "airflow.ti_deps.deps.mapped_task_upstream_dep.MappedTaskUpstreamDep",
             "airflow.ti_deps.deps.not_in_retry_period_dep.NotInRetryPeriodDep",
             "airflow.ti_deps.deps.not_previously_skipped_dep.NotPreviouslySkippedDep",
             "airflow.ti_deps.deps.prev_dagrun_dep.PrevDagrunDep",
@@ -1586,6 +1588,7 @@ class TestStringifiedDAGs:
         op = SerializedBaseOperator.deserialize_operator(serialize_op)
         assert sorted(str(dep) for dep in op.deps) == [
             "<TIDep(CustomTestTriggerRule)>",
+            "<TIDep(Mapped dependencies have succeeded)>",
             "<TIDep(Not In Retry Period)>",
             "<TIDep(Not Previously Skipped)>",
             "<TIDep(Previous Dagrun State)>",

@@ -94,6 +94,8 @@ def test_redoc_should_render_template(capture_templates, admin_client):
         "openapi_spec_url": "/api/v1/openapi.yaml",
         "rest_api_enabled": True,
         "get_docs_url": get_docs_url,
+        "excluded_events_raw": "",
+        "included_events_raw": "",
     }
 
 

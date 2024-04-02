@@ -92,7 +92,7 @@ if __name__ == "__main__":
         if not any(file.startswith(f"tests/{folder}/") for folder in POSSIBLE_TEST_FOLDERS):
             console.print(
                 "[red]The file is in a wrong folder. Make sure to move it to the right folder "
-                "listed in `./script/ci/pre_commit/pre_commit_check_tests_in_right_folders.py` "
+                "listed in `./script/ci/pre_commit/check_tests_in_right_folders.py` "
                 "or create new folder and add it to the script if you know what you are doing.[/]"
             )
             console.print(file)

@@ -96,6 +96,7 @@ class TestDatabricksExecutionTrigger:
                 "retry_limit": 3,
                 "retry_args": None,
                 "run_page_url": RUN_PAGE_URL,
+                "repair_run": False,
             },
         )
 
@@ -119,6 +120,7 @@ class TestDatabricksExecutionTrigger:
                         life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="SUCCESS"
                     ).to_json(),
                     "run_page_url": RUN_PAGE_URL,
+                    "repair_run": False,
                 }
             )
 
@@ -148,6 +150,7 @@ class TestDatabricksExecutionTrigger:
                         life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="SUCCESS"
                     ).to_json(),
                     "run_page_url": RUN_PAGE_URL,
+                    "repair_run": False,
                 }
             )
         mock_sleep.assert_called_once()

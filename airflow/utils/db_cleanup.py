@@ -323,16 +323,18 @@ def _confirm_drop_archives(*, tables: list[str]):
     if len(tables) > 3:
         text_ = f"{len(tables)} archived tables prefixed with {ARCHIVE_TABLE_PREFIX}"
     else:
-        text_ = f"the following archived tables {tables}"
+        text_ = f"the following archived tables: {', '.join(tables)}"
     question = (
         f"You have requested that we drop {text_}.\n"
-        f"This is irreversible. Consider backing up the tables first \n"
+        f"This is irreversible. Consider backing up the tables first.\n"
     )
     print(question)
     if len(tables) > 3:
-        show_tables = ask_yesno("Show tables? (y/n): ")
+        show_tables = ask_yesno("Show tables that will be dropped? (y/n): ")
         if show_tables:
-            print(tables, "\n")
+            for table in tables:
+                print(f"  {table}")
+            print("\n")
     answer = input("Enter 'drop archived tables' (without quotes) to proceed.\n").strip()
     if answer != "drop archived tables":
         raise SystemExit("User did not confirm; exiting.")
