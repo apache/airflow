@@ -308,6 +308,103 @@ class TestTriggerRunner:
         assert "Trigger failed" in caplog.text
         assert "got an unexpected keyword argument 'not_exists_arg'" in caplog.text
 
+def test_trigger_create_race_condition_38599(session, tmp_path):
+    path = tmp_path / "test_trigger_create_after_completion.txt"
+    trigger = TimeDeltaTrigger_(delta=datetime.timedelta(microseconds=1), filename=path.as_posix())
+    trigger_orm = Trigger.from_object(trigger)
+    trigger_orm.id = 1
+    session.add(trigger_orm)
+
+    dag = DagModel(dag_id="test-dag")
+    dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none")
+    ti = TaskInstance(
+        PythonOperator(task_id="dummy-task", python_callable=print),
+        run_id=dag_run.run_id,
+        state=TaskInstanceState.DEFERRED,
+    )
+    ti.dag_id = dag.dag_id
+    ti.trigger_id = 1
+    session.add(dag)
+    session.add(dag_run)
+    session.add(ti)
+
+    job1 = Job()
+    job2 = Job()
+    session.add(job1)
+    session.add(job2)
+
+    session.commit()
+
+    class TriggerRunner_(TriggerRunner):
+        def update_triggers(self, *args, **kwargs):
+            # Delay calling update_triggers to increase the window of opportunity
+            time.sleep(5)
+            super().update_triggers(*args, **kwargs)
+
+        async def create_triggers(self):
+            await super().create_triggers()
+            self.trigger_creation_count = (
+                getattr(self, "trigger_creation_count", 0) + len(self.to_create)
+            )
+
+    class TriggererJobRunner_(TriggererJobRunner):
+        def load_triggers(self):
+            super().load_triggers()
+            self.load_triggers_count = (
+                getattr(self, "load_triggers_count", 0) + 1
+            )
+
+        def handle_events(self):
+            # Wait for event during the first loop
+            while not self.trigger_runner.events and getattr(self, "handle_events_count", 0) == 0:
+                time.sleep(0.1)
+            super().handle_events()
+            self.handle_events_count = (
+                getattr(self, "handle_events_count", 0) + 1
+            )
+            # Prevent Trigger.clean_unused() from deleting the trigger
+            time.sleep(5)
+
+    job_runner1 = TriggererJobRunner_(job1)
+    job_runner1.trigger_runner = TriggerRunner()
+    thread1 = Thread(target=job_runner1._execute)
+    thread1.start()
+    for _ in range(20):
+        time.sleep(0.1)
+        # Simulate a missed heartbeat by job_runner1 by setting it to an hour ago
+        if getattr(job_runner1, "load_triggers_count", 0) >= 1:
+            job1.latest_heartbeat = timezone.utcnow() - datetime.timedelta(hours=1)
+            session.commit()
+            break
+
+    job_runner2 = TriggererJobRunner(job2)
+    job_runner2.trigger_runner = TriggerRunner_()
+    thread2 = Thread(target=job_runner2._execute)
+    thread2.start()
+
+    try:
+        for _ in range(60):
+            time.sleep(0.1)
+            if not thread1.is_alive():
+                pytest.fail("job_runner1 is not alive")
+            if not thread2.is_alive():
+                pytest.fail("job_runner2 is not alive")
+            if getattr(job_runner2, "trigger_creation_count", 0) >= 1:
+                break
+    finally:
+        job_runner1.trigger_runner.stop = True
+        job_runner1.trigger_runner.join(30)
+        thread1.join()
+
+        job_runner2.trigger_runner.stop = True
+        job_runner2.trigger_runner.join(30)
+        thread1.join()
+
+    assert job_runner2.trigger_runner.trigger_creation_count == 1
+
+    instances = path.read_text().splitlines()
+    assert len(instances) == 1
+
 
 def test_trigger_create_race_condition_18392(session, tmp_path):
     """
