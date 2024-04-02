@@ -67,12 +67,10 @@ class MappedTaskUpstreamDep(BaseTIDep):
         mapped_dependency_tis = (
             session.scalars(
                 select(TaskInstance).where(
-                    and_(
-                        TaskInstance.task_id.in_([operator.task_id for operator in mapped_dependencies]),
-                        TaskInstance.dag_id == ti.dag_id,
-                        TaskInstance.run_id == ti.run_id,
-                        TaskInstance.map_index == -1,
-                    )
+                    TaskInstance.task_id.in_(operator.task_id for operator in mapped_dependencies),
+                    TaskInstance.dag_id == ti.dag_id,
+                    TaskInstance.run_id == ti.run_id,
+                    TaskInstance.map_index == -1,
                 )
             ).all()
             if mapped_dependencies
