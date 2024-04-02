@@ -161,62 +161,68 @@ serialized_simple_dag_ground_truth = {
         "_processor_dags_folder": f"{repo_root}/tests/dags",
         "tasks": [
             {
-                "task_id": "bash_task",
-                "owner": "airflow",
-                "retries": 1,
-                "retry_delay": 300.0,
-                "max_retry_delay": 600.0,
-                "sla": 100.0,
-                "downstream_task_ids": [],
-                "_is_empty": False,
-                "ui_color": "#f0ede4",
-                "ui_fgcolor": "#000",
-                "template_ext": [".sh", ".bash"],
-                "template_fields": ["bash_command", "env", "cwd"],
-                "template_fields_renderers": {"bash_command": "bash", "env": "json"},
-                "bash_command": "echo {{ task.task_id }}",
-                "_task_type": "BashOperator",
-                "_task_module": "airflow.operators.bash",
-                "pool": "default_pool",
-                "is_setup": False,
-                "is_teardown": False,
-                "on_failure_fail_dagrun": False,
-                "executor_config": {
-                    "__type": "dict",
-                    "__var": {
-                        "pod_override": {
-                            "__type": "k8s.V1Pod",
-                            "__var": PodGenerator.serialize_pod(executor_config_pod),
-                        }
+                "__type": "operator",
+                "__var": {
+                    "task_id": "bash_task",
+                    "owner": "airflow",
+                    "retries": 1,
+                    "retry_delay": 300.0,
+                    "max_retry_delay": 600.0,
+                    "sla": 100.0,
+                    "downstream_task_ids": [],
+                    "_is_empty": False,
+                    "ui_color": "#f0ede4",
+                    "ui_fgcolor": "#000",
+                    "template_ext": [".sh", ".bash"],
+                    "template_fields": ["bash_command", "env", "cwd"],
+                    "template_fields_renderers": {"bash_command": "bash", "env": "json"},
+                    "bash_command": "echo {{ task.task_id }}",
+                    "_task_type": "BashOperator",
+                    "_task_module": "airflow.operators.bash",
+                    "pool": "default_pool",
+                    "is_setup": False,
+                    "is_teardown": False,
+                    "on_failure_fail_dagrun": False,
+                    "executor_config": {
+                        "__type": "dict",
+                        "__var": {
+                            "pod_override": {
+                                "__type": "k8s.V1Pod",
+                                "__var": PodGenerator.serialize_pod(executor_config_pod),
+                            }
+                        },
                     },
+                    "doc_md": "### Task Tutorial Documentation",
+                    "_log_config_logger_name": "airflow.task.operators",
+                    "weight_rule": "downstream",
                 },
-                "doc_md": "### Task Tutorial Documentation",
-                "_log_config_logger_name": "airflow.task.operators",
-                "weight_rule": "downstream",
             },
             {
-                "task_id": "custom_task",
-                "retries": 1,
-                "retry_delay": 300.0,
-                "max_retry_delay": 600.0,
-                "sla": 100.0,
-                "downstream_task_ids": [],
-                "_is_empty": False,
-                "_operator_extra_links": [{"tests.test_utils.mock_operators.CustomOpLink": {}}],
-                "ui_color": "#fff",
-                "ui_fgcolor": "#000",
-                "template_ext": [],
-                "template_fields": ["bash_command"],
-                "template_fields_renderers": {},
-                "_task_type": "CustomOperator",
-                "_operator_name": "@custom",
-                "_task_module": "tests.test_utils.mock_operators",
-                "pool": "default_pool",
-                "is_setup": False,
-                "is_teardown": False,
-                "on_failure_fail_dagrun": False,
-                "_log_config_logger_name": "airflow.task.operators",
-                "weight_rule": "downstream",
+                "__type": "operator",
+                "__var": {
+                    "task_id": "custom_task",
+                    "retries": 1,
+                    "retry_delay": 300.0,
+                    "max_retry_delay": 600.0,
+                    "sla": 100.0,
+                    "downstream_task_ids": [],
+                    "_is_empty": False,
+                    "_operator_extra_links": [{"tests.test_utils.mock_operators.CustomOpLink": {}}],
+                    "ui_color": "#fff",
+                    "ui_fgcolor": "#000",
+                    "template_ext": [],
+                    "template_fields": ["bash_command"],
+                    "template_fields_renderers": {},
+                    "_task_type": "CustomOperator",
+                    "_operator_name": "@custom",
+                    "_task_module": "tests.test_utils.mock_operators",
+                    "pool": "default_pool",
+                    "is_setup": False,
+                    "is_teardown": False,
+                    "on_failure_fail_dagrun": False,
+                    "_log_config_logger_name": "airflow.task.operators",
+                    "weight_rule": "downstream",
+                },
             },
         ],
         "schedule_interval": {"__type": "timedelta", "__var": 86400.0},
@@ -1049,7 +1055,7 @@ class TestStringifiedDAGs:
             CustomOperator(task_id="simple_task", bash_command=bash_command)
 
         serialized_dag = SerializedDAG.to_dict(dag)
-        assert "bash_command" in serialized_dag["dag"]["tasks"][0]
+        assert "bash_command" in serialized_dag["dag"]["tasks"][0]["__var"]
 
         dag = SerializedDAG.from_dict(serialized_dag)
         simple_task = dag.task_dict["simple_task"]
@@ -2380,7 +2386,7 @@ def test_sensor_expand_deserialized_unmap():
 
     serialize = SerializedBaseOperator.serialize
 
-    deserialize = SerializedBaseOperator.deserialize_operator
+    deserialize = SerializedBaseOperator.deserialize
     assert deserialize(serialize(mapped)).unmap(None) == deserialize(serialize(normal))
 
 
@@ -2653,7 +2659,7 @@ def test_mapped_task_with_operator_extra_links_property():
     with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
         _DummyOperator.partial(task_id="task").expand(inputs=[1, 2, 3])
     serialized_dag = SerializedBaseOperator.serialize(dag)
-    assert serialized_dag[Encoding.VAR]["tasks"][0] == {
+    assert serialized_dag[Encoding.VAR]["tasks"][0]["__var"] == {
         "task_id": "task",
         "expand_input": {
             "type": "dict-of-lists",
