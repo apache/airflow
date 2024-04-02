@@ -4562,3 +4562,16 @@ def test_taskinstance_with_note(create_task_instance, session):
 
     assert session.query(TaskInstance).filter_by(**filter_kwargs).one_or_none() is None
     assert session.query(TaskInstanceNote).filter_by(**filter_kwargs).one_or_none() is None
+
+
+def test__refresh_from_db_should_not_increment_try_number(dag_maker, session):
+    with dag_maker():
+        BashOperator(task_id="hello", bash_command="hi")
+    dag_maker.create_dagrun(state="success")
+    ti = session.scalar(select(TaskInstance))
+    assert ti.task_id == "hello"  # just to confirm...
+    assert ti.try_number == 1  # starts out as 1
+    ti.refresh_from_db()
+    assert ti.try_number == 1  # stays 1
+    ti.refresh_from_db()
+    assert ti.try_number == 1  # stays 1
