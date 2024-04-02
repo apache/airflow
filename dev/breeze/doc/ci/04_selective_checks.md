@@ -309,7 +309,7 @@ am overview of possible labels and their meaning:
 | all versions                  | all-versions, *-versions-*    | Run tests for all python and k8s versions.                                                                      |
 | full tests needed             | full-tests-needed             | Run complete set of tests (might be with default or all python/k8s versions)                                    |
 | non committer build           | is-committer-build            | If set then even for non-committer builds, the scripts used for images are used from target branch.             |
-| upgrade to newer dependencies | upgrade-to-newer-dependencies | If set then dependencies in the CI image build are upgraded to the newer ones.                                  |
+| upgrade to newer dependencies | upgrade-to-newer-dependencies | If set to true (default false) then dependencies in the CI image build are upgraded to the newer ones.          |
 | use public runners            | runs-on-as-json-default       | Force using public runners even for Committer runs.                                                             |
 
 

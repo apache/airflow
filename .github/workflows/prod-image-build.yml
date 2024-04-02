@@ -103,7 +103,7 @@ on:  # yamllint disable-line rule:truthy
         required: true
         type: string
       upgrade-to-newer-dependencies:
-        description: "Whether to attempt to upgrade image to newer dependencies (false/RANDOM_VALUE)"
+        description: "Whether to attempt to upgrade image to newer dependencies (true/false)"
         required: true
         type: string
       chicken-egg-providers:
