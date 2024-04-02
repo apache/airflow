@@ -1553,6 +1553,7 @@ class DagRun(Base, LoggingMixin):
 
                 trigger_cls_name, trigger_kwargs = ti.task.trigger
                 trigger_cls = import_string(trigger_cls_name)
+                ti._try_number += 1
                 ti.defer_task(
                     defer=TaskDeferred(trigger=trigger_cls(**trigger_kwargs), method_name="execute_complete"),
                     session=session,
