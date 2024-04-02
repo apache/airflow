@@ -987,7 +987,7 @@ repos:
         additional_dependencies: ['rich>=12.4.4']
       - id: check-compat-cache-on-methods
         name: Check that compat cache do not use on class methods
-        entry: ./scripts/ci/pre_commit/pre_commit_compat_cache_on_methods.py
+        entry: ./scripts/ci/pre_commit/compat_cache_on_methods.py
         language: python
         pass_filenames: true
         files: ^airflow/.*\.py$
