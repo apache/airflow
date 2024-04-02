@@ -393,7 +393,7 @@ def test_trigger_create_race_condition_38599(session, tmp_path):
     # Start first TriggererJobRunner immediately.
     # This TriggererJobRunner will immediately load the trigger and start running it.
     # Once the trigger is finished, it will, however, stall after the first loop in handle_events,
-    # preventing the trigger from being cleaned up.
+    # preventing the trigger from being cleaned up. This simulates what may happen during high load.
     job_runner1 = TriggererJobRunner_(job1)
     job_runner1.trigger_runner = TriggerRunnerWithCreateCount_()
     thread1 = Thread(target=job_runner1._execute)
