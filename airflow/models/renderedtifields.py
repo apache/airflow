@@ -47,16 +47,17 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import FromClause
 
+    from airflow.models import Operator
     from airflow.models.taskinstance import TaskInstance, TaskInstancePydantic
 
 
-def get_serialized_template_fields(task):
+def get_serialized_template_fields(task: Operator):
     """
     Get and serialize the template fields for a task.
 
     Used in preparing to store them in RTIF table.
 
-    :param task: AbstractOperator
+    :param task: Operator instance with rendered template fields
 
     :meta private:
     """
