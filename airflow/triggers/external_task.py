@@ -98,13 +98,7 @@ class WorkflowTrigger(BaseTrigger):
         """Check periodically tasks, task group or dag status."""
         while True:
             if self.failed_states:
-                failed_count = _get_count(
-                    self.execution_dates,
-                    self.external_task_ids,
-                    self.external_task_group_id,
-                    self.external_dag_id,
-                    self.failed_states,
-                )
+                failed_count = await self._get_count(self.failed_states)
                 if failed_count > 0:
                     yield TriggerEvent({"status": "failed"})
                     return
@@ -112,28 +106,32 @@ class WorkflowTrigger(BaseTrigger):
                     yield TriggerEvent({"status": "success"})
                     return
             if self.skipped_states:
-                skipped_count = _get_count(
-                    self.execution_dates,
-                    self.external_task_ids,
-                    self.external_task_group_id,
-                    self.external_dag_id,
-                    self.skipped_states,
-                )
+                skipped_count = await self._get_count(self.skipped_states)
                 if skipped_count > 0:
                     yield TriggerEvent({"status": "skipped"})
                     return
-            allowed_count = _get_count(
-                self.execution_dates,
-                self.external_task_ids,
-                self.external_task_group_id,
-                self.external_dag_id,
-                self.allowed_states,
-            )
+            allowed_count = await self._get_count(self.allowed_states)
             if allowed_count == len(self.execution_dates):
                 yield TriggerEvent({"status": "success"})
                 return
             self.log.info("Sleeping for %s seconds", self.poke_interval)
             await asyncio.sleep(self.poke_interval)
+
+    @sync_to_async
+    def _get_count(self, states: typing.Iterable[str] | None) -> int:
+        """
+        Get the count of records against dttm filter and states. Async wrapper for _get_count.
+
+        :param states: task or dag states
+        :return The count of records.
+        """
+        return _get_count(
+            dttm_filter=self.execution_dates,
+            external_task_ids=self.external_task_ids,
+            external_task_group_id=self.external_task_group_id,
+            external_dag_id=self.external_dag_id,
+            states=states,
+        )
 
 
 class TaskStateTrigger(BaseTrigger):

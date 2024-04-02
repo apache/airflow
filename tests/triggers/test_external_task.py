@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import time
 from unittest import mock
 
 import pytest
@@ -41,11 +42,10 @@ class TestWorkflowTrigger:
     STATES = ["success", "fail"]
 
     @mock.patch("airflow.triggers.external_task._get_count")
-    @mock.patch("asyncio.sleep")
     @pytest.mark.asyncio
-    async def test_task_workflow_trigger_success(self, mock_sleep, mock_get_count):
+    async def test_task_workflow_trigger_success(self, mock_get_count):
         """check the db count get called correctly."""
-        mock_get_count.return_value = 1
+        mock_get_count.side_effect = mocked_get_count
         trigger = WorkflowTrigger(
             external_dag_id=self.DAG_ID,
             execution_dates=[timezone.datetime(2022, 1, 1)],
@@ -54,19 +54,29 @@ class TestWorkflowTrigger:
             poke_interval=0.2,
         )
 
-        generator = trigger.run()
-        await generator.asend(None)
+        gen = trigger.run()
+        trigger_task = asyncio.create_task(gen.__anext__())
+        dummy_task = asyncio.create_task(dummy_async_fun())
+        await trigger_task
+        assert dummy_task.done()  # confirm that get_count is done in an async fashion
+        assert trigger_task.done()
+        result = trigger_task.result()
+        assert result.payload == {"status": "success"}
         mock_get_count.assert_called_once_with(
-            [timezone.datetime(2022, 1, 1)], ["external_task_op"], None, "external_task", ["success", "fail"]
+            dttm_filter=[timezone.datetime(2022, 1, 1)],
+            external_task_ids=["external_task_op"],
+            external_task_group_id=None,
+            external_dag_id="external_task",
+            states=["success", "fail"],
         )
         # test that it returns after yielding
         with pytest.raises(StopAsyncIteration):
-            await generator.__anext__()
+            await gen.__anext__()
 
     @mock.patch("airflow.triggers.external_task._get_count")
     @pytest.mark.asyncio
     async def test_task_workflow_trigger_failed(self, mock_get_count):
-        mock_get_count.return_value = 1
+        mock_get_count.side_effect = mocked_get_count
         trigger = WorkflowTrigger(
             external_dag_id=self.DAG_ID,
             execution_dates=[timezone.datetime(2022, 1, 1)],
@@ -77,13 +87,19 @@ class TestWorkflowTrigger:
 
         gen = trigger.run()
         trigger_task = asyncio.create_task(gen.__anext__())
+        dummy_task = asyncio.create_task(dummy_async_fun())
         await trigger_task
-        assert trigger_task.done() is True
+        assert dummy_task.done()  # confirm that get_count is done in an async fashion
+        assert trigger_task.done()
         result = trigger_task.result()
         assert isinstance(result, TriggerEvent)
         assert result.payload == {"status": "failed"}
         mock_get_count.assert_called_once_with(
-            [timezone.datetime(2022, 1, 1)], ["external_task_op"], None, "external_task", ["success", "fail"]
+            dttm_filter=[timezone.datetime(2022, 1, 1)],
+            external_task_ids=["external_task_op"],
+            external_task_group_id=None,
+            external_dag_id="external_task",
+            states=["success", "fail"],
         )
         # test that it returns after yielding
         with pytest.raises(StopAsyncIteration):
@@ -104,12 +120,16 @@ class TestWorkflowTrigger:
         gen = trigger.run()
         trigger_task = asyncio.create_task(gen.__anext__())
         await trigger_task
-        assert trigger_task.done() is True
+        assert trigger_task.done()
         result = trigger_task.result()
         assert isinstance(result, TriggerEvent)
         assert result.payload == {"status": "success"}
         mock_get_count.assert_called_once_with(
-            [timezone.datetime(2022, 1, 1)], ["external_task_op"], None, "external_task", ["success", "fail"]
+            dttm_filter=[timezone.datetime(2022, 1, 1)],
+            external_task_ids=["external_task_op"],
+            external_task_group_id=None,
+            external_dag_id="external_task",
+            states=["success", "fail"],
         )
         # test that it returns after yielding
         with pytest.raises(StopAsyncIteration):
@@ -118,7 +138,7 @@ class TestWorkflowTrigger:
     @mock.patch("airflow.triggers.external_task._get_count")
     @pytest.mark.asyncio
     async def test_task_workflow_trigger_skipped(self, mock_get_count):
-        mock_get_count.return_value = 1
+        mock_get_count.side_effect = mocked_get_count
         trigger = WorkflowTrigger(
             external_dag_id=self.DAG_ID,
             execution_dates=[timezone.datetime(2022, 1, 1)],
@@ -129,13 +149,19 @@ class TestWorkflowTrigger:
 
         gen = trigger.run()
         trigger_task = asyncio.create_task(gen.__anext__())
+        dummy_task = asyncio.create_task(dummy_async_fun())
         await trigger_task
-        assert trigger_task.done() is True
+        assert dummy_task.done()  # confirm that get_count is done in an async fashion
+        assert trigger_task.done()
         result = trigger_task.result()
         assert isinstance(result, TriggerEvent)
         assert result.payload == {"status": "skipped"}
         mock_get_count.assert_called_once_with(
-            [timezone.datetime(2022, 1, 1)], ["external_task_op"], None, "external_task", ["success", "fail"]
+            dttm_filter=[timezone.datetime(2022, 1, 1)],
+            external_task_ids=["external_task_op"],
+            external_task_group_id=None,
+            external_dag_id="external_task",
+            states=["success", "fail"],
         )
 
     @mock.patch("airflow.triggers.external_task._get_count")
@@ -153,7 +179,7 @@ class TestWorkflowTrigger:
         gen = trigger.run()
         trigger_task = asyncio.create_task(gen.__anext__())
         await trigger_task
-        assert trigger_task.done() is True
+        assert trigger_task.done()
         result = trigger_task.result()
         assert isinstance(result, TriggerEvent)
         assert result.payload == {"status": "success"}
@@ -438,3 +464,12 @@ class TestDagStateTrigger:
             "execution_dates": [timezone.datetime(2022, 1, 1)],
             "poll_interval": 5,
         }
+
+
+def mocked_get_count(*args, **kwargs):
+    time.sleep(0.3)
+    return 1
+
+
+async def dummy_async_fun():
+    await asyncio.sleep(0.1)
