@@ -278,7 +278,7 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
         shell: bash
         run: |
           pip install rich>=12.4.4 pyyaml
-          python scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
+          python scripts/ci/pre_commit/update_providers_dependencies.py
         if: inputs.do-build == 'true' && inputs.upgrade-to-newer-dependencies != 'false'
       - name: "Cleanup dist and context file"
         shell: bash
