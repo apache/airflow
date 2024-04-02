@@ -41,6 +41,7 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +=================================+===================+===================+==============================================================+
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 | ``677fdbb7fc54`` (head)         | ``1949afb29106``  | ``2.10.0``        | add new executor field to db                                 |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | ``1949afb29106``                | ``ee1467d4aa35``  | ``2.9.0``         | update trigger kwargs type                                   |
@@ -51,6 +52,11 @@ Here's the list of all the Database Migrations that are executed via when you ru
 >>>>>>> aadcc42c6f (Allow users to write dag_id and task_id in their national characters, added display name for dag / task (v2) (#38446))
 =======
 | ``1949afb29106`` (head)         | ``ee1467d4aa35``  | ``2.9.0``         | update trigger kwargs type                                   |
+=======
+| ``677fdbb7fc54`` (head)         | ``1949afb29106``  | ``2.10.0``        | add new executor field to db                                 |
++---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
+| ``1949afb29106``                | ``ee1467d4aa35``  | ``2.9.0``         | update trigger kwargs type                                   |
+>>>>>>> ab01d2efaa (Add executor field to the DB and parameter to the operators (#38474))
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | ``ee1467d4aa35``                | ``b4078ac230a1``  | ``2.9.0``         | add display name for dag and task instance                   |
 >>>>>>> f5bead4ed9 (Add a migration script for encrypted trigger kwargs (#38358))
