@@ -18,10 +18,9 @@
  */
 
 import React from "react";
-import { Size, useChakraSelectProps } from "chakra-react-select";
+import { Select, SingleValue, useChakraSelectProps } from "chakra-react-select";
 
 import type { DatasetDependencies } from "src/api/useDatasetDependencies";
-import MultiSelect from "src/components/MultiSelect";
 
 interface Props {
   datasetDependencies?: DatasetDependencies;
@@ -50,17 +49,47 @@ const SearchBar = ({
       datasetOptions.push({ value: node.id, label: node.value.label });
   });
 
-  const inputStyles: { backgroundColor: string; size: Size } = {
-    backgroundColor: "white",
-    size: "lg",
+  const onSelect = (option: SingleValue<Option>) => {
+    let type = "";
+    if (option) {
+      if (option.value.startsWith("dataset:")) type = "dataset";
+      else if (option.value.startsWith("dag:")) type = "dag";
+      if (type) onSelectNode(option.label, type);
+    }
   };
-  const selectStyles = useChakraSelectProps({
-    ...inputStyles,
-    tagVariant: "solid",
-    // hideSelectedOptions: false,
-    // isClearable: false,
+
+  let option;
+  if (selectedUri) {
+    option = { label: selectedUri, value: `dataset:${selectedUri}` };
+  } else if (selectedDagId) {
+    option = { label: selectedDagId, value: `dag:${selectedDagId}` };
+  }
+
+  const searchProps = useChakraSelectProps<Option, false>({
     selectedOptionStyle: "check",
+    isDisabled: !datasetDependencies,
+    value: option,
+    onChange: onSelect,
+    options: [
+      { label: "DAGs", options: dagOptions },
+      { label: "Datasets", options: datasetOptions },
+    ],
+    placeholder: "Search by DAG ID or Dataset URI",
     chakraStyles: {
+      dropdownIndicator: (provided) => ({
+        ...provided,
+        bg: "transparent",
+        px: 2,
+        cursor: "inherit",
+      }),
+      indicatorSeparator: (provided) => ({
+        ...provided,
+        display: "none",
+      }),
+      menuList: (provided) => ({
+        ...provided,
+        py: 0,
+      }),
       container: (p) => ({
         ...p,
         width: "100%",
@@ -93,33 +122,7 @@ const SearchBar = ({
     },
   });
 
-  const onSelect = ({ label, value }: Option) => {
-    let type = "";
-    if (value.startsWith("dataset:")) type = "dataset";
-    else if (value.startsWith("dag:")) type = "dag";
-    if (type) onSelectNode(label, type);
-  };
-
-  let option;
-  if (selectedUri) {
-    option = { label: selectedUri, value: `dataset:${selectedUri}` };
-  } else if (selectedDagId) {
-    option = { label: selectedDagId, value: `dag:${selectedDagId}` };
-  }
-
-  return (
-    <MultiSelect
-      {...selectStyles}
-      isDisabled={!datasetDependencies}
-      value={option}
-      onChange={(e) => onSelect(e as Option)}
-      options={[
-        { label: "DAGs", options: dagOptions },
-        { label: "Datasets", options: datasetOptions },
-      ]}
-      placeholder="Search by DAG ID or Dataset URI"
-    />
-  );
+  return <Select {...searchProps} />;
 };
 
 export default SearchBar;
