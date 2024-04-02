@@ -127,54 +127,17 @@ jobs:
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
         if: inputs.do-build == 'true' && inputs.upload-package-artifact == 'true'
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.target-commit-sha }}
-          persist-credentials: false
-        if: inputs.do-build == 'true' && inputs.upload-package-artifact == 'true'
-      ####################################################################################################
-      #  BE VERY CAREFUL HERE! THIS LINE AND THE END OF THE WARNING. IN PULL REQUEST TARGET WORKFLOW
-      #  WE CHECK OUT THE TARGET COMMIT ABOVE TO BE ABLE TO BUILD THE IMAGE FROM SOURCES FROM THE
-      #  INCOMING PR, RATHER THAN FROM TARGET BRANCH. THIS IS A SECURITY RISK, BECAUSE THE PR
-      #  CAN CONTAIN ANY CODE AND WE EXECUTE IT HERE. THEREFORE, WE NEED TO BE VERY CAREFUL WHAT WE
-      #  DO HERE. WE SHOULD NOT EXECUTE ANY CODE THAT COMES FROM THE PR. WE SHOULD NOT RUN ANY BREEZE
-      #  COMMAND NOR SCRIPTS NOR COMPOSITE ACTIONS. WE SHOULD ONLY RUN CODE THAT IS EMBEDDED DIRECTLY IN
-      #  THIS WORKFLOW - BECAUSE THIS IS THE ONLY CODE THAT WE CAN TRUST.
-      ####################################################################################################
-      - name: Checkout target branch to 'target-airflow' folder to use ci/scripts and breeze from there.
+      - name: "Checkout target branch"
         uses: actions/checkout@v4
         with:
-          path: "target-airflow"
-          ref: ${{ github.base_ref }}
           persist-credentials: false
-        if: >
-          inputs.do-build == 'true' && inputs.pull-request-target == 'true' &&
-          inputs.is-committer-build != 'true' && inputs.upload-package-artifact == 'true'
-      - name: >
-          Replace "scripts/ci", "dev", ".github/actions" and ".github/workflows" with the target branch
-          so that the those directories are not coming from the PR
-        shell: bash
-        run: |
-          echo
-          echo -e "\033[33m Replace scripts, dev, actions with target branch for non-committer builds!\033[0m"
-          echo
-          rm -rfv "scripts/ci"
-          rm -rfv "dev"
-          rm -rfv ".github/actions"
-          rm -rfv ".github/workflows"
-          mv -v "target-airflow/scripts/ci" "scripts"
-          mv -v "target-airflow/dev" "."
-          mv -v "target-airflow/.github/actions" "target-airflow/.github/workflows" ".github"
-        if: >
-          inputs.do-build == 'true' && inputs.pull-request-target == 'true' &&
-          inputs.is-committer-build != 'true'
-      ####################################################################################################
-      #  HERE IT'S A BIT SAFER. THE `dev`, `scripts/ci` AND `.github/actions` ARE NOW COMING FROM THE
-      #  BASE_REF - WHICH IS THE TARGET BRANCH OF THE PR. WE CAN TRUST THAT THOSE SCRIPTS ARE SAVE TO RUN.
-      #  ALL THE REST OF THE CODE COMES FROM THE PR, AND FOR EXAMPLE THE CODE IN THE `Dockerfile.ci` CAN
-      #  BE RUN SAFELY AS PART OF DOCKER BUILD. BECAUSE IT RUNS INSIDE THE DOCKER CONTAINER AND IT IS
-      #  ISOLATED FROM THE RUNNER.
-      ####################################################################################################
+      - name: "Checkout target commit"
+        uses: ./.github/actions/checkout_target_commit
+        with:
+          target-commit-sha: ${{ inputs.target-commit-sha }}
+          pull-request-target: ${{ inputs.pull-request-target }}
+          is-committer-build: ${{ inputs.is-committer-build }}
+        if: inputs.do-build == 'true' && inputs.upload-package-artifact == 'true'
       - name: "Cleanup docker"
         run: ./scripts/ci/cleanup_docker.sh
         if: inputs.do-build == 'true' && inputs.upload-package-artifact == 'true'
@@ -263,54 +226,17 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
         if: inputs.do-build == 'true'
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.target-commit-sha }}
-          persist-credentials: false
-        if: inputs.do-build == 'true'
-      ####################################################################################################
-      #  BE VERY CAREFUL HERE! THIS LINE AND THE END OF THE WARNING. IN PULL REQUEST TARGET WORKFLOW
-      #  WE CHECK OUT THE TARGET COMMIT ABOVE TO BE ABLE TO BUILD THE IMAGE FROM SOURCES FROM THE
-      #  INCOMING PR, RATHER THAN FROM TARGET BRANCH. THIS IS A SECURITY RISK, BECAUSE THE PR
-      #  CAN CONTAIN ANY CODE AND WE EXECUTE IT HERE. THEREFORE, WE NEED TO BE VERY CAREFUL WHAT WE
-      #  DO HERE. WE SHOULD NOT EXECUTE ANY CODE THAT COMES FROM THE PR. WE SHOULD NOT RUN ANY BREEZE
-      #  COMMAND NOR SCRIPTS NOR COMPOSITE ACTIONS. WE SHOULD ONLY RUN CODE THAT IS EMBEDDED DIRECTLY IN
-      #  THIS WORKFLOW - BECAUSE THIS IS THE ONLY CODE THAT WE CAN TRUST.
-      ####################################################################################################
-      - name: Checkout target branch to 'target-airflow' folder to use ci/scripts and breeze from there.
+      - name: "Checkout target branch"
         uses: actions/checkout@v4
         with:
-          path: "target-airflow"
-          ref: ${{ github.base_ref }}
           persist-credentials: false
-        if: >
-          inputs.do-build == 'true' && inputs.pull-request-target == 'true' &&
-          inputs.is-committer-build != 'true'
-      - name: >
-          Replace "scripts/ci", "dev", ".github/actions" and ".github/workflows" with the target branch
-          so that the those directories are not coming from the PR
-        shell: bash
-        run: |
-          echo
-          echo -e "\033[33m Replace scripts, dev, actions with target branch for non-committer builds!\033[0m"
-          echo
-          rm -rfv "scripts/ci"
-          rm -rfv "dev"
-          rm -rfv ".github/actions"
-          rm -rfv ".github/workflows"
-          mv -v "target-airflow/scripts/ci" "scripts"
-          mv -v "target-airflow/dev" "."
-          mv -v "target-airflow/.github/actions" "target-airflow/.github/workflows" ".github"
-        if: >
-          inputs.do-build == 'true' && inputs.pull-request-target == 'true' &&
-          inputs.is-committer-build != 'true'
-      ####################################################################################################
-      #  HERE IT'S A BIT SAFER. THE `dev`, `scripts/ci` AND `.github/actions` ARE NOW COMING FROM THE
-      #  BASE_REF - WHICH IS THE TARGET BRANCH OF THE PR. WE CAN TRUST THAT THOSE SCRIPTS ARE SAVE TO RUN.
-      #  ALL THE REST OF THE CODE COMES FROM THE PR, AND FOR EXAMPLE THE CODE IN THE `Dockerfile.ci` CAN
-      #  BE RUN SAFELY AS PART OF DOCKER BUILD. BECAUSE IT RUNS INSIDE THE DOCKER CONTAINER AND IT IS
-      #  ISOLATED FROM THE RUNNER.
-      ####################################################################################################
+      - name: "Checkout target commit"
+        uses: ./.github/actions/checkout_target_commit
+        with:
+          target-commit-sha: ${{ inputs.target-commit-sha }}
+          pull-request-target: ${{ inputs.pull-request-target }}
+          is-committer-build: ${{ inputs.is-committer-build }}
+        if: inputs.do-build == 'true'
       - name: "Cleanup docker"
         run: ./scripts/ci/cleanup_docker.sh
         if: inputs.do-build == 'true'
