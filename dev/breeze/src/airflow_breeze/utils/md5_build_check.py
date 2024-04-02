@@ -122,7 +122,7 @@ def calculate_md5_checksum_for_files(
                         / "scripts"
                         / "ci"
                         / "pre_commit"
-                        / "pre_commit_update_providers_dependencies.py"
+                        / "update_providers_dependencies.py"
                     ),
                 ],
                 cwd=AIRFLOW_SOURCES_ROOT,
