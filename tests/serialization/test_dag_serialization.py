@@ -1059,7 +1059,7 @@ class TestStringifiedDAGs:
         # Verify Operator Links work with Serialized Operator
         #########################################################
         # Check Serialized version of operator link only contains the inbuilt Op Link
-        assert serialized_dag["dag"]["tasks"][0]["_operator_extra_links"] == serialized_links
+        assert serialized_dag["dag"]["tasks"][0]["__var"]["_operator_extra_links"] == serialized_links
 
         # Test all the extra_links are set
         assert simple_task.extra_links == sorted({*links, "airflow", "github", "google"})
