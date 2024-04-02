@@ -658,10 +658,10 @@ class BaseSerialization:
         if type_ == DAT.TASK_CONTEXT:
             d = {}
             for k, v in var.items():
-                if k == "task":  # todo: add TaskPydantic so we don't need this?
+                if k == "task":  # todo: add `_encode` of Operator so we don't need this
                     continue
                 d[k] = cls.deserialize(v, use_pydantic_models=True)
-            d["task"] = d["task_instance"].task  # todo: add TaskPydantic so we don't need this?
+            d["task"] = d["task_instance"].task  # todo: add `_encode` of Operator so we don't need this
             return Context(**d)
         if type_ == DAT.DICT:
             return {k: cls.deserialize(v, use_pydantic_models) for k, v in var.items()}
