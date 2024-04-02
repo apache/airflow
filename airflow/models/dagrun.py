@@ -51,7 +51,7 @@ from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskNotFound
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskDeferred, TaskNotFound
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import Log
 from airflow.models.abstractoperator import NotMapped
@@ -65,6 +65,7 @@ from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
 from airflow.utils import timezone
 from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.module_loading import import_string
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, tuple_in_condition, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -905,9 +906,11 @@ class DagRun(Base, LoggingMixin):
                 self.run_id,
                 self.start_date,
                 self.end_date,
-                (self.end_date - self.start_date).total_seconds()
-                if self.start_date and self.end_date
-                else None,
+                (
+                    (self.end_date - self.start_date).total_seconds()
+                    if self.start_date and self.end_date
+                    else None
+                ),
                 self._state,
                 self.external_trigger,
                 self.run_type,
@@ -1537,6 +1540,23 @@ class DagRun(Base, LoggingMixin):
                 and not ti.task.outlets
             ):
                 dummy_ti_ids.append((ti.task_id, ti.map_index))
+            elif (
+                ti.task.starts_execution_from_triggerer
+                and not ti.task.on_execute_callback
+                and not ti.task.on_success_callback
+                and not ti.task.outlets
+            ):
+                if not (ti.task.trigger and ti.task.next_method):
+                    raise AirflowException(
+                        "When setting starts_execution_from_triggerer=True, trigger and next_method are required."
+                    )
+
+                trigger_cls_name, trigger_kwargs = ti.task.trigger
+                trigger_cls = import_string(trigger_cls_name)
+                ti.defer_task(
+                    defer=TaskDeferred(trigger=trigger_cls(**trigger_kwargs), method_name="execute_complete"),
+                    session=session,
+                )
             else:
                 schedulable_ti_ids.append((ti.task_id, ti.map_index))
 

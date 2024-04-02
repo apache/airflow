@@ -1023,6 +1023,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         # Used to determine if an Operator is inherited from EmptyOperator
         serialize_op["_is_empty"] = op.inherits_from_empty_operator
+        serialize_op["_starts_execution_from_triggerer"] = op.starts_execution_from_triggerer
+        serialize_op["_trigger"] = op.trigger.serialize() if op.trigger else None
+        serialize_op["_next_method"] = op.next_method
 
         if op.operator_extra_links:
             serialize_op["_operator_extra_links"] = cls._serialize_operator_extra_links(
@@ -1203,6 +1206,13 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         # Used to determine if an Operator is inherited from EmptyOperator
         setattr(op, "_is_empty", bool(encoded_op.get("_is_empty", False)))
+        setattr(
+            op,
+            "_starts_execution_from_triggerer",
+            bool(encoded_op.get("_starts_execution_from_triggerer", False)),
+        )
+        setattr(op, "_trigger", encoded_op.get("_trigger", None))
+        setattr(op, "_next_method", encoded_op.get("_next_method", None))
 
     @staticmethod
     def set_task_dag_references(task: Operator, dag: DAG) -> None:
@@ -1686,9 +1696,11 @@ class TaskGroupSerialization(BaseSerialization):
             return task
 
         group.children = {
-            label: set_ref(task_dict[val])
-            if _type == DAT.OP
-            else cls.deserialize_task_group(val, group, task_dict, dag=dag)
+            label: (
+                set_ref(task_dict[val])
+                if _type == DAT.OP
+                else cls.deserialize_task_group(val, group, task_dict, dag=dag)
+            )
             for label, (_type, val) in encoded_group["children"].items()
         }
         group.upstream_group_ids.update(cls.deserialize(encoded_group["upstream_group_ids"]))
