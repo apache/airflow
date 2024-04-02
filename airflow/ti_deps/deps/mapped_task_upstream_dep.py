@@ -20,7 +20,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
-from sqlalchemy import and_, select
+from sqlalchemy import select
 
 from airflow.models.taskinstance import TaskInstance
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
