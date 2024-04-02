@@ -209,17 +209,16 @@ Here's an example of a DAG using ``DatasetOrTimeSchedule``:
 Timetables comparisons
 ----------------------
 
-
 .. _Differences between the two cron timetables:
 
 Differences between the two cron timetables
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Airflow has two timetables `CronTriggerTimetable`_ and `CronDataIntervalTimetable`_ that accept a cron expression.
+
 However, there are differences between the two:
 - `CronTriggerTimetable`_ does not address *Data Interval*, while `CronDataIntervalTimetable`_ does.
-- The time when a DAG run is triggered by `CronTriggerTimetable`_ is more similar to how people
-expect cron to behave compared to `CronDataIntervalTimetable`_ when ``catchup`` is ``False``.
+- The timestamp in the ``run_id``, the ``logical_date`` for `CronTriggerTimetable`_ and `CronDataIntervalTimetable`_  are defined differently based on how they handle the data interval, as described in :ref:`timetables_run_id_logical_date`.
 
 Whether taking care of *Data Interval*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -231,18 +230,28 @@ However, `CronDataIntervalTimetable`_ *does* include *data interval*. This means
 ``data_interval_start`` and ``data_interval_end`` (and legacy ``execution_date``) are different. ``data_interval_start`` is the time when a
 DAG run is triggered and ``data_interval_end`` is the end of the interval.
 
+*Catchup* behavior
+^^^^^^^^^^^^^^^^^^
+
+Whether you're using `CronTriggerTimetable`_ or `CronDataIntervalTimetable`_,  there is no difference when ``catchup`` is ``True``.
+
+You might want to use ``False`` for ``catchup`` for certain scenarios, to prevent running unnecessary DAGs:
+- If you create a new DAG with a start date in the past, and don't want to run DAGs for the past. If ``catchup`` is ``True``, Airflow runs all DAGs that would have run in that time interval.
+- If you pause an existing DAG, and then restart it at a later date, and don't want to  If ``catchup`` is ``True``,
+
+In these scenarios, the ``logical_date`` in the ``run_id`` are based on how `CronTriggerTimetable`_ or `CronDataIntervalTimetable`_ handle the data interval.
+
+See :ref:`dag-catchup` for more information about how DAG runs are triggered when using ``catchup``.
+
+.. _timetables_run_id_logical_date:
+
 The time when a DAG run is triggered
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-There is no difference between `CronTriggerTimetable`_ and `CronDataIntervalTimetable`_ when ``catchup`` is ``True``. :ref:`dag-catchup` tells you how DAG runs are
-triggered when ``catchup`` is ``True``.
-
-When ``catchup`` is ``False``, there is difference in how a new DAG run is triggered.
-
 `CronTriggerTimetable`_ and `CronDataIntervalTimetable`_ trigger DAG runs at the same time. However, the timestamp for the ``run_id`` is different for each.
 
-- `CronTriggerTimetable`_ has a ``run_id`` timestamp showing when DAG run is able to start.
-- `CronDataIntervalTimetable`_ has a ``run_id`` timestamp for when the interval started, which is before the DAG run started.
+- `CronTriggerTimetable`_ has a ``run_id`` timestamp, the ``logical_date``, showing when DAG run is able to start.
+- `CronTriggerTimetable`_ and `CronDataIntervalTimetable`_ trigger DAG runs at the same time. However, the timestamp for the ``run_id`` (``logical_date``) is different for each.
 
 For example, suppose there is a cron expression ``@daily`` or ``0 0 * * *``, which is scheduled to run at 12AM every day. If you enable DAGs using the two timetables at 3PM on January
 31st,
