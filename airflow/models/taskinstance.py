@@ -28,6 +28,7 @@ import os
 import signal
 import warnings
 from collections import defaultdict
+from contextlib import nullcontext
 from datetime import timedelta
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, Mapping, Tuple
@@ -65,7 +66,7 @@ from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
 from sqlalchemy.sql.expression import case, select
 
 from airflow import settings
-from airflow.api_internal.internal_api_call import internal_api_call
+from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
 from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.datasets import Dataset
@@ -469,7 +470,8 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
             raise
     else:
         result = _execute_callable(context=context, **execute_callable_kwargs)
-    with create_session() as session:
+    cm = nullcontext() if InternalApiConfig.get_use_internal_api() else create_session()
+    with cm as session_or_null:
         if task_to_execute.do_xcom_push:
             xcom_value = result
         else:
@@ -488,10 +490,10 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
                             f"multiple_outputs, found {key} ({type(key)}) instead"
                         )
                 for key, value in xcom_value.items():
-                    task_instance.xcom_push(key=key, value=value, session=session)
-            task_instance.xcom_push(key=XCOM_RETURN_KEY, value=xcom_value, session=session)
+                    task_instance.xcom_push(key=key, value=value, session=session_or_null)
+            task_instance.xcom_push(key=XCOM_RETURN_KEY, value=xcom_value, session=session_or_null)
         _record_task_map_for_downstreams(
-            task_instance=task_instance, task=task_orig, value=xcom_value, session=session
+            task_instance=task_instance, task=task_orig, value=xcom_value, session=session_or_null
         )
     return result
 
