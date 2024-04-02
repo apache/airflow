@@ -543,8 +543,7 @@ def task_list(args, dag: DAG | None = None) -> None:
 
 
 class _SupportedDebugger(Protocol):
-    def post_mortem(self) -> None:
-        ...
+    def post_mortem(self) -> None: ...
 
 
 SUPPORTED_DEBUGGER_MODULES = [
