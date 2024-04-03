@@ -233,10 +233,10 @@ class PythonOperator(BaseOperator):
         self.op_kwargs = self.determine_kwargs(context)
 
         try:
-            dataset_events = context["dataset_events"]
+            self._dataset_events = context["dataset_events"]
         except KeyError:
-            dataset_events = context["dataset_events"] = DatasetEventAccessors()
-        return_value = self.execute_callable(dataset_events)
+            self._dataset_events = context["dataset_events"] = DatasetEventAccessors()
+        return_value = self.execute_callable()
         if self.show_return_value_in_logs:
             self.log.info("Done. Returned value was: %s", return_value)
         else:
@@ -247,13 +247,13 @@ class PythonOperator(BaseOperator):
     def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
         return KeywordParameters.determine(self.python_callable, self.op_args, context).unpacking()
 
-    def execute_callable(self, dataset_events: DatasetEventAccessors) -> Any:
+    def execute_callable(self) -> Any:
         """
         Call the python callable with the given arguments.
 
         :return: the return value of the call.
         """
-        runner = ExecutionCallableRunner(self.python_callable, dataset_events, logger=self.log)
+        runner = ExecutionCallableRunner(self.python_callable, self._dataset_events, logger=self.log)
         return runner.run(*self.op_args, **self.op_kwargs)
 
 
@@ -753,7 +753,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             self.log.info("New Python virtual environment created in %s", venv_path)
             return venv_path
 
-    def execute_callable(self, dataset_events: DatasetEventAccessors) -> Any:
+    def execute_callable(self):
         if self.venv_cache_path:
             venv_path = self._ensure_venv_cache_exists(Path(self.venv_cache_path))
             python_path = venv_path / "bin" / "python"
@@ -881,7 +881,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             **kwargs,
         )
 
-    def execute_callable(self, dataset_events: DatasetEventAccessors) -> Any:
+    def execute_callable(self):
         python_path = Path(self.python)
         if not python_path.exists():
             raise ValueError(f"Python Path '{python_path}' must exists")

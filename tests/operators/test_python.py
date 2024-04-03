@@ -785,14 +785,14 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             return None
 
         task = self.run_as_task(f)
-        assert task.execute_callable({}) is None
+        assert task.execute_callable() is None
 
     def test_return_false(self):
         def f():
             return False
 
         task = self.run_as_task(f)
-        assert task.execute_callable({}) is False
+        assert task.execute_callable() is False
 
     def test_lambda(self):
         with pytest.raises(AirflowException):
