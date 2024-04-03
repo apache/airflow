@@ -21,7 +21,6 @@ import operator
 import os
 import random
 import re
-import shlex
 import shutil
 import subprocess
 import sys
@@ -973,8 +972,12 @@ def tag_providers(
     remotes = ["origin", "apache"]
     for remote in remotes:
         try:
-            command = ["git", "remote", "get-url", "--push", shlex.quote(remote)]
-            result = run_command(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+            result = run_command(
+                ["git", "remote", "get-url", "--push", remote],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+            )
             if "apache/airflow.git" in result.stdout:
                 found_remote = remote
                 break
@@ -993,7 +996,7 @@ def tag_providers(
                 tag = f"{provider}/{match.group(2)}"
                 try:
                     run_command(
-                        ["git", "tag", shlex.quote(tag), "-m", f"Release {date.today()} of providers"],
+                        ["git", "tag", tag, "-m", f"Release {date.today()} of providers"],
                         check=True,
                     )
                     tags.append(tag)
@@ -1002,11 +1005,8 @@ def tag_providers(
 
     if tags:
         try:
-            push_command = ["git", "push", remote] + [shlex.quote(tag) for tag in tags]
             push_result = run_command(
-                push_command,
-                text=True,
-                capture_output=True,
+                ["git", "push", found_remote, *tags],
                 check=False,
             )
             if push_result.returncode == 0:
@@ -1016,7 +1016,7 @@ def tag_providers(
             if clean_local_tags:
                 for tag in tags:
                     try:
-                        run_command(["git", "tag", "-d", shlex.quote(tag)], check=True)
+                        run_command(["git", "tag", "-d", tag], check=True)
                     except subprocess.CalledProcessError:
                         pass
                 get_console().print("\n[success]Cleaning up local tags...[/]")
