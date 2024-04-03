@@ -73,7 +73,7 @@ class BuildCiParams(CommonBuildParams):
         self._req_arg("CONSTRAINTS_GITHUB_REPOSITORY", self.constraints_github_repository)
         self._req_arg("PYTHON_BASE_IMAGE", self.python_base_image)
         if self.upgrade_to_newer_dependencies:
-            self._opt_arg("UPGRADE_TO_NEWER_DEPENDENCIES", f"{random.randrange(2**32):x}")
+            self._opt_arg("UPGRADE_INVALIDATION_STRING", f"{random.randrange(2**32):x}")
             if self.eager_upgrade_additional_requirements:
                 # in case eager upgrade additional requirements have EOL, connect them together
                 self._opt_arg(

@@ -20,6 +20,10 @@ name: PROD images extra checks
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
+      runs-on-as-json-public:
+        description: "The array of labels (in json form) determining public runners."
+        required: true
+        type: string
       python-versions:
         description: "JSON-formatted array of Python versions to build images from"
         required: true
@@ -59,6 +63,7 @@ jobs:
   bullseye-image:
     uses: ./.github/workflows/prod-image-build.yml
     with:
+      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
       build-type: "Bullseye"
       upload-package-artifact: "false"
       image-tag: bullseye-${{ inputs.image-tag }}
@@ -79,6 +84,7 @@ jobs:
   myssql-client-image:
     uses: ./.github/workflows/prod-image-build.yml
     with:
+      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
       build-type: "MySQL Client"
       upload-package-artifact: "false"
       image-tag: mysql-${{ inputs.image-tag }}
@@ -99,6 +105,7 @@ jobs:
   pip-image:
     uses: ./.github/workflows/prod-image-build.yml
     with:
+      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
       build-type: "pip"
       upload-package-artifact: "false"
       image-tag: mysql-${{ inputs.image-tag }}

@@ -69,7 +69,7 @@ if __name__ == "__main__":
     if not match:
         print(
             f"_REVISION_HEADS_MAP not found in {DB_FILE}. If this has been removed intentionally, "
-            "please update scripts/ci/pre_commit/pre_commit_version_heads_map.py"
+            "please update scripts/ci/pre_commit/version_heads_map.py"
         )
         sys.exit(1)
 

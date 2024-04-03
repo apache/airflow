@@ -28,6 +28,7 @@ import attr
 from airflow.compat.functools import cache
 from airflow.exceptions import AirflowException, UnmappableOperator
 from airflow.models.abstractoperator import (
+    DEFAULT_EXECUTOR,
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
     DEFAULT_POOL_SLOTS,
@@ -619,6 +620,10 @@ class MappedOperator(AbstractOperator):
     @property
     def run_as_user(self) -> str | None:
         return self.partial_kwargs.get("run_as_user")
+
+    @property
+    def executor(self) -> str | None:
+        return self.partial_kwargs.get("executor", DEFAULT_EXECUTOR)
 
     @property
     def executor_config(self) -> dict:

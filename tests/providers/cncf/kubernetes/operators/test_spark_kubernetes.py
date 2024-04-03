@@ -51,6 +51,21 @@ def test_spark_kubernetes_operator(mock_kubernetes_hook, data_file):
     assert "hook" not in operator.__dict__  # Cached property has not been accessed as part of construction.
 
 
+def test_init_spark_kubernetes_operator(data_file):
+    operator = SparkKubernetesOperator(
+        task_id="task_id",
+        application_file=data_file("spark/application_test.yaml").as_posix(),
+        kubernetes_conn_id="kubernetes_conn_id",
+        in_cluster=True,
+        cluster_context="cluster_context",
+        config_file="config_file",
+        base_container_name="base",
+        get_logs=True,
+    )
+    assert operator.base_container_name == "spark-kubernetes-driver"
+    assert operator.container_logs == ["spark-kubernetes-driver"]
+
+
 @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")
 def test_spark_kubernetes_operator_hook(mock_kubernetes_hook, data_file):
     operator = SparkKubernetesOperator(
@@ -172,6 +187,7 @@ def create_context(task):
     }
 
 
+@patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_requested_container_logs")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_start")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
@@ -203,6 +219,7 @@ class TestSparkKubernetesOperator:
             template_spec=job_spec,
             kubernetes_conn_id="kubernetes_default_kube_config",
             task_id=task_name,
+            get_logs=True,
         )
         context = create_context(op)
         op.execute(context)
@@ -218,6 +235,7 @@ class TestSparkKubernetesOperator:
         mock_create_pod,
         mock_await_pod_start,
         mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
         data_file,
     ):
         task_name = "default_yaml"
@@ -266,6 +284,7 @@ class TestSparkKubernetesOperator:
         mock_create_pod,
         mock_await_pod_start,
         mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
         data_file,
     ):
         task_name = "default_yaml_template"
@@ -296,6 +315,7 @@ class TestSparkKubernetesOperator:
         mock_create_pod,
         mock_await_pod_start,
         mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
         data_file,
     ):
         task_name = "default_yaml_template"
@@ -322,6 +342,7 @@ class TestSparkKubernetesOperator:
         mock_create_pod,
         mock_await_pod_start,
         mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
         data_file,
     ):
         task_name = "default_env"
@@ -365,6 +386,7 @@ class TestSparkKubernetesOperator:
         mock_create_pod,
         mock_await_pod_start,
         mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
         data_file,
     ):
         task_name = "default_volume"
@@ -410,6 +432,7 @@ class TestSparkKubernetesOperator:
         mock_create_pod,
         mock_await_pod_start,
         mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
         data_file,
     ):
         task_name = "test_pull_secret"
@@ -430,6 +453,7 @@ class TestSparkKubernetesOperator:
         mock_create_pod,
         mock_await_pod_start,
         mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
         data_file,
     ):
         task_name = "test_affinity"
@@ -483,6 +507,7 @@ class TestSparkKubernetesOperator:
         mock_create_pod,
         mock_await_pod_start,
         mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
         data_file,
     ):
         toleration = k8s.V1Toleration(
@@ -498,6 +523,29 @@ class TestSparkKubernetesOperator:
 
         assert op.launcher.body["spec"]["driver"]["tolerations"] == [toleration]
         assert op.launcher.body["spec"]["executor"]["tolerations"] == [toleration]
+
+    def test_get_logs_from_driver(
+        self,
+        mock_create_namespaced_crd,
+        mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
+        mock_get_kube_client,
+        mock_create_pod,
+        mock_await_pod_start,
+        mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
+        data_file,
+    ):
+        task_name = "test_get_logs_from_driver"
+        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+        op = self.execute_operator(task_name, mock_create_job_name, job_spec=job_spec)
+
+        mock_fetch_requested_container_logs.assert_called_once_with(
+            pod=op.pod,
+            containers="spark-kubernetes-driver",
+            follow_logs=True,
+        )
 
 
 @pytest.mark.db_test

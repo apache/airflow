@@ -37,11 +37,19 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
     :param job_names: List of transfer jobs names.
     :param project_id: GCP project id.
     :param poll_interval: Interval in seconds between polls.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     """
 
-    def __init__(self, job_names: list[str], project_id: str | None = None, poll_interval: int = 10) -> None:
+    def __init__(
+        self,
+        job_names: list[str],
+        project_id: str | None = None,
+        poll_interval: int = 10,
+        gcp_conn_id: str = "google_cloud_default",
+    ) -> None:
         super().__init__()
         self.project_id = project_id
+        self.gcp_conn_id = gcp_conn_id
         self.job_names = job_names
         self.poll_interval = poll_interval
 
@@ -53,6 +61,7 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
                 "project_id": self.project_id,
                 "job_names": self.job_names,
                 "poll_interval": self.poll_interval,
+                "gcp_conn_id": self.gcp_conn_id,
             },
         )
 
@@ -117,4 +126,7 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
             await asyncio.sleep(self.poll_interval)
 
     def get_async_hook(self) -> CloudDataTransferServiceAsyncHook:
-        return CloudDataTransferServiceAsyncHook(project_id=self.project_id)
+        return CloudDataTransferServiceAsyncHook(
+            project_id=self.project_id,
+            gcp_conn_id=self.gcp_conn_id,
+        )
