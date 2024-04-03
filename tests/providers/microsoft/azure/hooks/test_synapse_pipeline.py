@@ -108,7 +108,9 @@ class TestAzureSynapsePipelineHook:
 
             connection = hook.get_conn()
             assert connection is not None
-            mock_default_azure_credential.assert_called_with(None, None)
+            mock_default_azure_credential.assert_called_with(
+                managed_identity_client_id=None, workload_identity_tenant_id=None
+            )
             mock_create_client.assert_called_with(
                 mock_default_azure_credential(),
                 AZURE_SYNAPSE_WORKSPACE_DEV_ENDPOINT,

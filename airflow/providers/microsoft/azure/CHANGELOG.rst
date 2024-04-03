@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+10.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+.. warning::
+   In this version of the provider, ``azure_synapse_pipeline`` connection type has been changed to ``azure_synapse``.
+
 9.0.1
 .....
 
