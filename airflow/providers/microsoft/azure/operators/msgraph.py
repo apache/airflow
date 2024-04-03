@@ -245,11 +245,11 @@ class MSGraphAsyncOperator(BaseOperator):
         odata_count = response.get("@odata.count")
         if odata_count and operator.query_parameters:
             query_parameters = deepcopy(operator.query_parameters)
-            top: int = query_parameters.get("$top")
-            odata_count: int = response.get("@odata.count")
+            top = query_parameters.get("$top")
+            odata_count = response.get("@odata.count")
 
             if top and odata_count:
-                if len(response.get("value")) == top:
+                if len(response.get("value", [])) == top:
                     skip = (
                         sum(map(lambda result: len(result["value"]), operator.results)) + top
                         if operator.results
