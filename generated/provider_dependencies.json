@@ -525,12 +525,8 @@
       "google-api-python-client>=1.6.0",
       "google-auth-httplib2>=0.0.1",
       "google-auth>=1.0.0",
-<<<<<<< HEAD
-      "google-cloud-aiplatform>=1.42.1",
-      "google-cloud-automl>=2.12.0",
-=======
       "google-cloud-aiplatform>=1.46.0",
->>>>>>> 1472f6d282 (add SendChatPrompts operators, hooks, docs, tests)
+      "google-cloud-automl>=2.12.0",
       "google-cloud-batch>=0.13.0",
       "google-cloud-bigquery-datatransfer>=3.13.0",
       "google-cloud-bigtable>=2.17.0",
