@@ -170,7 +170,7 @@ class KiotaRequestAdapterHook(BaseHook):
             self.log.info("Authority: %s", authority)
             self.log.info("Proxies: %s", json.dumps(proxies))
             credentials = ClientSecretCredential(
-                tenant_id=tenant_id,
+                tenant_id=tenant_id,  # type: ignore
                 client_id=connection.login,
                 client_secret=connection.password,
                 authority=authority,
