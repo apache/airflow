@@ -62,6 +62,7 @@ class BedrockCustomizeModelCompletedSensor(AwsBaseSensor[BedrockHook]):
     INTERMEDIATE_STATES = ("InProgress",)
     FAILURE_STATES = ("Failed", "Stopping", "Stopped")
     SUCCESS_STATES = ("Completed",)
+    FAILURE_MESSAGE = "Bedrock model customization job sensor failed."
 
     aws_hook_class = BedrockHook
     template_fields: Sequence[str] = aws_template_fields("job_name")
@@ -101,10 +102,9 @@ class BedrockCustomizeModelCompletedSensor(AwsBaseSensor[BedrockHook]):
 
         if state in self.FAILURE_STATES:
             # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
-            message = "Bedrock model customization job sensor failed"
             if self.soft_fail:
-                raise AirflowSkipException(message)
-            raise AirflowException(message)
+                raise AirflowSkipException(self.FAILURE_MESSAGE)
+            raise AirflowException(self.FAILURE_MESSAGE)
 
         if state in self.INTERMEDIATE_STATES:
             return False

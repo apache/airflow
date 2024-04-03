@@ -25,8 +25,6 @@ from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockHook
 from airflow.providers.amazon.aws.sensors.bedrock import BedrockCustomizeModelCompletedSensor
 
-JOB_NAME = "test_job_name"
-
 
 @pytest.fixture
 def mock_get_job_state():
@@ -36,9 +34,11 @@ def mock_get_job_state():
 
 class TestBedrockCustomizeModelCompletedSensor:
     def setup_method(self):
+        self.job_name = "test_job_name"
+
         self.default_op_kwargs = dict(
             task_id="test_bedrock_customize_model_sensor",
-            job_name=JOB_NAME,
+            job_name=self.job_name,
             poke_interval=5,
             max_retries=1,
         )
@@ -64,12 +64,12 @@ class TestBedrockCustomizeModelCompletedSensor:
         assert op.hook._config is not None
         assert op.hook._config.read_timeout == 42
 
-    @pytest.mark.parametrize("state", ["Completed"])
+    @pytest.mark.parametrize("state", list(BedrockCustomizeModelCompletedSensor.SUCCESS_STATES))
     def test_poke_success_states(self, state, mock_get_job_state):
         mock_get_job_state.side_effect = [state]
         assert self.sensor.poke({}) is True
 
-    @pytest.mark.parametrize("state", ["InProgress"])
+    @pytest.mark.parametrize("state", list(BedrockCustomizeModelCompletedSensor.INTERMEDIATE_STATES))
     def test_poke_intermediate_states(self, state, mock_get_job_state):
         mock_get_job_state.side_effect = [state]
         assert self.sensor.poke({}) is False
@@ -81,13 +81,12 @@ class TestBedrockCustomizeModelCompletedSensor:
             pytest.param(True, AirflowSkipException, id="soft-fail"),
         ],
     )
-    @pytest.mark.parametrize("state", ["Failed", "Stopping", "Stopped"])
+    @pytest.mark.parametrize("state", list(BedrockCustomizeModelCompletedSensor.FAILURE_STATES))
     def test_poke_failure_states(self, state, soft_fail, expected_exception, mock_get_job_state):
         mock_get_job_state.side_effect = [state]
         sensor = BedrockCustomizeModelCompletedSensor(
             **self.default_op_kwargs, aws_conn_id=None, soft_fail=soft_fail
         )
-        message = "Bedrock model customization job sensor failed"
 
-        with pytest.raises(expected_exception, match=message):
+        with pytest.raises(expected_exception, match=sensor.FAILURE_MESSAGE):
             sensor.poke({})
