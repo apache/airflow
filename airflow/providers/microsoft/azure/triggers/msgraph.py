@@ -105,7 +105,7 @@ class CallableResponseHandler(ResponseHandler):
         self, response: NativeResponseType, error_map: dict[str, ParsableFactory | None] | None = None
     ) -> Any:
         """
-        Callback method that is invoked when a response is received.
+        Invoke this callback method when a response is received.
 
         param response: The type of the native response object.
         param error_map: The error dict to use in case of a failed request.
