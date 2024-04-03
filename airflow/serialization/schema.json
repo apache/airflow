@@ -261,6 +261,7 @@
         "params": { "$ref": "#/definitions/params_dict" },
         "priority_weight": { "type": "number" },
         "weight_rule": { "type": "string" },
+        "executor": { "type": "string" },
         "executor_config": { "$ref": "#/definitions/dict" },
         "do_xcom_push": { "type": "boolean" },
         "ui_color": { "$ref": "#/definitions/color" },

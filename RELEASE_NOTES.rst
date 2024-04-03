@@ -230,6 +230,11 @@ Target version for core dependency ``pendulum`` package set to 3 (#36281).
 Support for pendulum 2.1.2 will be saved for a while, presumably until the next feature version of Airflow.
 It is advised to upgrade user code to use pendulum 3 as soon as possible.
 
+Pendulum 3 introduced some subtle incompatibilities that you might rely on in your code - for example
+default rendering of dates is missing ``T`` in the rendered date representation, which is not ISO8601
+compliant. If you rely on the default rendering of dates, you might need to adjust your code to use
+``isoformat()`` method to render dates in ISO8601 format.
+
 Airflow packaging specification follows modern Python packaging standards (#36537).
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 We standardized Airflow dependency configuration to follow latest development in Python packaging by

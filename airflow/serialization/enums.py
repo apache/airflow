@@ -61,4 +61,5 @@ class DagAttributeTypes(str, Enum):
     DATA_SET = "data_set"
     LOG_TEMPLATE = "log_template"
     CONNECTION = "connection"
+    TASK_CONTEXT = "task_context"
     ARG_NOT_SET = "arg_not_set"

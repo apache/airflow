@@ -395,17 +395,17 @@ class TestDBCleanup:
     @patch("airflow.utils.db_cleanup.ask_yesno")
     def test_confirm_drop_archives(self, mock_ask_yesno, tables):
         expected = (
-            f"You have requested that we drop the following archived tables {tables}.\n"
-            "This is irreversible. Consider backing up the tables first"
+            f"You have requested that we drop the following archived tables: {', '.join(tables)}.\n"
+            "This is irreversible. Consider backing up the tables first."
         )
         if len(tables) > 3:
             expected = (
                 f"You have requested that we drop {len(tables)} archived tables prefixed with "
                 f"_airflow_deleted__.\n"
-                "This is irreversible. Consider backing up the tables first \n"
-                "\n"
-                f"{tables}"
+                "This is irreversible. Consider backing up the tables first.\n"
             )
+            for table in tables:
+                expected += f"\n  {table}"
 
         mock_ask_yesno.return_value = True
         with patch("sys.stdout", new=StringIO()) as fake_out, patch(

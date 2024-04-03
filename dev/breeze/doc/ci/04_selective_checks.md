@@ -172,7 +172,6 @@ Github Actions to pass the list of parameters to a command to execute
 | all-versions                           | If set to true, then all python, k8s, DB versions are used for tests.                                | false                                     |                |
 | basic-checks-only                      | Whether to run all static checks ("false") or only basic set of static checks ("true")               | false                                     |                |
 | build_system_changed_in_pyproject_toml | When builds system dependencies changed in pyproject.toml changed in the PR.                         | false                                     |                |
-| cache-directive                        | Which cache should be used for images ("registry", "local" , "disabled")                             | registry                                  |                |
 | chicken-egg-providers                  | List of providers that should be considered as "chicken-egg" - expecting development Airflow version |                                           |                |
 | ci-image-build                         | Whether CI image build is needed                                                                     | true                                      |                |
 | debug-resources                        | Whether resources usage should be printed during parallel job execution ("true"/ "false")            | false                                     |                |
@@ -184,6 +183,7 @@ Github Actions to pass the list of parameters to a command to execute
 | default-mysql-version                  | Which MySQL version to use as default                                                                | 5.7                                       |                |
 | default-postgres-version               | Which Postgres version to use as default                                                             | 10                                        |                |
 | default-python-version                 | Which Python version to use as default                                                               | 3.8                                       |                |
+| docker-cache                           | Which cache should be used for images ("registry", "local" , "disabled")                             | registry                                  |                |
 | docs-build                             | Whether to build documentation ("true"/"false")                                                      | true                                      |                |
 | docs-list-as-string                    | What filter to apply to docs building - based on which documentation packages should be built        | apache-airflow helm-chart google          |                |
 | full-tests-needed                      | Whether this build runs complete set of tests or only subset (for faster PR builds) [1]              | false                                     |                |
@@ -223,7 +223,9 @@ Github Actions to pass the list of parameters to a command to execute
 | run-kubernetes-tests                   | Whether Kubernetes tests should be run ("true"/"false")                                              | true                                      |                |
 | run-tests                              | Whether unit tests should be run ("true"/"false")                                                    | true                                      |                |
 | run-www-tests                          | Whether WWW tests should be run ("true"/"false")                                                     | true                                      |                |
-| runs-on                                | List of labels assigned for runners for that build (used to select runners)                          | ["ubuntu-22.04"]                          |                |
+| runs-on-as-json-default                | List of labels assigned for runners for that build for default runs for that build (as string)       | ["ubuntu-22.04"]                          |                |
+| runs-on-as-json-self-hosted            | List of labels assigned for runners for that build for self hosted runners                           | ["self-hosted", "Linux", "X64"]           |                |
+| runs-on-as-json-public                 | List of labels assigned for runners for that build for public runners                                | ["ubuntu-22.04"]                          |                |
 | skip-pre-commits                       | Which pre-commits should be skipped during the static-checks run                                     | check-provider-yaml-valid,flynt,identity  |                |
 | skip-provider-tests                    | When provider tests should be skipped (on non-main branch or when no provider changes detected)      | true                                      |                |
 | sqlite-exclude                         | Which versions of Sqlite to exclude for tests as JSON array                                          | []                                        |                |
@@ -301,14 +303,14 @@ am overview of possible labels and their meaning:
 | canary                        | is-canary-run                 | If set, the PR run from apache/airflow repo behaves as `canary` run (can only be run by maintainer).            |
 | debug ci resources            | debug-ci-resources            | If set, then debugging resources is enabled during parallel tests and you can see them in the output.           |
 | default versions only         | all-versions, *-versions-*    | If set, the number of Python and Kubernetes, DB versions used by the build will be limited to the default ones. |
-| disable image cache           | cache-directive               | If set, the image cache is disables when building the image.                                                    |
+| disable image cache           | docker-cache                  | If set, the image cache is disables when building the image.                                                    |
 | include success outputs       | include-success-outputs       | By default, outputs of successful parallel tests are not shown - enabling this flag will make then shown.       |
 | latest versions only          | *-versions-*, *-versions-*    | If set, the number of Python, Kubernetes, DB versions used by the build will be limited to the latest ones.     |
 | all versions                  | all-versions, *-versions-*    | Run tests for all python and k8s versions.                                                                      |
 | full tests needed             | full-tests-needed             | Run complete set of tests (might be with default or all python/k8s versions)                                    |
 | non committer build           | is-committer-build            | If set then even for non-committer builds, the scripts used for images are used from target branch.             |
-| upgrade to newer dependencies | upgrade-to-newer-dependencies | If set then dependencies in the CI image build are upgraded to the newer ones.                                  |
-| use public runners            | runs-on                       | Force using public runners even for Committer runs.                                                             |
+| upgrade to newer dependencies | upgrade-to-newer-dependencies | If set to true (default false) then dependencies in the CI image build are upgraded to the newer ones.          |
+| use public runners            | runs-on-as-json-default       | Force using public runners even for Committer runs.                                                             |
 
 
 -----

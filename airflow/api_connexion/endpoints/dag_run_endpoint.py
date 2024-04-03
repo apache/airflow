@@ -172,7 +172,7 @@ def _fetch_dag_runs(
 
     total_entries = get_query_count(query, session=session)
     to_replace = {"dag_run_id": "run_id"}
-    allowed_filter_attrs = [
+    allowed_sort_attrs = [
         "id",
         "state",
         "dag_id",
@@ -184,7 +184,7 @@ def _fetch_dag_runs(
         "external_trigger",
         "conf",
     ]
-    query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
+    query = apply_sorting(query, order_by, to_replace, allowed_sort_attrs)
     return session.scalars(query.offset(offset).limit(limit)).all(), total_entries
 
 

@@ -45,6 +45,7 @@ from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
 
 if TYPE_CHECKING:
@@ -508,14 +509,18 @@ class CloudDataTransferServiceAsyncHook(GoogleBaseAsyncHook):
         self.project_id = project_id
         self._client: StorageTransferServiceAsyncClient | None = None
 
-    def get_conn(self) -> StorageTransferServiceAsyncClient:
+    async def get_conn(self) -> StorageTransferServiceAsyncClient:
         """
         Return async connection to the Storage Transfer Service.
 
         :return: Google Storage Transfer asynchronous client.
         """
         if not self._client:
-            self._client = StorageTransferServiceAsyncClient()
+            credentials = (await self.get_sync_hook()).get_credentials()
+            self._client = StorageTransferServiceAsyncClient(
+                credentials=credentials,
+                client_info=CLIENT_INFO,
+            )
         return self._client
 
     async def get_jobs(self, job_names: list[str]) -> ListTransferJobsAsyncPager:
@@ -525,7 +530,7 @@ class CloudDataTransferServiceAsyncHook(GoogleBaseAsyncHook):
         :param job_names: (Required) List of names of the jobs to be fetched.
         :return: Object that yields Transfer jobs.
         """
-        client = self.get_conn()
+        client = await self.get_conn()
         jobs_list_request = ListTransferJobsRequest(
             filter=json.dumps({"project_id": self.project_id, "job_names": job_names})
         )
@@ -540,7 +545,7 @@ class CloudDataTransferServiceAsyncHook(GoogleBaseAsyncHook):
         """
         latest_operation_name = job.latest_operation_name
         if latest_operation_name:
-            client = self.get_conn()
+            client = await self.get_conn()
             response_operation = await client.transport.operations_client.get_operation(latest_operation_name)
             operation = TransferOperation.deserialize(response_operation.metadata.value)
             return operation

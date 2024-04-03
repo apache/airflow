@@ -41,12 +41,12 @@ sys.path.insert(0, AIRFLOW_ROOT_PATH.as_posix())  # make sure airflow root is im
 from hatch_build import PRE_INSTALLED_PROVIDERS  # noqa: E402
 
 SLIM_IMAGE_PROVIDERS = [
-    f"apache-airflow-providers-{provider_id.replace('.','-')}"
+    f"apache-airflow-providers-{provider_id.split('>=')[0].replace('.','-')}"
     for provider_id in PRE_INSTALLED_PROVIDERS
     if not provider_id.startswith("#")
 ]
 REGULAR_IMAGE_PROVIDERS = [
-    f"apache-airflow-providers-{provider_id.replace('.','-')}"
+    f"apache-airflow-providers-{provider_id.split('>=')[0].replace('.','-')}"
     for provider_id in PROD_IMAGE_PROVIDERS_FILE_PATH.read_text().splitlines()
     if not provider_id.startswith("#")
 ]
@@ -131,6 +131,7 @@ class TestPythonPackages:
             "googleapiclient",
             "google.auth",
             "google_auth_httplib2",
+            "google.cloud.automl",
             "google.cloud.bigquery_datatransfer",
             "google.cloud.bigtable",
             "google.cloud.container",

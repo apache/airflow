@@ -20,17 +20,16 @@ name: Provider tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on:
-        description: "The array of labels (in json form) determining type of the runner to use for the build."
-        required: false
-        default: '["ubuntu-22.04"]'
+      runs-on-as-json-default:
+        description: "The array of labels (in json form) determining default runner used for the build."
+        required: true
         type: string
       image-tag:
         description: "Tag to set for the image"
         required: true
         type: string
       default-python-version:
-        description: Which version of python should be used get CI image
+        description: "Which version of python should be used by default"
         required: true
         type: string
       upgrade-to-newer-dependencies:
@@ -59,7 +58,7 @@ jobs:
   prepare-install-verify-provider-packages-wheel:
     timeout-minutes: 80
     name: "Provider packages wheel build and verify"
-    runs-on: ${{fromJSON(inputs.runs-on)}}
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -76,8 +75,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
       - name: >
           Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}
         uses: ./.github/actions/prepare_breeze_and_image
@@ -101,9 +100,6 @@ jobs:
         run: >
           breeze release-management generate-issue-content-providers
           --only-available-in-dist --disable-progress
-      - name: "Test airflow core issue generation automatically"
-        run: >
-          breeze release-management generate-issue-content-core --limit-pr-count 25 --latest --verbose
       - name: "Generate source constraints from CI image"
         shell: bash
         run: >
@@ -127,7 +123,7 @@ jobs:
   prepare-install-provider-packages-sdist:
     timeout-minutes: 80
     name: "Provider packages sdist build and install"
-    runs-on: ${{fromJSON(inputs.runs-on)}}
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -144,8 +140,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
       - name: >
           Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}
         uses: ./.github/actions/prepare_breeze_and_image
@@ -195,11 +191,11 @@ jobs:
   providers-compatibility-checks:
     timeout-minutes: 80
     name: Compat ${{ matrix.airflow-version }}:P${{ matrix.python-version }} provider check
-    runs-on: ${{fromJSON(inputs.runs-on)}}
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
     strategy:
       fail-fast: false
       matrix:
-        include: ${{fromJson(inputs.providers-compatibility-checks)}}
+        include: ${{fromJSON(inputs.providers-compatibility-checks)}}
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -218,8 +214,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
       - name: "Prepare breeze & CI image: ${{ matrix.python-version }}:${{ inputs.image-tag }}"
         uses: ./.github/actions/prepare_breeze_and_image
       - name: "Cleanup dist files"

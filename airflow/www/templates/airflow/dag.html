@@ -89,6 +89,8 @@
   <meta name="is_paused" content="{{ dag_is_paused }}">
   <meta name="csrf_token" content="{{ csrf_token() }}">
   <meta name="k8s_or_k8scelery_executor" content="{{ k8s_or_k8scelery_executor }}">
+  <meta name="excluded_audit_log_events" content="{{ excluded_events_raw }}">
+  <meta name="included_audit_log_events" content="{{ included_events_raw }}">
   {% if dag_model is defined and dag_model.next_dagrun_create_after is defined and dag_model.next_dagrun_create_after is not none %}
     <meta name="next_dagrun_create_after" content="{{ dag_model.next_dagrun_create_after }}">
     <meta name="next_dagrun_data_interval_start" content="{{ dag_model.next_dagrun_data_interval_start }}">
@@ -134,9 +136,6 @@
            <span class="material-icons text-muted js-tooltip" aria-hidden="true" data-original-title="Auto Pauses: After {{ dag_model.max_consecutive_failed_dag_runs|string }} consecutive failures">motion_photos_paused</span>
             {% endif %}
         {% endif %}
-        {% if root %}
-          <span class="text-muted">ROOT:</span> {{ root }}
-        {% endif %}
       </h3>
     </div>
     <div>
@@ -152,7 +151,7 @@
         {% endif %}
         {% if dag_model is defined and dag_model.next_dagrun is defined and dag_model.schedule_interval != 'Dataset' %}
           <p class="label label-default js-tooltip" style="margin-left: 5px" id="next-run" data-html="true" data-placement="bottom">
-            Next Run ID: <time datetime="{{ dag_model.next_dagrun }}">{{ dag_model.next_dagrun }}</time>
+            Next Run ID: <time datetime="{{ dag_model.next_dagrun }}" data-with-tz="true">{{ dag_model.next_dagrun }}</time>
           </p>
         {% endif %}
         {% if dag_model is defined and dag_model.schedule_interval is defined and dag_model.schedule_interval == 'Dataset' %}

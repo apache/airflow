@@ -22,7 +22,7 @@
 # The dependencies can be automatically upgraded by running:
 # pre-commit run --hook-stage manual update-build-dependencies --all-files
 requires = [
-    "GitPython==3.1.42",
+    "GitPython==3.1.43",
     "gitdb==4.0.11",
     "hatchling==1.22.4",
     "packaging==24.0",
@@ -355,6 +355,19 @@ combine-as-imports = true
 "airflow/security/utils.py" = ["E402"]
 "tests/providers/elasticsearch/log/elasticmock/__init__.py" = ["E402"]
 "tests/providers/elasticsearch/log/elasticmock/utilities/__init__.py" = ["E402"]
+"tests/providers/google/cloud/hooks/vertex_ai/test_batch_prediction_job.py" = ["E402"]
+"tests/providers/google/cloud/hooks/vertex_ai/test_hyperparameter_tuning_job.py" = ["E402"]
+"tests/providers/google/cloud/hooks/vertex_ai/test_auto_ml.py" = ["E402"]
+"tests/providers/google/cloud/hooks/vertex_ai/test_custom_job.py" = ["E402"]
+"tests/providers/google/cloud/hooks/vertex_ai/test_dataset.py" = ["E402"]
+"tests/providers/google/cloud/hooks/vertex_ai/test_endpoint_service.py" = ["E402"]
+"tests/providers/google/cloud/hooks/vertex_ai/test_generative_model.py" = ["E402"]
+"tests/providers/google/cloud/hooks/vertex_ai/test_model_service.py" = ["E402"]
+"tests/providers/google/cloud/hooks/vertex_ai/test_pipeline_job.py" = ["E402"]
+"tests/providers/google/cloud/operators/test_vertex_ai.py" = ["E402"]
+"tests/providers/google/cloud/operators/vertex_ai/test_generative_model.py" = ["E402"]
+"tests/providers/google/cloud/triggers/test_vertex_ai.py" = ["E402"]
+
 "tests/providers/openai/hooks/test_openai.py" = ["E402"]
 "tests/providers/openai/operators/test_openai.py" = ["E402"]
 "tests/providers/qdrant/hooks/test_qdrant.py" = ["E402"]
@@ -376,11 +389,6 @@ combine-as-imports = true
 "tests/providers/amazon/aws/transfers/test_redshift_to_s3.py" = ["PT012"]
 "tests/providers/amazon/aws/triggers/test_ecs.py" = ["PT012"]
 "tests/providers/amazon/aws/waiters/test_neptune.py" = ["PT012"]
-"tests/providers/cncf/kubernetes/executors/test_kubernetes_executor.py" = ["PT012"]
-"tests/providers/cncf/kubernetes/hooks/test_kubernetes.py" = ["PT012"]
-"tests/providers/cncf/kubernetes/operators/test_pod.py" = ["PT012"]
-"tests/providers/cncf/kubernetes/utils/test_k8s_resource_iterator.py" = ["PT012"]
-"tests/providers/cncf/kubernetes/utils/test_pod_manager.py" = ["PT012"]
 "tests/providers/sftp/hooks/test_sftp.py" = ["PT012"]
 "tests/providers/sftp/operators/test_sftp.py" = ["PT012"]
 "tests/providers/sftp/sensors/test_sftp.py" = ["PT012"]
@@ -445,10 +453,19 @@ fixture-parentheses = false
 
 ## pytest settings ##
 [tool.pytest.ini_options]
-# * Disable `flaky` plugin for pytest. This plugin conflicts with `rerunfailures` because provide same marker.
-# * Disable `nose` builtin plugin for pytest. This feature deprecated in 7.2 and will be removed in pytest>=8
-# * And we focus on use native pytest capabilities rather than adopt another frameworks.
-addopts = "-rasl --verbosity=2 -p no:flaky -p no:nose --asyncio-mode=strict"
+addopts = [
+    "-rasl",
+    "--verbosity=2",
+    # Disable `flaky` plugin for pytest. This plugin conflicts with `rerunfailures` because provide the same marker.
+    "-p", "no:flaky",
+    # Disable `nose` builtin plugin for pytest. This feature is deprecated in 7.2 and will be removed in pytest>=8
+    "-p", "no:nose",
+    # Disable support of a legacy `LocalPath` in favor of stdlib `pathlib.Path`.
+    "-p", "no:legacypath",
+    # Disable warnings summary, because we use our warning summary.
+    "--disable-warnings",
+    "--asyncio-mode=strict",
+]
 norecursedirs = [
     ".eggs",
     "airflow",
@@ -464,10 +481,20 @@ filterwarnings = [
     "error::pytest.PytestCollectionWarning",
     "ignore::DeprecationWarning:flask_appbuilder.filemanager",
     "ignore::DeprecationWarning:flask_appbuilder.widgets",
+    # FAB do not support SQLAclhemy 2
+    "ignore::sqlalchemy.exc.MovedIn20Warning:flask_appbuilder",
+    # https://github.com/dpgaspar/Flask-AppBuilder/issues/2194
+    "ignore::DeprecationWarning:marshmallow_sqlalchemy.convert",
     # https://github.com/dpgaspar/Flask-AppBuilder/pull/1940
     "ignore::DeprecationWarning:flask_sqlalchemy",
     # https://github.com/dpgaspar/Flask-AppBuilder/pull/1903
     "ignore::DeprecationWarning:apispec.utils",
+    # Connexion 2 use different deprecated objects, this should be resolved into Connexion 3
+    # https://github.com/spec-first/connexion/pull/1536
+    'ignore::DeprecationWarning:connexion.spec',
+    'ignore:jsonschema\.RefResolver:DeprecationWarning:connexion.json_schema',
+    'ignore:jsonschema\.exceptions\.RefResolutionError:DeprecationWarning:connexion.json_schema',
+    'ignore:Accessing jsonschema\.draft4_format_checker:DeprecationWarning:connexion.decorators.validation',
 ]
 python_files = [
     "test_*.py",
@@ -476,6 +503,9 @@ python_files = [
 testpaths = [
     "tests",
 ]
+# Keep temporary directories (created by `tmp_path`) for 2 recent runs only failed tests.
+tmp_path_retention_count = "2"
+tmp_path_retention_policy = "failed"
 
 
 ## coverage.py settings ##

@@ -67,7 +67,18 @@ paths:
                   description: Method name
                 params:
                   title: Parameters
-                  type: string
+                  type: object
+  "/health":
+    get:
+      operationId: health
+      deprecated: false
+      x-openapi-router-controller: airflow.api_internal.endpoints.health_endpoint
+      tags:
+      - JSONRPC
+      parameters: []
+      responses:
+        '200':
+          description: Successful response
 x-headers: []
 x-explorer-enabled: true
 x-proxy-enabled: true

@@ -18,7 +18,6 @@
 # shellcheck shell=bash disable=SC2086
 set -euo pipefail
 
-: "${UPGRADE_TO_NEWER_DEPENDENCIES:?Should be true or false}"
 : "${ADDITIONAL_PYTHON_DEPS:?Should be set}"
 
 # shellcheck source=scripts/docker/common.sh
@@ -26,7 +25,7 @@ set -euo pipefail
 
 # Installs additional dependencies passed as Argument to the Docker build command
 function install_additional_dependencies() {
-    if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then
+    if [[ "${UPGRADE_INVALIDATION_STRING=}" != "" ]]; then
         echo
         echo "${COLOR_BLUE}Installing additional dependencies while upgrading to newer dependencies${COLOR_RESET}"
         echo

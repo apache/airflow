@@ -86,10 +86,12 @@ class TestProjectStructure:
             "tests/providers/amazon/aws/utils/test_tags.py",
             "tests/providers/amazon/aws/waiters/test_base_waiter.py",
             "tests/providers/apache/cassandra/hooks/test_cassandra.py",
+            "tests/providers/apache/drill/operators/test_drill.py",
             "tests/providers/apache/druid/operators/test_druid_check.py",
             "tests/providers/apache/hdfs/hooks/test_hdfs.py",
             "tests/providers/apache/hdfs/log/test_hdfs_task_handler.py",
             "tests/providers/apache/hdfs/sensors/test_hdfs.py",
+            "tests/providers/apache/hive/transfers/test_mssql_to_hive.py",
             "tests/providers/apache/hive/plugins/test_hive.py",
             "tests/providers/apache/kafka/hooks/test_base.py",
             "tests/providers/celery/executors/test_celery_executor_utils.py",
@@ -149,7 +151,9 @@ class TestProjectStructure:
             "tests/providers/google/cloud/operators/vertex_ai/test_model_service.py",
             "tests/providers/google/cloud/operators/vertex_ai/test_pipeline_job.py",
             "tests/providers/google/cloud/sensors/test_dataform.py",
+            "tests/providers/google/cloud/transfers/test_bigquery_to_mssql.py",
             "tests/providers/google/cloud/transfers/test_bigquery_to_sql.py",
+            "tests/providers/google/cloud/transfers/test_mssql_to_gcs.py",
             "tests/providers/google/cloud/transfers/test_presto_to_gcs.py",
             "tests/providers/google/cloud/transfers/test_trino_to_gcs.py",
             "tests/providers/google/cloud/triggers/test_cloud_composer.py",
@@ -425,6 +429,8 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
     }
 
     ASSETS_NOT_REQUIRED = {
+        "airflow.providers.google.cloud.operators.automl.AutoMLDeleteDatasetOperator",
+        "airflow.providers.google.cloud.operators.automl.AutoMLDeleteModelOperator",
         "airflow.providers.google.cloud.operators.bigquery.BigQueryCheckOperator",
         "airflow.providers.google.cloud.operators.bigquery.BigQueryDeleteDatasetOperator",
         "airflow.providers.google.cloud.operators.bigquery.BigQueryDeleteTableOperator",
