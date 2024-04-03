@@ -54,6 +54,7 @@ from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.timezone import utcnow
+from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
@@ -130,16 +131,20 @@ def mock_config():
 
 @pytest.fixture
 def set_env_vars():
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.REGION_NAME}".upper()] = "us-west-1"
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CLUSTER}".upper()] = "some-cluster"
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CONTAINER_NAME}".upper()] = "container-name"
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.TASK_DEFINITION}".upper()] = "some-task-def"
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.LAUNCH_TYPE}".upper()] = "FARGATE"
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.PLATFORM_VERSION}".upper()] = "LATEST"
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.ASSIGN_PUBLIC_IP}".upper()] = "False"
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.SECURITY_GROUPS}".upper()] = "sg1,sg2"
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.SUBNETS}".upper()] = "sub1,sub2"
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS}".upper()] = "3"
+    overrides: dict[tuple[str, str], str] = {
+        (CONFIG_GROUP_NAME, AllEcsConfigKeys.REGION_NAME): "us-west-1",
+        (CONFIG_GROUP_NAME, AllEcsConfigKeys.CLUSTER): "some-cluster",
+        (CONFIG_GROUP_NAME, AllEcsConfigKeys.CONTAINER_NAME): "container-name",
+        (CONFIG_GROUP_NAME, AllEcsConfigKeys.TASK_DEFINITION): "some-task-def",
+        (CONFIG_GROUP_NAME, AllEcsConfigKeys.LAUNCH_TYPE): "FARGATE",
+        (CONFIG_GROUP_NAME, AllEcsConfigKeys.PLATFORM_VERSION): "LATEST",
+        (CONFIG_GROUP_NAME, AllEcsConfigKeys.ASSIGN_PUBLIC_IP): "False",
+        (CONFIG_GROUP_NAME, AllEcsConfigKeys.SECURITY_GROUPS): "sg1,sg2",
+        (CONFIG_GROUP_NAME, AllEcsConfigKeys.SUBNETS): "sub1,sub2",
+        (CONFIG_GROUP_NAME, AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS): "3",
+    }
+    with conf_vars(overrides):
+        yield
 
 
 @pytest.fixture
