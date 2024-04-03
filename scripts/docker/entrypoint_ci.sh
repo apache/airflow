@@ -243,7 +243,7 @@ function check_pydantic() {
         echo
         # shellcheck disable=SC2086
         ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} pydantic aws-sam-translator openai \
-           pyiceberg qdrant-client cfn-lint weaviate-client
+           pyiceberg qdrant-client cfn-lint weaviate-client google-cloud-aiplatform
         pip check
     elif [[ ${PYDANTIC=} == "v1" ]]; then
         echo

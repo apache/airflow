@@ -114,6 +114,16 @@ class U(BaseModel):
     u: tuple
 
 
+@attr.define
+class T:
+    x: int
+    y: Y
+    u: tuple
+    w: W
+
+    __version__: ClassVar[int] = 1
+
+
 class C:
     def __call__(self):
         return None
@@ -420,6 +430,12 @@ class TestSerDe:
         i = Z(10)
         e = deserialize(i)
         assert i == e
+
+    def test_attr(self):
+        i = T(y=Y(10), u=(1, 2), x=10, w=W(11))
+        e = serialize(i)
+        s = deserialize(e)
+        assert i == s
 
     def test_pydantic(self):
         pytest.importorskip("pydantic", minversion="2.0.0")

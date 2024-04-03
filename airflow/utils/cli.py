@@ -231,10 +231,11 @@ def get_dag(subdir: str | None, dag_id: str, from_db: bool = False) -> DAG:
 
     if from_db:
         dagbag = DagBag(read_dags_from_db=True)
+        dag = dagbag.get_dag(dag_id)  # get_dag loads from the DB as requested
     else:
         first_path = process_subdir(subdir)
         dagbag = DagBag(first_path)
-    dag = dagbag.get_dag(dag_id)
+        dag = dagbag.dags.get(dag_id)  # avoids db calls made in get_dag
     if not dag:
         if from_db:
             raise AirflowException(f"Dag {dag_id!r} could not be found in DagBag read from database.")

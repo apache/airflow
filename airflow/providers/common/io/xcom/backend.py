@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import json
 import uuid
 from typing import TYPE_CHECKING, Any, TypeVar
@@ -23,6 +24,7 @@ from urllib.parse import urlsplit
 
 import fsspec.utils
 
+from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.io.path import ObjectStoragePath
 from airflow.models.xcom import BaseXCom
@@ -65,7 +67,22 @@ def _get_compression_suffix(compression: str) -> str:
     raise ValueError(f"Compression {compression} is not supported. Make sure it is installed.")
 
 
-class XComObjectStoreBackend(BaseXCom):
+@cache
+def _get_base_path() -> ObjectStoragePath:
+    return ObjectStoragePath(conf.get_mandatory_value(SECTION, "xcom_objectstorage_path"))
+
+
+@cache
+def _get_compression() -> str | None:
+    return conf.get(SECTION, "xcom_objectstorage_compression", fallback=None) or None
+
+
+@cache
+def _get_threshold() -> int:
+    return conf.getint(SECTION, "xcom_objectstorage_threshold", fallback=-1)
+
+
+class XComObjectStorageBackend(BaseXCom):
     """XCom backend that stores data in an object store or database depending on the size of the data.
 
     If the value is larger than the configured threshold, it will be stored in an object store.
@@ -75,30 +92,24 @@ class XComObjectStoreBackend(BaseXCom):
     """
 
     @staticmethod
-    def _get_key(data: str) -> str:
-        """Get the key from the url and normalizes it to be relative to the configured path.
+    def _get_full_path(data: str) -> ObjectStoragePath:
+        """Get the path from stored value.
 
         :raises ValueError: if the key is not relative to the configured path
         :raises TypeError: if the url is not a valid url or cannot be split
         """
-        path = conf.get(SECTION, "xcom_objectstorage_path", fallback="")
-        p = ObjectStoragePath(path)
+        p = _get_base_path()
 
         # normalize the path
-        path = str(p)
-
         try:
             url = urlsplit(data)
         except AttributeError:
-            raise TypeError(f"Not a valid url: {data}")
+            raise TypeError(f"Not a valid url: {data}") from None
 
         if url.scheme:
-            k = ObjectStoragePath(data)
-
-            if _is_relative_to(k, p) is False:
+            if not _is_relative_to(ObjectStoragePath(data), p):
                 raise ValueError(f"Invalid key: {data}")
-            else:
-                return data.replace(path, "", 1).lstrip("/")
+            return p / data.replace(str(p), "", 1).lstrip("/")
 
         raise ValueError(f"Not a valid url: {data}")
 
@@ -115,61 +126,47 @@ class XComObjectStoreBackend(BaseXCom):
         # we will always serialize ourselves and not by BaseXCom as the deserialize method
         # from BaseXCom accepts only XCom objects and not the value directly
         s_val = json.dumps(value, cls=XComEncoder).encode("utf-8")
-        path = conf.get(SECTION, "xcom_objectstorage_path", fallback="")
-        compression = conf.get(SECTION, "xcom_objectstorage_compression", fallback=None)
 
-        if compression:
-            suffix = "." + _get_compression_suffix(compression)
+        if compression := _get_compression():
+            suffix = f".{_get_compression_suffix(compression)}"
         else:
             suffix = ""
-            compression = None
 
-        threshold = conf.getint(SECTION, "xcom_objectstorage_threshold", fallback=-1)
-
-        if path and -1 < threshold < len(s_val):
-            # safeguard against collisions
-            while True:
-                p = ObjectStoragePath(path) / f"{dag_id}/{run_id}/{task_id}/{str(uuid.uuid4())}{suffix}"
-                if not p.exists():
-                    break
-
-            if not p.parent.exists():
-                p.parent.mkdir(parents=True, exist_ok=True)
-
-            with p.open(mode="wb", compression=compression) as f:
-                f.write(s_val)
-
-            return BaseXCom.serialize_value(str(p))
-        else:
+        threshold = _get_threshold()
+        if threshold < 0 or len(s_val) < threshold:  # Either no threshold or value is small enough.
             return s_val
 
+        base_path = _get_base_path()
+        while True:  # Safeguard against collisions.
+            p = base_path.joinpath(dag_id, run_id, task_id, f"{uuid.uuid4()}{suffix}")
+            if not p.exists():
+                break
+        p.parent.mkdir(parents=True, exist_ok=True)
+
+        with p.open(mode="wb", compression=compression) as f:
+            f.write(s_val)
+        return BaseXCom.serialize_value(str(p))
+
     @staticmethod
-    def deserialize_value(
-        result: XCom,
-    ) -> Any:
+    def deserialize_value(result: XCom) -> Any:
         """Deserializes the value from the database or object storage.
 
         Compression is inferred from the file extension.
         """
         data = BaseXCom.deserialize_value(result)
-        path = conf.get(SECTION, "xcom_objectstorage_path", fallback="")
-
         try:
-            p = ObjectStoragePath(path) / XComObjectStoreBackend._get_key(data)
-            return json.load(p.open(mode="rb", compression="infer"), cls=XComDecoder)
-        except TypeError:
+            path = XComObjectStorageBackend._get_full_path(data)
+        except (TypeError, ValueError):  # Likely value stored directly in the database.
             return data
-        except ValueError:
+        try:
+            with path.open(mode="rb", compression="infer") as f:
+                return json.load(f, cls=XComDecoder)
+        except (TypeError, ValueError):
             return data
 
     @staticmethod
     def purge(xcom: XCom, session: Session) -> None:
-        path = conf.get(SECTION, "xcom_objectstorage_path", fallback="")
-        if isinstance(xcom.value, str):
-            try:
-                p = ObjectStoragePath(path) / XComObjectStoreBackend._get_key(xcom.value)
-                p.unlink(missing_ok=True)
-            except TypeError:
-                pass
-            except ValueError:
-                pass
+        if not isinstance(xcom.value, str):
+            return
+        with contextlib.suppress(TypeError, ValueError):
+            XComObjectStorageBackend._get_full_path(xcom.value).unlink(missing_ok=True)

@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,13 +14,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# This stub exists to work around false linter errors due to python/mypy#10408.
-# TODO: Remove this file after the upstream fix is available in our toolchain.
 from __future__ import annotations
 
-from typing import TypeVar
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
-T = TypeVar("T")
 
-def cache(f: T) -> T: ...
+class BedrockRuntimeHook(AwsBaseHook):
+    """
+    Interact with the Amazon Bedrock Runtime.
+
+    Provide thin wrapper around :external+boto3:py:class:`boto3.client("bedrock-runtime") <BedrockRuntime.Client>`.
+
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+    """
+
+    client_type = "bedrock-runtime"
+
+    def __init__(self, *args, **kwargs) -> None:
+        kwargs["client_type"] = self.client_type
+        super().__init__(*args, **kwargs)

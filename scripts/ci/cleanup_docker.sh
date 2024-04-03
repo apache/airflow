@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,21 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-kind: Pod
-apiVersion: v1
-metadata:
-  name: dummy-name-dont-delete
-  namespace: dummy-name-dont-delete
-  labels:
-    mylabel: foo
-spec:
-  containers:
-    - name: base
-      image: dummy-name-dont-delete
-  securityContext:
-    runAsUser: 50000
-    fsGroup: 50000
-  imagePullSecrets:
-    - name: airflow-registry
-  schedulerName: default-scheduler
+function cleanup_docker {
+    docker system prune --all --force --volumes
+}
+
+cleanup_docker

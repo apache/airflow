@@ -14,13 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
----
-name: 'Cleanup docker'
-description: 'Cleans up docker'
-runs:
-  using: "composite"
-  steps:
-    - name: "Cleanup docker"
-      shell: bash
-      run: docker system prune --all --force --volumes

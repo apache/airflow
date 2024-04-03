@@ -16,18 +16,25 @@
 # under the License.
 #
 ---
-name: Static checks, mypy and constraints generation
+name: Static checks, mypy, docs
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on:
-        description: "The array of labels (in json form) determining type of the runner to use for the build."
-        required: false
-        default: '["ubuntu-22.04"]'
+      runs-on-as-json-default:
+        description: "The array of labels (in json form) determining default runner used for the build."
+        required: true
         type: string
       image-tag:
         description: "Tag to set for the image"
         required: true
+        type: string
+      needs-mypy:
+        description: "Whether to run mypy checks (true/false)"
+        required: true
+        type: string
+      mypy-folders:
+        description: "List of folders to run mypy checks on"
+        required: false
         type: string
       python-versions-list-as-string:
         description: "The list of python versions as string separated by spaces"
@@ -37,8 +44,16 @@ on:  # yamllint disable-line rule:truthy
         description: "Branch used to run the CI jobs in (main/v2_*_test)."
         required: true
         type: string
+      canary-run:
+        description: "Whether this is a canary run (true/false)"
+        required: true
+        type: string
       default-python-version:
         description: "Which version of python should be used by default"
+        required: true
+        type: string
+      docs-list-as-string:
+        description: "Stringified list of docs to build (space separated)"
         required: true
         type: string
       upgrade-to-newer-dependencies:
@@ -65,92 +80,19 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to skip pre-commits (true/false)"
         required: true
         type: string
+      include-success-outputs:
+        description: "Whether to include success outputs"
+        required: true
+        type: string
       debug-resources:
         description: "Whether to debug resources (true/false)"
         required: true
         type: string
 jobs:
-  generate-constraints:
-    permissions:
-      contents: read
-    timeout-minutes: 70
-    name: Generate constraints ${{ inputs.python-versions-list-as-string }}
-    runs-on: ['ubuntu-22.04']
-    env:
-      DEBUG_RESOURCES: ${{ inputs.debug-resources }}
-      GITHUB_REPOSITORY: ${{ github.repository }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GITHUB_USERNAME: ${{ github.actor }}
-      INCLUDE_SUCCESS_OUTPUTS: "true"
-      PYTHON_VERSIONS: ${{ inputs.python-versions-list-as-string }}
-      VERBOSE: "true"
-      VERSION_SUFFIX_FOR_PYPI: "dev0"
-    if: inputs.ci-image-build == 'true'
-    steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-      - name: Login to ghcr.io
-        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-      - name: Pull CI images ${{ inputs.python-versions-list-as-string }}:${{ inputs.image-tag }}
-        run: breeze ci-image pull --run-in-parallel --tag-as-latest
-      - name: Verify CI images ${{ inputs.python-versions-list-as-string }}:${{ inputs.image-tag }}
-        run: breeze ci-image verify --run-in-parallel
-      - name: "Source constraints"
-        shell: bash
-        run: >
-          breeze release-management generate-constraints --run-in-parallel
-          --airflow-constraints-mode constraints-source-providers --answer yes
-      - name: "No providers constraints"
-        shell: bash
-        timeout-minutes: 25
-        run: >
-          breeze release-management generate-constraints --run-in-parallel
-          --airflow-constraints-mode constraints-no-providers --answer yes
-      - name: "Prepare chicken-eggs provider packages"
-        # In case of provider packages which use latest dev0 version of providers, we should prepare them
-        # from the source code, not from the PyPI because they have apache-airflow>=X.Y.Z dependency
-        # And when we prepare them from sources they will have apache-airflow>=X.Y.Z.dev0
-        shell: bash
-        run: >
-          breeze release-management prepare-provider-packages --include-not-ready-providers
-          --package-format wheel --version-suffix-for-pypi dev0
-          ${{ inputs.chicken-egg-providers }}
-        if: inputs.chicken-egg-providers != ''
-      - name: "PyPI constraints"
-        shell: bash
-        timeout-minutes: 25
-        run: >
-          breeze release-management generate-constraints --run-in-parallel
-          --airflow-constraints-mode constraints --answer yes
-          --chicken-egg-providers "${{ inputs.chicken-egg-providers }}"
-      - name: "Dependency upgrade summary"
-        shell: bash
-        run: |
-          for PYTHON_VERSION in ${{ env.PYTHON_VERSIONS }}; do
-            echo "Summarizing Python $PYTHON_VERSION"
-            cat "files/constraints-${PYTHON_VERSION}"/*.md >> $GITHUB_STEP_SUMMARY || true
-          done
-      - name: "Upload constraint artifacts"
-        uses: actions/upload-artifact@v4
-        with:
-          name: constraints
-          path: ./files/constraints-*/constraints-*.txt
-          retention-days: 7
-          if-no-files-found: error
-
   static-checks:
     timeout-minutes: 45
     name: "Static checks"
-    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       UPGRADE_TO_NEWER_DEPENDENCIES: "${{ inputs.upgrade-to-newer-dependencies }}"
@@ -171,8 +113,8 @@ jobs:
           python-version: ${{ inputs.default-python-version }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/pyproject.toml
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version}}:${{ inputs.image-tag }}"
         uses: ./.github/actions/prepare_breeze_and_image
         id: breeze
@@ -196,13 +138,13 @@ jobs:
 
   mypy:
     timeout-minutes: 45
-    name: MyPy checks
-    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    name: "MyPy checks"
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
     if: inputs.needs-mypy == 'true'
     strategy:
       fail-fast: false
       matrix:
-        mypy-folder: ${{ fromJson(inputs.mypy-folders) }}
+        mypy-folder: ${{ fromJSON(inputs.mypy-folders) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{inputs.default-python-version}}"
       IMAGE_TAG: "${{ inputs.image-tag }}"
@@ -215,9 +157,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
-        if: inputs.needs-mypy == 'true'
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}"
         uses: ./.github/actions/prepare_breeze_and_image
         id: breeze
@@ -229,6 +170,85 @@ jobs:
           VERBOSE: "false"
           COLUMNS: "250"
           SKIP_GROUP_OUTPUT: "true"
-          DEFAULT_BRANCH: ${{ inputs.default-branch }}
+          DEFAULT_BRANCH: ${{ inputs.branch }}
           RUFF_FORMAT: "github"
           INCLUDE_MYPY_VOLUME: "false"
+
+  build-docs:
+    timeout-minutes: 60
+    name: "Build documentation"
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    strategy:
+      fail-fast: false
+      matrix:
+        flag: ["--docs-only", "--spellcheck-only"]
+    env:
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      IMAGE_TAG: "${{ inputs.image-tag }}"
+      INCLUDE_NOT_READY_PROVIDERS: "true"
+      INCLUDE_SUCCESS_OUTPUTS: "${{ inputs.include-success-outputs }}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
+      VERBOSE: "true"
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}"
+        uses: ./.github/actions/prepare_breeze_and_image
+      - uses: actions/cache@v4
+        id: cache-doc-inventories
+        with:
+          path: ./docs/_inventory_cache/
+          key: docs-inventory-${{ hashFiles('pyproject.toml;') }}
+          restore-keys: |
+            docs-inventory-${{ hashFiles('pyproject.toml;') }}
+            docs-inventory-
+      - name: "Building docs with ${{ matrix.flag }} flag"
+        run: >
+          breeze build-docs ${{ inputs.docs-list-as-string }} ${{ matrix.flag }}
+      - name: "Clone airflow-site"
+        run: >
+          git clone https://github.com/apache/airflow-site.git ${GITHUB_WORKSPACE}/airflow-site &&
+          echo "AIRFLOW_SITE_DIRECTORY=${GITHUB_WORKSPACE}/airflow-site" >> "$GITHUB_ENV"
+        if: inputs.canary-run == 'true' && matrix.flag == '--docs-only'
+      - name: "Publish docs"
+        run: >
+          breeze release-management publish-docs --override-versioned --run-in-parallel
+          ${{ inputs.docs-list-as-string }}
+        if: inputs.canary-run == 'true' && matrix.flag == '--docs-only'
+      - name: "Generate back references for providers"
+        run: breeze release-management add-back-references all-providers
+        if: inputs.canary-run == 'true' && matrix.flag == '--docs-only'
+      - name: "Generate back references for apache-airflow"
+        run: breeze release-management add-back-references apache-airflow
+        if: inputs.canary-run == 'true' && matrix.flag == '--docs-only'
+      - name: "Generate back references for docker-stack"
+        run: breeze release-management add-back-references docker-stack
+        if: inputs.canary-run == 'true' && matrix.flag == '--docs-only'
+      - name: "Generate back references for helm-chart"
+        run: breeze release-management add-back-references helm-chart
+        if: inputs.canary-run == 'true' && matrix.flag == '--docs-only'
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@010d0da01d0b5a38af31e9c3470dbfdabdecca3a  # v4.0.1
+        if: >
+          inputs.canary-run == 'true' &&
+          inputs.branch == 'main' &&
+          matrix.flag == '--docs-only'
+        with:
+          aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-central-1
+      - name: "Upload documentation to AWS S3"
+        if: >
+          inputs.canary-run == 'true' &&
+          inputs.branch == 'main' &&
+          matrix.flag == '--docs-only'
+        run: aws s3 sync --delete ./files/documentation s3://apache-airflow-docs

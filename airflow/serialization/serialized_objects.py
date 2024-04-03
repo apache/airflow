@@ -67,6 +67,7 @@ from airflow.task.priority_strategy import (
     airflow_priority_weight_strategies_classes,
 )
 from airflow.utils.code_utils import get_python_source
+from airflow.utils.context import Context
 from airflow.utils.docs import get_docs_url
 from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.operator_resources import Resources
@@ -602,6 +603,12 @@ class BaseSerialization:
             )
         elif isinstance(var, Connection):
             return cls._encode(var.to_dict(validate=True), type_=DAT.CONNECTION)
+        elif var.__class__ == Context:
+            d = {}
+            for k, v in var._context.items():
+                obj = cls.serialize(v, strict=strict, use_pydantic_models=use_pydantic_models)
+                d[str(k)] = obj
+            return cls._encode(d, type_=DAT.TASK_CONTEXT)
         elif use_pydantic_models and _ENABLE_AIP_44:
 
             def _pydantic_model_dump(model_cls: type[BaseModel], var: Any) -> dict[str, Any]:
@@ -648,7 +655,14 @@ class BaseSerialization:
             raise ValueError(f"The encoded_var should be dict and is {type(encoded_var)}")
         var = encoded_var[Encoding.VAR]
         type_ = encoded_var[Encoding.TYPE]
-
+        if type_ == DAT.TASK_CONTEXT:
+            d = {}
+            for k, v in var.items():
+                if k == "task":  # todo: add `_encode` of Operator so we don't need this
+                    continue
+                d[k] = cls.deserialize(v, use_pydantic_models=True)
+            d["task"] = d["task_instance"].task  # todo: add `_encode` of Operator so we don't need this
+            return Context(**d)
         if type_ == DAT.DICT:
             return {k: cls.deserialize(v, use_pydantic_models) for k, v in var.items()}
         elif type_ == DAT.DAG:

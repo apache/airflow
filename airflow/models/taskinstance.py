@@ -29,6 +29,7 @@ import signal
 import threading
 import warnings
 from collections import defaultdict
+from contextlib import nullcontext
 from datetime import timedelta
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, Mapping, Tuple
@@ -61,12 +62,12 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import reconstructor, relationship
+from sqlalchemy.orm import lazyload, reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
 from sqlalchemy.sql.expression import case, select
 
 from airflow import settings
-from airflow.api_internal.internal_api_call import internal_api_call
+from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
 from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.datasets import Dataset
@@ -92,6 +93,7 @@ from airflow.models.dagbag import DagBag
 from airflow.models.log import Log
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import process_params
+from airflow.models.renderedtifields import get_serialized_template_fields
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
@@ -105,7 +107,13 @@ from airflow.templates import SandboxedEnvironment
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.utils import timezone
-from airflow.utils.context import ConnectionAccessor, Context, VariableAccessor, context_merge
+from airflow.utils.context import (
+    ConnectionAccessor,
+    Context,
+    DatasetEventAccessors,
+    VariableAccessor,
+    context_merge,
+)
 from airflow.utils.email import send_email
 from airflow.utils.helpers import prune_dict, render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -464,7 +472,8 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
             raise
     else:
         result = _execute_callable(context=context, **execute_callable_kwargs)
-    with create_session() as session:
+    cm = nullcontext() if InternalApiConfig.get_use_internal_api() else create_session()
+    with cm as session_or_null:
         if task_to_execute.do_xcom_push:
             xcom_value = result
         else:
@@ -483,10 +492,10 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
                             f"multiple_outputs, found {key} ({type(key)}) instead"
                         )
                 for key, value in xcom_value.items():
-                    task_instance.xcom_push(key=key, value=value, session=session)
-            task_instance.xcom_push(key=XCOM_RETURN_KEY, value=xcom_value, session=session)
+                    task_instance.xcom_push(key=key, value=value, session=session_or_null)
+            task_instance.xcom_push(key=XCOM_RETURN_KEY, value=xcom_value, session=session_or_null)
         _record_task_map_for_downstreams(
-            task_instance=task_instance, task=task_orig, value=xcom_value, session=session
+            task_instance=task_instance, task=task_orig, value=xcom_value, session=session_or_null
         )
     return result
 
@@ -516,7 +525,6 @@ def _refresh_from_db(
         task_id=task_instance.task_id,
         run_id=task_instance.run_id,
         map_index=task_instance.map_index,
-        select_columns=True,
         lock_for_update=lock_for_update,
         session=session,
     )
@@ -527,8 +535,7 @@ def _refresh_from_db(
         task_instance.end_date = ti.end_date
         task_instance.duration = ti.duration
         task_instance.state = ti.state
-        # Since we selected columns, not the object, this is the raw value
-        task_instance.try_number = ti.try_number
+        task_instance.try_number = ti._try_number  # private attr to get value unaltered by accessor
         task_instance.max_tries = ti.max_tries
         task_instance.hostname = ti.hostname
         task_instance.unixname = ti.unixname
@@ -542,6 +549,7 @@ def _refresh_from_db(
         task_instance.queued_dttm = ti.queued_dttm
         task_instance.queued_by_job_id = ti.queued_by_job_id
         task_instance.pid = ti.pid
+        task_instance.executor = ti.executor
         task_instance.executor_config = ti.executor_config
         task_instance.external_executor_id = ti.external_executor_id
         task_instance.trigger_id = ti.trigger_id
@@ -591,6 +599,7 @@ def _clear_next_method_args(*, task_instance: TaskInstance | TaskInstancePydanti
     task_instance.next_kwargs = None
 
 
+@internal_api_call
 def _get_template_context(
     *,
     task_instance: TaskInstance | TaskInstancePydantic,
@@ -617,10 +626,30 @@ def _get_template_context(
 
     task = task_instance.task
     if TYPE_CHECKING:
+        assert task_instance.task
         assert task
         assert task.dag
-    dag: DAG = task.dag
+    try:
+        dag: DAG = task.dag
+    except AirflowException:
+        from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
+        if isinstance(task_instance, TaskInstancePydantic):
+            ti = session.scalar(
+                select(TaskInstance).where(
+                    TaskInstance.task_id == task_instance.task_id,
+                    TaskInstance.dag_id == task_instance.dag_id,
+                    TaskInstance.run_id == task_instance.run_id,
+                    TaskInstance.map_index == task_instance.map_index,
+                )
+            )
+            dag = ti.dag_model.serialized_dag.dag
+            if hasattr(task_instance.task, "_dag"):  # BaseOperator
+                task_instance.task._dag = dag
+            else:  # MappedOperator
+                task_instance.task.dag = dag
+        else:
+            raise
     dag_run = task_instance.get_dagrun(session)
     data_interval = dag.get_run_data_interval(dag_run)
 
@@ -767,6 +796,7 @@ def _get_template_context(
         "dag_run": dag_run,
         "data_interval_end": timezone.coerce_datetime(data_interval.end),
         "data_interval_start": timezone.coerce_datetime(data_interval.start),
+        "dataset_events": DatasetEventAccessors(),
         "ds": ds,
         "ds_nodash": ds_nodash,
         "execution_date": logical_date,
@@ -905,7 +935,7 @@ def _get_try_number(*, task_instance: TaskInstance | TaskInstancePydantic):
 
     :meta private:
     """
-    if task_instance.state == TaskInstanceState.RUNNING.RUNNING:
+    if task_instance.state == TaskInstanceState.RUNNING:
         return task_instance._try_number
     return task_instance._try_number + 1
 
@@ -946,6 +976,7 @@ def _refresh_from_task(
     task_instance.run_as_user = task.run_as_user
     # Do not set max_tries to task.retries here because max_tries is a cumulative
     # value that needs to be stored in the db.
+    task_instance.executor = task.executor
     task_instance.executor_config = task.executor_config
     task_instance.operator = task.task_type
     task_instance.custom_operator_name = getattr(task, "custom_operator_name", None)
@@ -1249,6 +1280,16 @@ def _get_previous_ti(
     return dagrun.get_task_instance(task_instance.task_id, session=session)
 
 
+@internal_api_call
+@provide_session
+def _update_rtif(ti, rendered_fields, session: Session | None = None):
+    from airflow.models.renderedtifields import RenderedTaskInstanceFields
+
+    rtif = RenderedTaskInstanceFields(ti=ti, render_templates=False, rendered_fields=rendered_fields)
+    RenderedTaskInstanceFields.write(rtif, session=session)
+    RenderedTaskInstanceFields.delete_old_records(ti.task_id, ti.dag_id, session=session)
+
+
 class TaskInstance(Base, LoggingMixin):
     """
     Task instances store the state of a task instance.
@@ -1292,6 +1333,7 @@ class TaskInstance(Base, LoggingMixin):
     queued_dttm = Column(UtcDateTime)
     queued_by_job_id = Column(Integer)
     pid = Column(Integer)
+    executor = Column(String(1000))
     executor_config = Column(ExecutorConfigType(pickler=dill))
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
     rendered_map_index = Column(String(250))
@@ -1479,6 +1521,7 @@ class TaskInstance(Base, LoggingMixin):
             "priority_weight": priority_weight,
             "run_as_user": task.run_as_user,
             "max_tries": task.retries,
+            "executor": task.executor,
             "executor_config": task.executor_config,
             "operator": task.task_type,
             "custom_operator_name": getattr(task, "custom_operator_name", None),
@@ -1788,18 +1831,18 @@ class TaskInstance(Base, LoggingMixin):
         run_id: str,
         task_id: str,
         map_index: int,
-        select_columns: bool = False,
         lock_for_update: bool = False,
         session: Session = NEW_SESSION,
     ) -> TaskInstance | TaskInstancePydantic | None:
         query = (
-            session.query(*TaskInstance.__table__.columns) if select_columns else session.query(TaskInstance)
-        )
-        query = query.filter_by(
-            dag_id=dag_id,
-            run_id=run_id,
-            task_id=task_id,
-            map_index=map_index,
+            session.query(TaskInstance)
+            .options(lazyload("dag_run"))  # lazy load dag run to avoid locking it
+            .filter_by(
+                dag_id=dag_id,
+                run_id=run_id,
+                task_id=task_id,
+                map_index=map_index,
+            )
         )
 
         if lock_for_update:
@@ -2572,7 +2615,7 @@ class TaskInstance(Base, LoggingMixin):
                 session.add(Log(self.state, self))
                 session.merge(self).task = self.task
                 if self.state == TaskInstanceState.SUCCESS:
-                    self._register_dataset_changes(session=session)
+                    self._register_dataset_changes(events=context["dataset_events"], session=session)
 
                 session.commit()
                 if self.state == TaskInstanceState.SUCCESS:
@@ -2582,7 +2625,7 @@ class TaskInstance(Base, LoggingMixin):
 
             return None
 
-    def _register_dataset_changes(self, *, session: Session) -> None:
+    def _register_dataset_changes(self, *, events: DatasetEventAccessors, session: Session) -> None:
         if TYPE_CHECKING:
             assert self.task
 
@@ -2593,13 +2636,12 @@ class TaskInstance(Base, LoggingMixin):
                 dataset_manager.register_dataset_change(
                     task_instance=self,
                     dataset=obj,
+                    extra=events[obj].extra,
                     session=session,
                 )
 
     def _execute_task_with_callbacks(self, context: Context, test_mode: bool = False, *, session: Session):
         """Prepare Task for Execution."""
-        from airflow.models.renderedtifields import RenderedTaskInstanceFields
-
         if TYPE_CHECKING:
             assert self.task
 
@@ -2640,10 +2682,8 @@ class TaskInstance(Base, LoggingMixin):
                 task_orig = self.render_templates(context=context, jinja_env=jinja_env)
 
             if not test_mode:
-                rtif = RenderedTaskInstanceFields(ti=self, render_templates=False)
-                RenderedTaskInstanceFields.write(rtif)
-                RenderedTaskInstanceFields.delete_old_records(self.task_id, self.dag_id)
-
+                rendered_fields = get_serialized_template_fields(task=self.task)
+                _update_rtif(ti=self, rendered_fields=rendered_fields)
             # Export context to make it available for operators to use.
             airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
             os.environ.update(airflow_context_vars)
@@ -3682,6 +3722,7 @@ class SimpleTaskInstance:
         try_number: int,
         map_index: int,
         state: str,
+        executor: str | None,
         executor_config: Any,
         pool: str,
         queue: str,
@@ -3697,6 +3738,7 @@ class SimpleTaskInstance:
         self.end_date = end_date
         self.try_number = try_number
         self.state = state
+        self.executor = executor
         self.executor_config = executor_config
         self.run_as_user = run_as_user
         self.pool = pool
@@ -3735,6 +3777,7 @@ class SimpleTaskInstance:
             end_date=ti.end_date,
             try_number=ti.try_number,
             state=ti.state,
+            executor=ti.executor,
             executor_config=ti.executor_config,
             pool=ti.pool,
             queue=ti.queue,

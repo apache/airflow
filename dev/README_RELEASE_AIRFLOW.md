@@ -44,6 +44,7 @@
   - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
   - [Verify production images](#verify-production-images)
   - [Publish documentation](#publish-documentation)
+  - [Wait and make sure documentation is published on the website before proceeding](#wait-and-make-sure-documentation-is-published-on-the-website-before-proceeding)
   - [Notify developers of release](#notify-developers-of-release)
   - [Send announcements about security issues fixed in the release](#send-announcements-about-security-issues-fixed-in-the-release)
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
@@ -256,14 +257,16 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     git reset --hard origin/v${VERSION_BRANCH}-test
     ```
 
-- Set your version in `airflow/__init__.py`, `airflow/api_connexion/openapi/v1.yaml` and `docs/` (without the RC tag).
-- Add supported Airflow version to `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job.
-- Replace the version in `README.md` and verify that installation instructions work fine.
+- Set your version in `airflow/__init__.py`, `airflow/api_connexion/openapi/v1.yaml` (without the RC tag).
+- Run `git commit` without a message to update versions in `docs`.
+- Add supported Airflow version to `./scripts/ci/pre_commit/supported_versions.py` and let pre-commit do the job again.
+- Replace the versions in `README.md` about installation and verify that installation instructions work fine.
 - Add entry for default python version to `BASE_PROVIDERS_COMPATIBILITY_CHECKS` in `src/airflow_breeze/global_constants.py`
   with the new Airflow version, and empty exclusion for providers. This list should be updated later when providers
   with minimum version for the next version of Airflow will be added in the future.
 - Check `Apache Airflow is tested with` (stable version) in `README.md` has the same tested versions as in the tip of
   the stable branch in `dev/breeze/src/airflow_breeze/global_constants.py`
+- Commit the above changes with the message `Update version to ${VERSION_WITHOUT_RC}`.
 - Build the release notes:
 
   Preview with:
@@ -284,7 +287,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
   ./dev/airflow-github changelog v2-3-stable v2-3-test
   ```
 
-- Commit the version change.
+- Commit the release note change.
 
 - PR from the 'test' branch to the 'stable' branch
 
@@ -308,7 +311,19 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     git checkout main
     git pull # Ensure that the script is up-to-date
     breeze release-management start-rc-process --version ${VERSION} --previous-version <PREVIOUS_VERSION>
-    # Create issue for testing the RC
+   ```
+
+- Create issue in github for testing the release using this subject:
+
+  ```shell script
+  cat <<EOF
+  Status of testing of Apache Airflow {VERSION}
+  EOF
+  ```
+
+- Generate the body of the issue using the below command:
+
+  ```shell script
     breeze release-management generate-issue-content-core --previous-release <PREVIOUS_VERSION>
     --current-release ${VERSION}
     ```
@@ -874,6 +889,11 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
     # and finally open a PR
     ```
 
+## Wait and make sure documentation is published on the website before proceeding
+
+This is important as it takes time for the documentation to be published. You should exercise some patient
+here before proceeding with the next steps.
+
 
 ## Notify developers of release
 
@@ -1010,7 +1030,7 @@ EOF
 
 This includes:
 
-- Modify `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job.
+- Modify `./scripts/ci/pre_commit/supported_versions.py` and let pre-commit do the job.
 - For major/minor release, update version in `airflow/__init__.py`, `docs/docker-stack/` and `airflow/api_connexion/openapi/v1.yaml` to the next likely minor version release.
 - Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes.
 - Updating `Dockerfile` with the new version.

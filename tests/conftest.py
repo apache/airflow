@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 import time_machine
+import yaml
 
 # We should set these before loading _any_ of the rest of airflow so that the
 # unit test mode config is set as early as possible.
@@ -370,7 +371,6 @@ def pytest_configure(config: pytest.Config) -> None:
         )
         pytest.exit(msg, returncode=6)
 
-    config.addinivalue_line("filterwarnings", "error::airflow.utils.context.AirflowContextDeprecationWarning")
     config.addinivalue_line("markers", "integration(name): mark test to run with named integration")
     config.addinivalue_line("markers", "backend(name): mark test to run with named backend")
     config.addinivalue_line("markers", "system(name): mark test to run with named system")
@@ -1156,24 +1156,23 @@ def clear_lru_cache():
 
 
 @pytest.fixture(autouse=True)
-def refuse_to_run_test_from_wrongly_named_files(request):
-    dirname: str = request.node.fspath.dirname
-    filename: str = request.node.fspath.basename
-    is_system_test: bool = "tests/system/" in dirname
-    if is_system_test and not (
-        request.node.fspath.basename.startswith("example_")
-        or request.node.fspath.basename.startswith("test_")
-    ):
-        raise Exception(
+def refuse_to_run_test_from_wrongly_named_files(request: pytest.FixtureRequest):
+    filepath = request.node.path
+    is_system_test: bool = "tests/system/" in os.fspath(filepath.parent)
+    test_name = request.node.name
+    if request.node.cls:
+        test_name = f"{request.node.cls.__name__}.{test_name}"
+    if is_system_test and not filepath.name.startswith(("example_", "test_")):
+        pytest.fail(
             f"All test method files in tests/system must start with 'example_' or 'test_'. "
-            f"Seems that {filename} contains {request.function} that looks like a test case. "
+            f"Seems that {os.fspath(filepath)!r} contains {test_name!r} that looks like a test case. "
             f"Please rename the file to follow the example_* or test_* pattern if you want to run the tests "
             f"in it."
         )
-    if not is_system_test and not request.node.fspath.basename.startswith("test_"):
-        raise Exception(
-            f"All test method files in tests/ must start with 'test_'. Seems that {filename} "
-            f"contains {request.function} that looks like a test case. Please rename the file to "
+    elif not is_system_test and not filepath.name.startswith("test_"):
+        pytest.fail(
+            f"All test method files in tests/ must start with 'test_'. Seems that {os.fspath(filepath)!r} "
+            f"contains {test_name!r} that looks like a test case. Please rename the file to "
             f"follow the test_* pattern if you want to run the tests in it."
         )
 
@@ -1204,6 +1203,28 @@ def cleanup_providers_manager():
         yield
     finally:
         ProvidersManager()._cleanup()
+
+
+@pytest.fixture(scope="session")
+def deprecations_ignore() -> tuple[str, ...]:
+    with open(Path(__file__).absolute().parent.resolve() / "deprecations_ignore.yml") as fp:
+        return tuple(yaml.safe_load(fp))
+
+
+@pytest.fixture(autouse=True)
+def check_deprecations(request: pytest.FixtureRequest, deprecations_ignore):
+    from airflow.exceptions import AirflowProviderDeprecationWarning, RemovedInAirflow3Warning
+    from airflow.utils.context import AirflowContextDeprecationWarning
+
+    if request.node.nodeid.startswith(deprecations_ignore):
+        yield
+        return
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", AirflowProviderDeprecationWarning)
+        warnings.simplefilter("error", RemovedInAirflow3Warning)
+        warnings.simplefilter("error", AirflowContextDeprecationWarning)
+        yield
 
 
 # The code below is a modified version of capture-warning code from
@@ -1246,54 +1267,24 @@ def pytest_runtest_call(item):
     """
     Needed to grab the item.location information
     """
-    global warnings_recorder
-
     if os.environ.get("PYTHONWARNINGS") == "ignore":
         yield
         return
 
-    warnings_recorder.__enter__()
-    yield
-    warnings_recorder.__exit__(None, None, None)
-
-    for warning in warnings_recorder.list:
-        # this code is adapted from python official warnings module
-
-        # Search the filters
-        for filter in warnings.filters:
-            action, msg, cat, mod, ln = filter
-
-            module = warning.filename or "<unknown>"
-            if module[-3:].lower() == ".py":
-                module = module[:-3]  # XXX What about leading pathname?
-
-            if (
-                (msg is None or msg.match(str(warning.message)))
-                and issubclass(warning.category, cat)
-                and (mod is None or mod.match(module))
-                and (ln == 0 or warning.lineno == ln)
-            ):
-                break
-        else:
-            action = warnings.defaultaction
-
-        # Early exit actions
-        if action == "ignore":
-            continue
-
-        warning.item = item
+    with warnings.catch_warnings(record=True) as records:
+        yield
+    for record in records:
         quadruplet: tuple[str, int, type[Warning], str] = (
-            warning.filename,
-            warning.lineno,
-            warning.category,
-            str(warning.message),
+            record.filename,
+            record.lineno,
+            record.category,
+            str(record.message),
         )
-
         if quadruplet in captured_warnings:
             captured_warnings_count[quadruplet] += 1
             continue
         else:
-            captured_warnings[quadruplet] = warning
+            captured_warnings[quadruplet] = record
             captured_warnings_count[quadruplet] = 1
 
 
@@ -1314,11 +1305,12 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config=None):
     yield
 
     if captured_warnings:
-        print("\n ======================== Warning summary =============================\n")
-        print(f"   The tests generated {sum(captured_warnings_count.values())} warnings.")
-        print(f"   After removing duplicates, {len(captured_warnings.values())} of them remained.")
-        print(f"   They are stored in {warning_output_path} file.")
-        print("\n ======================================================================\n")
+        terminalreporter.section(
+            f"Warning summary. Total: {sum(captured_warnings_count.values())}, "
+            f"Unique: {len(captured_warnings.values())}",
+            yellow=True,
+            bold=True,
+        )
         warnings_as_json = []
 
         for warning in captured_warnings.values():
@@ -1348,6 +1340,9 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config=None):
             for i in warnings_as_json:
                 f.write(f'{i["path"]}:{i["lineno"]}: [W0513(warning), ] {i["warning_message"]}')
                 f.write("\n")
+        terminalreporter.write("Warnings saved into ")
+        terminalreporter.write(os.fspath(warning_output_path), yellow=True)
+        terminalreporter.write(" file.\n")
     else:
         # nothing, clear file
         with warning_output_path.open("w") as f:

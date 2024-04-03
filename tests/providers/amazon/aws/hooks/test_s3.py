@@ -492,10 +492,8 @@ class TestAwsS3Hook:
             operation_name="s3",
         )
         with pytest.raises(ClientError) as err:
-            response = await s3_hook_async.get_head_object_async(
-                mock_client, "s3://test_bucket/file", "test_bucket"
-            )
-            assert isinstance(response, err)
+            await s3_hook_async.get_head_object_async(mock_client, "s3://test_bucket/file", "test_bucket")
+        assert isinstance(err.value, ClientError)
 
     @pytest.mark.asyncio
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")

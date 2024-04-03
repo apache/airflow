@@ -24,8 +24,8 @@ from marshmallow import Schema, fields
 class LogsSchema(Schema):
     """Schema for logs."""
 
-    content = fields.Str()
-    continuation_token = fields.Str()
+    content = fields.Str(dump_only=True)
+    continuation_token = fields.Str(dump_only=True)
 
 
 class LogResponseObject(NamedTuple):
