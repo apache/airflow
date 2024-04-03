@@ -80,7 +80,6 @@ class TestBedrockHook:
             self.hook.job_name_exists(JOB_NAME)
 
         mock_conn.get_model_customization_job.assert_called_once_with(jobIdentifier=JOB_NAME)
-from airflow.providers.amazon.aws.hooks.bedrock import BedrockRuntimeHook
 
 
 class TestBedrockRuntimeHook:
