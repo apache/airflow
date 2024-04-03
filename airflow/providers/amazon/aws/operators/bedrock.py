@@ -196,12 +196,15 @@ class BedrockCustomizeModelOperator(AwsBaseOperator[BedrockHook]):
         self.log.info("Bedrock model customization job `%s` complete.", self.job_name)
         return self.hook.get_job_arn(event["job_name"])
 
-    def execute(self, context: Context) -> dict:
+    def _validate_action_if_job_exists(self):
         if self.action_if_job_exists not in self.valid_action_if_job_exists:
             raise AirflowException(
                 f"Invalid value for argument action_if_job_exists {self.action_if_job_exists}; "
                 f"must be one of: {self.valid_action_if_job_exists}."
             )
+
+    def execute(self, context: Context) -> dict:
+        self._validate_action_if_job_exists()
 
         if self.check_if_job_exists and self.hook.job_name_exists(self.job_name):
             if self.action_if_job_exists == "fail":

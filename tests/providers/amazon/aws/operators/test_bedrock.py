@@ -139,26 +139,27 @@ class TestBedrockCustomizeModelOperator:
             pytest.param("call me maybe", False, id="invalid"),
         ],
     )
-    def test_customize_model_action_if_job_exists_happy_combinations(self, action_if_job_exists, succeeds):
+    def test_customize_model_validate_action_if_job_exists(self, action_if_job_exists, succeeds):
         exception = None
+        operator = BedrockCustomizeModelOperator(
+            task_id="test_task",
+            job_name=self.customize_model_job_name,
+            custom_model_name="testModelName",
+            role_arn="valid_arn",
+            base_model_id="base_model_id",
+            hyperparameters={
+                "epochCount": "1",
+                "batchSize": "1",
+                "learningRate": ".0005",
+                "learningRateWarmupSteps": "0",
+            },
+            training_data_uri="s3://uri",
+            output_data_uri="s3://uri/output",
+            action_if_job_exists=action_if_job_exists,
+        )
 
         try:
-            operator = BedrockCustomizeModelOperator(
-                task_id="test_task",
-                job_name=self.customize_model_job_name,
-                custom_model_name="testModelName",
-                role_arn="valid_arn",
-                base_model_id="base_model_id",
-                hyperparameters={
-                    "epochCount": "1",
-                    "batchSize": "1",
-                    "learningRate": ".0005",
-                    "learningRateWarmupSteps": "0",
-                },
-                training_data_uri="s3://uri",
-                output_data_uri="s3://uri/output",
-                action_if_job_exists=action_if_job_exists,
-            )
+            operator._validate_action_if_job_exists()
         except Exception as e:
             exception = e
 
