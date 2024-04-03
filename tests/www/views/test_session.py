@@ -29,7 +29,7 @@ pytestmark = pytest.mark.db_test
 
 
 def get_session_cookie(client):
-    return next((cookie for cookie in client.cookie_jar if cookie.name == "session"), None)
+    return next((cookie for cookie in client.cookies if cookie == "session"), None)
 
 
 def test_session_cookie_created_on_login(user_client):
