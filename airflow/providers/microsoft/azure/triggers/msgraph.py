@@ -30,6 +30,7 @@ from typing import (
     Callable,
     Sequence,
 )
+from urllib.parse import quote
 from uuid import UUID
 
 import pendulum
@@ -263,15 +264,23 @@ class MSGraphTrigger(BaseTrigger):
             return self.url.replace("/", "", 1)
         return self.url
 
+    @staticmethod
+    def encode_query_parameters(query_parameters: dict) -> dict:
+        return {quote(key): quote(str(value)) for key, value in query_parameters.items()}
+
     def request_information(self) -> RequestInformation:
         request_information = RequestInformation()
-        if self.url.startswith("http"):
-            request_information.url = self.url
-        else:
-            request_information.url_template = f"{{+baseurl}}/{self.normalize_url()}"
+
         request_information.path_parameters = self.path_parameters or {}
         request_information.http_method = Method(self.method.strip().upper())
-        request_information.query_parameters = self.query_parameters or {}
+        request_information.query_parameters = self.encode_query_parameters(self.query_parameters or {})
+        if self.url.startswith("http"):
+            request_information.url = self.url
+        elif request_information.query_parameters.keys():
+            query = ','.join(request_information.query_parameters.keys())
+            request_information.url_template = f"{{+baseurl}}/{self.normalize_url()}{{?{query}}}"
+        else:
+            request_information.url_template = f"{{+baseurl}}/{self.normalize_url()}"
         if not self.response_type:
             request_information.request_options[ResponseHandlerOption.get_key()] = ResponseHandlerOption(
                 response_handler=CallableResponseHandler(self.response_handler)

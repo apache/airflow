@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 from typing import TYPE_CHECKING
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 import httpx
 from azure.identity import ClientSecretCredential
@@ -101,12 +101,32 @@ class KiotaRequestAdapterHook(BaseHook):
         return NationalClouds.Global.value
 
     @staticmethod
-    def to_httpx_proxies(proxies: dict) -> dict:
+    def format_no_proxy_url(url: str) -> str:
+        if "://" not in url:
+            url = f"all://{url}"
+        return url
+
+    @classmethod
+    def to_httpx_proxies(cls, proxies: dict) -> dict:
         proxies = proxies.copy()
         if proxies.get("http"):
             proxies["http://"] = proxies.pop("http")
         if proxies.get("https"):
             proxies["https://"] = proxies.pop("https")
+        if proxies.get("no_proxy"):
+            for url in proxies.pop("no_proxy", "").split(","):
+                proxies[cls.format_no_proxy_url(url.strip())] = None
+        return proxies
+
+    @classmethod
+    def to_msal_proxies(cls, authority: str | None, proxies: dict):
+        if authority:
+            no_proxies = proxies.get("no_proxy")
+            if no_proxies:
+                for url in no_proxies.split(","):
+                    domain_name = urlparse(url).path.replace("*", "")
+                    if authority.endswith(domain_name):
+                        return None
         return proxies
 
     def get_conn(self) -> RequestAdapter:
@@ -128,6 +148,9 @@ class KiotaRequestAdapterHook(BaseHook):
             scopes = config.get("scopes", ["https://graph.microsoft.com/.default"])
             verify = config.get("verify", True)
             trust_env = config.get("trust_env", False)
+            authority = config.get("authority")
+            disable_instance_discovery = config.get("disable_instance_discovery", False)
+            allowed_hosts = (config.get("allowed_hosts", authority) or "").split(",")
 
             self.log.info(
                 "Creating Microsoft Graph SDK client %s for conn_id: %s",
@@ -144,24 +167,32 @@ class KiotaRequestAdapterHook(BaseHook):
             self.log.info("Verify: %s", verify)
             self.log.info("Timeout: %s", self.timeout)
             self.log.info("Trust env: %s", trust_env)
+            self.log.info("Authority: %s", authority)
             self.log.info("Proxies: %s", json.dumps(proxies))
             credentials = ClientSecretCredential(
-                tenant_id=tenant_id,  # type: ignore
-                client_id=connection.login,  # type: ignore
-                client_secret=connection.password,  # type: ignore
-                proxies=proxies,
+                tenant_id=tenant_id,
+                client_id=connection.login,
+                client_secret=connection.password,
+                authority=authority,
+                proxies=self.to_msal_proxies(authority=authority, proxies=proxies),
+                disable_instance_discovery=disable_instance_discovery,
+                connection_verify=verify,
             )
             http_client = GraphClientFactory.create_with_default_middleware(
                 api_version=api_version,
                 client=httpx.AsyncClient(
-                    proxies=self.to_httpx_proxies(proxies),
+                    proxies=self.to_httpx_proxies(proxies=proxies),
                     timeout=Timeout(timeout=self.timeout),
                     verify=verify,
                     trust_env=trust_env,
                 ),
                 host=host,
             )
-            auth_provider = AzureIdentityAuthenticationProvider(credentials=credentials, scopes=scopes)
+            auth_provider = AzureIdentityAuthenticationProvider(
+                credentials=credentials,
+                scopes=scopes,
+                allowed_hosts=allowed_hosts,
+            )
             request_adapter = HttpxRequestAdapter(
                 authentication_provider=auth_provider,
                 http_client=http_client,

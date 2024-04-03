@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -98,6 +99,7 @@ class MSGraphAsyncOperator(BaseOperator):
         timeout: float | None = None,
         proxies: dict | None = None,
         api_version: APIVersion | None = None,
+        pagination_function: Callable[[MSGraphAsyncOperator, dict], Any] | None = None,
         result_processor: Callable[[Context, Any], Any] = lambda context, result: result,
         serializer: type[ResponseSerializer] = ResponseSerializer,
         **kwargs: Any,
@@ -117,6 +119,7 @@ class MSGraphAsyncOperator(BaseOperator):
         self.timeout = timeout
         self.proxies = proxies
         self.api_version = api_version
+        self.pagination_function = pagination_function or self.paginate
         self.result_processor = result_processor
         self.serializer: ResponseSerializer = serializer()
         self.results: list[Any] | None = None
@@ -237,16 +240,38 @@ class MSGraphAsyncOperator(BaseOperator):
         )
         return self.execute_complete(context, event)
 
+    @staticmethod
+    def paginate(operator: MSGraphAsyncOperator, response: dict):
+        odata_count = response.get("@odata.count")
+        if odata_count:
+            query_parameters = deepcopy(operator.query_parameters)
+            top: int = query_parameters.get("$top")
+            odata_count: int = response.get("@odata.count")
+
+            if top and odata_count:
+                if len(response.get("value")) == top:
+                    skip = (
+                        sum(map(lambda result: len(result["value"]), operator.results))
+                        + top
+                        if operator.results
+                        else top
+                    )
+                    query_parameters["$skip"] = skip
+                    return operator.url, query_parameters
+        return response.get("@odata.nextLink"), operator.query_parameters
+
     def trigger_next_link(self, response, method_name="execute_complete") -> None:
         if isinstance(response, dict):
-            odata_next_link = response.get("@odata.nextLink")
+            url, query_parameters = self.pagination_function(self, response)
 
-            self.log.debug("odata_next_link: %s", odata_next_link)
+            self.log.debug("url: %s", url)
+            self.log.debug("query_parameters: %s", query_parameters)
 
-            if odata_next_link:
+            if url:
                 self.defer(
                     trigger=MSGraphTrigger(
-                        url=odata_next_link,
+                        url=url,
+                        query_parameters=query_parameters,
                         response_type=self.response_type,
                         response_handler=self.response_handler,
                         conn_id=self.conn_id,
