@@ -371,6 +371,16 @@ def generate_args_for_pytest(
     args.extend(get_excluded_provider_args(python_version))
     if use_xdist:
         args.extend(["-n", str(parallelism) if parallelism else "auto"])
+        # Distribute tests by different rules, see:
+        # https://pytest-xdist.readthedocs.io/en/stable/distribution.html#running-tests-across-multiple-cpus
+        if test_type != "Helm":
+            # For regular tests, we distribute test into the worker by their containing file
+            # It should reduce different side effects,
+            # if the state of environment could be changed between tests.
+            args.extend(["--dist", "loadfile"])
+        else:
+            # For helm tests setup distribution for "steal" tests which queued into the lon running queue.
+            args.extend(["--dist", "worksteal"])
     # We have to disabke coverage for Python 3.12 because of the issue with coverage that takes too long, despite
     # Using experimental support for Python 3.12 PEP 669. The coverage.py is not yet fully compatible with the
     # full scope of PEP-669. That will be fully done when https://github.com/nedbat/coveragepy/issues/1746 is
