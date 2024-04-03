@@ -115,7 +115,7 @@ def test_home_status_filter_cookie(admin_client):
 def user_no_importerror(app):
     """Create User that cannot access Import Errors"""
     return create_user(
-        app,
+        app.app,
         username="user_no_importerrors",
         role_name="role_no_importerrors",
         permissions=[
