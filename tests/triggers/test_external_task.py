@@ -56,9 +56,9 @@ class TestWorkflowTrigger:
 
         gen = trigger.run()
         trigger_task = asyncio.create_task(gen.__anext__())
-        dummy_task = asyncio.create_task(dummy_async_fun())
+        fake_task = asyncio.create_task(fake_async_fun())
         await trigger_task
-        assert dummy_task.done()  # confirm that get_count is done in an async fashion
+        assert fake_task.done()  # confirm that get_count is done in an async fashion
         assert trigger_task.done()
         result = trigger_task.result()
         assert result.payload == {"status": "success"}
@@ -87,9 +87,9 @@ class TestWorkflowTrigger:
 
         gen = trigger.run()
         trigger_task = asyncio.create_task(gen.__anext__())
-        dummy_task = asyncio.create_task(dummy_async_fun())
+        fake_task = asyncio.create_task(fake_async_fun())
         await trigger_task
-        assert dummy_task.done()  # confirm that get_count is done in an async fashion
+        assert fake_task.done()  # confirm that get_count is done in an async fashion
         assert trigger_task.done()
         result = trigger_task.result()
         assert isinstance(result, TriggerEvent)
@@ -149,9 +149,9 @@ class TestWorkflowTrigger:
 
         gen = trigger.run()
         trigger_task = asyncio.create_task(gen.__anext__())
-        dummy_task = asyncio.create_task(dummy_async_fun())
+        fake_task = asyncio.create_task(fake_async_fun())
         await trigger_task
-        assert dummy_task.done()  # confirm that get_count is done in an async fashion
+        assert fake_task.done()  # confirm that get_count is done in an async fashion
         assert trigger_task.done()
         result = trigger_task.result()
         assert isinstance(result, TriggerEvent)
@@ -467,9 +467,9 @@ class TestDagStateTrigger:
 
 
 def mocked_get_count(*args, **kwargs):
-    time.sleep(0.3)
+    time.sleep(0.0001)
     return 1
 
 
-async def dummy_async_fun():
-    await asyncio.sleep(0.1)
+async def fake_async_fun():
+    await asyncio.sleep(0.00005)

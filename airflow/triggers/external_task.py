@@ -21,6 +21,7 @@ import typing
 from typing import Any
 
 from asgiref.sync import sync_to_async
+from deprecated import deprecated
 from sqlalchemy import func
 
 from airflow.models import DagRun, TaskInstance
@@ -134,6 +135,7 @@ class WorkflowTrigger(BaseTrigger):
         )
 
 
+@deprecated(reason=("TaskStateTrigger has been deprecated and will be removed in future."))
 class TaskStateTrigger(BaseTrigger):
     """
     Waits asynchronously for a task in a different DAG to complete for a specific logical date.
