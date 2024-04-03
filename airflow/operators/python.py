@@ -235,7 +235,7 @@ class PythonOperator(BaseOperator):
         try:
             self._dataset_events = context["dataset_events"]
         except KeyError:
-            self._dataset_events = context["dataset_events"] = DatasetEventAccessors()
+            self._dataset_events = DatasetEventAccessors()
         return_value = self.execute_callable()
         if self.show_return_value_in_logs:
             self.log.info("Done. Returned value was: %s", return_value)
