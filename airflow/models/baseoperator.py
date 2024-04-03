@@ -91,7 +91,7 @@ from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkipped
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
-from airflow.utils.context import Context
+from airflow.utils.context import Context, context_get_dataset_events
 from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.helpers import validate_key
@@ -1272,8 +1272,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """Execute right before self.execute() is called."""
         if self._pre_execute_hook is None:
             return
-        runner = ExecutionCallableRunner(self._pre_execute_hook, context["dataset_events"], logger=self.log)
-        runner.run(context)
+        ExecutionCallableRunner(
+            self._pre_execute_hook,
+            context_get_dataset_events(context),
+            logger=self.log,
+        ).run(context)
 
     def execute(self, context: Context) -> Any:
         """
@@ -1294,8 +1297,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """
         if self._post_execute_hook is None:
             return
-        runner = ExecutionCallableRunner(self._post_execute_hook, context["dataset_events"], logger=self.log)
-        runner.run(context, result)
+        ExecutionCallableRunner(
+            self._post_execute_hook,
+            context_get_dataset_events(context),
+            logger=self.log,
+        ).run(context, result)
 
     def on_kill(self) -> None:
         """

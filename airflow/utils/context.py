@@ -355,3 +355,10 @@ def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]:
         return lazy_object_proxy.Proxy(factory)
 
     return {k: _create_value(k, v) for k, v in source._context.items()}
+
+
+def context_get_dataset_events(context: Context) -> DatasetEventAccessors:
+    try:
+        return context["dataset_events"]
+    except KeyError:
+        return DatasetEventAccessors()

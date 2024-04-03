@@ -52,7 +52,7 @@ from airflow.models.taskinstance import _CURRENT_CONTEXT
 from airflow.models.variable import Variable
 from airflow.operators.branch import BranchMixIn
 from airflow.utils import hashlib_wrapper
-from airflow.utils.context import DatasetEventAccessors, context_copy_partial, context_merge
+from airflow.utils.context import context_copy_partial, context_get_dataset_events, context_merge
 from airflow.utils.file import get_unique_dag_module_name
 from airflow.utils.operator_helpers import ExecutionCallableRunner, KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
@@ -231,11 +231,8 @@ class PythonOperator(BaseOperator):
     def execute(self, context: Context) -> Any:
         context_merge(context, self.op_kwargs, templates_dict=self.templates_dict)
         self.op_kwargs = self.determine_kwargs(context)
+        self._dataset_events = context_get_dataset_events(context)
 
-        try:
-            self._dataset_events = context["dataset_events"]
-        except KeyError:
-            self._dataset_events = DatasetEventAccessors()
         return_value = self.execute_callable()
         if self.show_return_value_in_logs:
             self.log.info("Done. Returned value was: %s", return_value)

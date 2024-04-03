@@ -111,6 +111,7 @@ from airflow.utils.context import (
     Context,
     DatasetEventAccessors,
     VariableAccessor,
+    context_get_dataset_events,
     context_merge,
 )
 from airflow.utils.email import send_email
@@ -437,8 +438,11 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
             # Print a marker for log grouping of details before task execution
             log.info("::endgroup::")
 
-            runner = ExecutionCallableRunner(execute_callable, context["dataset_events"], logger=log)
-            return runner.run(context=context, **execute_callable_kwargs)
+            return ExecutionCallableRunner(
+                execute_callable,
+                context_get_dataset_events(context),
+                logger=log,
+            ).run(context=context, **execute_callable_kwargs)
         except SystemExit as e:
             # Handle only successful cases here. Failure cases will be handled upper
             # in the exception chain.
