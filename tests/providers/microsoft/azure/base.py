@@ -111,7 +111,7 @@ class Base:
         task = deferred.value
 
         while task:
-            events = self.run_trigger(deferred.value.trigger)
+            events = self.run_trigger(task.trigger)
 
             if not events:
                 break
