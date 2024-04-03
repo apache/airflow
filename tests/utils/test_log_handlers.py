@@ -515,6 +515,7 @@ class TestFileTaskLogHandler:
             (handler for handler in logger.handlers if handler.name == FILE_TASK_HANDLER), None
         )
         assert file_handler is not None
+        file_handler.set_context(ti)
         assert file_handler.handler.formatter._fmt == logging.Formatter(f"dag_for_testing_file_task_handler-task_for_testing_file_log_handler:{file_handler.formatter._fmt}")._fmt
 
 
