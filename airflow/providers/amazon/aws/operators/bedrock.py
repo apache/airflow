@@ -183,13 +183,9 @@ class BedrockCustomizeModelOperator(AwsBaseOperator[BedrockHook]):
         self.hyperparameters = hyperparameters
         self.check_if_job_exists = check_if_job_exists
         self.customization_job_kwargs = customization_job_kwargs or {}
-        if action_if_job_exists in {"timestamp", "fail"}:
-            self.action_if_job_exists = action_if_job_exists
-        else:
-            raise AirflowException(
-                f"Argument action_if_job_exists accepts only 'timestamp', and 'fail'. \
-                Provided value: '{action_if_job_exists}."
-            )
+        self.action_if_job_exists = action_if_job_exists.lower()
+
+        self.valid_action_if_job_exists: set[str] = {"timestamp", "fail"}
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
         event = validate_execute_complete_event(event)
@@ -201,6 +197,12 @@ class BedrockCustomizeModelOperator(AwsBaseOperator[BedrockHook]):
         return self.hook.get_job_arn(event["job_name"])
 
     def execute(self, context: Context) -> dict:
+        if self.action_if_job_exists not in self.valid_action_if_job_exists:
+            raise AirflowException(
+                f"Invalid value for argument action_if_job_exists {self.action_if_job_exists}; "
+                f"must be one of: {self.valid_action_if_job_exists}."
+            )
+
         if self.check_if_job_exists and self.hook.job_name_exists(self.job_name):
             if self.action_if_job_exists == "fail":
                 raise AirflowException(f"A Bedrock job with name {self.job_name} already exists.")

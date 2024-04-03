@@ -57,8 +57,7 @@ class BedrockHook(AwsBaseHook):
             if e.response["Error"]["Code"] == "ValidationException":
                 self.log.info("Job name '%s' does not exist.", job_name)
                 return False
-            else:
-                raise e
+            raise e
 
     def get_job_arn(self, job_name: str) -> str:
         return self._get_job_by_name(job_name)["jobArn"]

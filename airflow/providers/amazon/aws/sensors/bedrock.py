@@ -91,7 +91,7 @@ class BedrockCustomizeModelCompletedSensor(AwsBaseSensor[BedrockHook]):
                     waiter_max_attempts=self.max_retries,
                     aws_conn_id=self.aws_conn_id,
                 ),
-                method_name="execute_complete",
+                method_name="poke",
             )
         else:
             super().execute(context=context)
