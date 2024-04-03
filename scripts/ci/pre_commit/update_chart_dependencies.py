@@ -36,7 +36,7 @@ def get_latest_prometheus_statsd_exporter_version() -> str:
     for version in quay_data["tags"]:
         if version["name"].startswith("v"):
             return version["name"]
-    raise ValueError("ERROR! No version found")
+    raise RuntimeError("ERROR! No version found")
 
 
 if __name__ == "__main__":

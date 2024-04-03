@@ -30,7 +30,7 @@ from jsonschema.exceptions import ValidationError
 from jsonschema.validators import extend, validator_for
 
 if __name__ != "__main__":
-    raise RuntimeError(
+    raise SystemExit(
         "This file is intended to be executed as an executable program. You cannot use it as a module."
         "To run this script, run the ./build_docs.py command"
     )
