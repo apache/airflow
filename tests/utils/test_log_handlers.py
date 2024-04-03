@@ -54,7 +54,11 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.config import conf_vars
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -91,11 +95,13 @@ class TestFileTaskLogHandler:
             ti.log.info("test")
 
         dag = DAG("dag_for_testing_file_task_handler", schedule=None, start_date=DEFAULT_DATE)
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dagrun = dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             execution_date=DEFAULT_DATE,
             data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
+            **triggered_by_kwargs,
         )
         task = PythonOperator(
             task_id="task_for_testing_file_log_handler",
@@ -144,11 +150,13 @@ class TestFileTaskLogHandler:
             ti.log.info("test")
 
         dag = DAG("dag_for_testing_file_task_handler", schedule=None, start_date=DEFAULT_DATE)
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dagrun = dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             execution_date=DEFAULT_DATE,
             data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
+            **triggered_by_kwargs,
         )
         task = PythonOperator(
             task_id="task_for_testing_file_log_handler",
@@ -204,11 +212,13 @@ class TestFileTaskLogHandler:
             python_callable=task_callable,
             dag=dag,
         )
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dagrun = dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             execution_date=DEFAULT_DATE,
             data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
+            **triggered_by_kwargs,
         )
         ti = TaskInstance(task=task, run_id=dagrun.run_id)
 
@@ -404,11 +414,13 @@ class TestFileTaskLogHandler:
                 python_callable=task_callable,
                 executor_config={"pod_override": pod_override},
             )
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dagrun = dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             execution_date=DEFAULT_DATE,
             data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
+            **triggered_by_kwargs,
         )
         ti = TaskInstance(task=task, run_id=dagrun.run_id)
         ti.try_number = 3
