@@ -235,7 +235,7 @@ class FileTaskHandler(logging.Handler):
                 self.handler.setFormatter(self.formatter)
         self.handler.setLevel(self.level)
         return SetContextPropagate.MAINTAIN_PROPAGATE if self.maintain_propagate else None
-    
+
     def _render_prefix(self, ti: TaskInstance) -> str:
         if self.prefix_jinja_template:
             jinja_context = ti.get_template_context()
