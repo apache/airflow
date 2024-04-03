@@ -278,7 +278,7 @@ def partial(
     logger_name: str | None | ArgNotSet = NOTSET,
     allow_nested_operators: bool = True,
     starts_execution_from_triggerer: bool = False,
-    trigger: Trigger | None = None,
+    start_trigger: Trigger | None = None,
     next_method: str | None = None,
     **kwargs,
 ) -> OperatorPartial:
@@ -350,7 +350,7 @@ def partial(
         "logger_name": logger_name,
         "allow_nested_operators": allow_nested_operators,
         "starts_execution_from_triggerer": starts_execution_from_triggerer,
-        "trigger": trigger,
+        "start_trigger": start_trigger,
         "next_method": next_method,
     }
 
@@ -883,7 +883,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         logger_name: str | None = None,
         allow_nested_operators: bool = True,
         starts_execution_from_triggerer: bool = False,
-        trigger: Trigger | None = None,
+        start_trigger: Trigger | None = None,
         next_method: str | None = None,
         **kwargs,
     ):
@@ -1086,7 +1086,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             SetupTeardownContext.update_context_map(self)
 
         self.starts_execution_from_triggerer = starts_execution_from_triggerer
-        self.trigger = trigger
+        self.start_trigger = start_trigger
         self.next_method = next_method
 
     def __eq__(self, other):
