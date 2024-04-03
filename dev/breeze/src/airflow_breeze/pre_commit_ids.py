@@ -38,6 +38,7 @@ PRE_COMMIT_LIST = [
     "check-builtin-literals",
     "check-changelog-has-no-duplicates",
     "check-cncf-k8s-only-for-executors",
+    "check-compat-cache-on-methods",
     "check-core-deprecation-classes",
     "check-daysago-import-from-utils",
     "check-decorated-operator-implements-custom-name",
