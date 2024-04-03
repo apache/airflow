@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 import jaydebeapi
@@ -152,7 +153,8 @@ class JdbcHook(DbApiHook):
         :param conn: The connection.
         :param autocommit: The connection's autocommit setting.
         """
-        conn.jconn.setAutoCommit(autocommit)
+        with suppress(jaydebeapi.Error):
+            conn.jconn.setAutoCommit(autocommit)
 
     def get_autocommit(self, conn: jaydebeapi.Connection) -> bool:
         """Get autocommit setting for the provided connection.
@@ -162,4 +164,6 @@ class JdbcHook(DbApiHook):
             to True on the connection. False if it is either not set, set to
             False, or the connection does not support auto-commit.
         """
-        return conn.jconn.getAutoCommit()
+        with suppress(jaydebeapi.Error):
+            return conn.jconn.getAutoCommit()
+        return False

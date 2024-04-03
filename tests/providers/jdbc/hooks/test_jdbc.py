@@ -22,6 +22,7 @@ import logging
 from unittest import mock
 from unittest.mock import Mock, patch
 
+import jaydebeapi
 import pytest
 
 from airflow.models import Connection
@@ -83,11 +84,25 @@ class TestJdbcHook:
         jdbc_conn.jconn.setAutoCommit.assert_called_once_with(False)
 
     @patch("airflow.providers.jdbc.hooks.jdbc.jaydebeapi.connect")
+    def test_jdbc_conn_set_autocommit_when_not_supported(self, _):
+        jdbc_hook = JdbcHook()
+        jdbc_conn = jdbc_hook.get_conn()
+        jdbc_conn.jconn.setAutoCommit.side_effect = jaydebeapi.Error()
+        jdbc_hook.set_autocommit(jdbc_conn, False)
+
+    @patch("airflow.providers.jdbc.hooks.jdbc.jaydebeapi.connect")
     def test_jdbc_conn_get_autocommit(self, _):
         jdbc_hook = JdbcHook()
         jdbc_conn = jdbc_hook.get_conn()
         jdbc_hook.get_autocommit(jdbc_conn)
         jdbc_conn.jconn.getAutoCommit.assert_called_once_with()
+
+    @patch("airflow.providers.jdbc.hooks.jdbc.jaydebeapi.connect")
+    def test_jdbc_conn_get_autocommit_when_not_supported_then_return_false(self, _):
+        jdbc_hook = JdbcHook()
+        jdbc_conn = jdbc_hook.get_conn()
+        jdbc_conn.jconn.getAutoCommit.side_effect = jaydebeapi.Error()
+        assert jdbc_hook.get_autocommit(jdbc_conn) is False
 
     def test_driver_hook_params(self):
         hook = get_hook(hook_params=dict(driver_path="Blah driver path", driver_class="Blah driver class"))
