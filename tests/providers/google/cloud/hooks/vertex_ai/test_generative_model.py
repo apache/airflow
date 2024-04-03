@@ -50,6 +50,13 @@ TEST_MULTIMODAL_VISION_MODEL = "gemini-pro-vision"
 TEST_VISION_PROMPT = "In 10 words or less, describe this content."
 TEST_MEDIA_GCS_PATH = "gs://download.tensorflow.org/example_images/320px-Felis_catus-cat_on_snow.jpg"
 TEST_MIME_TYPE = "image/jpeg"
+TEST_CHAT_PROMPTS = [
+    "Respond to my following questions in 10 words or less. Use only plain-text.",
+    "Why is Apache Airflow amazing?",
+    "Who can benefit?",
+    "What are alternatives?",
+    "Why is Airflow better?",
+]
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 GENERATIVE_MODEL_STRING = "airflow.providers.google.cloud.hooks.vertex_ai.generative_model.{}"
@@ -126,3 +133,16 @@ class TestGenerativeModelWithDefaultProjectIdHook:
         mock_model.return_value.generate_content.assert_called_once_with(
             [TEST_VISION_PROMPT, mock_part.return_value]
         )
+
+    @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_chat_session"))
+    @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_generative_model"))
+    def test_send_chat_prompts(self, mock_model, mock_chat) -> None:
+        self.hook.send_chat_prompts(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            prompts=TEST_CHAT_PROMPTS,
+            pretrained_model=TEST_MULTIMODAL_PRETRAINED_MODEL,
+        )
+        mock_model.assert_called_once_with(TEST_MULTIMODAL_PRETRAINED_MODEL)
+        for prompt in TEST_CHAT_PROMPTS:
+            mock_chat.return_value.send_message.assert_any_call(prompt)

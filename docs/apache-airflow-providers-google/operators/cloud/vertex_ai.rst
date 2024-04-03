@@ -591,6 +591,16 @@ The operator returns the model's response in :ref:`XCom <concepts:xcom>` under `
     :start-after: [START how_to_cloud_vertex_ai_prompt_multimodal_model_with_media_operator]
     :end-before: [END how_to_cloud_vertex_ai_prompt_multimodal_model_with_media_operator]
 
+To send a series of chat prompts you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.SendChatPromptsOperator`.
+The operator returns the model's response in :ref:`XCom <concepts:xcom>` under ``prompt_response`` key.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_send_chat_prompts_operator]
+    :end-before: [END how_to_cloud_vertex_ai_send_chat_prompts_operator]
+
 Reference
 ^^^^^^^^^
 

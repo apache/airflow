@@ -22,7 +22,7 @@ from __future__ import annotations
 from typing import Sequence
 
 import vertexai
-from vertexai.generative_models import GenerativeModel, Part
+from vertexai.generative_models import ChatSession, GenerativeModel, Part
 from vertexai.language_models import TextEmbeddingModel, TextGenerationModel
 
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
@@ -63,6 +63,11 @@ class GenerativeModelHook(GoogleBaseHook):
         """Return a Generative Model Part object."""
         part = Part.from_uri(content_gcs_path, mime_type=content_mime_type)
         return part
+
+    def get_chat_session(self, model: GenerativeModel) -> ChatSession:
+        """Return a Chat Session object."""
+        chat = model.start_chat()
+        return chat
 
     @GoogleBaseHook.fallback_to_default_project_id
     def prompt_language_model(
@@ -179,9 +184,7 @@ class GenerativeModelHook(GoogleBaseHook):
         :param prompt: Required. Inputs or queries that a user or a program gives
             to the Multi-modal model, in order to elicit a specific response.
         :param pretrained_model: By default uses the pre-trained model `gemini-pro-vision`,
-            supporting prompts with text-only input, including natural language
-            tasks, multi-turn text and code chat, and code generation. It can
-            output text and code.
+            supporting prompts with multi-modal input such as text, image, and video.
         :param media_gcs_path: A GCS path to a content file such as an image or a video.
             Can be passed to the multi-modal model as part of the prompt. Used with vision models.
         :param mime_type: Validates the media type presented by the file in the media_gcs_path.
@@ -195,3 +198,35 @@ class GenerativeModelHook(GoogleBaseHook):
         response = model.generate_content([prompt, part])
 
         return response.text
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def send_chat_prompts(
+        self,
+        prompts: list,
+        location: str,
+        pretrained_model: str = "gemini-pro",
+        project_id: str = PROVIDE_PROJECT_ID,
+    ) -> list:
+        """
+        Use the Vertex AI Gemini Pro foundation model to simulate a multi-turn chat.
+
+        :param prompts: Required. List of inputs or queries that a user or a program gives
+            to the Multi-modal model, in order to elicit a specific response.
+        :param pretrained_model: By default uses the pre-trained model `gemini-pro`,
+            supporting prompts with text-only input, including natural language
+            tasks, multi-turn text and code chat, and code generation. It can
+            output text and code.
+        :param location: Required. The ID of the Google Cloud location that the service belongs to.
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        """
+        vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
+
+        model = self.get_generative_model(pretrained_model)
+        chat = self.get_chat_session(model)
+
+        transcript = []
+        for prompt in prompts:
+            transcript.append("Prompt: " + prompt)
+            transcript.append("Response: " + chat.send_message(prompt).text)
+
+        return transcript

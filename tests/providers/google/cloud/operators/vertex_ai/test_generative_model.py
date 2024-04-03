@@ -28,6 +28,7 @@ from airflow.providers.google.cloud.operators.vertex_ai.generative_model import 
     PromptLanguageModelOperator,
     PromptMultimodalModelOperator,
     PromptMultimodalModelWithMediaOperator,
+    SendChatPromptsOperator,
 )
 
 VERTEX_AI_PATH = "airflow.providers.google.cloud.operators.vertex_ai.{}"
@@ -166,4 +167,38 @@ class TestVertexAIPromptMultimodalModelWithMediaOperator:
             pretrained_model=pretrained_model,
             media_gcs_path=media_gcs_path,
             mime_type=mime_type,
+        )
+
+
+class TestVertexAISendChatPromptsOperator:
+    @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
+    def test_execute(self, mock_hook):
+        chat_prompts = [
+            "Respond to my following questions in 10 words or less. Use only plain-text.",
+            "Why is Apache Airflow amazing?",
+            "Who can benefit?",
+            "What are alternatives?",
+            "Why is Airflow better?",
+        ]
+        pretrained_model = "gemini-pro"
+
+        op = SendChatPromptsOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            prompts=chat_prompts,
+            pretrained_model=pretrained_model,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.send_chat_prompts.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            prompts=chat_prompts,
+            pretrained_model=pretrained_model,
         )

@@ -304,3 +304,63 @@ class PromptMultimodalModelWithMediaOperator(GoogleCloudBaseOperator):
         self.xcom_push(context, key="prompt_response", value=response)
 
         return response
+
+
+class SendChatPromptsOperator(GoogleCloudBaseOperator):
+    """
+    Use the Vertex AI Gemini Pro foundation model to simulate a multi-turn chat.
+
+    :param prompts: Required. List of inputs or queries that a user or a program gives
+        to the Multi-modal model, in order to elicit a specific response.
+    :param pretrained_model: By default uses the pre-trained model `gemini-pro`,
+        supporting prompts with text-only input, including natural language
+        tasks, multi-turn text and code chat, and code generation. It can
+        output text and code.
+    :param location: Required. The ID of the Google Cloud location that the service belongs to.
+    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        location: str,
+        prompts: list,
+        pretrained_model: str = "gemini-pro",
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.location = location
+        self.prompts = prompts
+        self.pretrained_model = pretrained_model
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Context):
+        self.hook = GenerativeModelHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        response = self.hook.send_chat_prompts(
+            project_id=self.project_id,
+            location=self.location,
+            prompts=self.prompts,
+            pretrained_model=self.pretrained_model,
+        )
+
+        self.log.info("Model response: %s", response)
+        self.xcom_push(context, key="prompt_response", value=response)
+
+        return response

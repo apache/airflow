@@ -31,12 +31,20 @@ from airflow.providers.google.cloud.operators.vertex_ai.generative_model import 
     PromptLanguageModelOperator,
     PromptMultimodalModelOperator,
     PromptMultimodalModelWithMediaOperator,
+    SendChatPromptsOperator,
 )
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "example_vertex_ai_generative_model_dag"
 REGION = "us-central1"
 PROMPT = "In 10 words or less, why is Apache Airflow amazing?"
+CHAT_PROMPTS = [
+    "Respond to my following questions in 10 words or less. Use only plain-text.",
+    "Why is Apache Airflow amazing?",
+    "Who can benefit?",
+    "What are alternatives?",
+    "Why is Airflow better?",
+]
 LANGUAGE_MODEL = "text-bison"
 TEXT_EMBEDDING_MODEL = "textembedding-gecko"
 MULTIMODAL_MODEL = "gemini-pro"
@@ -94,6 +102,16 @@ with DAG(
         mime_type=MIME_TYPE,
     )
     # [END how_to_cloud_vertex_ai_prompt_multimodal_model_with_media_operator]
+
+    # [START how_to_cloud_vertex_ai_send_chat_prompts_operator]
+    send_chat_prompts = SendChatPromptsOperator(
+        task_id="send_chat_prompts",
+        project_id=PROJECT_ID,
+        location=REGION,
+        prompts=CHAT_PROMPTS,
+        pretrained_model=MULTIMODAL_MODEL,
+    )
+    # [END how_to_cloud_vertex_ai_send_chat_prompts_operator]
 
     from tests.system.utils.watcher import watcher
 
