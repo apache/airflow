@@ -1397,6 +1397,70 @@ class TestDatabricksRunNowOperator:
 
         db_mock.find_job_id_by_name.assert_called_once_with(JOB_NAME)
 
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_cancel_previous_runs(self, db_mock_class):
+        run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, cancel_previous_runs=True, json=run)
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = 1
+
+        assert op.cancel_previous_runs
+
+        op.execute(None)
+
+        expected = utils.normalise_json_content(
+            {
+                "notebook_params": NOTEBOOK_PARAMS,
+                "notebook_task": NOTEBOOK_TASK,
+                "jar_params": JAR_PARAMS,
+                "job_id": JOB_ID,
+            }
+        )
+        db_mock_class.assert_called_once_with(
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
+            caller="DatabricksRunNowOperator",
+        )
+
+        db_mock.cancel_all_runs.assert_called_once_with(JOB_ID)
+        db_mock.run_now.assert_called_once_with(expected)
+        db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
+        db_mock.get_run.assert_not_called()
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_no_cancel_previous_runs(self, db_mock_class):
+        run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, cancel_previous_runs=False, json=run)
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = 1
+
+        assert not op.cancel_previous_runs
+
+        op.execute(None)
+
+        expected = utils.normalise_json_content(
+            {
+                "notebook_params": NOTEBOOK_PARAMS,
+                "notebook_task": NOTEBOOK_TASK,
+                "jar_params": JAR_PARAMS,
+                "job_id": JOB_ID,
+            }
+        )
+        db_mock_class.assert_called_once_with(
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
+            caller="DatabricksRunNowOperator",
+        )
+
+        db_mock.cancel_all_runs.assert_not_called()
+        db_mock.run_now.assert_called_once_with(expected)
+        db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
+        db_mock.get_run.assert_not_called()
+
 
 class TestDatabricksRunNowDeferrableOperator:
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
