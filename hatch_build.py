@@ -462,6 +462,7 @@ DEPENDENCIES = [
     "markupsafe>=1.1.1",
     "marshmallow-oneofschema>=2.0.1",
     "mdit-py-plugins>=0.3.0",
+    "methodtools>=0.4.7",
     "opentelemetry-api>=1.15.0",
     "opentelemetry-exporter-otlp",
     "packaging>=14.0",
