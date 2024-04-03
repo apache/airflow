@@ -1121,6 +1121,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             conf,
             dag,
             dag_run,
+            dataset_events,
             task,
             # other
             **context,
