@@ -122,6 +122,7 @@ jobs:
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
+      VERSION_SUFFIX_FOR_PYPI: ${{ inputs.branch == 'main' && 'dev0' || '' }}
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -157,19 +158,16 @@ jobs:
         run: >
           breeze release-management prepare-provider-packages
           --package-list-file ./prod_image_installed_providers.txt
-          --package-format wheel --version-suffix-for-pypi dev0
+          --package-format wheel
         if: >
           inputs.do-build == 'true' &&
           inputs.upload-package-artifact == 'true' &&
           inputs.build-provider-packages == 'true'
       - name: "Prepare chicken-eggs provider packages"
-        # In case of provider packages which use latest dev0 version of providers, we should prepare them
-        # from the source code, not from the PyPI because they have apache-airflow>=X.Y.Z dependency
-        # And when we prepare them from sources they will have apache-airflow>=X.Y.Z.dev0
         shell: bash
         run: >
           breeze release-management prepare-provider-packages
-          --package-format wheel --version-suffix-for-pypi dev0 ${{ inputs.chicken-egg-providers }}
+          --package-format wheel ${{ inputs.chicken-egg-providers }}
         if: >
           inputs.do-build  == 'true' &&
           inputs.upload-package-artifact == 'true' &&
@@ -177,8 +175,7 @@ jobs:
       - name: "Prepare airflow package"
         shell: bash
         run: >
-          breeze release-management prepare-airflow-package
-          --package-format wheel --version-suffix-for-pypi dev0
+          breeze release-management prepare-airflow-package --package-format wheel
         if: inputs.do-build  == 'true' && inputs.upload-package-artifact == 'true'
       - name: "Upload prepared packages as artifacts"
         uses: actions/upload-artifact@v4
@@ -208,7 +205,7 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
       BACKEND: sqlite
       DEFAULT_BRANCH: ${{ inputs.branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ inputs.constraints-branch }}
-      VERSION_SUFFIX_FOR_PYPI: "dev0"
+      VERSION_SUFFIX_FOR_PYPI: ${{ inputs.branch == 'main' && 'dev0' || '' }}
       INCLUDE_NOT_READY_PROVIDERS: "true"
       # You can override CONSTRAINTS_GITHUB_REPOSITORY by setting secret in your repo but by default the
       # Airflow one is going to be used
