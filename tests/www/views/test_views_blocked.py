@@ -27,7 +27,11 @@ from airflow.operators.subdag import SubDagOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 from tests.test_utils.db import clear_db_runs
+
+if AIRFLOW_V_2_10_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -46,6 +50,7 @@ def running_subdag(admin_client, dag_maker):
     with create_session() as session:
         # This writes both DAGs to DagModel, but only serialize the parent DAG.
         dag_bag.sync_to_db(session=session)
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_2_10_PLUS else {}
 
         # Simulate triggering the SubDagOperator to run the subdag.
         logical_date = timezone.datetime(2016, 1, 1)
@@ -56,6 +61,7 @@ def running_subdag(admin_client, dag_maker):
             data_interval=(logical_date, logical_date),
             start_date=timezone.datetime(2016, 1, 1),
             session=session,
+            **triggered_by_kwargs,
         )
 
         # Now delete the parent DAG but leave the subdag.

@@ -25,6 +25,10 @@ from airflow.api.common.trigger_dag import trigger_dag
 from airflow.models import DagBag, DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.settings import Session
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
+
+if AIRFLOW_V_2_10_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -54,8 +58,13 @@ class TestDagRunsEndpoint:
     def test_get_dag_runs_success(self):
         url_template = "/api/experimental/dags/{}/dag_runs"
         dag_id = "example_bash_operator"
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_2_10_PLUS else {}
         # Create DagRun
-        dag_run = trigger_dag(dag_id=dag_id, run_id="test_get_dag_runs_success")
+        dag_run = trigger_dag(
+            dag_id=dag_id,
+            run_id="test_get_dag_runs_success",
+            **triggered_by_kwargs,
+        )
 
         response = self.app.get(url_template.format(dag_id))
         assert 200 == response.status_code
@@ -69,8 +78,13 @@ class TestDagRunsEndpoint:
     def test_get_dag_runs_success_with_state_parameter(self):
         url_template = "/api/experimental/dags/{}/dag_runs?state=queued"
         dag_id = "example_bash_operator"
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_2_10_PLUS else {}
         # Create DagRun
-        dag_run = trigger_dag(dag_id=dag_id, run_id="test_get_dag_runs_success")
+        dag_run = trigger_dag(
+            dag_id=dag_id,
+            run_id="test_get_dag_runs_success",
+            **triggered_by_kwargs,
+        )
 
         response = self.app.get(url_template.format(dag_id))
         assert 200 == response.status_code
@@ -84,8 +98,13 @@ class TestDagRunsEndpoint:
     def test_get_dag_runs_success_with_capital_state_parameter(self):
         url_template = "/api/experimental/dags/{}/dag_runs?state=QUEUED"
         dag_id = "example_bash_operator"
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_2_10_PLUS else {}
         # Create DagRun
-        dag_run = trigger_dag(dag_id=dag_id, run_id="test_get_dag_runs_success")
+        dag_run = trigger_dag(
+            dag_id=dag_id,
+            run_id="test_get_dag_runs_success",
+            **triggered_by_kwargs,
+        )
 
         response = self.app.get(url_template.format(dag_id))
         assert 200 == response.status_code
@@ -99,8 +118,13 @@ class TestDagRunsEndpoint:
     def test_get_dag_runs_success_with_state_no_result(self):
         url_template = "/api/experimental/dags/{}/dag_runs?state=dummy"
         dag_id = "example_bash_operator"
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_2_10_PLUS else {}
         # Create DagRun
-        trigger_dag(dag_id=dag_id, run_id="test_get_dag_runs_success")
+        trigger_dag(
+            dag_id=dag_id,
+            run_id="test_get_dag_runs_success",
+            **triggered_by_kwargs,
+        )
 
         with pytest.raises(ValueError):
             self.app.get(url_template.format(dag_id))

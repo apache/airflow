@@ -27,6 +27,10 @@ from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.utils import timezone
 from tests.test_utils import db
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
+
+if AIRFLOW_V_2_10_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -41,8 +45,9 @@ class TestTriggerDag:
     @mock.patch("airflow.models.DagBag")
     def test_trigger_dag_dag_not_found(self, dag_bag_mock):
         dag_bag_mock.dags = {}
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_2_10_PLUS else {}
         with pytest.raises(AirflowException):
-            _trigger_dag("dag_not_found", dag_bag_mock)
+            _trigger_dag("dag_not_found", dag_bag_mock, **triggered_by_kwargs)
 
     @mock.patch("airflow.api.common.trigger_dag.DagRun", spec=DagRun)
     @mock.patch("airflow.models.DagBag")
@@ -52,8 +57,9 @@ class TestTriggerDag:
         dag_bag_mock.dags = [dag_id]
         dag_bag_mock.get_dag.return_value = dag
         dag_run_mock.find_duplicate.return_value = DagRun()
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_2_10_PLUS else {}
         with pytest.raises(AirflowException):
-            _trigger_dag(dag_id, dag_bag_mock)
+            _trigger_dag(dag_id, dag_bag_mock, **triggered_by_kwargs)
 
     @mock.patch("airflow.models.DAG")
     @mock.patch("airflow.api.common.trigger_dag.DagRun", spec=DagRun)
@@ -66,8 +72,9 @@ class TestTriggerDag:
         dag1 = mock.MagicMock(subdags=[])
         dag2 = mock.MagicMock(subdags=[])
         dag_mock.subdags = [dag1, dag2]
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_2_10_PLUS else {}
 
-        triggers = _trigger_dag(dag_id, dag_bag_mock)
+        triggers = _trigger_dag(dag_id, dag_bag_mock, **triggered_by_kwargs)
 
         assert 3 == len(triggers)
 
@@ -82,8 +89,9 @@ class TestTriggerDag:
         dag1 = mock.MagicMock(subdags=[])
         dag2 = mock.MagicMock(subdags=[dag1])
         dag_mock.subdags = [dag1, dag2]
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_2_10_PLUS else {}
 
-        triggers = _trigger_dag(dag_id, dag_bag_mock)
+        triggers = _trigger_dag(dag_id, dag_bag_mock, **triggered_by_kwargs)
 
         assert 3 == len(triggers)
 
@@ -93,9 +101,15 @@ class TestTriggerDag:
         dag = DAG(dag_id, default_args={"start_date": timezone.datetime(2016, 9, 5, 10, 10, 0)})
         dag_bag_mock.dags = [dag_id]
         dag_bag_mock.get_dag.return_value = dag
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_2_10_PLUS else {}
 
         with pytest.raises(ValueError):
-            _trigger_dag(dag_id, dag_bag_mock, execution_date=timezone.datetime(2015, 7, 5, 10, 10, 0))
+            _trigger_dag(
+                dag_id,
+                dag_bag_mock,
+                execution_date=timezone.datetime(2015, 7, 5, 10, 10, 0),
+                **triggered_by_kwargs,
+            )
 
     @mock.patch("airflow.models.DagBag")
     def test_trigger_dag_with_valid_start_date(self, dag_bag_mock):
@@ -104,8 +118,14 @@ class TestTriggerDag:
         dag_bag_mock.dags = [dag_id]
         dag_bag_mock.get_dag.return_value = dag
         dag_bag_mock.dags_hash = {}
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_2_10_PLUS else {}
 
-        triggers = _trigger_dag(dag_id, dag_bag_mock, execution_date=timezone.datetime(2018, 7, 5, 10, 10, 0))
+        triggers = _trigger_dag(
+            dag_id,
+            dag_bag_mock,
+            execution_date=timezone.datetime(2018, 7, 5, 10, 10, 0),
+            **triggered_by_kwargs,
+        )
 
         assert len(triggers) == 1
 
@@ -125,7 +145,8 @@ class TestTriggerDag:
         dag_bag_mock.get_dag.return_value = dag
 
         dag_bag_mock.dags_hash = {}
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_2_10_PLUS else {}
 
-        triggers = _trigger_dag(dag_id, dag_bag_mock, conf=conf)
+        triggers = _trigger_dag(dag_id, dag_bag_mock, conf=conf, **triggered_by_kwargs)
 
         assert triggers[0].conf == expected_conf

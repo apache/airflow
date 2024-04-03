@@ -74,6 +74,7 @@ class DAGRunSchema(SQLAlchemySchema):
     last_scheduling_decision = auto_field(dump_only=True)
     run_type = auto_field(dump_only=True)
     note = auto_field(dump_only=False)
+    triggered_by = auto_field(dump_only=True)
 
     @pre_load
     def autogenerate(self, data, **kwargs):

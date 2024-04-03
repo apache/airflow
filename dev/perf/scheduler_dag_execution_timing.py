@@ -29,6 +29,7 @@ from operator import attrgetter
 import rich_click as click
 
 from airflow.jobs.job import run_job
+from airflow.utils.types import DagRunTriggeredByType
 
 MAX_DAG_RUNS_ALLOWED = 1
 
@@ -177,6 +178,7 @@ def create_dag_runs(dag, num_runs, session):
             state=DagRunState.RUNNING,
             external_trigger=False,
             session=session,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
         last_dagrun_data_interval = next_info.data_interval
 

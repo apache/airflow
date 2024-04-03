@@ -36,6 +36,7 @@ from airflow.exceptions import AirflowException
 from airflow.utils import timezone
 from airflow.utils.docs import get_docs_url
 from airflow.utils.strings import to_boolean
+from airflow.utils.types import DagRunTriggeredByType
 from airflow.version import version
 
 if TYPE_CHECKING:
@@ -125,7 +126,14 @@ def trigger_dag(dag_id):
         replace_microseconds = to_boolean(data["replace_microseconds"])
 
     try:
-        dr = trigger.trigger_dag(dag_id, run_id, conf, execution_date, replace_microseconds)
+        dr = trigger.trigger_dag(
+            dag_id,
+            triggered_by=DagRunTriggeredByType.REST_API,
+            run_id=run_id,
+            conf=conf,
+            execution_date=execution_date,
+            replace_microseconds=replace_microseconds,
+        )
     except AirflowException as err:
         log.error(err)
         response = jsonify(error=f"{err}")

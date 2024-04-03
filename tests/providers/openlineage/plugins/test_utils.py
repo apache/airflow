@@ -40,6 +40,10 @@ from airflow.providers.openlineage.utils.utils import (
 from airflow.utils import timezone
 from airflow.utils.log.secrets_masker import _secrets_masker
 from airflow.utils.state import State
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
+
+if AIRFLOW_V_2_10_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 
 class SafeStrDict(dict):
@@ -62,8 +66,12 @@ def test_get_dagrun_start_end():
     AIRFLOW_DAG.bulk_write_to_db([dag])
     dag_model = DagModel.get_dagmodel(dag.dag_id)
     run_id = str(uuid.uuid1())
+    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_2_10_PLUS else {}
     dagrun = dag.create_dagrun(
-        state=State.NONE, run_id=run_id, data_interval=dag.get_next_data_interval(dag_model)
+        state=State.NONE,
+        run_id=run_id,
+        data_interval=dag.get_next_data_interval(dag_model),
+        **triggered_by_kwargs,
     )
     assert dagrun.data_interval_start is not None
     start_date_tz = datetime.datetime(2022, 1, 1, tzinfo=timezone.utc)
