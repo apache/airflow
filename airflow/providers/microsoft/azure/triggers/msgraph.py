@@ -277,7 +277,7 @@ class MSGraphTrigger(BaseTrigger):
         if self.url.startswith("http"):
             request_information.url = self.url
         elif request_information.query_parameters.keys():
-            query = ','.join(request_information.query_parameters.keys())
+            query = ",".join(request_information.query_parameters.keys())
             request_information.url_template = f"{{+baseurl}}/{self.normalize_url()}{{?{query}}}"
         else:
             request_information.url_template = f"{{+baseurl}}/{self.normalize_url()}"

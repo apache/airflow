@@ -251,8 +251,7 @@ class MSGraphAsyncOperator(BaseOperator):
             if top and odata_count:
                 if len(response.get("value")) == top:
                     skip = (
-                        sum(map(lambda result: len(result["value"]), operator.results))
-                        + top
+                        sum(map(lambda result: len(result["value"]), operator.results)) + top
                         if operator.results
                         else top
                     )
