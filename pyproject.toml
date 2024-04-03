@@ -375,12 +375,6 @@ combine-as-imports = true
 "tests/providers/qdrant/operators/test_qdrant.py" = ["E402"]
 "tests/providers/snowflake/operators/test_snowflake_sql.py" = ["E402"]
 
-# All the test modules which do not follow PT012 yet
-"tests/providers/sftp/hooks/test_sftp.py" = ["PT012"]
-"tests/providers/sftp/operators/test_sftp.py" = ["PT012"]
-"tests/providers/sftp/sensors/test_sftp.py" = ["PT012"]
-"tests/providers/sftp/triggers/test_sftp.py" = ["PT012"]
-
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.
 ban-relative-imports = "all"
