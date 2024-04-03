@@ -67,6 +67,34 @@ def test_should_pass_message_to_client(mock_client, mock_get_creds_and_project_i
     mock_client.assert_called_once_with(credentials="creds", client_info=mock.ANY, project="project_id")
 
 
+@pytest.mark.usefixtures("clean_stackdriver_handlers")
+@mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id")
+@mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.gcp_logging.Client")
+def test_should_use_configured_log_name(mock_client, mock_get_creds_and_project_id):
+    mock_get_creds_and_project_id.return_value = ("creds", "project_id")
+
+    with mock.patch.dict(
+        "os.environ",
+        AIRFLOW__LOGGING__REMOTE_LOGGING="true",
+        AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER="stackdriver://host/path",
+    ):
+        import importlib
+        import logging
+
+        from airflow import settings
+        from airflow.config_templates import airflow_local_settings
+
+        importlib.reload(airflow_local_settings)
+        settings.configure_logging()
+
+        logger = logging.getLogger("airflow.task")
+        handler = logger.handlers[0]
+        assert isinstance(handler, StackdriverTaskHandler)
+        with mock.patch.object(handler, "transport_type") as transport_type_mock:
+            logger.error("foo")
+            transport_type_mock.assert_called_once_with(mock_client.return_value, "path")
+
+
 @pytest.mark.db_test
 class TestStackdriverLoggingHandlerTask:
     DAG_ID = "dag_for_testing_stackdriver_file_task_handler"
