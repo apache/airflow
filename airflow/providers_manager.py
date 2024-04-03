@@ -120,11 +120,11 @@ class LazyDictWithCache(MutableMapping):
         return value
 
     def __delitem__(self, key):
-        self._raw_dict.__delitem__(key)
         try:
             self._resolved.remove(key)
         except KeyError:
             pass
+        self._raw_dict.__delitem__(key)
 
     def __iter__(self):
         return iter(self._raw_dict)
@@ -134,6 +134,10 @@ class LazyDictWithCache(MutableMapping):
 
     def __contains__(self, key):
         return key in self._raw_dict
+
+    def clear(self):
+        self._resolved.clear()
+        self._raw_dict.clear()
 
 
 def _read_schema_from_resources_or_local_file(filename: str) -> dict:
