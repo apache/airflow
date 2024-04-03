@@ -860,7 +860,7 @@ class TestVaultClient:
             radius_secret="pass",
             kv_engine_version=1,
             url="http://localhost:8180",
-            verify=False
+            verify=False,
         )
         secret = vault_client.get_secret(secret_path="/path/to/secret")
         assert {"value": "world"} == secret
@@ -892,7 +892,7 @@ class TestVaultClient:
             radius_secret="pass",
             kv_engine_version=1,
             url="http://localhost:8180",
-            verify='/etc/ssl/certificates/ca-bundle.pem'
+            verify='/etc/ssl/certificates/ca-bundle.pem',
         )
         secret = vault_client.get_secret(secret_path="/path/to/secret")
         assert {"value": "world"} == secret
