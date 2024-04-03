@@ -243,7 +243,7 @@ class MSGraphAsyncOperator(BaseOperator):
     @staticmethod
     def paginate(operator: MSGraphAsyncOperator, response: dict):
         odata_count = response.get("@odata.count")
-        if odata_count:
+        if odata_count and operator.query_parameters:
             query_parameters = deepcopy(operator.query_parameters)
             top: int = query_parameters.get("$top")
             odata_count: int = response.get("@odata.count")
