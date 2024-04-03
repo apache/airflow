@@ -41,6 +41,7 @@ from airflow.providers.amazon.aws.executors.batch.utils import (
 )
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.state import State
+from tests.test_utils.config import conf_vars
 
 ARN1 = "arn1"
 
@@ -49,11 +50,15 @@ MOCK_JOB_ID = "batch-job-id"
 
 @pytest.fixture
 def set_env_vars():
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.REGION_NAME}".upper()] = "us-west-1"
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.JOB_NAME}".upper()] = "some-job-name"
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.JOB_QUEUE}".upper()] = "some-job-queue"
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.JOB_DEFINITION}".upper()] = "some-job-def"
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.MAX_SUBMIT_JOB_ATTEMPTS}".upper()] = "3"
+    overrides: dict[tuple[str, str], str] = {
+        (CONFIG_GROUP_NAME, AllBatchConfigKeys.REGION_NAME): "us-east-1",
+        (CONFIG_GROUP_NAME, AllBatchConfigKeys.JOB_NAME): "some-job-name",
+        (CONFIG_GROUP_NAME, AllBatchConfigKeys.JOB_QUEUE): "some-job-queue",
+        (CONFIG_GROUP_NAME, AllBatchConfigKeys.JOB_DEFINITION): "some-job-def",
+        (CONFIG_GROUP_NAME, AllBatchConfigKeys.MAX_SUBMIT_JOB_ATTEMPTS): "3",
+    }
+    with conf_vars(overrides):
+        yield
 
 
 @pytest.fixture
@@ -514,7 +519,7 @@ class TestAwsBatchExecutor:
     @mock.patch(
         "airflow.providers.amazon.aws.executors.batch.boto_schema.BatchDescribeJobsResponseSchema.load"
     )
-    def test_health_check_failure(self, mock_executor):
+    def test_health_check_failure(self, mock_executor, set_env_vars):
         mock_executor.batch.describe_jobs.side_effect = Exception("Test_failure")
         executor = AwsBatchExecutor()
         batch_mock = mock.Mock(spec=executor.batch)

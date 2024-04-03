@@ -153,7 +153,7 @@ class AwsBatchExecutor(BaseExecutor):
             AllBatchConfigKeys.AWS_CONN_ID,
             fallback=CONFIG_DEFAULTS[AllBatchConfigKeys.AWS_CONN_ID],
         )
-        region_name = conf.get(CONFIG_GROUP_NAME, AllBatchConfigKeys.REGION_NAME)
+        region_name = conf.get(CONFIG_GROUP_NAME, AllBatchConfigKeys.REGION_NAME, fallback=None)
         self.batch = BatchClientHook(aws_conn_id=aws_conn_id, region_name=region_name).conn
         self.attempts_since_last_successful_connection += 1
         self.last_connection_reload = timezone.utcnow()
