@@ -2205,6 +2205,9 @@ def test_operator_expand_serde():
         "ui_fgcolor": "#000",
         "_disallow_kwargs_override": False,
         "_expand_input_attr": "expand_input",
+        "starts_execution_from_triggerer": False,
+        "trigger": None,
+        "next_method": None,
     }
 
     op = BaseSerialization.deserialize(serialized)
@@ -2220,6 +2223,9 @@ def test_operator_expand_serde():
         "template_fields_renderers": {"bash_command": "bash", "env": "json"},
         "ui_color": "#f0ede4",
         "ui_fgcolor": "#000",
+        "starts_execution_from_triggerer": False,
+        "trigger": None,
+        "next_method": None,
     }
     assert op.expand_input.value["bash_command"] == literal
     assert op.partial_kwargs["executor_config"] == {"dict": {"sub": "value"}}
@@ -2257,6 +2263,9 @@ def test_operator_expand_xcomarg_serde():
         "ui_fgcolor": "#000",
         "_disallow_kwargs_override": False,
         "_expand_input_attr": "expand_input",
+        "starts_execution_from_triggerer": False,
+        "trigger": None,
+        "next_method": None,
     }
 
     op = BaseSerialization.deserialize(serialized)
@@ -2358,6 +2367,9 @@ def test_operator_expand_kwargs_xcomarg_serde(strict):
         "ui_fgcolor": "#000",
         "_disallow_kwargs_override": strict,
         "_expand_input_attr": "expand_input",
+        "starts_execution_from_triggerer": False,
+        "trigger": None,
+        "next_method": None,
     }
 
     op = BaseSerialization.deserialize(serialized)
@@ -2549,6 +2561,9 @@ def test_taskflow_expand_kwargs_serde(strict):
                 "__var": {"arg1": [1, 2, {"__type": "dict", "__var": {"a": "b"}}]},
             },
             "retry_delay": {"__type": "timedelta", "__var": 30.0},
+            "next_method": None,
+            "starts_execution_from_triggerer": False,
+            "trigger": None,
         },
         "op_kwargs_expand_input": {
             "type": "list-of-dicts",
@@ -2566,6 +2581,9 @@ def test_taskflow_expand_kwargs_serde(strict):
         "template_fields_renderers": {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"},
         "_disallow_kwargs_override": strict,
         "_expand_input_attr": "op_kwargs_expand_input",
+        "starts_execution_from_triggerer": False,
+        "trigger": None,
+        "next_method": None,
     }
 
     deserialized = BaseSerialization.deserialize(serialized)
@@ -2586,6 +2604,9 @@ def test_taskflow_expand_kwargs_serde(strict):
         "op_args": [],
         "op_kwargs": {"arg1": [1, 2, {"a": "b"}]},
         "retry_delay": timedelta(seconds=30),
+        "starts_execution_from_triggerer": False,
+        "trigger": None,
+        "next_method": None,
     }
 
     # Ensure the serialized operator can also be correctly pickled, to ensure
@@ -2604,6 +2625,9 @@ def test_taskflow_expand_kwargs_serde(strict):
         "op_args": [],
         "op_kwargs": {"arg1": [1, 2, {"a": "b"}]},
         "retry_delay": timedelta(seconds=30),
+        "starts_execution_from_triggerer": False,
+        "trigger": None,
+        "next_method": None,
     }
 
 
@@ -2688,6 +2712,9 @@ def test_mapped_task_with_operator_extra_links_property():
         "_task_module": "tests.serialization.test_dag_serialization",
         "_is_empty": False,
         "_is_mapped": True,
+        "next_method": None,
+        "starts_execution_from_triggerer": False,
+        "trigger": None,
     }
     deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag[Encoding.VAR])
     assert deserialized_dag.task_dict["task"].operator_extra_links == [AirflowLink2()]

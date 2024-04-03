@@ -293,7 +293,9 @@
         "expand_input": { "type": "object" },
         "partial_kwargs": { "type": "object" },
         "map_index_template": { "type": "string" },
-        "allow_nested_operators": { "type": "boolean" }
+        "starts_execution_from_triggerer": { "type": "boolean" },
+        "trigger": { "type": "object" },
+        "next_method": { "type": "string" }
       },
       "dependencies": {
         "expand_input": ["partial_kwargs", "_is_mapped"],
