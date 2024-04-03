@@ -225,9 +225,23 @@ class FileTaskHandler(logging.Handler):
         local_loc = self._init_file(ti, identifier=identifier)
         self.handler = NonCachingFileHandler(local_loc, encoding="utf-8")
         if self.formatter:
-            self.handler.setFormatter(self.formatter)
+            prefix = conf.get("logging", "task_log_prefix_template")
+            if prefix:
+                _, self.prefix_jinja_template = parse_template_string(prefix)
+                rendered_prefix = self._render_prefix(ti)
+                prefixed_formatter = logging.Formatter(f"{rendered_prefix}:{self.formatter._fmt}")
+                self.handler.setFormatter(prefixed_formatter)
+            else:
+                self.handler.setFormatter(self.formatter)
         self.handler.setLevel(self.level)
         return SetContextPropagate.MAINTAIN_PROPAGATE if self.maintain_propagate else None
+    
+    def _render_prefix(self, ti: TaskInstance) -> str:
+        if self.prefix_jinja_template:
+            jinja_context = ti.get_template_context()
+            return render_template_to_string(self.prefix_jinja_template, jinja_context)
+        logger.warning("'task_log_prefix_template' is in invalid format, ignoring the variable value")
+        return ""
 
     @cached_property
     def supports_task_context_logging(self) -> bool:

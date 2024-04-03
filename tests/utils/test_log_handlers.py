@@ -481,6 +481,42 @@ class TestFileTaskLogHandler:
         actual = h.handler.baseFilename
         assert actual == os.fspath(tmp_path / expected)
 
+    @patch.dict("os.environ", AIRFLOW__LOGGING__TASK_LOG_PREFIX_TEMPLATE='{{ti.dag_id}}-{{ti.task_id}}')
+    @patch("airflow.utils.log.file_task_handler.FileTaskHandler._render_prefix")
+    def test__file_task_handler_prefix(
+        self,
+        mock_render_prefix
+    ):
+        mock_render_prefix.return_value = "dag_for_testing_file_task_handler-task_for_testing_file_log_handler"
+        def task_callable(ti):
+            ti.log.info("test")
+    
+        dag = DAG("dag_for_testing_file_task_handler", start_date=DEFAULT_DATE)
+
+        data_interval = dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE)
+        dagrun = dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            state=State.RUNNING,
+            execution_date=DEFAULT_DATE,
+            data_interval=data_interval
+        )
+        
+        task = PythonOperator(
+            task_id="task_for_testing_file_log_handler",
+            dag=dag,
+            python_callable=task_callable,
+        )
+        ti = TaskInstance(task=task, run_id=dagrun.run_id)
+
+        logger = ti.log
+        ti.log.disabled = False
+
+        file_handler = next(
+            (handler for handler in logger.handlers if handler.name == FILE_TASK_HANDLER), None
+        )
+        assert file_handler is not None
+        assert file_handler.handler.formatter._fmt == logging.Formatter(f"dag_for_testing_file_task_handler-task_for_testing_file_log_handler:{file_handler.formatter._fmt}")._fmt
+
 
 class TestFilenameRendering:
     def test_python_formatting(self, create_log_template, create_task_instance):
