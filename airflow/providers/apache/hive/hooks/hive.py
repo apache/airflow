@@ -161,10 +161,12 @@ class HiveCliHook(BaseHook):
         if self.use_beeline:
             hive_bin = "beeline"
             self._validate_beeline_parameters(conn)
-            jdbc_url = f"jdbc:hive2://{conn.host}:{conn.port}/{conn.schema}"
             if self.high_availability:
                 jdbc_url = f"jdbc:hive2://{conn.host}/{conn.schema}"
                 self.log.info("High Availability set, setting JDBC url as %s", jdbc_url)
+            else:
+                jdbc_url = f"jdbc:hive2://{conn.host}:{conn.port}/{conn.schema}"
+                self.log.info("High Availability not set, setting JDBC url as %s", jdbc_url)
             if conf.get("core", "security") == "kerberos":
                 template = conn.extra_dejson.get("principal", "hive/_HOST@EXAMPLE.COM")
                 if "_HOST" in template:
@@ -176,7 +178,7 @@ class HiveCliHook(BaseHook):
                     raise RuntimeError("The proxy_user should not contain the ';' character")
                 jdbc_url += f";principal={template};{proxy_user}"
                 if self.high_availability:
-                    if proxy_user:
+                    if not jdbc_url.endswith(";"):
                         jdbc_url += ";"
                     jdbc_url += "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2"
             elif self.auth:
