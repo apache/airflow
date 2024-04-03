@@ -21,6 +21,7 @@ import json
 from unittest import mock
 
 import pytest
+from pyodbc import Cursor
 
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
@@ -39,7 +40,7 @@ class TestDbApiHook:
     def setup_method(self, **kwargs):
         self.cur = mock.MagicMock(
             rowcount=0,
-            spec=["description", "rowcount", "execute", "executemany", "fetchall", "fetchone", "close"],
+            spec=Cursor,
         )
         self.conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur
@@ -110,8 +111,7 @@ class TestDbApiHook:
         assert commit_count == self.conn.commit.call_count
 
         sql = f"INSERT INTO {table}  VALUES (%s)"
-        for row in rows:
-            self.cur.execute.assert_any_call(sql, row)
+        self.cur.executemany.assert_any_call(sql, rows)
 
     def test_insert_rows_replace(self):
         table = "table"
@@ -126,8 +126,7 @@ class TestDbApiHook:
         assert commit_count == self.conn.commit.call_count
 
         sql = f"REPLACE INTO {table}  VALUES (%s)"
-        for row in rows:
-            self.cur.execute.assert_any_call(sql, row)
+        self.cur.executemany.assert_any_call(sql, rows)
 
     def test_insert_rows_target_fields(self):
         table = "table"
@@ -143,8 +142,7 @@ class TestDbApiHook:
         assert commit_count == self.conn.commit.call_count
 
         sql = f"INSERT INTO {table} ({target_fields[0]}) VALUES (%s)"
-        for row in rows:
-            self.cur.execute.assert_any_call(sql, row)
+        self.cur.executemany.assert_any_call(sql, rows)
 
     def test_insert_rows_commit_every(self):
         table = "table"
@@ -156,32 +154,19 @@ class TestDbApiHook:
         assert self.conn.close.call_count == 1
         assert self.cur.close.call_count == 1
 
-        commit_count = 2 + divmod(len(rows), commit_every)[0]
+        commit_count = len(rows) + 1
         assert commit_count == self.conn.commit.call_count
 
         sql = f"INSERT INTO {table}  VALUES (%s)"
         for row in rows:
-            self.cur.execute.assert_any_call(sql, row)
-
-    def test_insert_rows_executemany(self):
-        table = "table"
-        rows = [("hello",), ("world",)]
-
-        self.db_hook.insert_rows(table, rows, executemany=True)
-
-        assert self.conn.close.call_count == 1
-        assert self.cur.close.call_count == 1
-        assert self.conn.commit.call_count == 2
-
-        sql = f"INSERT INTO {table}  VALUES (%s)"
-        self.cur.executemany.assert_any_call(sql, rows)
+            self.cur.executemany.assert_any_call(sql, [row])
 
     def test_insert_rows_replace_executemany_hana_dialect(self):
         self.setup_method(replace_statement_format="UPSERT {} {} VALUES ({}) WITH PRIMARY KEY")
         table = "table"
         rows = [("hello",), ("world",)]
 
-        self.db_hook.insert_rows(table, rows, replace=True, executemany=True)
+        self.db_hook.insert_rows(table, rows, replace=True)
 
         assert self.conn.close.call_count == 1
         assert self.cur.close.call_count == 1
