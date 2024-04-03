@@ -632,9 +632,7 @@ class TestSQLCheckOperatorDbHook:
             return_value=Connection(conn_id="sql_default", conn_type="postgres"),
         ) as mock_get_conn:
             mock_get_conn.return_value = Connection(conn_id="snowflake_default", conn_type="snowflake")
-            self._operator.hook_params = {
-                "session_parameters": {"query_tag": "{{ ds }}"}
-            }
+            self._operator.hook_params = {"session_parameters": {"query_tag": "{{ ds }}"}}
             logical_date = "2024-04-02"
             self._operator.render_template_fields({"ds": logical_date})
 
