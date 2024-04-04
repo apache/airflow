@@ -369,7 +369,9 @@ def test_trigger_create_race_condition_38599(session, tmp_path):
             # Delay calling update_triggers to increase the window of opportunity
             time.sleep(1)
             super().update_triggers(requested_trigger_ids)
-            self.requested_trigger_count = getattr(self, "requested_trigger_count", 0) + len(requested_trigger_ids)
+            self.requested_trigger_count = getattr(self, "requested_trigger_count", 0) + len(
+                requested_trigger_ids
+            )
 
     class TriggererJobRunner_(TriggererJobRunner):
         """TriggererJobRunner whose handle_events blocks until there is an event."""
