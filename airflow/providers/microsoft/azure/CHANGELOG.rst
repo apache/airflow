@@ -34,7 +34,7 @@ Breaking changes
 ~~~~~~~~~~~~~~~~
 .. warning::
    * ``azure_synapse_pipeline`` connection type has been changed to ``azure_synapse``.
-   * The usage of ``default_conn_name=azure_synapse_connection`` is deprecated and will be removed in future. The new default connection name is: ``default_conn_name=azure_synapse_default``.
+   * The usage of ``default_conn_name=azure_synapse_connection`` is deprecated and will be removed in future. The new default connection name for ``AzureSynapsePipelineHook`` is: ``default_conn_name=azure_synapse_default``.
 
 9.0.1
 .....
