@@ -36,6 +36,7 @@ from airflow_breeze.global_constants import (
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     CELERY_BROKER_URLS_MAP,
     DEFAULT_CELERY_BROKER,
+    DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
     FLOWER_HOST_PORT,
     MOUNT_ALL,
@@ -194,6 +195,7 @@ class ShellParams:
     use_packages_from_dist: bool = False
     use_uv: bool = False
     use_xdist: bool = False
+    uv_http_timeout: int = DEFAULT_UV_HTTP_TIMEOUT
     verbose: bool = False
     verbose_commands: bool = False
     version_suffix_for_pypi: str = ""
