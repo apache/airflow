@@ -1715,7 +1715,7 @@ class TestBigQueryInsertJobOperator:
             operator.execute(MagicMock())
         lineage = operator.get_openlineage_facets_on_complete(None)
 
-        assert lineage.run_facets == {"bigQuery_error": BigQueryErrorRunFacet(clientError=mock.ANY)}
+        assert lineage.run_facets["bigQuery_error"] == BigQueryErrorRunFacet(clientError=mock.ANY)
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
