@@ -55,9 +55,13 @@ def message_on_wsl1_detected(release_name: str | None, kernel_version: tuple[int
 
 def is_wsl2() -> bool:
     """
-    Check if the current platform is WSL
-    :return: True if the current platform is WSL
+    Check if the current platform is WSL2. This method will exit with error printing appropriate
+    message if WSL1 is detected as WSL1 is not supported.
+
+    :return: True if the current platform is WSL2, False otherwise (unless it's WSL1 then it exits).
     """
+    if not sys.platform.startswith("linux"):
+        return False
     release_name = platform.uname().release
     has_wsl_interop = _exists_no_permission_error("/proc/sys/fs/binfmt_misc/WSLInterop")
     microsoft_in_release = "microsoft" in release_name.lower()
