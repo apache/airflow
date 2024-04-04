@@ -24,6 +24,7 @@ from asgiref.sync import sync_to_async
 from deprecated import deprecated
 from sqlalchemy import func
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models import DagRun, TaskInstance
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.sensor_helper import _get_count
@@ -135,7 +136,10 @@ class WorkflowTrigger(BaseTrigger):
         )
 
 
-@deprecated(reason=("TaskStateTrigger has been deprecated and will be removed in future."))
+@deprecated(
+    reason="TaskStateTrigger has been deprecated and will be removed in future.",
+    category=RemovedInAirflow3Warning,
+)
 class TaskStateTrigger(BaseTrigger):
     """
     Waits asynchronously for a task in a different DAG to complete for a specific logical date.

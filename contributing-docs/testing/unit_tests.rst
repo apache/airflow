@@ -66,7 +66,7 @@ For avoid this make sure:
 .. code-block:: python
 
     def test_deprecated_argument():
-        with pytest.warn(AirflowProviderDeprecationWarning, match="expected warning pattern"):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="expected warning pattern"):
             SomeDeprecatedClass(foo="bar", spam="egg")
 
 

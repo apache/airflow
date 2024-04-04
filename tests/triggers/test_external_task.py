@@ -24,6 +24,7 @@ from unittest import mock
 import pytest
 from sqlalchemy.exc import SQLAlchemyError
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
@@ -248,14 +249,15 @@ class TestTaskStateTrigger:
         session.add(instance)
         session.commit()
 
-        trigger = TaskStateTrigger(
-            dag_id=dag.dag_id,
-            task_id=instance.task_id,
-            states=self.STATES,
-            execution_dates=[timezone.datetime(2022, 1, 1)],
-            poll_interval=0.2,
-            trigger_start_time=trigger_start_time,
-        )
+        with pytest.warns(RemovedInAirflow3Warning, match="TaskStateTrigger has been deprecated"):
+            trigger = TaskStateTrigger(
+                dag_id=dag.dag_id,
+                task_id=instance.task_id,
+                states=self.STATES,
+                execution_dates=[timezone.datetime(2022, 1, 1)],
+                poll_interval=0.2,
+                trigger_start_time=trigger_start_time,
+            )
 
         task = asyncio.create_task(trigger.run().__anext__())
         await asyncio.sleep(0.5)
@@ -278,14 +280,15 @@ class TestTaskStateTrigger:
         trigger_start_time = utcnow()
         mock_utcnow.return_value = trigger_start_time + datetime.timedelta(seconds=61)
 
-        trigger = TaskStateTrigger(
-            dag_id="dag1",
-            task_id="task1",
-            states=self.STATES,
-            execution_dates=[timezone.datetime(2022, 1, 1)],
-            poll_interval=0.2,
-            trigger_start_time=trigger_start_time,
-        )
+        with pytest.warns(RemovedInAirflow3Warning, match="TaskStateTrigger has been deprecated"):
+            trigger = TaskStateTrigger(
+                dag_id="dag1",
+                task_id="task1",
+                states=self.STATES,
+                execution_dates=[timezone.datetime(2022, 1, 1)],
+                poll_interval=0.2,
+                trigger_start_time=trigger_start_time,
+            )
 
         trigger.count_running_dags = mock.AsyncMock()
         trigger.count_running_dags.return_value = 0
@@ -310,14 +313,15 @@ class TestTaskStateTrigger:
         trigger_start_time = utcnow()
         mock_utcnow.return_value = trigger_start_time + datetime.timedelta(seconds=20)
 
-        trigger = TaskStateTrigger(
-            dag_id="dag1",
-            task_id="task1",
-            states=self.STATES,
-            execution_dates=[timezone.datetime(2022, 1, 1)],
-            poll_interval=0.2,
-            trigger_start_time=trigger_start_time,
-        )
+        with pytest.warns(RemovedInAirflow3Warning, match="TaskStateTrigger has been deprecated"):
+            trigger = TaskStateTrigger(
+                dag_id="dag1",
+                task_id="task1",
+                states=self.STATES,
+                execution_dates=[timezone.datetime(2022, 1, 1)],
+                poll_interval=0.2,
+                trigger_start_time=trigger_start_time,
+            )
 
         trigger.count_running_dags = mock.AsyncMock()
         trigger.count_running_dags.return_value = 0
@@ -357,14 +361,15 @@ class TestTaskStateTrigger:
             trigger_start_time + datetime.timedelta(seconds=20),
         ]
 
-        trigger = TaskStateTrigger(
-            dag_id="dag1",
-            task_id="task1",
-            states=self.STATES,
-            execution_dates=[timezone.datetime(2022, 1, 1)],
-            poll_interval=0.2,
-            trigger_start_time=trigger_start_time,
-        )
+        with pytest.warns(RemovedInAirflow3Warning, match="TaskStateTrigger has been deprecated"):
+            trigger = TaskStateTrigger(
+                dag_id="dag1",
+                task_id="task1",
+                states=self.STATES,
+                execution_dates=[timezone.datetime(2022, 1, 1)],
+                poll_interval=0.2,
+                trigger_start_time=trigger_start_time,
+            )
 
         trigger.count_running_dags = mock.AsyncMock()
         trigger.count_running_dags.side_effect = [SQLAlchemyError]
@@ -384,14 +389,15 @@ class TestTaskStateTrigger:
         and classpath.
         """
         trigger_start_time = utcnow()
-        trigger = TaskStateTrigger(
-            dag_id=self.DAG_ID,
-            task_id=self.TASK_ID,
-            states=self.STATES,
-            execution_dates=[timezone.datetime(2022, 1, 1)],
-            poll_interval=5,
-            trigger_start_time=trigger_start_time,
-        )
+        with pytest.warns(RemovedInAirflow3Warning, match="TaskStateTrigger has been deprecated"):
+            trigger = TaskStateTrigger(
+                dag_id=self.DAG_ID,
+                task_id=self.TASK_ID,
+                states=self.STATES,
+                execution_dates=[timezone.datetime(2022, 1, 1)],
+                poll_interval=5,
+                trigger_start_time=trigger_start_time,
+            )
         classpath, kwargs = trigger.serialize()
         assert classpath == "airflow.triggers.external_task.TaskStateTrigger"
         assert kwargs == {
