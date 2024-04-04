@@ -32,7 +32,7 @@ Use the
 :class:`~airflow.providers.microsoft.azure.operators.msgraph.MSGraphAsyncOperator` to call Microsoft Graph API.
 
 
-Below is an example of using this operator to get a `Sharepoint` site.
+Below is an example of using this operator to get a "Sharepoint" site.
 
 .. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_msgraph.py
     :language: python
@@ -40,7 +40,7 @@ Below is an example of using this operator to get a `Sharepoint` site.
     :start-after: [START howto_operator_graph_site]
     :end-before: [END howto_operator_graph_site]
 
-Below is an example of using this operator to get a `Sharepoint` site pages.
+Below is an example of using this operator to get a "Sharepoint" site pages.
 
 .. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_msgraph.py
     :language: python
