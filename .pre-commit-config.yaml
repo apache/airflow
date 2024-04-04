@@ -985,6 +985,13 @@ repos:
         files: \.py$
         exclude: ^.*/.*_vendor/
         additional_dependencies: ['rich>=12.4.4']
+      - id: check-compat-cache-on-methods
+        name: Check that compat cache do not use on class methods
+        entry: ./scripts/ci/pre_commit/compat_cache_on_methods.py
+        language: python
+        pass_filenames: true
+        files: ^airflow/.*\.py$
+        exclude: ^.*/.*_vendor/
       - id: lint-chart-schema
         name: Lint chart/values.schema.json file
         entry: ./scripts/ci/pre_commit/chart_schema.py
@@ -1078,7 +1085,7 @@ repos:
         entry: "^\\s*from re\\s|^\\s*import re\\s"
         pass_filenames: true
         files: \.py$
-        exclude: ^airflow/providers|^dev/.*\.py$|^scripts/.*\.py$|^tests/|^\w+_tests/|^docs/.*\.py$|^airflow/utils/helpers.py$
+        exclude: ^airflow/providers|^dev/.*\.py$|^scripts/.*\.py$|^tests/|^\w+_tests/|^docs/.*\.py$|^airflow/utils/helpers.py$|^hatch_build.py$
       - id: check-deferrable-default-value
         name: Check default value of deferrable attribute
         language: python

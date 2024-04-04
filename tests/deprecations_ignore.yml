@@ -60,11 +60,6 @@
 - tests/cli/commands/test_connection_command.py::TestCliImportConnections::test_cli_connections_import_should_load_connections
 - tests/cli/commands/test_connection_command.py::TestCliImportConnections::test_cli_connections_import_should_not_overwrite_existing_connections
 - tests/cli/commands/test_connection_command.py::TestCliImportConnections::test_cli_connections_import_should_overwrite_existing_connections
-- tests/cli/commands/test_dag_command.py::TestCliDags::test_backfill
-- tests/cli/commands/test_dag_command.py::TestCliDags::test_backfill_fails_without_loading_dags
-- tests/cli/commands/test_dag_command.py::TestCliDags::test_backfill_with_custom_timetable
-- tests/cli/commands/test_dag_command.py::TestCliDags::test_cli_backfill_depends_on_past
-- tests/cli/commands/test_dag_command.py::TestCliDags::test_cli_backfill_depends_on_past_backwards
 - tests/cli/commands/test_kubernetes_command.py::TestGenerateDagYamlCommand::test_generate_dag_yaml
 - tests/cli/commands/test_task_command.py::TestCliTasks::test_parentdag_downstream_clear
 - tests/cli/commands/test_task_command.py::TestCliTasks::test_subdag_clear
@@ -779,6 +774,7 @@
 - tests/providers/google/cloud/hooks/vertex_ai/test_custom_job.py::TestCustomJobWithoutDefaultProjectIdHook::test_get_pipeline_job
 - tests/providers/google/cloud/hooks/vertex_ai/test_custom_job.py::TestCustomJobWithoutDefaultProjectIdHook::test_list_pipeline_jobs
 - tests/providers/google/cloud/operators/test_bigquery.py::TestBigQueryCreateExternalTableOperator::test_execute_with_csv_format
+- tests/providers/google/cloud/operators/test_automl.py::TestAutoMLTrainModelOperator::test_execute
 - tests/providers/google/cloud/operators/test_bigquery.py::TestBigQueryCreateExternalTableOperator::test_execute_with_parquet_format
 - tests/providers/google/cloud/operators/test_bigquery.py::TestBigQueryOperator::test_bigquery_operator_defaults
 - tests/providers/google/cloud/operators/test_bigquery.py::TestBigQueryOperator::test_bigquery_operator_extra_link_when_missing_job_id

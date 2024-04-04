@@ -19,7 +19,6 @@ from __future__ import annotations
 import itertools
 import os
 import re
-from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -40,18 +39,18 @@ def provider_env_vars():
 
 
 @pytest.fixture(autouse=True)
-def skip_if_env_var_not_set(provider_env_vars):
+def skip_if_env_var_not_set(provider_env_vars: list[str]) -> None:
     for env in itertools.chain(REQUIRED_ENV_VARS, provider_env_vars):
         if env not in os.environ:
             pytest.skip(f"Missing required environment variable {env}")
             return
 
 
-def pytest_collection_modifyitems(config, items):
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     """Add @pytest.mark.system(provider_name) for every system test."""
-    rootdir = Path(config.rootdir)
+    rootdir = config.rootpath
     for item in items:
-        rel_path = Path(item.fspath).relative_to(rootdir)
+        rel_path = item.path.relative_to(rootdir)
         match = re.match(".+/system/providers/([^/]+)", str(rel_path))
         if match:
             provider = match.group(1)

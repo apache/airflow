@@ -161,6 +161,7 @@ class DockerOperator(BaseOperator):
         file before manually shutting down the image. Useful for cases where users want a pickle serialized
         output that is not posted to logs
     :param retrieve_output_path: path for output file that will be retrieved and passed to xcom
+    :param timeout: Timeout for API calls, in seconds. Default is 60 seconds.
     :param device_requests: Expose host resources such as GPUs to the container.
     :param log_opts_max_size: The maximum size of the log before it is rolled.
         A positive integer plus a modifier representing the unit of measure (k, m, or g).

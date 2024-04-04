@@ -25,9 +25,9 @@ import operator
 import weakref
 from typing import TYPE_CHECKING, Any, Generator, Iterator, Sequence
 
+import methodtools
 import re2
 
-from airflow.compat.functools import cache
 from airflow.exceptions import (
     AirflowDagCycleException,
     AirflowException,
@@ -586,7 +586,7 @@ class MappedTaskGroup(TaskGroup):
         for op, _ in XComArg.iter_xcom_references(self._expand_input):
             yield op
 
-    @cache
+    @methodtools.lru_cache(maxsize=None)
     def get_parse_time_mapped_ti_count(self) -> int:
         """
         Return the Number of instances a task in this group should be mapped to, when a DAG run is created.

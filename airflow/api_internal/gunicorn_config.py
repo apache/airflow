@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -15,13 +16,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# This stub exists to work around false linter errors due to python/mypy#10408.
-# TODO: Remove this file after the upstream fix is available in our toolchain.
 from __future__ import annotations
 
-from typing import TypeVar
+import setproctitle
 
-T = TypeVar("T")
+from airflow import settings
 
-def cache(f: T) -> T: ...
+
+def post_worker_init(_):
+    """
+    Set process title.
+
+    This is used by airflow.cli.commands.internal_api_command to track the status of the worker.
+    """
+    old_title = setproctitle.getproctitle()
+    setproctitle.setproctitle(settings.GUNICORN_WORKER_READY_PREFIX + old_title)

@@ -790,11 +790,11 @@ class TestEksHooks:
         if expected_message:
             with pytest.raises(ClientError) as raised_exception:
                 eks_hook.create_nodegroup(**test_inputs)
-                assert_client_error_exception_thrown(
-                    expected_exception=expected_exception,
-                    expected_msg=expected_message,
-                    raised_exception=raised_exception,
-                )
+            assert_client_error_exception_thrown(
+                expected_exception=expected_exception,
+                expected_msg=expected_message,
+                raised_exception=raised_exception,
+            )
 
     def test_list_fargate_profiles_returns_empty_by_default(self, cluster_builder) -> None:
         eks_hook, generated_test_data = cluster_builder()

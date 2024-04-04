@@ -455,11 +455,7 @@ DEFAULT_EXTRAS = [
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]
 
-CHICKEN_EGG_PROVIDERS = " ".join(
-    [
-        "fab",
-    ]
-)
+CHICKEN_EGG_PROVIDERS = " ".join([])
 
 
 def _exclusion(providers: Iterable[str]) -> str:

@@ -20,6 +20,7 @@ import itertools
 import json
 import logging
 import os
+import re
 import sys
 from pathlib import Path
 from subprocess import run
@@ -139,7 +140,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "statsd>=3.3.0",
     ],
     "uv": [
-        "uv>=0.1.27",
+        "uv>=0.1.28",
     ],
     "virtualenv": [
         "virtualenv",
@@ -462,6 +463,7 @@ DEPENDENCIES = [
     "markupsafe>=1.1.1",
     "marshmallow-oneofschema>=2.0.1",
     "mdit-py-plugins>=0.3.0",
+    "methodtools>=0.4.7",
     "opentelemetry-api>=1.15.0",
     "opentelemetry-exporter-otlp",
     "packaging>=14.0",
@@ -554,7 +556,22 @@ def get_provider_id(provider_spec: str) -> str:
 
 def get_provider_requirement(provider_spec: str) -> str:
     if ">=" in provider_spec:
+        # we cannot import `airflow` here directly as it would pull re2 and a number of airflow
+        # dependencies so we need to read airflow version by matching a regexp
+        airflow_init_content = (AIRFLOW_ROOT_PATH / "airflow" / "__init__.py").read_text()
+        airflow_version_pattern = r'__version__ = "(\d+\.\d+\.\d+\S*)"'
+        airflow_version_match = re.search(airflow_version_pattern, airflow_init_content)
+        if not airflow_version_match:
+            raise RuntimeError("Cannot find Airflow version in airflow/__init__.py")
+        from packaging.version import Version
+
+        current_airflow_version = Version(airflow_version_match.group(1))
         provider_id, min_version = provider_spec.split(">=")
+        provider_version = Version(min_version)
+        if provider_version.is_prerelease and not current_airflow_version.is_prerelease:
+            # strip pre-release version from the pre-installed provider's version when we are preparing
+            # the official package
+            min_version = str(provider_version.base_version)
         return f"apache-airflow-providers-{provider_id.replace('.', '-')}>={min_version}"
     else:
         return f"apache-airflow-providers-{provider_spec.replace('.', '-')}"
