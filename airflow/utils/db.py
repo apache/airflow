@@ -993,7 +993,7 @@ def decrypt_trigger_kwargs(*, session: Session) -> None:
         # this can happen when we downgrade to an old version before the Trigger table was added
         return
 
-    for trigger in session.query(Trigger):
+    for trigger in session.scalars(select(Trigger.encrypted_kwargs)):
         # decrypt the string and convert it to serialized dict
         trigger.encrypted_kwargs = json.dumps(BaseSerialization.serialize(trigger.kwargs))
     session.commit()
