@@ -170,7 +170,7 @@ Improvements
 - Add CLI support for bulk pause and resume of DAGs (#38265)
 - Implement methods on TaskInstancePydantic and DagRunPydantic (#38295, #38302, #38303, #38297)
 - Made filters bar collapsible and add a full screen toggle (#38296)
-- Encrypt all trigger attributes (#38233, #38358)
+- Encrypt all trigger attributes (#38233, #38358, #38743)
 - Upgrade react-table package. Use with Audit Log table (#38092)
 - Show if dag page filters are active (#38080)
 - Add try number to mapped instance (#38097)
@@ -228,6 +228,7 @@ Improvements
 
 Bug Fixes
 """""""""
+- Fix grid header rendering (#38720)
 - Add a task instance dependency for mapped dependencies (#37498)
 - Improve stability of remove_task_decorator function (#38649)
 - Mark more fields on API as dump-only (#38616)
@@ -294,6 +295,8 @@ Miscellaneous
 
 Doc Only Changes
 """"""""""""""""
+- Improve timetable documentation (#38505)
+- Reorder OpenAPI Spec tags alphabetically (#38717)
 - Update UI screenshots in the documentation (#38680, #38403, #38438, #38435)
 - Remove section as it's no longer true with dataset expressions PR (#38370)
 - Refactor DatasetOrTimeSchedule timetable docs (#37771)
