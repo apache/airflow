@@ -1400,7 +1400,7 @@ class TestDatabricksRunNowOperator:
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_cancel_previous_runs(self, db_mock_class):
         run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
-        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, cancel_previous_runs=True, json=run)
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, cancel_previous_runs=True, wait_for_termination=False, json=run)
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
 
@@ -1432,7 +1432,7 @@ class TestDatabricksRunNowOperator:
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_no_cancel_previous_runs(self, db_mock_class):
         run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
-        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, cancel_previous_runs=False, json=run)
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, cancel_previous_runs=False, wait_for_termination=False, json=run)
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
 

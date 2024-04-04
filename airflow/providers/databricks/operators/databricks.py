@@ -834,8 +834,9 @@ class DatabricksRunNowOperator(BaseOperator):
                 raise AirflowException(f"Job ID for job name {self.json['job_name']} can not be found")
             self.json["job_id"] = job_id
             del self.json["job_name"]
-            if self.cancel_previous_runs:
-                hook.cancel_all_runs(job_id)
+
+        if self.cancel_previous_runs and self.json["job_id"] is not None:
+            hook.cancel_all_runs(self.json["job_id"])
 
         self.run_id = hook.run_now(self.json)
         if self.deferrable:
