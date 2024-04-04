@@ -28,32 +28,27 @@ import {
 import { getDagRunLabel, getMetaValue, getTask } from "src/utils";
 import useSelection from "src/dag/useSelection";
 import Time from "src/components/Time";
-import { useGridData, useTaskInstance } from "src/api";
+import { useGridData } from "src/api";
 import RunTypeIcon from "src/components/RunTypeIcon";
 
 import BreadcrumbText from "./BreadcrumbText";
 
-const dagId = getMetaValue("dag_id");
 const dagDisplayName = getMetaValue("dag_display_name");
 
-const Header = () => {
+interface Props {
+  mapIndex?: string | number | null;
+}
+
+const Header = ({ mapIndex }: Props) => {
   const {
     data: { dagRuns, groups, ordering },
   } = useGridData();
 
   const {
-    selected: { taskId, runId, mapIndex },
+    selected: { taskId, runId },
     onSelect,
     clearSelection,
   } = useSelection();
-
-  const { data: taskInstance } = useTaskInstance({
-    dagId,
-    dagRunId: runId || "",
-    taskId: taskId || "",
-    mapIndex,
-    enabled: mapIndex !== undefined,
-  });
 
   const dagRun = dagRuns.find((r) => r.runId === runId);
 
@@ -88,11 +83,7 @@ const Header = () => {
     );
   }
 
-  const lastIndex = taskId ? taskId.lastIndexOf(".") : null;
-  const taskName =
-    taskInstance?.taskDisplayName && lastIndex
-      ? taskInstance?.taskDisplayName.substring(lastIndex + 1)
-      : taskId;
+  const taskName = group?.label || group?.id || "";
 
   const isDagDetails = !runId && !taskId;
   const isRunDetails = !!(runId && !taskId);
@@ -141,10 +132,7 @@ const Header = () => {
           <BreadcrumbLink
             _hover={isMappedTaskDetails ? { cursor: "default" } : undefined}
           >
-            <BreadcrumbText
-              label="Map Index"
-              value={taskInstance?.renderedMapIndex || mapIndex}
-            />
+            <BreadcrumbText label="Map Index" value={mapIndex} />
           </BreadcrumbLink>
         </BreadcrumbItem>
       )}
