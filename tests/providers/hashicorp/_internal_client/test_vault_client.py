@@ -128,6 +128,7 @@ class TestVaultClient:
             access_key="user",
             secret_key="pass",
             role="role",
+            mount_point=None,
         )
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
@@ -148,14 +149,7 @@ class TestVaultClient:
         client = vault_client.client
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.auth.aws.iam_login.assert_called_with(
-            access_key="user",
-            secret_key="pass",
-            session_token=None,
-            header_value=None,
-            role="role",
-            use_token=True,
-            region="us-east-1",
-            mount_point="other",
+            access_key="user", secret_key="pass", role="role", mount_point="other"
         )
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
