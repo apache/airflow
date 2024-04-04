@@ -39,7 +39,6 @@ from airflow.providers.elasticsearch.log.es_response import ElasticSearchRespons
 from airflow.providers.elasticsearch.log.es_task_handler import (
     VALID_ES_CONFIG_KEYS,
     ElasticsearchTaskHandler,
-    _get_index_patterns,
     get_es_kwargs_from_config,
     getattr_nested,
 )
@@ -655,26 +654,9 @@ class TestElasticsearchTaskHandler:
 
         importlib.import_module = MagicMock()
         importlib.import_module.return_value = MagicMock(**{"mock_callable": mock_callable})
-
-        result = _get_index_patterns("module_path.mock_callable", ti)
-
+        self.es_task_handler.index_patterns_callable = "module_path.mock_callable"
+        result = self.es_task_handler._get_index_patterns(ti)
         assert result == "mocked_index_patterns"
-
-    def test_index_patterns_none(self):
-        ti = MagicMock(spec=TaskInstance)
-
-        result = _get_index_patterns(None, ti)
-
-        assert result is None
-
-    def test_index_patterns_exception(self):
-        ti = MagicMock(spec=TaskInstance)
-
-        importlib.import_module = MagicMock(side_effect=Exception("Mocked exception"))
-
-        result = _get_index_patterns("invalid_module_path.invalid_callable", ti)
-
-        assert result is None
 
 
 def test_safe_attrgetter():

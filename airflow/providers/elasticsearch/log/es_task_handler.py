@@ -115,26 +115,6 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
         raise AirflowException(f"Could not find TaskInstance for {ti}")
 
 
-def _get_index_patterns(
-    index_patterns_callable: str | None = None, ti: TaskInstance | None = None
-) -> str | None:
-    """
-    Get index patterns by calling index_patterns_callable or None.
-
-    :param index_patterns_callable: A string representing the full path to the callable itself.
-    :param ti: A TaskInstance object or None.
-    """
-    if not index_patterns_callable:
-        return None
-    try:
-        module_path, index_pattern_function = index_patterns_callable.rsplit(".", 1)
-        module = importlib.import_module(module_path)
-        index_pattern_callable_obj = getattr(module, index_pattern_function)
-        return index_pattern_callable_obj(ti)
-    except Exception:
-        return None
-
-
 class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin):
     """
     ElasticsearchTaskHandler is a python log handler that reads logs from Elasticsearch.
@@ -173,8 +153,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         offset_field: str = "offset",
         host: str = "http://localhost:9200",
         frontend: str = "localhost:5601",
-        index_patterns: str | None = conf.get("elasticsearch", "index_patterns", fallback="_all"),
-        index_patterns_callable: str | None = None,
+        index_patterns: str = conf.get("elasticsearch", "index_patterns"),
+        index_patterns_callable: str = conf.get("elasticsearch", "index_patterns_callable", fallback=""),
         es_kwargs: dict | None | Literal["default_es_kwargs"] = "default_es_kwargs",
         *,
         filename_template: str | None = None,
@@ -235,6 +215,21 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             raise ValueError(f"'{host}' is not a valid URL.")
 
         return host
+
+    def _get_index_patterns(self, ti: TaskInstance | None) -> str:
+        """
+        Get index patterns by calling index_patterns_callable, if provided, or the configured index_patterns.
+
+        :param ti: A TaskInstance object or None.
+        """
+        if self.index_patterns_callable:
+            self.log.debug("Using index_patterns_callable: %s", self.index_patterns_callable)
+            module_path, index_pattern_function = self.index_patterns_callable.rsplit(".", 1)
+            module = importlib.import_module(module_path)
+            index_pattern_callable_obj = getattr(module, index_pattern_function)
+            return index_pattern_callable_obj(ti)
+        self.log.debug("Using index_patterns: %s", self.index_patterns)
+        return self.index_patterns
 
     def _render_log_id(self, ti: TaskInstance | TaskInstanceKey, try_number: int) -> str:
         from airflow.models.taskinstance import TaskInstanceKey
@@ -395,9 +390,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # Just a safe-guard to preserve backwards-compatibility
         return hit.message
 
-    def _es_read(
-        self, log_id: str, offset: int | str, ti: TaskInstance | None = None
-    ) -> ElasticSearchResponse | None:
+    def _es_read(self, log_id: str, offset: int | str, ti: TaskInstance) -> ElasticSearchResponse | None:
         """
         Return the logs matching log_id in Elasticsearch and next offset or ''.
 
@@ -414,7 +407,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             }
         }
 
-        index_patterns = _get_index_patterns(self.index_patterns_callable, ti) or self.index_patterns
+        index_patterns = self._get_index_patterns(ti)
         try:
             max_log_line = self.client.count(index=index_patterns, query=query)["count"]  # type: ignore
         except NotFoundError as e:
