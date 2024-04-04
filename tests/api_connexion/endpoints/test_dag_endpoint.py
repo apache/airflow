@@ -395,16 +395,14 @@ class TestGetDagDetails(TestDagEndpoint):
             "timetable_description": None,
             "timezone": UTC_JSON_REPR,
         }
-        assert response.json == expected
+        assert response.json() == expected
 
     def test_should_respond_200_with_dataset_expression(self, url_safe_serializer):
         self._create_dag_model_for_details_endpoint_with_dataset_expression(self.dag_id)
         current_file_token = url_safe_serializer.dumps("/tmp/dag.py")
-        response = self.client.get(
-            f"/api/v1/dags/{self.dag_id}/details", environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.get(f"/api/v1/dags/{self.dag_id}/details", headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        last_parsed = response.json["last_parsed"]
+        last_parsed = response.json()["last_parsed"]
         expected = {
             "catchup": True,
             "concurrency": 16,
@@ -1352,9 +1350,9 @@ class TestPatchDag(TestDagEndpoint):
         assert response.status_code == 200
         _check_last_log(session, dag_id="TEST_DAG_1", event="api.patch_dag", execution_date=None)
 
-    def test_should_respond_400_on_invalid_request(self):
+    def test_ignore_read_only_fields(self):
         patch_body = {
-            "is_paused": True,
+            "is_paused": False,
             "schedule_interval": {
                 "__type": "CronExpression",
                 "value": "1 1 * * *",
@@ -1362,16 +1360,11 @@ class TestPatchDag(TestDagEndpoint):
         }
         dag_model = self._create_dag_model()
         response = self.client.patch(
-            f"/api/v1/dags/{dag_model.dag_id}",
-            json=patch_body,
+            f"/api/v1/dags/{dag_model.dag_id}", json=patch_body, headers={"REMOTE_USER": "test"}
         )
-        assert response.status_code == 400
-        assert response.json() == {
-            "detail": "Property is read-only - 'schedule_interval'",
-            "status": 400,
-            "title": "Bad Request",
-            "type": EXCEPTIONS_LINK_MAP[400],
-        }
+        assert response.status_code == 200
+        assert response.json()["is_paused"] is False
+        assert response.json()["schedule_interval"] == {"__type": "CronExpression", "value": "2 2 * * *"}
 
     def test_validation_error_raises_400(self):
         patch_body = {
