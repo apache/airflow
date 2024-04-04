@@ -26,6 +26,7 @@ from requests import Response, Session
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 
+from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 DEFAULT_KUBERNETES_JWT_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
@@ -73,13 +74,8 @@ class _VaultClient(LoggingMixin):
     :param password: Password for Authentication (for ``ldap`` and ``userpass`` auth_types).
     :param key_id: Key ID for Authentication (for ``aws_iam`` and ''azure`` auth_type).
     :param secret_id: Secret ID for Authentication (for ``approle``, ``aws_iam`` and ``azure`` auth_types).
-    :param session_token: The AWS session token to use. Defaults to None.
-    :param arn_role: The Amazon Resource Name (ARN) of the role to assume,
-    :param federation_user: The name of the federated user
-    :param header_value: additional header to mitigate replay attacks, potentially necessitating an argument
-        depending on AWS auth backend configuration. Defaults to None.
     :param role_id: Role ID for Authentication (for ``approle``, ``aws_iam`` auth_types).
-    :param use_token: A flag indicating whether to use the token. Defaults to True.,
+    :param aws_conn_id: AWS connection id (for ``aws_iam`` auth_type)
     :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type).
     :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, default:
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``).
@@ -109,12 +105,8 @@ class _VaultClient(LoggingMixin):
         password: str | None = None,
         key_id: str | None = None,
         secret_id: str | None = None,
-        session_token: str | None = None,
-        role_arn: str | None = None,
-        federation_user: str | None = None,
-        header_value: str | None = None,
+        aws_conn_id: str | None = None,
         role_id: str | None = None,
-        use_token: bool = True,
         kubernetes_role: str | None = None,
         kubernetes_jwt_path: str | None = "/var/run/secrets/kubernetes.io/serviceaccount/token",
         gcp_key_path: str | None = None,
@@ -171,12 +163,8 @@ class _VaultClient(LoggingMixin):
         self.password = password
         self.key_id = key_id
         self.secret_id = secret_id
-        self.session_token = session_token
-        self.role_arn = role_arn
-        self.federation_user = federation_user
-        self.header_value = header_value
         self.role_id = role_id
-        self.use_token = use_token
+        self.aws_conn_id = aws_conn_id
         self.kubernetes_role = kubernetes_role
         self.kubernetes_jwt_path = kubernetes_jwt_path
         self.gcp_key_path = gcp_key_path
@@ -334,43 +322,23 @@ class _VaultClient(LoggingMixin):
             )
 
     def _auth_aws_iam(self, _client: hvac.Client) -> None:
-        import boto3
-
-        region = os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
-
-        _client.auth.aws.configure(
-            access_key=self.key_id, secret_key=self.secret_id, endpoint=f"https://sts.{region}.amazonaws.com"
-        )
-
-        if self.role_arn:
-            sts_client = boto3.client(
-                "sts", aws_access_key_id=self.key_id, aws_secret_access_key=self.secret_id
+        if self.key_id or self.secret_id or self.role_id:
+            _client.auth.aws.iam_login(
+                access_key=self.key_id,
+                secret_key=self.secret_id,
+                role=self.role_id,
+                mount_point=self.auth_mount_point,
             )
-            response = sts_client.assume_role(RoleArn=self.role_arn, RoleSessionName="your-session-name")
-        elif self.federation_user:
-            sts_client = boto3.client(
-                "sts", aws_access_key_id=self.key_id, aws_secret_access_key=self.secret_id
+        elif self.aws_conn_id:
+            hook: AwsGenericHook = AwsGenericHook(aws_conn_id=self.aws_conn_id)
+            credential = hook.get_credentials()
+            _client.auth.aws.iam_login(
+                access_key=credential.access_key,
+                secret_key=credential.secret_key,
+                session_token=credential.token,
+                region=hook.region_name,
+                mount_point=self.auth_mount_point,
             )
-            response = sts_client.get_federation_token(Name=self.federation_user)
-        else:
-            response = {
-                "Credentials": {
-                    "AccessKeyId": self.key_id,
-                    "SecretAccessKey": self.secret_id,
-                    "SessionToken": self.session_token,
-                }
-            }
-
-        _client.auth.aws.iam_login(
-            access_key=response["Credentials"]["AccessKeyId"],
-            secret_key=response["Credentials"]["SecretAccessKey"],
-            session_token=response["Credentials"]["SessionToken"],
-            header_value=self.header_value,
-            role=self.role_id,
-            use_token=self.use_token,
-            region=region,
-            mount_point=self.auth_mount_point,
-        )
 
     def _auth_approle(self, _client: hvac.Client) -> None:
         if self.auth_mount_point:

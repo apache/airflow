@@ -55,7 +55,7 @@ versions:
 dependencies:
   - apache-airflow>=2.6.0
   - hvac>=1.1.0
-  - boto3>=1.33.0
+  - apache-airflow-providers-amazon>=8.0.0
 
 integrations:
   - integration-name: Hashicorp Vault
