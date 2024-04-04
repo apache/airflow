@@ -53,7 +53,7 @@ What is a "dataset"?
 
 An Airflow dataset is a logical grouping of data. Upstream producer tasks can update datasets, and dataset updates contribute to scheduling downstream consumer DAGs.
 
-Uniform Resource Identifier (URI) define datasets:
+`Uniform Resource Identifier (URI) <https://en.wikipedia.org/wiki/Uniform_Resource_Identifier>`_ define datasets:
 
 .. code-block:: python
 
