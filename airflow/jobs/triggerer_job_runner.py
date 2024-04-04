@@ -683,10 +683,13 @@ class TriggerRunner(threading.Thread, LoggingMixin):
             # and can happen when a single trigger Job is being run on multiple TriggerRunners
             # in a High-Availability setup.
             if new_trigger_orm.task_instance is None:
-                self.log.warning((
-                    "TaskInstance for Trigger ID %s is None. It was likely updated by another trigger job. "
-                    "Skipping trigger instantiation."
-                ), new_id)
+                self.log.warning(
+                    (
+                        "TaskInstance for Trigger ID %s is None. It was likely updated by another trigger job. "
+                        "Skipping trigger instantiation."
+                    ),
+                    new_id,
+                )
                 continue
 
             try:
