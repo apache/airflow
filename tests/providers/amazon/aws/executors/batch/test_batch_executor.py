@@ -48,6 +48,11 @@ ARN1 = "arn1"
 MOCK_JOB_ID = "batch-job-id"
 
 
+@pytest.fixture(autouse=True)
+def default_connection(monkeypatch):
+    monkeypatch.setenv("AIRFLOW_CONN_AWS_DEFAULT", "aws://")
+
+
 @pytest.fixture
 def set_env_vars():
     overrides: dict[tuple[str, str], str] = {

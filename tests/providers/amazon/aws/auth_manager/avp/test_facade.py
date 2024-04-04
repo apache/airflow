@@ -41,9 +41,11 @@ test_user_no_group = AwsAuthManagerUser(user_id="test_user_no_group", groups=[])
 
 
 @pytest.fixture
-def facade():
+def facade(monkeypatch):
+    monkeypatch.setenv("AIRFLOW_CONN_AWS_DEFAULT", "aws://")
     with conf_vars(
         {
+            ("aws_auth_manager", "conn_id"): "aws_default",
             ("aws_auth_manager", "region_name"): REGION_NAME,
             ("aws_auth_manager", "avp_policy_store_id"): AVP_POLICY_STORE_ID,
         }

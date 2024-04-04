@@ -74,7 +74,7 @@ POSSIBLE_TEST_FOLDERS = [
     "www",
 ]
 
-EXCEPTIONS = ["tests/__init__.py", "tests/conftest.py"]
+EXCEPTIONS = ["tests/__init__.py", "tests/conftest.py", "tests/_internal.py"]
 
 if __name__ == "__main__":
     files = sys.argv[1:]

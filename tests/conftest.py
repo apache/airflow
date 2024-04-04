@@ -27,11 +27,14 @@ import warnings
 from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Generator
 
 import pytest
 import time_machine
 import yaml
+
+if TYPE_CHECKING:
+    from tests._internal import LogCaptureFixtureWrapper
 
 # We should set these before loading _any_ of the rest of airflow so that the
 # unit test mode config is set as early as possible.
@@ -402,6 +405,7 @@ def pytest_configure(config: pytest.Config) -> None:
         "markers",
         "external_python_operator: external python operator tests are 'long', we should run them separately",
     )
+    config.addinivalue_line("markers", "enable_redact: do not mock redact secret masker")
 
     os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
     configure_warning_output(config)
@@ -1000,6 +1004,17 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
+def ext_caplog(caplog) -> Generator[LogCaptureFixtureWrapper, None, None]:
+    """Extended caplog fixture, allow filtering on output even if caplog capture this values."""
+    from tests._internal import LogCaptureFixtureWrapper
+
+    ext_caplog = LogCaptureFixtureWrapper(caplog=caplog)
+    ext_caplog.clear()
+    yield ext_caplog
+    ext_caplog.clear()
+
+
+@pytest.fixture
 def create_task_instance(dag_maker, create_dummy_dag):
     """Create a TaskInstance, and associated DB rows (DagRun, DagModel, etc).
 
@@ -1232,6 +1247,25 @@ def cleanup_providers_manager():
         yield
     finally:
         ProvidersManager()._cleanup()
+
+
+@pytest.fixture(autouse=True)
+def _disable_redact(request: pytest.FixtureRequest, mocker):
+    """Disable redacted text in tests, except specific."""
+    from airflow import settings
+
+    if next(request.node.iter_markers("enable_redact"), None):
+        with pytest.MonkeyPatch.context() as mp_ctx:
+            mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", True)
+            yield
+        return
+
+    mocked_redact = mocker.patch("airflow.utils.log.secrets_masker.SecretsMasker.redact")
+    mocked_redact.side_effect = lambda item, name=None, max_depth=None: item
+    with pytest.MonkeyPatch.context() as mp_ctx:
+        mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", False)
+        yield
+    return
 
 
 # The code below is a modified version of capture-warning code from

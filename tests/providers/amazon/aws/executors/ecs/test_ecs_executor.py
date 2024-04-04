@@ -129,6 +129,11 @@ def mock_config():
     return mock.Mock(spec=dict)
 
 
+@pytest.fixture(autouse=True)
+def default_connection(monkeypatch):
+    monkeypatch.setenv("AIRFLOW_CONN_AWS_DEFAULT", "aws://")
+
+
 @pytest.fixture
 def set_env_vars():
     overrides: dict[tuple[str, str], str] = {
