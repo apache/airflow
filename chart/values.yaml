@@ -1271,6 +1271,14 @@ rpcServer:
       ports:
         - port: "{{ .Values.ports.rpcServer }}"
 
+  resources: {}
+  #   limits:
+  #     cpu: 100m
+  #     memory: 128Mi
+  #   requests:
+  #     cpu: 100m
+  #     memory: 128Mi
+
   livenessProbe:
     initialDelaySeconds: 15
     timeoutSeconds: 5
