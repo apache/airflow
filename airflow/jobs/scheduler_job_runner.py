@@ -821,19 +821,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
         try:
+            callback_sink: PipeCallbackSink | DatabaseCallbackSink
+
+            if self.processor_agent:
+                self.log.debug("Using PipeCallbackSink as callback sink.")
+                callback_sink = PipeCallbackSink(get_sink_pipe=self.processor_agent.get_callbacks_pipe)
+            else:
+                from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
+
+                self.log.debug("Using DatabaseCallbackSink as callback sink.")
+                callback_sink = DatabaseCallbackSink()
+
             for executor in self.job.executors:
                 executor.job_id = self.job.id
-                if self.processor_agent:
-                    self.log.debug("Using PipeCallbackSink as callback sink.")
-                    executor.callback_sink = PipeCallbackSink(
-                        get_sink_pipe=self.processor_agent.get_callbacks_pipe
-                    )
-                else:
-                    from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
-
-                    self.log.debug("Using DatabaseCallbackSink as callback sink.")
-                    executor.callback_sink = DatabaseCallbackSink()
-
+                executor.callback_sink = callback_sink
                 executor.start()
 
             self.register_signals()
