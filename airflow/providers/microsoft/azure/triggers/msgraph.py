@@ -270,16 +270,16 @@ class MSGraphTrigger(BaseTrigger):
             return self.url.replace("/", "", 1)
         return self.url
 
-    @staticmethod
-    def encode_query_parameters(query_parameters: dict) -> dict:
-        return {quote(key): quote(str(value)) for key, value in query_parameters.items()}
+    def encoded_query_parameters(self) -> dict:
+        if self.query_parameters:
+            return {quote(key): quote(str(value)) for key, value in self.query_parameters.items()}
+        return {}
 
     def request_information(self) -> RequestInformation:
         request_information = RequestInformation()
-
         request_information.path_parameters = self.path_parameters or {}
         request_information.http_method = Method(self.method.strip().upper())
-        request_information.query_parameters = self.encode_query_parameters(self.query_parameters or {})
+        request_information.query_parameters = self.encoded_query_parameters()
         if self.url.startswith("http"):
             request_information.url = self.url
         elif request_information.query_parameters.keys():
