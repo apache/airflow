@@ -99,7 +99,7 @@ class MSGraphAsyncOperator(BaseOperator):
         timeout: float | None = None,
         proxies: dict | None = None,
         api_version: APIVersion | None = None,
-        pagination_function: Callable[[MSGraphAsyncOperator, dict], Any] | None = None,
+        pagination_function: Callable[[MSGraphAsyncOperator, dict], tuple[str, dict]] | None = None,
         result_processor: Callable[[Context, Any], Any] = lambda context, result: result,
         serializer: type[ResponseSerializer] = ResponseSerializer,
         **kwargs: Any,
