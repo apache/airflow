@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-04-03T09:25:28.385450
+# This constraints file was automatically generated on 2024-04-03T23:36:09.824151
 # via "eager-upgrade" mechanism of PIP. For the "v2-9-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -128,6 +128,7 @@ apache-airflow-providers-discord==3.6.0
 apache-airflow-providers-docker==3.9.2
 apache-airflow-providers-elasticsearch==5.3.3
 apache-airflow-providers-exasol==4.4.3
+apache-airflow-providers-fab==1.0.2
 apache-airflow-providers-facebook==3.4.0
 apache-airflow-providers-ftp==3.7.0
 apache-airflow-providers-github==2.5.1
