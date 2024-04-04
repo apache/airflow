@@ -403,7 +403,7 @@ class TestPostgresHook:
         assert commit_count == self.conn.commit.call_count
 
         sql = f"INSERT INTO {table}  VALUES (%s)"
-        self.cur.execute.assert_any_call(sql, rows)
+        self.cur.executemany.assert_any_call(sql, rows)
 
     def test_insert_rows_replace(self):
         table = "table"
@@ -431,7 +431,7 @@ class TestPostgresHook:
             f"INSERT INTO {table} ({fields[0]}, {fields[1]}) VALUES (%s,%s) "
             f"ON CONFLICT ({fields[0]}) DO UPDATE SET {fields[1]} = excluded.{fields[1]}"
         )
-        self.cur.execute.assert_any_call(sql, rows)
+        self.cur.executemany.assert_any_call(sql, rows)
 
     def test_insert_rows_replace_missing_target_field_arg(self):
         table = "table"
@@ -495,7 +495,7 @@ class TestPostgresHook:
             f"INSERT INTO {table} ({', '.join(fields)}) VALUES (%s,%s) "
             f"ON CONFLICT ({', '.join(fields)}) DO NOTHING"
         )
-        self.cur.execute.assert_any_call(sql, rows)
+        self.cur.executemany.assert_any_call(sql, rows)
 
     def test_rowcount(self):
         hook = PostgresHook()
