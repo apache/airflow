@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import functools
 import json
 import os
 import platform
@@ -584,6 +585,34 @@ def skip_if_credential_file_missing(item):
         credential_path = os.path.join(os.environ.get("CREDENTIALS_DIR"), credential_file)
         if not os.path.exists(credential_path):
             pytest.skip(f"The test requires credential file {credential_path}: {item}")
+
+
+@functools.lru_cache(maxsize=None)
+def deprecations_ignore() -> tuple[str, ...]:
+    with open(Path(__file__).resolve().parent / "deprecations_ignore.yml") as fp:
+        return tuple(yaml.safe_load(fp))
+
+
+def setup_error_warnings(item: pytest.Item):
+    if item.nodeid.startswith(deprecations_ignore()):
+        return
+
+    # We cannot add everything related to the airflow package it into `filterwarnings`
+    # in the pyproject.toml sections, because it invokes airflow import before we setup test environment.
+    # Instead of that, we are dynamically adding as `filterwarnings` marker.
+    prohibited_warnings = (
+        "airflow.exceptions.RemovedInAirflow3Warning",
+        "airflow.utils.context.AirflowContextDeprecationWarning",
+        "airflow.exceptions.AirflowProviderDeprecationWarning",
+    )
+    for w in prohibited_warnings:
+        # Add marker at the beginning of the markers list. In this case, it does not conflict with
+        # filterwarnings markers, which are set explicitly in the test suite.
+        item.add_marker(pytest.mark.filterwarnings(f"error::{w}"), append=False)
+
+
+def pytest_itemcollected(item: pytest.Item):
+    setup_error_warnings(item)
 
 
 def pytest_runtest_setup(item):
@@ -1203,28 +1232,6 @@ def cleanup_providers_manager():
         yield
     finally:
         ProvidersManager()._cleanup()
-
-
-@pytest.fixture(scope="session")
-def deprecations_ignore() -> tuple[str, ...]:
-    with open(Path(__file__).absolute().parent.resolve() / "deprecations_ignore.yml") as fp:
-        return tuple(yaml.safe_load(fp))
-
-
-@pytest.fixture(autouse=True)
-def check_deprecations(request: pytest.FixtureRequest, deprecations_ignore):
-    from airflow.exceptions import AirflowProviderDeprecationWarning, RemovedInAirflow3Warning
-    from airflow.utils.context import AirflowContextDeprecationWarning
-
-    if request.node.nodeid.startswith(deprecations_ignore):
-        yield
-        return
-
-    with warnings.catch_warnings():
-        warnings.simplefilter("error", AirflowProviderDeprecationWarning)
-        warnings.simplefilter("error", RemovedInAirflow3Warning)
-        warnings.simplefilter("error", AirflowContextDeprecationWarning)
-        yield
 
 
 # The code below is a modified version of capture-warning code from
