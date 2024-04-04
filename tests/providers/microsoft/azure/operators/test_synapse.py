@@ -71,7 +71,7 @@ class TestAzureSynapseRunSparkBatchOperator:
         create_mock_connection(
             Connection(
                 conn_id=AZURE_SYNAPSE_CONN_ID,
-                conn_type="azure_synapse_pipeline",
+                conn_type="azure_synapse",
                 host="https://synapsetest.net",
                 login="client-id",
                 password="client-secret",
