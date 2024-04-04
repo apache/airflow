@@ -288,7 +288,7 @@ extend-select = [
     "B004", # Checks for use of hasattr(x, "__call__") and replaces it with callable(x)
     "B006", # Checks for uses of mutable objects as function argument defaults.
     "B019", # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
-    "TRY002", # Prohibit to use `raise Exception`, instead of that contributor should use specific exception
+    "TRY002", # Prohibit use of `raise Exception`, use specific exceptions instead.
 ]
 ignore = [
     "D203",
