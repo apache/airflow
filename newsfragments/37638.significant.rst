@@ -1,0 +1,4 @@
+Replaced test_should_respond_400_on_invalid_request with test_ignore_read_only_fields in the test_dag_endpoint.py.
+
+Connexion V3 request body validator doesn't raise the read-only property error and just ignore the read-only field.
+You can find the detail about the change `here <https://github.com/spec-first/connexion/pull/1655>`_
