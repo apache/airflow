@@ -142,7 +142,7 @@ class MSGraphAsyncOperator(BaseOperator):
                 api_version=self.api_version,
                 serializer=type(self.serializer),
             ),
-            method_name="execute_complete",
+            method_name=self.execute_complete.__name__,
         )
 
     def execute_complete(
@@ -179,7 +179,7 @@ class MSGraphAsyncOperator(BaseOperator):
                 event["response"] = result
 
                 try:
-                    self.trigger_next_link(response, method_name="pull_execute_complete")
+                    self.trigger_next_link(response, method_name=self.pull_execute_complete.__name__)
                 except TaskDeferred as exception:
                     self.append_result(
                         result=result,
