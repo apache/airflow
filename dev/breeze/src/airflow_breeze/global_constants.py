@@ -296,6 +296,7 @@ COMMITTERS = [
     "BasPH",
     "Fokko",
     "KevinYang21",
+    "Lee-W",
     "Taragolis",
     "XD-DENG",
     "aijamalnk",
