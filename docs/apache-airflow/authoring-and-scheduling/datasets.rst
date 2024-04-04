@@ -51,7 +51,7 @@ In addition to scheduling DAGs based on time, you can also schedule DAGs to run 
 What is a "dataset"?
 --------------------
 
-An Airflow Dataset is a logical grouping of data. Upstream producer tasks can update datasets, and dataset updates contribute to scheduling downstream consumer DAGs.
+An Airflow dataset is a logical grouping of data. Upstream producer tasks can update datasets, and dataset updates contribute to scheduling downstream consumer DAGs.
 
 Uniform Resource Identifier (URI) define datasets:
 
@@ -99,10 +99,10 @@ The identifier does not have to be absolute; it can be a scheme-less, relative U
 
 Non-absolute identifiers are considered plain strings that do not carry any semantic meanings to Airflow.
 
-Extra information on Dataset
+Extra information on dataset
 ----------------------------
 
-If needed, you can include an extra dictionary in a Dataset:
+If needed, you can include an extra dictionary in a dataset:
 
 .. code-block:: python
 
@@ -223,13 +223,13 @@ If one dataset is updated multiple times before all consumed datasets update, th
 
     }
 
-Attaching extra information to an emitting Dataset Event
+Attaching extra information to an emitting dataset event
 --------------------------------------------------------
 
 .. versionadded:: 2.10.0
 
 A task with a dataset outlet can optionally attach extra information before it emits a dataset event. This is different
-from `Extra information on Dataset`_. Extra information on a dataset statically describes the entity pointed to by the dataset URI; extra information on the *dataset event* instead should be used to annotate the triggering data change, such as how many rows in the database are changed by the update, or the date range covered by it.
+from `Extra information on dataset`_. Extra information on a dataset statically describes the entity pointed to by the dataset URI; extra information on the *dataset event* instead should be used to annotate the triggering data change, such as how many rows in the database are changed by the update, or the date range covered by it.
 
 The easiest way to attach extra information to the dataset event is by ``yield``-ing a ``Metadata`` object from a task:
 
@@ -262,10 +262,10 @@ Another way to achieve the same is by accessing ``dataset_events`` in a task's e
 There's minimal magic here---Airflow simply writes the yielded values to the exact same accessor. This also works in classic operators, including ``execute``, ``pre_execute``, and ``post_execute``.
 
 
-Fetching information from a Triggering Dataset Event
+Fetching information from a triggering dataset event
 ----------------------------------------------------
 
-A triggered DAG can fetch information from the Dataset that triggered it using the ``triggering_dataset_events`` template or parameter.
+A triggered DAG can fetch information from the dataset that triggered it using the ``triggering_dataset_events`` template or parameter.
 See more at :ref:`templates-ref`.
 
 Example:
@@ -299,14 +299,14 @@ Example:
 
         print_triggering_dataset_events()
 
-Note that this example is using `(.values() | first | first) <https://jinja.palletsprojects.com/en/3.1.x/templates/#jinja-filters.first>`_ to fetch the first of one Dataset given to the DAG, and the first of one DatasetEvent for that Dataset. An implementation can be quite complex if you have multiple Datasets, potentially with multiple DatasetEvents.
+Note that this example is using `(.values() | first | first) <https://jinja.palletsprojects.com/en/3.1.x/templates/#jinja-filters.first>`_ to fetch the first of one dataset given to the DAG, and the first of one DatasetEvent for that dataset. An implementation can be quite complex if you have multiple datasets, potentially with multiple DatasetEvents.
 
-Advanced Dataset Scheduling with Conditional Expressions
+Advanced dataset scheduling with conditional expressions
 --------------------------------------------------------
 
 Apache Airflow includes advanced scheduling capabilities that use conditional expressions with datasets. This feature allows you to define complex dependencies for DAG executions based on dataset updates, using logical operators for more control on workflow triggers.
 
-Logical Operators for Datasets
+Logical operators for datasets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Airflow supports two logical operators for combining dataset conditions:
@@ -319,7 +319,7 @@ These operators enable you to configure your Airflow workflows to use more compl
 Example Use
 -------------
 
-**Scheduling Based on Multiple Dataset Updates**
+**Scheduling based on multiple dataset updates**
 
 To schedule a DAG to run only when two specific datasets have both been updated, use the AND operator (``&``):
 
@@ -335,7 +335,7 @@ To schedule a DAG to run only when two specific datasets have both been updated,
     ):
         ...
 
-**Scheduling Based on Any Dataset Update**
+**Scheduling based on any dataset update**
 
 To trigger a DAG execution when either one of two datasets is updated, apply the OR operator (``|``):
 
@@ -363,7 +363,7 @@ For scenarios requiring more intricate conditions, such as triggering a DAG when
     ):
         ...
 
-Combining Dataset and Time-Based Schedules
+Combining dataset and time-based schedules
 ------------------------------------------
 
 DatasetTimetable Integration
