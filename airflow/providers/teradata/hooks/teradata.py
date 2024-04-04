@@ -26,7 +26,6 @@ import sqlalchemy
 import teradatasql
 from teradatasql import TeradataConnection
 
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
@@ -116,7 +115,7 @@ class TeradataHook(DbApiHook):
         """
         warnings.warn(
             "bulk_insert_rows is deprecated. Please use the insert_rows method instead.",
-            RemovedInAirflow3Warning,
+            DeprecationWarning,
             stacklevel=2,
         )
 
