@@ -226,9 +226,9 @@ class TestTeradataHook:
             "str",
         ]
         self.test_db_hook.insert_rows("table", rows, target_fields)
-        self.cur.execute.assert_called_once_with(
+        self.cur.executemany.assert_called_once_with(
             "INSERT INTO table (basestring, none, datetime, int, float, str) VALUES (?,?,?,?,?,?)",
-            ("'test_string", None, "2023-08-15T00:00:00", "1", "3.14", "str"),
+            [("'test_string", None, "2023-08-15T00:00:00", "1", "3.14", "str")],
         )
 
     def test_bulk_insert_rows_with_fields(self):
