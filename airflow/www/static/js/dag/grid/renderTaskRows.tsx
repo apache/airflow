@@ -182,11 +182,11 @@ const Row = (props: RowProps) => {
               pl={level * 4 + 4}
               setupTeardownType={task.setupTeardownType}
               pr={4}
-              fontWeight={
-                isGroup || (task.isMapped && !isParentMapped)
-                  ? "bold"
-                  : "normal"
-              }
+              // fontWeight={
+              //   isGroup || (task.isMapped && !isParentMapped)
+              //     ? "bold"
+              //     : "normal"
+              // }
               noOfLines={1}
             />
           </Td>
