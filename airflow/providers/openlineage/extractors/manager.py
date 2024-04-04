@@ -24,11 +24,7 @@ from airflow.providers.openlineage.extractors import BaseExtractor, OperatorLine
 from airflow.providers.openlineage.extractors.base import DefaultExtractor
 from airflow.providers.openlineage.extractors.bash import BashExtractor
 from airflow.providers.openlineage.extractors.python import PythonExtractor
-from airflow.providers.openlineage.plugins.facets import (
-    UnknownOperatorAttributeRunFacet,
-    UnknownOperatorInstance,
-)
-from airflow.providers.openlineage.utils.utils import get_filtered_unknown_operator_keys
+from airflow.providers.openlineage.utils.utils import get_unknown_source_attribute_run_facet
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
 
@@ -115,16 +111,7 @@ class ExtractorManager(LoggingMixin):
 
             # Only include the unkonwnSourceAttribute facet if there is no extractor
             task_metadata = OperatorLineage(
-                run_facets={
-                    "unknownSourceAttribute": UnknownOperatorAttributeRunFacet(
-                        unknownItems=[
-                            UnknownOperatorInstance(
-                                name=task.task_type,
-                                properties=get_filtered_unknown_operator_keys(task),
-                            )
-                        ]
-                    )
-                },
+                run_facets=get_unknown_source_attribute_run_facet(task=task),
             )
             inlets = task.get_inlet_defs()
             outlets = task.get_outlet_defs()
