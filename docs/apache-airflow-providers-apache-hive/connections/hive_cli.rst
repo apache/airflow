@@ -73,6 +73,10 @@ Proxy User (optional)
 Principal (optional)
     Specify the JDBC Hive principal to be used with Hive Beeline.
 
+High Availability (optional)
+    Specify as ``True`` if you want to connect to a Hive installation running in high
+    availability mode. Specify host accordingly.
+
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.
