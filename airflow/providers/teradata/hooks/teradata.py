@@ -120,6 +120,9 @@ class TeradataHook(DbApiHook):
             stacklevel=2,
         )
 
+        if not rows:
+            raise ValueError("parameter rows could not be None or empty iterable")
+
         self.insert_rows(table=table, rows=rows, target_fields=target_fields, commit_every=commit_every)
 
     def _get_conn_config_teradatasql(self) -> dict[str, Any]:
