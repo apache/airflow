@@ -324,8 +324,6 @@ connection-types:
     connection-type: adls
   - hook-class-name: airflow.providers.microsoft.azure.hooks.synapse.AzureSynapsePipelineHook
     connection-type: azure_synapse_pipeline
-  - hook-class-name: airflow.providers.microsoft.azure.hooks.msgraph.KiotaRequestAdapterHook
-    connection-type: http
 
 secrets-backends:
   - airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend
