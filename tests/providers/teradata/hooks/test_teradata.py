@@ -244,10 +244,6 @@ class TestTeradataHook:
         target_fields = ["col1", "col2", "col3"]
         self.test_db_hook.bulk_insert_rows("table", rows, target_fields, commit_every=2)
         calls = [
-            mock.call("INSERT INTO table (col1, col2, col3) values (1, 2, 3)"),
-            mock.call("INSERT INTO table (col1, col2, col3) values (1, 2, 3)"),
-        ]
-        calls = [
             mock.call("INSERT INTO table (col1, col2, col3) VALUES (?, ?, ?)", rows[:2]),
             mock.call("INSERT INTO table (col1, col2, col3) VALUES (?, ?, ?)", rows[2:]),
         ]
