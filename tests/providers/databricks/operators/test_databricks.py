@@ -737,7 +737,7 @@ class TestDatabricksSubmitRunOperator:
         }
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=run)
         db_mock = db_mock_class.return_value
-        db_mock.submit_run.return_value = 1
+        db_mock.submit_run.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
 
         op.execute(None)
@@ -767,7 +767,7 @@ class TestDatabricksSubmitRunOperator:
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=run)
         db_mock = db_mock_class.return_value
         db_mock.find_pipeline_id_by_name.return_value = PIPELINE_ID_TASK["pipeline_id"]
-        db_mock.submit_run.return_value = 1
+        db_mock.submit_run.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
 
         op.execute(None)
@@ -798,7 +798,7 @@ class TestDatabricksSubmitRunOperator:
         }
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=run)
         db_mock = db_mock_class.return_value
-        db_mock.submit_run.return_value = 1
+        db_mock.submit_run.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "FAILED")
 
         with pytest.raises(AirflowException):
@@ -845,7 +845,7 @@ class TestDatabricksSubmitRunOperator:
         }
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=run)
         db_mock = db_mock_class.return_value
-        db_mock.submit_run.return_value = 1
+        db_mock.submit_run.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
 
         assert op.wait_for_termination
@@ -875,7 +875,7 @@ class TestDatabricksSubmitRunOperator:
         }
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, wait_for_termination=False, json=run)
         db_mock = db_mock_class.return_value
-        db_mock.submit_run.return_value = 1
+        db_mock.submit_run.return_value = RUN_ID
 
         assert not op.wait_for_termination
 
@@ -909,7 +909,7 @@ class TestDatabricksSubmitRunDeferrableOperator:
         }
         op = DatabricksSubmitRunDeferrableOperator(task_id=TASK_ID, json=run)
         db_mock = db_mock_class.return_value
-        db_mock.submit_run.return_value = 1
+        db_mock.submit_run.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("RUNNING", "RUNNING")
 
         with pytest.raises(TaskDeferred) as exc:
@@ -971,7 +971,7 @@ class TestDatabricksSubmitRunDeferrableOperator:
             op.execute_complete(context=None, event=event)
 
         db_mock = db_mock_class.return_value
-        db_mock.submit_run.return_value = 1
+        db_mock.submit_run.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "FAILED")
 
         with pytest.raises(AirflowException, match=f"Job run failed with terminal state: {run_state_failed}"):
@@ -993,7 +993,7 @@ class TestDatabricksSubmitRunDeferrableOperator:
         }
         op = DatabricksSubmitRunDeferrableOperator(task_id=TASK_ID, json=run)
         db_mock = db_mock_class.return_value
-        db_mock.submit_run.return_value = 1
+        db_mock.submit_run.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "FAILED")
         op.execute(None)
 
@@ -1023,7 +1023,7 @@ class TestDatabricksSubmitRunDeferrableOperator:
         }
         op = DatabricksSubmitRunDeferrableOperator(task_id=TASK_ID, json=run)
         db_mock = db_mock_class.return_value
-        db_mock.submit_run.return_value = 1
+        db_mock.submit_run.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
         op.execute(None)
 
@@ -1147,7 +1147,7 @@ class TestDatabricksRunNowOperator:
         run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
         op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
         db_mock = db_mock_class.return_value
-        db_mock.run_now.return_value = 1
+        db_mock.run_now.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
 
         op.execute(None)
@@ -1181,7 +1181,7 @@ class TestDatabricksRunNowOperator:
         run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
         op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
         db_mock = db_mock_class.return_value
-        db_mock.run_now.return_value = 1
+        db_mock.run_now.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "FAILED")
 
         with pytest.raises(AirflowException):
@@ -1215,7 +1215,7 @@ class TestDatabricksRunNowOperator:
         run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
         op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
         db_mock = db_mock_class.return_value
-        db_mock.run_now.return_value = 1
+        db_mock.run_now.return_value = RUN_ID
         db_mock.get_run = mock_dict(
             {
                 "job_id": JOB_ID,
@@ -1279,7 +1279,7 @@ class TestDatabricksRunNowOperator:
         run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
         op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
         db_mock = db_mock_class.return_value
-        db_mock.run_now.return_value = 1
+        db_mock.run_now.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
 
         assert op.wait_for_termination
@@ -1311,7 +1311,7 @@ class TestDatabricksRunNowOperator:
         run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
         op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, wait_for_termination=False, json=run)
         db_mock = db_mock_class.return_value
-        db_mock.run_now.return_value = 1
+        db_mock.run_now.return_value = RUN_ID
 
         assert not op.wait_for_termination
 
@@ -1357,7 +1357,7 @@ class TestDatabricksRunNowOperator:
         op = DatabricksRunNowOperator(task_id=TASK_ID, job_name=JOB_NAME, json=run)
         db_mock = db_mock_class.return_value
         db_mock.find_job_id_by_name.return_value = JOB_ID
-        db_mock.run_now.return_value = 1
+        db_mock.run_now.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
 
         op.execute(None)
@@ -1402,7 +1402,7 @@ class TestDatabricksRunNowOperator:
         run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
         op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, cancel_previous_runs=True, json=run)
         db_mock = db_mock_class.return_value
-        db_mock.run_now.return_value = 1
+        db_mock.run_now.return_value = RUN_ID
 
         assert op.cancel_previous_runs
 
@@ -1434,7 +1434,7 @@ class TestDatabricksRunNowOperator:
         run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
         op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, cancel_previous_runs=False, json=run)
         db_mock = db_mock_class.return_value
-        db_mock.run_now.return_value = 1
+        db_mock.run_now.return_value = RUN_ID
 
         assert not op.cancel_previous_runs
 
@@ -1471,7 +1471,7 @@ class TestDatabricksRunNowDeferrableOperator:
         run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
         op = DatabricksRunNowDeferrableOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
         db_mock = db_mock_class.return_value
-        db_mock.run_now.return_value = 1
+        db_mock.run_now.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("RUNNING", "RUNNING")
 
         with pytest.raises(TaskDeferred) as exc:
@@ -1534,7 +1534,7 @@ class TestDatabricksRunNowDeferrableOperator:
             op.execute_complete(context=None, event=event)
 
         db_mock = db_mock_class.return_value
-        db_mock.run_now.return_value = 1
+        db_mock.run_now.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "FAILED")
 
         with pytest.raises(AirflowException, match=f"Job run failed with terminal state: {run_state_failed}"):
@@ -1563,7 +1563,7 @@ class TestDatabricksRunNowDeferrableOperator:
         op.execute_complete(context=None, event=event)
 
         db_mock = db_mock_class.return_value
-        db_mock.run_now.return_value = 1
+        db_mock.run_now.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "FAILED")
         db_mock.get_latest_repair_id.assert_called_once()
         db_mock.repair_run.assert_called_once()
@@ -1585,7 +1585,7 @@ class TestDatabricksRunNowDeferrableOperator:
         }
         op = DatabricksSubmitRunDeferrableOperator(task_id=TASK_ID, json=run)
         db_mock = db_mock_class.return_value
-        db_mock.submit_run.return_value = 1
+        db_mock.submit_run.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "FAILED")
         op.execute(None)
 
@@ -1612,7 +1612,7 @@ class TestDatabricksRunNowDeferrableOperator:
         run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
         op = DatabricksRunNowDeferrableOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
         db_mock = db_mock_class.return_value
-        db_mock.run_now.return_value = 1
+        db_mock.run_now.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "FAILED")
 
         op.execute(None)
@@ -1645,7 +1645,7 @@ class TestDatabricksRunNowDeferrableOperator:
         run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
         op = DatabricksRunNowDeferrableOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
         db_mock = db_mock_class.return_value
-        db_mock.run_now.return_value = 1
+        db_mock.run_now.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
 
         op.execute(None)
