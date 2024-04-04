@@ -1744,12 +1744,12 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
         else:
             log.info("Applying downgrade migrations.")
             command.downgrade(config, revision=to_revision, sql=show_sql_only)
-    if _revision_greater(
-        config,
-        _REVISION_HEADS_MAP["2.9.0"],
-        to_revision,
-    ):
-        decrypt_trigger_kwargs(session=session)
+            if _revision_greater(
+                config,
+                _REVISION_HEADS_MAP["2.9.0"],
+                to_revision,
+            ):
+                decrypt_trigger_kwargs(session=session)
 
 
 def drop_airflow_models(connection):
