@@ -1229,7 +1229,7 @@ ARG AIRFLOW_USE_UV="true"
 ARG PIP_NO_CACHE_DIR="true"
 # By default UV install run without cache to make image smaller
 ARG UV_NO_CACHE="true"
-ARG UV_REQUEST_TIMEOUT="300"
+ARG UV_HTTP_TIMEOUT="300"
 # By default PIP has progress bar but you can disable it.
 ARG PIP_PROGRESS_BAR="on"
 # Optimizing installation of Cassandra driver (in case there are no prebuilt wheels which is the
@@ -1263,7 +1263,7 @@ ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
     AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION} \
     AIRFLOW_USE_UV=${AIRFLOW_USE_UV} \
-    UV_REQUEST_TIMEOUT=${UV_REQUEST_TIMEOUT} \
+    UV_HTTP_TIMEOUT=${UV_HTTP_TIMEOUT} \
     INSTALL_MYSQL_CLIENT="true" \
     INSTALL_MYSQL_CLIENT_TYPE=${INSTALL_MYSQL_CLIENT_TYPE} \
     INSTALL_MSSQL_CLIENT="true" \

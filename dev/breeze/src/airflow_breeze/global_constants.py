@@ -121,6 +121,8 @@ ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "24.0"
 
+DEFAULT_UV_HTTP_TIMEOUT = 300
+
 # packages that  providers docs
 REGULAR_DOC_PACKAGES = [
     "apache-airflow",
