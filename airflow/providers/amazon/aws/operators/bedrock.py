@@ -117,12 +117,13 @@ class BedrockCustomizeModelOperator(AwsBaseOperator[BedrockHook]):
     :param check_if_job_exists: If set to true, operator will check whether a model customization
         job already exists for the name in the config. (Default: True)
     :param action_if_job_exists: Behavior if the job name already exists. Options are "timestamp" (default),
-        and "fail"
+        and "fail". If "timestamp" is used and the job name already exists, the current timestamp
+        will be appended to the name in order to make it unique.
     :param customization_job_kwargs: Any optional parameters to pass to the API.
 
     :param wait_for_completion: Whether to wait for cluster to stop. (default: True)
-    :param waiter_delay: Time in seconds to wait between status checks.
-    :param waiter_max_attempts: Maximum number of attempts to check for job completion.
+    :param waiter_delay: Time in seconds to wait between status checks. (default: 120)
+    :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 75)
     :param deferrable: If True, the operator will wait asynchronously for the cluster to stop.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)

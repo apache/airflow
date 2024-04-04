@@ -35,18 +35,18 @@ def mock_conn():
 
 
 class TestBedrockHook:
+    VALIDATION_EXCEPTION_ERROR = ClientError(
+        error_response={"Error": {"Code": "ValidationException", "Message": ""}},
+        operation_name="GetModelCustomizationJob",
+    )
+
+    UNEXPECTED_EXCEPTION = ClientError(
+        error_response={"Error": {"Code": "ExpiredTokenException", "Message": ""}},
+        operation_name="GetModelCustomizationJob",
+    )
+
     def setup_method(self):
         self.hook = BedrockHook()
-
-        self.validation_exception_error = ClientError(
-            error_response={"Error": {"Code": "ValidationException", "Message": ""}},
-            operation_name="GetModelCustomizationJob",
-        )
-
-        self.unexpected_exception = ClientError(
-            error_response={"Error": {"Code": "ExpiredTokenException", "Message": ""}},
-            operation_name="GetModelCustomizationJob",
-        )
 
     def test_conn_returns_a_boto3_connection(self):
         assert self.hook.conn is not None
@@ -66,7 +66,7 @@ class TestBedrockHook:
 
     def test_job_name_exists_negative(self, mock_conn):
         invalid_job_name = "invalid_job_name"
-        mock_conn.get_model_customization_job.side_effect = self.validation_exception_error
+        mock_conn.get_model_customization_job.side_effect = self.VALIDATION_EXCEPTION_ERROR
 
         response = self.hook.job_name_exists(invalid_job_name)
 
@@ -74,7 +74,7 @@ class TestBedrockHook:
         assert response is False
 
     def test_job_name_exists_unexpected_exception(self, mock_conn):
-        mock_conn.get_model_customization_job.side_effect = self.unexpected_exception
+        mock_conn.get_model_customization_job.side_effect = self.UNEXPECTED_EXCEPTION
 
         with pytest.raises(ClientError):
             self.hook.job_name_exists(JOB_NAME)

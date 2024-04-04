@@ -43,7 +43,7 @@ class BedrockHook(AwsBaseHook):
     def _get_job_by_name(self, job_name: str):
         return self.conn.get_model_customization_job(jobIdentifier=job_name)
 
-    def get_customize_model_job_state(self, job_name) -> str:
+    def get_customize_model_job_state(self, job_name: str) -> str:
         state = self._get_job_by_name(job_name)["status"]
         self.log.info("Job '%s' state: %s", job_name, state)
         return state

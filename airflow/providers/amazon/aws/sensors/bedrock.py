@@ -42,11 +42,11 @@ class BedrockCustomizeModelCompletedSensor(AwsBaseSensor[BedrockHook]):
 
     :param job_name: The name of the Bedrock model customization job.
 
-    :param deferrable: If True, the sensor will operate in deferrable more. This mode requires aiobotocore
+    :param deferrable: If True, the sensor will operate in deferrable mode. This mode requires aiobotocore
         module to be installed.
         (default: False, but can be overridden in config file by setting default_deferrable to True)
-    :param max_retries: Number of times before returning the current state, defaults to None
-    :param poke_interval: Polling period in seconds to check for the status of the job.
+    :param max_retries: Number of times before returning the current state. (default: 75)
+    :param poke_interval: Polling period in seconds to check for the status of the job. (default: 120)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or

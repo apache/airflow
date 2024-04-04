@@ -36,19 +36,18 @@ if TYPE_CHECKING:
 
 
 class TestBedrockInvokeModelOperator:
-    def setup_method(self):
-        self.model_id = "meta.llama2-13b-chat-v1"
-        self.prompt = "A very important question."
-        self.generated_response = "An important answer."
+    MODEL_ID = "meta.llama2-13b-chat-v1"
+    TEST_PROMPT = "A very important question."
+    GENERATED_RESPONSE = "An important answer."
 
     @pytest.fixture
     def mock_runtime_conn(self) -> Generator[BaseAwsConnection, None, None]:
         with mock.patch.object(BedrockRuntimeHook, "conn") as _conn:
             _conn.invoke_model.return_value["body"].read.return_value = json.dumps(
                 {
-                    "generation": self.generated_response,
-                    "prompt_token_count": len(self.prompt),
-                    "generation_token_count": len(self.generated_response),
+                    "generation": self.GENERATED_RESPONSE,
+                    "prompt_token_count": len(self.TEST_PROMPT),
+                    "generation_token_count": len(self.GENERATED_RESPONSE),
                     "stop_reason": "stop",
                 }
             )
@@ -61,24 +60,29 @@ class TestBedrockInvokeModelOperator:
 
     def test_invoke_model_prompt_good_combinations(self, mock_runtime_conn):
         operator = BedrockInvokeModelOperator(
-            task_id="test_task", model_id=self.model_id, input_data={"input_data": {"prompt": self.prompt}}
+            task_id="test_task",
+            model_id=self.MODEL_ID,
+            input_data={"input_data": {"prompt": self.TEST_PROMPT}},
         )
 
         response = operator.execute({})
 
-        assert response["generation"] == self.generated_response
+        assert response["generation"] == self.GENERATED_RESPONSE
 
 
 class TestBedrockCustomizeModelOperator:
+    CUSTOMIZE_JOB_ARN = "valid_arn"
+    CUSTOMIZE_JOB_NAME = "testModelJob"
+
     @pytest.fixture
     def mock_conn(self) -> Generator[BaseAwsConnection, None, None]:
         with mock.patch.object(BedrockHook, "conn") as _conn:
             _conn.create_model_customization_job.return_value = {
                 "ResponseMetadata": {"HTTPStatusCode": 201},
-                "jobArn": self.custom_job_arn,
+                "jobArn": self.CUSTOMIZE_JOB_ARN,
             }
             _conn.get_model_customization_job.return_value = {
-                "jobName": self.customize_model_job_name,
+                "jobName": self.CUSTOMIZE_JOB_NAME,
                 "status": "InProgress",
             }
             yield _conn
@@ -90,12 +94,9 @@ class TestBedrockCustomizeModelOperator:
             yield hook
 
     def setup_method(self):
-        self.custom_job_arn = "valid_arn"
-        self.customize_model_job_name = "testModelJob"
-
         self.operator = BedrockCustomizeModelOperator(
             task_id="test_task",
-            job_name=self.customize_model_job_name,
+            job_name=self.CUSTOMIZE_JOB_NAME,
             custom_model_name="testModelName",
             role_arn="valid_arn",
             base_model_id="base_model_id",
@@ -127,7 +128,7 @@ class TestBedrockCustomizeModelOperator:
 
         response = self.operator.execute({})
 
-        assert response == self.custom_job_arn
+        assert response == self.CUSTOMIZE_JOB_ARN
         assert bedrock_hook.get_waiter.call_count == wait_for_completion
         assert self.operator.defer.call_count == deferrable
 
@@ -143,7 +144,7 @@ class TestBedrockCustomizeModelOperator:
         exception = None
         operator = BedrockCustomizeModelOperator(
             task_id="test_task",
-            job_name=self.customize_model_job_name,
+            job_name=self.CUSTOMIZE_JOB_NAME,
             custom_model_name="testModelName",
             role_arn="valid_arn",
             base_model_id="base_model_id",

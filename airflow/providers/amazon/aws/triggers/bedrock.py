@@ -30,8 +30,8 @@ class BedrockCustomizeModelCompletedTrigger(AwsBaseWaiterTrigger):
     Trigger when a Bedrock model customization job is complete.
 
     :param job_name: The name of the Bedrock model customization job.
-    :param waiter_delay: The amount of time in seconds to wait between attempts.
-    :param waiter_max_attempts: The maximum number of attempts to be made.
+    :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 120)
+    :param waiter_max_attempts: The maximum number of attempts to be made. (default: 75)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     """
 

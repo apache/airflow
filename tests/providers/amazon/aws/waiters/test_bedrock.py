@@ -40,32 +40,31 @@ class TestBedrockCustomWaitersBase:
 
 
 class TestModelCustomizationJobCompleteWaiter(TestBedrockCustomWaitersBase):
+    WAITER_NAME = "model_customization_job_complete"
+
     @pytest.fixture
     def mock_get_job(self):
         with mock.patch.object(self.client, "get_model_customization_job") as m:
             yield m
 
-    def setup_method(self):
-        self.waiter_name = "model_customization_job_complete"
-
     @pytest.mark.parametrize("state", BedrockCustomizeModelCompletedSensor.SUCCESS_STATES)
     def test_model_customization_job_complete(self, state, mock_get_job):
         mock_get_job.return_value = {"status": state}
 
-        BedrockHook().get_waiter(self.waiter_name).wait(jobIdentifier="job_id")
+        BedrockHook().get_waiter(self.WAITER_NAME).wait(jobIdentifier="job_id")
 
     @pytest.mark.parametrize("state", BedrockCustomizeModelCompletedSensor.FAILURE_STATES)
     def test_model_customization_job_failed(self, state, mock_get_job):
         mock_get_job.return_value = {"status": state}
 
         with pytest.raises(botocore.exceptions.WaiterError):
-            BedrockHook().get_waiter(self.waiter_name).wait(jobIdentifier="job_id")
+            BedrockHook().get_waiter(self.WAITER_NAME).wait(jobIdentifier="job_id")
 
     def test_model_customization_job_wait(self, mock_get_job):
         wait = {"status": "InProgress"}
         success = {"status": "Completed"}
         mock_get_job.side_effect = [wait, wait, success]
 
-        BedrockHook().get_waiter(self.waiter_name).wait(
+        BedrockHook().get_waiter(self.WAITER_NAME).wait(
             jobIdentifier="job_id", WaiterConfig={"Delay": 0.01, "MaxAttempts": 3}
         )
