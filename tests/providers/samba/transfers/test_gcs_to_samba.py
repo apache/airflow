@@ -119,6 +119,51 @@ class TestGoogleCloudStorageToSambaOperator:
         gcs_hook_mock.return_value.delete.assert_called_once_with(TEST_BUCKET, source_object)
 
     @pytest.mark.parametrize(
+        "source_object, target_object, keep_directory_structure",
+        [
+            ("folder/test_object.txt", "folder/test_object.txt", True),
+            ("folder/subfolder/test_object.txt", "folder/subfolder/test_object.txt", True),
+            ("folder/test_object.txt", "test_object.txt", False),
+            ("folder/subfolder/test_object.txt", "test_object.txt", False),
+        ],
+    )
+    @mock.patch("airflow.providers.samba.transfers.gcs_to_samba.GCSHook")
+    @mock.patch("airflow.providers.samba.transfers.gcs_to_samba.SambaHook")
+    def test_execute_adjust_buffer_size(
+        self,
+        samba_hook_mock,
+        gcs_hook_mock,
+        source_object,
+        target_object,
+        keep_directory_structure,
+    ):
+        operator = GCSToSambaOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object=source_object,
+            destination_path=DESTINATION_SMB,
+            keep_directory_structure=keep_directory_structure,
+            move_object=True,
+            gcp_conn_id=GCP_CONN_ID,
+            samba_conn_id=SAMBA_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            buffer_size=128000,
+        )
+        operator.execute(None)
+        gcs_hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        samba_hook_mock.assert_called_once_with(samba_conn_id=SAMBA_CONN_ID)
+        gcs_hook_mock.return_value.download.assert_called_with(
+            bucket_name=TEST_BUCKET, object_name=source_object, filename=mock.ANY
+        )
+        samba_hook_mock.return_value.push_from_local.assert_called_with(
+            os.path.join(DESTINATION_SMB, target_object), mock.ANY, buffer_size=128000
+        )
+        gcs_hook_mock.return_value.delete.assert_called_once_with(TEST_BUCKET, source_object)
+
+    @pytest.mark.parametrize(
         "source_object, prefix, delimiter, gcs_files_list, target_objects, keep_directory_structure",
         [
             (

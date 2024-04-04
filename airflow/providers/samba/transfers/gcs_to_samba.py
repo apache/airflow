@@ -166,7 +166,9 @@ class GCSToSambaOperator(BaseOperator):
             self.log.info("Done. Uploaded '%d' files to %s", len(objects), self.destination_path)
         else:
             destination_path = self._resolve_destination_path(self.source_object)
-            self._copy_single_object(gcs_hook, samba_hook, self.source_object, destination_path)
+            self._copy_single_object(
+                gcs_hook, samba_hook, self.source_object, destination_path, self.buffer_size
+            )
             self.log.info("Done. Uploaded '%s' file to %s", self.source_object, destination_path)
 
     def _resolve_destination_path(self, source_object: str, prefix: str | None = None) -> str:
