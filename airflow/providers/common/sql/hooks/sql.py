@@ -50,7 +50,7 @@ if TYPE_CHECKING:
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
 T = TypeVar("T")
-DEFAULT_SQL_PLACEHOLDERS = frozenset({"%s", "?"})
+SQL_PLACEHOLDERS = frozenset({"%s", "?"})
 
 
 def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool):
