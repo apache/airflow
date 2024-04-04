@@ -23,6 +23,7 @@ state: ready
 source-date-epoch: 1709555852
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 10.0.0
   - 9.0.1
   - 9.0.0
   - 8.5.1
@@ -302,12 +303,10 @@ connection-types:
     connection-type: azure_container_registry
   - hook-class-name: airflow.providers.microsoft.azure.hooks.asb.BaseAzureServiceBusHook
     connection-type: azure_service_bus
-  - hook-class-name: airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.synapse.BaseAzureSynapseHook
     connection-type: azure_synapse
   - hook-class-name: airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook
     connection-type: adls
-  - hook-class-name: airflow.providers.microsoft.azure.hooks.synapse.AzureSynapsePipelineHook
-    connection-type: azure_synapse_pipeline
 
 secrets-backends:
   - airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend
