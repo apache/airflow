@@ -77,7 +77,7 @@ Model-customization jobs are asynchronous and the completion time depends on the
 and the training/validation data size. To monitor the state of the job, you can use the
 "model_customization_job_complete" Waiter, the
 :class:`~airflow.providers.amazon.aws.sensors.bedrock.BedrockCustomizeModelCompletedSensor` Sensor,
-or the :class:`~airflow.providers.amazon.aws.triggersBedrockCustomizeModelCompletedTrigger` Trigger.
+or the :class:`~airflow.providers.amazon.aws.triggers.BedrockCustomizeModelCompletedTrigger` Trigger.
 
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock.py
@@ -95,7 +95,7 @@ Sensors
 Wait for an Amazon Bedrock customize model job
 ==============================================
 
-To wait on the state of an AWS CloudFormation stack creation until it reaches a terminal state you can use
+To wait on the state of an Amazon Bedrock customize model job until it reaches a terminal state you can use
 :class:`~airflow.providers.amazon.aws.sensors.bedrock.BedrockCustomizeModelCompletedSensor`
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock.py
