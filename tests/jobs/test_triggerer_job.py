@@ -365,14 +365,11 @@ def test_trigger_create_race_condition_38599(session, tmp_path):
         to increase the window that the race condition may occur.
         """
 
-        def update_triggers(self, *args, **kwargs):
+        def update_triggers(self, requested_trigger_ids: set[int]):
             # Delay calling update_triggers to increase the window of opportunity
-            time.sleep(5)
-            super().update_triggers(*args, **kwargs)
-
-        async def create_triggers(self):
-            await super().create_triggers()
-            self.create_triggers_count = getattr(self, "create_triggers_count", 0) + 1
+            time.sleep(1)
+            super().update_triggers(requested_trigger_ids)
+            self.requested_trigger_count = getattr(self, "requested_trigger_count", 0) + len(requested_trigger_ids)
 
     class TriggererJobRunner_(TriggererJobRunner):
         """TriggererJobRunner whose handle_events blocks until there is an event."""
@@ -388,7 +385,7 @@ def test_trigger_create_race_condition_38599(session, tmp_path):
             super().handle_events()
             self.handle_events_count = getattr(self, "handle_events_count", 0) + 1
             # Prevent Trigger.clean_unused() from deleting the trigger
-            time.sleep(5)
+            time.sleep(1)
 
     # Start first TriggererJobRunner immediately.
     # This TriggererJobRunner will immediately load the trigger and start running it.
@@ -401,7 +398,7 @@ def test_trigger_create_race_condition_38599(session, tmp_path):
 
     # Simulate a missed heartbeat by job_runner1 by setting it to an hour ago
     # This enables the second TriggererJobRunner to pick up the trigger.
-    for _ in range(20):
+    for _ in range(10):
         time.sleep(0.1)
         if getattr(job_runner1, "load_triggers_count", 0) >= 1:
             job1.latest_heartbeat = timezone.utcnow() - datetime.timedelta(hours=1)
@@ -418,15 +415,10 @@ def test_trigger_create_race_condition_38599(session, tmp_path):
     thread2.start()
 
     try:
-        for _ in range(100):
+        for _ in range(20):
             time.sleep(0.1)
-            if not thread1.is_alive():
-                pytest.fail("job_runner1 is not alive")
-            if not thread2.is_alive():
-                pytest.fail("job_runner2 is not alive")
-
-            if getattr(job_runner2.trigger_runner, "create_triggers_count", 0) >= 1:
-                break
+            assert thread1.is_alive(), "job_runner1 is not alive"
+            assert thread2.is_alive(), "job_runner2 is not alive"
     finally:
         job_runner1.trigger_runner.stop = True
         job_runner1.trigger_runner.join(10)
@@ -436,11 +428,17 @@ def test_trigger_create_race_condition_38599(session, tmp_path):
         job_runner2.trigger_runner.join(10)
         thread2.join()
 
+    # Requirements for the potential race condition
+    # * job_runner1 must have created the trigger
+    # * job_runner2 must have requested the trigger
     assert job_runner1.trigger_runner.trigger_creation_count == 1
+    assert job_runner2.trigger_runner.requested_trigger_count == 1
+    # But job_runner2 must have skipped creating the trigger because
+    # it's task instance was already unlinked from the trigger
     assert job_runner2.trigger_runner.trigger_creation_count == 0
 
     instances = path.read_text().splitlines()
-    assert len(instances) == 1
+    assert instances == ["hi"]
 
 
 def test_trigger_create_race_condition_18392(session, tmp_path):
