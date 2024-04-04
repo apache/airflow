@@ -1258,6 +1258,19 @@ rpcServer:
     securityContexts:
       container: {}
 
+  # Launch additional containers into the flower pods.
+  extraContainers: []
+
+  # Additional network policies as needed (Deprecated - renamed to `webserver.networkPolicy.ingress.from`)
+  extraNetworkPolicies: []
+  networkPolicy:
+    ingress:
+      # Peers for webserver NetworkPolicy ingress
+      from: []
+      # Ports for webserver NetworkPolicy ingress (if `from` is set)
+      ports:
+        - port: "{{ .Values.ports.rpcServer }}"
+
   livenessProbe:
     initialDelaySeconds: 15
     timeoutSeconds: 5
