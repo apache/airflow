@@ -504,7 +504,7 @@ jobs:
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       push-image: "true"
-      use-uv: "true"
+      use-uv: ${{ needs.build-info.outputs.default-branch == 'main' && 'true' || 'false' }}
       build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}

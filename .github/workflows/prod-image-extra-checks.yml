@@ -36,6 +36,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Branch used to run the CI jobs in (main/v2_*_test)."
         required: true
         type: string
+      use-uv:
+        description: "Whether to use uv to build the image (true/false)"
+        required: true
+        type: string
       image-tag:
         required: true
         type: string
@@ -74,7 +78,7 @@ jobs:
       branch: ${{ inputs.branch }}
       # Always build images during the extra checks and never push them
       push-image: "false"
-      use-uv: "true"
+      use-uv: ${{ inputs.use-uv }}
       build-provider-packages: ${{ inputs.build-provider-packages }}
       upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ inputs.chicken-egg-providers }}
@@ -95,7 +99,7 @@ jobs:
       branch: ${{ inputs.branch }}
       # Always build images during the extra checks and never push them
       push-image: "false"
-      use-uv: "true"
+      use-uv: ${{ inputs.use-uv }}
       build-provider-packages: ${{ inputs.build-provider-packages }}
       upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ inputs.chicken-egg-providers }}
@@ -104,6 +108,8 @@ jobs:
 
   pip-image:
     uses: ./.github/workflows/prod-image-build.yml
+    # Skip testing PIP image on release branches as all images there are built with pip
+    if: ${{ inputs.use-uv == 'true' }}
     with:
       runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
       build-type: "pip"
