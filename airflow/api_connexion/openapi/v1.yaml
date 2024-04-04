@@ -5667,20 +5667,20 @@ tags:
   - name: Connection
   - name: DAG
   - name: DAGRun
+  - name: DagWarning
+  - name: Dataset
   - name: EventLog
   - name: ImportError
   - name: Monitoring
+  - name: Permission
+  - name: Plugin
   - name: Pool
   - name: Provider
+  - name: Role
   - name: TaskInstance
+  - name: User
   - name: Variable
   - name: XCom
-  - name: Plugin
-  - name: Role
-  - name: Permission
-  - name: User
-  - name: DagWarning
-  - name: Dataset
 
 externalDocs:
   url: https://airflow.apache.org/docs/apache-airflow/stable/

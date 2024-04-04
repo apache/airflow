@@ -129,7 +129,7 @@ CHEATSHEET = f"""
 
         You can disable this cheatsheet by running:
 
-            breeze setup config --no-cheatshee
+            breeze setup config --no-cheatsheet
 
 """
 CHEATSHEET_STYLE = "white"
