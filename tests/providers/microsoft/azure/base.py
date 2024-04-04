@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import asyncio
-from contextlib import contextmanager, closing
+from contextlib import closing, contextmanager
 from copy import deepcopy
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Iterable
