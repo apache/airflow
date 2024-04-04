@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import asyncio
-from contextlib import contextmanager
+from contextlib import contextmanager, closing
 from copy import deepcopy
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Iterable
@@ -69,8 +69,6 @@ class MockedTaskInstance(TaskInstance):
 
 
 class Base:
-    _loop = asyncio.get_event_loop()
-
     def teardown_method(self, method):
         KiotaRequestAdapterHook.cached_request_adapters.clear()
         MockedTaskInstance.values.clear()
@@ -97,7 +95,11 @@ class Base:
         return self.run_async(self._run_tigger(trigger))
 
     def run_async(self, future: Any) -> Any:
-        return self._loop.run_until_complete(future)
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        with closing(loop):
+            return loop.run_until_complete(future)
 
     def execute_operator(self, operator: Operator) -> tuple[Any, Any]:
         task_instance = MockedTaskInstance(task=operator, run_id="run_id", state=TaskInstanceState.RUNNING)
