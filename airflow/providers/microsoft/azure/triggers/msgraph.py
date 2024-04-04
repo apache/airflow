@@ -187,10 +187,9 @@ class MSGraphTrigger(BaseTrigger):
     @classmethod
     def resolve_type(cls, value: str | type, default) -> type:
         if isinstance(value, str):
-            try:
+            with suppress(ImportError):
                 return import_string(value)
-            except ImportError:
-                return default
+            return default
         return value or default
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
