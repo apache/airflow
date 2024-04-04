@@ -241,7 +241,7 @@ class MSGraphAsyncOperator(BaseOperator):
         return self.execute_complete(context, event)
 
     @staticmethod
-    def paginate(operator: MSGraphAsyncOperator, response: dict) -> tuple[str, dict]:
+    def paginate(operator: MSGraphAsyncOperator, response: dict) -> tuple[Any, dict[str, Any] | None]:
         odata_count = response.get("@odata.count")
         if odata_count and operator.query_parameters:
             query_parameters = deepcopy(operator.query_parameters)
