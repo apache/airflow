@@ -47,7 +47,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     POD_NAME_MAX_LENGTH,
     add_pod_suffix,
     add_unique_suffix,
-    rand_str
+    rand_str,
 )
 from airflow.providers.cncf.kubernetes.pod_generator_deprecated import (
     PodDefaults,
