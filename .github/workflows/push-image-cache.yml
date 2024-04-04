@@ -167,7 +167,7 @@ jobs:
       GITHUB_USERNAME: ${{ github.actor }}
       INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
       UPGRADE_TO_NEWER_DEPENDENCIES: "false"
-      USE_UV: ${{ inputs.use-uv }}
+      USE_UV: ${{ inputs.branch == 'main' && inputs.use-uv || 'false' }}
       VERBOSE: "true"
       VERSION_SUFFIX_FOR_PYPI: "dev0"
     if: inputs.include-prod-images == 'true'
