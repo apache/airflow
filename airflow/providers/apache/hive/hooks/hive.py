@@ -210,9 +210,13 @@ class HiveCliHook(BaseHook):
         try:
             int_port = int(conn.port)
             if not 0 < int_port <= 65535:
-                raise ValueError(f"The port used in beeline command ({conn.port}) should be in range 0-65535)")
+                raise ValueError(
+                    f"The port used in beeline command ({conn.port}) should be in range 0-65535)"
+                )
         except (ValueError, TypeError) as e:
-            raise ValueError(f"The port used in beeline command ({conn.port}) should be a valid integer: {e})")
+            raise ValueError(
+                f"The port used in beeline command ({conn.port}) should be a valid integer: {e})"
+            )
         if ";" in conn.schema:
             raise ValueError(
                 f"The schema used in beeline command ({conn.schema}) should not contain ';' character)"
