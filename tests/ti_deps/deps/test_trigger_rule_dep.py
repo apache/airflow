@@ -1492,6 +1492,48 @@ class TestTriggerRuleDepSetupConstraint:
         assert status.reason.startswith("All setup tasks must complete successfully")
         assert self.get_ti(dr, "w2").state == expected
 
+    def test_teardown_constraint_will_fail_if_indirect_task_not_finished(self, dag_maker, session):
+        """
+        When a task state is reset that is not directly linked to a teardown task,
+        ensure that the teardown task is not scheduled.
+        teardown tasks must only be scheduled if upstream tasks are completed.
+        """
+        with dag_maker(session=session):
+
+            @task
+            def setup():
+                return 0
+
+            @task
+            def normal1():
+                return 1
+
+            @task
+            def normal2():
+                return 2
+
+            @task
+            def teardown():
+                return 3
+
+            s = setup().as_setup()
+            t = teardown().as_teardown()
+            s >> normal1() >> normal2() >> t
+        dr: DagRun = dag_maker.create_dagrun()
+        # setup is completed
+        dr.get_task_instance("setup", session=session).state = TaskInstanceState.SUCCESS
+        # indirect task was reset and is still running
+        dr.get_task_instance("normal1", session=session).state = TaskInstanceState.RUNNING
+        # indirect task was reset and is still running
+        dr.get_task_instance("normal2", session=session).state = TaskInstanceState.SUCCESS
+        # Teardown has not run
+        dr.get_task_instance("teardown", session=session).state = None
+        session.commit()
+        (status,) = self.get_dep_statuses(dr, "teardown", flag_upstream_failed=True, session=session)
+        # Teardown should not be scheduled as an indirect upstream dependency is still running
+        assert status.passed is False
+        assert "indirect upstream" in status.reason
+
 
 @pytest.mark.parametrize(
     "map_index, flag_upstream_failed, expected_ti_state",
