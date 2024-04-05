@@ -35,8 +35,6 @@ Misc
 
 * ``Setting use_beeline by default for hive cli connection (#38763)``
 
-
-
 7.0.1
 .....
 
