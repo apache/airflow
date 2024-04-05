@@ -42,7 +42,6 @@ const DagNode = ({
     task,
     isSelected,
     latestDagRunId,
-    onToggleCollapse,
     isOpen,
     isActive,
     setupTeardownType,
@@ -138,10 +137,6 @@ const DagNode = ({
           label={taskName}
           isOpen={isOpen}
           isGroup={!!childCount}
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleCollapse();
-          }}
           setupTeardownType={setupTeardownType}
           isZoomedOut={isZoomedOut}
           noOfLines={2}
