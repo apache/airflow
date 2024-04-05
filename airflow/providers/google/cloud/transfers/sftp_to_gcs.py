@@ -72,7 +72,7 @@ class SFTPToGCSOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :param sftp_prefetch: Whether to enable SFTP prefetch, the default is True.
     :param exclude_source_files: List of files from the source_path that should be excluded in
-        the current instance, the default is None (in this case all the files from 
+        the current instance, the default is None (in this case all the files from
         the source_path are included in the copy process).
     """
 
@@ -96,7 +96,7 @@ class SFTPToGCSOperator(BaseOperator):
         move_object: bool = False,
         impersonation_chain: str | Sequence[str] | None = None,
         sftp_prefetch: bool = True,
-        exclude_source_files : list[str] = None
+        exclude_source_files : list[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -136,8 +136,12 @@ class SFTPToGCSOperator(BaseOperator):
 
             files, _, _ = sftp_hook.get_tree_map(base_path, prefix=prefix, delimiter=delimiter)
 
-            files_filtered = [file for file in files if file not in self.exclude_source_files] if self.exclude_source_files is not None else files
-
+            files_filtered = (
+                [file for file in files if file not in self.exclude_source_files]
+                if self.exclude_source_files is not None
+                else files
+            )
+            
             if len(files_filtered) > 0:
 
                 for file in files_filtered:
@@ -145,14 +149,14 @@ class SFTPToGCSOperator(BaseOperator):
                     self._copy_single_object(gcs_hook, sftp_hook, file, destination_path)
             
             else:
-
-                raise AirflowException(
-                    "All the files are excluded from the copy process"
-                )
+                raise AirflowException("All the files are excluded from the copy process")
 
         else:
 
-            if self.exclude_source_files is not None and self.destination_path not in self.exclude_source_files:
+            if (
+                 self.exclude_source_files is not None
+                 and self.destination_path not in self.exclude_source_files
+             ):
                 destination_object = (
                     self.destination_path if self.destination_path else self.source_path.rsplit("/", 1)[1]
                 )
@@ -160,10 +164,7 @@ class SFTPToGCSOperator(BaseOperator):
             
                         
             else:
-
-                raise AirflowException(
-                    f"The file {self.destination_path} is excluded from the copy process"
-                )
+                raise AirflowException(f"The file {self.destination_path} is excluded from the copy process")
 
     def _copy_single_object(
         self,
