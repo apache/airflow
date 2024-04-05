@@ -239,16 +239,32 @@ def get_mapped_task_instances(
         .options(joinedload(TI.rendered_task_instance_fields))
     )
 
-    if order_by:
+    if order_by is not None:
         if order_by == "state":
             entry_query = entry_query.order_by(TI.state.asc(), TI.map_index.asc())
         elif order_by == "-state":
             entry_query = entry_query.order_by(TI.state.desc(), TI.map_index.asc())
+        elif order_by == "duration":
+            print("duration")
+            entry_query = entry_query.order_by(TI.duration.asc(), TI.map_index.asc())
+        elif order_by == "-duration":
+            print("-duration")
+            entry_query = entry_query.order_by(TI.duration.desc(), TI.map_index.asc())
+        elif order_by == "start_date":
+            entry_query = entry_query.order_by(TI.start_date.asc(), TI.map_index.asc())
+        elif order_by == "-start_date":
+            entry_query = entry_query.order_by(TI.start_date.desc(), TI.map_index.asc())
+        elif order_by == "end_date":
+            entry_query = entry_query.order_by(TI.end_date.asc(), TI.map_index.asc())
+        elif order_by == "-end_date":
+            entry_query = entry_query.order_by(TI.end_date.desc(), TI.map_index.asc())
         elif order_by == "-map_index":
+            print("map index!!")
             entry_query = entry_query.order_by(TI.map_index.desc())
         else:
             raise BadRequest(detail=f"Ordering with '{order_by}' is not supported")
     else:
+        print("map inde ascx!!")
         entry_query = entry_query.order_by(TI.map_index.asc())
 
     # using execute because we want the SlaMiss entity. Scalars don't return None for missing entities
