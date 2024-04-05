@@ -271,8 +271,8 @@ list and can be overridden by `non committer build` label in the PR.
 
 Also, currently for most of the jobs, committer builds by default use "Self-hosted" runners, while
 non-committer  builds use "Public" runners. For committers, this can be overridden by setting the
-`use public runners` label in the PR. In the future when we might also switch committers to public runners
-committers will be able to use `use self-hosted runners` label in the PR to force using self-hosted runners.
+`use public runners` label in the PR. In the future when we might also switch committers to public runners.
+Committers will be able to use `use self-hosted runners` label in the PR to force using self-hosted runners.
 The `use public runners` label will still be available for committers and they will be able to set it for
 builds that also have `canary` label set to also switch the `canary` builds to public runners.
 
