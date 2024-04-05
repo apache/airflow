@@ -123,9 +123,10 @@ class TestDagRunEndpoint:
         clear_db_dags()
         clear_db_serialized_dags()
 
-    def _create_dag(self, dag_id):
+    def _create_dag(self, dag_id, is_active=True, has_import_errors=False):
         dag_instance = DagModel(dag_id=dag_id)
-        dag_instance.is_active = True
+        dag_instance.is_active = is_active
+        dag_instance.has_import_errors = has_import_errors
         with create_session() as session:
             session.add(dag_instance)
         dag = DAG(dag_id=dag_id, schedule=None)
@@ -1276,10 +1277,7 @@ class TestPostDagRun(TestDagRunEndpoint):
         }
 
     def test_should_respond_404_if_a_dag_is_inactive(self, session):
-        dm = self._create_dag("TEST_INACTIVE_DAG_ID")
-        dm.is_active = False
-        session.add(dm)
-        session.flush()
+        self._create_dag("TEST_INACTIVE_DAG_ID", is_active=False)
         response = self.client.post(
             "api/v1/dags/TEST_INACTIVE_DAG_ID/dagRuns",
             json={},
@@ -1289,21 +1287,18 @@ class TestPostDagRun(TestDagRunEndpoint):
 
     def test_should_respond_400_if_a_dag_has_import_errors(self, session):
         """Test that if a dagmodel has import errors, dags won't be triggered"""
-        dm = self._create_dag("TEST_DAG_ID")
-        dm.has_import_errors = True
-        session.add(dm)
-        session.flush()
+        self._create_dag("TEST_DAG_ID", has_import_errors=True)
         response = self.client.post(
             "api/v1/dags/TEST_DAG_ID/dagRuns",
             json={},
             headers={"REMOTE_USER": "test"},
         )
-        assert {
-            "detail": "The server encountered an internal error and was unable to complete your request. Either the server is overloaded or there is an error in the application.",
+        assert response.json() == {
+            "detail": "DAG with dag_id: 'TEST_DAG_ID' has import errors",
             "status": 400,
             "title": "DAG cannot be triggered",
             "type": EXCEPTIONS_LINK_MAP[400],
-        } == response.json()
+        }
 
     def test_should_response_200_for_matching_execution_date_logical_date(self):
         execution_date = "2020-11-10T08:25:56.939143+00:00"
@@ -1610,9 +1605,14 @@ class TestPatchDagRunState(TestDagRunEndpoint):
         dag_id = "TEST_DAG_ID"
         dag_run_id = "TEST_DAG_RUN_ID"
         with dag_maker(dag_id) as dag:
-            EmptyOperator(task_id="task_id", dag=dag)
+            task = EmptyOperator(task_id="task_id", dag=dag)
         self.flask_app.dag_bag.bag_dag(dag, root_dag=dag)
-        dag_maker.create_dagrun(run_id=dag_run_id)
+        dr = dag_maker.create_dagrun(run_id=dag_run_id, state=DagRunState.FAILED)
+        ti = dr.get_task_instance(task_id="task_id")
+        ti.task = task
+        ti.state = State.SUCCESS
+        session.merge(ti)
+        session.commit()
 
         response = self.client.patch(
             f"api/v1/dags/{dag_id}/dagRuns/{dag_run_id}",
@@ -1729,9 +1729,14 @@ class TestClearDagRun(TestDagRunEndpoint):
         dag_id = "TEST_DAG_ID"
         dag_run_id = "TEST_DAG_RUN_ID"
         with dag_maker(dag_id) as dag:
-            EmptyOperator(task_id="task_id", dag=dag)
+            task = EmptyOperator(task_id="task_id", dag=dag)
         self.flask_app.dag_bag.bag_dag(dag, root_dag=dag)
-        dag_maker.create_dagrun(run_id=dag_run_id, state=DagRunState.FAILED)
+        dr = dag_maker.create_dagrun(run_id=dag_run_id, state=DagRunState.FAILED)
+        ti = dr.get_task_instance(task_id="task_id")
+        ti.task = task
+        ti.state = State.SUCCESS
+        session.merge(ti)
+        session.commit()
         response = self.client.post(
             f"api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/clear",
             json={"dryrun": False},
