@@ -831,7 +831,7 @@ class TestRPCServerNetworkPolicy:
                     {"port": 80},
                 ],
                 [
-                    {"port": 8080},
+                    {"port": 9080},
                     {"port": 80},
                 ],
             ),
