@@ -305,7 +305,7 @@ By default, all outputs of successful parallel tests are not shown. You can enab
 and more difficult to sift through, but it might be useful in case you want to compare successful and
 unsuccessful runs of the tests.
 
-This table summarizes the labels you can sue on PRs to control the selective checks and the CI runs:
+This table summarizes the labels you can use on PRs to control the selective checks and the CI runs:
 
 | Label                            | Affected outputs                 | Meaning                                                                                   |
 |----------------------------------|----------------------------------|-------------------------------------------------------------------------------------------|
