@@ -660,7 +660,7 @@ class DatabricksHook(BaseDatabricksHook):
         """
         Update databricks job permission
 
-        :param json: acl payload
+        :param json: payload
         :return:
         """
         return self._do_api_call(UPDATE_PERMISSION_ENDPOINT, json)

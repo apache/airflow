@@ -528,11 +528,8 @@ class TestDatabricksCreateJobsOperator:
 
         op.execute({})
 
-        expected = utils.normalise_json_content(
-            {
-                "access_control_list": ACCESS_CONTROL_LIST
-            }
-        )
+        expected = utils.normalise_json_content({"access_control_list": ACCESS_CONTROL_LIST})
+
         db_mock_class.assert_called_once_with(
             DEFAULT_CONN_ID,
             retry_limit=op.databricks_retry_limit,
