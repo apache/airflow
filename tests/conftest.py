@@ -32,15 +32,19 @@ from typing import TYPE_CHECKING, Generator
 import pytest
 import time_machine
 import yaml
+from itsdangerous import URLSafeSerializer
 
 if TYPE_CHECKING:
     from tests._internal import LogCaptureFixtureWrapper
 
 # We should set these before loading _any_ of the rest of airflow so that the
 # unit test mode config is set as early as possible.
-from itsdangerous import URLSafeSerializer
-
 assert "airflow" not in sys.modules, "No airflow module can be imported before these lines"
+
+
+class AirflowUnitTestError(BaseException):
+    """Internal exceptions during the test configurations. Not intended to be caught."""
+
 
 # Clear all Environment Variables that might have side effect,
 # For example, defined in /files/airflow-breeze-config/variables.env
@@ -88,7 +92,7 @@ run_db_tests_only = (
 
 if skip_db_tests:
     if run_db_tests_only:
-        raise Exception("You cannot specify both --skip-db-tests and --run-db-tests-only together")
+        raise AirflowUnitTestError("You cannot specify both --skip-db-tests and --run-db-tests-only together")
     # Make sure sqlalchemy will not be usable for pure unit tests even if initialized
     os.environ["AIRFLOW__CORE__SQL_ALCHEMY_CONN"] = "bad_schema:///"
     os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = "bad_schema:///"
@@ -146,7 +150,7 @@ def secret_key() -> str:
 
     the_key = conf.get("webserver", "SECRET_KEY")
     if the_key is None:
-        raise RuntimeError(
+        raise AirflowUnitTestError(
             "The secret key SHOULD be configured as `[webserver] secret_key` in the "
             "configuration/environment at this stage! "
         )
@@ -452,7 +456,7 @@ def skip_if_platform_doesnt_match(marker):
             pytest.skip("Test expected to run on Linux platform.")
     if "breeze" in args:
         if not os.path.isfile("/.dockerenv") or os.environ.get("BREEZE", "").lower() != "true":
-            raise pytest.skip(
+            pytest.skip(
                 "Test expected to run into Airflow Breeze container. "
                 "Maybe because it is to dangerous to run it outside."
             )
@@ -776,7 +780,7 @@ def dag_maker(request):
             try:
                 data = self.serialized_model.data
             except AttributeError:
-                raise RuntimeError("DAG serialization not requested")
+                raise AirflowUnitTestError("DAG serialization not requested")
             if isinstance(data, str):
                 return json.loads(data)
             return data
@@ -845,7 +849,7 @@ def dag_maker(request):
         def create_dagrun_after(self, dagrun, **kwargs):
             next_info = self.dag.next_dagrun_info(self.dag.get_run_data_interval(dagrun))
             if next_info is None:
-                raise ValueError(f"cannot create run after {dagrun}")
+                raise AirflowUnitTestError(f"cannot create run after {dagrun}")
             return self.create_dagrun(
                 execution_date=next_info.logical_date,
                 data_interval=next_info.data_interval,

@@ -107,6 +107,10 @@ class AirflowOptionalProviderFeatureException(AirflowException):
     """Raise by providers when imports are missing for optional provider features."""
 
 
+class AirflowInternalRuntimeError(BaseException):
+    """Raise when unexpected or unintended error occurs."""
+
+
 class XComNotFound(AirflowException):
     """Raise when an XCom reference is being resolved against a non-existent XCom."""
 
