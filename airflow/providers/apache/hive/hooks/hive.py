@@ -199,22 +199,26 @@ class HiveCliHook(BaseHook):
     def _validate_beeline_parameters(self, conn):
         if self.high_availability:
             if ";" in conn.schema:
-                raise Exception(
+                raise ValueError(
                     f"The schema used in beeline command ({conn.schema}) should not contain ';' character)"
                 )
             return
         elif ":" in conn.host or "/" in conn.host or ";" in conn.host:
-            raise Exception(
+            raise ValueError(
                 f"The host used in beeline command ({conn.host}) should not contain ':/;' characters)"
             )
         try:
             int_port = int(conn.port)
             if not 0 < int_port <= 65535:
-                raise Exception(f"The port used in beeline command ({conn.port}) should be in range 0-65535)")
+                raise ValueError(
+                    f"The port used in beeline command ({conn.port}) should be in range 0-65535)"
+                )
         except (ValueError, TypeError) as e:
-            raise Exception(f"The port used in beeline command ({conn.port}) should be a valid integer: {e})")
+            raise ValueError(
+                f"The port used in beeline command ({conn.port}) should be a valid integer: {e})"
+            )
         if ";" in conn.schema:
-            raise Exception(
+            raise ValueError(
                 f"The schema used in beeline command ({conn.schema}) should not contain ';' character)"
             )
 

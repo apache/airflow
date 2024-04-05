@@ -395,8 +395,6 @@ combine-as-imports = true
 # apache.hdfs
 "airflow/providers/apache/hdfs/hooks/hdfs.py" = ["TRY002"]
 "airflow/providers/apache/hdfs/sensors/hdfs.py" = ["TRY002"]
-# apache.hive
-"airflow/providers/apache/hive/hooks/hive.py" = ["TRY002"]
 # cncf.kubernetes
 "airflow/providers/cncf/kubernetes/operators/pod.py" = ["TRY002"]
 # common.sql
