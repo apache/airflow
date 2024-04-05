@@ -126,7 +126,7 @@ class HiveCliHook(BaseHook):
         from wtforms import BooleanField, StringField
 
         return {
-            "use_beeline": BooleanField(lazy_gettext("Use Beeline"), default=False),
+            "use_beeline": BooleanField(lazy_gettext("Use Beeline"), default=True),
             "proxy_user": StringField(lazy_gettext("Proxy User"), widget=BS3TextFieldWidget(), default=""),
             "principal": StringField(
                 lazy_gettext("Principal"), widget=BS3TextFieldWidget(), default="hive/_HOST@EXAMPLE.COM"
