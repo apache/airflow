@@ -33,12 +33,12 @@ def mock_get_job_state():
 
 
 class TestBedrockCustomizeModelCompletedSensor:
-    def setup_method(self):
-        self.job_name = "test_job_name"
+    JOB_NAME = "test_job_name"
 
+    def setup_method(self):
         self.default_op_kwargs = dict(
             task_id="test_bedrock_customize_model_sensor",
-            job_name=self.job_name,
+            job_name=self.JOB_NAME,
             poke_interval=5,
             max_retries=1,
         )

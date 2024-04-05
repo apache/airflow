@@ -25,17 +25,18 @@ from airflow.providers.amazon.aws.hooks.bedrock import BedrockHook
 from airflow.providers.amazon.aws.triggers.bedrock import BedrockCustomizeModelCompletedTrigger
 from airflow.triggers.base import TriggerEvent
 
-JOB_NAME = "test_job"
 BASE_TRIGGER_CLASSPATH = "airflow.providers.amazon.aws.triggers.bedrock."
 
 
 class TestBedrockCustomizeModelCompletedTrigger:
+    JOB_NAME = "test_job"
+
     def test_serialization(self):
         """Assert that arguments and classpath are correctly serialized."""
-        trigger = BedrockCustomizeModelCompletedTrigger(job_name=JOB_NAME)
+        trigger = BedrockCustomizeModelCompletedTrigger(job_name=self.JOB_NAME)
         classpath, kwargs = trigger.serialize()
         assert classpath == BASE_TRIGGER_CLASSPATH + "BedrockCustomizeModelCompletedTrigger"
-        assert kwargs.get("job_name") == JOB_NAME
+        assert kwargs.get("job_name") == self.JOB_NAME
 
     @pytest.mark.asyncio
     @mock.patch.object(BedrockHook, "get_waiter")
@@ -43,10 +44,10 @@ class TestBedrockCustomizeModelCompletedTrigger:
     async def test_run_success(self, mock_async_conn, mock_get_waiter):
         mock_async_conn.__aenter__.return_value = mock.MagicMock()
         mock_get_waiter().wait = AsyncMock()
-        trigger = BedrockCustomizeModelCompletedTrigger(job_name=JOB_NAME)
+        trigger = BedrockCustomizeModelCompletedTrigger(job_name=self.JOB_NAME)
 
         generator = trigger.run()
         response = await generator.asend(None)
 
-        assert response == TriggerEvent({"status": "success", "job_name": JOB_NAME})
+        assert response == TriggerEvent({"status": "success", "job_name": self.JOB_NAME})
         assert mock_get_waiter().wait.call_count == 1
