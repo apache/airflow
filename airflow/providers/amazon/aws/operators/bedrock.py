@@ -19,6 +19,8 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any, Sequence
 
+from botocore.exceptions import ClientError
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockHook, BedrockRuntimeHook
@@ -114,11 +116,9 @@ class BedrockCustomizeModelOperator(AwsBaseOperator[BedrockHook]):
     :param training_data_uri: The S3 URI where the training data is stored.
     :param output_data_uri: The S3 URI where the output data is stored.
     :param hyperparameters: Parameters related to tuning the model.
-    :param check_if_job_exists: If set to true, operator will check whether a model customization
-        job already exists for the name in the config. (Default: True)
-    :param action_if_job_exists: Behavior if the job name already exists. Options are "timestamp" (default),
-        and "fail". If "timestamp" is used and the job name already exists, the current timestamp
-        will be appended to the name in order to make it unique.
+    :param ensure_unique_job_name: If set to true, operator will check whether a model customization
+        job already exists for the name in the config and append the current timestamp if there is a
+        name conflict. (Default: True)
     :param customization_job_kwargs: Any optional parameters to pass to the API.
 
     :param wait_for_completion: Whether to wait for cluster to stop. (default: True)
@@ -146,8 +146,7 @@ class BedrockCustomizeModelOperator(AwsBaseOperator[BedrockHook]):
         "role_arn",
         "base_model_id",
         "hyperparameters",
-        "check_if_job_exists",
-        "action_if_job_exists",
+        "ensure_unique_job_name",
         "customization_job_kwargs",
     )
 
@@ -160,8 +159,7 @@ class BedrockCustomizeModelOperator(AwsBaseOperator[BedrockHook]):
         training_data_uri: str,
         output_data_uri: str,
         hyperparameters: dict[str, str],
-        check_if_job_exists: bool = True,
-        action_if_job_exists: str = "timestamp",
+        ensure_unique_job_name: bool = True,
         customization_job_kwargs: dict[str, Any] | None = None,
         wait_for_completion: bool = True,
         waiter_delay: int = 120,
@@ -182,9 +180,8 @@ class BedrockCustomizeModelOperator(AwsBaseOperator[BedrockHook]):
         self.training_data_config = {"s3Uri": training_data_uri}
         self.output_data_config = {"s3Uri": output_data_uri}
         self.hyperparameters = hyperparameters
-        self.check_if_job_exists = check_if_job_exists
+        self.ensure_unique_job_name = ensure_unique_job_name
         self.customization_job_kwargs = customization_job_kwargs or {}
-        self.action_if_job_exists = action_if_job_exists.lower()
 
         self.valid_action_if_job_exists: set[str] = {"timestamp", "fail"}
 
@@ -197,34 +194,34 @@ class BedrockCustomizeModelOperator(AwsBaseOperator[BedrockHook]):
         self.log.info("Bedrock model customization job `%s` complete.", self.job_name)
         return self.hook.get_job_arn(event["job_name"])
 
-    def _validate_action_if_job_exists(self):
-        if self.action_if_job_exists not in self.valid_action_if_job_exists:
-            raise AirflowException(
-                f"Invalid value for argument action_if_job_exists {self.action_if_job_exists}; "
-                f"must be one of: {self.valid_action_if_job_exists}."
-            )
-
     def execute(self, context: Context) -> dict:
-        self._validate_action_if_job_exists()
+        while True:
+            # If there is a name conflict and ensure_unique_job_name is True, append the current timestamp
+            # to the name and retry until there is no name conflict.
+            # - Break the loop when the API call returns success.
+            # - If the API returns an exception other than a name conflict, raise that exception.
+            # - If the API returns a name conflict and ensure_unique_job_name is false, raise that exception.
+            try:
+                self.log.info("Creating Bedrock model customization job '%s'.", self.job_name)
 
-        if self.check_if_job_exists and self.hook.job_name_exists(self.job_name):
-            if self.action_if_job_exists == "fail":
-                raise AirflowException(f"A Bedrock job with name {self.job_name} already exists.")
-            self.job_name = f"{self.job_name}-{int(utcnow().timestamp())}"
-            self.log.info("Changed job name to '%s' to avoid collision.", self.job_name)
-
-        self.log.info("Creating Bedrock model customization job '%s'.", self.job_name)
-
-        response = self.hook.conn.create_model_customization_job(
-            jobName=self.job_name,
-            customModelName=self.custom_model_name,
-            roleArn=self.role_arn,
-            baseModelIdentifier=self.base_model_id,
-            trainingDataConfig=self.training_data_config,
-            outputDataConfig=self.output_data_config,
-            hyperParameters=self.hyperparameters,
-            **self.customization_job_kwargs,
-        )
+                response = self.hook.conn.create_model_customization_job(
+                    jobName=self.job_name,
+                    customModelName=self.custom_model_name,
+                    roleArn=self.role_arn,
+                    baseModelIdentifier=self.base_model_id,
+                    trainingDataConfig=self.training_data_config,
+                    outputDataConfig=self.output_data_config,
+                    hyperParameters=self.hyperparameters,
+                    **self.customization_job_kwargs,
+                )
+                break
+            except ClientError as error:
+                if error.response["Error"]["Message"] != "The provided job name is currently in use.":
+                    raise error
+                if not self.ensure_unique_job_name:
+                    raise error
+                self.job_name = f"{self.job_name}-{int(utcnow().timestamp())}"
+                self.log.info("Changed job name to '%s' to avoid collision.", self.job_name)
 
         if response["ResponseMetadata"]["HTTPStatusCode"] != 201:
             raise AirflowException(f"Bedrock model customization job creation failed: {response}")

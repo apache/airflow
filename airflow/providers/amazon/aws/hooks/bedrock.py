@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from botocore.exceptions import ClientError
-
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
@@ -47,17 +45,6 @@ class BedrockHook(AwsBaseHook):
         state = self._get_job_by_name(job_name)["status"]
         self.log.info("Job '%s' state: %s", job_name, state)
         return state
-
-    def job_name_exists(self, job_name: str) -> bool:
-        try:
-            self._get_job_by_name(job_name)
-            self.log.info("Verified that job name '%s' does exist.", job_name)
-            return True
-        except ClientError as e:
-            if e.response["Error"]["Code"] == "ValidationException":
-                self.log.info("Job name '%s' does not exist.", job_name)
-                return False
-            raise e
 
     def get_job_arn(self, job_name: str) -> str:
         return self._get_job_by_name(job_name)["jobArn"]

@@ -22,9 +22,9 @@ from typing import TYPE_CHECKING, Generator
 from unittest import mock
 
 import pytest
+from botocore.exceptions import ClientError
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockHook, BedrockRuntimeHook
 from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockCustomizeModelOperator,
@@ -132,40 +132,41 @@ class TestBedrockCustomizeModelOperator:
         assert bedrock_hook.get_waiter.call_count == wait_for_completion
         assert self.operator.defer.call_count == deferrable
 
+    conflict_msg = "The provided job name is currently in use."
+    conflict_exception = ClientError(
+        error_response={"Error": {"Message": conflict_msg, "Code": "ValidationException"}},
+        operation_name="UnitTest",
+    )
+    success = {"ResponseMetadata": {"HTTPStatusCode": 201}, "jobArn": CUSTOMIZE_JOB_ARN}
+
     @pytest.mark.parametrize(
-        "action_if_job_exists, succeeds",
+        "side_effect, ensure_unique_name",
         [
-            pytest.param("timestamp", True, id="timestamp"),
-            pytest.param("fail", True, id="fail"),
-            pytest.param("call me maybe", False, id="invalid"),
+            pytest.param([conflict_exception, success], True, id="conflict_and_ensure_unique"),
+            pytest.param([conflict_exception, success], False, id="conflict_and_not_ensure_unique"),
+            pytest.param(
+                [conflict_exception, conflict_exception, success],
+                True,
+                id="multiple_conflict_and_ensure_unique",
+            ),
+            pytest.param(
+                [conflict_exception, conflict_exception, success],
+                False,
+                id="multiple_conflict_and_not_ensure_unique",
+            ),
+            pytest.param([success], True, id="no_conflict_and_ensure_unique"),
+            pytest.param([success], False, id="no_conflict_and_not_ensure_unique"),
         ],
     )
-    def test_customize_model_validate_action_if_job_exists(self, action_if_job_exists, succeeds):
-        exception = None
-        operator = BedrockCustomizeModelOperator(
-            task_id="test_task",
-            job_name=self.CUSTOMIZE_JOB_NAME,
-            custom_model_name="testModelName",
-            role_arn="valid_arn",
-            base_model_id="base_model_id",
-            hyperparameters={
-                "epochCount": "1",
-                "batchSize": "1",
-                "learningRate": ".0005",
-                "learningRateWarmupSteps": "0",
-            },
-            training_data_uri="s3://uri",
-            output_data_uri="s3://uri/output",
-            action_if_job_exists=action_if_job_exists,
-        )
+    @mock.patch.object(BedrockHook, "get_waiter")
+    def test_ensure_unique_job_name(self, _, side_effect, ensure_unique_name, mock_conn, bedrock_hook):
+        mock_conn.create_model_customization_job.side_effect = side_effect
+        expected_call_count = len(side_effect) if ensure_unique_name else 1
+        self.operator.wait_for_completion = False
 
-        try:
-            operator._validate_action_if_job_exists()
-        except Exception as e:
-            exception = e
+        response = self.operator.execute({})
 
-        if succeeds:
-            assert operator.action_if_job_exists == action_if_job_exists
-            assert exception is None
-        else:
-            assert isinstance(exception, AirflowException)
+        assert response == self.CUSTOMIZE_JOB_ARN
+        mock_conn.create_model_customization_job.call_count == expected_call_count
+        bedrock_hook.get_waiter.assert_not_called()
+        self.operator.defer.assert_not_called()

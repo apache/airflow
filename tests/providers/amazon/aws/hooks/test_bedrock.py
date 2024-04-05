@@ -58,29 +58,6 @@ class TestBedrockHook:
         mock_conn.get_model_customization_job.assert_called_once_with(jobIdentifier=JOB_NAME)
         assert response == EXPECTED_STATUS
 
-    def test_job_name_exists_positive(self, mock_conn):
-        response = self.hook.job_name_exists(JOB_NAME)
-
-        mock_conn.get_model_customization_job.assert_called_once_with(jobIdentifier=JOB_NAME)
-        assert response is True
-
-    def test_job_name_exists_negative(self, mock_conn):
-        invalid_job_name = "invalid_job_name"
-        mock_conn.get_model_customization_job.side_effect = self.VALIDATION_EXCEPTION_ERROR
-
-        response = self.hook.job_name_exists(invalid_job_name)
-
-        mock_conn.get_model_customization_job.assert_called_once_with(jobIdentifier=invalid_job_name)
-        assert response is False
-
-    def test_job_name_exists_unexpected_exception(self, mock_conn):
-        mock_conn.get_model_customization_job.side_effect = self.UNEXPECTED_EXCEPTION
-
-        with pytest.raises(ClientError):
-            self.hook.job_name_exists(JOB_NAME)
-
-        mock_conn.get_model_customization_job.assert_called_once_with(jobIdentifier=JOB_NAME)
-
 
 class TestBedrockRuntimeHook:
     def test_conn_returns_a_boto3_connection(self):
