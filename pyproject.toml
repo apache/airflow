@@ -392,9 +392,6 @@ combine-as-imports = true
 "airflow/providers/apache/beam/hooks/beam.py" = ["TRY002"]
 # apache.cassandra
 "airflow/providers/apache/cassandra/hooks/cassandra.py" = ["TRY002"]
-# apache.hdfs
-"airflow/providers/apache/hdfs/hooks/hdfs.py" = ["TRY002"]
-"airflow/providers/apache/hdfs/sensors/hdfs.py" = ["TRY002"]
 # cncf.kubernetes
 "airflow/providers/cncf/kubernetes/operators/pod.py" = ["TRY002"]
 # common.sql
