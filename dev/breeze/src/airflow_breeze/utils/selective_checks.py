@@ -1141,7 +1141,7 @@ class SelectiveChecks:
             ):
                 get_console().print(
                     f"[error]The PR has `{USE_SELF_HOSTED_RUNNERS_LABEL}` label, but "
-                    f"the actor is not a committer {actor}. This is not going to work.[/]"
+                    f"{actor} is not a committer. This is not going to work.[/]"
                 )
                 sys.exit(1)
             if USE_SELF_HOSTED_RUNNERS_LABEL in self._pr_labels:
