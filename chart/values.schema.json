@@ -9,6 +9,7 @@
         "Ports",
         "Database",
         "PgBouncer",
+        "RPC Server",
         "Scheduler",
         "Webserver",
         "Workers",
