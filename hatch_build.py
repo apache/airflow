@@ -140,7 +140,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "statsd>=3.3.0",
     ],
     "uv": [
-        "uv>=0.1.28",
+        "uv>=0.1.29",
     ],
     "virtualenv": [
         "virtualenv",
