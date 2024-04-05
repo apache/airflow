@@ -195,13 +195,17 @@ class BedrockCustomizeModelOperator(AwsBaseOperator[BedrockHook]):
         return self.hook.get_job_arn(event["job_name"])
 
     def execute(self, context: Context) -> dict:
-        while True:
+        response = {}
+        retry = True
+        while retry:
             # If there is a name conflict and ensure_unique_job_name is True, append the current timestamp
             # to the name and retry until there is no name conflict.
             # - Break the loop when the API call returns success.
             # - If the API returns an exception other than a name conflict, raise that exception.
             # - If the API returns a name conflict and ensure_unique_job_name is false, raise that exception.
             try:
+                # Ensure the loop is executed at least once, and not repeat unless explicitly set to do so.
+                retry = False
                 self.log.info("Creating Bedrock model customization job '%s'.", self.job_name)
 
                 response = self.hook.conn.create_model_customization_job(
@@ -214,12 +218,12 @@ class BedrockCustomizeModelOperator(AwsBaseOperator[BedrockHook]):
                     hyperParameters=self.hyperparameters,
                     **self.customization_job_kwargs,
                 )
-                break
             except ClientError as error:
                 if error.response["Error"]["Message"] != "The provided job name is currently in use.":
                     raise error
                 if not self.ensure_unique_job_name:
                     raise error
+                retry = True
                 self.job_name = f"{self.job_name}-{int(utcnow().timestamp())}"
                 self.log.info("Changed job name to '%s' to avoid collision.", self.job_name)
 
