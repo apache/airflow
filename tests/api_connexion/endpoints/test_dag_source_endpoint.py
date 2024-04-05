@@ -101,9 +101,8 @@ class TestGetSource:
 
         url = f"/api/v1/dagSources/{url_safe_serializer.dumps(test_dag.fileloc)}"
         response = self.client.get(url, headers={"Accept": "text/plain", "REMOTE_USER": "test"})
-
         assert 200 == response.status_code
-        assert dag_docstring in response.data.decode()
+        assert dag_docstring in response.text
         assert "text/plain" == response.headers["Content-Type"]
 
     def test_should_respond_200_json(self, url_safe_serializer):
@@ -116,7 +115,7 @@ class TestGetSource:
         response = self.client.get(url, headers={"Accept": "application/json", "REMOTE_USER": "test"})
 
         assert 200 == response.status_code
-        assert dag_docstring in response.json["content"]
+        assert dag_docstring in response.json()["content"]
         assert "application/json" == response.headers["Content-Type"]
 
     def test_should_respond_406(self, url_safe_serializer):
@@ -155,7 +154,7 @@ class TestGetSource:
 
         response = self.client.get(
             f"/api/v1/dagSources/{url_safe_serializer.dumps(first_dag.fileloc)}",
-            headers={"Accept": "text/plain", "REMOTE_USER": "test_no_permission"},
+            headers={"Accept": "text/plain", "REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403
 
