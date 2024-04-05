@@ -1204,6 +1204,9 @@ rpcServer:
   enabled: true
   baseUrl: ""
 
+  # Labels specific to workers objects and pods
+  labels: {}
+
   # Command to use when running the Airflow rpc server (templated).
   command:
     - "bash"

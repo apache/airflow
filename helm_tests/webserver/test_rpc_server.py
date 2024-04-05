@@ -723,16 +723,16 @@ class TestRPCServerService:
             ([{"port": 8888}], [{"port": 8888}]),  # name is optional with a single port
             (
                 [{"name": "{{ .Release.Name }}", "protocol": "UDP", "port": "{{ .Values.ports.rpcServer }}"}],
-                [{"name": "release-name", "protocol": "UDP", "port": 8080}],
+                [{"name": "release-name", "protocol": "UDP", "port": 9080}],
             ),
             ([{"name": "only_sidecar", "port": "{{ int 9000 }}"}], [{"name": "only_sidecar", "port": 9000}]),
             (
                 [
-                    {"name": "airflow-ui", "port": "{{ .Values.ports.rpcServer }}"},
+                    {"name": "rpc-server", "port": "{{ .Values.ports.rpcServer }}"},
                     {"name": "sidecar", "port": 80, "targetPort": "sidecar"},
                 ],
                 [
-                    {"name": "airflow-ui", "port": 8080},
+                    {"name": "rpc-server", "port": 9080},
                     {"name": "sidecar", "port": 80, "targetPort": "sidecar"},
                 ],
             ),
@@ -746,7 +746,7 @@ class TestRPCServerService:
             show_only=["templates/rpc-server/rpc-server-service.yaml"],
         )
 
-        assert expected_ports == jmespath.search("spec.ports", docs[0])
+        assert jmespath.search("spec.ports", docs[0]) == expected_ports
 
     def test_should_add_component_specific_labels(self):
         docs = render_chart(

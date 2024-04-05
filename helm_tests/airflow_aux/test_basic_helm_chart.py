@@ -27,7 +27,7 @@ import pytest
 
 from tests.charts.helm_template_generator import render_chart
 
-OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 35
+OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 38
 
 
 class TestBaseChartTest:
@@ -66,6 +66,7 @@ class TestBaseChartTest:
             ("ServiceAccount", "test-basic-create-user-job"),
             ("ServiceAccount", "test-basic-migrate-database-job"),
             ("ServiceAccount", "test-basic-redis"),
+            ("ServiceAccount", "test-basic-rpc-server"),
             ("ServiceAccount", "test-basic-scheduler"),
             ("ServiceAccount", "test-basic-statsd"),
             ("ServiceAccount", "test-basic-triggerer"),
@@ -86,11 +87,13 @@ class TestBaseChartTest:
             ("Service", "test-basic-postgresql-hl"),
             ("Service", "test-basic-postgresql"),
             ("Service", "test-basic-redis"),
+            ("Service", "test-basic-rpc-server"),
             ("Service", "test-basic-statsd"),
             ("Service", "test-basic-webserver"),
             ("Service", "test-basic-worker"),
             ("Deployment", "test-basic-scheduler"),
             ("Deployment", "test-basic-statsd"),
+            ("Deployment", "test-basic-rpc-server"),
             (self.default_trigger_obj(version), "test-basic-triggerer"),
             ("Deployment", "test-basic-webserver"),
             ("StatefulSet", "test-basic-postgresql"),
@@ -104,7 +107,7 @@ class TestBaseChartTest:
         if version == "default":
             expected.add(("Service", "test-basic-triggerer"))
         assert list_of_kind_names_tuples == expected
-        assert expected_object_count_in_basic_deployment == len(k8s_objects)
+        assert len(k8s_objects) == expected_object_count_in_basic_deployment
         for k8s_object in k8s_objects:
             labels = jmespath.search("metadata.labels", k8s_object) or {}
             if "helm.sh/chart" in labels:
@@ -134,6 +137,7 @@ class TestBaseChartTest:
             ("ServiceAccount", "test-basic-airflow-statsd"),
             ("ServiceAccount", "test-basic-airflow-triggerer"),
             ("ServiceAccount", "test-basic-airflow-webserver"),
+            ("ServiceAccount", "test-basic-airflow-rpc-server"),
             ("ServiceAccount", "test-basic-airflow-worker"),
             ("Secret", "test-basic-airflow-metadata"),
             ("Secret", "test-basic-broker-url"),
@@ -151,12 +155,14 @@ class TestBaseChartTest:
             ("Service", "test-basic-airflow-statsd"),
             ("Service", "test-basic-airflow-triggerer"),
             ("Service", "test-basic-airflow-webserver"),
+            ("Service", "test-basic-airflow-rpc-server"),
             ("Service", "test-basic-airflow-worker"),
             ("Service", "test-basic-postgresql"),
             ("Service", "test-basic-postgresql-hl"),
             ("Deployment", "test-basic-airflow-scheduler"),
             ("Deployment", "test-basic-airflow-statsd"),
             ("Deployment", "test-basic-airflow-webserver"),
+            ("Deployment", "test-basic-airflow-rpc-server"),
             ("StatefulSet", "test-basic-airflow-redis"),
             ("StatefulSet", "test-basic-airflow-worker"),
             ("StatefulSet", "test-basic-airflow-triggerer"),
@@ -196,6 +202,7 @@ class TestBaseChartTest:
             ("ServiceAccount", "test-basic-statsd"),
             ("ServiceAccount", "test-basic-triggerer"),
             ("ServiceAccount", "test-basic-dag-processor"),
+            ("ServiceAccount", "test-basic-rpc-server"),
             ("ServiceAccount", "test-basic-webserver"),
             ("ServiceAccount", "test-basic-worker"),
             ("Secret", "test-basic-metadata"),
@@ -215,12 +222,14 @@ class TestBaseChartTest:
             ("Service", "test-basic-redis"),
             ("Service", "test-basic-statsd"),
             ("Service", "test-basic-webserver"),
+            ("Service", "test-basic-rpc-server"),
             ("Service", "test-basic-worker"),
             ("Deployment", "test-basic-scheduler"),
             ("Deployment", "test-basic-statsd"),
             (self.default_trigger_obj(version), "test-basic-triggerer"),
             ("Deployment", "test-basic-dag-processor"),
             ("Deployment", "test-basic-webserver"),
+            ("Deployment", "test-basic-rpc-server"),
             ("StatefulSet", "test-basic-postgresql"),
             ("StatefulSet", "test-basic-redis"),
             ("StatefulSet", "test-basic-worker"),
@@ -259,7 +268,7 @@ class TestBaseChartTest:
             (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
         ]
         assert ("Job", "test-basic-create-user") not in list_of_kind_names_tuples
-        assert expected_object_count_in_basic_deployment - 2 == len(k8s_objects)
+        assert len(k8s_objects) == expected_object_count_in_basic_deployment - 2
 
     @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
     def test_basic_deployment_without_statsd(self, version):
@@ -276,7 +285,7 @@ class TestBaseChartTest:
         assert ("Service", "test-basic-statsd") not in list_of_kind_names_tuples
         assert ("Deployment", "test-basic-statsd") not in list_of_kind_names_tuples
 
-        assert expected_object_count_in_basic_deployment - 4 == len(k8s_objects)
+        assert len(k8s_objects) == expected_object_count_in_basic_deployment - 4
 
     def test_network_policies_are_valid(self):
         k8s_objects = render_chart(
@@ -511,7 +520,10 @@ class TestBaseChartTest:
             image: str = obj["image"]
             if image.startswith(image_repo):
                 # Make sure that a command is not specified
-                assert "command" not in obj
+                if obj["name"] == "rpc-server":
+                    assert obj["command"] == ["bash"]
+                else:
+                    assert "command" not in obj
 
     def test_unsupported_executor(self):
         with pytest.raises(CalledProcessError) as ex_ctx:

@@ -131,6 +131,7 @@ def render_chart(
             kubernetes_version,
             "--namespace",
             namespace,
+            "--debug",
         ]
         if show_only:
             for i in show_only:
