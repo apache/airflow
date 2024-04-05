@@ -873,14 +873,14 @@ class TestHiveCli:
     def test_default_values(self):
         hook = MockHiveCliHook()
 
-        assert hook.use_beeline == True
+        assert hook.use_beeline
         assert hook.auth is None
         assert hook.sub_process is None
         assert hook.mapred_queue == "airflow"
         assert hook.mapred_queue_priority is None
         assert hook.mapred_job_name is None
         assert hook.proxy_user is None
-        assert hook.high_availability == False
+        assert not hook.high_availability
 
     @pytest.mark.parametrize(
         "extra_dejson, correct_proxy_user, proxy_user",
