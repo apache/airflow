@@ -29,6 +29,9 @@ import {
   Input,
   SimpleGrid,
   Button,
+  RadioGroup,
+  Stack,
+  Radio,
 } from "@chakra-ui/react";
 import { createColumnHelper } from "@tanstack/react-table";
 import { snakeCase } from "lodash";
@@ -74,12 +77,21 @@ const AuditLog = ({ taskId, run }: Props) => {
   const { tableURLState, setTableURLState } = useTableURLState({
     sorting: [{ id: "when", desc: true }],
   });
-  const [includedEvents, setIncludedEvents] = useState(
-    configIncludedEvents.length ? configIncludedEvents.split(",") : []
-  );
-  const [excludedEvents, setExcludedEvents] = useState(
-    configExcludedEvents.length ? configExcludedEvents.split(",") : []
-  );
+  const includedEvents = configIncludedEvents.length
+    ? configIncludedEvents.split(",")
+    : [];
+  const excludedEvents = configExcludedEvents.length
+    ? configExcludedEvents.split(",")
+    : [];
+
+  let defaultEventFilter = "include";
+  let defaultEvents = includedEvents;
+  if (!includedEvents.length && excludedEvents.length) {
+    defaultEventFilter = "exclude";
+    defaultEvents = excludedEvents;
+  }
+  const [eventFilter, setEventFilter] = useState(defaultEventFilter);
+  const [events, setEvents] = useState(defaultEvents);
 
   const sort = tableURLState.sorting[0];
   const orderBy = sort ? `${sort.desc ? "-" : ""}${snakeCase(sort.id)}` : "";
@@ -94,8 +106,10 @@ const AuditLog = ({ taskId, run }: Props) => {
     limit: tableURLState.pagination.pageSize,
     offset:
       tableURLState.pagination.pageIndex * tableURLState.pagination.pageSize,
-    includedEvents: includedEvents ? includedEvents.join(",") : undefined,
-    excludedEvents: excludedEvents ? excludedEvents.join(",") : undefined,
+    includedEvents:
+      eventFilter === "include" && events ? events.join(",") : undefined,
+    excludedEvents:
+      eventFilter === "exclude" && events ? events.join(",") : undefined,
   });
 
   const columns = useMemo(() => {
@@ -155,31 +169,17 @@ const AuditLog = ({ taskId, run }: Props) => {
     }),
   };
 
-  const excludedEventsSelectProps = useChakraSelectProps<Option, true>({
+  const eventsSelectProps = useChakraSelectProps<Option, true>({
     isMulti: true,
+    noOptionsMessage: () => "Type to add new event",
     tagVariant: "solid",
-    value: excludedEvents.map((e) => ({
+    value: events.map((e) => ({
       label: e,
       value: e,
     })),
     onChange: (options) => {
-      setExcludedEvents((options || []).map(({ value }) => value));
+      setEvents((options || []).map(({ value }) => value));
     },
-    placeholder: "Type to filter an event",
-    chakraStyles,
-  });
-
-  const includedEventsSelectProps = useChakraSelectProps<Option, true>({
-    isMulti: true,
-    tagVariant: "solid",
-    value: includedEvents.map((e) => ({
-      label: e,
-      value: e,
-    })),
-    onChange: (options) => {
-      setIncludedEvents((options || []).map(({ value }) => value));
-    },
-    placeholder: "Type to filter an event",
     chakraStyles,
   });
 
@@ -246,12 +246,21 @@ const AuditLog = ({ taskId, run }: Props) => {
           <FormHelperText />
         </FormControl>
         <FormControl>
-          <FormLabel>Events to exclude</FormLabel>
-          <CreatableSelect {...excludedEventsSelectProps} />
-        </FormControl>
-        <FormControl>
-          <FormLabel>Events to include</FormLabel>
-          <CreatableSelect {...includedEventsSelectProps} />
+          <FormLabel display="flex" alignItems="center">
+            Events to
+            <RadioGroup
+              onChange={setEventFilter}
+              value={eventFilter}
+              display="inline-flex"
+              ml={2}
+            >
+              <Stack direction="row">
+                <Radio value="include">Include</Radio>
+                <Radio value="exclude">Exclude</Radio>
+              </Stack>
+            </RadioGroup>
+          </FormLabel>
+          <CreatableSelect {...eventsSelectProps} />
         </FormControl>
       </SimpleGrid>
       <NewTable

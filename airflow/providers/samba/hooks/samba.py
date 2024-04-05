@@ -245,10 +245,19 @@ class SambaHook(BaseHook):
             **self._conn_kwargs,
         )
 
-    def push_from_local(self, destination_filepath: str, local_filepath: str):
-        """Push local file to samba server."""
+    def push_from_local(self, destination_filepath: str, local_filepath: str, buffer_size: int | None = None):
+        """
+        Push local file to samba server.
+
+        :param destination_filepath: the samba location to push to
+        :param local_filepath: the file to push
+        :param buffer_size:
+            size in bytes of the individual chunks of file to send. Larger values may
+            speed up large file transfers
+        """
+        extra_args = (buffer_size,) if buffer_size else ()
         with open(local_filepath, "rb") as f, self.open_file(destination_filepath, mode="wb") as g:
-            copyfileobj(f, g)
+            copyfileobj(f, g, *extra_args)
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
