@@ -63,16 +63,17 @@ from airflow_breeze.utils.path_utils import (
 from airflow_breeze.utils.provider_dependencies import DEPENDENCIES, get_related_providers
 from airflow_breeze.utils.run_utils import run_command
 
-FULL_TESTS_NEEDED_LABEL = "full tests needed"
-DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
-USE_PUBLIC_RUNNERS_LABEL = "use public runners"
-NON_COMMITTER_BUILD_LABEL = "non committer build"
-DEFAULT_VERSIONS_ONLY_LABEL = "default versions only"
 ALL_VERSIONS_LABEL = "all versions"
-LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
+DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
+DEFAULT_VERSIONS_ONLY_LABEL = "default versions only"
 DISABLE_IMAGE_CACHE_LABEL = "disable image cache"
+FULL_TESTS_NEEDED_LABEL = "full tests needed"
 INCLUDE_SUCCESS_OUTPUTS_LABEL = "include success outputs"
+LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
+NON_COMMITTER_BUILD_LABEL = "non committer build"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
+USE_PUBLIC_RUNNERS_LABEL = "use public runners"
+USE_SELF_HOSTED_RUNNERS_LABEL = "use self-hosted runners"
 
 
 ALL_CI_SELECTIVE_TEST_TYPES = (
@@ -1114,7 +1115,11 @@ class SelectiveChecks:
     def runs_on_as_json_default(self) -> str:
         if self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY:
             if self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH]:
+                # Canary and Scheduled runs
                 return RUNS_ON_SELF_HOSTED_RUNNER
+            if self._pr_labels and USE_PUBLIC_RUNNERS_LABEL in self._pr_labels:
+                # Forced public runners
+                return RUNS_ON_PUBLIC_RUNNER
             actor = self._github_actor
             if self._github_event in (GithubEvents.PULL_REQUEST, GithubEvents.PULL_REQUEST_TARGET):
                 try:
@@ -1129,8 +1134,23 @@ class SelectiveChecks:
                         f"[info]Could not find the actor from pull request, "
                         f"falling back to the actor who triggered the PR: {actor}[/]"
                     )
-            if actor in COMMITTERS and USE_PUBLIC_RUNNERS_LABEL not in self._pr_labels:
+            if (
+                actor not in COMMITTERS
+                and self._pr_labels
+                and USE_SELF_HOSTED_RUNNERS_LABEL in self._pr_labels
+            ):
+                get_console().print(
+                    f"[error]The PR has `{USE_SELF_HOSTED_RUNNERS_LABEL}` label, but "
+                    f"{actor} is not a committer. This is not going to work.[/]"
+                )
+                sys.exit(1)
+            if USE_SELF_HOSTED_RUNNERS_LABEL in self._pr_labels:
+                # Forced self-hosted runners
                 return RUNS_ON_SELF_HOSTED_RUNNER
+            if actor in COMMITTERS:
+                return RUNS_ON_SELF_HOSTED_RUNNER
+            else:
+                return RUNS_ON_PUBLIC_RUNNER
         return RUNS_ON_PUBLIC_RUNNER
 
     @cached_property

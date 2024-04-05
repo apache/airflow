@@ -1624,13 +1624,17 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
 
 
 @pytest.mark.parametrize(
-    "github_event, github_actor, github_repository, pr_labels, github_context_dict, default_runs_on_as_string, is_self_hosted_runner, is_airflow_runner, is_amd_runner, is_arm_runner, is_vm_runner, is_k8s_runner",
+    (
+        "github_event, github_actor, github_repository, pr_labels, "
+        "github_context_dict, runs_on_as_json_default, is_self_hosted_runner, "
+        "is_airflow_runner, is_amd_runner, is_arm_runner, is_vm_runner, is_k8s_runner, exception"
+    ),
     [
         pytest.param(
             GithubEvents.PUSH,
             "user",
             "apache/airflow",
-            [],
+            (),
             dict(),
             '["self-hosted", "Linux", "X64"]',
             "true",
@@ -1639,13 +1643,14 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "false",
             "true",
             "false",
+            False,
             id="Push event",
         ),
         pytest.param(
             GithubEvents.PUSH,
             "user",
             "private/airflow",
-            [],
+            (),
             dict(),
             '["ubuntu-22.04"]',
             "false",
@@ -1654,13 +1659,14 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "false",
             "false",
             "false",
+            False,
             id="Push event for private repo",
         ),
         pytest.param(
             GithubEvents.PULL_REQUEST,
             "user",
             "apache/airflow",
-            [],
+            (),
             dict(),
             '["ubuntu-22.04"]',
             "false",
@@ -1669,13 +1675,14 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "false",
             "false",
             "false",
+            False,
             id="Pull request",
         ),
         pytest.param(
             GithubEvents.PULL_REQUEST,
             "user",
             "private/airflow",
-            [],
+            (),
             dict(),
             '["ubuntu-22.04"]',
             "false",
@@ -1684,13 +1691,14 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "false",
             "false",
             "false",
+            False,
             id="Pull request private repo",
         ),
         pytest.param(
             GithubEvents.PULL_REQUEST,
             COMMITTERS[0],
             "apache/airflow",
-            [],
+            (),
             dict(),
             '["self-hosted", "Linux", "X64"]',
             "true",
@@ -1699,13 +1707,14 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "false",
             "true",
             "false",
+            False,
             id="Pull request committer",
         ),
         pytest.param(
             GithubEvents.PULL_REQUEST,
             COMMITTERS[0],
             "apache/airflow",
-            [],
+            (),
             dict(event=dict(pull_request=dict(user=dict(login="user")))),
             '["ubuntu-22.04"]',
             "false",
@@ -1714,13 +1723,14 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "false",
             "false",
             "false",
+            False,
             id="Pull request committer pr non-committer",
         ),
         pytest.param(
             GithubEvents.PULL_REQUEST,
             COMMITTERS[0],
             "private/airflow",
-            [],
+            (),
             dict(),
             '["ubuntu-22.04"]',
             "false",
@@ -1729,13 +1739,14 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "false",
             "false",
             "false",
+            False,
             id="Pull request private repo committer",
         ),
         pytest.param(
             GithubEvents.PULL_REQUEST_TARGET,
             "user",
             "apache/airflow",
-            [],
+            (),
             dict(),
             '["ubuntu-22.04"]',
             "false",
@@ -1744,13 +1755,14 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "false",
             "false",
             "false",
+            False,
             id="Pull request target",
         ),
         pytest.param(
             GithubEvents.PULL_REQUEST_TARGET,
             "user",
             "private/airflow",
-            [],
+            (),
             dict(),
             '["ubuntu-22.04"]',
             "false",
@@ -1759,6 +1771,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "false",
             "false",
             "false",
+            False,
             id="Pull request target private repo",
         ),
         pytest.param(
@@ -1774,13 +1787,14 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "false",
             "true",
             "false",
+            False,
             id="Pull request target committer",
         ),
         pytest.param(
             GithubEvents.PULL_REQUEST,
             COMMITTERS[0],
             "apache/airflow",
-            [],
+            (),
             dict(event=dict(pull_request=dict(user=dict(login="user")))),
             '["ubuntu-22.04"]',
             "false",
@@ -1789,13 +1803,14 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "false",
             "false",
             "false",
+            False,
             id="Pull request target committer pr non-committer",
         ),
         pytest.param(
             GithubEvents.PULL_REQUEST_TARGET,
             COMMITTERS[0],
             "private/airflow",
-            [],
+            (),
             dict(),
             '["ubuntu-22.04"]',
             "false",
@@ -1804,7 +1819,40 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "false",
             "false",
             "false",
+            False,
             id="Pull request targe private repo committer",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            "user",
+            "apache/airflow",
+            ("use self-hosted runners",),
+            dict(),
+            '["ubuntu-22.04"]',
+            "false",
+            "false",
+            "true",
+            "false",
+            "false",
+            "false",
+            True,
+            id="Pull request by non committer with 'use self-hosted runners' label.",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            COMMITTERS[0],
+            "apache/airflow",
+            ("use public runners",),
+            dict(),
+            '["ubuntu-22.04"]',
+            "false",
+            "false",
+            "true",
+            "false",
+            "false",
+            "false",
+            False,
+            id="Pull request by committer with 'use public runners' label.",
         ),
     ],
 )
@@ -1812,33 +1860,43 @@ def test_runs_on(
     github_event: GithubEvents,
     github_actor: str,
     github_repository: str,
-    pr_labels: list[str],
+    pr_labels: tuple[str, ...],
     github_context_dict: dict[str, Any],
-    default_runs_on_as_string,
+    runs_on_as_json_default,
     is_self_hosted_runner: str,
     is_airflow_runner: str,
     is_amd_runner: str,
     is_arm_runner: str,
     is_vm_runner: str,
     is_k8s_runner: str,
+    exception: bool,
 ):
-    stderr = SelectiveChecks(
-        files=(),
-        commit_ref="",
-        github_repository=github_repository,
-        github_event=github_event,
-        github_actor=github_actor,
-        github_context_dict=github_context_dict,
-        pr_labels=(),
-        default_branch="main",
-    )
-    assert_outputs_are_printed({"runs-on-as-json-default": default_runs_on_as_string}, str(stderr))
-    assert_outputs_are_printed({"is-self-hosted-runner": is_self_hosted_runner}, str(stderr))
-    assert_outputs_are_printed({"is-airflow-runner": is_airflow_runner}, str(stderr))
-    assert_outputs_are_printed({"is-amd-runner": is_amd_runner}, str(stderr))
-    assert_outputs_are_printed({"is-arm-runner": is_arm_runner}, str(stderr))
-    assert_outputs_are_printed({"is-vm-runner": is_vm_runner}, str(stderr))
-    assert_outputs_are_printed({"is-k8s-runner": is_k8s_runner}, str(stderr))
+    def get_output() -> str:
+        return str(
+            SelectiveChecks(
+                files=(),
+                commit_ref="",
+                github_repository=github_repository,
+                github_event=github_event,
+                github_actor=github_actor,
+                github_context_dict=github_context_dict,
+                pr_labels=pr_labels,
+                default_branch="main",
+            )
+        )
+
+    if exception:
+        with pytest.raises(SystemExit):
+            get_output()
+    else:
+        stderr = get_output()
+        assert_outputs_are_printed({"runs-on-as-json-default": runs_on_as_json_default}, str(stderr))
+        assert_outputs_are_printed({"is-self-hosted-runner": is_self_hosted_runner}, str(stderr))
+        assert_outputs_are_printed({"is-airflow-runner": is_airflow_runner}, str(stderr))
+        assert_outputs_are_printed({"is-amd-runner": is_amd_runner}, str(stderr))
+        assert_outputs_are_printed({"is-arm-runner": is_arm_runner}, str(stderr))
+        assert_outputs_are_printed({"is-vm-runner": is_vm_runner}, str(stderr))
+        assert_outputs_are_printed({"is-k8s-runner": is_k8s_runner}, str(stderr))
 
 
 @pytest.mark.parametrize(
