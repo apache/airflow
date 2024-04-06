@@ -1113,6 +1113,12 @@ class TestTaskInstance:
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
+    # Short versions of states
+    FAILED = State.FAILED
+    SKIPPED = State.SKIPPED
+    SUCCESS = State.SUCCESS
+    UPSTRF = State.UPSTREAM_FAILED
+
     # Parameterized tests to check for the correct firing
     # of the trigger_rule under various circumstances
     # Numeric fields are in order:
@@ -1123,54 +1129,54 @@ class TestTaskInstance:
             #
             # Tests for all_success
             #
-            ["all_success", 0, _UpstreamTIStates(5, 0, 0, 0, 0, 5, 0, 0), True, None, True],
-            ["all_success", 0, _UpstreamTIStates(2, 0, 0, 0, 0, 2, 0, 0), True, None, False],
-            ["all_success", 0, _UpstreamTIStates(2, 0, 1, 0, 0, 3, 0, 0), True, State.UPSTREAM_FAILED, False],
-            ["all_success", 0, _UpstreamTIStates(2, 1, 0, 0, 0, 3, 0, 0), True, State.SKIPPED, False],
+            ["all_success", 0, [SUCCESS, SUCCESS, SUCCESS, SUCCESS, SUCCESS], True, None, True],
+            ["all_success", 0, [SUCCESS, SUCCESS, None, None, None], True, None, False],
+            ["all_success", 0, [SUCCESS, SUCCESS, FAILED, None, None], True, State.UPSTREAM_FAILED, False],
+            ["all_success", 0, [SUCCESS, SUCCESS, SKIPPED, None, None], True, SKIPPED, False],
             #
             # Tests for one_success
             #
-            ["one_success", 0, _UpstreamTIStates(5, 0, 0, 0, 0, 5, 0, 0), True, None, True],
-            ["one_success", 0, _UpstreamTIStates(2, 0, 0, 0, 0, 2, 0, 0), True, None, True],
-            ["one_success", 0, _UpstreamTIStates(2, 0, 1, 0, 0, 3, 0, 0), True, None, True],
-            ["one_success", 0, _UpstreamTIStates(2, 1, 0, 0, 0, 3, 0, 0), True, None, True],
-            ["one_success", 0, _UpstreamTIStates(0, 5, 0, 0, 0, 5, 0, 0), True, State.SKIPPED, False],
-            ["one_success", 0, _UpstreamTIStates(0, 4, 1, 0, 0, 5, 0, 0), True, State.UPSTREAM_FAILED, False],
-            ["one_success", 0, _UpstreamTIStates(0, 3, 1, 1, 0, 5, 0, 0), True, State.UPSTREAM_FAILED, False],
-            ["one_success", 0, _UpstreamTIStates(0, 4, 0, 1, 0, 5, 0, 0), True, State.UPSTREAM_FAILED, False],
-            ["one_success", 0, _UpstreamTIStates(0, 0, 5, 0, 0, 5, 0, 0), True, State.UPSTREAM_FAILED, False],
-            ["one_success", 0, _UpstreamTIStates(0, 0, 4, 1, 0, 5, 0, 0), True, State.UPSTREAM_FAILED, False],
-            ["one_success", 0, _UpstreamTIStates(0, 0, 0, 5, 0, 5, 0, 0), True, State.UPSTREAM_FAILED, False],
+            ["one_success", 0, [SUCCESS, SUCCESS, SUCCESS, SUCCESS, SUCCESS], True, None, True],
+            ["one_success", 0, [SUCCESS, SUCCESS, None, None, None], True, None, True],
+            ["one_success", 0, [SUCCESS, SUCCESS, FAILED, None, None], True, None, True],
+            ["one_success", 0, [SUCCESS, SUCCESS, SKIPPED, None, None], True, None, True],
+            ["one_success", 0, [SKIPPED, SKIPPED, SKIPPED, SKIPPED, SKIPPED], True, SKIPPED, False],
+            ["one_success", 0, [SKIPPED, SKIPPED, SKIPPED, SKIPPED, FAILED], True, FAILED, False],
+            ["one_success", 0, [SKIPPED, SKIPPED, SKIPPED, FAILED, UPSTRF], True, FAILED, False],
+            ["one_success", 0, [SKIPPED, SKIPPED, SKIPPED, SKIPPED, UPSTRF], True, FAILED, False],
+            ["one_success", 0, [FAILED, FAILED, FAILED, FAILED, FAILED], True, State.UPSTREAM_FAILED, False],
+            ["one_success", 0, [FAILED, FAILED, FAILED, FAILED, UPSTRF], True, State.UPSTREAM_FAILED, False],
+            ["one_success", 0, [UPSTRF, UPSTRF, UPSTRF, UPSTRF, UPSTRF], True, State.UPSTREAM_FAILED, False],
             #
             # Tests for all_failed
             #
-            ["all_failed", 0, _UpstreamTIStates(5, 0, 0, 0, 0, 5, 0, 0), True, State.SKIPPED, False],
-            ["all_failed", 0, _UpstreamTIStates(0, 0, 5, 0, 0, 5, 0, 0), True, None, True],
-            ["all_failed", 0, _UpstreamTIStates(2, 0, 0, 0, 0, 2, 0, 0), True, State.SKIPPED, False],
-            ["all_failed", 0, _UpstreamTIStates(2, 0, 1, 0, 0, 3, 0, 0), True, State.SKIPPED, False],
-            ["all_failed", 0, _UpstreamTIStates(2, 1, 0, 0, 0, 3, 0, 0), True, State.SKIPPED, False],
+            ["all_failed", 0, [SUCCESS, SUCCESS, SUCCESS, SUCCESS, SUCCESS], True, State.SKIPPED, False],
+            ["all_failed", 0, [FAILED, FAILED, FAILED, FAILED, FAILED], True, None, True],
+            ["all_failed", 0, [SUCCESS, SUCCESS, None, None, None], True, State.SKIPPED, False],
+            ["all_failed", 0, [SUCCESS, SUCCESS, FAILED, None, None], True, State.SKIPPED, False],
+            ["all_failed", 0, [SUCCESS, SUCCESS, SKIPPED, None, None], True, State.SKIPPED, False],
             #
             # Tests for one_failed
             #
-            ["one_failed", 0, _UpstreamTIStates(5, 0, 0, 0, 0, 5, 0, 0), True, State.SKIPPED, False],
-            ["one_failed", 0, _UpstreamTIStates(2, 0, 0, 0, 0, 2, 0, 0), True, None, False],
-            ["one_failed", 0, _UpstreamTIStates(2, 0, 1, 0, 0, 3, 0, 0), True, None, True],
-            ["one_failed", 0, _UpstreamTIStates(2, 1, 0, 0, 0, 3, 0, 0), True, None, False],
-            ["one_failed", 0, _UpstreamTIStates(2, 3, 0, 0, 0, 5, 0, 0), True, State.SKIPPED, False],
+            ["one_failed", 0, [SUCCESS, SUCCESS, SUCCESS, SUCCESS, SUCCESS], True, State.SKIPPED, False],
+            ["one_failed", 0, [SUCCESS, SUCCESS, None, None, None], True, None, False],
+            ["one_failed", 0, [SUCCESS, SUCCESS, FAILED, None, None], True, None, True],
+            ["one_failed", 0, [SUCCESS, SUCCESS, SKIPPED, None, None], True, None, False],
+            ["one_failed", 0, [SUCCESS, SUCCESS, SKIPPED, SKIPPED, SKIPPED], True, State.SKIPPED, False],
             #
             # Tests for done
             #
-            ["all_done", 0, _UpstreamTIStates(5, 0, 0, 0, 0, 5, 0, 0), True, None, True],
-            ["all_done", 0, _UpstreamTIStates(2, 0, 0, 0, 0, 2, 0, 0), True, None, False],
-            ["all_done", 0, _UpstreamTIStates(2, 0, 1, 0, 0, 3, 0, 0), True, None, False],
-            ["all_done", 0, _UpstreamTIStates(2, 1, 0, 0, 0, 3, 0, 0), True, None, False],
+            ["all_done", 0, [SUCCESS, SUCCESS, SUCCESS, SUCCESS, SUCCESS], True, None, True],
+            ["all_done", 0, [SUCCESS, SUCCESS, None, None, None], True, None, False],
+            ["all_done", 0, [SUCCESS, SUCCESS, FAILED, None, None], True, None, False],
+            ["all_done", 0, [SUCCESS, SUCCESS, SKIPPED, None, None], True, None, False],
             #
             # Tests for all_done_setup_success: no upstream setups -> same as all_done
             #
-            ["all_done_setup_success", 0, _UpstreamTIStates(5, 0, 0, 0, 0, 5, 0, 0), True, None, True],
-            ["all_done_setup_success", 0, _UpstreamTIStates(2, 0, 0, 0, 0, 2, 0, 0), True, None, False],
-            ["all_done_setup_success", 0, _UpstreamTIStates(2, 0, 1, 0, 0, 3, 0, 0), True, None, False],
-            ["all_done_setup_success", 0, _UpstreamTIStates(2, 1, 0, 0, 0, 3, 0, 0), True, None, False],
+            ["all_done_setup_success", 0, [SUCCESS, SUCCESS, SUCCESS, SUCCESS, SUCCESS], True, None, True],
+            ["all_done_setup_success", 0, [SUCCESS, SUCCESS, None, None, None], True, None, False],
+            ["all_done_setup_success", 0, [SUCCESS, SUCCESS, FAILED, None, None], True, None, False],
+            ["all_done_setup_success", 0, [SUCCESS, SUCCESS, SKIPPED, None, None], True, None, False],
             #
             # Tests for all_done_setup_success: with upstream setups -> different from all_done
             #
@@ -1186,7 +1192,7 @@ class TestTaskInstance:
             pytest.param(
                 "all_done_setup_success",
                 1,
-                _UpstreamTIStates(6, 0, 0, 0, 0, 6, 1, 0),
+                [SUCCESS, SUCCESS, SUCCESS, SUCCESS, SUCCESS, SUCCESS],
                 True,
                 None,
                 True,
@@ -1195,7 +1201,7 @@ class TestTaskInstance:
             pytest.param(
                 "all_done_setup_success",
                 2,
-                _UpstreamTIStates(7, 0, 0, 0, 0, 7, 2, 0),
+                [SUCCESS, SUCCESS, SUCCESS, SUCCESS, SUCCESS, SUCCESS, SUCCESS],
                 True,
                 None,
                 True,
@@ -1204,7 +1210,7 @@ class TestTaskInstance:
             pytest.param(
                 "all_done_setup_success",
                 1,
-                _UpstreamTIStates(5, 0, 1, 0, 0, 6, 0, 0),
+                [SUCCESS, SUCCESS, SUCCESS, SUCCESS, SUCCESS, FAILED],
                 True,
                 State.UPSTREAM_FAILED,
                 False,
@@ -1213,7 +1219,7 @@ class TestTaskInstance:
             pytest.param(
                 "all_done_setup_success",
                 2,
-                _UpstreamTIStates(5, 0, 2, 0, 0, 7, 0, 0),
+                [SUCCESS, SUCCESS, SUCCESS, SUCCESS, SUCCESS, FAILED, FAILED],
                 True,
                 State.UPSTREAM_FAILED,
                 False,
@@ -1222,7 +1228,7 @@ class TestTaskInstance:
             pytest.param(
                 "all_done_setup_success",
                 1,
-                _UpstreamTIStates(5, 1, 0, 0, 0, 6, 0, 1),
+                [SUCCESS, SUCCESS, SUCCESS, SUCCESS, SUCCESS, SKIPPED],
                 True,
                 State.SKIPPED,
                 False,
@@ -1231,7 +1237,7 @@ class TestTaskInstance:
             pytest.param(
                 "all_done_setup_success",
                 2,
-                _UpstreamTIStates(5, 2, 0, 0, 0, 7, 0, 2),
+                [SUCCESS, SUCCESS, SUCCESS, SUCCESS, SUCCESS, SKIPPED, SKIPPED],
                 True,
                 State.SKIPPED,
                 False,
@@ -1240,7 +1246,7 @@ class TestTaskInstance:
             pytest.param(
                 "all_done_setup_success",
                 2,
-                _UpstreamTIStates(5, 1, 1, 0, 0, 7, 0, 1),
+                [SUCCESS, SUCCESS, SUCCESS, SUCCESS, SUCCESS, SKIPPED, FAILED],
                 True,
                 State.UPSTREAM_FAILED,
                 False,
@@ -1249,16 +1255,16 @@ class TestTaskInstance:
             pytest.param(
                 "all_done_setup_success",
                 2,
-                _UpstreamTIStates(6, 0, 1, 0, 0, 7, 1, 0),
+                [SUCCESS, SUCCESS, SUCCESS, SUCCESS, SUCCESS, SUCCESS, FAILED],
                 True,
                 (True, None),  # is_teardown=True, expect_state=None
                 True,
                 id="is teardown one setup failed one setup success",
             ),
             pytest.param(
-                "all_done_setup_success",
+                "all_done",
                 2,
-                _UpstreamTIStates(6, 0, 1, 0, 0, 7, 1, 0),
+                [SUCCESS, SUCCESS, SUCCESS, SUCCESS, SUCCESS, SUCCESS, FAILED],
                 True,
                 (False, "upstream_failed"),  # is_teardown=False, expect_state="upstream_failed"
                 True,
@@ -1267,25 +1273,25 @@ class TestTaskInstance:
             pytest.param(
                 "all_done_setup_success",
                 2,
-                _UpstreamTIStates(6, 1, 0, 0, 0, 7, 1, 1),
+                [SUCCESS, SUCCESS, SUCCESS, SUCCESS, SUCCESS, SUCCESS, SKIPPED],
                 True,
                 (True, None),  # is_teardown=True, expect_state=None
                 True,
                 id="is teardown one setup success one setup skipped",
             ),
             pytest.param(
-                "all_done_setup_success",
+                "all_done",
                 2,
-                _UpstreamTIStates(6, 1, 0, 0, 0, 7, 1, 1),
+                [SUCCESS, SUCCESS, SUCCESS, SUCCESS, SUCCESS, SUCCESS, SKIPPED],
                 True,
                 (False, "skipped"),  # is_teardown=False, expect_state="skipped"
                 True,
                 id="not teardown one setup success one setup skipped",
             ),
             pytest.param(
-                "all_done_setup_success",
+                "all_done",
                 1,
-                _UpstreamTIStates(3, 0, 0, 0, 0, 3, 1, 0),
+                [SUCCESS, SUCCESS, SUCCESS, None, None, SUCCESS],
                 True,
                 None,
                 False,
@@ -1294,48 +1300,56 @@ class TestTaskInstance:
             pytest.param(
                 "all_done_setup_success",
                 1,
-                _UpstreamTIStates(3, 0, 1, 0, 0, 4, 1, 0),
+                [SUCCESS, SUCCESS, SUCCESS, FAILED, None, SUCCESS],
                 True,
                 (True, None),  # is_teardown=True, expect_state=None
                 False,
                 id="is teardown not all done one failed",
             ),
             pytest.param(
-                "all_done_setup_success",
+                "all_done",
                 1,
-                _UpstreamTIStates(3, 0, 1, 0, 0, 4, 1, 0),
+                [SUCCESS, SUCCESS, SUCCESS, FAILED, None, SUCCESS],
                 True,
-                (False, "upstream_failed"),  # is_teardown=False, expect_state="upstream_failed"
+                (False, None),  # is_teardown=False, expect_state=None (as one task pending)
                 False,
                 id="not teardown not all done one failed",
             ),
             pytest.param(
                 "all_done_setup_success",
                 1,
-                _UpstreamTIStates(3, 1, 0, 0, 0, 4, 1, 0),
+                [SUCCESS, SUCCESS, SUCCESS, SKIPPED, None, SUCCESS],
                 True,
                 (True, None),  # is_teardown=True, expect_state=None
                 False,
-                id="not all done one skipped",
+                id="is teardown not all done one skipped",
             ),
             pytest.param(
-                "all_done_setup_success",
+                "all_done",
                 1,
-                _UpstreamTIStates(3, 1, 0, 0, 0, 4, 1, 0),
+                [SUCCESS, SUCCESS, SUCCESS, SKIPPED, None, SUCCESS],
+                True,
+                (False, None),  # is_teardown=False, expect_state=None
+                False,
+                id="not teardown not all done one skipped",
+            ),
+            pytest.param(
+                "all_done",
+                1,
+                [SUCCESS, SUCCESS, SUCCESS, SUCCESS, SKIPPED, SUCCESS],
                 True,
                 (False, "skipped"),  # is_teardown=False, expect_state="skipped'
-                False,
-                id="not all done one skipped",
+                True,
+                id="not teardown all done one skipped",
             ),
         ],
     )
     def test_check_task_dependencies(
         self,
-        monkeypatch,
         dag_maker,
         trigger_rule: str,
         upstream_setups: int,
-        upstream_states: _UpstreamTIStates,
+        upstream_states: list[TaskInstanceState],
         flag_upstream_failed: bool,
         expect_state: State,
         expect_passed: bool,
@@ -1347,34 +1361,38 @@ class TestTaskInstance:
             set_teardown, expect_state = expect_state
             assert isinstance(set_teardown, bool)
 
-        monkeypatch.setattr(_UpstreamTIStates, "calculate", lambda *_: upstream_states)
-
         # sanity checks
-        s = upstream_states
-        assert s.skipped >= s.skipped_setup
-        assert s.success >= s.success_setup
-        assert s.done == s.failed + s.success + s.removed + s.upstream_failed + s.skipped
+        assert len(upstream_states) == upstream_setups + 5
 
         with dag_maker() as dag:
             downstream = EmptyOperator(task_id="downstream", trigger_rule=trigger_rule)
             if set_teardown:
                 downstream.as_teardown()
+            work_tasks = []
             for i in range(5):
                 task = EmptyOperator(task_id=f"work_{i}", dag=dag)
                 task.set_downstream(downstream)
+                work_tasks.append(task)
             for i in range(upstream_setups):
                 task = EmptyOperator(task_id=f"setup_{i}", dag=dag).as_setup()
-                task.set_downstream(downstream)
+                task.set_downstream(work_tasks)
             assert task.start_date is not None
             run_date = task.start_date + datetime.timedelta(days=5)
 
-        ti = dag_maker.create_dagrun(execution_date=run_date).get_task_instance(downstream.task_id)
+        dr = dag_maker.create_dagrun(execution_date=run_date)
+        session = dag_maker.session
+        ti = dr.get_task_instance(downstream.task_id, session=session)
+        for i in range(5):
+            dr.get_task_instance(task_id=f"work_{i}", session=session).state = upstream_states.pop(0)
+        for i in range(upstream_setups):
+            dr.get_task_instance(task_id=f"setup_{i}", session=session).state = upstream_states.pop(0)
         ti.task = downstream
+        session.flush()
 
         dep_results = TriggerRuleDep()._evaluate_trigger_rule(
             ti=ti,
             dep_context=DepContext(flag_upstream_failed=flag_upstream_failed),
-            session=dag_maker.session,
+            session=session,
         )
         completed = all(dep.passed for dep in dep_results)
 

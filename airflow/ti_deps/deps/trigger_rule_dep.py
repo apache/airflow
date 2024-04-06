@@ -556,32 +556,34 @@ class TriggerRuleDep(BaseTIDep):
             else:
                 yield self._failing_status(reason=f"No strategy to evaluate trigger rule '{trigger_rule}'.")
 
-        def _evaluate_any_upstream_running(
-            all_finished_task_ids: list[str], upstream_ti: TaskInstance
-        ) -> Iterator[TIDepStatus]:
-            """Recursively traverses the upstream dependency to check if any task is not terminal."""
-            if str(upstream_ti.task_id) not in all_finished_task_ids:
-                yield self._failing_status(
-                    reason=(
-                        f"Teardown task indirect upstream '{upstream_ti.task_id}' is not finished and therefore "
-                        "blocks the start of this teardown."
-                    )
-                )
-            else:
-                if upstream_ti.task:
-                    for upupstream_ti in DagRun.fetch_task_instances(
-                        dag_id=ti.dag_id,
-                        run_id=ti.run_id,
-                        task_ids=list(upstream_ti.task.upstream_task_ids),
-                        session=session,
-                    ):
-                        yield from _evaluate_any_upstream_running(all_finished_task_ids, upupstream_ti)
-
         if TYPE_CHECKING:
             assert ti.task
 
         if ti.task.is_teardown:
             # a teardown waits until all preceding tasks are terminal
+            print(f"Evaluate TEARDOWN {ti}")
+
+            def _evaluate_any_upstream_running(
+                all_finished_task_ids: list[str], upstream_ti: TaskInstance
+            ) -> Iterator[TIDepStatus]:
+                """Recursively traverses the upstream dependency to check if any task is not terminal."""
+                if str(upstream_ti.task_id) not in all_finished_task_ids:
+                    yield self._failing_status(
+                        reason=(
+                            f"Teardown task indirect upstream '{upstream_ti.task_id}' is not finished and therefore "
+                            "blocks the start of this teardown."
+                        )
+                    )
+                else:
+                    if upstream_ti.task:
+                        for upupstream_ti in DagRun.fetch_task_instances(
+                            dag_id=upstream_ti.dag_id,
+                            run_id=upstream_ti.run_id,
+                            task_ids=list(upstream_ti.task.upstream_task_ids),
+                            session=session,
+                        ):
+                            yield from _evaluate_any_upstream_running(all_finished_task_ids, upupstream_ti)
+
             all_finished_task_ids = [
                 str(ti.task_id) for ti in dep_context.ensure_finished_tis(ti.get_dagrun(session), session)
             ]
