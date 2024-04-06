@@ -228,6 +228,7 @@ Improvements
 
 Bug Fixes
 """""""""
+- Load providers configuration when gunicorn workers start (#38795)
 - Fix grid header rendering (#38720)
 - Add a task instance dependency for mapped dependencies (#37498)
 - Improve stability of remove_task_decorator function (#38649)
