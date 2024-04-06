@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import datetime
+import logging
 import sys
 from unittest.mock import ANY, Mock, patch
 
@@ -207,16 +208,17 @@ class TestJob:
         job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
         assert job.is_alive() is False, "Completed jobs even with recent heartbeat should not be alive"
 
-    def test_heartbeat_failed(self):
+    def test_heartbeat_failed(self, caplog):
         when = timezone.utcnow() - datetime.timedelta(seconds=60)
         mock_session = Mock(name="MockSession")
         mock_session.commit.side_effect = OperationalError("Force fail", {}, None)
         job = Job(heartrate=10, state=State.RUNNING)
         job.latest_heartbeat = when
-
-        job.heartbeat(heartbeat_callback=lambda: None, session=mock_session)
-
+        with caplog.at_level(logging.ERROR):
+            job.heartbeat(heartbeat_callback=lambda: None, session=mock_session)
+        assert "heartbeat failed with error" in caplog.text
         assert job.latest_heartbeat == when, "attribute not updated when heartbeat fails"
+        assert job.heartbeat_failed
 
     @conf_vars(
         {

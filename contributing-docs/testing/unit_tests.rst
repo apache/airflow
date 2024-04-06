@@ -66,7 +66,7 @@ For avoid this make sure:
 .. code-block:: python
 
     def test_deprecated_argument():
-        with pytest.warn(AirflowProviderDeprecationWarning, match="expected warning pattern"):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="expected warning pattern"):
             SomeDeprecatedClass(foo="bar", spam="egg")
 
 
@@ -1110,6 +1110,25 @@ This prepares airflow .whl package in the dist folder.
 
 Other Settings
 --------------
+
+Enable masking secrets in tests
+...............................
+
+By default masking secrets in test disabled because it might have side effects
+into the other tests which intends to check logging/stdout/stderr values
+
+If you need to test masking secrets in test cases
+you have to apply ``pytest.mark.enable_redact`` to the specific test case, class or module.
+
+
+.. code-block:: python
+
+    @pytest.mark.enable_redact
+    def test_masking(capsys):
+        mask_secret("eggs")
+        RedactedIO().write("spam eggs and potatoes")
+        assert "spam *** and potatoes" in capsys.readouterr().out
+
 
 Skip test on unsupported platform / environment
 ...............................................

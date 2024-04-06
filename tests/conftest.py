@@ -402,6 +402,7 @@ def pytest_configure(config: pytest.Config) -> None:
         "markers",
         "external_python_operator: external python operator tests are 'long', we should run them separately",
     )
+    config.addinivalue_line("markers", "enable_redact: do not mock redact secret masker")
 
     os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
     configure_warning_output(config)
@@ -1232,6 +1233,25 @@ def cleanup_providers_manager():
         yield
     finally:
         ProvidersManager()._cleanup()
+
+
+@pytest.fixture(autouse=True)
+def _disable_redact(request: pytest.FixtureRequest, mocker):
+    """Disable redacted text in tests, except specific."""
+    from airflow import settings
+
+    if next(request.node.iter_markers("enable_redact"), None):
+        with pytest.MonkeyPatch.context() as mp_ctx:
+            mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", True)
+            yield
+        return
+
+    mocked_redact = mocker.patch("airflow.utils.log.secrets_masker.SecretsMasker.redact")
+    mocked_redact.side_effect = lambda item, name=None, max_depth=None: item
+    with pytest.MonkeyPatch.context() as mp_ctx:
+        mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", False)
+        yield
+    return
 
 
 # The code below is a modified version of capture-warning code from
