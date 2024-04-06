@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
 import textwrap
@@ -40,6 +41,7 @@ MOCK_CONF = {
 
 MOCK_CONF_WITH_SENSITIVE_VALUE = {
     "core": {"parallelism": "1024", "sql_alchemy_conn": "mock_conn"},
+    "celery": {"broker_url": "mock_broker_url"},
     "smtp": {
         "smtp_host": "localhost",
         "smtp_mail_from": "airflow@example.com",
@@ -90,25 +92,21 @@ class TestGetConfig:
         )
         assert expected == response.data.decode()
 
-    @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
     @conf_vars({("webserver", "expose_config"): "non-sensitive-only"})
-    def test_should_respond_200_text_plain_with_non_sensitive_only(self, mock_as_dict):
+    def test_should_respond_200_text_plain_with_non_sensitive_only(self):
+        from airflow.configuration import conf
+        from airflow.providers_manager import ProvidersManager
+
+        # make sure we cleanup side-effects from initialize_providers_manager fixture
+        ProvidersManager()._cleanup()
+        conf.restore_core_default_configuration()
         response = self.client.get(
             "/api/v1/config", headers={"Accept": "text/plain"}, environ_overrides={"REMOTE_USER": "test"}
         )
-        mock_as_dict.assert_called_with(display_source=False, display_sensitive=False)
         assert response.status_code == 200
-        expected = textwrap.dedent(
-            """\
-        [core]
-        parallelism = 1024
-
-        [smtp]
-        smtp_host = localhost
-        smtp_mail_from = airflow@example.com
-        """
-        )
-        assert expected == response.data.decode()
+        response = response.data.decode()
+        assert "sql_alchemy_conn = < hidden >" in response
+        assert "broker_url = < hidden >" in response
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
     def test_should_respond_200_application_json(self, mock_as_dict):
@@ -257,9 +255,16 @@ class TestGetValue:
             ("core", "SQL_ALCHEMY_CONN"),
             ("corE", "sql_alchemy_conn"),
             ("CORE", "sql_alchemy_conn"),
+            ("celery", "broker_url"),
         ],
     )
     def test_should_respond_200_text_plain_with_non_sensitive_only(self, mock_as_dict, section, option):
+        from airflow.configuration import conf
+        from airflow.providers_manager import ProvidersManager
+
+        # make sure we cleanup side-effects from initialize_providers_manager fixture
+        ProvidersManager()._cleanup()
+        conf.restore_core_default_configuration()
         response = self.client.get(
             f"/api/v1/config/section/{section}/option/{option}",
             headers={"Accept": "text/plain"},

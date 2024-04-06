@@ -85,6 +85,9 @@ def get_config(*, section: str | None = None) -> Response:
     elif expose_config:
         if section and not conf.has_section(section):
             raise NotFound("section not found.", detail=f"section={section} not found.")
+        from airflow.providers_manager import ProvidersManager
+
+        ProvidersManager().initialize_providers_configuration()
         conf_dict = conf.as_dict(display_source=False, display_sensitive=display_sensitive)
         if section:
             conf_section_value = conf_dict[section]
@@ -117,6 +120,9 @@ def get_value(*, section: str, option: str) -> Response:
     if return_type not in serializer:
         return Response(status=HTTPStatus.NOT_ACCEPTABLE)
     elif expose_config:
+        from airflow.providers_manager import ProvidersManager
+
+        ProvidersManager().initialize_providers_configuration()
         if not conf.has_option(section, option):
             raise NotFound(
                 "Config not found.", detail=f"The option [{section}/{option}] is not found in config."

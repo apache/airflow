@@ -713,6 +713,14 @@ class AirflowConfigParser(ConfigParser):
         self.configuration_description = retrieve_configuration_description(include_providers=False)
         self._default_values = create_default_config_parser(self.configuration_description)
         self._providers_configuration_loaded = False
+        # sensitive_config_values needs to be refreshed here. This is a cached_property, so we can delete
+        # the cached values, and it will be refreshed on next access. This has been an implementation
+        # detail in Python 3.8 but as of Python 3.9 it is documented behaviour.
+        # See https://docs.python.org/3/library/functools.html#functools.cached_property
+        try:
+            del self.sensitive_config_values
+        except AttributeError:
+            pass
 
     def validate(self):
         self._validate_sqlite3_version()
