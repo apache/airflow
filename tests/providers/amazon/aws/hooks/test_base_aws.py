@@ -427,6 +427,7 @@ class TestAwsBaseHook:
         assert mock_class_name.call_count == len(found_classes)
         assert user_agent_tags["Caller"] == found_classes[-1]
 
+    @pytest.mark.db_test
     @mock.patch.object(AwsEcsExecutor, "_load_run_kwargs")
     def test_user_agent_caller_target_executor_found(self, mock_load_run_kwargs):
         with conf_vars(
@@ -449,6 +450,7 @@ class TestAwsBaseHook:
 
         assert user_agent_tags["Caller"] == default_caller_name
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize("env_var, expected_version", [({"AIRFLOW_CTX_DAG_ID": "banana"}, 5), [{}, None]])
     @mock.patch.object(AwsBaseHook, "_get_caller", return_value="Test")
     def test_user_agent_dag_run_key_is_hashed_correctly(self, _, env_var, expected_version):

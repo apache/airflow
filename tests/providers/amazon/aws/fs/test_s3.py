@@ -35,6 +35,13 @@ TEST_HEADER_VALUE = "payload"
 TEST_REQ_URI = "s3://bucket/key"
 
 
+@pytest.fixture(scope="module", autouse=True)
+def _setup_connections():
+    with pytest.MonkeyPatch.context() as mp_ctx:
+        mp_ctx.setenv(f"AIRFLOW_CONN_{TEST_CONN}".upper(), "aws://")
+        yield
+
+
 class TestFilesystem:
     def test_get_s3fs(self):
         import s3fs
