@@ -1439,11 +1439,13 @@ class AirflowConfigParser(ConfigParser):
             ("default", self._default_values),
             ("airflow.cfg", self),
         ]
+        # Force the providers configuration to be loaded
+        self.configuration_description = retrieve_configuration_description()
 
         self._replace_config_with_display_sources(
             config_sources,
             configs,
-            self.configuration_description if self.configuration_description else {},
+            self.configuration_description,
             display_source,
             raw,
             self.deprecated_options,
