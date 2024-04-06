@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-04-04T18:08:16.411724
+# This constraints file was automatically generated on 2024-04-06T20:59:54.100693
 # via "eager-upgrade" mechanism of PIP. For the "v2-9-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -126,7 +126,7 @@ apache-airflow-providers-discord==3.6.0
 apache-airflow-providers-docker==3.9.2
 apache-airflow-providers-elasticsearch==5.3.3
 apache-airflow-providers-exasol==4.4.3
-apache-airflow-providers-fab==1.0.2rc1
+apache-airflow-providers-fab==1.0.2
 apache-airflow-providers-facebook==3.4.0
 apache-airflow-providers-ftp==3.7.0
 apache-airflow-providers-github==2.5.1
@@ -191,7 +191,7 @@ asyncssh==2.14.2
 atlasclient==1.0.0
 atlassian-python-api==3.41.11
 attrs==23.2.0
-aws-sam-translator==1.86.0
+aws-sam-translator==1.87.0
 aws-xray-sdk==2.13.0
 azure-batch==14.2.0
 azure-common==1.1.28
@@ -235,7 +235,7 @@ celery==5.3.6
 certifi==2024.2.2
 cffi==1.16.0
 cfgv==3.4.0
-cfn-lint==0.86.1
+cfn-lint==0.86.2
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.3.2
@@ -280,7 +280,7 @@ email_validator==2.1.1
 eralchemy2==1.3.8
 et-xmlfile==1.1.0
 eventlet==0.36.1
-execnet==2.0.2
+execnet==2.1.0
 executing==2.0.1
 facebook_business==19.0.2
 fastavro==1.9.4
@@ -307,7 +307,7 @@ google-cloud-aiplatform==1.46.0
 google-cloud-appengine-logging==1.4.3
 google-cloud-audit-log==0.2.5
 google-cloud-automl==2.13.3
-google-cloud-batch==0.17.16
+google-cloud-batch==0.17.17
 google-cloud-bigquery-datatransfer==3.15.1
 google-cloud-bigquery==3.20.1
 google-cloud-bigtable==2.23.0
@@ -335,7 +335,7 @@ google-cloud-resource-manager==1.12.3
 google-cloud-run==0.10.5
 google-cloud-secret-manager==2.19.0
 google-cloud-spanner==3.44.0
-google-cloud-speech==2.25.1
+google-cloud-speech==2.26.0
 google-cloud-storage-transfer==1.11.3
 google-cloud-storage==2.16.0
 google-cloud-tasks==2.16.3
@@ -390,7 +390,7 @@ ipython==8.23.0
 isodate==0.6.1
 itsdangerous==2.1.2
 jaraco.classes==3.4.0
-jaraco.context==4.3.0
+jaraco.context==5.2.0
 jaraco.functools==4.0.0
 jedi==0.19.1
 jeepney==0.8.0
@@ -419,7 +419,7 @@ limits==3.10.1
 linkify-it-py==2.0.3
 lockfile==0.12.2
 loguru==0.7.2
-looker-sdk==24.2.1
+looker-sdk==24.4.0
 lxml==5.2.1
 lz4==4.3.3
 markdown-it-py==3.0.0
@@ -432,7 +432,7 @@ mdurl==0.1.2
 mmhash3==3.0.1
 mongomock==4.1.2
 more-itertools==10.2.0
-moto==5.0.4
+moto==5.0.5
 mpmath==1.3.0
 msal-extensions==1.1.0
 msal==1.28.0
@@ -449,7 +449,7 @@ mypy==1.9.0
 mysql-connector-python==8.3.0
 mysqlclient==2.2.4
 neo4j==5.19.0
-networkx==3.2.1
+networkx==3.3
 nh3==0.2.17
 nodeenv==1.8.0
 numpy==1.26.4
@@ -457,9 +457,9 @@ oauthlib==3.2.2
 openai==1.16.2
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
-openlineage-integration-common==1.10.2
-openlineage-python==1.10.2
-openlineage_sql==1.10.2
+openlineage-integration-common==1.11.3
+openlineage-python==1.11.3
+openlineage_sql==1.11.3
 openpyxl==3.1.2
 opensearch-py==2.5.0
 opentelemetry-api==1.24.0
@@ -480,7 +480,7 @@ pandas-gbq==0.22.0
 pandas-stubs==2.2.1.240316
 pandas==2.1.4
 paramiko==3.4.0
-parso==0.8.3
+parso==0.8.4
 pathable==0.4.3
 pathspec==0.12.1
 pbr==6.0.0
@@ -490,7 +490,7 @@ pexpect==4.9.0
 pgvector==0.2.5
 pinecone-client==2.2.4
 pinotdb==5.1.6
-pipdeptree==2.16.2
+pipdeptree==2.17.0
 pipx==1.5.0
 pkginfo==1.10.0
 platformdirs==3.11.0
@@ -511,7 +511,7 @@ psycopg2-binary==2.9.9
 ptyprocess==0.7.0
 pure-eval==0.2.2
 pure-sasl==0.6.2
-py-partiql-parser==0.5.2
+py-partiql-parser==0.5.4
 py4j==0.10.9.7
 pyOpenSSL==24.1.0
 pyarrow-hotfix==0.6
@@ -662,7 +662,7 @@ types-PyYAML==6.0.12.20240311
 types-aiofiles==23.2.0.20240403
 types-certifi==2021.10.8.3
 types-croniter==2.0.0.20240321
-types-docutils==0.20.0.20240331
+types-docutils==0.20.0.20240406
 types-paramiko==3.4.0.20240311
 types-protobuf==4.24.0.20240311
 types-pyOpenSSL==24.0.0.20240311
@@ -677,7 +677,7 @@ types-termcolor==1.1.6.2
 types-toml==0.10.8.20240310
 types-urllib3==1.26.25.14
 typing==3.7.4.3
-typing_extensions==4.10.0
+typing_extensions==4.11.0
 tzdata==2024.1
 tzlocal==5.2
 uc-micro-py==1.0.3
