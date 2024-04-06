@@ -65,6 +65,7 @@ jobs:
       python-versions: "[ '${{ inputs.default-python-version }}' ]"
       default-python-version: ${{ inputs.default-python-version }}
       branch: ${{ inputs.default-branch }}
+      use-uv: "true"
       image-tag: ${{ inputs.image-tag }}
       build-provider-packages: ${{ inputs.default-branch == 'main' }}
       upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
@@ -81,6 +82,7 @@ jobs:
       python-versions: "[ '${{ inputs.default-python-version }}' ]"
       default-python-version: ${{ inputs.default-python-version }}
       branch: ${{ inputs.default-branch }}
+      use-uv: "false"
       image-tag: ${{ inputs.image-tag }}
       build-provider-packages: ${{ inputs.default-branch == 'main' }}
       upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}

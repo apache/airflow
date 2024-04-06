@@ -121,6 +121,9 @@ ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "24.0"
 
+DEFAULT_UV_HTTP_TIMEOUT = 300
+DEFAULT_WSL2_HTTP_TIMEOUT = 900
+
 # packages that  providers docs
 REGULAR_DOC_PACKAGES = [
     "apache-airflow",
@@ -293,6 +296,7 @@ COMMITTERS = [
     "BasPH",
     "Fokko",
     "KevinYang21",
+    "Lee-W",
     "Taragolis",
     "XD-DENG",
     "aijamalnk",
@@ -360,7 +364,7 @@ def get_airflow_version():
                 airflow_version = line.split()[2][1:-1]
                 break
     if airflow_version == "unknown":
-        raise Exception("Unable to determine Airflow version")
+        raise RuntimeError("Unable to determine Airflow version")
     return airflow_version
 
 

@@ -140,7 +140,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "statsd>=3.3.0",
     ],
     "uv": [
-        "uv>=0.1.28",
+        "uv>=0.1.29",
     ],
     "virtualenv": [
         "virtualenv",
@@ -592,11 +592,12 @@ for provider_spec in PRE_INSTALLED_PROVIDERS:
     if PROVIDER_DEPENDENCIES[provider_id]["state"] not in ["ready", "suspended", "removed"]:
         for dependency in PROVIDER_DEPENDENCIES[provider_id]["deps"]:
             if dependency.startswith("apache-airflow-providers"):
-                raise Exception(
+                msg = (
                     f"The provider {provider_id} is pre-installed and it has as dependency "
                     f"to another provider {dependency}. This is not allowed. Pre-installed"
                     f"providers should only have 'apache-airflow' and regular dependencies."
                 )
+                raise SystemExit(msg)
             if not dependency.startswith("apache-airflow"):
                 PREINSTALLED_NOT_READY_DEPS.append(dependency)
 

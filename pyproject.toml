@@ -24,7 +24,7 @@
 requires = [
     "GitPython==3.1.43",
     "gitdb==4.0.11",
-    "hatchling==1.22.4",
+    "hatchling==1.22.5",
     "packaging==24.0",
     "pathspec==0.12.1",
     "pluggy==1.4.0",
@@ -288,6 +288,7 @@ extend-select = [
     "B004", # Checks for use of hasattr(x, "__call__") and replaces it with callable(x)
     "B006", # Checks for uses of mutable objects as function argument defaults.
     "B019", # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
+    "TRY002", # Prohibit use of `raise Exception`, use specific exceptions instead.
 ]
 ignore = [
     "D203",
@@ -339,14 +340,17 @@ combine-as-imports = true
 "*/example_dags/*" = ["D"]
 "chart/*" = ["D"]
 "dev/*" = ["D"]
-# In addition, ignore top level imports, e.g. pandas, numpy (TID253) and use of assert (S101) in tests
+# In addition, ignore in tests
+# TID253: Banned top level imports, e.g. pandas, numpy
+# S101: Use `assert`
+# TRY002: Use `raise Exception`
 "dev/perf/*" = ["TID253"]
 "dev/check_files.py" = ["S101"]
-"dev/breeze/tests/*" = ["TID253", "S101"]
-"tests/*" = ["D", "TID253", "S101"]
-"docker_tests/*" = ["D", "TID253", "S101"]
-"kubernetes_tests/*" = ["D", "TID253", "S101"]
-"helm_tests/*" = ["D", "TID253", "S101"]
+"dev/breeze/tests/*" = ["TID253", "S101", "TRY002"]
+"tests/*" = ["D", "TID253", "S101", "TRY002"]
+"docker_tests/*" = ["D", "TID253", "S101", "TRY002"]
+"kubernetes_tests/*" = ["D", "TID253", "S101", "TRY002"]
+"helm_tests/*" = ["D", "TID253", "S101", "TRY002"]
 
 # All of the modules which have an extra license header (i.e. that we copy from another project) need to
 # ignore E402 -- module level import not at top level
@@ -368,12 +372,43 @@ combine-as-imports = true
 "tests/providers/google/cloud/operators/test_vertex_ai.py" = ["E402"]
 "tests/providers/google/cloud/operators/vertex_ai/test_generative_model.py" = ["E402"]
 "tests/providers/google/cloud/triggers/test_vertex_ai.py" = ["E402"]
-
 "tests/providers/openai/hooks/test_openai.py" = ["E402"]
 "tests/providers/openai/operators/test_openai.py" = ["E402"]
 "tests/providers/qdrant/hooks/test_qdrant.py" = ["E402"]
 "tests/providers/qdrant/operators/test_qdrant.py" = ["E402"]
 "tests/providers/snowflake/operators/test_snowflake_sql.py" = ["E402"]
+
+# All the providers modules which do not follow TRY002 yet
+# airbyte
+"airflow/providers/airbyte/hooks/airbyte.py" = ["TRY002"]
+"airflow/providers/airbyte/operators/airbyte.py" = ["TRY002"]
+"airflow/providers/airbyte/sensors/airbyte.py" = ["TRY002"]
+# alibaba
+"airflow/providers/alibaba/cloud/hooks/oss.py" = ["TRY002"]
+# amazon
+"airflow/providers/amazon/aws/operators/athena.py" = ["TRY002"]
+"airflow/providers/amazon/aws/operators/emr.py" = ["TRY002"]
+# apache.cassandra
+"airflow/providers/apache/cassandra/hooks/cassandra.py" = ["TRY002"]
+# cncf.kubernetes
+"airflow/providers/cncf/kubernetes/operators/pod.py" = ["TRY002"]
+# common.sql
+"airflow/providers/common/sql/hooks/sql.py" = ["TRY002"]
+# fab
+"airflow/providers/fab/auth_manager/fab_auth_manager.py" = ["TRY002"]
+"airflow/providers/fab/auth_manager/security_manager/override.py" = ["TRY002"]
+# google
+"airflow/providers/google/cloud/hooks/bigquery.py" = ["TRY002"]
+"airflow/providers/google/cloud/hooks/dataflow.py" = ["TRY002"]
+"airflow/providers/google/cloud/hooks/dataproc.py" = ["TRY002"]
+"airflow/providers/google/cloud/operators/dataproc.py" = ["TRY002"]
+"airflow/providers/google/leveldb/hooks/leveldb.py" = ["TRY002"]
+# imap
+"airflow/providers/imap/hooks/imap.py" = ["TRY002"]
+# microsoft.azure
+"airflow/providers/microsoft/azure/operators/synapse.py" = ["TRY002"]
+# openlineage
+"airflow/providers/openlineage/utils/utils.py" = ["TRY002"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.

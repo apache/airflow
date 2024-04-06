@@ -105,7 +105,7 @@ def process_fd(
     :param log: logger.
     """
     if fd not in (proc.stdout, proc.stderr):
-        raise Exception("No data in stderr or in stdout.")
+        raise AirflowException("No data in stderr or in stdout.")
 
     fd_to_log = {proc.stderr: log.warning, proc.stdout: log.info}
     func_log = fd_to_log[fd]

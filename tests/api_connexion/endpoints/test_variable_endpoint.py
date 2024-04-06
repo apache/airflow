@@ -366,6 +366,7 @@ class TestPostVariables(TestVariableEndpoint):
             "description": description,
         }
 
+    @pytest.mark.enable_redact
     def test_should_create_masked_variable(self, session):
         payload = {"key": "api_key", "value": "secret_key", "description": "secret"}
         response = self.client.post(
