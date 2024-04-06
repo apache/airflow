@@ -95,7 +95,7 @@ class DockerOperator(BaseOperator):
     :param cpus: Number of CPUs to assign to the container.
         This value gets multiplied with 1024. See
         https://docs.docker.com/engine/reference/run/#cpu-share-constraint
-    :param docker_url: URL of the host running the docker daemon.
+    :param docker_url: URL or list of URLs of the host(s) running the docker daemon.
         Default is the value of the ``DOCKER_HOST`` environment variable or unix://var/run/docker.sock
         if it is unset.
     :param environment: Environment variables to set in the container. (templated)
@@ -201,7 +201,7 @@ class DockerOperator(BaseOperator):
         command: str | list[str] | None = None,
         container_name: str | None = None,
         cpus: float = 1.0,
-        docker_url: str | None = None,
+        docker_url: str | list[str] | None = None,
         environment: dict | None = None,
         private_environment: dict | None = None,
         env_file: str | None = None,

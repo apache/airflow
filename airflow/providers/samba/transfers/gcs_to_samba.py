@@ -93,6 +93,9 @@ class GCSToSambaOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param buffer_size: Optional specification of the size in bytes of the chunks sent to
+        Samba. Larger buffer lengths may decrease the time to upload large files. The default
+        length is determined by shutil, which is 64 KB.
     """
 
     template_fields: Sequence[str] = (
@@ -114,6 +117,7 @@ class GCSToSambaOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         samba_conn_id: str = "samba_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        buffer_size: int | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -127,6 +131,7 @@ class GCSToSambaOperator(BaseOperator):
         self.samba_conn_id = samba_conn_id
         self.impersonation_chain = impersonation_chain
         self.sftp_dirs = None
+        self.buffer_size = buffer_size
 
     def execute(self, context: Context):
         gcs_hook = GCSHook(
@@ -154,12 +159,16 @@ class GCSToSambaOperator(BaseOperator):
 
             for source_object in objects:
                 destination_path = self._resolve_destination_path(source_object, prefix=prefix_dirname)
-                self._copy_single_object(gcs_hook, samba_hook, source_object, destination_path)
+                self._copy_single_object(
+                    gcs_hook, samba_hook, source_object, destination_path, self.buffer_size
+                )
 
             self.log.info("Done. Uploaded '%d' files to %s", len(objects), self.destination_path)
         else:
             destination_path = self._resolve_destination_path(self.source_object)
-            self._copy_single_object(gcs_hook, samba_hook, self.source_object, destination_path)
+            self._copy_single_object(
+                gcs_hook, samba_hook, self.source_object, destination_path, self.buffer_size
+            )
             self.log.info("Done. Uploaded '%s' file to %s", self.source_object, destination_path)
 
     def _resolve_destination_path(self, source_object: str, prefix: str | None = None) -> str:
@@ -176,6 +185,7 @@ class GCSToSambaOperator(BaseOperator):
         samba_hook: SambaHook,
         source_object: str,
         destination_path: str,
+        buffer_size: int | None = None,
     ) -> None:
         """Copy single object."""
         self.log.info(
@@ -194,7 +204,7 @@ class GCSToSambaOperator(BaseOperator):
                 object_name=source_object,
                 filename=tmp.name,
             )
-            samba_hook.push_from_local(destination_path, tmp.name)
+            samba_hook.push_from_local(destination_path, tmp.name, buffer_size=buffer_size)
 
         if self.move_object:
             self.log.info("Executing delete of gs://%s/%s", self.source_bucket, source_object)

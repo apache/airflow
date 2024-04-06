@@ -30,7 +30,7 @@ from jsonschema.exceptions import ValidationError
 from jsonschema.validators import extend, validator_for
 
 if __name__ != "__main__":
-    raise Exception(
+    raise SystemExit(
         "This file is intended to be executed as an executable program. You cannot use it as a module."
         "To run this script, run the ./build_docs.py command"
     )
@@ -150,7 +150,7 @@ def _load_spec(spec_file: str | None, spec_url: str | None):
     if spec_url:
         spec_file = fetch_and_cache(url=spec_url, output_filename=re.sub(r"[^a-zA-Z0-9]", "-", spec_url))
     if not spec_file:
-        raise Exception(f"The {spec_file} was None and {spec_url} did not lead to any file loading.")
+        raise ValueError(f"The {spec_file} was None and {spec_url} did not lead to any file loading.")
     with open(spec_file) as schema_file:
         schema = json.loads(schema_file.read())
     return schema
