@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-04-05T17:16:06.799782
+# This constraints file was automatically generated on 2024-04-05T23:40:29.992242
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -180,7 +180,7 @@ eralchemy2==1.3.8
 et-xmlfile==1.1.0
 eventlet==0.36.1
 exceptiongroup==1.2.0
-execnet==2.0.2
+execnet==2.1.0
 executing==2.0.1
 facebook_business==19.0.2
 fastavro==1.9.4
@@ -324,7 +324,7 @@ limits==3.10.1
 linkify-it-py==2.0.3
 lockfile==0.12.2
 loguru==0.7.2
-looker-sdk==24.2.1
+looker-sdk==24.4.0
 lxml==5.2.1
 lz4==4.3.3
 markdown-it-py==3.0.0
@@ -405,7 +405,7 @@ pinotdb==5.1.6
 pipdeptree==2.17.0
 pipx==1.5.0
 pkginfo==1.10.0
-platformdirs==4.2.0
+platformdirs==3.11.0
 pluggy==1.4.0
 ply==3.11
 plyvel==1.5.1
@@ -518,7 +518,7 @@ smbprotocol==1.13.0
 smmap==5.0.1
 sniffio==1.3.1
 snowballstemmer==2.2.0
-snowflake-connector-python==3.8.0
+snowflake-connector-python==3.7.1
 snowflake-sqlalchemy==1.5.1
 sortedcontainers==2.4.0
 soupsieve==2.5
