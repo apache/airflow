@@ -337,6 +337,29 @@
 
 
 # WWW
+- tests/www/api/experimental/test_dag_runs_endpoint.py::TestDagRunsEndpoint::test_get_dag_runs_invalid_dag_id
+- tests/www/api/experimental/test_dag_runs_endpoint.py::TestDagRunsEndpoint::test_get_dag_runs_no_runs
+- tests/www/api/experimental/test_dag_runs_endpoint.py::TestDagRunsEndpoint::test_get_dag_runs_success
+- tests/www/api/experimental/test_dag_runs_endpoint.py::TestDagRunsEndpoint::test_get_dag_runs_success_with_capital_state_parameter
+- tests/www/api/experimental/test_dag_runs_endpoint.py::TestDagRunsEndpoint::test_get_dag_runs_success_with_state_no_result
+- tests/www/api/experimental/test_dag_runs_endpoint.py::TestDagRunsEndpoint::test_get_dag_runs_success_with_state_parameter
+- tests/www/api/experimental/test_endpoints.py::TestApiExperimental::test_dag_paused
+- tests/www/api/experimental/test_endpoints.py::TestApiExperimental::test_dagrun_status
+- tests/www/api/experimental/test_endpoints.py::TestApiExperimental::test_get_dag_code
+- tests/www/api/experimental/test_endpoints.py::TestApiExperimental::test_info
+- tests/www/api/experimental/test_endpoints.py::TestApiExperimental::test_task_info
+- tests/www/api/experimental/test_endpoints.py::TestApiExperimental::test_task_instance_info
+- tests/www/api/experimental/test_endpoints.py::TestApiExperimental::test_trigger_dag
+- tests/www/api/experimental/test_endpoints.py::TestApiExperimental::test_trigger_dag_for_date
+- tests/www/api/experimental/test_endpoints.py::TestLineageApiExperimental::test_lineage_info
+- tests/www/api/experimental/test_endpoints.py::TestPoolApiExperimental::test_create_pool
+- tests/www/api/experimental/test_endpoints.py::TestPoolApiExperimental::test_create_pool_with_bad_name
+- tests/www/api/experimental/test_endpoints.py::TestPoolApiExperimental::test_delete_default_pool
+- tests/www/api/experimental/test_endpoints.py::TestPoolApiExperimental::test_delete_pool
+- tests/www/api/experimental/test_endpoints.py::TestPoolApiExperimental::test_delete_pool_non_existing
+- tests/www/api/experimental/test_endpoints.py::TestPoolApiExperimental::test_get_pool
+- tests/www/api/experimental/test_endpoints.py::TestPoolApiExperimental::test_get_pool_non_existing
+- tests/www/api/experimental/test_endpoints.py::TestPoolApiExperimental::test_get_pools
 - tests/www/test_utils.py::test_dag_run_custom_sqla_interface_delete_no_collateral_damage
 - tests/www/views/test_views_acl.py::test_success
 - tests/www/views/test_views_cluster_activity.py::test_historical_metrics_data
@@ -675,6 +698,12 @@
 - tests/providers/databricks/sensors/test_databricks_sql.py::TestDatabricksSqlSensor::test_unsupported_conn_type
 - tests/providers/docker/operators/test_docker.py::test_hook_usage
 - tests/providers/elasticsearch/log/test_es_task_handler.py::test_retrieve_retry_on_timeout
+- tests/providers/google/common/auth_backend/test_google_openid.py::TestGoogleOpenID::test_invalid_id_token
+- tests/providers/google/common/auth_backend/test_google_openid.py::TestGoogleOpenID::test_invalid_iss_in_jwt_token
+- tests/providers/google/common/auth_backend/test_google_openid.py::TestGoogleOpenID::test_malformed_headers
+- tests/providers/google/common/auth_backend/test_google_openid.py::TestGoogleOpenID::test_missing_id_token
+- tests/providers/google/common/auth_backend/test_google_openid.py::TestGoogleOpenID::test_success
+- tests/providers/google/common/auth_backend/test_google_openid.py::TestGoogleOpenID::test_user_not_exists
 - tests/providers/google/cloud/hooks/test_automl.py::TestAutoMLHook::test_batch_predict
 - tests/providers/google/cloud/hooks/test_automl.py::TestAutoMLHook::test_create_dataset
 - tests/providers/google/cloud/hooks/test_automl.py::TestAutoMLHook::test_create_model

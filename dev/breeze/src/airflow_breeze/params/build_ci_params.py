@@ -67,7 +67,10 @@ class BuildCiParams(CommonBuildParams):
         self._req_arg("AIRFLOW_IMAGE_REPOSITORY", self.airflow_image_repository)
         self._req_arg("AIRFLOW_PRE_CACHED_PIP_PACKAGES", self.airflow_pre_cached_pip_packages)
         self._req_arg("AIRFLOW_USE_UV", self.use_uv)
-        self._opt_arg("UV_REQUEST_TIMEOUT", self.uv_request_timeout)
+        if self.use_uv:
+            from airflow_breeze.utils.uv_utils import get_uv_timeout
+
+            self._opt_arg("UV_HTTP_TIMEOUT", get_uv_timeout(self))
         self._req_arg("AIRFLOW_VERSION", self.airflow_version)
         self._req_arg("BUILD_ID", self.build_id)
         self._req_arg("CONSTRAINTS_GITHUB_REPOSITORY", self.constraints_github_repository)

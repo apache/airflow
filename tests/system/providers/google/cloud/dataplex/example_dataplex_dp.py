@@ -56,10 +56,10 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
 DAG_ID = "example_dataplex_data_profile"
 
-LAKE_ID = f"test-lake-{ENV_ID}"
+LAKE_ID = f"lake-{DAG_ID}-{ENV_ID}".replace("_", "-")
 REGION = "us-central1"
 
-DATASET_NAME = f"dataset_bq_{ENV_ID}"
+DATASET = f"dataset_bq_{DAG_ID}_{ENV_ID}"
 
 TABLE_1 = "table0"
 TABLE_2 = "table1"
@@ -70,15 +70,14 @@ SCHEMA = [
     {"name": "dt", "type": "STRING", "mode": "NULLABLE"},
 ]
 
-DATASET = DATASET_NAME
 INSERT_DATE = datetime.now().strftime("%Y-%m-%d")
 INSERT_ROWS_QUERY = f"INSERT {DATASET}.{TABLE_1} VALUES (1, 'test test2', '{INSERT_DATE}');"
 LOCATION = "us"
 
 TRIGGER_SPEC_TYPE = "ON_DEMAND"
 
-ZONE_ID = "test-zone-id"
-DATA_SCAN_ID = "test-data-scan-id"
+ZONE_ID = f"zone-id-{DAG_ID}-{ENV_ID}".replace("_", "-")
+DATA_SCAN_ID = f"data-scan-id-{DAG_ID}-{ENV_ID}".replace("_", "-")
 
 EXAMPLE_LAKE_BODY = {
     "display_name": "test_display_name",
@@ -94,11 +93,11 @@ EXAMPLE_ZONE = {
 }
 # [END howto_dataplex_zone_configuration]
 
-ASSET_ID = "test-asset-id"
+ASSET_ID = f"asset-id-{DAG_ID}-{ENV_ID}".replace("_", "-")
 
 # [START howto_dataplex_asset_configuration]
 EXAMPLE_ASSET = {
-    "resource_spec": {"name": f"projects/{PROJECT_ID}/datasets/{DATASET_NAME}", "type_": "BIGQUERY_DATASET"},
+    "resource_spec": {"name": f"projects/{PROJECT_ID}/datasets/{DATASET}", "type_": "BIGQUERY_DATASET"},
     "discovery_spec": {"enabled": True},
 }
 # [END howto_dataplex_asset_configuration]
@@ -130,17 +129,17 @@ with DAG(
     schedule="@once",
     tags=["example", "dataplex", "data_profile"],
 ) as dag:
-    create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create_dataset", dataset_id=DATASET_NAME)
+    create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create_dataset", dataset_id=DATASET)
     create_table_1 = BigQueryCreateEmptyTableOperator(
         task_id="create_table_1",
-        dataset_id=DATASET_NAME,
+        dataset_id=DATASET,
         table_id=TABLE_1,
         schema_fields=SCHEMA,
         location=LOCATION,
     )
     create_table_2 = BigQueryCreateEmptyTableOperator(
         task_id="create_table_2",
-        dataset_id=DATASET_NAME,
+        dataset_id=DATASET,
         table_id=TABLE_2,
         schema_fields=SCHEMA,
         location=LOCATION,
@@ -265,9 +264,9 @@ with DAG(
         lake_id=LAKE_ID,
         zone_id=ZONE_ID,
         asset_id=ASSET_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_dataplex_delete_asset_operator]
-    delete_asset.trigger_rule = TriggerRule.ALL_DONE
     # [START howto_dataplex_delete_zone_operator]
     delete_zone = DataplexDeleteZoneOperator(
         task_id="delete_zone",
@@ -275,18 +274,18 @@ with DAG(
         region=REGION,
         lake_id=LAKE_ID,
         zone_id=ZONE_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_dataplex_delete_zone_operator]
-    delete_zone.trigger_rule = TriggerRule.ALL_DONE
     # [START howto_dataplex_delete_data_profile_operator]
     delete_data_scan = DataplexDeleteDataProfileScanOperator(
         task_id="delete_data_scan",
         project_id=PROJECT_ID,
         region=REGION,
         data_scan_id=DATA_SCAN_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_dataplex_delete_data_profile_operator]
-    delete_data_scan.trigger_rule = TriggerRule.ALL_DONE
     delete_lake = DataplexDeleteLakeOperator(
         project_id=PROJECT_ID,
         region=REGION,
@@ -296,7 +295,7 @@ with DAG(
     )
     delete_dataset = BigQueryDeleteDatasetOperator(
         task_id="delete_dataset",
-        dataset_id=DATASET_NAME,
+        dataset_id=DATASET,
         project_id=PROJECT_ID,
         delete_contents=True,
         trigger_rule=TriggerRule.ALL_DONE,
@@ -321,7 +320,6 @@ with DAG(
         get_data_scan_job_result_2,
         run_data_scan_def,
         run_data_scan_async_2,
-        #         get_data_scan_job_result_def,
         # TEST TEARDOWN
         delete_asset,
         delete_zone,
