@@ -381,8 +381,6 @@ combine-as-imports = true
 # All the providers modules which do not follow TRY002 yet
 # cncf.kubernetes
 "airflow/providers/cncf/kubernetes/operators/pod.py" = ["TRY002"]
-# imap
-"airflow/providers/imap/hooks/imap.py" = ["TRY002"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.
