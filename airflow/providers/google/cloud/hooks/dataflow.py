@@ -252,7 +252,7 @@ class _DataflowJobsController(LoggingMixin):
                 self._job_id = jobs[0]["id"]
             return jobs
         else:
-            raise Exception("Missing both dataflow job ID and name.")
+            raise ValueError("Missing both dataflow job ID and name.")
 
     def fetch_job_by_id(self, job_id: str) -> dict:
         """
@@ -410,18 +410,18 @@ class _DataflowJobsController(LoggingMixin):
         else:
             terminal_states = DataflowJobStatus.TERMINAL_STATES | {DataflowJobStatus.JOB_STATE_RUNNING}
             if self._expected_terminal_state not in terminal_states:
-                raise Exception(
+                raise AirflowException(
                     f"Google Cloud Dataflow job's expected terminal state "
                     f"'{self._expected_terminal_state}' is invalid."
                     f" The value should be any of the following: {terminal_states}"
                 )
             elif is_streaming and self._expected_terminal_state == DataflowJobStatus.JOB_STATE_DONE:
-                raise Exception(
+                raise AirflowException(
                     "Google Cloud Dataflow job's expected terminal state cannot be "
                     "JOB_STATE_DONE while it is a streaming job"
                 )
             elif not is_streaming and self._expected_terminal_state == DataflowJobStatus.JOB_STATE_DRAINED:
-                raise Exception(
+                raise AirflowException(
                     "Google Cloud Dataflow job's expected terminal state cannot be "
                     "JOB_STATE_DRAINED while it is a batch job"
                 )
@@ -435,7 +435,7 @@ class _DataflowJobsController(LoggingMixin):
             return self._wait_until_finished is False
 
         self.log.debug("Current job: %s", job)
-        raise Exception(
+        raise AirflowException(
             f"Google Cloud Dataflow job {job['name']} is in an unexpected terminal state: {current_state}, "
             f"expected terminal state: {self._expected_terminal_state}"
         )
