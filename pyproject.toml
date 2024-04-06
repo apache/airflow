@@ -383,8 +383,6 @@ combine-as-imports = true
 "airflow/providers/airbyte/hooks/airbyte.py" = ["TRY002"]
 "airflow/providers/airbyte/operators/airbyte.py" = ["TRY002"]
 "airflow/providers/airbyte/sensors/airbyte.py" = ["TRY002"]
-# alibaba
-"airflow/providers/alibaba/cloud/hooks/oss.py" = ["TRY002"]
 # amazon
 "airflow/providers/amazon/aws/operators/athena.py" = ["TRY002"]
 "airflow/providers/amazon/aws/operators/emr.py" = ["TRY002"]
