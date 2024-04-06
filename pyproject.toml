@@ -384,8 +384,6 @@ combine-as-imports = true
 "airflow/providers/amazon/aws/operators/emr.py" = ["TRY002"]
 # cncf.kubernetes
 "airflow/providers/cncf/kubernetes/operators/pod.py" = ["TRY002"]
-# common.sql
-"airflow/providers/common/sql/hooks/sql.py" = ["TRY002"]
 # google
 "airflow/providers/google/cloud/hooks/bigquery.py" = ["TRY002"]
 "airflow/providers/google/cloud/hooks/dataflow.py" = ["TRY002"]
