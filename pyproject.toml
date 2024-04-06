@@ -388,8 +388,6 @@ combine-as-imports = true
 # amazon
 "airflow/providers/amazon/aws/operators/athena.py" = ["TRY002"]
 "airflow/providers/amazon/aws/operators/emr.py" = ["TRY002"]
-# apache.beam
-"airflow/providers/apache/beam/hooks/beam.py" = ["TRY002"]
 # apache.cassandra
 "airflow/providers/apache/cassandra/hooks/cassandra.py" = ["TRY002"]
 # cncf.kubernetes
