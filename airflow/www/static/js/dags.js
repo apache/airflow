@@ -169,7 +169,7 @@ $(".typeahead").typeahead({
       return displayText;
     }
 
-    let name = item;
+    let { name } = item;
     query = query.replace(/[()/.*+?[\]]/g, (mat) => `\\${mat}`);
     const reg = new RegExp(query, "gi");
     name = name.replace(name, name.replace(reg, "<strong>$&</strong>"));
