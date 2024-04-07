@@ -71,7 +71,7 @@ dynamic = ["version", "optional-dependencies", "dependencies"]
 # !!! SEE COMMENTS BELOW TO FIND WHERE DEPENDENCIES ARE MAINTAINED                     !!!!!!!!!
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #
-# !!!!!! Those provuders are defined in `hatch_build.py` and should be maintained there  !!!!!!!
+# !!!!!! Those providers are defined in `hatch_build.py` and should be maintained there  !!!!!!!
 #
 # Those extras are available as regular core airflow extras - they install optional features of Airflow.
 #
