@@ -104,12 +104,14 @@ def get_log(
     # return_type would be either the above two or None
     logs: Any
     if return_type == "application/json" or return_type is None:  # default
-        logs, metadata = task_log_reader.read_log_chunks(ti, task_try_number, metadata)
+        logs, metadata = task_log_reader.read_log_chunks(
+            ti, task_try_number, metadata, page_number=page_number
+        )
         logs = logs[0] if task_try_number is not None else logs
         # we must have token here, so we can safely ignore it
         token = URLSafeSerializer(key).dumps(metadata)  # type: ignore[assignment]
         return logs_schema.dump(LogResponseObject(continuation_token=token, content=logs))
     # text/plain. Stream
-    logs = task_log_reader.read_log_stream(ti, task_try_number, metadata, page_number=page_number)
+    logs = task_log_reader.read_log_stream(ti, task_try_number, metadata)
 
     return Response(logs, headers={"Content-Type": return_type})
