@@ -379,10 +379,6 @@ combine-as-imports = true
 "tests/providers/snowflake/operators/test_snowflake_sql.py" = ["E402"]
 
 # All the providers modules which do not follow TRY002 yet
-# airbyte
-"airflow/providers/airbyte/hooks/airbyte.py" = ["TRY002"]
-"airflow/providers/airbyte/operators/airbyte.py" = ["TRY002"]
-"airflow/providers/airbyte/sensors/airbyte.py" = ["TRY002"]
 # amazon
 "airflow/providers/amazon/aws/operators/athena.py" = ["TRY002"]
 "airflow/providers/amazon/aws/operators/emr.py" = ["TRY002"]
