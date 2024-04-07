@@ -144,7 +144,7 @@ class InfoJsonEncodable(dict):
 
     def _include_fields(self):
         if self.includes and self.excludes:
-            raise Exception("Don't use both includes and excludes.")
+            raise ValueError("Don't use both includes and excludes.")
         if self.includes:
             for field in self.includes:
                 if field not in self._fields and hasattr(self.obj, field):
