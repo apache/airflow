@@ -759,6 +759,14 @@ repos:
         files: ^\.pre-commit-config\.yaml$|^docs/spelling_wordlist\.txt$
         require_serial: true
         pass_filenames: false
+      - id: update-openapi-spec-tags-to-be-sorted
+        name: Sort alphabetically openapi spec tags
+        entry: ./scripts/ci/pre_commit/sort_tags_in_openapi_spec.py
+        types: [yaml]
+        language: python
+        files: ^\.pre-commit-config\.yaml$|^airflow/api_connexion/openapi/v1\.yaml$
+        require_serial: true
+        pass_filenames: false
       - id: lint-helm-chart
         name: Lint Helm Chart
         entry: ./scripts/ci/pre_commit/helm_lint.py
