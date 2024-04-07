@@ -260,8 +260,7 @@ def init_api_connexion(connexion_app: connexion.FlaskApp) -> None:
         base_path=base_path,
         swagger_ui_options=swagger_ui_options,
         strict_validation=True,
-        # removed this to pass test cases. We didn't have a validator for responses before?
-        # validate_responses=True,
+        validate_responses=True,
     )
 
 
