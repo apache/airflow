@@ -50,6 +50,7 @@ def get_log(
     task_try_number: int,
     full_content: bool = False,
     map_index: int = -1,
+    page_number: int | None = None,
     token: str | None = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
@@ -109,6 +110,6 @@ def get_log(
         token = URLSafeSerializer(key).dumps(metadata)  # type: ignore[assignment]
         return logs_schema.dump(LogResponseObject(continuation_token=token, content=logs))
     # text/plain. Stream
-    logs = task_log_reader.read_log_stream(ti, task_try_number, metadata)
+    logs = task_log_reader.read_log_stream(ti, task_try_number, metadata, page_number=page_number)
 
     return Response(logs, headers={"Content-Type": return_type})

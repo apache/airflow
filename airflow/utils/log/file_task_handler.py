@@ -438,7 +438,7 @@ class FileTaskHandler(logging.Handler):
             log_relative_path,
         )
 
-    def read(self, task_instance, try_number=None, metadata=None):
+    def read(self, task_instance, try_number=None, metadata=None, page_number: int | None = None):
         """
         Read logs of given task instance from local machine.
 
@@ -468,7 +468,12 @@ class FileTaskHandler(logging.Handler):
 
         # subclasses implement _read and may not have log_type, which was added recently
         for i, try_number_element in enumerate(try_numbers):
-            log, out_metadata = self._read(task_instance, try_number_element, metadata)
+            if page_number is not None:
+                log, out_metadata = self._read(
+                    task_instance, try_number_element, metadata, page_number=page_number
+                )
+            else:
+                log, out_metadata = self._read(task_instance, try_number_element, metadata)
             # es_task_handler return logs grouped by host. wrap other handler returning log string
             # with default/ empty host so that UI can render the response in the same way
             logs[i] = log if self._read_grouped_logs() else [(task_instance.hostname, log)]

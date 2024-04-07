@@ -908,6 +908,21 @@ class S3Hook(AwsBaseHook):
 
     @unify_bucket_name_and_key
     @provide_bucket_name
+    def get_content_length(self, key: str, bucket_name: str | None = None) -> dict | None:
+        """
+        Retrieve size of an object in bytes.
+
+        .. seealso::
+            - :external+boto3:py:meth:`S3.Client.head_object`
+
+        :param key: S3 key that will point to the file
+        :param bucket_name: Name of the bucket in which the file is stored
+        :return: Size of an object in bytes
+        """
+        return self.head_object(key, bucket_name)["ContentLength"]
+
+    @unify_bucket_name_and_key
+    @provide_bucket_name
     def check_for_key(self, key: str, bucket_name: str | None = None) -> bool:
         """
         Check if a key exists in a bucket.
@@ -950,7 +965,7 @@ class S3Hook(AwsBaseHook):
 
     @unify_bucket_name_and_key
     @provide_bucket_name
-    def read_key(self, key: str, bucket_name: str | None = None) -> str:
+    def read_key(self, key: str, bucket_name: str | None = None, range: str | None = None) -> str:
         """
         Read a key from S3.
 
@@ -959,10 +974,15 @@ class S3Hook(AwsBaseHook):
 
         :param key: S3 key that will point to the file
         :param bucket_name: Name of the bucket in which the file is stored
+        :param range: Byte range of object to fetch
         :return: the content of the key
         """
         obj = self.get_key(key, bucket_name)
-        return obj.get()["Body"].read().decode("utf-8")
+        if range is None:
+            body = obj.get()["Body"].read().decode("utf-8")
+        else:
+            body = obj.get(Range=range)["Body"].read().decode("utf-8")
+        return body
 
     @unify_bucket_name_and_key
     @provide_bucket_name

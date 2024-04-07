@@ -40,7 +40,7 @@ class TaskLogReader:
     """Time to sleep between loops while waiting for more logs"""
 
     def read_log_chunks(
-        self, ti: TaskInstance, try_number: int | None, metadata
+        self, ti: TaskInstance, try_number: int | None, metadata, page_number: int | None = None
     ) -> tuple[list[tuple[tuple[str, str]]], dict[str, str]]:
         """
         Read chunks of Task Instance logs.
@@ -61,7 +61,10 @@ class TaskLogReader:
         contain information about the task log which can enable you read logs to the
         end.
         """
-        logs, metadatas = self.log_handler.read(ti, try_number, metadata=metadata)
+        if page_number is not None:
+            logs, metadata = self.log_handler.read(ti, try_number, metadata=metadata, page_number=page_number)
+        else:
+            logs, metadatas = self.log_handler.read(ti, try_number, metadata=metadata)
         metadata = metadatas[0]
         return logs, metadata
 
