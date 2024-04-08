@@ -379,9 +379,6 @@ combine-as-imports = true
 "tests/providers/snowflake/operators/test_snowflake_sql.py" = ["E402"]
 
 # All the providers modules which do not follow TRY002 yet
-# amazon
-"airflow/providers/amazon/aws/operators/athena.py" = ["TRY002"]
-"airflow/providers/amazon/aws/operators/emr.py" = ["TRY002"]
 # cncf.kubernetes
 "airflow/providers/cncf/kubernetes/operators/pod.py" = ["TRY002"]
 # common.sql
@@ -394,8 +391,6 @@ combine-as-imports = true
 "airflow/providers/google/leveldb/hooks/leveldb.py" = ["TRY002"]
 # imap
 "airflow/providers/imap/hooks/imap.py" = ["TRY002"]
-# microsoft.azure
-"airflow/providers/microsoft/azure/operators/synapse.py" = ["TRY002"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.
