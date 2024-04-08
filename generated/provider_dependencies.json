@@ -529,6 +529,7 @@
       "google-cloud-automl>=2.12.0",
       "google-cloud-batch>=0.13.0",
       "google-cloud-bigquery-datatransfer>=3.13.0",
+      "google-cloud-bigquery>=3.0.1",
       "google-cloud-bigtable>=2.17.0",
       "google-cloud-build>=3.22.0",
       "google-cloud-compute>=1.10.0",

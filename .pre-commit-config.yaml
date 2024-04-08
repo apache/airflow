@@ -437,21 +437,21 @@ repos:
         files: ^docs/apache-airflow/extra-packages-ref\.rst$|^hatch_build.py
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/check_extra_packages_ref.py
-        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.22.4', 'tabulate']
+        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.22.5', 'tabulate']
       - id: check-hatch-build-order
         name: Check order of dependencies in hatch_build.py
         language: python
         files: ^hatch_build.py$
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/check_order_hatch_build.py
-        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.22.4']
+        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.22.5']
       - id: update-extras
         name: Update extras in documentation
         entry: ./scripts/ci/pre_commit/insert_extras.py
         language: python
         files: ^contributing-docs/12_airflow_dependencies_and_extras.rst$|^INSTALL$|^airflow/providers/.*/provider\.yaml$|^Dockerfile.*
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.22.4']
+        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.22.5']
       - id: check-extras-order
         name: Check order of extras in Dockerfile
         entry: ./scripts/ci/pre_commit/check_order_dockerfile_extras.py
@@ -757,6 +757,14 @@ repos:
         entry: ./scripts/ci/pre_commit/sort_spelling_wordlist.py
         language: python
         files: ^\.pre-commit-config\.yaml$|^docs/spelling_wordlist\.txt$
+        require_serial: true
+        pass_filenames: false
+      - id: update-openapi-spec-tags-to-be-sorted
+        name: Sort alphabetically openapi spec tags
+        entry: ./scripts/ci/pre_commit/sort_tags_in_openapi_spec.py
+        types: [yaml]
+        language: python
+        files: ^\.pre-commit-config\.yaml$|^airflow/api_connexion/openapi/v1\.yaml$
         require_serial: true
         pass_filenames: false
       - id: lint-helm-chart

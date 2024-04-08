@@ -81,6 +81,8 @@ def beam_options_to_args(options: dict) -> list[str]:
     for attr, value in options.items():
         if value is None or (isinstance(value, bool) and value):
             args.append(f"--{attr}")
+        elif isinstance(value, bool) and not value:
+            continue
         elif isinstance(value, list):
             args.extend([f"--{attr}={v}" for v in value])
         else:
@@ -105,7 +107,7 @@ def process_fd(
     :param log: logger.
     """
     if fd not in (proc.stdout, proc.stderr):
-        raise Exception("No data in stderr or in stdout.")
+        raise AirflowException("No data in stderr or in stdout.")
 
     fd_to_log = {proc.stderr: log.warning, proc.stdout: log.info}
     func_log = fd_to_log[fd]

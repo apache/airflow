@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import datetime
+import warnings
 from functools import reduce
 from typing import TYPE_CHECKING, Mapping
 from unittest import mock
@@ -29,10 +30,9 @@ import pytest
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.decorators import setup, task, task_group, teardown
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG, DagModel
-from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun, DagRunNote
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_task_instances
 from airflow.models.taskmap import TaskMap
@@ -60,11 +60,28 @@ TI = TaskInstance
 DEFAULT_DATE = pendulum.instance(_DEFAULT_DATE)
 
 
+@pytest.fixture(scope="module")
+def dagbag():
+    from airflow.models.dagbag import DagBag
+
+    with warnings.catch_warnings():
+        # Some dags use deprecated operators, e.g SubDagOperator
+        # if it is not imported, then it might have side effects for the other tests
+        warnings.simplefilter("ignore", category=RemovedInAirflow3Warning)
+        # Ensure the DAGs we are looking at from the DB are up-to-date
+        dag_bag = DagBag(include_examples=True)
+    return dag_bag
+
+
 class TestDagRun:
-    dagbag = DagBag(include_examples=True)
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self):
+        self._clean_db()
+        yield
+        self._clean_db()
 
     @staticmethod
-    def clean_db():
+    def _clean_db():
         db.clear_db_runs()
         db.clear_db_pools()
         db.clear_db_dags()
@@ -72,12 +89,6 @@ class TestDagRun:
         db.clear_db_datasets()
         db.clear_db_xcom()
         db.clear_db_task_fail()
-
-    def setup_class(self) -> None:
-        self.clean_db()
-
-    def teardown_method(self) -> None:
-        self.clean_db()
 
     def create_dag_run(
         self,
@@ -741,10 +752,10 @@ class TestDagRun:
             (None, False),
         ],
     )
-    def test_depends_on_past(self, session, prev_ti_state, is_ti_success):
+    def test_depends_on_past(self, dagbag, session, prev_ti_state, is_ti_success):
         dag_id = "test_depends_on_past"
 
-        dag = self.dagbag.get_dag(dag_id)
+        dag = dagbag.get_dag(dag_id)
         task = dag.tasks[0]
 
         dag_run_1 = self.create_dag_run(
@@ -778,9 +789,9 @@ class TestDagRun:
             (None, False),
         ],
     )
-    def test_wait_for_downstream(self, session, prev_ti_state, is_ti_success):
+    def test_wait_for_downstream(self, dagbag, session, prev_ti_state, is_ti_success):
         dag_id = "test_wait_for_downstream"
-        dag = self.dagbag.get_dag(dag_id)
+        dag = dagbag.get_dag(dag_id)
         upstream, downstream = dag.tasks
 
         # For ti.set_state() to work, the DagRun has to exist,
