@@ -546,7 +546,6 @@ class DbApiHook(BaseHook):
             transaction. Set to 0 to insert all rows in one transaction.
         :param replace: Whether to replace instead of insert
         """
-        i = 0
         with closing(self.get_conn()) as conn:
             if self.supports_autocommit:
                 self.set_autocommit(conn, False)
@@ -568,7 +567,7 @@ class DbApiHook(BaseHook):
                     cur.executemany(sql, values)
                     conn.commit()
                     self.log.info("Loaded %s rows into %s so far", len(chunked_rows), table)
-        self.log.info("Done loading. Loaded a total of %s rows into %s", i, table)
+        self.log.info("Done loading. Loaded a total of %s rows into %s", len(rows), table)
 
     @staticmethod
     def _serialize_cell(cell, conn=None) -> str | None:
