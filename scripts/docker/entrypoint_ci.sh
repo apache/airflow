@@ -98,19 +98,19 @@ function environment_initialization() {
     if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} == "true" ]]; then
         return
     fi
-    if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
-        if [[ ${BACKEND:=} == "mssql" ]]; then
-            echo "${COLOR_RED}ARM platform is not supported for ${BACKEND} backend. Exiting.${COLOR_RESET}"
-            exit 1
-        fi
-    fi
-
     echo
     echo "${COLOR_BLUE}Running Initialization. Your basic configuration is:${COLOR_RESET}"
     echo
     echo "  * ${COLOR_BLUE}Airflow home:${COLOR_RESET} ${AIRFLOW_HOME}"
     echo "  * ${COLOR_BLUE}Airflow sources:${COLOR_RESET} ${AIRFLOW_SOURCES}"
-    echo "  * ${COLOR_BLUE}Airflow core SQL connection:${COLOR_RESET} ${AIRFLOW__CORE__SQL_ALCHEMY_CONN:=}"
+    echo "  * ${COLOR_BLUE}Airflow core SQL connection:${COLOR_RESET} ${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN:=}"
+    if [[ ${BACKEND=} == "postgres" ]]; then
+        echo "  * ${COLOR_BLUE}Airflow backend:${COLOR_RESET} Postgres: ${POSTGRES_VERSION}"
+    elif [[ ${BACKEND=} == "mysql" ]]; then
+        echo "  * ${COLOR_BLUE}Airflow backend:${COLOR_RESET} MySQL: ${MYSQL_VERSION}"
+    elif [[ ${BACKEND=} == "sqlite" ]]; then
+        echo "  * ${COLOR_BLUE}Airflow backend:${COLOR_RESET} Sqlite"
+    fi
     echo
 
     if [[ ${STANDALONE_DAG_PROCESSOR=} == "true" ]]; then
@@ -221,34 +221,80 @@ function check_boto_upgrade() {
     echo
     echo "${COLOR_BLUE}Upgrading boto3, botocore to latest version to run Amazon tests with them${COLOR_RESET}"
     echo
-    pip uninstall --root-user-action ignore aiobotocore s3fs -y || true
-    pip install --root-user-action ignore --upgrade boto3 botocore
+    # shellcheck disable=SC2086
+    ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} aiobotocore s3fs || true
+    # We need to include oss2 as dependency as otherwise jmespath will be bumped and it will not pass
+    # the pip check test, Similarly gcloud-aio-auth limit is needed to be included as it bumps cryptography
+    # shellcheck disable=SC2086
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade boto3 botocore "oss2>=2.14.0" "gcloud-aio-auth>=4.0.0,<5.0.0"
     pip check
 }
 
+# Remove or reinstall pydantic if needed
+function check_pydantic() {
+    if [[ ${PYDANTIC=} == "none" ]]; then
+        echo
+        echo "${COLOR_YELLOW}Reinstalling airflow from local sources to account for pyproject.toml changes${COLOR_RESET}"
+        echo
+        # shellcheck disable=SC2086
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} -e .
+        echo
+        echo "${COLOR_YELLOW}Remove pydantic and 3rd party libraries that depend on it${COLOR_RESET}"
+        echo
+        # shellcheck disable=SC2086
+        ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} pydantic aws-sam-translator openai \
+           pyiceberg qdrant-client cfn-lint weaviate-client google-cloud-aiplatform
+        pip check
+    elif [[ ${PYDANTIC=} == "v1" ]]; then
+        echo
+        echo "${COLOR_YELLOW}Reinstalling airflow from local sources to account for pyproject.toml changes${COLOR_RESET}"
+        echo
+        # shellcheck disable=SC2086
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} -e .
+        echo
+        echo "${COLOR_YELLOW}Uninstalling dependencies which are not compatible with Pydantic 1${COLOR_RESET}"
+        echo
+        # shellcheck disable=SC2086
+        ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} pyiceberg waeviate-client
+        echo
+        echo "${COLOR_YELLOW}Downgrading Pydantic to < 2${COLOR_RESET}"
+        echo
+        # shellcheck disable=SC2086
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "pydantic<2.0.0"
+        pip check
+    else
+        echo
+        echo "${COLOR_BLUE}Leaving default pydantic v2${COLOR_RESET}"
+        echo
+    fi
+}
+
+
 # Download minimum supported version of sqlalchemy to run tests with it
-function check_download_sqlalchemy() {
+function check_downgrade_sqlalchemy() {
     if [[ ${DOWNGRADE_SQLALCHEMY=} != "true" ]]; then
         return
     fi
-    min_sqlalchemy_version=$(grep "\"sqlalchemy>=" pyproject.toml | sed "s/.*>=\([0-9\.]*\).*/\1/" | xargs)
+    min_sqlalchemy_version=$(grep "\"sqlalchemy>=" hatch_build.py | sed "s/.*>=\([0-9\.]*\).*/\1/" | xargs)
     echo
     echo "${COLOR_BLUE}Downgrading sqlalchemy to minimum supported version: ${min_sqlalchemy_version}${COLOR_RESET}"
     echo
-    pip install --root-user-action ignore "sqlalchemy==${min_sqlalchemy_version}"
+    # shellcheck disable=SC2086
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} "sqlalchemy==${min_sqlalchemy_version}"
     pip check
 }
 
 # Download minimum supported version of pendulum to run tests with it
-function check_download_pendulum() {
+function check_downgrade_pendulum() {
     if [[ ${DOWNGRADE_PENDULUM=} != "true" ]]; then
         return
     fi
-    min_pendulum_version=$(grep "\"pendulum>=" pyproject.toml | sed "s/.*>=\([0-9\.]*\).*/\1/" | xargs)
+    min_pendulum_version=$(grep "\"pendulum>=" hatch_build.py | sed "s/.*>=\([0-9\.]*\).*/\1/" | xargs)
     echo
     echo "${COLOR_BLUE}Downgrading pendulum to minimum supported version: ${min_pendulum_version}${COLOR_RESET}"
     echo
-    pip install --root-user-action ignore "pendulum==${min_pendulum_version}"
+    # shellcheck disable=SC2086
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} "pendulum==${min_pendulum_version}"
     pip check
 }
 
@@ -281,8 +327,9 @@ function check_run_tests() {
 determine_airflow_to_use
 environment_initialization
 check_boto_upgrade
-check_download_sqlalchemy
-check_download_pendulum
+check_pydantic
+check_downgrade_sqlalchemy
+check_downgrade_pendulum
 check_run_tests "${@}"
 
 # If we are not running tests - just exec to bash shell

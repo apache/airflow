@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Default celery configuration."""
+
 from __future__ import annotations
 
 import json
@@ -72,7 +73,7 @@ DEFAULT_CELERY_CONFIG = {
     "accept_content": ["json"],
     "event_serializer": "json",
     "worker_prefetch_multiplier": conf.getint("celery", "worker_prefetch_multiplier", fallback=1),
-    "task_acks_late": True,
+    "task_acks_late": conf.getboolean("celery", "task_acks_late", fallback=True),
     "task_default_queue": conf.get("operators", "DEFAULT_QUEUE"),
     "task_default_exchange": conf.get("operators", "DEFAULT_QUEUE"),
     "task_track_started": conf.getboolean("celery", "task_track_started", fallback=True),

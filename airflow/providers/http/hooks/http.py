@@ -347,7 +347,7 @@ class HttpHook(HttpHookMixin, BaseHook):
 
         session = self.get_conn(headers)
 
-        url = self.url_from_endpoint(endpoint)
+        url = _url_from_endpoint(self.base_url, endpoint)
 
         if self.tcp_keep_alive:
             keep_alive_adapter = TCPKeepAliveAdapter(
@@ -447,13 +447,14 @@ class HttpHook(HttpHookMixin, BaseHook):
         """
         self._retry_obj = tenacity.Retrying(**_retry_args)
 
-        return self._retry_obj(self.run, *args, **kwargs)
+        # TODO: remove ignore type when https://github.com/jd/tenacity/issues/428 is resolved
+        return self._retry_obj(self.run, *args, **kwargs)  # type: ignore
 
-    def url_from_endpoint(self, endpoint: str | None) -> str:
-        """Combine base url with endpoint."""
-        if self.base_url and not self.base_url.endswith("/") and endpoint and not endpoint.startswith("/"):
-            return self.base_url + "/" + endpoint
-        return (self.base_url or "") + (endpoint or "")
+    def _url_from_endpoint(base_url: str | None, endpoint: str | None) -> str:
+       """Combine base url with endpoint."""
+       if base_url and not base_url.endswith("/") and endpoint and not endpoint.startswith("/"):
+           return f"{base_url}/{endpoint}"
+       return (base_url or "") + (endpoint or "")
 
     def test_connection(self):
         """Test HTTP Connection."""
@@ -501,6 +502,7 @@ class HttpAsyncHook(HttpHookMixin, BaseHook):
         self,
         endpoint: str | None = None,
         data: dict[str, Any] | str | None = None,
+        json: dict[str, Any] | str | None = None,
         headers: dict[str, Any] | None = None,
         extra_options: dict[str, Any] | None = None,
     ) -> ClientResponse:
@@ -508,6 +510,7 @@ class HttpAsyncHook(HttpHookMixin, BaseHook):
 
         :param endpoint: Endpoint to be called, i.e. ``resource/v1/query?``.
         :param data: Payload to be uploaded or request parameters.
+        :param json: Payload to be uploaded as JSON.
         :param headers: Additional headers to be passed through as a dict.
         :param extra_options: Additional kwargs to pass when creating a request.
             For example, ``run(json=obj)`` is passed as
@@ -518,9 +521,7 @@ class HttpAsyncHook(HttpHookMixin, BaseHook):
         session_conf = self._process_session_conf(session_conf)
         session_conf.update(extra_options)
 
-        base_url = (self.base_url or "").rstrip("/")
-        endpoint = (endpoint or "").lstrip("/")
-        url = f"{base_url}/{endpoint}"
+        url = _url_from_endpoint(self.base_url, endpoint)
 
         async with aiohttp.ClientSession() as session:
             if self.method == "GET":

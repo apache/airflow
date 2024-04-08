@@ -25,7 +25,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 class WasbBlobSensorTrigger(BaseTrigger):
     """
-    Checks for existence of the given blob in the provided container.
+    Check for existence of the given blob in the provided container.
 
     WasbBlobSensorTrigger is fired as deferred class with params to run the task in trigger worker.
 
@@ -52,7 +52,7 @@ class WasbBlobSensorTrigger(BaseTrigger):
         self.public_read = public_read
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes WasbBlobSensorTrigger arguments and classpath."""
+        """Serialize WasbBlobSensorTrigger arguments and classpath."""
         return (
             "airflow.providers.microsoft.azure.triggers.wasb.WasbBlobSensorTrigger",
             {
@@ -65,7 +65,7 @@ class WasbBlobSensorTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        """Makes async connection to Azure WASB and polls for existence of the given blob name."""
+        """Make async connection to Azure WASB and polls for existence of the given blob name."""
         blob_exists = False
         hook = WasbAsyncHook(wasb_conn_id=self.wasb_conn_id, public_read=self.public_read)
         try:
@@ -78,6 +78,7 @@ class WasbBlobSensorTrigger(BaseTrigger):
                     if blob_exists:
                         message = f"Blob {self.blob_name} found in container {self.container_name}."
                         yield TriggerEvent({"status": "success", "message": message})
+                        return
                     else:
                         message = (
                             f"Blob {self.blob_name} not available yet in container {self.container_name}."
@@ -91,7 +92,7 @@ class WasbBlobSensorTrigger(BaseTrigger):
 
 class WasbPrefixSensorTrigger(BaseTrigger):
     """
-    Checks for the existence of a blob with the given prefix in the provided container.
+    Check for the existence of a blob with the given prefix in the provided container.
 
     WasbPrefixSensorTrigger is fired as a deferred class with params to run the task in trigger.
 
@@ -128,7 +129,7 @@ class WasbPrefixSensorTrigger(BaseTrigger):
         self.public_read = public_read
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes WasbPrefixSensorTrigger arguments and classpath."""
+        """Serialize WasbPrefixSensorTrigger arguments and classpath."""
         return (
             "airflow.providers.microsoft.azure.triggers.wasb.WasbPrefixSensorTrigger",
             {
@@ -142,7 +143,7 @@ class WasbPrefixSensorTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        """Makes async connection to Azure WASB and polls for existence of a blob with given prefix."""
+        """Make async connection to Azure WASB and polls for existence of a blob with given prefix."""
         prefix_exists = False
         hook = WasbAsyncHook(wasb_conn_id=self.wasb_conn_id, public_read=self.public_read)
         try:
@@ -154,6 +155,7 @@ class WasbPrefixSensorTrigger(BaseTrigger):
                     if prefix_exists:
                         message = f"Prefix {self.prefix} found in container {self.container_name}."
                         yield TriggerEvent({"status": "success", "message": message})
+                        return
                     else:
                         message = (
                             f"Prefix {self.prefix} not available yet in container {self.container_name}."

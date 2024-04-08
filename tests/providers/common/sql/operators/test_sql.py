@@ -186,30 +186,34 @@ class TestColumnCheckOperator:
         ]
 
     def test_max_less_than_fails_check(self, monkeypatch):
-        with pytest.raises(AirflowException):
-            records = [
-                ("X", "null_check", 1),
-                ("X", "distinct_check", 10),
-                ("X", "unique_check", 10),
-                ("X", "min", 1),
-                ("X", "max", 21),
-            ]
-            operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
+        records = [
+            ("X", "null_check", 1),
+            ("X", "distinct_check", 10),
+            ("X", "unique_check", 10),
+            ("X", "min", 1),
+            ("X", "max", 21),
+        ]
+        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
+        with pytest.raises(AirflowException, match="Test failed") as err_ctx:
             operator.execute(context=MagicMock())
-            assert operator.column_mapping["X"]["max"]["success"] is False
+        assert "Check: max" in str(err_ctx.value)
+        assert "{'less_than': 20, 'greater_than': 10, 'result': 21, 'success': False}" in str(err_ctx.value)
+        assert operator.column_mapping["X"]["max"]["success"] is False
 
     def test_max_greater_than_fails_check(self, monkeypatch):
-        with pytest.raises(AirflowException):
-            records = [
-                ("X", "null_check", 1),
-                ("X", "distinct_check", 10),
-                ("X", "unique_check", 10),
-                ("X", "min", 1),
-                ("X", "max", 9),
-            ]
-            operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
+        records = [
+            ("X", "null_check", 1),
+            ("X", "distinct_check", 10),
+            ("X", "unique_check", 10),
+            ("X", "min", 1),
+            ("X", "max", 9),
+        ]
+        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
+        with pytest.raises(AirflowException, match="Test failed") as err_ctx:
             operator.execute(context=MagicMock())
-            assert operator.column_mapping["X"]["max"]["success"] is False
+        assert "Check: max" in str(err_ctx.value)
+        assert "{'less_than': 20, 'greater_than': 10, 'result': 9, 'success': False}" in str(err_ctx.value)
+        assert operator.column_mapping["X"]["max"]["success"] is False
 
     def test_pass_all_checks_inexact_check(self, monkeypatch):
         records = [
@@ -622,6 +626,19 @@ class TestSQLCheckOperatorDbHook:
             assert self._operator._hook.use_legacy_sql
             assert self._operator._hook.location == "us-east1"
 
+    def test_sql_operator_hook_params_templated(self):
+        with mock.patch(
+            "airflow.providers.common.sql.operators.sql.BaseHook.get_connection",
+            return_value=Connection(conn_id="sql_default", conn_type="postgres"),
+        ) as mock_get_conn:
+            mock_get_conn.return_value = Connection(conn_id="snowflake_default", conn_type="snowflake")
+            self._operator.hook_params = {"session_parameters": {"query_tag": "{{ ds }}"}}
+            logical_date = "2024-04-02"
+            self._operator.render_template_fields({"ds": logical_date})
+
+            assert self._operator._hook.conn_type == "snowflake"
+            assert self._operator._hook.session_parameters == {"query_tag": logical_date}
+
 
 class TestCheckOperator:
     def setup_method(self):
@@ -901,12 +918,21 @@ class TestThresholdCheckOperator:
             operator.execute(context=MagicMock())
 
     @mock.patch.object(SQLThresholdCheckOperator, "get_db_hook")
-    def test_pass_min_value_max_sql(self, mock_get_db_hook):
+    @pytest.mark.parametrize(
+        ("sql", "min_threshold", "max_threshold"),
+        (
+            ("Select 75", 45, "Select 100"),
+            # check corner-case if result of query is "falsey" does not raise error
+            ("Select 0", 0, 1),
+            ("Select 1", 0, 1),
+        ),
+    )
+    def test_pass_min_value_max_sql(self, mock_get_db_hook, sql, min_threshold, max_threshold):
         mock_hook = mock.Mock()
         mock_hook.get_first.side_effect = lambda x: (int(x.split()[1]),)
         mock_get_db_hook.return_value = mock_hook
 
-        operator = self._construct_operator("Select 75", 45, "Select 100")
+        operator = self._construct_operator(sql, min_threshold, max_threshold)
 
         operator.execute(context=MagicMock())
 
@@ -919,6 +945,18 @@ class TestThresholdCheckOperator:
         operator = self._construct_operator("Select 155", "Select 45", 100)
 
         with pytest.raises(AirflowException, match="155.*45.*100.0"):
+            operator.execute(context=MagicMock())
+
+    @mock.patch.object(SQLThresholdCheckOperator, "get_db_hook")
+    def test_fail_if_query_returns_no_rows(self, mock_get_db_hook):
+        mock_hook = mock.Mock()
+        mock_hook.get_first.return_value = None
+        mock_get_db_hook.return_value = mock_hook
+
+        sql = "Select val from table1 where val = 'val not in table'"
+        operator = self._construct_operator(sql, 20, 100)
+
+        with pytest.raises(AirflowException, match=f"The following query returned zero rows: {sql}"):
             operator.execute(context=MagicMock())
 
 

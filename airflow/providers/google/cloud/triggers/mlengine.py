@@ -69,7 +69,7 @@ class MLEngineStartTrainingJobTrigger(BaseTrigger):
         self.impersonation_chain = impersonation_chain
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes MLEngineStartTrainingJobTrigger arguments and classpath."""
+        """Serialize MLEngineStartTrainingJobTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.mlengine.MLEngineStartTrainingJobTrigger",
             {
@@ -89,7 +89,7 @@ class MLEngineStartTrainingJobTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current job execution status and yields a TriggerEvent."""
+        """Get current job execution status and yields a TriggerEvent."""
         hook = self._get_async_hook()
         try:
             while True:
@@ -103,12 +103,14 @@ class MLEngineStartTrainingJobTrigger(BaseTrigger):
                             "message": "Job completed",
                         }
                     )
+                    return
                 elif response_from_hook == "pending":
                     self.log.info("Job is still running...")
                     self.log.info("Sleeping for %s seconds.", self.poll_interval)
                     await asyncio.sleep(self.poll_interval)
                 else:
                     yield TriggerEvent({"status": "error", "message": response_from_hook})
+                    return
 
         except Exception as e:
             self.log.exception("Exception occurred while checking for query completion")

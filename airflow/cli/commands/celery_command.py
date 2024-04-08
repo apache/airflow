@@ -15,11 +15,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+
+# DO NOT MODIFY THIS FILE unless it is a serious bugfix - all the new celery commands should be added in celery provider.
+# This file is kept for backward compatibility only.
 """Celery command."""
+
 from __future__ import annotations
 
 import logging
 import sys
+import warnings
 from contextlib import contextmanager
 from multiprocessing import Process
 
@@ -39,6 +45,12 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 from airflow.utils.serve_logs import serve_logs
 
 WORKER_PROCESS_NAME = "worker"
+
+warnings.warn(
+    "Use celery command from providers package, Use celery provider >= 3.6.1",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 @cli_utils.action_cli
@@ -79,9 +91,11 @@ def _serve_logs(skip_serve_logs: bool = False):
     if skip_serve_logs is False:
         sub_proc = Process(target=serve_logs)
         sub_proc.start()
-    yield
-    if sub_proc:
-        sub_proc.terminate()
+    try:
+        yield
+    finally:
+        if sub_proc:
+            sub_proc.terminate()
 
 
 @after_setup_logger.connect()
@@ -153,9 +167,6 @@ def worker(args):
     if not celery_log_level:
         celery_log_level = conf.get("logging", "LOGGING_LEVEL")
 
-    # Setup pid file location
-    worker_pid_file_path, _, _, _ = setup_locations(process=WORKER_PROCESS_NAME, pid=args.pid)
-
     # Setup Celery worker
     options = [
         "worker",
@@ -169,8 +180,6 @@ def worker(args):
         args.celery_hostname,
         "--loglevel",
         celery_log_level,
-        "--pidfile",
-        worker_pid_file_path,
     ]
     if autoscale:
         options.extend(["--autoscale", autoscale])
@@ -189,11 +198,12 @@ def worker(args):
         # executed.
         maybe_patch_concurrency(["-P", pool])
 
-    _, stdout, stderr, log_file = setup_locations(
+    worker_pid_file_path, stdout, stderr, log_file = setup_locations(
         process=WORKER_PROCESS_NAME,
         stdout=args.stdout,
         stderr=args.stderr,
         log=args.log_file,
+        pid=args.pid,
     )
 
     def run_celery_worker():

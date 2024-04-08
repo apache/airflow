@@ -92,7 +92,8 @@ def get_architecture_string_for_urls() -> str:
         return "amd64"
     if architecture == Architecture.ARM:
         return "arm64"
-    raise Exception(f"The architecture {architecture} is not supported when downloading kubernetes tools!")
+    msg = f"The architecture {architecture} is not supported when downloading kubernetes tools!"
+    raise SystemExit(msg)
 
 
 def _download_with_retries(num_tries, path, tool, url):
@@ -347,8 +348,7 @@ def create_virtualenv(force_venv_setup: bool) -> RunCommandResult:
             "[info]You can uninstall breeze and install it again with earlier Python "
             "version. For example:[/]\n"
         )
-        get_console().print("pipx uninstall apache-airflow-breeze")
-        get_console().print("pipx install --python PYTHON_PATH -e ./dev/breeze\n")
+        get_console().print("pipx reinstall --python PYTHON_PATH apache-airflow-breeze\n")
         get_console().print(
             f"[info]PYTHON_PATH - path to your Python binary(< {higher_python_version_tuple})[/]\n"
         )

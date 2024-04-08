@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud SQL operators."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence
@@ -1031,7 +1032,7 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
 
     def execute_complete(self, context, event=None) -> None:
         """
-        Callback for when the trigger fires - returns immediately.
+        Act as a callback for when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """

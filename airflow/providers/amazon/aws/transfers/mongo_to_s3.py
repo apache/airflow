@@ -64,7 +64,7 @@ class MongoToS3Operator(BaseOperator):
         self,
         *,
         mongo_conn_id: str = "mongo_default",
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         mongo_collection: str,
         mongo_query: list | dict,
         s3_bucket: str,

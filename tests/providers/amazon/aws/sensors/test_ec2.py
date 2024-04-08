@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import pytest
-from moto import mock_ec2
+from moto import mock_aws
 
 from airflow.exceptions import TaskDeferred
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
@@ -65,7 +65,7 @@ class TestEC2InstanceStateSensor:
         response = ec2_client.run_instances(MaxCount=1, MinCount=1, ImageId=images[0]["ImageId"])
         return response["Instances"][0]["InstanceId"]
 
-    @mock_ec2
+    @mock_aws
     def test_running(self):
         # create instance
         ec2_hook = EC2Hook()
@@ -86,7 +86,7 @@ class TestEC2InstanceStateSensor:
         # assert instance state is running
         assert start_sensor.poke(None)
 
-    @mock_ec2
+    @mock_aws
     def test_stopped(self):
         # create instance
         ec2_hook = EC2Hook()
@@ -107,7 +107,7 @@ class TestEC2InstanceStateSensor:
         # assert instance state is stopped
         assert stop_sensor.poke(None)
 
-    @mock_ec2
+    @mock_aws
     def test_terminated(self):
         # create instance
         ec2_hook = EC2Hook()
@@ -128,7 +128,7 @@ class TestEC2InstanceStateSensor:
         # assert instance state is terminated
         assert stop_sensor.poke(None)
 
-    @mock_ec2
+    @mock_aws
     def test_deferrable(self):
         # create instance
         ec2_hook = EC2Hook()

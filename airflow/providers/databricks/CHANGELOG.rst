@@ -26,6 +26,21 @@
 Changelog
 ---------
 
+6.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Update DatabricksSqlOperator to work with namedtuple (#37025)``
+
+Misc
+~~~~
+
+* ``Bump aiohttp min version to avoid CVE-2024-23829 and CVE-2024-23334 (#37110)``
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+* ``Get rid of pytest-httpx as dependency (#37334)``
+
 6.1.0
 .....
 
@@ -83,8 +98,10 @@ Misc
    * ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
    * ``Prepare 2nd wave of providers in December (#36373)``
 
-5.0.1
-.....
+5.0.1 (YANKED)
+..............
+
+.. warning:: This release has been **yanked** with a reason: ``The provider DBApiHook output returned broken output.``
 
 Misc
 ~~~~
@@ -361,8 +378,10 @@ Bug Fixes
    appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare for follow-up release for November providers (#27774)``
 
-3.4.0
-.....
+3.4.0 (YANKED)
+..............
+
+.. warning:: This release has been **yanked** with a reason: ``There is a bug in DatabricsksSQLOperator``
 
 .. note::
   This release of provider is only available for Airflow 2.3+ as explained in the

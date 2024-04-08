@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Base executor - this is the base class for all the implemented executors."""
+
 from __future__ import annotations
 
 import logging
@@ -42,6 +43,7 @@ if TYPE_CHECKING:
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.cli.cli_config import GroupCommand
+    from airflow.executors.executor_utils import ExecutorName
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
 
@@ -118,6 +120,7 @@ class BaseExecutor(LoggingMixin):
     serve_logs: bool = False
 
     job_id: None | int | str = None
+    name: None | ExecutorName = None
     callback_sink: BaseCallbackSink | None = None
 
     def __init__(self, parallelism: int = PARALLELISM):
@@ -162,12 +165,11 @@ class BaseExecutor(LoggingMixin):
         cfg_path: str | None = None,
     ) -> None:
         """Queues task instance."""
+        if TYPE_CHECKING:
+            assert task_instance.task
+
         pool = pool or task_instance.pool
 
-        # TODO (edgarRd): AIRFLOW-1985:
-        # cfg_path is needed to propagate the config values if using impersonation
-        # (run_as_user), given that there are different code paths running tasks.
-        # For a long term solution we need to address AIRFLOW-1986
         command_list_to_run = task_instance.command_as_list(
             local=True,
             mark_success=mark_success,
@@ -178,13 +180,16 @@ class BaseExecutor(LoggingMixin):
             ignore_ti_state=ignore_ti_state,
             pool=pool,
             pickle_id=pickle_id,
+            # cfg_path is needed to propagate the config values if using impersonation
+            # (run_as_user), given that there are different code paths running tasks.
+            # https://github.com/apache/airflow/pull/2991
             cfg_path=cfg_path,
         )
         self.log.debug("created command %s", command_list_to_run)
         self.queue_command(
             task_instance,
             command_list_to_run,
-            priority=task_instance.task.priority_weight_total,
+            priority=task_instance.priority_weight,
             queue=task_instance.task.queue,
         )
 
@@ -330,6 +335,15 @@ class BaseExecutor(LoggingMixin):
         :param key: Unique key for the task instance
         """
         self.change_state(key, TaskInstanceState.SUCCESS, info)
+
+    def queued(self, key: TaskInstanceKey, info=None) -> None:
+        """
+        Set queued state for the event.
+
+        :param info: Executor information for the task instance
+        :param key: Unique key for the task instance
+        """
+        self.change_state(key, TaskInstanceState.QUEUED, info)
 
     def get_event_buffer(self, dag_ids=None) -> dict[TaskInstanceKey, EventBufferValueType]:
         """

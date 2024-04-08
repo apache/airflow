@@ -41,6 +41,7 @@ class EcrCredentials:
     expires_at: datetime
 
     def __post_init__(self):
+        """Initialize the `Ecr` credentials object."""
         mask_secret(self.password)
         logger.debug("Credentials to Amazon ECR %r expires at %s.", self.proxy_endpoint, self.expires_at)
 

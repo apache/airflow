@@ -17,22 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
-
-from airflow import PY311
-
-if PY311:
-    pytest.skip(
-        "The tests are skipped because Apache Hive provider is not supported on Python 3.11",
-        allow_module_level=True,
-    )
-
 import datetime
 import itertools
 from collections import namedtuple
 from unittest import mock
 
 import pandas as pd
+import pytest
 from hmsclient import HMSClient
 
 from airflow.exceptions import AirflowException
@@ -124,8 +115,8 @@ class TestHiveCliHook:
         )
 
     def test_hive_cli_hook_invalid_schema(self):
+        hook = InvalidHiveCliHook()
         with pytest.raises(RuntimeError) as error:
-            hook = InvalidHiveCliHook()
             hook.run_cli("SHOW DATABASES")
 
         assert str(error.value) == "The schema `default;` contains invalid characters: ;"
@@ -880,20 +871,12 @@ class TestHiveCli:
         self.nondefault_schema = "nondefault"
 
     @pytest.mark.parametrize(
-        "extra_dejson, correct_proxy_user, run_as, proxy_user",
+        "extra_dejson, correct_proxy_user, proxy_user",
         [
-            ({"proxy_user": "a_user_proxy"}, "hive.server2.proxy.user=a_user_proxy", None, None),
-            ({"proxy_user": "owner"}, "hive.server2.proxy.user=dummy_dag_owner", "dummy_dag_owner", None),
-            ({"proxy_user": "login"}, "hive.server2.proxy.user=admin", None, None),
-            (
-                {"proxy_user": "as_param"},
-                "hive.server2.proxy.user=param_proxy_user",
-                None,
-                "param_proxy_user",
-            ),
+            ({"proxy_user": "a_user_proxy"}, "hive.server2.proxy.user=a_user_proxy", None),
         ],
     )
-    def test_get_proxy_user_value(self, extra_dejson, correct_proxy_user, run_as, proxy_user):
+    def test_get_proxy_user_value(self, extra_dejson, correct_proxy_user, proxy_user):
         hook = MockHiveCliHook()
         returner = mock.MagicMock()
         returner.extra_dejson = extra_dejson
@@ -901,7 +884,6 @@ class TestHiveCli:
         hook.use_beeline = True
         hook.conn = returner
         hook.proxy_user = proxy_user
-        hook.run_as = run_as
 
         # Run
         result = hook._prepare_cli_cmd()
@@ -919,3 +901,43 @@ class TestHiveCli:
         # Run
         with pytest.raises(RuntimeError, match="The principal should not contain the ';' character"):
             hook._prepare_cli_cmd()
+
+    @pytest.mark.parametrize(
+        "extra_dejson, expected_keys",
+        [
+            (
+                {"high_availability": "true"},
+                "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2",
+            ),
+            (
+                {"high_availability": "false"},
+                "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2",
+            ),
+            ({}, "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2"),
+            # with proxy user
+            (
+                {"proxy_user": "a_user_proxy", "high_availability": "true"},
+                "hive.server2.proxy.user=a_user_proxy;"
+                "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2",
+            ),
+        ],
+    )
+    def test_high_availability(self, extra_dejson, expected_keys):
+        hook = MockHiveCliHook()
+        returner = mock.MagicMock()
+        returner.extra_dejson = extra_dejson
+        returner.login = "admin"
+        hook.use_beeline = True
+        hook.conn = returner
+        hook.high_availability = (
+            True
+            if ("high_availability" in extra_dejson and extra_dejson["high_availability"] == "true")
+            else False
+        )
+
+        result = hook._prepare_cli_cmd()
+
+        if hook.high_availability:
+            assert expected_keys in result[2]
+        else:
+            assert expected_keys not in result[2]

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains AWS S3 operators."""
+
 from __future__ import annotations
 
 import subprocess
@@ -294,7 +295,7 @@ class S3CopyObjectOperator(BaseOperator):
         source_bucket_name: str | None = None,
         dest_bucket_name: str | None = None,
         source_version_id: str | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         verify: str | bool | None = None,
         acl_policy: str | None = None,
         **kwargs,
@@ -400,7 +401,7 @@ class S3CreateObjectOperator(BaseOperator):
         acl_policy: str | None = None,
         encoding: str | None = None,
         compression: str | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         verify: str | bool | None = None,
         **kwargs,
     ):
@@ -494,7 +495,7 @@ class S3DeleteObjectsOperator(BaseOperator):
         bucket: str,
         keys: str | list | None = None,
         prefix: str | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         verify: str | bool | None = None,
         **kwargs,
     ):
@@ -621,9 +622,9 @@ class S3FileTransformOperator(BaseOperator):
         transform_script: str | None = None,
         select_expression=None,
         script_args: Sequence[str] | None = None,
-        source_aws_conn_id: str = "aws_default",
+        source_aws_conn_id: str | None = "aws_default",
         source_verify: bool | str | None = None,
-        dest_aws_conn_id: str = "aws_default",
+        dest_aws_conn_id: str | None = "aws_default",
         dest_verify: bool | str | None = None,
         replace: bool = False,
         **kwargs,
@@ -779,7 +780,7 @@ class S3ListOperator(BaseOperator):
         bucket: str,
         prefix: str = "",
         delimiter: str = "",
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         verify: str | bool | None = None,
         apply_wildcard: bool = False,
         **kwargs,
@@ -860,7 +861,7 @@ class S3ListPrefixesOperator(BaseOperator):
         bucket: str,
         prefix: str,
         delimiter: str,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         verify: str | bool | None = None,
         **kwargs,
     ):

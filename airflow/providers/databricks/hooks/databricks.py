@@ -25,6 +25,7 @@ operators talk to the
 or the ``api/2.1/jobs/runs/submit``
 `endpoint <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit>`_.
 """
+
 from __future__ import annotations
 
 import json
@@ -196,8 +197,7 @@ class DatabricksHook(BaseDatabricksHook):
         super().__init__(databricks_conn_id, timeout_seconds, retry_limit, retry_delay, retry_args, caller)
 
     def create_job(self, json: dict) -> int:
-        """
-        Utility function to call the ``api/2.1/jobs/create`` endpoint.
+        """Call the ``api/2.1/jobs/create`` endpoint.
 
         :param json: The data used in the body of the request to the ``create`` endpoint.
         :return: the job_id as an int
@@ -206,8 +206,7 @@ class DatabricksHook(BaseDatabricksHook):
         return response["job_id"]
 
     def reset_job(self, job_id: str, json: dict) -> None:
-        """
-        Utility function to call the ``api/2.1/jobs/reset`` endpoint.
+        """Call the ``api/2.1/jobs/reset`` endpoint.
 
         :param json: The data used in the new_settings of the request to the ``reset`` endpoint.
         """
@@ -530,7 +529,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def get_latest_repair_id(self, run_id: int) -> int | None:
         """Get latest repair id if any exist for run_id else None."""
-        json = {"run_id": run_id, "include_history": True}
+        json = {"run_id": run_id, "include_history": "true"}
         response = self._do_api_call(GET_RUN_ENDPOINT, json)
         repair_history = response["repair_history"]
         if len(repair_history) == 1:

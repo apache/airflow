@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains SFTP to Azure Blob Storage operator."""
+
 from __future__ import annotations
 
 import os
@@ -134,7 +135,7 @@ class SFTPToWasbOperator(BaseOperator):
         return sftp_files
 
     def get_tree_behavior(self) -> tuple[str, str | None, str | None]:
-        """Extracts from source path the tree behavior to interact with the remote folder."""
+        """Extract from source path the tree behavior to interact with the remote folder."""
         self.check_wildcards_limit()
 
         if self.source_path_contains_wildcard:

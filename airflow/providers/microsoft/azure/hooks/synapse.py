@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import time
+import warnings
 from typing import TYPE_CHECKING, Any, Union
 
 from azure.core.exceptions import ServiceRequestError
@@ -24,7 +25,7 @@ from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.synapse.artifacts import ArtifactsClient
 from azure.synapse.spark import SparkClient
 
-from airflow.exceptions import AirflowException, AirflowTaskTimeout
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowTaskTimeout
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
@@ -72,7 +73,7 @@ class AzureSynapseHook(BaseHook):
     @classmethod
     @add_managed_identity_connection_widgets
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -84,7 +85,7 @@ class AzureSynapseHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "extra"],
             "relabeling": {
@@ -179,7 +180,7 @@ class AzureSynapseHook(BaseHook):
         timeout: int = 60 * 60 * 24 * 7,
     ) -> bool:
         """
-        Waits for a job run to match an expected status.
+        Wait for a job run to match an expected status.
 
         :param job_id: The job run identifier.
         :param expected_statuses: The desired status(es) to check against a job run's current status.
@@ -240,7 +241,57 @@ class AzureSynapsePipelineRunException(AirflowException):
     """An exception that indicates a pipeline run failed to complete."""
 
 
-class AzureSynapsePipelineHook(BaseHook):
+class BaseAzureSynapseHook(BaseHook):
+    """
+    A base hook class to create session and connection to Azure Synapse using connection id.
+
+    :param azure_synapse_conn_id: The :ref:`Azure Synapse connection id<howto/connection:synapse>`.
+    """
+
+    conn_type: str = "azure_synapse"
+    conn_name_attr: str = "azure_synapse_conn_id"
+    default_conn_name: str = "azure_synapse_default"
+    hook_name: str = "Azure Synapse"
+
+    @classmethod
+    @add_managed_identity_connection_widgets
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to connection form."""
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import StringField
+
+        return {
+            "tenantId": StringField(lazy_gettext("Tenant ID"), widget=BS3TextFieldWidget()),
+            "subscriptionId": StringField(lazy_gettext("Subscription ID"), widget=BS3TextFieldWidget()),
+        }
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom field behaviour."""
+        return {
+            "hidden_fields": ["schema", "port", "extra"],
+            "relabeling": {
+                "login": "Client ID",
+                "password": "Secret",
+                "host": "Synapse Workspace URL",
+            },
+        }
+
+    def __init__(self, azure_synapse_conn_id: str = default_conn_name, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.conn_id = azure_synapse_conn_id
+
+    def _get_field(self, extras: dict, field_name: str) -> str:
+        return get_field(
+            conn_id=self.conn_id,
+            conn_type=self.conn_type,
+            extras=extras,
+            field_name=field_name,
+        )
+
+
+class AzureSynapsePipelineHook(BaseAzureSynapseHook):
     """
     A hook to interact with Azure Synapse Pipeline.
 
@@ -248,37 +299,23 @@ class AzureSynapsePipelineHook(BaseHook):
     :param azure_synapse_workspace_dev_endpoint: The Azure Synapse Workspace development endpoint.
     """
 
-    conn_type: str = "azure_synapse_pipeline"
-    conn_name_attr: str = "azure_synapse_conn_id"
     default_conn_name: str = "azure_synapse_connection"
-    hook_name: str = "Azure Synapse Pipeline"
-
-    @classmethod
-    def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
-        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
-        from flask_babel import lazy_gettext
-        from wtforms import StringField
-
-        return {
-            "tenantId": StringField(lazy_gettext("Tenant ID"), widget=BS3TextFieldWidget()),
-        }
-
-    @classmethod
-    def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
-        return {
-            "hidden_fields": ["schema", "port", "extra"],
-            "relabeling": {"login": "Client ID", "password": "Secret", "host": "Synapse Workspace URL"},
-        }
 
     def __init__(
-        self, azure_synapse_workspace_dev_endpoint: str, azure_synapse_conn_id: str = default_conn_name
+        self,
+        azure_synapse_workspace_dev_endpoint: str,
+        azure_synapse_conn_id: str = default_conn_name,
+        **kwargs,
     ):
-        self._conn = None
-        self.conn_id = azure_synapse_conn_id
+        # Handling deprecation of "default_conn_name"
+        if azure_synapse_conn_id == self.default_conn_name:
+            warnings.warn(
+                "The usage of `default_conn_name=azure_synapse_connection` is deprecated and will be removed in future. Please update your code to use the new default connection name: `default_conn_name=azure_synapse_default`. ",
+                AirflowProviderDeprecationWarning,
+            )
+        self._conn: ArtifactsClient | None = None
         self.azure_synapse_workspace_dev_endpoint = azure_synapse_workspace_dev_endpoint
-        super().__init__()
+        super().__init__(azure_synapse_conn_id=azure_synapse_conn_id, **kwargs)
 
     def _get_field(self, extras, name):
         return get_field(
@@ -297,15 +334,22 @@ class AzureSynapsePipelineHook(BaseHook):
         tenant = self._get_field(extras, "tenantId")
 
         credential: Credentials
-        if conn.login is not None and conn.password is not None:
+        if not conn.login or not conn.password:
+            managed_identity_client_id = self._get_field(extras, "managed_identity_client_id")
+            workload_identity_tenant_id = self._get_field(extras, "workload_identity_tenant_id")
+
+            credential = get_sync_default_azure_credential(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
+            )
+        else:
             if not tenant:
                 raise ValueError("A Tenant ID is required when authenticating with Client ID and Secret.")
 
             credential = ClientSecretCredential(
                 client_id=conn.login, client_secret=conn.password, tenant_id=tenant
             )
-        else:
-            credential = DefaultAzureCredential()
+
         self._conn = self._create_client(credential, self.azure_synapse_workspace_dev_endpoint)
 
         if self._conn is not None:
@@ -314,7 +358,7 @@ class AzureSynapsePipelineHook(BaseHook):
             raise ValueError("Failed to create ArtifactsClient")
 
     @staticmethod
-    def _create_client(credential: Credentials, endpoint: str):
+    def _create_client(credential: Credentials, endpoint: str) -> ArtifactsClient:
         return ArtifactsClient(credential=credential, endpoint=endpoint)
 
     def run_pipeline(self, pipeline_name: str, **config: Any) -> CreateRunResponse:
@@ -362,7 +406,7 @@ class AzureSynapsePipelineHook(BaseHook):
         timeout: int = 60 * 60 * 24 * 7,
     ) -> bool:
         """
-        Waits for a pipeline run to match an expected status.
+        Wait for a pipeline run to match an expected status.
 
         :param run_id: The pipeline run identifier.
         :param expected_statuses: The desired status(es) to check against a pipeline run's current status.

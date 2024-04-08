@@ -252,7 +252,7 @@ class TestFlowerDeployment:
                 "flower": {
                     "enabled": True,
                     "extraContainers": [
-                        {"name": "test-container", "image": "test-registry/test-repo:test-tag"}
+                        {"name": "{{ .Chart.Name }}", "image": "test-registry/test-repo:test-tag"}
                     ],
                 },
             },
@@ -260,7 +260,7 @@ class TestFlowerDeployment:
         )
 
         assert {
-            "name": "test-container",
+            "name": "airflow",
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
 
@@ -362,6 +362,30 @@ class TestFlowerDeployment:
         )
         assert "annotations" in jmespath.search("metadata", docs[0])
         assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
+
+    @pytest.mark.parametrize("probe", ["livenessProbe", "readinessProbe"])
+    def test_probe_values_are_configurable(self, probe):
+        docs = render_chart(
+            values={
+                "flower": {
+                    "enabled": True,
+                    probe: {
+                        "initialDelaySeconds": 111,
+                        "timeoutSeconds": 222,
+                        "failureThreshold": 333,
+                        "periodSeconds": 444,
+                    },
+                },
+            },
+            show_only=["templates/flower/flower-deployment.yaml"],
+        )
+
+        assert 111 == jmespath.search(
+            f"spec.template.spec.containers[0].{probe}.initialDelaySeconds", docs[0]
+        )
+        assert 222 == jmespath.search(f"spec.template.spec.containers[0].{probe}.timeoutSeconds", docs[0])
+        assert 333 == jmespath.search(f"spec.template.spec.containers[0].{probe}.failureThreshold", docs[0])
+        assert 444 == jmespath.search(f"spec.template.spec.containers[0].{probe}.periodSeconds", docs[0])
 
 
 class TestFlowerService:

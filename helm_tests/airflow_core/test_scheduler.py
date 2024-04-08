@@ -57,7 +57,7 @@ class TestScheduler:
                 "executor": "CeleryExecutor",
                 "scheduler": {
                     "extraContainers": [
-                        {"name": "test-container", "image": "test-registry/test-repo:test-tag"}
+                        {"name": "{{ .Chart.Name }}", "image": "test-registry/test-repo:test-tag"}
                     ],
                 },
             },
@@ -65,7 +65,7 @@ class TestScheduler:
         )
 
         assert {
-            "name": "test-container",
+            "name": "airflow",
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
 
@@ -901,3 +901,20 @@ class TestSchedulerServiceAccount:
             show_only=["templates/scheduler/scheduler-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
+
+
+class TestSchedulerCreation:
+    """Tests scheduler deployment creation."""
+
+    def test_can_be_disabled(self):
+        """
+        Scheduler should be able to be disabled if the users desires.
+
+        For example, user may be disabled when using scheduler and having it deployed on another host.
+        """
+        docs = render_chart(
+            values={"scheduler": {"enabled": False}},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert 0 == len(docs)

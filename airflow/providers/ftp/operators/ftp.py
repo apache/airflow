@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains FTP operator."""
+
 from __future__ import annotations
 
 import os
@@ -156,7 +157,9 @@ class FTPFileTransmitOperator(BaseOperator):
             local_host = socket.gethostbyname(local_host)
         except Exception as e:
             self.log.warning(
-                f"Failed to resolve local hostname. Using the hostname got by socket.gethostbyname() without resolution. {e}",
+                "Failed to resolve local hostname. "
+                "Using the hostname got by socket.gethostbyname() without resolution. %s",
+                e,
                 exc_info=True,
             )
 

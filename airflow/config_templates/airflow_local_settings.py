@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Airflow logging settings."""
+
 from __future__ import annotations
 
 import os
@@ -54,6 +55,10 @@ PROCESSOR_LOG_FOLDER: str = conf.get_mandatory_value("scheduler", "CHILD_PROCESS
 
 DAG_PROCESSOR_MANAGER_LOG_LOCATION: str = conf.get_mandatory_value(
     "logging", "DAG_PROCESSOR_MANAGER_LOG_LOCATION"
+)
+
+DAG_PROCESSOR_MANAGER_LOG_STDOUT: str = conf.get_mandatory_value(
+    "logging", "DAG_PROCESSOR_MANAGER_LOG_STDOUT"
 )
 
 # FILENAME_TEMPLATE only uses in Remote Logging Handlers since Airflow 2.3.3
@@ -171,6 +176,19 @@ DEFAULT_DAG_PARSING_LOGGING_CONFIG: dict[str, dict[str, dict[str, Any]]] = {
     },
 }
 
+if DAG_PROCESSOR_MANAGER_LOG_STDOUT == "True":
+    DEFAULT_DAG_PARSING_LOGGING_CONFIG["handlers"].update(
+        {
+            "console": {
+                "class": "airflow.utils.log.logging_mixin.RedirectStdHandler",
+                "formatter": "airflow",
+                "stream": "sys.stdout",
+                "filters": ["mask_secrets"],
+            }
+        }
+    )
+    DEFAULT_DAG_PARSING_LOGGING_CONFIG["loggers"]["airflow.processor_manager"]["handlers"].append("console")
+
 # Only update the handlers and loggers when CONFIG_PROCESSOR_MANAGER_LOGGER is set.
 # This is to avoid exceptions when initializing RotatingFileHandler multiple times
 # in multiple processes.
@@ -268,7 +286,7 @@ if REMOTE_LOGGING:
             "task": {
                 "class": "airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverTaskHandler",
                 "formatter": "airflow",
-                "name": log_name,
+                "gcp_log_name": log_name,
                 "gcp_key_path": key_path,
             }
         }

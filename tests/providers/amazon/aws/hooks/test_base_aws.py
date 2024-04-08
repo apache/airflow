@@ -36,7 +36,7 @@ from botocore.config import Config
 from botocore.credentials import ReadOnlyCredentials
 from botocore.exceptions import NoCredentialsError
 from botocore.utils import FileWebIdentityTokenLoader
-from moto import mock_dynamodb, mock_emr, mock_iam, mock_sts
+from moto import mock_aws
 from moto.core import DEFAULT_ACCOUNT_ID
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -279,7 +279,7 @@ class TestSessionFactory:
         ("assume-without-initial-creds", {}),
     ]
 
-    @mock_sts
+    @mock_aws
     @pytest.mark.parametrize(
         "conn_id, conn_extra",
         config_for_credentials_test,
@@ -341,7 +341,7 @@ class TestSessionFactory:
 
 
 class TestAwsBaseHook:
-    @mock_emr
+    @mock_aws
     def test_get_client_type_set_in_class_attribute(self):
         client = boto3.client("emr", region_name="us-east-1")
         if client.list_clusters()["Clusters"]:
@@ -351,7 +351,7 @@ class TestAwsBaseHook:
 
         assert client_from_hook.list_clusters()["Clusters"] == []
 
-    @mock_dynamodb
+    @mock_aws
     def test_get_resource_type_set_in_class_attribute(self):
         hook = AwsBaseHook(aws_conn_id="aws_default", resource_type="dynamodb")
         resource_from_hook = hook.get_resource_type()
@@ -370,7 +370,7 @@ class TestAwsBaseHook:
 
         assert table.item_count == 0
 
-    @mock_dynamodb
+    @mock_aws
     def test_get_session_returns_a_boto3_session(self):
         hook = AwsBaseHook(aws_conn_id="aws_default", resource_type="dynamodb")
         session_from_hook = hook.get_session()
@@ -427,6 +427,7 @@ class TestAwsBaseHook:
         assert mock_class_name.call_count == len(found_classes)
         assert user_agent_tags["Caller"] == found_classes[-1]
 
+    @pytest.mark.db_test
     @mock.patch.object(AwsEcsExecutor, "_load_run_kwargs")
     def test_user_agent_caller_target_executor_found(self, mock_load_run_kwargs):
         with conf_vars(
@@ -449,6 +450,7 @@ class TestAwsBaseHook:
 
         assert user_agent_tags["Caller"] == default_caller_name
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize("env_var, expected_version", [({"AIRFLOW_CTX_DAG_ID": "banana"}, 5), [{}, None]])
     @mock.patch.object(AwsBaseHook, "_get_caller", return_value="Test")
     def test_user_agent_dag_run_key_is_hashed_correctly(self, _, env_var, expected_version):
@@ -465,7 +467,7 @@ class TestAwsBaseHook:
         ],
     )
     @mock.patch.object(AwsBaseHook, "get_connection")
-    @mock_sts
+    @mock_aws
     def test_assume_role(self, mock_get_connection, sts_endpoint):
         aws_conn_id = "aws/test"
         role_arn = "arn:aws:iam::123456:role/role_arn"
@@ -631,7 +633,7 @@ class TestAwsBaseHook:
         ],
     )
     @mock.patch.object(AwsBaseHook, "get_connection")
-    @mock_sts
+    @mock_aws
     def test_assume_role_with_saml(self, mock_get_connection, sts_endpoint):
         idp_url = "https://my-idp.local.corp"
         principal_arn = "principal_arn_1234567890"
@@ -718,7 +720,7 @@ class TestAwsBaseHook:
             ),
         ]
 
-    @mock_iam
+    @mock_aws
     def test_expand_role(self):
         conn = boto3.client("iam", region_name="us-east-1")
         conn.create_role(RoleName="test-role", AssumeRolePolicyDocument="some policy")
@@ -734,7 +736,7 @@ class TestAwsBaseHook:
             hook.get_client_type("s3")
 
     @mock.patch.object(AwsBaseHook, "get_connection")
-    @mock_sts
+    @mock_aws
     def test_refreshable_credentials(self, mock_get_connection):
         role_arn = "arn:aws:iam::123456:role/role_arn"
         conn_id = "F5"
@@ -786,7 +788,7 @@ class TestAwsBaseHook:
             assert mock_refresh.call_count == 2
             assert len(expire_on_calls) == 0
 
-    @mock_dynamodb
+    @mock_aws
     @pytest.mark.parametrize("conn_type", ["client", "resource"])
     @pytest.mark.parametrize(
         "connection_uri,region_name,env_region,expected_region_name",
@@ -814,7 +816,7 @@ class TestAwsBaseHook:
 
             assert hook.conn_region_name == expected_region_name
 
-    @mock_dynamodb
+    @mock_aws
     @pytest.mark.parametrize("conn_type", ["client", "resource"])
     @pytest.mark.parametrize(
         "connection_uri,expected_partition",
@@ -835,7 +837,7 @@ class TestAwsBaseHook:
 
             assert hook.conn_partition == expected_partition
 
-    @mock_dynamodb
+    @mock_aws
     def test_service_name(self):
         client_hook = AwsBaseHook(aws_conn_id=None, client_type="dynamodb")
         resource_hook = AwsBaseHook(aws_conn_id=None, resource_type="dynamodb")
@@ -869,7 +871,7 @@ class TestAwsBaseHook:
         with pytest.raises(ValueError, match="Either client_type=.* or resource_type=.* must be provided"):
             hook.get_conn()
 
-    @mock_sts
+    @mock_aws
     def test_hook_connection_test(self):
         hook = AwsBaseHook(client_type="s3")
         result, message = hook.test_connection()
@@ -1031,7 +1033,7 @@ class TestAwsBaseHook:
         assert mock_mask_secret.mock_calls == expected_calls
         assert credentials == expected_credentials
 
-    @mock_sts
+    @mock_aws
     def test_account_id(self):
         assert AwsBaseHook(aws_conn_id=None).account_id == DEFAULT_ACCOUNT_ID
 
@@ -1123,13 +1125,11 @@ def test_raise_no_creds_default_credentials_strategy(tmp_path_factory, monkeypat
         monkeypatch.delenv(env_key, raising=False)
 
     hook = AwsBaseHook(aws_conn_id=None, client_type="sts")
-    with pytest.raises(NoCredentialsError):
+    with pytest.raises(NoCredentialsError) as credential_error:
         # Call AWS STS API method GetCallerIdentity
         # which should return result in case of valid credentials
-        result = hook.conn.get_caller_identity()
-        # In normal circumstances lines below should not execute.
-        # We want to show additional information why this test not passed
-        assert not result, f"Credentials Method: {hook.get_session().get_credentials().method}"
+        hook.conn.get_caller_identity()
+    assert str(credential_error.value) == "Unable to locate credentials"
 
 
 TEST_WAITER_CONFIG_LOCATION = Path(__file__).parents[1].joinpath("waiters/test.json")

@@ -18,8 +18,8 @@
 # {{/*
 # WARNING: Be aware that most changes to these mappings will break backwards compatibility!
 # E.g. moving to labels will break existing dashboards.
-# instead utilize `statsd.overrideMappings` in your environment, until we have version 2
-# of the helm chart.
+# instead utilize `statsd.extraMappings` or `statsd.overrideMappings` in your environment,
+# until we have version 2 of the helm chart.
 # */}}
 mappings:
   # Map dot separated stats to labels

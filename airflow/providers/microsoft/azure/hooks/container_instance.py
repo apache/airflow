@@ -17,13 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
 from azure.common.client_factory import get_client_from_auth_file, get_client_from_json_dict
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
+from deprecated import deprecated
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
@@ -66,7 +66,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
 
     def get_conn(self) -> Any:
         """
-        Authenticates the resource using the connection id passed during init.
+        Authenticate the resource using the connection id passed during init.
 
         :return: the authenticated client.
         """
@@ -116,6 +116,10 @@ class AzureContainerInstanceHook(AzureBaseHook):
         """
         self.connection.container_groups.begin_create_or_update(resource_group, name, container_group)
 
+    @deprecated(
+        reason="get_state_exitcode_details() is deprecated. Related method is get_state()",
+        category=AirflowProviderDeprecationWarning,
+    )
     def get_state_exitcode_details(self, resource_group: str, name: str) -> tuple:
         """
         Get the state and exitcode of a container group.
@@ -125,17 +129,16 @@ class AzureContainerInstanceHook(AzureBaseHook):
         :return: A tuple with the state, exitcode, and details.
             If the exitcode is unknown 0 is returned.
         """
-        warnings.warn(
-            "get_state_exitcode_details() is deprecated. Related method is get_state()",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         cg_state = self.get_state(resource_group, name)
         container = cg_state.containers[0]
         instance_view: ContainerPropertiesInstanceView = container.instance_view  # type: ignore[assignment]
         c_state: ContainerState = instance_view.current_state  # type: ignore[assignment]
         return c_state.state, c_state.exit_code, c_state.detail_status
 
+    @deprecated(
+        reason="get_messages() is deprecated. Related method is get_state()",
+        category=AirflowProviderDeprecationWarning,
+    )
     def get_messages(self, resource_group: str, name: str) -> list:
         """
         Get the messages of a container group.
@@ -144,11 +147,6 @@ class AzureContainerInstanceHook(AzureBaseHook):
         :param name: the name of the container group
         :return: A list of the event messages
         """
-        warnings.warn(
-            "get_messages() is deprecated. Related method is get_state()",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         cg_state = self.get_state(resource_group, name)
         container = cg_state.containers[0]
         instance_view: ContainerPropertiesInstanceView = container.instance_view  # type: ignore[assignment]

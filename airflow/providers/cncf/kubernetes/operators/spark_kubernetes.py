@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import re
 from functools import cached_property
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from kubernetes.client import CoreV1Api, CustomObjectsApi, models as k8s
@@ -26,6 +27,7 @@ from kubernetes.client import CoreV1Api, CustomObjectsApi, models as k8s
 from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook, _load_body_to_dict
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import add_unique_suffix
 from airflow.providers.cncf.kubernetes.operators.custom_object_launcher import CustomObjectLauncher
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.pod_generator import MAX_LABEL_LEN, PodGenerator
@@ -71,6 +73,8 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     template_ext = ("yaml", "yml", "json")
     ui_color = "#f4a460"
 
+    BASE_CONTAINER_NAME = "spark-kubernetes-driver"
+
     def __init__(
         self,
         *,
@@ -107,7 +111,18 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         self.get_logs = get_logs
         self.log_events_on_failure = log_events_on_failure
         self.success_run_history_limit = success_run_history_limit
-        self.template_body = self.manage_template_specs()
+
+        if self.base_container_name != self.BASE_CONTAINER_NAME:
+            self.log.warning(
+                "base_container_name is not supported and will be overridden to %s", self.BASE_CONTAINER_NAME
+            )
+            self.base_container_name = self.BASE_CONTAINER_NAME
+
+        if self.get_logs and self.container_logs != self.BASE_CONTAINER_NAME:
+            self.log.warning(
+                "container_logs is not supported and will be overridden to %s", self.BASE_CONTAINER_NAME
+            )
+            self.container_logs = [self.BASE_CONTAINER_NAME]
 
     def _render_nested_template_fields(
         self,
@@ -125,7 +140,16 @@ class SparkKubernetesOperator(KubernetesPodOperator):
 
     def manage_template_specs(self):
         if self.application_file:
-            template_body = _load_body_to_dict(open(self.application_file))
+            try:
+                filepath = Path(self.application_file.rstrip()).resolve(strict=True)
+            except (FileNotFoundError, OSError, RuntimeError, ValueError):
+                application_file_body = self.application_file
+            else:
+                application_file_body = filepath.read_text()
+            template_body = _load_body_to_dict(application_file_body)
+            if not isinstance(template_body, dict):
+                msg = f"application_file body can't transformed into the dictionary:\n{application_file_body}"
+                raise TypeError(msg)
         elif self.template_spec:
             template_body = self.template_spec
         else:
@@ -135,7 +159,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         return template_body
 
     def create_job_name(self):
-        initial_name = PodGenerator.make_unique_pod_id(self.task_id)[:MAX_LABEL_LEN]
+        initial_name = add_unique_suffix(name=self.task_id, max_len=MAX_LABEL_LEN)
         return re.sub(r"[^a-z0-9-]+", "-", initial_name.lower())
 
     @staticmethod
@@ -192,6 +216,11 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     @staticmethod
     def _try_numbers_match(context, pod) -> bool:
         return pod.metadata.labels["try_number"] == context["ti"].try_number
+
+    @property
+    def template_body(self):
+        """Templated body for CustomObjectLauncher."""
+        return self.manage_template_specs()
 
     def find_spark_job(self, context):
         labels = self.create_labels_for_pod(context, include_try_number=False)
@@ -259,7 +288,6 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             template_body=self.template_body,
         )
         self.pod = self.get_or_create_spark_crd(self.launcher, context)
-        self.BASE_CONTAINER_NAME = "spark-kubernetes-driver"
         self.pod_request_obj = self.launcher.pod_spec
 
         return super().execute(context=context)
@@ -276,5 +304,5 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         self.client.patch_namespaced_pod(pod.metadata.name, pod.metadata.namespace, body)
 
     def dry_run(self) -> None:
-        """Prints out the spark job that would be created by this operator."""
+        """Print out the spark job that would be created by this operator."""
         print(prune_dict(self.launcher.body, mode="strict"))

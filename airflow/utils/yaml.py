@@ -25,12 +25,13 @@ This module delegates all other properties to the yaml module, so it can be used
 
 And then be used directly in place of the normal python module.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, BinaryIO, TextIO, cast
 
 if TYPE_CHECKING:
-    from yaml.error import MarkedYAMLError, YAMLError  # noqa
+    from yaml.error import MarkedYAMLError, YAMLError  # noqa: F401
 
 
 def safe_load(stream: bytes | str | BinaryIO | TextIO) -> Any:

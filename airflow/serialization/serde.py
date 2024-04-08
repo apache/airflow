@@ -134,18 +134,26 @@ def serialize(o: object, depth: int = 0) -> U | None:
 
     cls = type(o)
     qn = qualname(o)
+    classname = None
+
+    # Serialize namedtuple like tuples
+    # We also override the classname returned by the builtin.py serializer. The classname
+    # has to be "builtins.tuple", so that the deserializer can deserialize the object into tuple.
+    if _is_namedtuple(o):
+        qn = "builtins.tuple"
+        classname = qn
+
+    # if there is a builtin serializer available use that
+    if qn in _serializers:
+        data, serialized_classname, version, is_serialized = _serializers[qn].serialize(o)
+        if is_serialized:
+            return encode(classname or serialized_classname, version, serialize(data, depth + 1))
 
     # custom serializers
     dct = {
         CLASSNAME: qn,
         VERSION: getattr(cls, "__version__", DEFAULT_VERSION),
     }
-
-    # if there is a builtin serializer available use that
-    if qn in _serializers:
-        data, classname, version, is_serialized = _serializers[qn].serialize(o)
-        if is_serialized:
-            return encode(classname, version, serialize(data, depth + 1))
 
     # object / class brings their own
     if hasattr(o, "serialize"):
@@ -174,7 +182,7 @@ def serialize(o: object, depth: int = 0) -> U | None:
     # attr annotated
     if attr.has(cls):
         # Only include attributes which we can pass back to the classes constructor
-        data = attr.asdict(cast(attr.AttrsInstance, o), recurse=True, filter=lambda a, v: a.init)
+        data = attr.asdict(cast(attr.AttrsInstance, o), recurse=False, filter=lambda a, v: a.init)
         dct[DATA] = serialize(data, depth + 1)
         return dct
 
@@ -288,20 +296,20 @@ def _convert(old: dict) -> dict:
 
 
 def _match(classname: str) -> bool:
-    """Checks if the given classname matches a path pattern either using glob format or regexp format."""
+    """Check if the given classname matches a path pattern either using glob format or regexp format."""
     return _match_glob(classname) or _match_regexp(classname)
 
 
 @functools.lru_cache(maxsize=None)
 def _match_glob(classname: str):
-    """Checks if the given classname matches a pattern from allowed_deserialization_classes using glob syntax."""
+    """Check if the given classname matches a pattern from allowed_deserialization_classes using glob syntax."""
     patterns = _get_patterns()
     return any(fnmatch(classname, p.pattern) for p in patterns)
 
 
 @functools.lru_cache(maxsize=None)
 def _match_regexp(classname: str):
-    """Checks if the given classname matches a pattern from allowed_deserialization_classes_regexp using regexp."""
+    """Check if the given classname matches a pattern from allowed_deserialization_classes_regexp using regexp."""
     patterns = _get_regexp_patterns()
     return any(p.match(classname) is not None for p in patterns)
 
@@ -335,6 +343,15 @@ def _is_pydantic(cls: Any) -> bool:
     using isinstance.
     """
     return hasattr(cls, "model_config") and hasattr(cls, "model_fields") and hasattr(cls, "model_fields_set")
+
+
+def _is_namedtuple(cls: Any) -> bool:
+    """Return True if the class is a namedtuple.
+
+    Checking is done by attributes as it is significantly faster than
+    using isinstance.
+    """
+    return hasattr(cls, "_asdict") and hasattr(cls, "_fields") and hasattr(cls, "_field_defaults")
 
 
 def _register():

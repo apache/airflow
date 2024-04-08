@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud KMS hook."""
+
 from __future__ import annotations
 
 import base64
@@ -32,12 +33,12 @@ if TYPE_CHECKING:
 
 
 def _b64encode(s: bytes) -> str:
-    """Base 64 encodes a bytes object to a string."""
+    """Encode a Base64 bytes object to a string."""
     return base64.b64encode(s).decode("ascii")
 
 
 def _b64decode(s: str) -> bytes:
-    """Base 64 decodes a string to bytes."""
+    """Decode a Base64 string to bytes."""
     return base64.b64decode(s.encode("utf-8"))
 
 
@@ -75,7 +76,7 @@ class CloudKMSHook(GoogleBaseHook):
 
     def get_conn(self) -> KeyManagementServiceClient:
         """
-        Retrieves connection to Cloud Key Management service.
+        Retrieve connection to Cloud Key Management service.
 
         :return: Cloud Key Management service object
         """

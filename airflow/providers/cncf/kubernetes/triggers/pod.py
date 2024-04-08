@@ -20,18 +20,22 @@ import asyncio
 import datetime
 import traceback
 import warnings
-from asyncio import CancelledError
 from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, AsyncIterator
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
-from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodPhase
+from airflow.providers.cncf.kubernetes.utils.pod_manager import (
+    OnFinishAction,
+    PodLaunchTimeoutException,
+    PodPhase,
+)
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
     from kubernetes_asyncio.client.models import V1Pod
+    from pendulum import DateTime
 
 
 class ContainerState(str, Enum):
@@ -63,6 +67,7 @@ class KubernetesPodTrigger(BaseTrigger):
     :param in_cluster: run kubernetes client with in_cluster configuration.
     :param get_logs: get the stdout of the container as logs of the tasks.
     :param startup_timeout: timeout in seconds to start up the pod.
+    :param startup_check_interval: interval in seconds to check if the pod has already started.
     :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
         If "delete_pod", the pod will be deleted regardless its state; if "delete_succeeded_pod",
         only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
@@ -70,6 +75,9 @@ class KubernetesPodTrigger(BaseTrigger):
         state, or the execution is interrupted. If True (default), delete the
         pod; if False, leave the pod.
         Deprecated - use `on_finish_action` instead.
+    :param logging_interval: number of seconds to wait before kicking it back to
+        the operator to print latest logs. If ``None`` will wait until container done.
+    :param last_log_time: where to resume logs from
     """
 
     def __init__(
@@ -85,9 +93,11 @@ class KubernetesPodTrigger(BaseTrigger):
         in_cluster: bool | None = None,
         get_logs: bool = True,
         startup_timeout: int = 120,
-        startup_check_interval: int = 1,
+        startup_check_interval: int = 5,
         on_finish_action: str = "delete_pod",
         should_delete_pod: bool | None = None,
+        last_log_time: DateTime | None = None,
+        logging_interval: int | None = None,
     ):
         super().__init__()
         self.pod_name = pod_name
@@ -102,6 +112,8 @@ class KubernetesPodTrigger(BaseTrigger):
         self.get_logs = get_logs
         self.startup_timeout = startup_timeout
         self.startup_check_interval = startup_check_interval
+        self.last_log_time = last_log_time
+        self.logging_interval = logging_interval
 
         if should_delete_pod is not None:
             warnings.warn(
@@ -134,9 +146,12 @@ class KubernetesPodTrigger(BaseTrigger):
                 "in_cluster": self.in_cluster,
                 "get_logs": self.get_logs,
                 "startup_timeout": self.startup_timeout,
+                "startup_check_interval": self.startup_check_interval,
                 "trigger_start_time": self.trigger_start_time,
                 "should_delete_pod": self.should_delete_pod,
                 "on_finish_action": self.on_finish_action.value,
+                "last_log_time": self.last_log_time,
+                "logging_interval": self.logging_interval,
             },
         )
 
@@ -144,87 +159,41 @@ class KubernetesPodTrigger(BaseTrigger):
         """Get current pod status and yield a TriggerEvent."""
         self.log.info("Checking pod %r in namespace %r.", self.pod_name, self.pod_namespace)
         try:
-            while True:
-                pod = await self.hook.get_pod(
-                    name=self.pod_name,
-                    namespace=self.pod_namespace,
+            state = await self._wait_for_pod_start()
+            if state == ContainerState.TERMINATED:
+                event = TriggerEvent(
+                    {
+                        "status": "success",
+                        "namespace": self.pod_namespace,
+                        "name": self.pod_name,
+                        "message": "All containers inside pod have started successfully.",
+                    }
                 )
-
-                pod_status = pod.status.phase
-                self.log.debug("Pod %s status: %s", self.pod_name, pod_status)
-
-                container_state = self.define_container_state(pod)
-                self.log.debug("Container %s status: %s", self.base_container_name, container_state)
-
-                if container_state == ContainerState.TERMINATED:
-                    yield TriggerEvent(
-                        {
-                            "name": self.pod_name,
-                            "namespace": self.pod_namespace,
-                            "status": "success",
-                            "message": "All containers inside pod have started successfully.",
-                        }
-                    )
-                    return
-                elif self.should_wait(pod_phase=pod_status, container_state=container_state):
-                    self.log.info("Container is not completed and still working.")
-
-                    if pod_status == PodPhase.PENDING and container_state != ContainerState.RUNNING:
-                        delta = datetime.datetime.now(tz=datetime.timezone.utc) - self.trigger_start_time
-                        if delta.total_seconds() >= self.startup_timeout:
-                            message = (
-                                f"Pod took longer than {self.startup_timeout} seconds to start. "
-                                "Check the pod events in kubernetes to determine why."
-                            )
-                            yield TriggerEvent(
-                                {
-                                    "name": self.pod_name,
-                                    "namespace": self.pod_namespace,
-                                    "status": "timeout",
-                                    "message": message,
-                                }
-                            )
-                            return
-                        else:
-                            self.log.info("Sleeping for %s seconds.", self.startup_check_interval)
-                            await asyncio.sleep(self.startup_check_interval)
-                    else:
-                        self.log.info("Sleeping for %s seconds.", self.poll_interval)
-                        await asyncio.sleep(self.poll_interval)
-                else:
-                    yield TriggerEvent(
-                        {
-                            "name": self.pod_name,
-                            "namespace": self.pod_namespace,
-                            "status": "failed",
-                            "message": pod.status.message,
-                        }
-                    )
-                    return
-        except CancelledError:
-            # That means that task was marked as failed
-            if self.get_logs:
-                self.log.info("Outputting container logs...")
-                await self.hook.read_logs(
-                    name=self.pod_name,
-                    namespace=self.pod_namespace,
+            elif state == ContainerState.FAILED:
+                event = TriggerEvent(
+                    {
+                        "status": "failed",
+                        "namespace": self.pod_namespace,
+                        "name": self.pod_name,
+                        "message": "pod failed",
+                    }
                 )
-            if self.on_finish_action == OnFinishAction.DELETE_POD:
-                self.log.info("Deleting pod...")
-                await self.hook.delete_pod(
-                    name=self.pod_name,
-                    namespace=self.pod_namespace,
-                )
+            else:
+                event = await self._wait_for_container_completion()
+            yield event
+            return
+        except PodLaunchTimeoutException as e:
+            message = self._format_exception_description(e)
             yield TriggerEvent(
                 {
                     "name": self.pod_name,
                     "namespace": self.pod_namespace,
-                    "status": "cancelled",
-                    "message": "Pod execution was cancelled",
+                    "status": "timeout",
+                    "message": message,
                 }
             )
+            return
         except Exception as e:
-            self.log.exception("Exception occurred while checking pod phase:")
             yield TriggerEvent(
                 {
                     "name": self.pod_name,
@@ -234,6 +203,75 @@ class KubernetesPodTrigger(BaseTrigger):
                     "stack_trace": traceback.format_exc(),
                 }
             )
+            return
+
+    def _format_exception_description(self, exc: Exception) -> Any:
+        if isinstance(exc, PodLaunchTimeoutException):
+            return exc.args[0]
+
+        description = f"Trigger {self.__class__.__name__} failed with exception {exc.__class__.__name__}."
+        message = exc.args and exc.args[0] or ""
+        if message:
+            description += f"\ntrigger exception message: {message}"
+        curr_traceback = traceback.format_exc()
+        description += f"\ntrigger traceback:\n{curr_traceback}"
+        return description
+
+    async def _wait_for_pod_start(self) -> ContainerState:
+        """Loops until pod phase leaves ``PENDING`` If timeout is reached, throws error."""
+        delta = datetime.datetime.now(tz=datetime.timezone.utc) - self.trigger_start_time
+        while self.startup_timeout >= delta.total_seconds():
+            pod = await self.hook.get_pod(self.pod_name, self.pod_namespace)
+            if not pod.status.phase == "Pending":
+                return self.define_container_state(pod)
+            self.log.info("Still waiting for pod to start. The pod state is %s", pod.status.phase)
+            await asyncio.sleep(self.startup_check_interval)
+            delta = datetime.datetime.now(tz=datetime.timezone.utc) - self.trigger_start_time
+        raise PodLaunchTimeoutException("Pod did not leave 'Pending' phase within specified timeout")
+
+    async def _wait_for_container_completion(self) -> TriggerEvent:
+        """
+        Wait for container completion.
+
+        Waits until container is no longer in running state. If trigger is configured with a logging period,
+        then will emit an event to resume the task for the purpose of fetching more logs.
+        """
+        time_begin = datetime.datetime.now(tz=datetime.timezone.utc)
+        time_get_more_logs = None
+        if self.logging_interval is not None:
+            time_get_more_logs = time_begin + datetime.timedelta(seconds=self.logging_interval)
+        while True:
+            pod = await self.hook.get_pod(self.pod_name, self.pod_namespace)
+            container_state = self.define_container_state(pod)
+            if container_state == ContainerState.TERMINATED:
+                return TriggerEvent(
+                    {
+                        "status": "success",
+                        "namespace": self.pod_namespace,
+                        "name": self.pod_name,
+                        "last_log_time": self.last_log_time,
+                    }
+                )
+            elif container_state == ContainerState.FAILED:
+                return TriggerEvent(
+                    {
+                        "status": "failed",
+                        "namespace": self.pod_namespace,
+                        "name": self.pod_name,
+                        "message": "Container state failed",
+                        "last_log_time": self.last_log_time,
+                    }
+                )
+            if time_get_more_logs and datetime.datetime.now(tz=datetime.timezone.utc) > time_get_more_logs:
+                return TriggerEvent(
+                    {
+                        "status": "running",
+                        "last_log_time": self.last_log_time,
+                        "namespace": self.pod_namespace,
+                        "name": self.pod_name,
+                    }
+                )
+            await asyncio.sleep(self.poll_interval)
 
     def _get_async_hook(self) -> AsyncKubernetesHook:
         # TODO: Remove this method when the min version of kubernetes provider is 7.12.0 in Google provider.

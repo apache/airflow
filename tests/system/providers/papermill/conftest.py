@@ -46,11 +46,12 @@ def remote_kernel(request):
             "--ip=0.0.0.0",
         ]
     )
-    request.addfinalizer(proc.kill)
+    yield
+    proc.kill()
 
 
 @pytest.fixture(scope="session", autouse=True)
 def airflow_conn(remote_kernel):
-    os.environ[
-        "AIRFLOW_CONN_JUPYTER_KERNEL_DEFAULT"
-    ] = '{"host": "localhost", "extra": {"shell_port": 60316} }'
+    os.environ["AIRFLOW_CONN_JUPYTER_KERNEL_DEFAULT"] = (
+        '{"host": "localhost", "extra": {"shell_port": 60316} }'
+    )

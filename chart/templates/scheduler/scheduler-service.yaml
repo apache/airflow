@@ -20,6 +20,7 @@
 ################################
 ## Airflow Scheduler Service
 #################################
+{{- if .Values.scheduler.enabled }}
 {{- if or (eq .Values.executor "LocalExecutor") (eq .Values.executor "LocalKubernetesExecutor") }}
 apiVersion: v1
 kind: Service
@@ -45,4 +46,5 @@ spec:
       protocol: TCP
       port: {{ .Values.ports.workerLogs }}
       targetPort: {{ .Values.ports.workerLogs }}
+{{- end }}
 {{- end }}

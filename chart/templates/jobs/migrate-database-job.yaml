@@ -60,8 +60,8 @@ spec:
         tier: airflow
         component: run-airflow-migrations
         release: {{ .Release.Name }}
-        {{- with .Values.labels }}
-          {{- toYaml . | nindent 8 }}
+        {{- if or (.Values.labels) (.Values.migrateDatabaseJob.labels) }}
+          {{- mustMerge .Values.migrateDatabaseJob.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       {{- if or .Values.airflowPodAnnotations .Values.migrateDatabaseJob.annotations }}
       annotations:
@@ -120,7 +120,7 @@ spec:
               {{- tpl (toYaml .Values.migrateDatabaseJob.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
         {{- if .Values.migrateDatabaseJob.extraContainers }}
-          {{- toYaml .Values.migrateDatabaseJob.extraContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.migrateDatabaseJob.extraContainers) . | nindent 8 }}
         {{- end }}
       volumes:
         - name: config

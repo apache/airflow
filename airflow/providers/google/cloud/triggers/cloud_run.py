@@ -81,7 +81,7 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
         self.impersonation_chain = impersonation_chain
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes class arguments and classpath."""
+        """Serialize class arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.cloud_run.CloudRunJobFinishedTrigger",
             {
@@ -120,6 +120,7 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
                             "job_name": self.job_name,
                         }
                     )
+                return
             elif operation.error.message:
                 raise AirflowException(f"Cloud Run Job error: {operation.error.message}")
 

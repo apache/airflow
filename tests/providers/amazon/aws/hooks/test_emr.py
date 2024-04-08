@@ -18,12 +18,14 @@
 from __future__ import annotations
 
 import re
+import sys
+import warnings
 from unittest import mock
 
 import boto3
 import pytest
 from botocore.exceptions import WaiterError
-from moto import mock_emr
+from moto import mock_aws
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
@@ -44,12 +46,12 @@ class TestEmrHook:
 
         assert sorted(hook.list_waiters()) == sorted([*official_waiters, *custom_waiters])
 
-    @mock_emr
+    @mock_aws
     def test_get_conn_returns_a_boto3_connection(self):
         hook = EmrHook(aws_conn_id="aws_default", region_name="ap-southeast-2")
         assert hook.get_conn().list_clusters() is not None
 
-    @mock_emr
+    @mock_aws
     def test_create_job_flow_uses_the_emr_config_to_create_a_cluster(self):
         client = boto3.client("emr", region_name="us-east-1")
 
@@ -60,7 +62,7 @@ class TestEmrHook:
 
         assert client.list_clusters()["Clusters"][0]["Id"] == cluster["JobFlowId"]
 
-    @mock_emr
+    @mock_aws
     @pytest.mark.parametrize("num_steps", [1, 2, 3, 4])
     def test_add_job_flow_steps_one_step(self, num_steps):
         hook = EmrHook(aws_conn_id="aws_default", emr_conn_id="emr_default", region_name="us-east-1")
@@ -153,7 +155,7 @@ class TestEmrHook:
         mock_conn.get_waiter.assert_called_with("step_complete")
 
     @pytest.mark.db_test
-    @mock_emr
+    @mock_aws
     def test_create_job_flow_extra_args(self):
         """
         Test that we can add extra arguments to the launch call.
@@ -167,8 +169,15 @@ class TestEmrHook:
         # AmiVersion is really old and almost no one will use it anymore, but
         # it's one of the "optional" request params that moto supports - it's
         # coverage of EMR isn't 100% it turns out.
-        with pytest.warns(None):  # Expected no warnings if ``emr_conn_id`` exists with correct conn_type
-            cluster = hook.create_job_flow({"Name": "test_cluster", "ReleaseLabel": "", "AmiVersion": "3.2"})
+        with warnings.catch_warnings():
+            # Expected no warnings if ``emr_conn_id`` exists with correct conn_type
+            warnings.simplefilter("error")
+            if sys.version_info >= (3, 12):
+                # Botocore generates deprecation warning on Python 3.12 connected with utcnow use
+                warnings.filterwarnings("ignore", message=r".*datetime.utcnow.*", category=DeprecationWarning)
+            cluster = hook.create_job_flow(
+                {"Name": "test_cluster", "ReleaseLabel": "", "AmiVersion": "3.2", "Instances": {}}
+            )
         cluster = client.describe_cluster(ClusterId=cluster["JobFlowId"])["Cluster"]
 
         # The AmiVersion comes back as {Requested,Running}AmiVersion fields.
@@ -185,6 +194,7 @@ class TestEmrHook:
         hook.create_job_flow(job_flow_overrides)
         mock_run_job_flow.assert_called_once_with(**job_flow_overrides)
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_conn")
     def test_missing_emr_conn_id(self, mock_boto3_client):
         """Test not exists ``emr_conn_id``."""
@@ -224,7 +234,7 @@ class TestEmrHook:
         assert not result
         assert message.startswith("'Amazon Elastic MapReduce' Airflow Connection cannot be tested")
 
-    @mock_emr
+    @mock_aws
     def test_get_cluster_id_by_name(self):
         """
         Test that we can resolve cluster id by cluster name.
@@ -245,7 +255,7 @@ class TestEmrHook:
 
         assert no_match is None
 
-    @mock_emr
+    @mock_aws
     def test_get_cluster_id_by_name_duplicate(self):
         """
         Test that we get an exception when there are duplicate clusters
@@ -259,7 +269,7 @@ class TestEmrHook:
         with pytest.raises(AirflowException):
             hook.get_cluster_id_by_name("test_cluster", ["RUNNING", "WAITING", "BOOTSTRAPPING"])
 
-    @mock_emr
+    @mock_aws
     def test_get_cluster_id_by_name_pagination(self):
         """
         Test that we can resolve cluster id by cluster name when there are

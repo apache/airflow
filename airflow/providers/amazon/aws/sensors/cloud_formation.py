@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains sensors for AWS CloudFormation."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
@@ -102,7 +103,7 @@ class CloudFormationDeleteStackSensor(AwsBaseSensor[CloudFormationHook]):
         self,
         *,
         stack_name: str,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
         **kwargs,
     ):

@@ -33,7 +33,7 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
 
 from sqlalchemy import and_, delete, func, not_, or_, select, text, update
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
+from sqlalchemy.orm import lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
 
 from airflow import settings
@@ -110,7 +110,7 @@ class ConcurrencyMap:
     @classmethod
     def from_concurrency_map(cls, mapping: dict[tuple[str, str, str], int]) -> ConcurrencyMap:
         instance = cls(Counter(), Counter(), Counter(mapping))
-        for (d, r, t), c in mapping.items():
+        for (d, _, t), c in mapping.items():
             instance.dag_active_tasks_map[d] += c
             instance.task_concurrency_map[(d, t)] += c
         return instance
@@ -150,7 +150,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     """
 
     job_type = "SchedulerJob"
-    heartrate: int = conf.getint("scheduler", "SCHEDULER_HEARTBEAT_SEC")
 
     def __init__(
         self,
@@ -1271,7 +1270,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         DagScheduleDatasetReference,
                         DatasetEvent.dataset_id == DagScheduleDatasetReference.dataset_id,
                     )
-                    .join(DatasetEvent.source_dag_run)
                     .where(*dataset_event_filters)
                 ).all()
 
@@ -1418,21 +1416,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         callback: DagCallbackRequest | None = None
 
         dag = dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
-        # Adopt row locking to account for inconsistencies when next_dagrun_create_after = None
-        query = (
-            select(DagModel).where(DagModel.dag_id == dag_run.dag_id).options(joinedload(DagModel.parent_dag))
-        )
-        dag_model = session.scalars(
-            with_row_locks(query, of=DagModel, session=session, skip_locked=True)
-        ).one_or_none()
+        dag_model = DM.get_dagmodel(dag_run.dag_id, session)
 
-        if not dag:
+        if not dag or not dag_model:
             self.log.error("Couldn't find DAG %s in DAG bag or database!", dag_run.dag_id)
-            return callback
-        if not dag_model:
-            self.log.info(
-                "DAG %s scheduling was skipped, probably because the DAG record was locked", dag_run.dag_id
-            )
             return callback
 
         if (

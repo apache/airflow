@@ -29,18 +29,21 @@ from airflow_breeze.global_constants import (
     ALLOWED_MOUNT_OPTIONS,
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
+    ALLOWED_PYDANTIC_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     ALLOWED_USE_AIRFLOW_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     AUTOCOMPLETE_INTEGRATIONS,
+    DEFAULT_UV_HTTP_TIMEOUT,
 )
 from airflow_breeze.utils.custom_param_types import (
     AnswerChoice,
+    BackendVersionChoice,
     BetterChoice,
     CacheableChoice,
     CacheableDefault,
     DryRunOption,
-    MySQLBackendVersionType,
+    MySQLBackendVersionChoice,
     NotVerifiedBetterChoice,
     UseAirflowVersionType,
     VerboseOption,
@@ -244,7 +247,7 @@ option_mysql_version = click.option(
     "-M",
     "--mysql-version",
     help="Version of MySQL used.",
-    type=MySQLBackendVersionType(ALLOWED_MYSQL_VERSIONS),
+    type=MySQLBackendVersionChoice(ALLOWED_MYSQL_VERSIONS),
     default=CacheableDefault(ALLOWED_MYSQL_VERSIONS[0]),
     envvar="MYSQL_VERSION",
     show_default=True,
@@ -268,7 +271,7 @@ option_parallelism = click.option(
 option_postgres_version = click.option(
     "-P",
     "--postgres-version",
-    type=CacheableChoice(ALLOWED_POSTGRES_VERSIONS),
+    type=BackendVersionChoice(ALLOWED_POSTGRES_VERSIONS),
     default=CacheableDefault(ALLOWED_POSTGRES_VERSIONS[0]),
     envvar="POSTGRES_VERSION",
     show_default=True,
@@ -335,6 +338,38 @@ option_upgrade_boto = click.option(
     help="Remove aiobotocore and upgrade botocore and boto to the latest version.",
     is_flag=True,
     envvar="UPGRADE_BOTO",
+)
+option_use_uv = click.option(
+    "--use-uv/--no-use-uv",
+    is_flag=True,
+    default=True,
+    show_default=True,
+    help="Use uv instead of pip as packaging tool to build the image.",
+    envvar="USE_UV",
+)
+option_use_uv_default_disabled = click.option(
+    "--use-uv/--no-use-uv",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    help="Use uv instead of pip as packaging tool to build the image.",
+    envvar="USE_UV",
+)
+option_uv_http_timeout = click.option(
+    "--uv-http-timeout",
+    help="Timeout for requests that UV makes (only used in case of UV builds).",
+    type=click.IntRange(min=1),
+    default=DEFAULT_UV_HTTP_TIMEOUT,
+    show_default=True,
+    envvar="UV_HTTP_TIMEOUT",
+)
+option_pydantic = click.option(
+    "--pydantic",
+    help="Determines which pydantic should be used during tests.",
+    type=BetterChoice(ALLOWED_PYDANTIC_VERSIONS),
+    show_default=True,
+    default=ALLOWED_PYDANTIC_VERSIONS[0],
+    envvar="PYDANTIC",
 )
 option_use_airflow_version = click.option(
     "--use-airflow-version",

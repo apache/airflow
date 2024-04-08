@@ -25,6 +25,19 @@ from tests.charts.helm_template_generator import render_chart
 class TestWebserverDeployment:
     """Tests webserver deployment."""
 
+    def test_can_be_disabled(self):
+        """
+        Webserver should be able to be disabled if the users desires.
+
+        For example, user may be disabled when using webserver and having it deployed on another host.
+        """
+        docs = render_chart(
+            values={"webserver": {"enabled": False}},
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert 0 == len(docs)
+
     def test_should_add_host_header_to_liveness_and_readiness_and_startup_probes(self):
         docs = render_chart(
             values={
@@ -175,7 +188,7 @@ class TestWebserverDeployment:
                 "executor": "CeleryExecutor",
                 "webserver": {
                     "extraContainers": [
-                        {"name": "test-container", "image": "test-registry/test-repo:test-tag"}
+                        {"name": "{{.Chart.Name}}", "image": "test-registry/test-repo:test-tag"}
                     ],
                 },
             },
@@ -183,7 +196,7 @@ class TestWebserverDeployment:
         )
 
         assert {
-            "name": "test-container",
+            "name": "airflow",
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
 

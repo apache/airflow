@@ -23,7 +23,6 @@ import os
 import sys
 from argparse import Namespace
 from contextlib import contextmanager
-from datetime import datetime
 from pathlib import Path
 from unittest import mock
 
@@ -36,6 +35,10 @@ from airflow.models.log import Log
 from airflow.utils import cli, cli_action_loggers, timezone
 from airflow.utils.cli import _search_for_dag_file, get_dag_by_pickle
 
+# Mark entire module as db_test because ``action_cli`` wrapper still could use DB on callbacks:
+# - ``cli_action_loggers.on_pre_execution``
+# - ``cli_action_loggers.on_post_execution``
+pytestmark = pytest.mark.db_test
 repo_root = Path(airflow.__file__).parent.parent
 
 
@@ -56,7 +59,7 @@ class TestCliUtil:
         for k, v in expected.items():
             assert v == metrics.get(k)
 
-        assert metrics.get("start_datetime") <= datetime.utcnow()
+        assert metrics.get("start_datetime") <= timezone.utcnow()
         assert metrics.get("full_command")
 
     def test_fail_function(self):
@@ -147,7 +150,7 @@ class TestCliUtil:
 
             log = session.query(Log).order_by(Log.dttm.desc()).first()
 
-        assert metrics.get("start_datetime") <= datetime.utcnow()
+        assert metrics.get("start_datetime") <= timezone.utcnow()
 
         command: str = json.loads(log.extra).get("full_command")
         # Replace single quotes to double quotes to avoid json decode error

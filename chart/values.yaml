@@ -68,13 +68,13 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.8.1"
+defaultAirflowTag: "2.8.4"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.8.1"
+airflowVersion: "2.8.4"
 
 # Images
 images:
@@ -105,11 +105,11 @@ images:
     pullPolicy: IfNotPresent
   statsd:
     repository: quay.io/prometheus/statsd-exporter
-    tag: v0.22.8
+    tag: v0.26.1
     pullPolicy: IfNotPresent
   redis:
     repository: redis
-    tag: 7-bullseye
+    tag: 7-bookworm
     pullPolicy: IfNotPresent
   pgbouncer:
     repository: apache/airflow
@@ -790,6 +790,7 @@ workers:
 
 # Airflow scheduler settings
 scheduler:
+  enabled: true
   #  hostAliases for the scheduler pod
   hostAliases: []
   #  - ip: "127.0.0.1"
@@ -1085,6 +1086,9 @@ migrateDatabaseJob:
   # jobAnnotations are annotations on the database migration job
   jobAnnotations: {}
 
+  # Labels specific to migrate database job objects and pods
+  labels: {}
+
   # When not set, the values defined in the global securityContext will be used
   securityContext: {}
   #  runAsUser: 50000
@@ -1150,6 +1154,7 @@ migrateDatabaseJob:
 
 # Airflow webserver settings
 webserver:
+  enabled: true
   # Add custom annotations to the webserver configmap
   configMapAnnotations: {}
   #  hostAliases for the webserver pod
@@ -1706,6 +1711,19 @@ flower:
   # Enable flower.
   # If True, and using CeleryExecutor/CeleryKubernetesExecutor, will deploy flower app.
   enabled: false
+
+  livenessProbe:
+    initialDelaySeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 10
+    periodSeconds: 5
+
+  readinessProbe:
+    initialDelaySeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 10
+    periodSeconds: 5
+
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~
 

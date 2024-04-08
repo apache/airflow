@@ -50,7 +50,7 @@ class YandexCloudBaseHook(BaseHook):
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to Yandex connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import PasswordField, StringField
@@ -79,14 +79,14 @@ class YandexCloudBaseHook(BaseHook):
             "folder_id": StringField(
                 lazy_gettext("Default folder ID"),
                 widget=BS3TextFieldWidget(),
-                description="Optional. This folder will be used "
-                "to create all new clusters and nodes by default",
+                description="Optional. "
+                "If specified, this ID will be used by default when creating nodes and clusters.",
             ),
             "public_ssh_key": StringField(
                 lazy_gettext("Public SSH key"),
                 widget=BS3TextFieldWidget(),
-                description="Optional. This key will be placed to all created Compute nodes "
-                "to let you have a root shell there",
+                description="Optional. The key will be placed to all created Compute nodes, "
+                "allowing you to have a root shell there.",
             ),
             "endpoint": StringField(
                 lazy_gettext("API endpoint"),
@@ -107,7 +107,7 @@ class YandexCloudBaseHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom UI field behaviour for Yandex connection."""
         return {
             "hidden_fields": ["host", "schema", "login", "password", "port", "extra"],
             "relabeling": {},
@@ -132,13 +132,13 @@ class YandexCloudBaseHook(BaseHook):
         self.connection_id = yandex_conn_id or connection_id or default_conn_name
         self.connection = self.get_connection(self.connection_id)
         self.extras = self.connection.extra_dejson
-        credentials = get_credentials(
+        self.credentials = get_credentials(
             oauth_token=self._get_field("oauth"),
             service_account_json=self._get_field("service_account_json"),
             service_account_json_path=self._get_field("service_account_json_path"),
         )
         sdk_config = self._get_endpoint()
-        self.sdk = yandexcloud.SDK(user_agent=provider_user_agent(), **sdk_config, **credentials)
+        self.sdk = yandexcloud.SDK(user_agent=provider_user_agent(), **sdk_config, **self.credentials)
         self.default_folder_id = default_folder_id or self._get_field("folder_id")
         self.default_public_ssh_key = default_public_ssh_key or self._get_field("public_ssh_key")
         self.default_service_account_id = default_service_account_id or get_service_account_id(

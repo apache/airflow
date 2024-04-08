@@ -1,0 +1,130 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: PROD images extra checks
+on:  # yamllint disable-line rule:truthy
+  workflow_call:
+    inputs:
+      runs-on-as-json-public:
+        description: "The array of labels (in json form) determining public runners."
+        required: true
+        type: string
+      python-versions:
+        description: "JSON-formatted array of Python versions to build images from"
+        required: true
+        type: string
+      default-python-version:
+        description: "Default Python version to use for the image"
+        required: true
+        type: string
+      branch:
+        description: "Branch used to run the CI jobs in (main/v2_*_test)."
+        required: true
+        type: string
+      use-uv:
+        description: "Whether to use uv to build the image (true/false)"
+        required: true
+        type: string
+      image-tag:
+        required: true
+        type: string
+      build-provider-packages:
+        description: "Whether to build provider packages (true/false). If false providers are from PyPI"
+        required: true
+        type: string
+      upgrade-to-newer-dependencies:
+        description: "Whether to attempt to upgrade image to newer dependencies (false/RANDOM_VALUE)"
+        required: true
+        type: string
+      chicken-egg-providers:
+        description: "Space-separated list of providers that should be installed from context files"
+        required: true
+        type: string
+      constraints-branch:
+        description: "Branch used to construct constraints URL from."
+        required: true
+        type: string
+      docker-cache:
+        description: "Docker cache specification to build the image (registry, local, disabled)."
+        required: true
+        type: string
+jobs:
+  bullseye-image:
+    uses: ./.github/workflows/prod-image-build.yml
+    with:
+      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
+      build-type: "Bullseye"
+      upload-package-artifact: "false"
+      image-tag: bullseye-${{ inputs.image-tag }}
+      debian-version: "bullseye"
+      python-versions: ${{ inputs.python-versions }}
+      default-python-version: ${{ inputs.default-python-version }}
+      platform: "linux/amd64"
+      branch: ${{ inputs.branch }}
+      # Always build images during the extra checks and never push them
+      push-image: "false"
+      use-uv: ${{ inputs.use-uv }}
+      build-provider-packages: ${{ inputs.build-provider-packages }}
+      upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
+      chicken-egg-providers: ${{ inputs.chicken-egg-providers }}
+      constraints-branch: ${{ inputs.constraints-branch }}
+      docker-cache: ${{ inputs.docker-cache }}
+
+  myssql-client-image:
+    uses: ./.github/workflows/prod-image-build.yml
+    with:
+      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
+      build-type: "MySQL Client"
+      upload-package-artifact: "false"
+      image-tag: mysql-${{ inputs.image-tag }}
+      install-mysql-client-type: "mysql"
+      python-versions: ${{ inputs.python-versions }}
+      default-python-version: ${{ inputs.default-python-version }}
+      platform: "linux/amd64"
+      branch: ${{ inputs.branch }}
+      # Always build images during the extra checks and never push them
+      push-image: "false"
+      use-uv: ${{ inputs.use-uv }}
+      build-provider-packages: ${{ inputs.build-provider-packages }}
+      upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
+      chicken-egg-providers: ${{ inputs.chicken-egg-providers }}
+      constraints-branch: ${{ inputs.constraints-branch }}
+      docker-cache: ${{ inputs.docker-cache }}
+
+  pip-image:
+    uses: ./.github/workflows/prod-image-build.yml
+    # Skip testing PIP image on release branches as all images there are built with pip
+    if: ${{ inputs.use-uv == 'true' }}
+    with:
+      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
+      build-type: "pip"
+      upload-package-artifact: "false"
+      image-tag: mysql-${{ inputs.image-tag }}
+      install-mysql-client-type: "mysql"
+      python-versions: ${{ inputs.python-versions }}
+      default-python-version: ${{ inputs.default-python-version }}
+      platform: "linux/amd64"
+      branch: ${{ inputs.branch }}
+      # Always build images during the extra checks and never push them
+      push-image: "false"
+      use-uv: "false"
+      build-provider-packages: ${{ inputs.build-provider-packages }}
+      upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
+      chicken-egg-providers: ${{ inputs.chicken-egg-providers }}
+      constraints-branch: ${{ inputs.constraints-branch }}
+      docker-cache: ${{ inputs.docker-cache }}

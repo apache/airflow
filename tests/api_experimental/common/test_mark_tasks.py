@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import datetime
+import warnings
 from typing import Callable
 
 import pytest
@@ -33,6 +34,7 @@ from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_success,
     set_state,
 )
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models import DagRun
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
@@ -50,9 +52,13 @@ pytestmark = pytest.mark.db_test
 def dagbag():
     from airflow.models.dagbag import DagBag
 
-    # Ensure the DAGs we are looking at from the DB are up-to-date
-    non_serialized_dagbag = DagBag(read_dags_from_db=False, include_examples=True)
-    non_serialized_dagbag.sync_to_db()
+    with warnings.catch_warnings():
+        # Some dags use deprecated operators, e.g SubDagOperator
+        # if it is not imported, then it might have side effects for the other tests
+        warnings.simplefilter("ignore", category=RemovedInAirflow3Warning)
+        # Ensure the DAGs we are looking at from the DB are up-to-date
+        non_serialized_dagbag = DagBag(read_dags_from_db=False, include_examples=True)
+        non_serialized_dagbag.sync_to_db()
     return DagBag(read_dags_from_db=True)
 
 
@@ -478,7 +484,11 @@ class TestMarkDAGRun:
 
     @classmethod
     def setup_class(cls):
-        dagbag = models.DagBag(include_examples=True, read_dags_from_db=False)
+        with warnings.catch_warnings():
+            # Some dags use deprecated operators, e.g SubDagOperator
+            # if it is not imported, then it might have side effects for the other tests
+            warnings.simplefilter("ignore", category=RemovedInAirflow3Warning)
+            dagbag = models.DagBag(include_examples=True, read_dags_from_db=False)
         cls.dag1 = dagbag.dags["miscellaneous_test_dag"]
         cls.dag1.sync_to_db()
         cls.dag2 = dagbag.dags["example_subdag_operator"]
@@ -555,20 +565,28 @@ class TestMarkDAGRun:
         assert dr.get_state() == state
 
     @provide_session
-    def _verify_dag_run_dates(self, dag, date, state, middle_time, session=None):
+    def _verify_dag_run_dates(self, dag, date, state, middle_time=None, old_end_date=None, session=None):
         # When target state is RUNNING, we should set start_date,
         # otherwise we should set end_date.
         DR = DagRun
         dr = session.query(DR).filter(DR.dag_id == dag.dag_id, DR.execution_date == date).one()
         if state == State.RUNNING:
             # Since the DAG is running, the start_date must be updated after creation
-            assert dr.start_date > middle_time
+            if middle_time:
+                assert dr.start_date > middle_time
             # If the dag is still running, we don't have an end date
             assert dr.end_date is None
         else:
-            # If the dag is not running, there must be an end time
-            assert dr.start_date < middle_time
-            assert dr.end_date > middle_time
+            # If the dag is not running, there must be an end time,
+            # and the end time must not be changed if it has already been set.
+            if dr.start_date and middle_time:
+                assert dr.start_date < middle_time
+            if dr.end_date:
+                if old_end_date:
+                    assert dr.end_date == old_end_date
+                else:
+                    if middle_time:
+                        assert dr.end_date > middle_time
 
     def test_set_running_dag_run_to_success(self):
         date = self.execution_dates[0]
@@ -599,30 +617,42 @@ class TestMarkDAGRun:
         assert dr.get_task_instance("run_after_loop").state == State.FAILED
         self._verify_dag_run_dates(self.dag1, date, State.FAILED, middle_time)
 
-    @pytest.mark.parametrize(
-        "dag_run_alter_function, new_state",
-        [(set_dag_run_state_to_running, State.RUNNING), (set_dag_run_state_to_queued, State.QUEUED)],
-    )
-    def test_set_running_dag_run_to_activate_state(self, dag_run_alter_function: Callable, new_state: State):
+    def test_set_running_dag_run_to_running_state(self):
+        date = self.execution_dates[0]  # type: ignore
+        dr = self._create_test_dag_run(State.RUNNING, date)
+        self._set_default_task_instance_states(dr)
+
+        altered = set_dag_run_state_to_running(dag=self.dag1, run_id=dr.run_id, commit=True)  # type: ignore
+
+        # None of the tasks should be altered, only the dag itself
+        assert len(altered) == 0
+        new_state = State.RUNNING
+        self._verify_dag_run_state(self.dag1, date, new_state)  # type: ignore
+        self._verify_task_instance_states_remain_default(dr)
+        self._verify_dag_run_dates(self.dag1, date, new_state)  # type: ignore
+
+    def test_set_running_dag_run_to_queued_state(self):
         date = self.execution_dates[0]  # type: ignore
         dr = self._create_test_dag_run(State.RUNNING, date)
         middle_time = timezone.utcnow()
         self._set_default_task_instance_states(dr)
 
-        altered = dag_run_alter_function(dag=self.dag1, run_id=dr.run_id, commit=True)  # type: ignore
+        altered = set_dag_run_state_to_queued(dag=self.dag1, run_id=dr.run_id, commit=True)  # type: ignore
 
         # None of the tasks should be altered, only the dag itself
         assert len(altered) == 0
+        new_state = State.QUEUED
         self._verify_dag_run_state(self.dag1, date, new_state)  # type: ignore
         self._verify_task_instance_states_remain_default(dr)
         self._verify_dag_run_dates(self.dag1, date, new_state, middle_time)  # type: ignore
 
     @pytest.mark.parametrize("completed_state", [State.SUCCESS, State.FAILED])
-    def test_set_success_dag_run_to_success(self, completed_state):
+    def test_set_completed_dag_run_to_success(self, completed_state):
         date = self.execution_dates[0]
         dr = self._create_test_dag_run(completed_state, date)
         middle_time = timezone.utcnow()
         self._set_default_task_instance_states(dr)
+        old_end_date = dr.end_date
 
         altered = set_dag_run_state_to_success(dag=self.dag1, run_id=dr.run_id, commit=True)
 
@@ -631,13 +661,14 @@ class TestMarkDAGRun:
         assert len(altered) == expected
         self._verify_dag_run_state(self.dag1, date, State.SUCCESS)
         self._verify_task_instance_states(self.dag1, date, State.SUCCESS)
-        self._verify_dag_run_dates(self.dag1, date, State.SUCCESS, middle_time)
+        self._verify_dag_run_dates(self.dag1, date, State.SUCCESS, middle_time, old_end_date)
 
     @pytest.mark.parametrize("completed_state", [State.SUCCESS, State.FAILED])
     def test_set_completed_dag_run_to_failed(self, completed_state):
         date = self.execution_dates[0]
         dr = self._create_test_dag_run(completed_state, date)
         middle_time = timezone.utcnow()
+        old_end_date = dr.end_date
         self._set_default_task_instance_states(dr)
 
         altered = set_dag_run_state_to_failed(dag=self.dag1, run_id=dr.run_id, commit=True)
@@ -646,7 +677,7 @@ class TestMarkDAGRun:
         assert len(altered) == expected
         self._verify_dag_run_state(self.dag1, date, State.FAILED)
         assert dr.get_task_instance("run_after_loop").state == State.FAILED
-        self._verify_dag_run_dates(self.dag1, date, State.FAILED, middle_time)
+        self._verify_dag_run_dates(self.dag1, date, State.FAILED, middle_time, old_end_date)
 
     @pytest.mark.parametrize(
         "dag_run_alter_function,new_state",

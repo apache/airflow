@@ -34,8 +34,7 @@ def test_short_circuit_decorator(dag_maker):
     with dag_maker():
 
         @task
-        def empty():
-            ...
+        def empty(): ...
 
         @task.short_circuit()
         def short_circuit(condition):

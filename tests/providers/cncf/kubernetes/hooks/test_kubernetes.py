@@ -48,16 +48,17 @@ CONN_ID = "kubernetes-test-id"
 ASYNC_CONFIG_PATH = "/files/path/to/config/file"
 POD_NAME = "test-pod"
 NAMESPACE = "test-namespace"
+JOB_NAME = "test-job"
+POLL_INTERVAL = 100
 
 
-class DeprecationRemovalRequired(AirflowException):
-    ...
+class DeprecationRemovalRequired(AirflowException): ...
 
 
 DEFAULT_CONN_ID = "kubernetes_default"
 
 
-@pytest.fixture()
+@pytest.fixture
 def remove_default_conn(session):
     before_conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).one_or_none()
     if before_conn:
@@ -446,6 +447,183 @@ class TestKubernetesHook:
             _preload_content="_preload_content",
         )
 
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    @patch(f"{HOOK_MODULE}.KubernetesHook.batch_v1_client")
+    def test_get_job_status(self, mock_client, mock_kube_config_merger, mock_kube_config_loader):
+        job_expected = mock_client.read_namespaced_job_status.return_value
+
+        hook = KubernetesHook()
+        job_actual = hook.get_job_status(job_name=JOB_NAME, namespace=NAMESPACE)
+
+        mock_client.read_namespaced_job_status.assert_called_once_with(
+            name=JOB_NAME, namespace=NAMESPACE, pretty=True
+        )
+        assert job_actual == job_expected
+
+    @pytest.mark.parametrize(
+        "conditions, expected_result",
+        [
+            (None, False),
+            ([], False),
+            ([mock.MagicMock(type="Complete", status=True)], False),
+            ([mock.MagicMock(type="Complete", status=False)], False),
+            ([mock.MagicMock(type="Failed", status=False)], False),
+            ([mock.MagicMock(type="Failed", status=True, reason="test reason 1")], "test reason 1"),
+            (
+                [
+                    mock.MagicMock(type="Complete", status=False),
+                    mock.MagicMock(type="Failed", status=True, reason="test reason 2"),
+                ],
+                "test reason 2",
+            ),
+            (
+                [
+                    mock.MagicMock(type="Complete", status=True),
+                    mock.MagicMock(type="Failed", status=True, reason="test reason 3"),
+                ],
+                "test reason 3",
+            ),
+        ],
+    )
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    def test_is_job_failed(self, mock_merger, mock_loader, conditions, expected_result):
+        mock_job = mock.MagicMock()
+        mock_job.status.conditions = conditions
+
+        hook = KubernetesHook()
+        actual_result = hook.is_job_failed(mock_job)
+
+        assert actual_result == expected_result
+
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    def test_is_job_failed_no_status(self, mock_merger, mock_loader):
+        mock_job = mock.MagicMock()
+        mock_job.status = None
+
+        hook = KubernetesHook()
+        job_failed = hook.is_job_failed(mock_job)
+
+        assert not job_failed
+
+    @pytest.mark.parametrize(
+        "condition_type, status, expected_result",
+        [
+            ("Complete", False, False),
+            ("Complete", True, True),
+            ("Failed", False, False),
+            ("Failed", True, False),
+            ("Suspended", False, False),
+            ("Suspended", True, False),
+            ("Unknown", False, False),
+            ("Unknown", True, False),
+        ],
+    )
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    def test_is_job_successful(self, mock_merger, mock_loader, condition_type, status, expected_result):
+        mock_job = mock.MagicMock()
+        mock_job.status.conditions = [mock.MagicMock(type=condition_type, status=status)]
+
+        hook = KubernetesHook()
+        actual_result = hook.is_job_successful(mock_job)
+
+        assert actual_result == expected_result
+
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    def test_is_job_successful_no_status(self, mock_merger, mock_loader):
+        mock_job = mock.MagicMock()
+        mock_job.status = None
+
+        hook = KubernetesHook()
+        job_successful = hook.is_job_successful(mock_job)
+
+        assert not job_successful
+
+    @pytest.mark.parametrize(
+        "condition_type, status, expected_result",
+        [
+            ("Complete", False, False),
+            ("Complete", True, True),
+            ("Failed", False, False),
+            ("Failed", True, True),
+            ("Suspended", False, False),
+            ("Suspended", True, False),
+            ("Unknown", False, False),
+            ("Unknown", True, False),
+        ],
+    )
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    def test_is_job_complete(self, mock_merger, mock_loader, condition_type, status, expected_result):
+        mock_job = mock.MagicMock()
+        mock_job.status.conditions = [mock.MagicMock(type=condition_type, status=status)]
+
+        hook = KubernetesHook()
+        actual_result = hook.is_job_complete(mock_job)
+
+        assert actual_result == expected_result
+
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    def test_is_job_complete_no_status(self, mock_merger, mock_loader):
+        mock_job = mock.MagicMock()
+        mock_job.status = None
+
+        hook = KubernetesHook()
+        job_complete = hook.is_job_complete(mock_job)
+
+        assert not job_complete
+
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    @patch(f"{HOOK_MODULE}.KubernetesHook.get_job_status")
+    def test_wait_until_job_complete(self, mock_job_status, mock_kube_config_merger, mock_kube_config_loader):
+        job_expected = mock.MagicMock(
+            status=mock.MagicMock(
+                conditions=[
+                    mock.MagicMock(type="TestType1"),
+                    mock.MagicMock(type="TestType2"),
+                    mock.MagicMock(type="Complete", status=True),
+                ]
+            )
+        )
+        mock_job_status.side_effect = [
+            mock.MagicMock(status=mock.MagicMock(conditions=None)),
+            mock.MagicMock(status=mock.MagicMock(conditions=[mock.MagicMock(type="TestType")])),
+            mock.MagicMock(
+                status=mock.MagicMock(
+                    conditions=[
+                        mock.MagicMock(type="TestType1"),
+                        mock.MagicMock(type="TestType2"),
+                    ]
+                )
+            ),
+            mock.MagicMock(
+                status=mock.MagicMock(
+                    conditions=[
+                        mock.MagicMock(type="TestType1"),
+                        mock.MagicMock(type="TestType2"),
+                        mock.MagicMock(type="Complete", status=False),
+                    ]
+                )
+            ),
+            job_expected,
+        ]
+
+        hook = KubernetesHook()
+        with patch(f"{HOOK_MODULE}.sleep", return_value=None) as mock_sleep:
+            job_actual = hook.wait_until_job_complete(
+                job_name=JOB_NAME, namespace=NAMESPACE, job_poll_interval=POLL_INTERVAL
+            )
+
+        mock_job_status.assert_has_calls([mock.call(job_name=JOB_NAME, namespace=NAMESPACE)] * 5)
+        mock_sleep.assert_has_calls([mock.call(POLL_INTERVAL)] * 4)
+        assert job_actual == job_expected
+
 
 class TestKubernetesHookIncorrectConfiguration:
     @pytest.mark.parametrize(
@@ -457,10 +635,10 @@ class TestKubernetesHookIncorrectConfiguration:
         ),
     )
     def test_should_raise_exception_on_invalid_configuration(self, conn_uri):
+        kubernetes_hook = KubernetesHook()
         with mock.patch.dict("os.environ", AIRFLOW_CONN_KUBERNETES_DEFAULT=conn_uri), pytest.raises(
             AirflowException, match="Invalid connection configuration"
         ):
-            kubernetes_hook = KubernetesHook()
             kubernetes_hook.get_conn()
 
 
@@ -469,6 +647,8 @@ class TestAsyncKubernetesHook:
     INCLUSTER_CONFIG_LOADER = "kubernetes_asyncio.config.incluster_config.InClusterConfigLoader"
     KUBE_LOADER_CONFIG = "kubernetes_asyncio.config.kube_config.KubeConfigLoader"
     KUBE_API = "kubernetes_asyncio.client.api.core_v1_api.CoreV1Api.{}"
+    KUBE_BATCH_API = "kubernetes_asyncio.client.api.batch_v1_api.BatchV1Api.{}"
+    KUBE_ASYNC_HOOK = HOOK_MODULE + ".AsyncKubernetesHook.{}"
 
     @staticmethod
     def mock_await_result(return_value):
@@ -577,13 +757,13 @@ class TestAsyncKubernetesHook:
     async def test_load_config_with_several_params(
         self,
     ):
+        hook = AsyncKubernetesHook(
+            conn_id=CONN_ID,
+            in_cluster=True,
+            config_file=ASYNC_CONFIG_PATH,
+            cluster_context=None,
+        )
         with pytest.raises(AirflowException):
-            hook = AsyncKubernetesHook(
-                conn_id=CONN_ID,
-                in_cluster=True,
-                config_file=ASYNC_CONFIG_PATH,
-                cluster_context=None,
-            )
             await hook._load_config()
 
     @pytest.mark.asyncio
@@ -650,3 +830,55 @@ class TestAsyncKubernetesHook:
             timestamps=True,
         )
         assert "Container logs from 2023-01-11 Some string logs..." in caplog.text
+
+    @pytest.mark.asyncio
+    @mock.patch(KUBE_BATCH_API.format("read_namespaced_job_status"))
+    async def test_get_job_status(self, lib_method, kube_config_loader):
+        lib_method.return_value = self.mock_await_result(None)
+
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_file=None,
+            cluster_context=None,
+        )
+        await hook.get_job_status(
+            name=JOB_NAME,
+            namespace=NAMESPACE,
+        )
+
+        lib_method.assert_called_once()
+
+    @pytest.mark.asyncio
+    @mock.patch(HOOK_MODULE + ".asyncio.sleep")
+    @mock.patch(KUBE_ASYNC_HOOK.format("is_job_complete"))
+    @mock.patch(KUBE_ASYNC_HOOK.format("get_job_status"))
+    async def test_wait_until_job_complete(
+        self, mock_get_job_status, mock_is_job_complete, mock_sleep, kube_config_loader
+    ):
+        mock_job_0, mock_job_1 = mock.MagicMock(), mock.MagicMock()
+        mock_get_job_status.side_effect = mock.AsyncMock(side_effect=[mock_job_0, mock_job_1])
+        mock_is_job_complete.side_effect = [False, True]
+
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_file=None,
+            cluster_context=None,
+        )
+
+        job_actual = await hook.wait_until_job_complete(
+            name=JOB_NAME,
+            namespace=NAMESPACE,
+            poll_interval=10,
+        )
+
+        mock_get_job_status.assert_has_awaits(
+            [
+                mock.call(name=JOB_NAME, namespace=NAMESPACE),
+                mock.call(name=JOB_NAME, namespace=NAMESPACE),
+            ]
+        )
+        mock_is_job_complete.assert_has_calls([mock.call(job=mock_job_0), mock.call(job=mock_job_1)])
+        mock_sleep.assert_awaited_once_with(10)
+        assert job_actual == mock_job_1

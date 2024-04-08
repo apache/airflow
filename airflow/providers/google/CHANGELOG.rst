@@ -27,6 +27,86 @@
 Changelog
 ---------
 
+10.16.0
+.......
+
+Features
+~~~~~~~~
+
+* ``'CloudRunExecuteJobOperator': Add project_id to hook.get_job calls (#37201)``
+* ``Add developer token as authentication method to GoogleAdsHook (#37417)``
+* ``Add GKEStartKueueInsideClusterOperator (#37072)``
+* ``Add optional 'location' parameter to the BigQueryInsertJobTrigger (#37282)``
+* ``feat(GKEPodAsyncHook): use async credentials token implementation (#37486)``
+* ``Create GKEStartJobOperator and KubernetesJobOperator (#36847)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix invalid deprecation of 'DataFusionPipelineLinkHelper' (#37755)``
+* ``fix templated field assignment 'google/cloud/operators/compute.py' (#37659)``
+* ``fix bq_to_mysql init checks (#37653)``
+* ``Fix Async GCSObjectsWithPrefixExistenceSensor xcom push (#37634)``
+* ``Fix GCSSynchronizeBucketsOperator timeout error (#37237)``
+* ``fix: Signature of insert_rows incompatible with supertype DbApiHook (#37391)``
+* ``Use offset-naive datetime in _CredentialsToken (#37539)``
+* ``Use wait_for_operation in DataprocInstantiateInlineWorkflowTemplateOperator (#37145)``
+
+Misc
+~~~~
+
+* ``Fix typo on DataflowStartFlexTemplateOperator documentation (#37595)``
+* ``Make 'executemany' keyword arguments only in 'DbApiHook.insert_rows' (#37840)``
+* ``Unify 'aws_conn_id' type to always be 'str | None' (#37768)``
+* ``Limit 'pandas' to '<2.2' (#37748)``
+* ``Remove broken deprecated fallback into the Google provider operators (#37740)``
+* ``Implement AIP-60 Dataset URI formats (#37005)``
+* ``resolve template fields init checks for 'bigquery' (#37586)``
+* ``Update docs for the DataprocCreateBatchOperator (#37562)``
+* ``Replace usage of 'datetime.utcnow' and 'datetime.utcfromtimestamp' in providers (#37138)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add comment about versions updated by release manager (#37488)``
+   * ``Add D401 fixes (#37348)``
+   * ``Avoid to use too broad 'noqa' (#37862)``
+   * ``Avoid non-recommended usage of logging (#37792)``
+
+10.15.0
+.......
+
+Features
+~~~~~~~~
+
+* ``add service_file support to GKEPodAsyncHook (#37081)``
+* ``Update GCP Dataproc ClusterGenerator to support GPU params (#37036)``
+* ``Create DataprocStartClusterOperator and DataprocStopClusterOperator (#36996)``
+* ``Implement deferrable mode for CreateHyperparameterTuningJobOperator (#36594)``
+* ``Enable '_enable_tcp_keepalive' functionality for GKEPodHook (#36999)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/google): fix how GKEPodAsyncHook.service_file_as_context is used (#37306)``
+* ``Fix metadata override for ComputeEngineSSHHook (#37192)``
+* ``Fix assignment of template field in '__init__' in 'custom_job' (#36789)``
+* ``Fix location requirement in DataflowTemplatedJobStartOperator (#37069)``
+* ``Fix assignment of template field in '__init__' in 'CloudDataTransferServiceCreateJobOperator' (#36909)``
+* ``Fixed the hardcoded default namespace value for GCP Data Fusion links. (#35379)``
+* ``Do not ignore the internal_ip_only if set to false in Dataproc cluster config (#37014)``
+
+Misc
+~~~~
+
+* ``Revert protection against back-compatibility issue with google-core-api (#37111)``
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D401 lint fixes for google provider (#37304)``
+   * ``D401 lint fixes for all hooks in google provider (#37296)``
+   * ``Upgrade mypy to 1.8.0 (#36428)``
+
 10.14.0
 .......
 

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Apache Beam Hook."""
+
 from __future__ import annotations
 
 import asyncio
@@ -41,6 +42,8 @@ from airflow.utils.python_virtualenv import prepare_virtualenv
 
 if TYPE_CHECKING:
     import logging
+
+_APACHE_BEAM_VERSION_SCRIPT = "import apache_beam; print(apache_beam.__version__)"
 
 
 class BeamRunnerType:
@@ -78,6 +81,8 @@ def beam_options_to_args(options: dict) -> list[str]:
     for attr, value in options.items():
         if value is None or (isinstance(value, bool) and value):
             args.append(f"--{attr}")
+        elif isinstance(value, bool) and not value:
+            continue
         elif isinstance(value, list):
             args.extend([f"--{attr}={v}" for v in value])
         else:
@@ -102,7 +107,7 @@ def process_fd(
     :param log: logger.
     """
     if fd not in (proc.stdout, proc.stderr):
-        raise Exception("No data in stderr or in stdout.")
+        raise AirflowException("No data in stderr or in stdout.")
 
     fd_to_log = {proc.stderr: log.warning, proc.stdout: log.info}
     func_log = fd_to_log[fd]
@@ -271,11 +276,7 @@ class BeamHook(BaseHook):
             command_prefix = [py_interpreter, *py_options, py_file]
 
             beam_version = (
-                subprocess.check_output(
-                    [py_interpreter, "-c", "import apache_beam; print(apache_beam.__version__)"]
-                )
-                .decode()
-                .strip()
+                subprocess.check_output([py_interpreter, "-c", _APACHE_BEAM_VERSION_SCRIPT]).decode().strip()
             )
             self.log.info("Beam version: %s", beam_version)
             impersonate_service_account = variables.get("impersonate_service_account")
@@ -425,6 +426,23 @@ class BeamAsyncHook(BeamHook):
         """
         shutil.rmtree(tmp_dir)
 
+    @staticmethod
+    async def _beam_version(py_interpreter: str) -> str:
+        version_script_cmd = shlex.join([py_interpreter, "-c", _APACHE_BEAM_VERSION_SCRIPT])
+        proc = await asyncio.create_subprocess_shell(
+            version_script_cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            msg = (
+                f"Unable to retrieve Apache Beam version, return code {proc.returncode}."
+                f"\nstdout: {stdout.decode()}\nstderr: {stderr.decode()}"
+            )
+            raise AirflowException(msg)
+        return stdout.decode().strip()
+
     async def start_python_pipeline_async(
         self,
         variables: dict,
@@ -453,6 +471,7 @@ class BeamAsyncHook(BeamHook):
             See virtualenv documentation for more information.
             This option is only relevant if the ``py_requirements`` parameter is not None.
         """
+        py_options = py_options or []
         if "labels" in variables:
             variables["labels"] = [f"{key}={value}" for key, value in variables["labels"].items()]
 
@@ -487,14 +506,8 @@ class BeamAsyncHook(BeamHook):
                     system_site_packages=py_system_site_packages,
                     requirements=py_requirements,
                 )
-            command_prefix: list[str] = [py_interpreter] + (py_options or []) + [py_file]
-            beam_version = (
-                subprocess.check_output(
-                    [py_interpreter, "-c", "import apache_beam; print(apache_beam.__version__)"]
-                )
-                .decode()
-                .strip()
-            )
+            command_prefix: list[str] = [py_interpreter, *py_options, py_file]
+            beam_version = await self._beam_version(py_interpreter)
             self.log.info("Beam version: %s", beam_version)
             impersonate_service_account = variables.get("impersonate_service_account")
             if impersonate_service_account:

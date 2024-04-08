@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import time
 from enum import Enum
-from typing import Any, Iterable
+from functools import cached_property
+from typing import TYPE_CHECKING, Any, Iterable
 
 import requests
 from pydruid.db import connect
@@ -27,6 +28,9 @@ from pydruid.db import connect
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+if TYPE_CHECKING:
+    from airflow.models import Connection
 
 
 class IngestionType(Enum):
@@ -53,6 +57,8 @@ class DruidHook(BaseHook):
                     the Druid job for the status of the ingestion job.
                     Must be greater than or equal to 1
     :param max_ingestion_time: The maximum ingestion time before assuming the job failed
+    :param verify_ssl: Whether to use SSL encryption to submit indexing job. If set to False then checks
+                       connection information for path to a CA bundle to use. Defaults to True
     """
 
     def __init__(
@@ -60,26 +66,31 @@ class DruidHook(BaseHook):
         druid_ingest_conn_id: str = "druid_ingest_default",
         timeout: int = 1,
         max_ingestion_time: int | None = None,
+        verify_ssl: bool = True,
     ) -> None:
         super().__init__()
         self.druid_ingest_conn_id = druid_ingest_conn_id
         self.timeout = timeout
         self.max_ingestion_time = max_ingestion_time
         self.header = {"content-type": "application/json"}
+        self.verify_ssl = verify_ssl
 
         if self.timeout < 1:
             raise ValueError("Druid timeout should be equal or greater than 1")
 
+    @cached_property
+    def conn(self) -> Connection:
+        return self.get_connection(self.druid_ingest_conn_id)
+
     def get_conn_url(self, ingestion_type: IngestionType = IngestionType.BATCH) -> str:
         """Get Druid connection url."""
-        conn = self.get_connection(self.druid_ingest_conn_id)
-        host = conn.host
-        port = conn.port
-        conn_type = conn.conn_type or "http"
+        host = self.conn.host
+        port = self.conn.port
+        conn_type = self.conn.conn_type or "http"
         if ingestion_type == IngestionType.BATCH:
-            endpoint = conn.extra_dejson.get("endpoint", "")
+            endpoint = self.conn.extra_dejson.get("endpoint", "")
         else:
-            endpoint = conn.extra_dejson.get("msq_endpoint", "")
+            endpoint = self.conn.extra_dejson.get("msq_endpoint", "")
         return f"{conn_type}://{host}:{port}/{endpoint}"
 
     def get_auth(self) -> requests.auth.HTTPBasicAuth | None:
@@ -88,13 +99,20 @@ class DruidHook(BaseHook):
 
         If these details have not been set then returns None.
         """
-        conn = self.get_connection(self.druid_ingest_conn_id)
-        user = conn.login
-        password = conn.password
+        user = self.conn.login
+        password = self.conn.password
         if user is not None and password is not None:
             return requests.auth.HTTPBasicAuth(user, password)
         else:
             return None
+
+    def get_verify(self) -> bool | str:
+        ca_bundle_path: str | None = self.conn.extra_dejson.get("ca_bundle_path", None)
+        if not self.verify_ssl and ca_bundle_path:
+            self.log.info("Using CA bundle to verify connection")
+            return ca_bundle_path
+
+        return self.verify_ssl
 
     def submit_indexing_job(
         self, json_index_spec: dict[str, Any] | str, ingestion_type: IngestionType = IngestionType.BATCH
@@ -103,7 +121,9 @@ class DruidHook(BaseHook):
         url = self.get_conn_url(ingestion_type)
 
         self.log.info("Druid ingestion spec: %s", json_index_spec)
-        req_index = requests.post(url, data=json_index_spec, headers=self.header, auth=self.get_auth())
+        req_index = requests.post(
+            url, data=json_index_spec, headers=self.header, auth=self.get_auth(), verify=self.get_verify()
+        )
 
         code = req_index.status_code
         not_accepted = not (200 <= code < 300)

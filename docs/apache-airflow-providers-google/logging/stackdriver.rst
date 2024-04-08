@@ -33,7 +33,7 @@ example:
     # location. If remote_logging is set to true, see UPDATING.md for additional
     # configuration requirements.
     remote_logging = True
-    remote_base_log_folder = stackdriver://logs-name
+    remote_base_log_folder = stackdriver:///logs-name
 
 All configuration options are in the ``[logging]`` section.
 
@@ -50,7 +50,7 @@ Turning this option off will result in data not being sent to Stackdriver.
 
 The ``remote_base_log_folder`` option contains the URL that specifies the type of handler to be used.
 For integration with Stackdriver, this option should start with ``stackdriver://``.
-The path section of the URL specifies the name of the log e.g. ``stackdriver://airflow-tasks`` writes
+The path section of the URL specifies the name of the log e.g. ``stackdriver:///airflow-tasks`` writes
 logs under the name ``airflow-tasks``.
 
 You can set ``google_key_path`` option in the ``[logging]`` section to specify the path to `the service

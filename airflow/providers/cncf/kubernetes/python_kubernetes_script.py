@@ -16,13 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """Utilities for using the kubernetes decorator."""
+
 from __future__ import annotations
 
 import os
 from collections import deque
 
-import jinja2
-from jinja2 import select_autoescape
+from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoescape
+from jinja2.nativetypes import NativeEnvironment
 
 
 def _balance_parens(after_decorator):
@@ -77,16 +78,14 @@ def write_python_script(
     :param render_template_as_native_obj: If ``True``, rendered Jinja template would be converted
         to a native Python object
     """
-    template_loader = jinja2.FileSystemLoader(searchpath=os.path.dirname(__file__))
-    template_env: jinja2.Environment
+    template_loader = FileSystemLoader(searchpath=os.path.dirname(__file__))
+    template_env: Environment
     if render_template_as_native_obj:
-        template_env = jinja2.nativetypes.NativeEnvironment(
-            loader=template_loader, undefined=jinja2.StrictUndefined
-        )
+        template_env = NativeEnvironment(loader=template_loader, undefined=StrictUndefined)
     else:
-        template_env = jinja2.Environment(
+        template_env = Environment(
             loader=template_loader,
-            undefined=jinja2.StrictUndefined,
+            undefined=StrictUndefined,
             autoescape=select_autoescape(["html", "xml"]),
         )
     template = template_env.get_template("python_kubernetes_script.jinja2")

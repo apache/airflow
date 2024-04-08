@@ -52,8 +52,7 @@ Here is an example configuration with more than 200GB disk space for Docker:
 .. raw:: html
 
     <div align="center">
-        <img src="../../../images/disk_space_osx.png" width="640"
-             alt="Disk space MacOS">
+        <img src="images/disk_space_osx.png" width="640" alt="Disk space MacOS">
     </div>
 
 
@@ -81,8 +80,7 @@ Here is an example configuration with more than 200GB disk space for Docker:
 .. raw:: html
 
    <div align="center">
-        <img src="../../../images/docker_socket.png" width="640"
-             alt="Docker socket used">
+        <img src="images/docker_socket.png" width="640" alt="Docker socket used">
     </div>
 
 Note: If you use Colima, please follow instructions at:
@@ -114,8 +112,7 @@ Docker in WSL 2
 .. raw:: html
 
     <div align="center">
-        <img src="../../../images/docker_wsl_integration.png" width="640"
-             alt="Airflow Breeze - Docker WSL2 integration">
+        <img src="images/docker_wsl_integration.png" width="640" alt="Airflow Breeze - Docker WSL2 integration">
     </div>
 
 - **WSL 2 Filesystem Performance** :
@@ -254,7 +251,7 @@ Run this command to install Breeze (make sure to use ``-e`` flag):
 
   The workaround is to downgrade packaging to 23.1 and re-running the ``pipx install`` command.
 
-  .. code-block::bash
+  .. code-block:: bash
 
      pip install "packaging<23.2"
      pipx install -e ./dev/breeze --force
@@ -324,12 +321,24 @@ that Breeze works on
 
     .. note:: creating pipx virtual env ``apache-airflow-breeze`` with a specific python version
 
-        In ``pipx install --force -e ./dev/breeze`` or ``pipx install --force -e dev\breeze``, ``pipx`` uses default system python version to create virtual env for breeze.
+        In ``pipx install -e ./dev/breeze`` or ``pipx install  -e dev\breeze``, ``pipx`` uses default
+        system python version to create virtual env for breeze.
         We can use a specific version by providing python executable in ``--python``  argument. For example:
+
+
+        If you have breeze installed already with another Python version you can reinstall breeze with reinstall
+        command
 
         .. code-block:: bash
 
-            pipx install -e ./dev/breeze --force --python /Users/airflow/.pyenv/versions/3.8.16/bin/python
+            pipx reinstall --python /Users/airflow/.pyenv/versions/3.8.16/bin/python apache-airflow-breeze
+
+        Or you can uninstall breeze and install it with a specific python version:
+
+        .. code-block:: bash
+
+            pipx uninstall apache-airflow-breeze
+            pipx install -e ./dev/breeze --python /Users/airflow/.pyenv/versions/3.8.16/bin/python
 
 
 Running Breeze for the first time

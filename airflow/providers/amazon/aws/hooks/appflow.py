@@ -22,7 +22,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 
 if TYPE_CHECKING:
-    from mypy_boto3_appflow.client import AppflowClient  # noqa
+    from mypy_boto3_appflow.client import AppflowClient  # noqa: F401
 
 
 class AppflowHook(AwsGenericHook["AppflowClient"]):

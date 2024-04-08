@@ -422,22 +422,33 @@ def task_instance_link(attr):
     """Generate a URL to the Graph view for a TaskInstance."""
     dag_id = attr.get("dag_id")
     task_id = attr.get("task_id")
-    execution_date = attr.get("dag_run.execution_date") or attr.get("execution_date") or timezone.utcnow()
+    run_id = attr.get("run_id")
+    map_index = attr.get("map_index", None)
+    if map_index == -1:
+        map_index = None
+
     url = url_for(
-        "Airflow.task",
+        "Airflow.grid",
         dag_id=dag_id,
         task_id=task_id,
-        execution_date=execution_date.isoformat(),
-        map_index=attr.get("map_index", -1),
+        dag_run_id=run_id,
+        map_index=map_index,
+        tab="graph",
     )
     url_root = url_for(
-        "Airflow.graph", dag_id=dag_id, root=task_id, execution_date=execution_date.isoformat()
+        "Airflow.grid",
+        dag_id=dag_id,
+        task_id=task_id,
+        root=task_id,
+        dag_run_id=run_id,
+        map_index=map_index,
+        tab="graph",
     )
     return Markup(
         """
         <span style="white-space: nowrap;">
         <a href="{url}">{task_id}</a>
-        <a href="{url_root}" title="Filter on this task and upstream">
+        <a href="{url_root}" title="Filter on this task">
         <span class="material-icons" style="margin-left:0;"
             aria-hidden="true">filter_alt</span>
         </a>
@@ -648,18 +659,6 @@ def get_attr_renderer():
     }
 
 
-def get_chart_height(dag):
-    """
-    Use the number of tasks in the DAG to approximate the size of generated chart.
-
-    Without this the charts are tiny and unreadable when DAGs have a large number of tasks).
-    Ideally nvd3 should allow for dynamic-height charts, that is charts that take up space
-    based on the size of the components within.
-    TODO(aoen): See [AIRFLOW-1263].
-    """
-    return 600 + len(dag.tasks) * 10
-
-
 class UtcAwareFilterMixin:
     """Mixin for filter for UTC time."""
 
@@ -784,7 +783,7 @@ class AirflowFilterConverter(fab_sqlafilters.SQLAFilterConverter):
     def __init__(self, datamodel):
         super().__init__(datamodel)
 
-        for method, filters in self.conversion_table:
+        for _, filters in self.conversion_table:
             if FilterIsNull not in filters:
                 filters.append(FilterIsNull)
             if FilterIsNotNull not in filters:

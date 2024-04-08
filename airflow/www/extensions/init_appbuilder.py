@@ -294,6 +294,19 @@ class AirflowAppBuilder:
         return self.get_app.config["APP_NAME"]
 
     @property
+    def require_confirmation_dag_change(self):
+        """Get the value of the require_confirmation_dag_change configuration.
+
+        The logic is:
+         - return True, in page dag.html, when user trigger/pause the dag from UI.
+           Once confirmation box will be shown before triggering the dag.
+         - Default value is False.
+
+        :return: Boolean
+        """
+        return self.get_app.config["REQUIRE_CONFIRMATION_DAG_CHANGE"]
+
+    @property
     def app_theme(self):
         """
         Get the App theme name.
@@ -366,7 +379,7 @@ class AirflowAppBuilder:
     def _check_and_init(self, baseview):
         if hasattr(baseview, "datamodel"):
             baseview.datamodel.session = self.session
-        if hasattr(baseview, "__call__"):
+        if callable(baseview):
             baseview = baseview()
         return baseview
 

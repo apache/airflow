@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """File logging handler for tasks."""
+
 from __future__ import annotations
 
 import inspect
@@ -31,6 +32,7 @@ from urllib.parse import urljoin
 
 import pendulum
 
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
@@ -38,11 +40,16 @@ from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
 from airflow.utils.log.logging_mixin import SetContextPropagate
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
-from airflow.utils.session import create_session
+from airflow.utils.session import provide_session
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
+    from pendulum import DateTime
+
+    from airflow.models import DagRun
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+    from airflow.serialization.pydantic.dag_run import DagRunPydantic
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 logger = logging.getLogger(__name__)
 
@@ -133,14 +140,14 @@ def _interleave_logs(*logs):
         last = v
 
 
-def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
+def _ensure_ti(ti: TaskInstanceKey | TaskInstance | TaskInstancePydantic, session) -> TaskInstance:
     """Given TI | TIKey, return a TI object.
 
     Will raise exception if no TI is found in the database.
     """
-    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+    from airflow.models.taskinstance import TaskInstance
 
-    if not isinstance(ti, TaskInstanceKey):
+    if isinstance(ti, TaskInstance):
         return ti
     val = (
         session.query(TaskInstance)
@@ -254,31 +261,44 @@ class FileTaskHandler(logging.Handler):
         if self.handler:
             self.handler.close()
 
-    def _render_filename(self, ti: TaskInstance | TaskInstanceKey, try_number: int) -> str:
-        """Return the worker log filename."""
-        with create_session() as session:
-            ti = _ensure_ti(ti, session)
-            dag_run = ti.get_dagrun(session=session)
-            template = dag_run.get_log_template(session=session).filename
-            str_tpl, jinja_tpl = parse_template_string(template)
-
-            if jinja_tpl:
-                if hasattr(ti, "task"):
-                    context = ti.get_template_context(session=session)
-                else:
-                    context = Context(ti=ti, ts=dag_run.logical_date.isoformat())
-                context["try_number"] = try_number
-                return render_template_to_string(jinja_tpl, context)
-
-        if str_tpl:
-            try:
-                dag = ti.task.dag
-            except AttributeError:  # ti.task is not always set.
-                data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
+    @staticmethod
+    @internal_api_call
+    @provide_session
+    def _render_filename_db_access(
+        *, ti, try_number: int, session=None
+    ) -> tuple[DagRun | DagRunPydantic, TaskInstance | TaskInstancePydantic, str | None, str | None]:
+        ti = _ensure_ti(ti, session)
+        dag_run = ti.get_dagrun(session=session)
+        template = dag_run.get_log_template(session=session).filename
+        str_tpl, jinja_tpl = parse_template_string(template)
+        filename = None
+        if jinja_tpl:
+            if getattr(ti, "task", None) is not None:
+                context = ti.get_template_context(session=session)
             else:
-                if TYPE_CHECKING:
-                    assert dag is not None
+                context = Context(ti=ti, ts=dag_run.logical_date.isoformat())
+            context["try_number"] = try_number
+            filename = render_template_to_string(jinja_tpl, context)
+        return dag_run, ti, str_tpl, filename
+
+    def _render_filename(
+        self, ti: TaskInstance | TaskInstanceKey | TaskInstancePydantic, try_number: int
+    ) -> str:
+        """Return the worker log filename."""
+        dag_run, ti, str_tpl, filename = self._render_filename_db_access(ti=ti, try_number=try_number)
+        if filename:
+            return filename
+        if str_tpl:
+            if ti.task is not None and ti.task.dag is not None:
+                dag = ti.task.dag
                 data_interval = dag.get_run_data_interval(dag_run)
+            else:
+                from airflow.timetables.base import DataInterval
+
+                if TYPE_CHECKING:
+                    assert isinstance(dag_run.data_interval_start, DateTime)
+                    assert isinstance(dag_run.data_interval_end, DateTime)
+                data_interval = DataInterval(dag_run.data_interval_start, dag_run.data_interval_end)
             if data_interval[0]:
                 data_interval_start = data_interval[0].isoformat()
             else:
@@ -456,7 +476,8 @@ class FileTaskHandler(logging.Handler):
 
         return logs, metadata_array
 
-    def _prepare_log_folder(self, directory: Path):
+    @staticmethod
+    def _prepare_log_folder(directory: Path, new_folder_permissions: int):
         """
         Prepare the log folder and ensure its mode is as configured.
 
@@ -480,21 +501,9 @@ class FileTaskHandler(logging.Handler):
         sure that the same group is set as default group for both - impersonated user and main airflow
         user.
         """
-        new_folder_permissions = int(
-            conf.get("logging", "file_task_handler_new_folder_permissions", fallback="0o775"), 8
-        )
-        directory.mkdir(mode=new_folder_permissions, parents=True, exist_ok=True)
-        if directory.stat().st_mode % 0o1000 != new_folder_permissions % 0o1000:
-            print(f"Changing {directory} permission to {new_folder_permissions}")
-            try:
-                directory.chmod(new_folder_permissions)
-            except PermissionError as e:
-                # In some circumstances (depends on user and filesystem) we might not be able to
-                # change the permission for the folder (when the folder was created by another user
-                # before or when the filesystem does not allow to change permission). We should not
-                # fail in this case but rather ignore it.
-                print(f"Failed to change {directory} permission to {new_folder_permissions}: {e}")
-                pass
+        for parent in reversed(directory.parents):
+            parent.mkdir(mode=new_folder_permissions, exist_ok=True)
+        directory.mkdir(mode=new_folder_permissions, exist_ok=True)
 
     def _init_file(self, ti, *, identifier: str | None = None):
         """
@@ -516,14 +525,17 @@ class FileTaskHandler(logging.Handler):
             # if this is true, we're invoked via set_context in the context of
             # setting up individual trigger logging. return trigger log path.
             full_path = self.add_triggerer_suffix(full_path=full_path, job_id=ti.triggerer_job.id)
-        self._prepare_log_folder(Path(full_path).parent)
+        new_folder_permissions = int(
+            conf.get("logging", "file_task_handler_new_folder_permissions", fallback="0o775"), 8
+        )
+        self._prepare_log_folder(Path(full_path).parent, new_folder_permissions)
 
         if not os.path.exists(full_path):
             open(full_path, "a").close()
             try:
                 os.chmod(full_path, new_file_permissions)
             except OSError as e:
-                logging.warning("OSError while changing ownership of the log file. ", e)
+                logger.warning("OSError while changing ownership of the log file. ", e)
 
         return full_path
 

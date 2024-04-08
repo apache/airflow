@@ -986,6 +986,163 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /dags/{dag_id}/datasets/queuedEvent/{uri}:
+    parameters:
+      - $ref: "#/components/parameters/DAGID"
+      - $ref: "#/components/parameters/DatasetURI"
+
+    get:
+      summary: Get a queued Dataset event for a DAG
+      description: |
+        Get a queued Dataset event for a DAG.
+
+        *New in version 2.9.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      operationId: get_dag_dataset_queued_event
+      parameters:
+        - $ref: "#/components/parameters/Before"
+      tags: [Dataset]
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QueuedEvent"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      summary: Delete a queued Dataset event for a DAG.
+      description: |
+        Delete a queued Dataset event for a DAG.
+
+        *New in version 2.9.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      operationId: delete_dag_dataset_queued_event
+      parameters:
+        - $ref: "#/components/parameters/Before"
+      tags: [Dataset]
+      responses:
+        "204":
+          description: Success.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /dags/{dag_id}/datasets/queuedEvent:
+    parameters:
+      - $ref: "#/components/parameters/DAGID"
+
+    get:
+      summary: Get queued Dataset events for a DAG.
+      description: |
+        Get queued Dataset events for a DAG.
+
+        *New in version 2.9.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      operationId: get_dag_dataset_queued_events
+      parameters:
+        - $ref: "#/components/parameters/Before"
+      tags: [Dataset]
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QueuedEventCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      summary: Delete queued Dataset events for a DAG.
+      description: |
+        Delete queued Dataset events for a DAG.
+
+        *New in version 2.9.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      operationId: delete_dag_dataset_queued_events
+      parameters:
+        - $ref: "#/components/parameters/Before"
+      tags: [Dataset]
+      responses:
+        "204":
+          description: Success.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /datasets/queuedEvent/{uri}:
+    parameters:
+      - $ref: "#/components/parameters/DatasetURI"
+
+    get:
+      summary: Get queued Dataset events for a Dataset.
+      description: |
+        Get queued Dataset events for a Dataset
+
+        *New in version 2.9.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      operationId: get_dataset_queued_events
+      parameters:
+        - $ref: "#/components/parameters/Before"
+      tags: [Dataset]
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QueuedEventCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      summary: Delete queued Dataset events for a Dataset.
+      description: |
+        Delete queued Dataset events for a Dataset.
+
+        *New in version 2.9.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      operationId: delete_dataset_queued_events
+      parameters:
+        - $ref: "#/components/parameters/Before"
+      tags: [Dataset]
+      responses:
+        "204":
+          description: Success.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /eventLogs:
     get:
       summary: List log entries
@@ -999,10 +1156,27 @@ paths:
         - $ref: "#/components/parameters/OrderBy"
         - $ref: "#/components/parameters/FilterDAGID"
         - $ref: "#/components/parameters/FilterTaskID"
+        - $ref: "#/components/parameters/FilterRunID"
         - $ref: "#/components/parameters/Event"
         - $ref: "#/components/parameters/Owner"
         - $ref: "#/components/parameters/Before"
         - $ref: "#/components/parameters/After"
+        - name: included_events
+          in: query
+          schema:
+            type: string
+          required: false
+          description: |
+            One or more event names separated by commas. If set, only return event logs with events matching this pattern.
+            *New in version 2.9.0*
+        - name: excluded_events
+          in: query
+          schema:
+            type: string
+          required: false
+          description: |
+            One or more event names separated by commas. If set, only return event logs with events that do not match this pattern.
+            *New in version 2.9.0*
       responses:
         "200":
           description: Success.
@@ -1911,6 +2085,15 @@ paths:
           required: false
           description: |
             If set, only return datasets with uris matching this pattern.
+        - name: dag_ids
+          in: query
+          schema:
+            type: string
+          required: false
+          description: |
+            One or more DAG IDs separated by commas to filter datasets by associated DAGs either consuming or producing.
+
+            *New in version 2.9.0*
       responses:
         "200":
           description: Success.
@@ -1947,21 +2130,21 @@ paths:
           $ref: "#/components/responses/NotFound"
 
   /datasets/events:
-    parameters:
-      - $ref: "#/components/parameters/PageLimit"
-      - $ref: "#/components/parameters/PageOffset"
-      - $ref: "#/components/parameters/OrderBy"
-      - $ref: "#/components/parameters/FilterDatasetID"
-      - $ref: "#/components/parameters/FilterSourceDAGID"
-      - $ref: "#/components/parameters/FilterSourceTaskID"
-      - $ref: "#/components/parameters/FilterSourceRunID"
-      - $ref: "#/components/parameters/FilterSourceMapIndex"
     get:
       summary: Get dataset events
       description: Get dataset events
       x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
       operationId: get_dataset_events
       tags: [Dataset]
+      parameters:
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+        - $ref: "#/components/parameters/OrderBy"
+        - $ref: "#/components/parameters/FilterDatasetID"
+        - $ref: "#/components/parameters/FilterSourceDAGID"
+        - $ref: "#/components/parameters/FilterSourceTaskID"
+        - $ref: "#/components/parameters/FilterSourceRunID"
+        - $ref: "#/components/parameters/FilterSourceMapIndex"
       responses:
         "200":
           description: Success.
@@ -1975,6 +2158,33 @@ paths:
           $ref: "#/components/responses/PermissionDenied"
         "404":
           $ref: "#/components/responses/NotFound"
+    post:
+      summary: Create dataset event
+      description: Create dataset event
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      operationId: create_dataset_event
+      tags: [Dataset]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDatasetEvent'
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetEvent'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /config:
     get:
@@ -2637,6 +2847,13 @@ components:
           type: string
           readOnly: true
           description: The ID of the DAG.
+        dag_display_name:
+          type: string
+          readOnly: true
+          description: |
+            Human centric display text for the DAG.
+
+            *New in version 2.9.0*
         root_dag_id:
           type: string
           readOnly: true
@@ -3033,7 +3250,12 @@ components:
           readOnly: true
           nullable: true
         task_id:
-          description: The DAG ID
+          description: The Task ID
+          type: string
+          readOnly: true
+          nullable: true
+        run_id:
+          description: The DAG Run ID
           type: string
           readOnly: true
           nullable: true
@@ -3355,6 +3577,12 @@ components:
       properties:
         task_id:
           type: string
+        task_display_name:
+          type: string
+          description: |
+            Human centric display text for the task.
+
+            *New in version 2.9.0*
         dag_id:
           type: string
         dag_run_id:
@@ -3416,6 +3644,13 @@ components:
           type: string
         sla_miss:
           $ref: "#/components/schemas/SLAMiss"
+        rendered_map_index:
+          description: |
+            Rendered name of an expanded task instance, if the task is mapped.
+
+            *New in version 2.9.0*
+          type: string
+          nullable: true
         rendered_fields:
           description: |
             JSON object describing rendered fields.
@@ -3608,6 +3843,10 @@ components:
             dag_run_timeout:
               $ref: "#/components/schemas/TimeDelta"
               nullable: true
+            dataset_expression:
+              type: object
+              description: Nested dataset any/all conditions
+              nullable: true
             doc_md:
               type: string
               readOnly: true
@@ -3697,6 +3936,9 @@ components:
         class_ref:
           $ref: "#/components/schemas/ClassReference"
         task_id:
+          type: string
+          readOnly: true
+        task_display_name:
           type: string
           readOnly: true
         owner:
@@ -4100,6 +4342,49 @@ components:
           type: string
           description: The dataset event creation time
           nullable: false
+
+    CreateDatasetEvent:
+      type: object
+      required:
+        - dataset_uri
+      properties:
+        dataset_uri:
+          type: string
+          description: The URI of the dataset
+          nullable: false
+        extra:
+          type: object
+          description: The dataset event extra
+          nullable: true
+
+    QueuedEvent:
+      type: object
+      properties:
+        uri:
+          type: string
+          description: The datata uri.
+        dag_id:
+          type: string
+          description: The DAG ID.
+        created_at:
+          type: string
+          format: date-time
+          description: The creation time of QueuedEvent
+
+    QueuedEventCollection:
+      description: |
+        A collection of Dataset Dag Run Queues.
+
+        *New in version 2.9.0*
+      type: object
+      allOf:
+        - type: object
+          properties:
+            datasets:
+              type: array
+              items:
+                $ref: "#/components/schemas/QueuedEvent"
+        - $ref: "#/components/schemas/CollectionInfo"
 
     BasicDAGRun:
       type: object
@@ -5245,6 +5530,14 @@ components:
       required: false
       description: Returns objects matched by the Task ID.
 
+    FilterRunID:
+      in: query
+      name: run_id
+      schema:
+        type: string
+      required: false
+      description: Returns objects matched by the Run ID.
+
     # Other parameters
     FileToken:
       in: path
@@ -5374,20 +5667,20 @@ tags:
   - name: Connection
   - name: DAG
   - name: DAGRun
+  - name: DagWarning
+  - name: Dataset
   - name: EventLog
   - name: ImportError
   - name: Monitoring
+  - name: Permission
+  - name: Plugin
   - name: Pool
   - name: Provider
+  - name: Role
   - name: TaskInstance
+  - name: User
   - name: Variable
   - name: XCom
-  - name: Plugin
-  - name: Role
-  - name: Permission
-  - name: User
-  - name: DagWarning
-  - name: Dataset
 
 externalDocs:
   url: https://airflow.apache.org/docs/apache-airflow/stable/

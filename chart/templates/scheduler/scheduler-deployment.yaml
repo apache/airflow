@@ -20,7 +20,7 @@
 ################################
 ## Airflow Scheduler Deployment/StatefulSet
 #################################
-
+{{- if .Values.scheduler.enabled }}
 # Are we using a local executor?
 {{- $local := contains "Local" .Values.executor }}
 # Is persistence enabled on the _workers_?
@@ -265,6 +265,8 @@ spec:
           env:
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.scheduler.logGroomerSidecar.retentionDays }}"
+            - name: AIRFLOW_HOME
+              value: "{{ .Values.airflowHome }}"
           {{- end }}
           volumeMounts:
             - name: logs
@@ -280,7 +282,7 @@ spec:
             {{- end }}
           {{- end }}
         {{- if .Values.scheduler.extraContainers }}
-          {{- toYaml .Values.scheduler.extraContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.scheduler.extraContainers) . | nindent 8 }}
         {{- end }}
       volumes:
         - name: config
@@ -332,4 +334,5 @@ spec:
         resources:
           requests:
             storage: {{ .Values.workers.persistence.size }}
+  {{- end }}
   {{- end }}

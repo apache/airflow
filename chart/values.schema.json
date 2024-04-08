@@ -77,7 +77,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.8.1",
+            "default": "2.8.4",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -92,7 +92,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.8.1",
+            "default": "2.8.4",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -668,7 +668,7 @@
                         "tag": {
                             "description": "The StatsD image tag.",
                             "type": "string",
-                            "default": "v0.22.8"
+                            "default": "v0.26.1"
                         },
                         "pullPolicy": {
                             "description": "The StatsD image pull policy.",
@@ -695,7 +695,7 @@
                         "tag": {
                             "description": "The redis image tag.",
                             "type": "string",
-                            "default": "7-bullseye"
+                            "default": "7-bookworm"
                         },
                         "pullPolicy": {
                             "description": "The redis image pull policy.",
@@ -2193,6 +2193,11 @@
             "x-docsSection": "Scheduler",
             "additionalProperties": false,
             "properties": {
+                "enabled": {
+                    "description": "Enable scheduler",
+                    "type": "boolean",
+                    "default": true
+                },
                 "hostAliases": {
                     "description": "HostAliases for the scheduler pod.",
                     "items": {
@@ -4000,6 +4005,14 @@
                         "type": "string"
                     }
                 },
+                "labels": {
+                    "description": "Labels to add to the migrate database job objects and pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
@@ -4212,6 +4225,11 @@
             "x-docsSection": "Webserver",
             "additionalProperties": false,
             "properties": {
+                "enabled": {
+                    "description": "Enable webserver",
+                    "type": "boolean",
+                    "default": true
+                },
                 "configMapAnnotations": {
                     "description": "Extra annotations to apply to the webserver configmap.",
                     "type": "object",
@@ -4944,6 +4962,60 @@
                     "description": "Enable Flower.",
                     "type": "boolean",
                     "default": false
+                },
+                "livenessProbe": {
+                    "description": "Liveness probe configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "initialDelaySeconds": {
+                            "description": "Flower Liveness probe initial delay.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "timeoutSeconds": {
+                            "description": "Flower Liveness probe timeout seconds.",
+                            "type": "integer",
+                            "default": 5
+                        },
+                        "failureThreshold": {
+                            "description": "Flower Liveness probe failure threshold.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "periodSeconds": {
+                            "description": "Flower Liveness probe period seconds.",
+                            "type": "integer",
+                            "default": 5
+                        }
+                    }
+                },
+                "readinessProbe": {
+                    "description": "Readiness probe configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "initialDelaySeconds": {
+                            "description": "Flower Readiness probe initial delay.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "timeoutSeconds": {
+                            "description": "Flower Readiness probe timeout seconds.",
+                            "type": "integer",
+                            "default": 5
+                        },
+                        "failureThreshold": {
+                            "description": "Flower Readiness probe failure threshold.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "periodSeconds": {
+                            "description": "Flower Readiness probe period seconds.",
+                            "type": "integer",
+                            "default": 5
+                        }
+                    }
                 },
                 "revisionHistoryLimit": {
                     "description": "Number of old replicasets to retain.",

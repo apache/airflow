@@ -17,6 +17,7 @@
 """
 Visuals displayed to the user when entering Breeze shell.
 """
+
 from __future__ import annotations
 
 from airflow_breeze.global_constants import (
@@ -112,9 +113,10 @@ CHEATSHEET = f"""
             * Add `init.sh` - this file will be sourced when you enter container, so you can add
               any custom code there.
             * Add `requirements.
-        * You can put share other files. Just add them in
+
+        * You can also share other files, put them under
           `{AIRFLOW_SOURCES_ROOT}/files` folder
-          and they will be visible in `/files/` folder inside the container
+          and they will be visible in `/files/` folder inside the container.
 
         [info]* Other options[/]
 

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains hook to integrate with Apache Cassandra."""
+
 from __future__ import annotations
 
 import re
@@ -153,7 +154,7 @@ class CassandraHook(BaseHook, LoggingMixin):
         if policy_name == "WhiteListRoundRobinPolicy":
             hosts = policy_args.get("hosts")
             if not hosts:
-                raise Exception("Hosts must be specified for WhiteListRoundRobinPolicy")
+                raise ValueError("Hosts must be specified for WhiteListRoundRobinPolicy")
             return WhiteListRoundRobinPolicy(hosts)
 
         if policy_name == "TokenAwarePolicy":

@@ -205,6 +205,8 @@ class TestCliInternalAPI(_ComonCLIGunicornTestClass):
                     "-",
                     "--error-logfile",
                     "-",
+                    "--config",
+                    "python:airflow.api_internal.gunicorn_config",
                     "--access-logformat",
                     "custom_log_format",
                     "airflow.cli.commands.internal_api_command:cached_app()",

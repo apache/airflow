@@ -124,15 +124,14 @@ class TestStats:
                 ("metrics", "statsd_on"): "True",
                 ("metrics", "statsd_custom_client_path"): f"{__name__}.InvalidCustomStatsd",
             }
-        ), pytest.raises(
-            AirflowConfigException,
-            match=re.escape(
-                "Your custom StatsD client must extend the statsd."
-                "StatsClient in order to ensure backwards compatibility."
-            ),
         ):
             importlib.reload(airflow.stats)
-            airflow.stats.Stats.incr("empty_key")
+            error_message = re.escape(
+                "Your custom StatsD client must extend the statsd."
+                "StatsClient in order to ensure backwards compatibility."
+            )
+            with pytest.raises(AirflowConfigException, match=error_message):
+                airflow.stats.Stats.incr("empty_key")
         importlib.reload(airflow.stats)
 
     def test_load_allow_list_validator(self):
@@ -312,9 +311,11 @@ class TestStatsAllowAndBlockLists:
     @pytest.mark.parametrize(
         "match_pattern, expect_incr",
         [
-            ("^stat", True),
-            ("a.{4}o", True),
-            ("^banana", False),
+            ("^stat", True),  # Match: Regex Startswith
+            ("a.{4}o", True),  # Match: RegEx Pattern
+            ("foo", True),  # Match: Any substring
+            ("stat", True),  # Match: Substring Startswith
+            ("^banana", False),  # No match
         ],
     )
     def test_regex_matches(self, match_pattern, expect_incr):

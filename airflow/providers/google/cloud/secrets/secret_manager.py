@@ -15,12 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """Objects relating to sourcing connections from Google Cloud Secrets Manager."""
+
 from __future__ import annotations
 
 import logging
-import warnings
 from typing import Sequence
 
+from deprecated import deprecated
 from google.auth.exceptions import DefaultCredentialsError
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -159,6 +160,13 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret(self.connections_prefix, conn_id)
 
+    @deprecated(
+        reason=(
+            "Method `CloudSecretManagerBackend.get_conn_uri` is deprecated and will be removed "
+            "in a future release.  Please use method `get_conn_value` instead."
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
     def get_conn_uri(self, conn_id: str) -> str | None:
         """
         Return URI representation of Connection conn_id.
@@ -168,12 +176,6 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param conn_id: the connection id
         :return: deserialized Connection
         """
-        warnings.warn(
-            f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
-            "in a future release.  Please use method `get_conn_value` instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         return self.get_conn_value(conn_id)
 
     def get_variable(self, key: str) -> str | None:

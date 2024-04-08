@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Dataproc operators."""
+
 from __future__ import annotations
 
 import inspect
@@ -31,6 +32,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Sequence
 
+from deprecated import deprecated
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry, exponential_sleep_generator
@@ -360,10 +362,10 @@ class ClusterGenerator:
         if self.subnetwork_uri:
             cluster_data[config]["subnetwork_uri"] = self.subnetwork_uri
 
-        if self.internal_ip_only:
-            if not self.subnetwork_uri:
+        if self.internal_ip_only is not None:
+            if not self.subnetwork_uri and self.internal_ip_only:
                 raise AirflowException("Set internal_ip_only to true only when you pass a subnetwork_uri.")
-            cluster_data[config]["internal_ip_only"] = True
+            cluster_data[config]["internal_ip_only"] = self.internal_ip_only
 
         if self.tags:
             cluster_data[config]["tags"] = self.tags
@@ -540,7 +542,7 @@ class ClusterGenerator:
 
     def make(self):
         """
-        Helper method for easier migration.
+        Act as a helper method for easier migration.
 
         :return: Dict representing Dataproc cluster.
         """
@@ -834,7 +836,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
             except AirflowException as ae_inner:
                 # We could get any number of failures here, including cluster not found and we
                 # can just ignore to ensure we surface the original cluster create failure
-                self.log.error(ae_inner, exc_info=True)
+                self.log.exception(ae_inner)
             finally:
                 raise ae
 
@@ -858,7 +860,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
         """
-        Callback for when the trigger fires - returns immediately.
+        Act as a callback for when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
@@ -872,6 +874,11 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         return event["cluster"]
 
 
+# TODO: Remove one day
+@deprecated(
+    reason="Please use `DataprocUpdateClusterOperator` instead.",
+    category=AirflowProviderDeprecationWarning,
+)
 class DataprocScaleClusterOperator(GoogleCloudBaseOperator):
     """Scale, up or down, a cluster on Google Cloud Dataproc.
 
@@ -939,14 +946,6 @@ class DataprocScaleClusterOperator(GoogleCloudBaseOperator):
         self.graceful_decommission_timeout = graceful_decommission_timeout
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-
-        # TODO: Remove one day
-        warnings.warn(
-            f"The `{type(self).__name__}` operator is deprecated, "
-            "please use `DataprocUpdateClusterOperator` instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
 
     def _build_scale_cluster_data(self) -> dict:
         scale_data = {
@@ -1110,7 +1109,7 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> Any:
         """
-        Callback for when the trigger fires - returns immediately.
+        Act as a callback for when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
@@ -1472,7 +1471,7 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
 
     def execute_complete(self, context, event=None) -> None:
         """
-        Callback for when the trigger fires - returns immediately.
+        Act as a callback for when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
@@ -1486,11 +1485,20 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
         return job_id
 
     def on_kill(self) -> None:
-        """Callback called when the operator is killed; cancel any running job."""
+        """Act as a callback called when the operator is killed; cancel any running job."""
         if self.dataproc_job_id:
             self.hook.cancel_job(project_id=self.project_id, job_id=self.dataproc_job_id, region=self.region)
 
 
+# TODO: Remove one day
+@deprecated(
+    reason=(
+        "Please use `DataprocSubmitJobOperator` instead. "
+        "You can use `generate_job` method to generate dictionary representing your job "
+        "and use it with the new operator."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
     """Start a Pig query Job on a Cloud DataProc cluster.
 
@@ -1565,15 +1573,6 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
         dataproc_jars: list[str] | None = None,
         **kwargs,
     ) -> None:
-        # TODO: Remove one day
-        warnings.warn(
-            "The `{cls}` operator is deprecated, please use `DataprocSubmitJobOperator` instead. You can use"
-            " `generate_job` method of `{cls}` to generate dictionary representing your job"
-            " and use it with the new operator.".format(cls=type(self).__name__),
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-
         super().__init__(
             impersonation_chain=impersonation_chain,
             region=region,
@@ -1589,7 +1588,7 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
 
     def generate_job(self):
         """
-        Helper method for easier migration to `DataprocSubmitJobOperator`.
+        Act as a helper method for easier migration to `DataprocSubmitJobOperator`.
 
         :return: Dict representing Dataproc job
         """
@@ -1617,6 +1616,15 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
         super().execute(context)
 
 
+# TODO: Remove one day
+@deprecated(
+    reason=(
+        "Please use `DataprocSubmitJobOperator` instead. "
+        "You can use `generate_job` method to generate dictionary representing your job "
+        "and use it with the new operator."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
     """Start a Hive query Job on a Cloud DataProc cluster.
 
@@ -1657,15 +1665,6 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
         dataproc_jars: list[str] | None = None,
         **kwargs,
     ) -> None:
-        # TODO: Remove one day
-        warnings.warn(
-            "The `{cls}` operator is deprecated, please use `DataprocSubmitJobOperator` instead. You can use"
-            " `generate_job` method of `{cls}` to generate dictionary representing your job"
-            " and use it with the new operator.".format(cls=type(self).__name__),
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-
         super().__init__(
             impersonation_chain=impersonation_chain,
             region=region,
@@ -1683,7 +1682,7 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
 
     def generate_job(self):
         """
-        Helper method for easier migration to `DataprocSubmitJobOperator`.
+        Act as a helper method for easier migration to `DataprocSubmitJobOperator`.
 
         :return: Dict representing Dataproc job
         """
@@ -1709,6 +1708,15 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
         super().execute(context)
 
 
+# TODO: Remove one day
+@deprecated(
+    reason=(
+        "Please use `DataprocSubmitJobOperator` instead. "
+        "You can use `generate_job` method to generate dictionary representing your job "
+        "and use it with the new operator."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
     """Start a Spark SQL query Job on a Cloud DataProc cluster.
 
@@ -1750,15 +1758,6 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
         dataproc_jars: list[str] | None = None,
         **kwargs,
     ) -> None:
-        # TODO: Remove one day
-        warnings.warn(
-            "The `{cls}` operator is deprecated, please use `DataprocSubmitJobOperator` instead. You can use"
-            " `generate_job` method of `{cls}` to generate dictionary representing your job"
-            " and use it with the new operator.".format(cls=type(self).__name__),
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-
         super().__init__(
             impersonation_chain=impersonation_chain,
             region=region,
@@ -1776,7 +1775,7 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
 
     def generate_job(self):
         """
-        Helper method for easier migration to `DataprocSubmitJobOperator`.
+        Act as a helper method for easier migration to `DataprocSubmitJobOperator`.
 
         :return: Dict representing Dataproc job
         """
@@ -1800,6 +1799,15 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
         super().execute(context)
 
 
+# TODO: Remove one day
+@deprecated(
+    reason=(
+        "Please use `DataprocSubmitJobOperator` instead. "
+        "You can use `generate_job` method to generate dictionary representing your job "
+        "and use it with the new operator."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
     """Start a Spark Job on a Cloud DataProc cluster.
 
@@ -1845,15 +1853,6 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
         dataproc_jars: list[str] | None = None,
         **kwargs,
     ) -> None:
-        # TODO: Remove one day
-        warnings.warn(
-            "The `{cls}` operator is deprecated, please use `DataprocSubmitJobOperator` instead. You can use"
-            " `generate_job` method of `{cls}` to generate dictionary representing your job"
-            " and use it with the new operator.".format(cls=type(self).__name__),
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-
         super().__init__(
             impersonation_chain=impersonation_chain,
             region=region,
@@ -1871,7 +1870,7 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
 
     def generate_job(self):
         """
-        Helper method for easier migration to `DataprocSubmitJobOperator`.
+        Act as a helper method for easier migration to `DataprocSubmitJobOperator`.
 
         :return: Dict representing Dataproc job
         """
@@ -1891,6 +1890,15 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
         super().execute(context)
 
 
+# TODO: Remove one day
+@deprecated(
+    reason=(
+        "Please use `DataprocSubmitJobOperator` instead. "
+        "You can use `generate_job` method to generate dictionary representing your job "
+        "and use it with the new operator."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
     """Start a Hadoop Job on a Cloud DataProc cluster.
 
@@ -1936,15 +1944,6 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
         dataproc_jars: list[str] | None = None,
         **kwargs,
     ) -> None:
-        # TODO: Remove one day
-        warnings.warn(
-            "The `{cls}` operator is deprecated, please use `DataprocSubmitJobOperator` instead. You can use"
-            " `generate_job` method of `{cls}` to generate dictionary representing your job"
-            " and use it with the new operator.".format(cls=type(self).__name__),
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-
         super().__init__(
             impersonation_chain=impersonation_chain,
             region=region,
@@ -1961,7 +1960,7 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
         self.files = files
 
     def generate_job(self):
-        """Helper method for easier migration to `DataprocSubmitJobOperator`.
+        """Act as a helper method for easier migration to `DataprocSubmitJobOperator`.
 
         :return: Dict representing Dataproc job
         """
@@ -1981,6 +1980,15 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
         super().execute(context)
 
 
+# TODO: Remove one day
+@deprecated(
+    reason=(
+        "Please use `DataprocSubmitJobOperator` instead. "
+        "You can use `generate_job` method to generate dictionary representing your job "
+        "and use it with the new operator."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
     """Start a PySpark Job on a Cloud DataProc cluster.
 
@@ -2050,15 +2058,6 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         dataproc_jars: list[str] | None = None,
         **kwargs,
     ) -> None:
-        # TODO: Remove one day
-        warnings.warn(
-            "The `{cls}` operator is deprecated, please use `DataprocSubmitJobOperator` instead. You can use"
-            " `generate_job` method of `{cls}` to generate dictionary representing your job"
-            " and use it with the new operator.".format(cls=type(self).__name__),
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-
         super().__init__(
             impersonation_chain=impersonation_chain,
             region=region,
@@ -2075,7 +2074,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         self.pyfiles = pyfiles
 
     def generate_job(self):
-        """Helper method for easier migration to :class:`DataprocSubmitJobOperator`.
+        """Act as a helper method for easier migration to :class:`DataprocSubmitJobOperator`.
 
         :return: Dict representing Dataproc job
         """
@@ -2307,7 +2306,7 @@ class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
             )
 
     def execute_complete(self, context, event=None) -> None:
-        """Callback for when the trigger fires.
+        """Act as a callback for when the trigger fires.
 
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
@@ -2379,7 +2378,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
         region: str,
         project_id: str | None = None,
         request_id: str | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -2433,7 +2432,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
             )
         if not self.deferrable:
             self.log.info("Template instantiated. Workflow Id : %s", workflow_id)
-            operation.result()
+            hook.wait_for_operation(timeout=self.timeout, result_retry=self.retry, operation=operation)
             self.log.info("Workflow %s completed successfully", workflow_id)
         else:
             self.defer(
@@ -2449,7 +2448,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
             )
 
     def execute_complete(self, context, event=None) -> None:
-        """Callback for when the trigger fires.
+        """Act as a callback for when the trigger fires.
 
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
@@ -2603,7 +2602,7 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
         return self.job_id
 
     def execute_complete(self, context, event=None) -> None:
-        """Callback for when the trigger fires.
+        """Act as a callback for when the trigger fires.
 
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
@@ -2759,7 +2758,7 @@ class DataprocUpdateClusterOperator(GoogleCloudBaseOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
         """
-        Callback for when the trigger fires - returns immediately.
+        Act as a callback for when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
@@ -2889,7 +2888,7 @@ class DataprocDiagnoseClusterOperator(GoogleCloudBaseOperator):
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        """Callback for when the trigger fires.
+        """Act as a callback for when the trigger fires.
 
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
@@ -2913,7 +2912,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
     :param project_id: Optional. The ID of the Google Cloud project that the cluster belongs to. (templated)
     :param region: Required. The Cloud Dataproc region in which to handle the request. (templated)
     :param batch: Required. The batch to create. (templated)
-    :param batch_id: Optional. The ID to use for the batch, which will become the final component
+    :param batch_id: Required. The ID to use for the batch, which will become the final component
         of the batch's resource name.
         This value must be 4-63 characters. Valid characters are /[a-z][0-9]-/. (templated)
     :param request_id: Optional. A unique id used to identify the request. If the server receives two
@@ -3087,7 +3086,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         return Batch.to_dict(result)
 
     def execute_complete(self, context, event=None) -> None:
-        """Callback for when the trigger fires.
+        """Act as a callback for when the trigger fires.
 
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.

@@ -24,11 +24,12 @@ from unittest import mock
 import boto3
 import pytest
 from botocore.exceptions import ClientError
-from moto import mock_glue, mock_iam
+from moto import mock_aws
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
+from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
@@ -38,7 +39,7 @@ class TestGlueJobHook:
     def setup_method(self):
         self.some_aws_region = "us-west-2"
 
-    @mock_iam
+    @mock_aws
     @pytest.mark.parametrize("role_path", ["/", "/custom-path/"])
     def test_get_iam_execution_role(self, role_path):
         expected_role = "my_test_role"
@@ -308,7 +309,7 @@ class TestGlueJobHook:
         )
         assert result == job_name
 
-    @mock_glue
+    @mock_aws
     @mock.patch.object(GlueJobHook, "get_iam_execution_role")
     def test_create_or_update_glue_job_worker_type(self, mock_get_iam_execution_role):
         mock_get_iam_execution_role.return_value = {"Role": {"RoleName": "my_test_role", "Arn": "test_role"}}
@@ -376,12 +377,12 @@ class TestGlueJobHook:
         glue_job_run_state = glue_job_hook.get_job_state(glue_job_run["JobName"], glue_job_run["JobRunId"])
         assert glue_job_run_state == mock_job_run_state, "Mocks but be equal"
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.glue.boto3.client")
+    @mock.patch.object(AwsLogsHook, "get_conn")
     @mock.patch.object(GlueJobHook, "conn")
-    def test_print_job_logs_returns_token(self, conn_mock: MagicMock, client_mock: MagicMock, caplog):
-        hook = GlueJobHook()
+    def test_print_job_logs_returns_token(self, conn_mock: MagicMock, log_client_mock: MagicMock, caplog):
+        hook = GlueJobHook(job_name="test")
         conn_mock().get_job_run.return_value = {"JobRun": {"LogGroupName": "my_log_group"}}
-        client_mock().get_paginator().paginate.return_value = [
+        log_client_mock().get_paginator().paginate.return_value = [
             # first response : 2 log lines
             {
                 "events": [
@@ -399,12 +400,11 @@ class TestGlueJobHook:
         tokens = GlueJobHook.LogContinuationTokens()
         with caplog.at_level("INFO"):
             hook.print_job_logs("name", "run", tokens)
-
         assert "\thello\n\tworld\n" in caplog.text
         assert tokens.output_stream_continuation == "my_continuation_token"
         assert tokens.error_stream_continuation == "my_continuation_token"
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.glue.boto3.client")
+    @mock.patch.object(AwsLogsHook, "get_conn")
     @mock.patch.object(GlueJobHook, "conn")
     def test_print_job_logs_no_stream_yet(self, conn_mock: MagicMock, client_mock: MagicMock):
         hook = GlueJobHook()

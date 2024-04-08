@@ -97,7 +97,7 @@ class DataprocCreateClusterOperator(BaseOperator):
     :param initialization_actions: Set of init-actions to run when cluster starts.
                         Docs: https://cloud.yandex.com/docs/data-proc/concepts/init-action
     :param labels: Cluster labels as key:value pairs. No more than 64 per resource.
-                        Docs: https://cloud.yandex.ru/docs/resource-manager/concepts/labels
+                        Docs: https://cloud.yandex.com/docs/resource-manager/concepts/labels
     """
 
     def __init__(

@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Interact with Amazon EKS, using the boto3 library."""
+
 from __future__ import annotations
 
 import base64
@@ -75,7 +76,7 @@ class NodegroupStates(Enum):
     NONEXISTENT = "NONEXISTENT"
 
 
-COMMAND = """
+COMMAND = r"""
             output=$({python_executable} -m airflow.providers.amazon.aws.utils.eks_get_token \
                 --cluster-name {eks_cluster_name} {args} 2>&1)
 
