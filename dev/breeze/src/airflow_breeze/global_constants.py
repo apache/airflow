@@ -433,6 +433,7 @@ DEFAULT_EXTRAS = [
     "common-io",
     "docker",
     "elasticsearch",
+    "fab",
     "ftp",
     "google",
     "google-auth",

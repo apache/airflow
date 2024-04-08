@@ -232,20 +232,36 @@ Attaching extra information to an emitting Dataset Event
 A task with a dataset outlet can optionally attach extra information before it emits a dataset event. This is different
 from `Extra information on Dataset`_. Extra information on a dataset statically describes the entity pointed to by the dataset URI; extra information on the *dataset event* instead should be used to annotate the triggering data change, such as how many rows in the database are changed by the update, or the date range covered by it.
 
-The easiest way to attach extra information to the dataset event is by accessing ``dataset_events`` in a task's execution context:
+The easiest way to attach extra information to the dataset event is by ``yield``-ing a ``Metadata`` object from a task:
 
 .. code-block:: python
+
+    from airflow.datasets import Dataset
+    from airflow.datasets.metadata import Metadata
 
     example_s3_dataset = Dataset("s3://dataset/example.csv")
 
 
     @task(outlets=[example_s3_dataset])
-    def write_to_s3(*, dataset_events):
+    def write_to_s3():
         df = ...  # Get a Pandas DataFrame to write.
         # Write df to dataset...
+        yield Metadata(example_s3_dataset, {"row_count": len(df)})
+
+Airflow automatically collects all yielded metadata, and populates dataset events with extra information for corresponding metadata objects.
+
+This can also be done in classic operators. The best way is to subclass the operator and override ``execute``. Alternatively, extras can also be added in a task's ``pre_execute`` or ``post_execute`` hook. If you choose to use hooks, however, remember that they are not rerun when a task is retried, and may cause the extra information to not match actual data in certain scenarios.
+
+Another way to achieve the same is by accessing ``dataset_events`` in a task's execution context directly:
+
+.. code-block:: python
+
+    @task(outlets=[example_s3_dataset])
+    def write_to_s3(*, dataset_events):
         dataset_events[example_s3_dataset].extras = {"row_count": len(df)}
 
-This can also be done in classic operators by either subclassing the operator and overriding ``execute``, or by supplying a pre- or post-execution function.
+There's minimal magic here---Airflow simply writes the yielded values to the exact same accessor. This also works in classic operators, including ``execute``, ``pre_execute``, and ``post_execute``.
+
 
 Fetching information from a Triggering Dataset Event
 ----------------------------------------------------

@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,8 +14,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-function cleanup_docker {
-    docker system prune --all --force --volumes || true
-}
 
-cleanup_docker
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
+import attrs
+
+from airflow.datasets import coerce_to_uri
+
+if TYPE_CHECKING:
+    from airflow.datasets import Dataset
+
+
+@attrs.define(init=False)
+class Metadata:
+    """Metadata to attach to a DatasetEvent."""
+
+    uri: str
+    extra: dict[str, Any]
+
+    def __init__(self, target: str | Dataset, extra: dict[str, Any]) -> None:
+        self.uri = coerce_to_uri(target)
+        self.extra = extra
