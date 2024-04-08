@@ -368,7 +368,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .join(TI.dag_run)
                 .where(DR.run_type != DagRunType.BACKFILL_JOB, DR.state == DagRunState.RUNNING)
                 .join(TI.dag_model)
-                .where(not_(DM.is_paused))
+                .where(DM.is_paused == DagPausedState.UNPAUSED)
                 .where(TI.state == TaskInstanceState.SCHEDULED)
                 .options(selectinload(TI.dag_model))
                 .order_by(-TI.priority_weight, DR.execution_date, TI.map_index)

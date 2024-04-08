@@ -592,7 +592,7 @@ class DagRun(Base, LoggingMixin):
             session.execute(
                 update(DagModel)
                 .where(or_(*filter_query))
-                .values(is_paused=True)
+                .values(is_paused=DagPausedState.PAUSED)  # TODO: mark this DRAINED
                 .execution_options(synchronize_session="fetch")
             )
             session.add(

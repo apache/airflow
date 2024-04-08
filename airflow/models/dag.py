@@ -3785,7 +3785,9 @@ class DagModel(Base):
         session.execute(
             update(DagModel)
             .where(or_(*filter_query))
-            .values(is_paused=DagPausedState.PAUSED if is_paused else DagPausedState.UNPAUSED)
+            .values(
+                is_paused=DagPausedState.PAUSED if is_paused else DagPausedState.UNPAUSED
+            )  # TODO: Check this
             .execution_options(synchronize_session="fetch")
         )
         session.commit()
@@ -3888,7 +3890,7 @@ class DagModel(Base):
         query = (
             select(cls)
             .where(
-                cls.is_paused == expression.false(),
+                cls.is_paused == DagPausedState.UNPAUSED,
                 cls.is_active == expression.true(),
                 cls.has_import_errors == expression.false(),
                 or_(
