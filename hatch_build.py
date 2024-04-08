@@ -622,7 +622,7 @@ for provider_spec in PRE_INSTALLED_PROVIDERS:
             and get_provider_id(dependency) not in PRE_INSTALLED_PROVIDERS
         ):
             msg = (
-                f"The provider {provider_id} is pre-installed and it has as dependency "
+                f"The provider {provider_id} is pre-installed and it has a dependency "
                 f"to another provider {dependency} which is not preinstalled. This is not allowed. "
                 f"Pre-installed providers should only have 'apache-airflow', other preinstalled providers"
                 f"and regular non-airflow dependencies."
