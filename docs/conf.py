@@ -382,7 +382,7 @@ html_theme_options["navbar_links"] = [
     {"href": "/community/", "text": "Community"},
     {"href": "/meetups/", "text": "Meetups"},
     {"href": "/docs/", "text": "Documentation"},
-    {"href": "/use-cases/", "text": "Use-cases"},
+    {"href": "/use-cases/", "text": "Use Cases"},
     {"href": "/announcements/", "text": "Announcements"},
     {"href": "/blog/", "text": "Blog"},
     {"href": "/ecosystem/", "text": "Ecosystem"},
