@@ -618,7 +618,11 @@ class EmrContainerOperator(BaseOperator):
                     aws_conn_id=self.aws_conn_id,
                     waiter_delay=self.poll_interval,
                     waiter_max_attempts=self.max_polling_attempts,
-                ),
+                ) if self.max_polling_attempts else EmrContainerTrigger(
+                    virtual_cluster_id=self.virtual_cluster_id,
+                    job_id=self.job_id,
+                    aws_conn_id=self.aws_conn_id,
+                    waiter_delay=self.poll_interval),
                 method_name="execute_complete",
             )
         if self.wait_for_completion:
