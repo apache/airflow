@@ -245,8 +245,6 @@ you can pass ``render_template_as_native_obj=True`` to the DAG as follows:
         data_string = '{"1001": 301.27, "1002": 433.21, "1003": 502.22}'
         return json.loads(data_string)
 
-
-    @task(task_id="transform")
     def transform(order_data):
         print(type(order_data))
         for value in order_data.values():
