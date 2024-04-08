@@ -22,13 +22,13 @@ import warnings
 from contextlib import closing
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Iterable, Union
-from urllib.parse import quote
 
 import psycopg2
 import psycopg2.extensions
 import psycopg2.extras
 from deprecated import deprecated
 from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor
+from sqlalchemy.engine import URL
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.hooks.sql import DbApiHook
@@ -113,6 +113,18 @@ class PostgresHook(DbApiHook):
     def schema(self, value):
         self.database = value
 
+    @property
+    def sa_uri(self) -> URL:
+        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        return URL.create(
+            drivername="postgresql",
+            username=conn.login,
+            password=conn.password,
+            host=conn.host,
+            port=conn.port,
+            database=conn.schema,
+        )
+
     def _get_cursor(self, raw_cursor: str) -> CursorType:
         _cursor = raw_cursor.lower()
         cursor_types = {
@@ -188,11 +200,7 @@ class PostgresHook(DbApiHook):
 
         :return: the extracted URI in Sqlalchemy URI format.
         """
-        conn = self.get_connection(getattr(self, self.conn_name_attr))
-        conn.schema = self.database or conn.schema
-        conn.port = conn.port or "5432"
-        uri = f"postgresql://{conn.login}:{quote(conn.password)}@{conn.host}:{conn.port}/{conn.schema}"
-        return uri
+        return self.sa_uri.render_as_string(hide_password=False)
 
     def bulk_load(self, table: str, tmp_file: str) -> None:
         """Load a tab-delimited file into a database table."""
