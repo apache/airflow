@@ -138,7 +138,7 @@ class PostgresHook(DbApiHook):
         conn_args = {
             "host": conn.host,
             "user": conn.login,
-            "password": quote(conn.password),
+            "password": conn.password,
             "dbname": self.database or conn.schema,
             "port": conn.port,
         }
@@ -190,6 +190,7 @@ class PostgresHook(DbApiHook):
         """
         conn = self.get_connection(getattr(self, self.conn_name_attr))
         conn.schema = self.database or conn.schema
+        conn.port = conn.port or "5432"
         uri = f"postgresql://{conn.login}:{quote(conn.password)}@{conn.host}:{conn.port}/{conn.schema}"
         return uri
 
