@@ -391,8 +391,6 @@ combine-as-imports = true
 "airflow/providers/google/leveldb/hooks/leveldb.py" = ["TRY002"]
 # imap
 "airflow/providers/imap/hooks/imap.py" = ["TRY002"]
-# microsoft.azure
-"airflow/providers/microsoft/azure/operators/synapse.py" = ["TRY002"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.
