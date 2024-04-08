@@ -111,6 +111,7 @@ from airflow.utils.context import (
     Context,
     DatasetEventAccessors,
     VariableAccessor,
+    context_get_dataset_events,
     context_merge,
 )
 from airflow.utils.email import send_email
@@ -118,7 +119,7 @@ from airflow.utils.helpers import prune_dict, render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import qualname
 from airflow.utils.net import get_hostname
-from airflow.utils.operator_helpers import context_to_airflow_vars
+from airflow.utils.operator_helpers import ExecutionCallableRunner, context_to_airflow_vars
 from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -432,12 +433,16 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
         if execute_callable.__name__ == "execute":
             execute_callable_kwargs[f"{task_to_execute.__class__.__name__}__sentinel"] = _sentinel
 
-    def _execute_callable(context, **execute_callable_kwargs):
+    def _execute_callable(context: Context, **execute_callable_kwargs):
         try:
             # Print a marker for log grouping of details before task execution
             log.info("::endgroup::")
 
-            return execute_callable(context=context, **execute_callable_kwargs)
+            return ExecutionCallableRunner(
+                execute_callable,
+                context_get_dataset_events(context),
+                logger=log,
+            ).run(context=context, **execute_callable_kwargs)
         except SystemExit as e:
             # Handle only successful cases here. Failure cases will be handled upper
             # in the exception chain.
@@ -2678,6 +2683,10 @@ class TaskInstance(Base, LoggingMixin):
                     jinja_env = None
                 task_orig = self.render_templates(context=context, jinja_env=jinja_env)
 
+            # The task is never MappedOperator at this point.
+            if TYPE_CHECKING:
+                assert isinstance(self.task, BaseOperator)
+
             if not test_mode:
                 rendered_fields = get_serialized_template_fields(task=self.task)
                 _update_rtif(ti=self, rendered_fields=rendered_fields)
@@ -2695,8 +2704,7 @@ class TaskInstance(Base, LoggingMixin):
                 )
 
             # Run pre_execute callback
-            # Is never MappedOperator at this point
-            self.task.pre_execute(context=context)  # type: ignore[union-attr]
+            self.task.pre_execute(context=context)
 
             # Run on_execute callback
             self._run_execute_callback(context, self.task)
@@ -2711,8 +2719,7 @@ class TaskInstance(Base, LoggingMixin):
                 result = self._execute_task(context, task_orig)
 
             # Run post_execute callback
-            # Is never MappedOperator at this point
-            self.task.post_execute(context=context, result=result)  # type: ignore[union-attr]
+            self.task.post_execute(context=context, result=result)
 
             # DAG authors define map_index_template at the task level
             if jinja_env is not None and (template := context.get("map_index_template")) is not None:
@@ -2724,7 +2731,7 @@ class TaskInstance(Base, LoggingMixin):
         Stats.incr("operator_successes", tags={**self.stats_tags, "task_type": self.task.task_type})
         Stats.incr("ti_successes", tags=self.stats_tags)
 
-    def _execute_task(self, context, task_orig):
+    def _execute_task(self, context: Context, task_orig: Operator):
         """
         Execute Task (optionally with a Timeout) and push Xcom results.
 
@@ -2775,16 +2782,15 @@ class TaskInstance(Base, LoggingMixin):
             else:
                 self.trigger_timeout = self.start_date + execution_timeout
 
-    def _run_execute_callback(self, context: Context, task: Operator) -> None:
+    def _run_execute_callback(self, context: Context, task: BaseOperator) -> None:
         """Functions that need to be run before a Task is executed."""
-        callbacks = task.on_execute_callback
-        if callbacks:
-            callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
-            for callback in callbacks:
-                try:
-                    callback(context)
-                except Exception:
-                    self.log.exception("Failed when executing execute callback")
+        if not (callbacks := task.on_execute_callback):
+            return
+        for callback in callbacks if isinstance(callbacks, list) else [callbacks]:
+            try:
+                callback(context)
+            except Exception:
+                self.log.exception("Failed when executing execute callback")
 
     @provide_session
     def run(

@@ -22,7 +22,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowNotFoundException
 from airflow.models import Connection
 from airflow.providers.samba.hooks.samba import SambaHook
 
@@ -37,9 +37,10 @@ CONNECTION = Connection(
 
 
 class TestSambaHook:
+    @pytest.mark.db_test
     def test_get_conn_should_fail_if_conn_id_does_not_exist(self):
-        with pytest.raises(AirflowException):
-            SambaHook("conn")
+        with pytest.raises(AirflowNotFoundException):
+            SambaHook("non-existed-connection-id")
 
     @mock.patch("smbclient.register_session")
     @mock.patch("airflow.hooks.base.BaseHook.get_connection")

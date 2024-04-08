@@ -17,11 +17,15 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from datetime import datetime
-from typing import Any, Callable, Collection, Mapping, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Collection, Mapping, TypeVar
 
 from airflow import settings
 from airflow.utils.context import Context, lazy_mapping_from_context
+
+if TYPE_CHECKING:
+    from airflow.utils.context import DatasetEventAccessors
 
 R = TypeVar("R")
 
@@ -212,3 +216,51 @@ def make_kwargs_callable(func: Callable[..., R]) -> Callable[..., R]:
         return func(*args, **kwargs)
 
     return kwargs_func
+
+
+class ExecutionCallableRunner:
+    """Run an execution callable against a task context and given arguments.
+
+    If the callable is a simple function, this simply calls it with the supplied
+    arguments (including the context). If the callable is a generator function,
+    the generator is exhausted here, with the yielded values getting fed back
+    into the task context automatically for execution.
+
+    :meta private:
+    """
+
+    def __init__(
+        self,
+        func: Callable,
+        dataset_events: DatasetEventAccessors,
+        *,
+        logger: logging.Logger | None,
+    ) -> None:
+        self.func = func
+        self.dataset_events = dataset_events
+        self.logger = logger or logging.getLogger(__name__)
+
+    def run(self, *args, **kwargs) -> Any:
+        import inspect
+
+        from airflow.datasets.metadata import Metadata
+        from airflow.utils.types import NOTSET
+
+        if not inspect.isgeneratorfunction(self.func):
+            return self.func(*args, **kwargs)
+
+        result: Any = NOTSET
+
+        def _run():
+            nonlocal result
+            result = yield from self.func(*args, **kwargs)
+
+        for metadata in _run():
+            if isinstance(metadata, Metadata):
+                self.dataset_events[metadata.uri].extra.update(metadata.extra)
+                continue
+            self.logger.warning("Ignoring unknown data of %r received from task", type(metadata))
+            if self.logger.isEnabledFor(logging.DEBUG):
+                self.logger.debug("Full yielded value: %r", metadata)
+
+        return result

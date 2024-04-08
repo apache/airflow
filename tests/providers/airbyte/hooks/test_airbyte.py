@@ -133,7 +133,7 @@ class TestAirbyteHook:
             self.return_value_get_job(self.hook.RUNNING),
             self.return_value_get_job("UNRECOGNIZED"),
         ]
-        with pytest.raises(Exception, match="unexpected state"):
+        with pytest.raises(AirflowException, match="unexpected state"):
             self.hook.wait_for_job(job_id=self.job_id, wait_seconds=0)
 
         calls = [mock.call(job_id=self.job_id), mock.call(job_id=self.job_id)]

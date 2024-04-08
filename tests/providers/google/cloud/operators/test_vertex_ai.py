@@ -1568,6 +1568,7 @@ class TestVertexAICreateHyperparameterTuningJobOperator:
         op.execute(context={"ti": mock.MagicMock()})
         mock_defer.assert_called_once()
 
+    @pytest.mark.db_test
     def test_deferrable_sync_error(self):
         op = CreateHyperparameterTuningJobOperator(
             task_id=TASK_ID,
