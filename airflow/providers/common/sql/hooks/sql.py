@@ -539,7 +539,7 @@ class DbApiHook(BaseHook):
                 self.set_autocommit(conn, False)
             yield conn
 
-    def _closing_supporting_autocommit(
+    def insert_rows(
         self,
         table,
         rows,
@@ -566,14 +566,12 @@ class DbApiHook(BaseHook):
         """
         with self._closing_supporting_autocommit() as conn:
             conn.commit()
-
             with closing(conn.cursor()) as cur:
                 if executemany:
                     for chunked_rows in chunked(rows, commit_every):
                         values = list(
                             map(
-                                lambda row: tuple(
-                                    map(lambda cell: self._serialize_cell(cell, conn), row)),
+                                lambda row: self._serialize_cells(row, conn),
                                 chunked_rows,
                             )
                         )
@@ -585,18 +583,19 @@ class DbApiHook(BaseHook):
                         self.log.info("Loaded %s rows into %s so far", len(chunked_rows), table)
                 else:
                     for i, row in enumerate(rows, 1):
-                        lst = []
-                        for cell in row:
-                            lst.append(self._serialize_cell(cell, conn))
-                        values = tuple(lst)
+                        values = self._serialize_cells(row, conn)
                         sql = self._generate_insert_sql(table, values, target_fields, replace, **kwargs)
                         self.log.debug("Generated sql: %s", sql)
                         cur.execute(sql, values)
                         if commit_every and i % commit_every == 0:
                             conn.commit()
                             self.log.info("Loaded %s rows into %s so far", i, table)
-                        conn.commit()
+                    conn.commit()
         self.log.info("Done loading. Loaded a total of %s rows into %s", len(rows), table)
+
+    @classmethod
+    def _serialize_cells(cls, row, conn=None):
+        return tuple(map(lambda cell: cls._serialize_cell(cell, conn), row))
 
     @staticmethod
     def _serialize_cell(cell, conn=None) -> str | None:
