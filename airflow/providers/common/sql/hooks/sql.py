@@ -150,7 +150,14 @@ class DbApiHook(BaseHook):
     # Default SQL placeholder
     _placeholder: str = "%s"
 
-    def __init__(self, *args, schema: str | None = None, log_sql: bool = True, **kwargs):
+    def __init__(
+        self,
+        *args,
+        schema: str | None = None,
+        log_sql: bool = True,
+        fast_executemany: bool = False,
+        **kwargs,
+    ):
         super().__init__()
         if not self.conn_name_attr:
             raise AirflowException("conn_name_attr is not defined")
@@ -166,6 +173,7 @@ class DbApiHook(BaseHook):
         # Hook deriving from the DBApiHook to still have access to the field in its constructor
         self.__schema = schema
         self.log_sql = log_sql
+        self._fast_executemany = fast_executemany
         self.descriptions: list[Sequence[Sequence] | None] = []
         self._insert_statement_format: str = kwargs.get(
             "insert_statement_format", "INSERT INTO {} {} VALUES ({})"
@@ -173,7 +181,6 @@ class DbApiHook(BaseHook):
         self._replace_statement_format: str = kwargs.get(
             "replace_statement_format", "REPLACE INTO {} {} VALUES ({})"
         )
-        self._fast_executemany: bool = kwargs.get("fast_executemany", False)
 
     @property
     def placeholder(self):
