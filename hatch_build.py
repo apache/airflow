@@ -146,7 +146,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "virtualenv",
     ],
     "dill": [
-        "dill",
+        "dill>=0.2.2",
     ],
     "cloudpickle": [
         "cloudpickle",
