@@ -39,13 +39,14 @@ For example:
 
    dag = DAG("dag", tags=["team1", "sql"])
 
+You can also search and filter the list of DAGs by DAG ID and owner by querying the Search-field.
+Prefix your query with ``task:`` to filter by task ID (``dag:`` and ``owner:`` are also supported).
 
 ------------
 
 .. image:: img/dags.png
 
 ------------
-
 
 .. _ui:cluster-activity-view:
 
