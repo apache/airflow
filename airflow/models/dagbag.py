@@ -90,7 +90,7 @@ class DagBag(LoggingMixin):
     :param include_examples: whether to include the examples that ship
         with airflow or not
     :param safe_mode: when ``False``, scans all python modules for dags.
-        When ``True`` uses heuristics(files containing ``DAG`` and ``airflow`` strings )
+        When ``True`` uses heuristics (files containing ``DAG`` and ``airflow`` strings)
         to filter python modules to scan for dags.
     :param read_dags_from_db: Read DAGs from DB if ``True`` is passed.
         If ``False`` DAGs are read from python files.
