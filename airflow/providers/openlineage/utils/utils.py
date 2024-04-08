@@ -56,7 +56,7 @@ def get_operator_class(task: BaseOperator) -> type:
     return task.__class__
 
 
-def get_job_name(task):
+def get_job_name(task: TaskInstance):
     return f"{task.dag_id}.{task.task_id}"
 
 
