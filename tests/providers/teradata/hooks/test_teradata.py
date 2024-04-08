@@ -248,9 +248,7 @@ class TestTeradataHook:
             mock.call(
                 "INSERT INTO table (col1, col2, col3) VALUES (?,?,?)", [("1", "2", "3"), ("4", "5", "6")]
             ),
-            mock.call(
-                "INSERT INTO table (col1, col2, col3) VALUES (?,?,?)", [("7", "8", "9")]
-            ),
+            mock.call("INSERT INTO table (col1, col2, col3) VALUES (?,?,?)", [("7", "8", "9")]),
         ]
         self.cur.executemany.assert_has_calls(calls, any_order=True)
 
