@@ -416,6 +416,7 @@ operators:
     python-modules:
       - airflow.providers.amazon.aws.operators.glue
       - airflow.providers.amazon.aws.operators.glue_crawler
+      - airflow.providers.amazon.aws.operators.glue_session
   - integration-name: AWS Lambda
     python-modules:
       - airflow.providers.amazon.aws.operators.lambda_function
@@ -596,6 +597,7 @@ hooks:
       - airflow.providers.amazon.aws.hooks.glue
       - airflow.providers.amazon.aws.hooks.glue_crawler
       - airflow.providers.amazon.aws.hooks.glue_catalog
+      - airflow.providers.amazon.aws.hooks.glue_session
   - integration-name: Amazon Kinesis Data Firehose
     python-modules:
       - airflow.providers.amazon.aws.hooks.kinesis
@@ -692,6 +694,7 @@ triggers:
     python-modules:
       - airflow.providers.amazon.aws.triggers.glue
       - airflow.providers.amazon.aws.triggers.glue_crawler
+      - airflow.providers.amazon.aws.triggers.glue_session
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.triggers.s3
