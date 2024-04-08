@@ -2920,7 +2920,7 @@ class TaskInstance(Base, LoggingMixin):
 
     def get_last_error(self) -> None | str | BaseException:
         """
-        Returns the last recorded error for this task instance, if any.
+        Return the last recorded error for this task instance, if any.
 
         This is meant to be used by implementers of the on_task_instance_failed callback to access the error
         that caused the failure.

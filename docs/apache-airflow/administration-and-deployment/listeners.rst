@@ -40,7 +40,6 @@ DagRun state change events occur when a :class:`~airflow.models.dagrun.DagRun` c
 
 .. exampleinclude:: /../../airflow/example_dags/plugins/event_listener.py
     :language: python
-    :dedent: 4
     :start-after: [START howto_listen_dagrun_running_task]
     :end-before: [END howto_listen_dagrun_running_task]
 
@@ -48,7 +47,6 @@ DagRun state change events occur when a :class:`~airflow.models.dagrun.DagRun` c
 
 .. exampleinclude:: /../../airflow/example_dags/plugins/event_listener.py
     :language: python
-    :dedent: 4
     :start-after: [START howto_listen_dagrun_success_task]
     :end-before: [END howto_listen_dagrun_success_task]
 
@@ -56,7 +54,6 @@ DagRun state change events occur when a :class:`~airflow.models.dagrun.DagRun` c
 
 .. exampleinclude:: /../../airflow/example_dags/plugins/event_listener.py
     :language: python
-    :dedent: 4
     :start-after: [START howto_listen_dagrun_failure_task]
     :end-before: [END howto_listen_dagrun_failure_task]
 
@@ -71,7 +68,6 @@ You can use these events to react to ``LocalTaskJob`` state changes.
 
 .. exampleinclude:: /../../airflow/example_dags/plugins/event_listener.py
     :language: python
-    :dedent: 4
     :start-after: [START howto_listen_ti_running_task]
     :end-before: [END howto_listen_ti_running_task]
 
@@ -79,7 +75,6 @@ You can use these events to react to ``LocalTaskJob`` state changes.
 
 .. exampleinclude:: /../../airflow/example_dags/plugins/event_listener.py
     :language: python
-    :dedent: 4
     :start-after: [START howto_listen_ti_success_task]
     :end-before: [END howto_listen_ti_success_task]
 
@@ -87,7 +82,6 @@ You can use these events to react to ``LocalTaskJob`` state changes.
 
 .. exampleinclude:: /../../airflow/example_dags/plugins/event_listener.py
     :language: python
-    :dedent: 4
     :start-after: [START howto_listen_ti_failure_task]
     :end-before: [END howto_listen_ti_failure_task]
 
