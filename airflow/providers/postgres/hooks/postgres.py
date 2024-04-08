@@ -122,7 +122,7 @@ class PostgresHook(DbApiHook):
             password=conn.password,
             host=conn.host,
             port=conn.port,
-            database=conn.schema,
+            database=self.database or conn.schema,
         )
 
     def _get_cursor(self, raw_cursor: str) -> CursorType:
