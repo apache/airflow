@@ -65,13 +65,15 @@ class TestBedrockCustomizeModelCompletedSensor:
         assert op.hook._config.read_timeout == 42
 
     @pytest.mark.parametrize("state", list(BedrockCustomizeModelCompletedSensor.SUCCESS_STATES))
-    def test_poke_success_states(self, state, mock_get_job_state):
-        mock_get_job_state.side_effect = [state]
+    @mock.patch.object(BedrockHook, "conn")
+    def test_poke_success_states(self, mock_conn, state):
+        mock_conn.get_model_customization_job.return_value = {"status": state}
         assert self.sensor.poke({}) is True
 
     @pytest.mark.parametrize("state", list(BedrockCustomizeModelCompletedSensor.INTERMEDIATE_STATES))
-    def test_poke_intermediate_states(self, state, mock_get_job_state):
-        mock_get_job_state.side_effect = [state]
+    @mock.patch.object(BedrockHook, "conn")
+    def test_poke_intermediate_states(self, mock_conn, state):
+        mock_conn.get_model_customization_job.return_value = {"status": state}
         assert self.sensor.poke({}) is False
 
     @pytest.mark.parametrize(
@@ -82,8 +84,9 @@ class TestBedrockCustomizeModelCompletedSensor:
         ],
     )
     @pytest.mark.parametrize("state", list(BedrockCustomizeModelCompletedSensor.FAILURE_STATES))
-    def test_poke_failure_states(self, state, soft_fail, expected_exception, mock_get_job_state):
-        mock_get_job_state.side_effect = [state]
+    @mock.patch.object(BedrockHook, "conn")
+    def test_poke_failure_states(self, mock_conn, state, soft_fail, expected_exception):
+        mock_conn.get_model_customization_job.return_value = {"status": state}
         sensor = BedrockCustomizeModelCompletedSensor(
             **self.default_op_kwargs, aws_conn_id=None, soft_fail=soft_fail
         )

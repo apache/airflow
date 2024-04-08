@@ -192,7 +192,7 @@ class BedrockCustomizeModelOperator(AwsBaseOperator[BedrockHook]):
             raise AirflowException(f"Error while running job: {event}")
 
         self.log.info("Bedrock model customization job `%s` complete.", self.job_name)
-        return self.hook.get_job_arn(event["job_name"])
+        return self.hook.conn.get_model_customization_job(jobIdentifier=event["job_name"])["jobArn"]
 
     def execute(self, context: Context) -> dict:
         response = {}

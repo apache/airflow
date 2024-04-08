@@ -98,7 +98,8 @@ class BedrockCustomizeModelCompletedSensor(AwsBaseSensor[BedrockHook]):
             super().execute(context=context)
 
     def poke(self, context: Context) -> bool:
-        state = self.hook.get_customize_model_job_state(self.job_name)
+        state = self.hook.conn.get_model_customization_job(jobIdentifier=self.job_name)["status"]
+        self.log.info("Job '%s' state: %s", self.job_name, state)
 
         if state in self.FAILURE_STATES:
             # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
@@ -106,6 +107,4 @@ class BedrockCustomizeModelCompletedSensor(AwsBaseSensor[BedrockHook]):
                 raise AirflowSkipException(self.FAILURE_MESSAGE)
             raise AirflowException(self.FAILURE_MESSAGE)
 
-        if state in self.INTERMEDIATE_STATES:
-            return False
-        return True
+        return state not in self.INTERMEDIATE_STATES

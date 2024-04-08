@@ -52,12 +52,6 @@ class TestBedrockHook:
         assert self.hook.conn is not None
         assert self.hook.conn.meta.service_model.service_name == "bedrock"
 
-    def test_get_customize_model_job_state(self, mock_conn):
-        response = self.hook.get_customize_model_job_state(JOB_NAME)
-
-        mock_conn.get_model_customization_job.assert_called_once_with(jobIdentifier=JOB_NAME)
-        assert response == EXPECTED_STATUS
-
 
 class TestBedrockRuntimeHook:
     def test_conn_returns_a_boto3_connection(self):
