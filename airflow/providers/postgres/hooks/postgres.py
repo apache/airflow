@@ -22,6 +22,7 @@ import warnings
 from contextlib import closing
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Iterable, Union
+from urllib.parse import quote
 
 import psycopg2
 import psycopg2.extensions
@@ -137,7 +138,7 @@ class PostgresHook(DbApiHook):
         conn_args = {
             "host": conn.host,
             "user": conn.login,
-            "password": conn.password,
+            "password": quote(conn.password),
             "dbname": self.database or conn.schema,
             "port": conn.port,
         }
@@ -189,7 +190,7 @@ class PostgresHook(DbApiHook):
         """
         conn = self.get_connection(getattr(self, self.conn_name_attr))
         conn.schema = self.database or conn.schema
-        uri = conn.get_uri().replace("postgres://", "postgresql://")
+        uri = f"postgresql://{conn.login}:{quote(conn.password)}@{conn.host}:{conn.port}/{conn.schema}"
         return uri
 
     def bulk_load(self, table: str, tmp_file: str) -> None:
