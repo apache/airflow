@@ -531,9 +531,7 @@ class DbApiHook(BaseHook):
 
     @contextmanager
     def _closing_supporting_autocommit(self):
-        """
-        Context manager that closes the connection after use and detects if autocommit is supported.
-        """
+        """Context manager that closes the connection after use and detects if autocommit is supported."""
         with closing(self.get_conn()) as conn:
             if self.supports_autocommit:
                 self.set_autocommit(conn, False)
