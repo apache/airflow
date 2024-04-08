@@ -143,6 +143,8 @@ class DbApiHook(BaseHook):
     default_conn_name = "default_conn_id"
     # Override if this db supports autocommit.
     supports_autocommit = False
+    # Override if this db supports executemany.
+    supports_executemany = False
     # Override with the object that exposes the connect method
     connector: ConnectorProtocol | None = None
     # Override with db-specific query to check connection
@@ -562,10 +564,17 @@ class DbApiHook(BaseHook):
         :param executemany: Inserts all rows at once in chunks defined by the commit_every parameter, only
             works if all rows have same number of column names but leads to better performance
         """
+        if executemany:
+            warnings.warn(
+                "executemany parameter is deprecated, override supports_executemany instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+
         with self._closing_supporting_autocommit() as conn:
             conn.commit()
             with closing(conn.cursor()) as cur:
-                if executemany:
+                if self.supports_executemany or executemany:
                     for chunked_rows in chunked(rows, commit_every):
                         values = list(
                             map(

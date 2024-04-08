@@ -61,6 +61,9 @@ class TeradataHook(DbApiHook):
     # Override if this db supports autocommit.
     supports_autocommit = True
 
+    # Override if this db supports executemany.
+    supports_executemany = True
+
     # Override this for hook to have a custom name in the UI selection
     conn_type = "teradata"
 
@@ -124,25 +127,6 @@ class TeradataHook(DbApiHook):
             raise ValueError("parameter rows could not be None or empty iterable")
 
         self.insert_rows(table=table, rows=rows, target_fields=target_fields, commit_every=commit_every)
-
-    def insert_rows(
-        self,
-        table,
-        rows,
-        target_fields=None,
-        commit_every=1000,
-        replace=False,
-        *,
-        executemany=True,
-        **kwargs,
-    ):
-        super().insert_rows(
-            table=table,
-            rows=rows,
-            target_fields=target_fields,
-            commit_every=commit_every,
-            executemany=executemany,
-        )
 
     def _get_conn_config_teradatasql(self) -> dict[str, Any]:
         """Return set of config params required for connecting to Teradata DB using teradatasql client."""

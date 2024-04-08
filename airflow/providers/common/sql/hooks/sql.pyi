@@ -49,6 +49,7 @@ class DbApiHook(BaseForDbApiHook):
     conn_name_attr: str
     default_conn_name: str
     supports_autocommit: bool
+    supports_executemany: bool
     connector: Union[ConnectorProtocol, None]
     placeholder: str
     log_sql: Incomplete
