@@ -658,7 +658,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def update_job_permission(self, json: dict[str, Any]) -> dict:
         """
-        Update databricks job permission
+        Update databricks job permission.
 
         :param json: payload
         :return: json containing permission specification
