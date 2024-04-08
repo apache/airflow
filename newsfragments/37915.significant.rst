@@ -1,1 +1,0 @@
-The method ``is_authorized_custom_view`` from ``BaseAuthManager`` is now abstract. All sub classes must implement this method.
