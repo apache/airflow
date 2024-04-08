@@ -661,10 +661,9 @@ class DatabricksHook(BaseDatabricksHook):
         Update databricks job permission
 
         :param json: payload
-        :return:
+        :return: json containing permission specification
         """
         return self._do_api_call(UPDATE_PERMISSION_ENDPOINT, json)
-
 
     def test_connection(self) -> tuple[bool, str]:
         """Test the Databricks connectivity from UI."""
