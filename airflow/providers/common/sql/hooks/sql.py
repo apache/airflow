@@ -539,6 +539,8 @@ class DbApiHook(BaseHook):
         target_fields=None,
         commit_every=1000,
         replace=False,
+        *,
+        executemany=False,
         **kwargs,
     ):
         """Insert a collection of tuples into a table.
@@ -555,7 +557,7 @@ class DbApiHook(BaseHook):
         :param executemany: Deprecated. It will be removed in future Airflow versions as inserts are always
             executed using the executemany method.
         """
-        if kwargs.get("executemany"):
+        if executemany:
             warnings.warn(
                 "executemany parameter is deprecated, as executemany will always be used to insert rows.",
                 AirflowProviderDeprecationWarning,
