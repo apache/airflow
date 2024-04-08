@@ -412,7 +412,7 @@ class DbApiHook(BaseHook):
         else:
             raise ValueError("List of SQL statements is empty")
         _last_result = None
-        with self._closing_supporting_autocommit() as conn:
+        with self._closing_supporting_autocommit(autocommit) as conn:
             with closing(conn.cursor()) as cur:
                 results = []
                 for sql_statement in sql_list:
@@ -530,11 +530,11 @@ class DbApiHook(BaseHook):
         return self._replace_statement_format.format(table, target_fields, ",".join(placeholders))
 
     @contextmanager
-    def _closing_supporting_autocommit(self):
+    def _closing_supporting_autocommit(self, autocommit: bool = False):
         """Context manager that closes the connection after use and detects if autocommit is supported."""
         with closing(self.get_conn()) as conn:
             if self.supports_autocommit:
-                self.set_autocommit(conn, False)
+                self.set_autocommit(conn, autocommit)
             yield conn
 
     def insert_rows(
