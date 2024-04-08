@@ -555,7 +555,7 @@ class DbApiHook(BaseHook):
             transaction. Set to 0 to insert all rows in one transaction.
         :param replace: Whether to replace instead of insert
         :param executemany: Deprecated. It will be removed in future Airflow versions as inserts are always
-            executed using the executemany method.
+            executed using the ``executemany`` method.
         """
         if executemany:
             warnings.warn(
