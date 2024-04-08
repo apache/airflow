@@ -61,6 +61,11 @@ def test_infinite_slotspool():
     assert executor.slots_available == sys.maxsize
 
 
+def test_new_exec_no_slots_occupied():
+    executor = BaseExecutor(0)
+    assert executor.slots_occupied == 0
+
+
 def test_get_task_log():
     executor = BaseExecutor()
     ti = TaskInstance(task=BaseOperator(task_id="dummy"))
@@ -108,6 +113,7 @@ def test_fail_and_success():
     executor.success(key3, success_state)
 
     assert len(executor.running) == 0
+    assert executor.slots_occupied == 0
     assert len(executor.get_event_buffer()) == 3
 
 
@@ -168,9 +174,12 @@ def enqueue_tasks(executor, dagrun):
         executor.queue_command(task_instance, ["airflow"])
 
 
-def setup_trigger_tasks(dag_maker):
+def setup_trigger_tasks(dag_maker, parallelism=None):
     dagrun = setup_dagrun(dag_maker)
-    executor = BaseExecutor()
+    if parallelism:
+        executor = BaseExecutor(parallelism=parallelism)
+    else:
+        executor = BaseExecutor()
     executor.execute_async = mock.Mock()
     enqueue_tasks(executor, dagrun)
     return executor, dagrun
@@ -179,8 +188,21 @@ def setup_trigger_tasks(dag_maker):
 @pytest.mark.db_test
 @pytest.mark.parametrize("open_slots", [1, 2, 3])
 def test_trigger_queued_tasks(dag_maker, open_slots):
-    executor, _ = setup_trigger_tasks(dag_maker)
+    executor_parallelism = 10
+    executor, dagrun = setup_trigger_tasks(dag_maker, executor_parallelism)
+    num_tasks = len(dagrun.task_instances)
+
+    # All tasks are queued in setup method
+    assert executor.slots_occupied == num_tasks
+    assert executor.slots_available == executor_parallelism - num_tasks
+    assert len(executor.queued_tasks) == num_tasks
+    assert len(executor.running) == 0
     executor.trigger_tasks(open_slots)
+    assert executor.slots_available == executor_parallelism - num_tasks
+    assert executor.slots_occupied == num_tasks
+    assert len(executor.queued_tasks) == num_tasks - open_slots
+    # Only open_slots number of tasks are allowed through to running
+    assert len(executor.running) == open_slots
     assert executor.execute_async.call_count == open_slots
 
 
