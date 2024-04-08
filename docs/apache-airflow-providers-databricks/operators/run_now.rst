@@ -45,6 +45,9 @@ All other parameters are optional and described in documentation for ``Databrick
 * ``python_named_parameters``
 * ``jar_params``
 * ``spark_submit_params``
+* ``idempotency_token``
+* ``repair_run``
+* ``cancel_previous_runs``
 
 DatabricksRunNowDeferrableOperator
 ==================================
