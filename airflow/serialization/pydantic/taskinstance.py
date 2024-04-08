@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import threading
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Iterable, Optional
 
@@ -116,6 +117,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     raw: Optional[bool]
     is_trigger_log_context: Optional[bool]
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
+    _thread_local_data = threading.local()
 
     @property
     def _logger_name(self):

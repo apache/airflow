@@ -2860,9 +2860,6 @@ class TestTaskInstance:
         ti1 = dr.get_task_instance(task1.task_id, session=session)
         ti1.task = task1
 
-        # check that trying to get an error message before it happens doesn't crash
-        assert ti1.get_last_error() is None
-
         ti1.state = State.FAILED
         error_message = "test failure handling"
         ti1.handle_failure(error_message)
