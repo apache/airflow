@@ -663,6 +663,7 @@ class DatabricksHook(BaseDatabricksHook):
         :param json: payload
         :return: json containing permission specification
         """
+
         return self._do_api_call(UPDATE_PERMISSION_ENDPOINT, json)
 
     def test_connection(self) -> tuple[bool, str]:
