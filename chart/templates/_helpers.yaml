@@ -223,27 +223,29 @@ If release name contains chart name it will be used as a full name.
     - name: GITSYNC_SSH_KNOWN_HOSTS
       value: "false"
     {{- end }}
-    {{ else if .Values.dags.gitSync.credentialsSecret }}
+    {{- if .Values.dags.gitSync.credentialsSecret_v3 }}
     - name: GIT_SYNC_USERNAME
       valueFrom:
         secretKeyRef:
-          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
+          name: {{ .Values.dags.gitSync.credentialsSecret_v3 | quote }}
           key: GIT_SYNC_USERNAME
-    - name: GITSYNC_USERNAME
-      valueFrom:
-        secretKeyRef:
-          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
-          key: GITSYNC_USERNAME
     - name: GIT_SYNC_PASSWORD
       valueFrom:
         secretKeyRef:
-          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
+          name: {{ .Values.dags.gitSync.credentialsSecret_v3 | quote }}
           key: GIT_SYNC_PASSWORD
+    {{- else if .Values.dags.gitSync.credentialsSecret_v4 }}
+    - name: GITSYNC_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.dags.gitSync.credentialsSecret_v4 | quote }}
+          key: GITSYNC_USERNAME
     - name: GITSYNC_PASSWORD
       valueFrom:
         secretKeyRef:
-          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
+          name: {{ .Values.dags.gitSync.credentialsSecret_v4 | quote }}
           key: GITSYNC_PASSWORD
+    {{- end }}
     {{- end }}
     - name: GIT_SYNC_REV
       value: {{ .Values.dags.gitSync.rev | quote }}
