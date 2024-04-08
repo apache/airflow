@@ -150,6 +150,7 @@ def on_dag_run_failed(dag_run: DagRun, msg: str):
     external_trigger = dag_run.external_trigger
 
     print(f"Dag information:{dag_id} Run id: {run_id} external trigger: {external_trigger}")
+    print(f"Failed with message: {msg}")
 
 
 # [END howto_listen_dagrun_failure_task]
