@@ -554,16 +554,7 @@ class DbApiHook(BaseHook):
         :param commit_every: The maximum number of rows to insert in one
             transaction. Set to 0 to insert all rows in one transaction.
         :param replace: Whether to replace instead of insert
-        :param executemany: Deprecated. It will be removed in future Airflow versions as inserts are always
-            executed using the ``executemany`` method.
         """
-        if executemany:
-            warnings.warn(
-                "executemany parameter is deprecated, as executemany will always be used to insert rows.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-
         with closing(self.get_conn()) as conn:
             if self.supports_autocommit:
                 self.set_autocommit(conn, False)

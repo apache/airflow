@@ -166,7 +166,7 @@ class TestDbApiHook:
         table = "table"
         rows = [("hello",), ("world",)]
 
-        self.db_hook.insert_rows(table, rows, replace=True, executemany=True)
+        self.db_hook.insert_rows(table, rows, replace=True)
 
         assert self.conn.close.call_count == 1
         assert self.cur.close.call_count == 1
