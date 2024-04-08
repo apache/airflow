@@ -448,6 +448,11 @@ class BaseExecutor(LoggingMixin):
         else:
             return sys.maxsize
 
+    @property
+    def slots_occupied(self):
+        """Number of tasks this executor instance is currently managing."""
+        return len(self.running) + len(self.queued_tasks)
+
     @staticmethod
     def validate_command(command: list[str]) -> None:
         """
