@@ -1661,7 +1661,5 @@ class DagRunNote(Base):
         self.user_id = user_id
 
     def __repr__(self):
-        prefix = f"<{self.__class__.__name__}: {self.dag_id}.{self.dagrun_id} {self.run_id}"
-        if self.map_index != -1:
-            prefix += f" map_index={self.map_index}"
+        prefix = f"<{self.__class__.__name__}: {self.dag_run_id}.{self.content}"
         return prefix + ">"
