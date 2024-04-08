@@ -1770,6 +1770,7 @@ VolumeMount
 volumeMounts
 vpc
 WaiterModel
+wandb
 wape
 warmup
 Wasb
@@ -1788,6 +1789,7 @@ Webserver
 webserver
 webservers
 webservice
+WeightsAndBiases
 Werkzeug
 werkzeug
 whitespace

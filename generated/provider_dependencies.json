@@ -1166,6 +1166,16 @@
     "excluded-python-versions": [],
     "state": "ready"
   },
+  "wandb": {
+      "deps": [
+          "apache-airflow>=2.6.0",
+          "wandb>=0.16.0"
+      ],
+      "devel-deps": [],
+      "cross-providers-deps": [],
+      "excluded-python-versions": [],
+      "state": "ready"
+  },
   "weaviate": {
     "deps": [
       "apache-airflow>=2.6.0",
