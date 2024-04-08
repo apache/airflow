@@ -186,7 +186,7 @@ class PostgresHook(DbApiHook):
     def get_uri(self) -> str:
         """Extract the URI from the connection.
 
-        :return: the extracted uri.
+        :return: the extracted URI in Sqlalchemy URI format.
         """
         conn = self.get_connection(getattr(self, self.conn_name_attr))
         conn.schema = self.database or conn.schema
