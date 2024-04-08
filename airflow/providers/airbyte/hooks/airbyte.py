@@ -168,7 +168,7 @@ class AirbyteHook(HttpHook):
             elif state == self.CANCELLED:
                 raise AirflowException(f"Job was cancelled:\n{job}")
             else:
-                raise Exception(f"Encountered unexpected state `{state}` for job_id `{job_id}`")
+                raise AirflowException(f"Encountered unexpected state `{state}` for job_id `{job_id}`")
 
     def submit_sync_connection(self, connection_id: str) -> Any:
         """
