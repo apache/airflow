@@ -170,7 +170,9 @@ class SnowflakeHook(DbApiHook):
                 warnings.warn(
                     f"Conflicting params `{field_name}` and `{backcompat_key}` found in extras. "
                     f"Using value for `{field_name}`.  Please ensure this is the correct "
-                    f"value and remove the backcompat key `{backcompat_key}`."
+                    f"value and remove the backcompat key `{backcompat_key}`.",
+                    UserWarning,
+                    stacklevel=2,
                 )
             return extra_dict[field_name] or None
         return extra_dict.get(backcompat_key) or None

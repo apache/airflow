@@ -19,20 +19,30 @@
 
 # Airflow OpenAPI clients
 
+This directory contains definition of Airflow OpenAPI client packages.
+
 Supported languages:
 
-* [Golang](https://github.com/apache/airflow-client-go) generated through `./gen/go.sh`.
 * [Python](https://github.com/apache/airflow-client-python) generated through `./gen/python.sh`.
 
-## Dependencies
+## Generating client code
 
-All client generation scripts use [pre-commit](https://pre-commit.com/#install)
-to prepend license header to generated code.
+To generate the client code using dockerized breeze environment, run (at the Airflow source root directory):
 
-## Usage
-
-To generate Go client, run:
-
+```bash
+breeze release-management prepare-python-client --package-format both
 ```
-bash ./gen/go.sh ../airflow/api_connexion/openapi/v1.yaml AIRFLOW_CLIENT_GO_REPO_PATH/airflow
+
+The client source code generation uses OpenAPI generator image, generation of packages is done using Hatch.
+By default, packages are generated in a dockerized Hatch environment, but you can also use a local one by
+setting `--use-local-hatch` flag.
+
+```bash
+breeze release-management prepare-python-client --package-format both --use-local-hatch
 ```
+
+## Browsing the generated source code
+
+The generated source code is not committed to Airflow repository, but when releasing the package, Airflow
+team also stores generated client code in the
+[Airflow Client Python repository](https://github.com/apache/airflow-client-python).

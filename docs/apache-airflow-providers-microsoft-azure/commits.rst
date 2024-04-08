@@ -35,14 +35,35 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+9.0.0
+.....
+
+Latest change: 2024-01-26
+
+=================================================================================================  ===========  ====================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================================================
+`0b680c9492 <https://github.com/apache/airflow/commit/0b680c94922e3f7ca1f3ada8328e315bbae37dc8>`_  2024-01-26   ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+`c8775fc012 <https://github.com/apache/airflow/commit/c8775fc0122fdb7243728c76cde7368509edf725>`_  2024-01-22   ``add WasbPrefixSensorTrigger params breaking change to azure provider changelog (#36940)``
+`6ff96af480 <https://github.com/apache/airflow/commit/6ff96af4806a4107d48ee2e966c61778045ad584>`_  2024-01-18   ``Fix stacklevel in warnings.warn into the providers (#36831)``
+`5305f4b696 <https://github.com/apache/airflow/commit/5305f4b696cf5a786f30e5ebbeab25949b5bbdd4>`_  2024-01-16   ``Fix WasbPrefixSensor arg inconsistency between sync and async mode (#36806)``
+`57c921193b <https://github.com/apache/airflow/commit/57c921193b86569f42bb521a356d28d1c4c619f3>`_  2024-01-16   ``Fix failed tasks are not detected in 'AzureBatchHook' (#36785)``
+`d7081ac763 <https://github.com/apache/airflow/commit/d7081ac76367651fe5b9d502148d7545bcdb07e4>`_  2024-01-14   ``Fix assignment of template field in '__init__' in 'container_instances.py' (#36529)``
+`c439ab87c4 <https://github.com/apache/airflow/commit/c439ab87c421aaa6bd5d8074780e4f63606a1ef1>`_  2024-01-10   ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
+`6bd450da1e <https://github.com/apache/airflow/commit/6bd450da1eb6cacc2ccfd4544d520ae059b75c3b>`_  2024-01-10   ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+`19ebcac239 <https://github.com/apache/airflow/commit/19ebcac2395ef9a6b6ded3a2faa29dc960c1e635>`_  2024-01-07   ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+`6937ae7647 <https://github.com/apache/airflow/commit/6937ae76476b3bc869ef912d000bcc94ad642db1>`_  2023-12-30   ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+=================================================================================================  ===========  ====================================================================================================================
+
 8.5.1
 .....
 
-Latest change: 2023-12-27
+Latest change: 2023-12-28
 
 =================================================================================================  ===========  ====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
+`9b5d6bfe27 <https://github.com/apache/airflow/commit/9b5d6bfe273cf6af0972e28ff97f99ea325cd991>`_  2023-12-28   ``Add documentation for 3rd wave of providers in Deember (#36464)``
 `9e55f51a9f <https://github.com/apache/airflow/commit/9e55f51a9fd0555b910d97dff9482933dd42ed72>`_  2023-12-27   ``Remove unused '_parse_version' function (#36450)``
 `72a6264e20 <https://github.com/apache/airflow/commit/72a6264e20a4ed8a0704ba16fe59b228d88f3edb>`_  2023-12-25   ``Clean WASB task handler code after bumping min Airflow version to 2.6.0 (#36421)``
 =================================================================================================  ===========  ====================================================================================

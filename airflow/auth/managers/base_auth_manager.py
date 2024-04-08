@@ -28,11 +28,13 @@ from airflow.auth.managers.models.resource_details import (
 )
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
+from airflow.security.permissions import ACTION_CAN_ACCESS_MENU
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from flask import Blueprint
+    from flask_appbuilder.menu import MenuItem
     from sqlalchemy.orm import Session
 
     from airflow.auth.managers.models.base_user import BaseUser
@@ -371,6 +373,26 @@ class BaseAuthManager(LoggingMixin):
             for dag_id in dag_ids
             if _is_permitted_dag_id("GET", methods, dag_id) or _is_permitted_dag_id("PUT", methods, dag_id)
         }
+
+    def get_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:
+        """
+        Filter menu items based on user permissions.
+
+        :param menu_items: list of all menu items
+        """
+        items = filter(
+            lambda item: self.security_manager.has_access(ACTION_CAN_ACCESS_MENU, item.name), menu_items
+        )
+        accessible_items = []
+        for menu_item in items:
+            if menu_item.childs:
+                accessible_children = []
+                for child in menu_item.childs:
+                    if self.security_manager.has_access(ACTION_CAN_ACCESS_MENU, child.name):
+                        accessible_children.append(child)
+                menu_item.childs = accessible_children
+            accessible_items.append(menu_item)
+        return accessible_items
 
     @abstractmethod
     def get_url_login(self, **kwargs) -> str:

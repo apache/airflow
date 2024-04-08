@@ -20,12 +20,14 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform_v1.types import HyperparameterTuningJob
 
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.vertex_ai.hyperparameter_tuning_job import (
     HyperparameterTuningJobHook,
 )
@@ -34,6 +36,7 @@ from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAITrainingLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.cloud.triggers.vertex_ai import CreateHyperparameterTuningJobTrigger
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
@@ -124,7 +127,7 @@ class CreateHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         `service_account` is required with provided `tensorboard`. For more information on configuring
         your service account please visit:
         https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-training
-    :param sync: Whether to execute this method synchronously. If False, this method will unblock and it
+    :param sync: Whether to execute this method synchronously. If False, this method will unblock, and it
         will be executed in a concurrent Future.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
@@ -135,6 +138,9 @@ class CreateHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param deferrable: Run operator in the deferrable mode. Note that it requires calling the operator
+        with `sync=False` parameter.
+    :param poll_interval: Interval size which defines how often job status is checked in deferrable mode.
     """
 
     template_fields = [
@@ -177,6 +183,8 @@ class CreateHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         # END: run param
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        poll_interval: int = 10,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -209,8 +217,17 @@ class CreateHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.hook: HyperparameterTuningJobHook | None = None
+        self.deferrable = deferrable
+        self.poll_interval = poll_interval
 
     def execute(self, context: Context):
+        if self.deferrable and self.sync:
+            raise AirflowException(
+                "Deferrable mode can be used only with sync=False option. "
+                "If you are willing to run the operator in deferrable mode, please, set sync=False. "
+                "Otherwise, disable deferrable mode `deferrable=False`."
+            )
+
         self.log.info("Creating Hyperparameter Tuning job")
         self.hook = HyperparameterTuningJobHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -243,12 +260,26 @@ class CreateHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
             enable_web_access=self.enable_web_access,
             tensorboard=self.tensorboard,
             sync=self.sync,
+            wait_job_completed=not self.deferrable,
         )
 
         hyperparameter_tuning_job = result.to_dict()
         hyperparameter_tuning_job_id = self.hook.extract_hyperparameter_tuning_job_id(
             hyperparameter_tuning_job
         )
+        if self.deferrable:
+            self.defer(
+                trigger=CreateHyperparameterTuningJobTrigger(
+                    conn_id=self.gcp_conn_id,
+                    project_id=self.project_id,
+                    location=self.region,
+                    job_id=hyperparameter_tuning_job_id,
+                    poll_interval=self.poll_interval,
+                    impersonation_chain=self.impersonation_chain,
+                ),
+                method_name="execute_complete",
+            )
+
         self.log.info("Hyperparameter Tuning job was created. Job id: %s", hyperparameter_tuning_job_id)
 
         self.xcom_push(context, key="hyperparameter_tuning_job_id", value=hyperparameter_tuning_job_id)
@@ -261,6 +292,32 @@ class CreateHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         """Callback called when the operator is killed; cancel any running job."""
         if self.hook:
             self.hook.cancel_hyperparameter_tuning_job()
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> dict[str, Any]:
+        if event and event["status"] == "error":
+            raise AirflowException(event["message"])
+        job: dict[str, Any] = event["job"]
+        self.log.info("Hyperparameter tuning job %s created and completed successfully.", job["name"])
+        hook = HyperparameterTuningJobHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        job_id = hook.extract_hyperparameter_tuning_job_id(job)
+        self.xcom_push(
+            context,
+            key="hyperparameter_tuning_job_id",
+            value=job_id,
+        )
+        self.xcom_push(
+            context,
+            key="training_conf",
+            value={
+                "training_conf_id": job_id,
+                "region": self.region,
+                "project_id": self.project_id,
+            },
+        )
+        return event["job"]
 
 
 class GetHyperparameterTuningJobOperator(GoogleCloudBaseOperator):

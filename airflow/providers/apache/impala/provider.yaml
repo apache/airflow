@@ -37,6 +37,12 @@ dependencies:
   - impyla>=0.18.0,<1.0
   - apache-airflow>=2.6.0
 
+additional-extras:
+  - name: kerberos
+    dependencies:
+      - kerberos>=1.3.0
+
+
 integrations:
   - integration-name: Apache Impala
     external-doc-url: https://impala.apache.org
@@ -50,8 +56,3 @@ hooks:
 connection-types:
   - hook-class-name: airflow.providers.apache.impala.hooks.impala.ImpalaHook
     connection-type: impala
-
-additional-extras:
-  - name: kerberos
-    dependencies:
-      - kerberos>=1.3.0

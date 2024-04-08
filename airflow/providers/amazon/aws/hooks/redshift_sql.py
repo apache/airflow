@@ -239,7 +239,7 @@ class RedshiftSQLHook(DbApiHook):
 
     def _get_identifier_from_hostname(self, hostname: str) -> str:
         parts = hostname.split(".")
-        if "amazonaws.com" in hostname and len(parts) == 6:
+        if hostname.endswith("amazonaws.com") and len(parts) == 6:
             return f"{parts[0]}.{parts[2]}"
         else:
             self.log.debug(

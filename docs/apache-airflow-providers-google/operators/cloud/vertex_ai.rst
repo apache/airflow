@@ -368,6 +368,15 @@ The operator returns hyperparameter tuning job id in :ref:`XCom <concepts:xcom>`
     :start-after: [START how_to_cloud_vertex_ai_create_hyperparameter_tuning_job_operator]
     :end-before: [END how_to_cloud_vertex_ai_create_hyperparameter_tuning_job_operator]
 
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_job.CreateHyperparameterTuningJobOperator`
+also supports deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_hyperparameter_tuning_job.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_hyperparameter_tuning_job_operator_deferrable]
+    :end-before: [END how_to_cloud_vertex_ai_create_hyperparameter_tuning_job_operator_deferrable]
+
 To delete hyperparameter tuning job you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_job.DeleteHyperparameterTuningJobOperator`.
 

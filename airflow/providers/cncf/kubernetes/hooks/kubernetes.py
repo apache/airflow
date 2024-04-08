@@ -89,15 +89,15 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Return connection widgets to add to connection form."""
-        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
-        from wtforms import BooleanField, StringField
+        from wtforms import BooleanField, PasswordField, StringField
 
         return {
             "in_cluster": BooleanField(lazy_gettext("In cluster configuration")),
             "kube_config_path": StringField(lazy_gettext("Kube config path"), widget=BS3TextFieldWidget()),
-            "kube_config": StringField(
-                lazy_gettext("Kube config (JSON format)"), widget=BS3TextFieldWidget()
+            "kube_config": PasswordField(
+                lazy_gettext("Kube config (JSON format)"), widget=BS3PasswordFieldWidget()
             ),
             "namespace": StringField(lazy_gettext("Namespace"), widget=BS3TextFieldWidget()),
             "cluster_context": StringField(lazy_gettext("Cluster context"), widget=BS3TextFieldWidget()),

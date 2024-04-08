@@ -183,7 +183,7 @@ class WeaviateHook(BaseHook):
         client.schema.create(schema_json)
 
     @staticmethod
-    def _convert_dataframe_to_list(data: list[dict[str, Any]] | pd.DataFrame) -> list[dict[str, Any]]:
+    def _convert_dataframe_to_list(data: list[dict[str, Any]] | pd.DataFrame | None) -> list[dict[str, Any]]:
         """Helper function to convert dataframe to list of dicts.
 
         In scenario where Pandas isn't installed and we pass data as a list of dictionaries, importing
@@ -382,7 +382,7 @@ class WeaviateHook(BaseHook):
     def batch_data(
         self,
         class_name: str,
-        data: list[dict[str, Any]] | pd.DataFrame,
+        data: list[dict[str, Any]] | pd.DataFrame | None,
         batch_config_params: dict[str, Any] | None = None,
         vector_col: str = "Vector",
         uuid_col: str = "id",
@@ -401,7 +401,7 @@ class WeaviateHook(BaseHook):
         :param retry_attempts_per_object: number of time to try in case of failure before giving up.
         :param tenant: The tenant to which the object will be added.
         """
-        data = self._convert_dataframe_to_list(data)
+        converted_data = self._convert_dataframe_to_list(data)
         total_results = 0
         error_results = 0
         insertion_errors: list = []
@@ -437,7 +437,7 @@ class WeaviateHook(BaseHook):
 
                 self.log.info(
                     "Total Objects %s / Objects %s successfully inserted and Objects %s had errors.",
-                    len(data),
+                    len(converted_data),
                     total_results,
                     error_results,
                 )
@@ -460,7 +460,7 @@ class WeaviateHook(BaseHook):
         client.batch.configure(**batch_config_params)
         with client.batch as batch:
             # Batch import all data
-            for index, data_obj in enumerate(data):
+            for index, data_obj in enumerate(converted_data):
                 for attempt in Retrying(
                     stop=stop_after_attempt(retry_attempts_per_object),
                     retry=(

@@ -744,7 +744,6 @@ class S3ListOperator(BaseOperator):
     :param delimiter: the delimiter marks key hierarchy. (templated)
     :param aws_conn_id: The connection ID to use when connecting to S3 storage.
     :param verify: Whether or not to verify SSL certificates for S3 connection.
-    :param apply_wildcard: whether to treat '*' as a wildcard or a plain symbol in the prefix.
         By default SSL certificates are verified.
         You can provide the following values:
 
@@ -754,6 +753,7 @@ class S3ListOperator(BaseOperator):
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
+    :param apply_wildcard: whether to treat '*' as a wildcard or a plain symbol in the prefix.
 
 
     **Example**:

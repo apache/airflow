@@ -81,26 +81,23 @@ class PapermillOperator(BaseOperator):
 
         if not input_nb:
             raise ValueError("Input notebook is not specified")
-        elif not isinstance(input_nb, NoteBook):
-            self.input_nb = NoteBook(url=input_nb, parameters=self.parameters)
-        else:
-            self.input_nb = input_nb
+        self.input_nb = input_nb
 
         if not output_nb:
             raise ValueError("Output notebook is not specified")
-        elif not isinstance(output_nb, NoteBook):
-            self.output_nb = NoteBook(url=output_nb)
-        else:
-            self.output_nb = output_nb
+        self.output_nb = output_nb
 
         self.kernel_name = kernel_name
         self.language_name = language_name
         self.kernel_conn_id = kernel_conn_id
 
+    def execute(self, context: Context):
+        if not isinstance(self.input_nb, NoteBook):
+            self.input_nb = NoteBook(url=self.input_nb, parameters=self.parameters)
+        if not isinstance(self.output_nb, NoteBook):
+            self.output_nb = NoteBook(url=self.output_nb)
         self.inlets.append(self.input_nb)
         self.outlets.append(self.output_nb)
-
-    def execute(self, context: Context):
         remote_kernel_kwargs = {}
         kernel_hook = self.hook
         if kernel_hook:

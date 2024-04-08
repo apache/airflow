@@ -45,7 +45,7 @@ from airflow.sensors.external_task import (
 )
 from airflow.sensors.time_sensor import TimeSensor
 from airflow.serialization.serialized_objects import SerializedBaseOperator
-from airflow.triggers.external_task import TaskStateTrigger
+from airflow.triggers.external_task import WorkflowTrigger
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -996,7 +996,7 @@ class TestExternalTaskAsyncSensor:
         with pytest.raises(TaskDeferred) as exc:
             sensor.execute(context=mock.MagicMock())
 
-        assert isinstance(exc.value.trigger, TaskStateTrigger), "Trigger is not a TaskStateTrigger"
+        assert isinstance(exc.value.trigger, WorkflowTrigger), "Trigger is not a WorkflowTrigger"
 
     def test_defer_and_fire_failed_state_trigger(self):
         """Tests that an AirflowException is raised in case of error event"""
@@ -1041,7 +1041,7 @@ class TestExternalTaskAsyncSensor:
                 context=mock.MagicMock(),
                 event={"status": "success"},
             )
-        mock_log_info.assert_called_with("External task %s has executed successfully.", EXTERNAL_TASK_ID)
+        mock_log_info.assert_called_with("External tasks %s has executed successfully.", [EXTERNAL_TASK_ID])
 
 
 def test_external_task_sensor_check_zipped_dag_existence(dag_zip_maker):

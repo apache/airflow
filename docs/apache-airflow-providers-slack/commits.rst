@@ -38,16 +38,35 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.6.0
+.....
+
+Latest change: 2024-01-26
+
+=================================================================================================  ===========  ====================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================================================
+`0b680c9492 <https://github.com/apache/airflow/commit/0b680c94922e3f7ca1f3ada8328e315bbae37dc8>`_  2024-01-26   ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+`2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+`9758acf6c2 <https://github.com/apache/airflow/commit/9758acf6c2ca100fa7fc2e4f324a95d2a7189e97>`_  2024-01-20   ``Optionally use 'client.files_upload_v2' in Slack Provider (#36757)``
+`6ff96af480 <https://github.com/apache/airflow/commit/6ff96af4806a4107d48ee2e966c61778045ad584>`_  2024-01-18   ``Fix stacklevel in warnings.warn into the providers (#36831)``
+`6bd450da1e <https://github.com/apache/airflow/commit/6bd450da1eb6cacc2ccfd4544d520ae059b75c3b>`_  2024-01-10   ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+`19ebcac239 <https://github.com/apache/airflow/commit/19ebcac2395ef9a6b6ded3a2faa29dc960c1e635>`_  2024-01-07   ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+`6937ae7647 <https://github.com/apache/airflow/commit/6937ae76476b3bc869ef912d000bcc94ad642db1>`_  2023-12-30   ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+=================================================================================================  ===========  ====================================================================================================================
+
 8.5.1
 .....
 
-Latest change: 2023-12-08
+Latest change: 2023-12-23
 
-=================================================================================================  ===========  ================================================================================
+=================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ================================================================================
+=================================================================================================  ===========  ==================================================================================
+`b15d5578da <https://github.com/apache/airflow/commit/b15d5578dac73c4c6a3ca94d90ab0dc9e9e74c9c>`_  2023-12-23   ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+`f5883d6e7b <https://github.com/apache/airflow/commit/f5883d6e7be83f1ab9468e67164b7ac381fdb49f>`_  2023-12-23   ``Prepare 2nd wave of providers in December (#36373)``
 `4824ca7c5a <https://github.com/apache/airflow/commit/4824ca7c5a1e532ae19899f4b0d48c3216c7c871>`_  2023-12-08   ``Slack: Remove parameter 'token' in SlackAPIPostOperator's docstring (#36121)``
-=================================================================================================  ===========  ================================================================================
+=================================================================================================  ===========  ==================================================================================
 
 8.5.0
 .....

@@ -65,7 +65,7 @@ from airflow.utils import timezone
 from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, skip_locked, tuple_in_condition, with_row_locks
+from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, tuple_in_condition, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, DagRunType
 
@@ -365,7 +365,7 @@ class DagRun(Base, LoggingMixin):
             query = query.where(DagRun.execution_date <= func.now())
 
         return session.scalars(
-            with_row_locks(query.limit(max_number), of=cls, session=session, **skip_locked(session=session))
+            with_row_locks(query.limit(max_number), of=cls, session=session, skip_locked=True)
         )
 
     @classmethod
@@ -1040,8 +1040,8 @@ class DagRun(Base, LoggingMixin):
 
         duration = self.end_date - self.start_date
         timer_params = {"dt": duration, "tags": self.stats_tags}
-        Stats.timing(f"dagrun.duration.{self.state.value}.{self.dag_id}", **timer_params)
-        Stats.timing(f"dagrun.duration.{self.state.value}", **timer_params)
+        Stats.timing(f"dagrun.duration.{self.state}.{self.dag_id}", **timer_params)
+        Stats.timing(f"dagrun.duration.{self.state}", **timer_params)
 
     @provide_session
     def verify_integrity(self, *, session: Session = NEW_SESSION) -> None:

@@ -16,15 +16,20 @@
 # under the License.
 from __future__ import annotations
 
+import argparse
 from functools import cached_property
 from typing import TYPE_CHECKING
 
 from flask import session, url_for
 
+from airflow.cli.cli_config import CLICommand, DefaultHelpParser, GroupCommand
 from airflow.configuration import conf
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
 from airflow.providers.amazon.aws.auth_manager.avp.facade import AwsAuthManagerAmazonVerifiedPermissionsFacade
+from airflow.providers.amazon.aws.auth_manager.cli.definition import (
+    AWS_AUTH_MANAGER_COMMANDS,
+)
 from airflow.providers.amazon.aws.auth_manager.constants import (
     CONF_ENABLE_KEY,
     CONF_SECTION_NAME,
@@ -195,3 +200,25 @@ class AwsAuthManager(BaseAuthManager):
     @cached_property
     def security_manager(self) -> AwsSecurityManagerOverride:
         return AwsSecurityManagerOverride(self.appbuilder)
+
+    @staticmethod
+    def get_cli_commands() -> list[CLICommand]:
+        """Vends CLI commands to be included in Airflow CLI."""
+        return [
+            GroupCommand(
+                name="aws-auth-manager",
+                help="Manage resources used by AWS auth manager",
+                subcommands=AWS_AUTH_MANAGER_COMMANDS,
+            ),
+        ]
+
+
+def get_parser() -> argparse.ArgumentParser:
+    """Generate documentation; used by Sphinx argparse."""
+    from airflow.cli.cli_parser import AirflowHelpFormatter, _add_command
+
+    parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
+    subparsers = parser.add_subparsers(dest="subcommand", metavar="GROUP_OR_COMMAND")
+    for group_command in AwsAuthManager.get_cli_commands():
+        _add_command(subparsers, group_command)
+    return parser

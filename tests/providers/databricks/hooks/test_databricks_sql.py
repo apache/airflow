@@ -200,10 +200,34 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             ["select * from test.test"],
             True,
             [["id", "value"]],
-            (Row(id=1, value=2),),
+            ([Row("id", "value")(1, 2)],),
             [[("id",), ("value",)]],
-            SerializableRow(1, 2),
-            id="The return_last set and no split statements set on single query in string",
+            [SerializableRow(1, 2)],
+            id="Return a serializable row (tuple) from a row instance created in two step",
+        ),
+        pytest.param(
+            True,
+            False,
+            "select * from test.test",
+            ["select * from test.test"],
+            True,
+            [["id", "value"]],
+            ([Row(id=1, value=2)],),
+            [[("id",), ("value",)]],
+            [SerializableRow(1, 2)],
+            id="Return a serializable row (tuple) from a row instance created in one step",
+        ),
+        pytest.param(
+            True,
+            False,
+            "select * from test.test",
+            ["select * from test.test"],
+            True,
+            [["id", "value"]],
+            ([],),
+            [[("id",), ("value",)]],
+            [],
+            id="Empty list",
         ),
     ],
 )
@@ -275,3 +299,22 @@ def test_no_query(databricks_hook, empty_statement):
     with pytest.raises(ValueError) as err:
         databricks_hook.run(sql=empty_statement)
     assert err.value.args[0] == "List of SQL statements is empty"
+
+
+@pytest.mark.parametrize(
+    "row_objects, fields_names",
+    [
+        pytest.param(Row("count(1)")(9714), ("_0",)),
+        pytest.param(Row("1//@:()")("data"), ("_0",)),
+        pytest.param(Row("class")("data"), ("_0",)),
+        pytest.param(Row("1_wrong", "2_wrong")(1, 2), ("_0", "_1")),
+    ],
+)
+def test_incorrect_column_names(row_objects, fields_names):
+    """Ensure that column names can be used as namedtuple attribute.
+
+    namedtuple do not accept special characters and reserved python keywords
+    as column name. This test ensure that such columns are renamed.
+    """
+    result = DatabricksSqlHook()._make_common_data_structure(row_objects)
+    assert result._fields == fields_names

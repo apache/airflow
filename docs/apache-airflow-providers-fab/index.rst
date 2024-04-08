@@ -34,8 +34,21 @@
     :maxdepth: 1
     :caption: Guides
 
-    Configuration <configurations-ref>
     Auth manager <auth-manager/index>
+
+.. toctree::
+    :hidden:
+    :caption: References
+
+    Stable REST API <stable-rest-api-ref>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: References
+
+    Configuration <configurations-ref>
+    CLI <cli-ref>
 
 .. toctree::
     :hidden:

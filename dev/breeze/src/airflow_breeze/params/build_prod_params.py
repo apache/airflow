@@ -212,7 +212,6 @@ class BuildProdParams(CommonBuildParams):
         self._req_arg("DOCKER_CONTEXT_FILES", self.docker_context_files)
         self._req_arg("INSTALL_PACKAGES_FROM_CONTEXT", self.install_packages_from_context)
         self._req_arg("INSTALL_POSTGRES_CLIENT", self.install_postgres_client)
-        self._req_arg("INSTALL_PROVIDERS_FROM_SOURCES", self.install_providers_from_sources)
         self._req_arg("PYTHON_BASE_IMAGE", self.python_base_image)
         # optional build args
         self._opt_arg("AIRFLOW_CONSTRAINTS_LOCATION", self.airflow_constraints_location)

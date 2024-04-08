@@ -169,6 +169,7 @@ class GCSObjectExistenceAsyncSensor(GCSObjectExistenceSensor):
             "Class `GCSObjectExistenceAsyncSensor` is deprecated and will be removed in a future release. "
             "Please use `GCSObjectExistenceSensor` and set `deferrable` attribute to `True` instead",
             AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
         super().__init__(deferrable=True, **kwargs)
 

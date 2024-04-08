@@ -31,6 +31,7 @@ import tenacity
 from aioresponses import aioresponses
 from requests.adapters import Response
 from requests.auth import AuthBase, HTTPBasicAuth
+from requests.models import DEFAULT_REDIRECT_LIMIT
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -46,23 +47,23 @@ def aioresponse():
         yield async_response
 
 
-def get_airflow_connection(unused_conn_id=None):
-    return Connection(
-        conn_id="http_default",
-        conn_type="http",
-        host="test:8080/",
-        extra='{"bearer":"test","headers":{"some":"header"}}',
-    )
+def get_airflow_connection(conn_id: str = "http_default"):
+    return Connection(conn_id=conn_id, conn_type="http", host="test:8080/", extra='{"bearer": "test"}')
 
 
-def get_airflow_connection_with_port(unused_conn_id=None):
-    return Connection(conn_id="http_default", conn_type="http", host="test.com", port=1234)
+def get_airflow_connection_with_extra(extra: dict):
+    def inner(conn_id: str = "http_default"):
+        return Connection(conn_id=conn_id, conn_type="http", host="test:8080/", extra=json.dumps(extra))
+
+    return inner
 
 
-def get_airflow_connection_with_login_and_password(unused_conn_id=None):
-    return Connection(
-        conn_id="http_default", conn_type="http", host="test.com", login="username", password="pass"
-    )
+def get_airflow_connection_with_port(conn_id: str = "http_default"):
+    return Connection(conn_id=conn_id, conn_type="http", host="test.com", port=1234)
+
+
+def get_airflow_connection_with_login_and_password(conn_id: str = "http_default"):
+    return Connection(conn_id=conn_id, conn_type="http", host="test.com", login="username", password="pass")
 
 
 class CustomAuthBase(HTTPBasicAuth):
@@ -126,7 +127,8 @@ class TestHttpHook:
             assert resp.text == '{"status":{"status": 404}}'
 
     def test_hook_contains_header_from_extra_field(self):
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+        airflow_connection = get_airflow_connection_with_extra(extra={"bearer": "test", "some": "header"})
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
             expected_conn = get_airflow_connection()
             conn = self.get_hook.get_conn()
 
@@ -135,6 +137,64 @@ class TestHttpHook:
             assert headers == conn.headers
             assert conn.headers.get("bearer") == "test"
             assert conn.headers.get("some") == "header"
+
+    def test_hook_ignore_max_redirects_from_extra_field_as_header(self):
+        airflow_connection = get_airflow_connection_with_extra(extra={"bearer": "test", "max_redirects": 3})
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
+            expected_conn = airflow_connection()
+            conn = self.get_hook.get_conn()
+            assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
+            assert conn.headers.get("bearer") == "test"
+            assert conn.headers.get("allow_redirects") is None
+            assert conn.proxies == {}
+            assert conn.stream is False
+            assert conn.verify is True
+            assert conn.cert is None
+            assert conn.max_redirects == 3
+
+    def test_hook_ignore_proxies_from_extra_field_as_header(self):
+        airflow_connection = get_airflow_connection_with_extra(
+            extra={"bearer": "test", "proxies": {"http": "http://proxy:80", "https": "https://proxy:80"}}
+        )
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
+            expected_conn = airflow_connection()
+            conn = self.get_hook.get_conn()
+            assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
+            assert conn.headers.get("bearer") == "test"
+            assert conn.headers.get("proxies") is None
+            assert conn.proxies == {"http": "http://proxy:80", "https": "https://proxy:80"}
+            assert conn.stream is False
+            assert conn.verify is True
+            assert conn.cert is None
+            assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
+
+    def test_hook_ignore_verify_from_extra_field_as_header(self):
+        airflow_connection = get_airflow_connection_with_extra(extra={"bearer": "test", "verify": False})
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
+            expected_conn = airflow_connection()
+            conn = self.get_hook.get_conn()
+            assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
+            assert conn.headers.get("bearer") == "test"
+            assert conn.headers.get("verify") is None
+            assert conn.proxies == {}
+            assert conn.stream is False
+            assert conn.verify is False
+            assert conn.cert is None
+            assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
+
+    def test_hook_ignore_cert_from_extra_field_as_header(self):
+        airflow_connection = get_airflow_connection_with_extra(extra={"bearer": "test", "cert": "cert.crt"})
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
+            expected_conn = airflow_connection()
+            conn = self.get_hook.get_conn()
+            assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
+            assert conn.headers.get("bearer") == "test"
+            assert conn.headers.get("cert") is None
+            assert conn.proxies == {}
+            assert conn.stream is False
+            assert conn.verify is True
+            assert conn.cert == "cert.crt"
+            assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
 
     @mock.patch("requests.Request")
     def test_hook_with_method_in_lowercase(self, mock_requests):
@@ -629,6 +689,9 @@ class TestHttpAsyncHook:
         """Test api call asynchronously with a connection that has extra field."""
 
         connection_extra = {"bearer": "test", "some": "header"}
+        airflow_connection = get_airflow_connection_with_extra(
+            extra=connection_extra
+        )
 
         aioresponse.post(
             "http://test:8080/v1/test",
@@ -637,7 +700,7 @@ class TestHttpAsyncHook:
             reason="OK",
         )
 
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
             hook = HttpAsyncHook()
             with mock.patch("aiohttp.ClientSession.post", new_callable=mock.AsyncMock) as mocked_function:
                 await hook.run("v1/test")
@@ -645,3 +708,57 @@ class TestHttpAsyncHook:
                 assert all(
                     key in headers and headers[key] == value for key, value in connection_extra.items()
                 )
+
+    @pytest.mark.asyncio
+    async def test_async_request_uses_connection_extra_with_requests_parameters(self):
+        """Test api call asynchronously with a connection that has extra field."""
+        connection_extra = {"bearer": "test"}
+        proxy = {"http": "http://proxy:80", "https": "https://proxy:80"}
+        airflow_connection = get_airflow_connection_with_extra(
+            extra={
+                **connection_extra,
+                **{
+                    "proxies": proxy,
+                    "timeout": 60,
+                    "verify": False,
+                    "allow_redirects": False,
+                    "max_redirects": 3,
+                },
+            }
+        )
+
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
+            hook = HttpAsyncHook()
+            with mock.patch("aiohttp.ClientSession.post", new_callable=mock.AsyncMock) as mocked_function:
+                await hook.run("v1/test")
+                headers = mocked_function.call_args.kwargs.get("headers")
+                assert all(
+                    key in headers and headers[key] == value for key, value in connection_extra.items()
+                )
+                assert mocked_function.call_args.kwargs.get("proxy") == proxy
+                assert mocked_function.call_args.kwargs.get("timeout") == 60
+                assert mocked_function.call_args.kwargs.get("verify_ssl") is False
+                assert mocked_function.call_args.kwargs.get("allow_redirects") is False
+                assert mocked_function.call_args.kwargs.get("max_redirects") == 3
+
+    def test_load_connection_settings(self):
+        proxy = {"http": "http://proxy:80", "https": "https://proxy:80"}
+        extra = {
+            "stream": True,
+            "cert": "cert.crt",
+            "proxies": proxy,
+            "timeout": 60,
+            "verify": False,
+            "allow_redirects": False,
+            "max_redirects": 3,
+        }
+        airflow_connection = get_airflow_connection_with_extra(
+            extra=extra
+        )
+
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
+            headers, auth, session_conf = HttpAsyncHook().load_connection_settings(headers={"bearer": "test"})
+
+            assert headers == {"bearer": "test"}
+            assert auth is None
+            assert session_conf == extra

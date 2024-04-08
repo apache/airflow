@@ -24,6 +24,7 @@ from airflow.serialization.serializers.timezone import (
     serialize as serialize_timezone,
 )
 from airflow.utils.module_loading import qualname
+from airflow.utils.timezone import parse_timezone
 
 if TYPE_CHECKING:
     import datetime
@@ -62,23 +63,22 @@ def deserialize(classname: str, version: int, data: dict | str) -> datetime.date
     import datetime
 
     from pendulum import DateTime
-    from pendulum.tz import fixed_timezone, timezone
 
     tz: datetime.tzinfo | None = None
     if isinstance(data, dict) and TIMEZONE in data:
         if version == 1:
             # try to deserialize unsupported timezones
             timezone_mapping = {
-                "EDT": fixed_timezone(-4 * 3600),
-                "CDT": fixed_timezone(-5 * 3600),
-                "MDT": fixed_timezone(-6 * 3600),
-                "PDT": fixed_timezone(-7 * 3600),
-                "CEST": timezone("CET"),
+                "EDT": parse_timezone(-4 * 3600),
+                "CDT": parse_timezone(-5 * 3600),
+                "MDT": parse_timezone(-6 * 3600),
+                "PDT": parse_timezone(-7 * 3600),
+                "CEST": parse_timezone("CET"),
             }
             if data[TIMEZONE] in timezone_mapping:
                 tz = timezone_mapping[data[TIMEZONE]]
             else:
-                tz = timezone(data[TIMEZONE])
+                tz = parse_timezone(data[TIMEZONE])
         else:
             tz = (
                 deserialize_timezone(data[TIMEZONE][1], data[TIMEZONE][2], data[TIMEZONE][0])

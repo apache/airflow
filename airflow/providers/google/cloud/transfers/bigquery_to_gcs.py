@@ -261,6 +261,7 @@ class BigQueryToGCSOperator(BaseOperator):
                     conn_id=self.gcp_conn_id,
                     job_id=self._job_id,
                     project_id=self.project_id or self.hook.project_id,
+                    impersonation_chain=self.impersonation_chain,
                 ),
                 method_name="execute_complete",
             )

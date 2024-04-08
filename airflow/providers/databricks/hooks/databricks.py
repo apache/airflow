@@ -519,13 +519,24 @@ class DatabricksHook(BaseDatabricksHook):
         json = {"run_id": run_id}
         self._do_api_call(DELETE_RUN_ENDPOINT, json)
 
-    def repair_run(self, json: dict) -> None:
+    def repair_run(self, json: dict) -> int:
         """
         Re-run one or more tasks.
 
         :param json: repair a job run.
         """
-        self._do_api_call(REPAIR_RUN_ENDPOINT, json)
+        response = self._do_api_call(REPAIR_RUN_ENDPOINT, json)
+        return response["repair_id"]
+
+    def get_latest_repair_id(self, run_id: int) -> int | None:
+        """Get latest repair id if any exist for run_id else None."""
+        json = {"run_id": run_id, "include_history": True}
+        response = self._do_api_call(GET_RUN_ENDPOINT, json)
+        repair_history = response["repair_history"]
+        if len(repair_history) == 1:
+            return None
+        else:
+            return repair_history[-1]["id"]
 
     def get_cluster_state(self, cluster_id: str) -> ClusterState:
         """

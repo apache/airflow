@@ -74,16 +74,16 @@ class WeaviateIngestOperator(BaseOperator):
         self.input_json = input_json
         self.uuid_column = uuid_column
         self.tenant = tenant
-        if input_data is not None:
-            self.input_data = input_data
-        elif input_json is not None:
+        self.input_data = input_data
+        if (self.input_data is None) and (input_json is not None):
             warnings.warn(
                 "Passing 'input_json' to WeaviateIngestOperator is deprecated and"
                 " you should use 'input_data' instead",
                 AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
             self.input_data = input_json
-        else:
+        elif self.input_data is None and input_json is None:
             raise TypeError("Either input_json or input_data is required")
 
     @cached_property

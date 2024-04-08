@@ -27,6 +27,37 @@
 Changelog
 ---------
 
+7.14.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add SparkKubernetesOperator crd implementation (#22253)``
+* ``Template field support for configmaps in the KubernetesPodOperator (#36922)``
+* ``Create a generic callbacks class for KubernetesPodOperator (#35714)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Avoid retrying after KubernetesPodOperator has been marked as failed (#36749)``
+* ``Fix stacklevel in warnings.warn into the providers (#36831)``
+* ``Increase tenacity wait in read_pod_logs (#36955)``
+* ``36888-Fix k8 configmap issue in 7.14.0rc1 (#37001)``
+
+Misc
+~~~~
+
+* ``Change field type for kube_config (#36752)``
+* ``Changing wording in docstring for CNCF provider (#36547)``
+* ``Add support of Pendulum 3 (#36281)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+
 7.13.0
 ......
 

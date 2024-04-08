@@ -1005,7 +1005,7 @@ class TestVaultHook:
         secret = test_hook.get_secret(secret_path="missing")
         assert {"secret_key": "secret_value"} == secret
         mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-            mount_point="secret", path="missing", version=None
+            mount_point="secret", path="missing", version=None, raise_on_deleted_version=True
         )
 
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
@@ -1044,7 +1044,7 @@ class TestVaultHook:
         secret = test_hook.get_secret(secret_path="missing", secret_version=1)
         assert {"secret_key": "secret_value"} == secret
         mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-            mount_point="secret", path="missing", version=1
+            mount_point="secret", path="missing", version=1, raise_on_deleted_version=True
         )
 
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
@@ -1189,7 +1189,7 @@ class TestVaultHook:
             "auth": None,
         } == metadata
         mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-            mount_point="secret", path="missing", version=None
+            mount_point="secret", path="missing", version=None, raise_on_deleted_version=True
         )
 
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")

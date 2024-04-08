@@ -80,7 +80,7 @@ packages or even custom providers. You can learn how to do it in :ref:`Building 
 
 The production images are build in DockerHub from released version and release candidates. There
 are also images published from branches but they are used mainly for development and testing purpose.
-See `Airflow Git Branching <https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#airflow-git-branches>`_
+See `Airflow Git Branching <https://github.com/apache/airflow/blob/main/contributing-docs/working-with-git#airflow-git-branches>`_
 for details.
 
 Fixing images at release time

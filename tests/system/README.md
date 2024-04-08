@@ -19,11 +19,14 @@
 
 # Airflow System Tests
 
-- [How to run system tests](#how_to_run)
-  - [Running via Airflow](#run_via_airflow)
-  - [Running via Pytest](#run_via_pytest)
-  - [Running via Airflow CLI](#run_via_airflow_cli)
-- [How to write system tests](#how_to_write)
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
+- [How to run system tests](#how-to-run-system-tests)
+  - [Running via Airflow](#running-via-airflow)
+  - [Running via Pytest](#running-via-pytest)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 System tests verify the correctness of Airflow Operators by running them in DAGs and allowing to communicate with
 external services. A system test tries to look as close to a regular DAG as possible, and it generally checks the
@@ -37,12 +40,7 @@ The purpose of these tests is to:
 - provide runnable example DAGs with use cases for different Operators,
 - serve both as examples and test files.
 
-> This is the new design of system tests which temporarily exists along with the old one documented at
-> [TESTING.rst](../../TESTING.rst) and soon will completely replace it. The new design is based on the
-> [AIP-47](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-47+New+design+of+Airflow+System+Tests).
-> Please use it and write any new system tests according to this documentation.
-
-## How to run system tests <a name="how_to_run"></a>
+# How to run system tests
 
 There are multiple ways of running system tests. Each system test is a self-contained DAG, so it can be run as any
 other DAG. Some tests may require access to external services, enabled APIs or specific permissions. Make sure to
@@ -50,7 +48,7 @@ prepare your  environment correctly, depending on the system tests you want to r
 configuration which should be documented by the relevant providers in their subdirectory
 `tests/system/providers/<provider_name>/README.md`.
 
-### Running via Airflow <a name="run_via_airflow"></a>
+## Running via Airflow
 
 If you have a working Airflow environment with a scheduler and a webserver, you can import system test files into
 your Airflow instance and they will be automatically triggered. If the setup of the environment is correct
@@ -58,7 +56,7 @@ your Airflow instance and they will be automatically triggered. If the setup of 
 how to set up the environment is documented in each provider's system tests directory. Make sure that all resource
 required by the tests are also imported.
 
-### Running via Pytest <a name="run_via_pytest"></a>
+## Running via Pytest
 
 Running system tests with pytest is the easiest with Breeze. Thanks to it, you don't need to bother about setting up
 the correct environment, that is able to execute the tests.
@@ -76,7 +74,7 @@ You can specify several `--system` flags if you want to execute tests for severa
 pytest --system google --system aws tests/system
 ```
 
-### Running via Airflow CLI <a name="run_via_airflow_cli"></a>
+### Running via Airflow CLI
 
 It is possible to run system tests using Airflow CLI. To execute a specific system test, you need to provide
 `dag_id` of the test to be run, `execution_date` (preferably the one from the past) and a `-S/--subdir` option
@@ -89,16 +87,3 @@ airflow dags test -S tests/system bigquery_dataset 2022-01-01
 
 > Some additional setup may be required to use Airflow CLI. Please refer
 > [here](https://airflow.apache.org/docs/apache-airflow/stable/usage-cli.html) for a documentation.
-
-
-## How to write system tests <a name="how_to_write"></a>
-
-If you are going to implement new system tests, it is recommended to familiarize with the content of the
-[AIP-47](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-47+New+design+of+Airflow+System+Tests). There are
-many changes in comparison to the old design documented at [TESTING.rst](../../TESTING.rst), so you need to be
-aware of them and be compliant with the new design.
-
-To make it easier to migrate old system tests or write new ones, we
-documented the whole **process of migration in details** (which can be found
-[here](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-47+New+design+of+Airflow+System+Tests#AIP47NewdesignofAirflowSystemTests-Processofmigrationindetails))
-and also prepared an example of a test (located just below the migration details).

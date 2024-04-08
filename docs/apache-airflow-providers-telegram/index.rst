@@ -76,7 +76,7 @@ Package apache-airflow-providers-telegram
 `Telegram <https://telegram.org/>`__
 
 
-Release: 4.3.0
+Release: 4.3.1
 
 Provider package
 ----------------
@@ -100,5 +100,5 @@ The minimum Apache Airflow version supported by this provider package is ``2.6.0
 PIP package              Version required
 =======================  ==================
 ``apache-airflow``       ``>=2.6.0``
-``python-telegram-bot``  ``>=20.0.0``
+``python-telegram-bot``  ``>=20.2``
 =======================  ==================

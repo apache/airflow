@@ -462,7 +462,9 @@ class S3Hook(AwsBaseHook):
         return prefixes
 
     @provide_bucket_name_async
-    async def get_file_metadata_async(self, client: AioBaseClient, bucket_name: str, key: str) -> list[Any]:
+    async def get_file_metadata_async(
+        self, client: AioBaseClient, bucket_name: str, key: str | None = None
+    ) -> list[Any]:
         """
         Get a list of files that a key matching a wildcard expression exists in a bucket asynchronously.
 
@@ -470,7 +472,7 @@ class S3Hook(AwsBaseHook):
         :param bucket_name: the name of the bucket
         :param key: the path to the key
         """
-        prefix = re.split(r"[\[*?]", key, 1)[0]
+        prefix = re.split(r"[\[\*\?]", key, 1)[0] if key else ""
         delimiter = ""
         paginator = client.get_paginator("list_objects_v2")
         response = paginator.paginate(Bucket=bucket_name, Prefix=prefix, Delimiter=delimiter)
@@ -486,6 +488,7 @@ class S3Hook(AwsBaseHook):
         bucket_val: str,
         wildcard_match: bool,
         key: str,
+        use_regex: bool = False,
     ) -> bool:
         """
         Get a list of files that a key matching a wildcard expression or get the head object.
@@ -498,11 +501,17 @@ class S3Hook(AwsBaseHook):
         :param bucket_val: the name of the bucket
         :param key: S3 keys that will point to the file
         :param wildcard_match: the path to the key
+        :param use_regex: whether to use regex to check bucket
         """
         bucket_name, key = self.get_s3_bucket_key(bucket_val, key, "bucket_name", "bucket_key")
         if wildcard_match:
             keys = await self.get_file_metadata_async(client, bucket_name, key)
             key_matches = [k for k in keys if fnmatch.fnmatch(k["Key"], key)]
+            if not key_matches:
+                return False
+        elif use_regex:
+            keys = await self.get_file_metadata_async(client, bucket_name)
+            key_matches = [k for k in keys if re.match(pattern=key, string=k["Key"])]
             if not key_matches:
                 return False
         else:
@@ -518,6 +527,7 @@ class S3Hook(AwsBaseHook):
         bucket: str,
         bucket_keys: str | list[str],
         wildcard_match: bool,
+        use_regex: bool = False,
     ) -> bool:
         """
         Get a list of files that a key matching a wildcard expression or get the head object.
@@ -530,14 +540,18 @@ class S3Hook(AwsBaseHook):
         :param bucket: the name of the bucket
         :param bucket_keys: S3 keys that will point to the file
         :param wildcard_match: the path to the key
+        :param use_regex: whether to use regex to check bucket
         """
         if isinstance(bucket_keys, list):
             return all(
                 await asyncio.gather(
-                    *(self._check_key_async(client, bucket, wildcard_match, key) for key in bucket_keys)
+                    *(
+                        self._check_key_async(client, bucket, wildcard_match, key, use_regex)
+                        for key in bucket_keys
+                    )
                 )
             )
-        return await self._check_key_async(client, bucket, wildcard_match, bucket_keys)
+        return await self._check_key_async(client, bucket, wildcard_match, bucket_keys, use_regex)
 
     async def check_for_prefix_async(
         self, client: AioBaseClient, prefix: str, delimiter: str, bucket_name: str | None = None

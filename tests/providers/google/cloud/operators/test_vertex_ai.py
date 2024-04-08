@@ -17,11 +17,13 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
+import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.api_core.retry import Retry
 
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
     CreateAutoMLForecastingTrainingJobOperator,
     CreateAutoMLImageTrainingJobOperator,
@@ -1345,7 +1347,126 @@ class TestVertexAICreateHyperparameterTuningJobOperator:
             enable_web_access=False,
             tensorboard=None,
             sync=False,
+            wait_job_completed=True,
         )
+
+    @mock.patch(
+        VERTEX_AI_PATH.format("hyperparameter_tuning_job.CreateHyperparameterTuningJobOperator.defer")
+    )
+    @mock.patch(VERTEX_AI_PATH.format("hyperparameter_tuning_job.HyperparameterTuningJobHook"))
+    def test_deferrable(self, mock_hook, mock_defer):
+        op = CreateHyperparameterTuningJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            staging_bucket=STAGING_BUCKET,
+            display_name=DISPLAY_NAME,
+            worker_pool_specs=[],
+            sync=False,
+            parameter_spec={},
+            metric_spec={},
+            max_trial_count=15,
+            parallel_trial_count=3,
+            deferrable=True,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_defer.assert_called_once()
+
+    def test_deferrable_sync_error(self):
+        op = CreateHyperparameterTuningJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            staging_bucket=STAGING_BUCKET,
+            display_name=DISPLAY_NAME,
+            worker_pool_specs=[],
+            sync=True,
+            parameter_spec={},
+            metric_spec={},
+            max_trial_count=15,
+            parallel_trial_count=3,
+            deferrable=True,
+        )
+        with pytest.raises(AirflowException):
+            op.execute(context={"ti": mock.MagicMock()})
+
+    @mock.patch(
+        VERTEX_AI_PATH.format("hyperparameter_tuning_job.CreateHyperparameterTuningJobOperator.xcom_push")
+    )
+    @mock.patch(VERTEX_AI_PATH.format("hyperparameter_tuning_job.HyperparameterTuningJobHook"))
+    def test_execute_complete(self, mock_hook, mock_xcom_push):
+        test_job_id = "test_job_id"
+        test_job = {"name": f"test/{test_job_id}"}
+        event = {
+            "status": "success",
+            "message": "test message",
+            "job": test_job,
+        }
+        mock_hook.return_value.extract_hyperparameter_tuning_job_id.return_value = test_job_id
+        mock_context = mock.MagicMock()
+
+        op = CreateHyperparameterTuningJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            staging_bucket=STAGING_BUCKET,
+            display_name=DISPLAY_NAME,
+            worker_pool_specs=[],
+            sync=False,
+            parameter_spec={},
+            metric_spec={},
+            max_trial_count=15,
+            parallel_trial_count=3,
+        )
+
+        result = op.execute_complete(context=mock_context, event=event)
+
+        mock_xcom_push.assert_has_calls(
+            [
+                call(mock_context, key="hyperparameter_tuning_job_id", value=test_job_id),
+                call(
+                    mock_context,
+                    key="training_conf",
+                    value={
+                        "training_conf_id": test_job_id,
+                        "region": GCP_LOCATION,
+                        "project_id": GCP_PROJECT,
+                    },
+                ),
+            ]
+        )
+        assert result == test_job
+
+    def test_execute_complete_error(self):
+        event = {
+            "status": "error",
+            "message": "test error message",
+        }
+
+        op = CreateHyperparameterTuningJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            staging_bucket=STAGING_BUCKET,
+            display_name=DISPLAY_NAME,
+            worker_pool_specs=[],
+            sync=False,
+            parameter_spec={},
+            metric_spec={},
+            max_trial_count=15,
+            parallel_trial_count=3,
+        )
+
+        with pytest.raises(AirflowException):
+            op.execute_complete(context=mock.MagicMock(), event=event)
 
 
 class TestVertexAIGetHyperparameterTuningJobOperator:

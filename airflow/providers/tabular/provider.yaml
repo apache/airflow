@@ -22,7 +22,7 @@ description: |
     `Tabular <https://tabular.io/>`__
 
 state: ready
-source-date-epoch: 1703288178
+source-date-epoch: 1705912293
 versions:
   - 1.4.1
   - 1.4.0
@@ -35,6 +35,9 @@ versions:
 
 dependencies:
   - apache-airflow>=2.6.0
+
+devel-dependencies:
+  - pyiceberg>=0.5.0
 
 integrations:
   - integration-name: Tabular

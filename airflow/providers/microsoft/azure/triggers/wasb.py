@@ -102,26 +102,28 @@ class WasbPrefixSensorTrigger(BaseTrigger):
             ``copy``, ``deleted``
     :param delimiter: filters objects based on the delimiter (for e.g '.csv')
     :param wasb_conn_id: the connection identifier for connecting to Azure WASB
-    :param poke_interval:  polling period in seconds to check for the status
+    :param check_options: Optional keyword arguments that
+        `WasbAsyncHook.check_for_prefix_async()` takes.
     :param public_read: whether an anonymous public read access should be used. Default is False
+    :param poke_interval:  polling period in seconds to check for the status
     """
 
     def __init__(
         self,
         container_name: str,
         prefix: str,
-        include: list[str] | None = None,
-        delimiter: str = "/",
         wasb_conn_id: str = "wasb_default",
+        check_options: dict | None = None,
         public_read: bool = False,
         poke_interval: float = 5.0,
     ):
+        if not check_options:
+            check_options = {}
         super().__init__()
         self.container_name = container_name
         self.prefix = prefix
-        self.include = include
-        self.delimiter = delimiter
         self.wasb_conn_id = wasb_conn_id
+        self.check_options = check_options
         self.poke_interval = poke_interval
         self.public_read = public_read
 
@@ -132,10 +134,9 @@ class WasbPrefixSensorTrigger(BaseTrigger):
             {
                 "container_name": self.container_name,
                 "prefix": self.prefix,
-                "include": self.include,
-                "delimiter": self.delimiter,
                 "wasb_conn_id": self.wasb_conn_id,
                 "poke_interval": self.poke_interval,
+                "check_options": self.check_options,
                 "public_read": self.public_read,
             },
         )
@@ -148,10 +149,7 @@ class WasbPrefixSensorTrigger(BaseTrigger):
             async with await hook.get_async_conn():
                 while not prefix_exists:
                     prefix_exists = await hook.check_for_prefix_async(
-                        container_name=self.container_name,
-                        prefix=self.prefix,
-                        include=self.include,
-                        delimiter=self.delimiter,
+                        container_name=self.container_name, prefix=self.prefix, **self.check_options
                     )
                     if prefix_exists:
                         message = f"Prefix {self.prefix} found in container {self.container_name}."

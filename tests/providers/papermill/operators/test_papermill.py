@@ -69,11 +69,20 @@ class TestPapermillOperator:
             pytest.param(NoteBook(TEST_INPUT_URL), id="input-as-notebook-object"),
         ],
     )
-    def test_notebooks_objects(self, input_nb, output_nb):
+    @patch("airflow.providers.papermill.operators.papermill.pm")
+    @patch("airflow.providers.papermill.operators.papermill.PapermillOperator.hook")
+    def test_notebooks_objects(self, mock_papermill, mock_hook, input_nb, output_nb):
         """Test different type of Input/Output notebooks arguments."""
         op = PapermillOperator(task_id="test_notebooks_objects", input_nb=input_nb, output_nb=output_nb)
+
+        op.execute(None)
+
         assert op.input_nb.url == TEST_INPUT_URL
         assert op.output_nb.url == TEST_OUTPUT_URL
+
+        # Test render Lineage inlets/outlets
+        assert op.inlets[0] == op.input_nb
+        assert op.outlets[0] == op.output_nb
 
     @patch("airflow.providers.papermill.operators.papermill.pm")
     def test_execute(self, mock_papermill):
@@ -173,19 +182,9 @@ class TestPapermillOperator:
         task = ti.render_templates()
 
         # Test render Input/Output notebook attributes
-        assert task.input_nb.url == "/tmp/test_render_template.ipynb"
-        assert task.input_nb.parameters == {
-            "msgs": "dag id is test_render_template!",
-            "test_dt": DEFAULT_DATE.date().isoformat(),
-        }
-        assert task.output_nb.url == "/tmp/out-test_render_template.ipynb"
-        assert task.output_nb.parameters == {}
+        assert task.input_nb == "/tmp/test_render_template.ipynb"
+        assert task.output_nb == "/tmp/out-test_render_template.ipynb"
 
         # Test render other templated attributes
-        assert task.parameters == task.input_nb.parameters
         assert "python3" == task.kernel_name
         assert "python" == task.language_name
-
-        # Test render Lineage inlets/outlets
-        assert task.inlets[0] == task.input_nb
-        assert task.outlets[0] == task.output_nb

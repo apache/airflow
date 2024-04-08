@@ -41,7 +41,6 @@ from airflow_breeze.commands.common_image_options import (
     option_image_tag_for_pulling,
     option_image_tag_for_verifying,
     option_install_mysql_client_type,
-    option_install_providers_from_sources,
     option_platform_multiple,
     option_prepare_buildx_cache,
     option_pull,
@@ -233,7 +232,6 @@ def prod_image():
 @option_image_tag_for_building
 @option_include_success_outputs
 @option_install_mysql_client_type
-@option_install_providers_from_sources
 @option_parallelism
 @option_platform_multiple
 @option_prepare_buildx_cache
@@ -284,7 +282,6 @@ def build(
     install_airflow_version: str | None,
     install_mysql_client_type: str,
     install_packages_from_context: bool,
-    install_providers_from_sources: bool,
     installation_method: str,
     parallelism: int,
     platform: str | None,
@@ -348,7 +345,6 @@ def build(
         install_airflow_version=install_airflow_version,
         install_mysql_client_type=install_mysql_client_type,
         install_packages_from_context=install_packages_from_context,
-        install_providers_from_sources=install_providers_from_sources,
         installation_method=installation_method,
         prepare_buildx_cache=prepare_buildx_cache,
         push=push,

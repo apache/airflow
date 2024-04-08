@@ -21,6 +21,8 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING, Any
 
+import attr
+
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperatorLink, XCom
 from airflow.providers.google.cloud.links.base import BASE_LINK, BaseGoogleLink
@@ -42,6 +44,7 @@ def __getattr__(name: str) -> Any:
                 " Please use DATAPROC_JOB_LINK instead"
             ),
             AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
         return DATAPROC_JOB_LINK
     raise AttributeError(f"module {__name__} has no attribute {name}")
@@ -68,18 +71,15 @@ DATAPROC_CLUSTER_LINK_DEPRECATED = (
 )
 
 
+@attr.s(auto_attribs=True)
 class DataprocLink(BaseOperatorLink):
     """
     Helper class for constructing Dataproc resource link.
 
     .. warning::
-       This link is deprecated.
+       This link is pending to deprecate.
     """
 
-    warnings.warn(
-        "This DataprocLink is deprecated.",
-        AirflowProviderDeprecationWarning,
-    )
     name = "Dataproc resource"
     key = "conf"
 
@@ -116,7 +116,17 @@ class DataprocLink(BaseOperatorLink):
             else ""
         )
 
+    def __attrs_post_init__(self):
+        # This link is still used into the selected operators
+        # - airflow.providers.google.cloud.operators.dataproc.DataprocScaleClusterOperator
+        # - airflow.providers.google.cloud.operators.dataproc.DataprocJobBaseOperator
+        # - airflow.providers.google.cloud.operators.dataproc.DataprocSubmitPigJobOperator
+        # As soon as we remove reference to this link we might deprecate it by add warning message
+        # with `stacklevel=3` below in this method.
+        ...
 
+
+@attr.s(auto_attribs=True)
 class DataprocListLink(BaseOperatorLink):
     """
     Helper class for constructing list of Dataproc resources link.
@@ -125,7 +135,6 @@ class DataprocListLink(BaseOperatorLink):
        This link is deprecated.
     """
 
-    warnings.warn("This DataprocListLink is deprecated.", AirflowProviderDeprecationWarning)
     name = "Dataproc resources"
     key = "list_conf"
 
@@ -157,6 +166,13 @@ class DataprocListLink(BaseOperatorLink):
             )
             if list_conf
             else ""
+        )
+
+    def __attrs_post_init__(self):
+        warnings.warn(
+            "This DataprocListLink is deprecated.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=3,
         )
 
 

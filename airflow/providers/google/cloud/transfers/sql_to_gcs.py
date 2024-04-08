@@ -85,7 +85,7 @@ class BaseSQLToGCSOperator(BaseOperator):
     :param parquet_row_group_size: The approximate number of rows in each row group
         when using parquet format. Using a large row group size can reduce the file size
         and improve the performance of reading the data, but it needs more memory to
-        execute the operator. (default: 1)
+        execute the operator. (default: 100000)
     """
 
     template_fields: Sequence[str] = (
@@ -123,7 +123,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         exclude_columns: set | None = None,
         partition_columns: list | None = None,
         write_on_empty: bool = False,
-        parquet_row_group_size: int = 1,
+        parquet_row_group_size: int = 100000,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

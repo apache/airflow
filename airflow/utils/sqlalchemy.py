@@ -24,7 +24,6 @@ import json
 import logging
 from typing import TYPE_CHECKING, Any, Generator, Iterable, overload
 
-import pendulum
 from dateutil import relativedelta
 from sqlalchemy import TIMESTAMP, PickleType, event, nullsfirst, tuple_
 from sqlalchemy.dialects import mysql
@@ -32,7 +31,7 @@ from sqlalchemy.types import JSON, Text, TypeDecorator
 
 from airflow.configuration import conf
 from airflow.serialization.enums import Encoding
-from airflow.utils.timezone import make_naive
+from airflow.utils.timezone import make_naive, utc
 
 if TYPE_CHECKING:
     from kubernetes.client.models.v1_pod import V1Pod
@@ -43,8 +42,6 @@ if TYPE_CHECKING:
     from sqlalchemy.types import TypeEngine
 
 log = logging.getLogger(__name__)
-
-utc = pendulum.tz.timezone("UTC")
 
 
 class UtcDateTime(TypeDecorator):
@@ -337,46 +334,6 @@ class Interval(TypeDecorator):
         return data
 
 
-def skip_locked(session: Session) -> dict[str, Any]:
-    """
-    Return kargs for passing to `with_for_update()` suitable for the current DB engine version.
-
-    We do this as we document the fact that on DB engines that don't support this construct, we do not
-    support/recommend running HA scheduler. If a user ignores this and tries anyway everything will still
-    work, just slightly slower in some circumstances.
-
-    Specifically don't emit SKIP LOCKED for MySQL < 8, or MariaDB, neither of which support this construct
-
-    See https://jira.mariadb.org/browse/MDEV-13115
-    """
-    dialect = session.bind.dialect
-
-    if dialect.name != "mysql" or dialect.supports_for_update_of:
-        return {"skip_locked": True}
-    else:
-        return {}
-
-
-def nowait(session: Session) -> dict[str, Any]:
-    """
-    Return kwargs for passing to `with_for_update()` suitable for the current DB engine version.
-
-    We do this as we document the fact that on DB engines that don't support this construct, we do not
-    support/recommend running HA scheduler. If a user ignores this and tries anyway everything will still
-    work, just slightly slower in some circumstances.
-
-    Specifically don't emit NOWAIT for MySQL < 8, or MariaDB, neither of which support this construct
-
-    See https://jira.mariadb.org/browse/MDEV-13115
-    """
-    dialect = session.bind.dialect
-
-    if dialect.name != "mysql" or dialect.supports_for_update_of:
-        return {"nowait": True}
-    else:
-        return {}
-
-
 def nulls_first(col, session: Session) -> dict[str, Any]:
     """Specify *NULLS FIRST* to the column ordering.
 
@@ -393,22 +350,44 @@ def nulls_first(col, session: Session) -> dict[str, Any]:
 USE_ROW_LEVEL_LOCKING: bool = conf.getboolean("scheduler", "use_row_level_locking", fallback=True)
 
 
-def with_row_locks(query: Query, session: Session, **kwargs) -> Query:
+def with_row_locks(
+    query: Query,
+    session: Session,
+    *,
+    nowait: bool = False,
+    skip_locked: bool = False,
+    **kwargs,
+) -> Query:
     """
-    Apply with_for_update to an SQLAlchemy query, if row level locking is in use.
+    Apply with_for_update to the SQLAlchemy query if row level locking is in use.
+
+    This wrapper is needed so we don't use the syntax on unsupported database
+    engines. In particular, MySQL (prior to 8.0) and MariaDB do not support
+    row locking, where we do not support nor recommend running HA scheduler. If
+    a user ignores this and tries anyway, everything will still work, just
+    slightly slower in some circumstances.
+
+    See https://jira.mariadb.org/browse/MDEV-13115
 
     :param query: An SQLAlchemy Query object
     :param session: ORM Session
+    :param nowait: If set to True, will pass NOWAIT to supported database backends.
+    :param skip_locked: If set to True, will pass SKIP LOCKED to supported database backends.
     :param kwargs: Extra kwargs to pass to with_for_update (of, nowait, skip_locked, etc)
     :return: updated query
     """
     dialect = session.bind.dialect
 
     # Don't use row level locks if the MySQL dialect (Mariadb & MySQL < 8) does not support it.
-    if USE_ROW_LEVEL_LOCKING and (dialect.name != "mysql" or dialect.supports_for_update_of):
-        return query.with_for_update(**kwargs)
-    else:
+    if not USE_ROW_LEVEL_LOCKING:
         return query
+    if dialect.name == "mysql" and not dialect.supports_for_update_of:
+        return query
+    if nowait:
+        kwargs["nowait"] = True
+    if skip_locked:
+        kwargs["skip_locked"] = True
+    return query.with_for_update(**kwargs)
 
 
 @contextlib.contextmanager

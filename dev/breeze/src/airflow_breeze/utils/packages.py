@@ -53,16 +53,6 @@ HTTPS_REMOTE = "apache-https-for-providers"
 
 LONG_PROVIDERS_PREFIX = "apache-airflow-providers-"
 
-# TODO: use single source of truth for those
-# for now we need to keep them in sync with the ones in setup.py
-PREINSTALLED_PROVIDERS = [
-    "common.sql",
-    "ftp",
-    "http",
-    "imap",
-    "sqlite",
-]
-
 
 class EntityType(Enum):
     Operators = "Operators"
@@ -259,7 +249,7 @@ def get_available_packages(
     if include_not_ready:
         valid_states.add("not-ready")
     if include_regular:
-        valid_states.add("ready")
+        valid_states.update({"ready", "pre-release"})
     if include_suspended:
         valid_states.add("suspended")
     if include_removed:

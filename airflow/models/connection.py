@@ -24,6 +24,7 @@ from json import JSONDecodeError
 from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
+import re2
 from sqlalchemy import Boolean, Column, Integer, String, Text
 from sqlalchemy.orm import declared_attr, reconstructor, synonym
 
@@ -38,6 +39,13 @@ from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.module_loading import import_string
 
 log = logging.getLogger(__name__)
+# sanitize the `conn_id` pattern by allowing alphanumeric characters plus
+# the symbols #,!,-,_,.,:,\,/ and () requiring at least one match.
+#
+# You can try the regex here: https://regex101.com/r/69033B/1
+RE_SANITIZE_CONN_ID = re2.compile(r"^[\w\#\!\(\)\-\.\:\/\\]{1,}$")
+# the conn ID max len should be 250
+CONN_ID_MAX_LEN: int = 250
 
 
 def parse_netloc_to_hostname(*args, **kwargs):
@@ -46,10 +54,35 @@ def parse_netloc_to_hostname(*args, **kwargs):
     return _parse_netloc_to_hostname(*args, **kwargs)
 
 
+def sanitize_conn_id(conn_id: str | None, max_length=CONN_ID_MAX_LEN) -> str | None:
+    r"""Sanitizes the connection id and allows only specific characters to be within.
+
+    Namely, it allows alphanumeric characters plus the symbols #,!,-,_,.,:,\,/ and () from 1 and up to
+    250 consecutive matches. If desired, the max length can be adjusted by setting `max_length`.
+
+    You can try to play with the regex here: https://regex101.com/r/69033B/1
+
+    The character selection is such that it prevents the injection of javascript or
+    executable bits to avoid any awkward behaviour in the front-end.
+
+    :param conn_id: The connection id to sanitize.
+    :param max_length: The max length of the connection ID, by default it is 250.
+    :return: the sanitized string, `None` otherwise.
+    """
+    # check if `conn_id` or our match group is `None` and the `conn_id` is within the specified length.
+    if (not isinstance(conn_id, str) or len(conn_id) > max_length) or (
+        res := re2.match(RE_SANITIZE_CONN_ID, conn_id)
+    ) is None:
+        return None
+
+    # if we reach here, then we matched something, return the first match
+    return res.group(0)
+
+
 # Python automatically converts all letters to lowercase in hostname
 # See: https://issues.apache.org/jira/browse/AIRFLOW-3615
 def _parse_netloc_to_hostname(uri_parts):
-    """Parse a URI string to get correct Hostname."""
+    """Parse a URI string to get the correct Hostname."""
     hostname = unquote(uri_parts.hostname or "")
     if "/" in hostname:
         hostname = uri_parts.netloc
@@ -115,7 +148,7 @@ class Connection(Base, LoggingMixin):
         uri: str | None = None,
     ):
         super().__init__()
-        self.conn_id = conn_id
+        self.conn_id = sanitize_conn_id(conn_id)
         self.description = description
         if extra and not isinstance(extra, str):
             extra = json.dumps(extra)

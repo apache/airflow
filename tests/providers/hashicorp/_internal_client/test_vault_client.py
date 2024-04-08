@@ -641,7 +641,7 @@ class TestVaultClient:
         secret = vault_client.get_secret(secret_path="missing")
         assert secret is None
         mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-            mount_point="secret", path="missing", version=None
+            mount_point="secret", path="missing", version=None, raise_on_deleted_version=True
         )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -661,7 +661,7 @@ class TestVaultClient:
         assert secret is None
         assert "secret" == vault_client.mount_point
         mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-            mount_point="secret", path="missing", version=None
+            mount_point="secret", path="missing", version=None, raise_on_deleted_version=True
         )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -716,7 +716,7 @@ class TestVaultClient:
         secret = vault_client.get_secret(secret_path="path/to/secret")
         assert {"secret_key": "secret_value"} == secret
         mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-            mount_point="secret", path="path/to/secret", version=None
+            mount_point="secret", path="path/to/secret", version=None, raise_on_deleted_version=True
         )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -754,7 +754,7 @@ class TestVaultClient:
         secret = vault_client.get_secret(secret_path="mount_point/path/to/secret")
         assert {"secret_key": "secret_value"} == secret
         mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-            mount_point="mount_point", path="path/to/secret", version=None
+            mount_point="mount_point", path="path/to/secret", version=None, raise_on_deleted_version=True
         )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -791,7 +791,7 @@ class TestVaultClient:
         secret = vault_client.get_secret(secret_path="missing", secret_version=1)
         assert {"secret_key": "secret_value"} == secret
         mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-            mount_point="secret", path="missing", version=1
+            mount_point="secret", path="missing", version=1, raise_on_deleted_version=True
         )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -1015,7 +1015,7 @@ class TestVaultClient:
             "auth": None,
         } == metadata
         mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-            mount_point="secret", path="missing", version=None
+            mount_point="secret", path="missing", version=None, raise_on_deleted_version=True
         )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")

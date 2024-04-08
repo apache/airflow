@@ -169,7 +169,8 @@ class TestSchedulerCommand:
         mock_scheduler_job,
     ):
         args = self.parser.parse_args(["scheduler"])
-        scheduler_command.scheduler(args)
+        with pytest.raises(Exception, match="run_job failed"):
+            scheduler_command.scheduler(args)
 
         # Make sure that run_job is called, that the exception has been logged, and that the serve_logs
         # sub-process has been terminated

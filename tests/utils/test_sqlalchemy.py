@@ -36,9 +36,7 @@ from airflow.settings import Session
 from airflow.utils.sqlalchemy import (
     ExecutorConfigType,
     ensure_pod_is_valid_after_unpickling,
-    nowait,
     prohibit_commit,
-    skip_locked,
     with_row_locks,
 )
 from airflow.utils.state import State
@@ -116,70 +114,6 @@ class TestSqlAlchemyUtils:
                 session=self.session,
             )
         dag.clear()
-
-    @pytest.mark.parametrize(
-        "dialect, supports_for_update_of, expected_return_value",
-        [
-            (
-                "postgresql",
-                True,
-                {"skip_locked": True},
-            ),
-            (
-                "mysql",
-                False,
-                {},
-            ),
-            (
-                "mysql",
-                True,
-                {"skip_locked": True},
-            ),
-            (
-                "sqlite",
-                False,
-                {"skip_locked": True},
-            ),
-        ],
-    )
-    def test_skip_locked(self, dialect, supports_for_update_of, expected_return_value):
-        session = mock.Mock()
-        session.bind.dialect.name = dialect
-        session.bind.dialect.supports_for_update_of = supports_for_update_of
-        assert skip_locked(session=session) == expected_return_value
-
-    @pytest.mark.parametrize(
-        "dialect, supports_for_update_of, expected_return_value",
-        [
-            (
-                "postgresql",
-                True,
-                {"nowait": True},
-            ),
-            (
-                "mysql",
-                False,
-                {},
-            ),
-            (
-                "mysql",
-                True,
-                {"nowait": True},
-            ),
-            (
-                "sqlite",
-                False,
-                {
-                    "nowait": True,
-                },
-            ),
-        ],
-    )
-    def test_nowait(self, dialect, supports_for_update_of, expected_return_value):
-        session = mock.Mock()
-        session.bind.dialect.name = dialect
-        session.bind.dialect.supports_for_update_of = supports_for_update_of
-        assert nowait(session=session) == expected_return_value
 
     @pytest.mark.parametrize(
         "dialect, supports_for_update_of, use_row_level_lock_conf, expected_use_row_level_lock",

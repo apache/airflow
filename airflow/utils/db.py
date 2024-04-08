@@ -89,6 +89,7 @@ _REVISION_HEADS_MAP = {
     "2.6.2": "c804e5c76e3e",
     "2.7.0": "405de8318b3a",
     "2.8.0": "10b52ebd31f7",
+    "2.8.1": "88344c1d9134",
 }
 
 
@@ -133,6 +134,13 @@ def create_default_connections(session: Session = NEW_SESSION):
             login="root",
             password="",
             schema="airflow",
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
+            conn_id="athena_default",
+            conn_type="athena",
         ),
         session,
     )

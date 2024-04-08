@@ -49,7 +49,6 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
-from setup import AIRFLOW_SOURCES_ROOT
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools, clear_db_runs
 
@@ -60,9 +59,7 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG
 
 DEFAULT_DATE = timezone.datetime(2022, 1, 1)
-ROOT_FOLDER = os.path.realpath(
-    os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
-)
+ROOT_FOLDER = Path(__file__).parents[3].resolve()
 
 
 def reset(dag_id):
@@ -755,7 +752,7 @@ class TestLogsfromTaskRunCommand:
             "os.environ",
             AIRFLOW_IS_K8S_EXECUTOR_POD=is_k8s,
             AIRFLOW_IS_EXECUTOR_CONTAINER=is_container_exec,
-            PYTHONPATH=os.fspath(AIRFLOW_SOURCES_ROOT),
+            PYTHONPATH=os.fspath(ROOT_FOLDER),
         ):
             with subprocess.Popen(
                 args=[sys.executable, "-m", "airflow", *self.task_args, "-S", self.dag_path],
@@ -763,9 +760,12 @@ class TestLogsfromTaskRunCommand:
                 stderr=subprocess.PIPE,
             ) as process:
                 output, err = process.communicate()
+        if err:
+            print(err.decode("utf-8"))
         lines = []
         found_start = False
         for line_ in output.splitlines():
+            print(line_.decode("utf-8"))
             line = line_.decode("utf-8")
             if "Running <TaskInstance: test_logging_dag.test_task test_run" in line:
                 found_start = True

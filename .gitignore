@@ -190,8 +190,6 @@ dmypy.json
 log.txt*
 
 # Provider-related ignores
-/provider_packages/CHANGELOG.txt
-/provider_packages/MANIFEST.in
 /airflow/providers/__init__.py
 
 # Docker context files
@@ -219,7 +217,7 @@ pip-wheel-metadata
 /dev/Dockerfile.pmc
 
 # Generated UI licenses
-licenses/LICENSES-ui.txt
+3rd-party-licenses/LICENSES-ui.txt
 
 # Packaged breeze on Windows
 /breeze.exe
@@ -240,3 +238,6 @@ licenses/LICENSES-ui.txt
 
 # Dask Executor tests generate this directory
 /tests/executors/dask-worker-space/
+
+# airflow-build-dockerfile and correconding ignore file
+airflow-build-dockerfile*

@@ -108,6 +108,42 @@ class DataSyncTestCaseBase:
         self.client = None
 
 
+def test_generic_params():
+    op = DataSyncOperator(
+        task_id="generic-task",
+        task_arn="arn:fake",
+        source_location_uri="fake://source",
+        destination_location_uri="fake://destination",
+        aws_conn_id="fake-conn-id",
+        region_name="cn-north-1",
+        verify=False,
+        botocore_config={"read_timeout": 42},
+        # Non-generic hook params
+        wait_interval_seconds=42,
+    )
+
+    assert op.hook.client_type == "datasync"
+    assert op.hook.resource_type is None
+    assert op.hook.aws_conn_id == "fake-conn-id"
+    assert op.hook._region_name == "cn-north-1"
+    assert op.hook._verify is False
+    assert op.hook._config is not None
+    assert op.hook._config.read_timeout == 42
+    assert op.hook.wait_interval_seconds == 42
+
+    op = DataSyncOperator(
+        task_id="generic-task",
+        task_arn="arn:fake",
+        source_location_uri="fake://source",
+        destination_location_uri="fake://destination",
+    )
+    assert op.hook.aws_conn_id == "aws_default"
+    assert op.hook._region_name is None
+    assert op.hook._verify is None
+    assert op.hook._config is None
+    assert op.hook.wait_interval_seconds is not None
+
+
 @mock_datasync
 @mock.patch.object(DataSyncHook, "get_conn")
 class TestDataSyncOperatorCreate(DataSyncTestCaseBase):

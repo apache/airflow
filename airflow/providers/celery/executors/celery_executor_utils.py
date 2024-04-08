@@ -41,7 +41,7 @@ from sqlalchemy import select
 
 import airflow.settings as settings
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.stats import Stats
 from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
@@ -88,7 +88,8 @@ def _get_celery_app() -> Celery:
             "Change it to `airflow.providers.celery.executors.celery_executor`, and "
             "update the `-app` flag in your Celery Health Checks "
             "to use `airflow.providers.celery.executors.celery_executor.app`.",
-            RemovedInAirflow3Warning,
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
 
     return Celery(celery_app_name, config_source=celery_configuration)

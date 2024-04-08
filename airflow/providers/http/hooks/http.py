@@ -29,6 +29,7 @@ import tenacity
 from aiohttp import ClientResponseError
 from asgiref.sync import sync_to_async
 from requests.auth import HTTPBasicAuth
+from requests.models import DEFAULT_REDIRECT_LIMIT
 from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
 from airflow.compat.functools import cache
@@ -38,7 +39,6 @@ from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
-
 
 DEFAULT_AUTH_TYPES = frozenset(
     {
@@ -88,7 +88,6 @@ class HttpHookMixin:
     Implements methods to create a Connection.
     """
 
-    default_auth_type: Any
     http_conn_id: str
     base_url: str
     auth_type: Any
@@ -128,7 +127,7 @@ class HttpHookMixin:
             ),
         }
 
-    def load_connection_settings(self, *, headers: dict[Any, Any] | None = None) -> tuple[dict, Any]:
+    def load_connection_settings(self, *, headers: dict[Any, Any] | None = None) -> tuple[dict, Any, dict]:
         """Load and update the class with Connection Settings.
 
         Load the settings from the Connection and update the class.
@@ -137,6 +136,7 @@ class HttpHookMixin:
         """
         _headers = {}
         _auth = None
+        _session_conf = {}
 
         if self.http_conn_id:
             conn = self.get_connection(self.http_conn_id)
@@ -153,18 +153,21 @@ class HttpHookMixin:
                 self.base_url += f":{conn.port}"
 
             conn_extra: dict = self._parse_extra(conn_extra=conn.extra_dejson)
+            _session_conf = conn_extra["session_conf"]
             auth_args: list[str | None] = [conn.login, conn.password]
             auth_kwargs: dict[str, Any] = conn_extra["auth_kwargs"]
             auth_type: Any = (
                 self.auth_type
                 or self._load_conn_auth_type(module_name=conn_extra["auth_type"])
-                or self.default_auth_type
             )
 
-            if any(auth_args) or auth_kwargs:
-                _auth = auth_type(*auth_args, **auth_kwargs)
-            elif self._is_auth_type_setup:
-                _auth = auth_type()
+            if auth_type:
+                if any(auth_args) or auth_kwargs:
+                    _auth = auth_type(*auth_args, **auth_kwargs)
+                elif conn.login:
+                    _auth = auth_type(conn.login, conn.password)
+                else:
+                    _auth = auth_type()
 
             extra_headers = conn_extra["headers"]
             if extra_headers:
@@ -175,7 +178,7 @@ class HttpHookMixin:
         if headers:
             _headers.update(headers)
 
-        return _headers, _auth
+        return _headers, _auth, _session_conf
 
     @staticmethod
     def _parse_extra(conn_extra: dict) -> dict:
@@ -185,6 +188,22 @@ class HttpHookMixin:
         string via the 'extra' field. This method converts the data to dict.
         """
         extra = conn_extra.copy()
+        session_conf = {}
+        timeout = extra.pop(
+            "timeout", None
+        )  # ignore this as timeout is only accepted in request method of Session
+        if timeout is not None:
+            session_conf["timeout"] = timeout
+        allow_redirects = extra.pop("allow_redirects", None)  # ignore this as only max_redirects is accepted in Session
+        if allow_redirects is not None:
+            session_conf["allow_redirects"] = allow_redirects
+        session_conf["proxies"] = extra.pop("proxies", extra.pop("proxy", {}))
+        session_conf["stream"] = extra.pop("stream", False)
+        session_conf["verify"] = extra.pop("verify", extra.pop("verify_ssl", True))
+        cert = extra.pop("cert", None)
+        if cert is not None:
+            session_conf["cert"] = cert
+        session_conf["max_redirects"] = extra.pop("max_redirects", DEFAULT_REDIRECT_LIMIT)
         auth_type: str | None = extra.pop("auth_type", None)
         auth_kwargs = cast(dict, json_safe_loads(extra.pop("auth_kwargs", None), default={}))
         headers = cast(dict, json_safe_loads(extra.pop("headers", None), default={}))
@@ -199,7 +218,12 @@ class HttpHookMixin:
             )
             headers = {**extra, **headers}
 
-        return {"auth_type": auth_type, "auth_kwargs": auth_kwargs, "headers": headers}
+        return {
+            "auth_type": auth_type,
+            "auth_kwargs": auth_kwargs,
+            "session_conf": session_conf,
+            "headers": headers,
+        }
 
     def _load_conn_auth_type(self, module_name: str | None) -> Any:
         """Load auth_type module from extra Connection parameters.
@@ -269,27 +293,34 @@ class HttpHook(HttpHookMixin, BaseHook):
         self.method = method.upper()
         self.base_url: str = ""
         self._retry_obj: Callable[..., Any]
-        self._is_auth_type_setup: bool = auth_type is not None
         self.auth_type: Any = auth_type
         self.tcp_keep_alive = tcp_keep_alive
         self.keep_alive_idle = tcp_keep_alive_idle
         self.keep_alive_count = tcp_keep_alive_count
         self.keep_alive_interval = tcp_keep_alive_interval
 
-    @classmethod
-    def get_connection_form_widgets(cls) -> dict[str, Any]:
-        return super().get_connection_form_widgets()
-
+    # headers may be passed through directly or in the "extra" field in the connection
+    # definition
     def get_conn(self, headers: dict[Any, Any] | None = None) -> requests.Session:
         """Create a Requests HTTP session.
 
         :param headers: Additional headers to be passed through as a dictionary.
             Note: Headers may also be passed in the "Headers" field in the Connection definition
         """
-        headers, auth = self.load_connection_settings(headers=headers)
+        headers, auth, session_conf = self.load_connection_settings(headers=headers)
+
+        session_conf.pop(
+            "timeout", None
+        )  # ignore this as timeout is only accepted in request method of Session
+        session_conf.pop("allow_redirects", None)  # ignore this as only max_redirects is accepted in Session
 
         session = requests.Session()
         session.auth = auth
+        session.proxies = session_conf["proxies"]
+        session.stream = session_conf["stream"]
+        session.verify = session_conf["verify"]
+        session.cert = session_conf.get("cert")
+        session.max_redirects = session_conf["max_redirects"]
         session.headers.update(headers)
         return session
 
@@ -313,6 +344,7 @@ class HttpHook(HttpHookMixin, BaseHook):
             For example, ``run(json=obj)`` is passed as ``requests.Request(json=obj)``
         """
         extra_options = extra_options or {}
+
         session = self.get_conn(headers)
 
         url = self.url_from_endpoint(endpoint)
@@ -446,7 +478,6 @@ class HttpAsyncHook(HttpHookMixin, BaseHook):
     default_conn_name = "http_default"
     conn_type = "http"
     hook_name = "HTTP"
-    default_auth_type = aiohttp.BasicAuth
 
     def __init__(
         self,
@@ -460,16 +491,11 @@ class HttpAsyncHook(HttpHookMixin, BaseHook):
         self.method = method.upper()
         self.base_url: str = ""
         self._retry_obj: Callable[..., Any]
-        self._is_auth_type_setup: bool = auth_type is not None
         self.auth_type: Any = auth_type
         if retry_limit < 1:
             raise ValueError("Retry limit must be greater than equal to 1")
         self.retry_limit = retry_limit
         self.retry_delay = retry_delay
-
-    @classmethod
-    def get_connection_form_widgets(cls) -> dict[str, Any]:
-        return super().get_connection_form_widgets()
 
     async def run(
         self,
@@ -483,13 +509,14 @@ class HttpAsyncHook(HttpHookMixin, BaseHook):
         :param endpoint: Endpoint to be called, i.e. ``resource/v1/query?``.
         :param data: Payload to be uploaded or request parameters.
         :param headers: Additional headers to be passed through as a dict.
-            Note: Headers may also be passed in the "Headers" field in the Connection definition.
         :param extra_options: Additional kwargs to pass when creating a request.
             For example, ``run(json=obj)`` is passed as
             ``aiohttp.ClientSession().get(json=obj)``.
         """
         extra_options = extra_options or {}
-        headers, auth = await sync_to_async(self.load_connection_settings)(headers=headers)
+        headers, auth, session_conf = await sync_to_async(self.load_connection_settings)(headers=headers)
+        session_conf = self._process_session_conf(session_conf)
+        session_conf.update(extra_options)
 
         base_url = (self.base_url or "").rstrip("/")
         endpoint = (endpoint or "").lstrip("/")
@@ -514,13 +541,14 @@ class HttpAsyncHook(HttpHookMixin, BaseHook):
                 raise AirflowException(f"Unexpected HTTP Method: {self.method}")
 
             for attempt in range(1, 1 + self.retry_limit):
+                print(f"headers: {headers}")
                 response = await request_func(
                     url,
                     json=data if self.method in ("POST", "PUT", "PATCH") else None,
                     params=data if self.method == "GET" else None,
                     headers=headers,
                     auth=auth,
-                    **extra_options,
+                    **session_conf,
                 )
                 try:
                     response.raise_for_status()
@@ -542,6 +570,19 @@ class HttpAsyncHook(HttpHookMixin, BaseHook):
                     return response
             else:
                 raise NotImplementedError  # should not reach this, but makes mypy happy
+
+    @classmethod
+    def _process_session_conf(cls, session_conf: dict) -> dict:
+        session_conf.pop("stream", None)
+        session_conf.pop("cert", None)
+        proxies = session_conf.pop("proxies")
+        if proxies is not None:
+            session_conf["proxy"] = proxies
+        verify = session_conf.pop("verify")
+        if verify is not None:
+            session_conf["verify_ssl"] = verify
+        print(f"session_conf: {session_conf}")
+        return session_conf
 
     def _retryable_error_async(self, exception: ClientResponseError) -> bool:
         """Determine whether an exception may successful on a subsequent attempt.

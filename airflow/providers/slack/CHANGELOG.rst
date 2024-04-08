@@ -27,6 +27,27 @@
 Changelog
 ---------
 
+8.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Optionally use 'client.files_upload_v2' in Slack Provider (#36757)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix stacklevel in warnings.warn into the providers (#36831)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+   * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+
 8.5.1
 .....
 

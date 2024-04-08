@@ -1236,6 +1236,7 @@ class TestStringifiedDAGs:
             "on_execute_callback": None,
             "on_failure_callback": None,
             "on_retry_callback": None,
+            "on_skipped_callback": None,
             "on_success_callback": None,
             "outlets": [],
             "owner": "airflow",

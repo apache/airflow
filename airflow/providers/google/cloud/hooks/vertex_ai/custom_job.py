@@ -391,6 +391,7 @@ class CustomJobHook(GoogleBaseHook):
         warnings.warn(
             "This method is deprecated, please use `PipelineJobHook.cancel_pipeline_job` method.",
             AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
         client = self.get_pipeline_service_client(region)
         name = client.pipeline_job_path(project_id, region, pipeline_job)
@@ -516,6 +517,7 @@ class CustomJobHook(GoogleBaseHook):
         warnings.warn(
             "This method is deprecated, please use `PipelineJobHook.create_pipeline_job` method.",
             AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
         client = self.get_pipeline_service_client(region)
         parent = client.common_location_path(project_id, region)
@@ -1777,6 +1779,7 @@ class CustomJobHook(GoogleBaseHook):
         warnings.warn(
             "This method is deprecated, please use `PipelineJobHook.delete_pipeline_job` method.",
             AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
         client = self.get_pipeline_service_client(region)
         name = client.pipeline_job_path(project_id, region, pipeline_job)
@@ -1882,6 +1885,7 @@ class CustomJobHook(GoogleBaseHook):
         warnings.warn(
             "This method is deprecated, please use `PipelineJobHook.get_pipeline_job` method.",
             AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
         client = self.get_pipeline_service_client(region)
         name = client.pipeline_job_path(project_id, region, pipeline_job)
@@ -2038,6 +2042,7 @@ class CustomJobHook(GoogleBaseHook):
         warnings.warn(
             "This method is deprecated, please use `PipelineJobHook.list_pipeline_jobs` method.",
             AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
         client = self.get_pipeline_service_client(region)
         parent = client.common_location_path(project_id, region)

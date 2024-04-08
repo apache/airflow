@@ -190,9 +190,61 @@ class TestAzureBatchHook:
         mock_instance.assert_called_once_with(job_id="myjob", task=task)
 
     @mock.patch(f"{MODULE}.BatchServiceClient")
-    def test_wait_for_all_task_to_complete(self, mock_batch):
-        # TODO: Add test
-        pass
+    def test_wait_for_all_task_to_complete_timeout(self, mock_batch):
+        hook = AzureBatchHook(azure_batch_conn_id=self.test_cloud_conn_id)
+        with pytest.raises(TimeoutError):
+            hook.wait_for_job_tasks_to_complete("myjob", -1)
+
+    @mock.patch(f"{MODULE}.BatchServiceClient")
+    def test_wait_for_all_task_to_complete_all_success(self, mock_batch):
+        hook = AzureBatchHook(azure_batch_conn_id=self.test_cloud_conn_id)
+        hook.connection.task.list.return_value = iter(
+            [
+                batch_models.CloudTask(
+                    id="mytask_1",
+                    execution_info=batch_models.TaskExecutionInformation(
+                        retry_count=0, requeue_count=0, result=batch_models.TaskExecutionResult.success
+                    ),
+                    state=batch_models.TaskState.completed,
+                ),
+                batch_models.CloudTask(
+                    id="mytask_2",
+                    execution_info=batch_models.TaskExecutionInformation(
+                        retry_count=0, requeue_count=0, result=batch_models.TaskExecutionResult.success
+                    ),
+                    state=batch_models.TaskState.completed,
+                ),
+            ]
+        )
+
+        results = hook.wait_for_job_tasks_to_complete("myjob", 60)
+        assert results == []
+        hook.connection.task.list.assert_called_once_with("myjob")
+
+    @mock.patch(f"{MODULE}.BatchServiceClient")
+    def test_wait_for_all_task_to_complete_failures(self, mock_batch):
+        hook = AzureBatchHook(azure_batch_conn_id=self.test_cloud_conn_id)
+        tasks = [
+            batch_models.CloudTask(
+                id="mytask_1",
+                execution_info=batch_models.TaskExecutionInformation(
+                    retry_count=0, requeue_count=0, result=batch_models.TaskExecutionResult.success
+                ),
+                state=batch_models.TaskState.completed,
+            ),
+            batch_models.CloudTask(
+                id="mytask_2",
+                execution_info=batch_models.TaskExecutionInformation(
+                    retry_count=0, requeue_count=0, result=batch_models.TaskExecutionResult.failure
+                ),
+                state=batch_models.TaskState.completed,
+            ),
+        ]
+        hook.connection.task.list.return_value = iter(tasks)
+
+        results = hook.wait_for_job_tasks_to_complete("myjob", 60)
+        assert results == [tasks[1]]
+        hook.connection.task.list.assert_called_once_with("myjob")
 
     @mock.patch(f"{MODULE}.BatchServiceClient")
     def test_connection_success(self, mock_batch):

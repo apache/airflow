@@ -122,7 +122,7 @@ class PagerdutyEventsHook(BaseHook):
             "This method will be deprecated. Please use the "
             "`PagerdutyEventsHook.send_event` to interact with the Events API",
             AirflowProviderDeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
 
         data = PagerdutyEventsHook.prepare_event_data(

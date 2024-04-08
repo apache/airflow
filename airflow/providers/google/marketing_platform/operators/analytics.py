@@ -80,7 +80,7 @@ class GoogleAnalyticsListAccountsOperator(BaseOperator):
             f"The `{type(self).__name__}` operator is deprecated, please use "
             f"`GoogleAnalyticsAdminListAccountsOperator` instead.",
             AirflowProviderDeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
 
         super().__init__(**kwargs)
@@ -153,7 +153,7 @@ class GoogleAnalyticsGetAdsLinkOperator(BaseOperator):
             f"The `{type(self).__name__}` operator is deprecated, please use "
             f"`GoogleAnalyticsAdminGetGoogleAdsLinkOperator` instead.",
             AirflowProviderDeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
 
         self.account_id = account_id
@@ -228,7 +228,7 @@ class GoogleAnalyticsRetrieveAdsLinksListOperator(BaseOperator):
             f"The `{type(self).__name__}` operator is deprecated, please use "
             f"`GoogleAnalyticsAdminListGoogleAdsLinksOperator` instead.",
             AirflowProviderDeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
 
         self.account_id = account_id
@@ -307,7 +307,7 @@ class GoogleAnalyticsDataImportUploadOperator(BaseOperator):
             f"The `{type(self).__name__}` operator is deprecated, please use "
             f"`GoogleAnalyticsAdminCreateDataStreamOperator` instead.",
             AirflowProviderDeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
         super().__init__(**kwargs)
         self.storage_bucket = storage_bucket
@@ -399,7 +399,7 @@ class GoogleAnalyticsDeletePreviousDataUploadsOperator(BaseOperator):
             f"The `{type(self).__name__}` operator is deprecated, please use "
             f"`GoogleAnalyticsAdminDeleteDataStreamOperator` instead.",
             AirflowProviderDeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
         super().__init__(**kwargs)
 

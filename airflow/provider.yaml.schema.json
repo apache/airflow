@@ -38,6 +38,13 @@
                 "type": "string"
             }
         },
+        "devel-dependencies": {
+            "description": "Dependencies that should be added to development requirements of the provider",
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
         "excluded-python-versions": {
             "description": "List of python versions excluded for that provider",
             "type": "array",

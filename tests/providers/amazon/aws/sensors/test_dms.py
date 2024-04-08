@@ -20,51 +20,94 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
 from airflow.providers.amazon.aws.sensors.dms import DmsTaskCompletedSensor
 
 
+@pytest.fixture
+def mocked_get_task_status():
+    with mock.patch.object(DmsHook, "get_task_status") as m:
+        yield m
+
+
 class TestDmsTaskCompletedSensor:
     def setup_method(self):
-        self.sensor = DmsTaskCompletedSensor(
-            task_id="test_dms_sensor",
-            aws_conn_id="aws_default",
-            replication_task_arn="task_arn",
+        self.default_op_kwargs = {
+            "task_id": "test_dms_sensor",
+            "aws_conn_id": None,
+            "replication_task_arn": "task_arn",
+        }
+
+    def test_init(self):
+        self.default_op_kwargs.pop("aws_conn_id", None)
+
+        sensor = DmsTaskCompletedSensor(
+            **self.default_op_kwargs,
+            # Generic hooks parameters
+            aws_conn_id="fake-conn-id",
+            region_name="ca-west-1",
+            verify=True,
+            botocore_config={"read_timeout": 42},
         )
+        assert sensor.hook.client_type == "dms"
+        assert sensor.hook.resource_type is None
+        assert sensor.hook.aws_conn_id == "fake-conn-id"
+        assert sensor.hook._region_name == "ca-west-1"
+        assert sensor.hook._verify is True
+        assert sensor.hook._config is not None
+        assert sensor.hook._config.read_timeout == 42
 
-    @mock.patch.object(DmsHook, "get_task_status", side_effect=("stopped",))
-    def test_poke_stopped(self, mock_get_task_status):
-        assert self.sensor.poke(None)
+        sensor = DmsTaskCompletedSensor(task_id="create_task", replication_task_arn="task_arn")
+        assert sensor.hook.aws_conn_id == "aws_default"
+        assert sensor.hook._region_name is None
+        assert sensor.hook._verify is None
+        assert sensor.hook._config is None
 
-    @mock.patch.object(DmsHook, "get_task_status", side_effect=("running",))
-    def test_poke_running(self, mock_get_task_status):
-        assert not self.sensor.poke(None)
+    @pytest.mark.parametrize("status", ["stopped"])
+    def test_poke_completed(self, mocked_get_task_status, status):
+        mocked_get_task_status.return_value = status
+        assert DmsTaskCompletedSensor(**self.default_op_kwargs).poke({})
 
-    @mock.patch.object(DmsHook, "get_task_status", side_effect=("starting",))
-    def test_poke_starting(self, mock_get_task_status):
-        assert not self.sensor.poke(None)
+    @pytest.mark.parametrize("status", ["running", "starting"])
+    def test_poke_not_completed(self, mocked_get_task_status, status):
+        mocked_get_task_status.return_value = status
+        assert not DmsTaskCompletedSensor(**self.default_op_kwargs).poke({})
 
-    @mock.patch.object(DmsHook, "get_task_status", side_effect=("ready",))
-    def test_poke_ready(self, mock_get_task_status):
-        with pytest.raises(AirflowException) as ctx:
-            self.sensor.poke(None)
-        assert "Unexpected status: ready" in str(ctx.value)
+    @pytest.mark.parametrize(
+        "status",
+        [
+            "creating",
+            "deleting",
+            "failed",
+            "failed-move",
+            "modifying",
+            "moving",
+            "ready",
+            "testing",
+        ],
+    )
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception",
+        [
+            pytest.param(True, AirflowSkipException, id="soft-fail"),
+            pytest.param(False, AirflowException, id="non-soft-fail"),
+        ],
+    )
+    def test_poke_terminated_status(self, mocked_get_task_status, status, soft_fail, expected_exception):
+        mocked_get_task_status.return_value = status
+        error_message = f"Unexpected status: {status}"
+        with pytest.raises(AirflowException, match=error_message):
+            DmsTaskCompletedSensor(**self.default_op_kwargs, soft_fail=soft_fail).poke({})
 
-    @mock.patch.object(DmsHook, "get_task_status", side_effect=("creating",))
-    def test_poke_creating(self, mock_get_task_status):
-        with pytest.raises(AirflowException) as ctx:
-            self.sensor.poke(None)
-        assert "Unexpected status: creating" in str(ctx.value)
-
-    @mock.patch.object(DmsHook, "get_task_status", side_effect=("failed",))
-    def test_poke_failed(self, mock_get_task_status):
-        with pytest.raises(AirflowException) as ctx:
-            self.sensor.poke(None)
-        assert "Unexpected status: failed" in str(ctx.value)
-
-    @mock.patch.object(DmsHook, "get_task_status", side_effect=("deleting",))
-    def test_poke_deleting(self, mock_get_task_status):
-        with pytest.raises(AirflowException) as ctx:
-            self.sensor.poke(None)
-        assert "Unexpected status: deleting" in str(ctx.value)
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception",
+        [
+            pytest.param(True, AirflowSkipException, id="soft-fail"),
+            pytest.param(False, AirflowException, id="non-soft-fail"),
+        ],
+    )
+    def test_poke_none_status(self, mocked_get_task_status, soft_fail, expected_exception):
+        mocked_get_task_status.return_value = None
+        with pytest.raises(AirflowException, match="task with ARN .* not found"):
+            DmsTaskCompletedSensor(**self.default_op_kwargs, soft_fail=soft_fail).poke({})

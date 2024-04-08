@@ -121,7 +121,7 @@
   {% endif %}
   {% if otel_on | default(false) %}
     {% call show_message(category='warning', dismissible=false) %}
-      OpenTelemetry support is experimental. <a href="https://github.com/apache/airflow/blob/main/BREEZE.rst#running-breeze-with-an-opentelemetry-metrics-stack" target="_blank" rel="noopener noreferrer">
+      OpenTelemetry support is experimental. <a href="https://github.com/apache/airflow/blob/main/dev/breeze/doc/03_developer_tasks.rst#running-breeze-with-an-opentelemetry-metrics-stack" target="_blank" rel="noopener noreferrer">
         <b>Click here</b></a> for more information.
     {% endcall %}
   {% endif %}

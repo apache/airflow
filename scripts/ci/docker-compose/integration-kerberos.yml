@@ -29,7 +29,6 @@ services:
 
     volumes:
       - kerberos-keytabs:/root/kerberos-keytabs
-      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
 
     environment:
       - KRB5_TRACE=/dev/stderr

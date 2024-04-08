@@ -24,6 +24,7 @@ from enum import Enum
 from functools import cached_property, lru_cache
 from typing import Any, Dict, List, TypeVar
 
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
     ALL_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
@@ -62,6 +63,7 @@ from airflow_breeze.utils.provider_dependencies import DEPENDENCIES, get_related
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
 DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
+NON_COMMITTER_BUILD_LABEL = "non committer build"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 
 ALL_CI_SELECTIVE_TEST_TYPES = (
@@ -110,13 +112,12 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^dev/.*\.py$",
             r"^Dockerfile",
             r"^scripts",
-            r"^setup.py",
-            r"^setup.cfg",
+            r"^pyproject.toml",
             r"^generated/provider_dependencies.json$",
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
             r"^airflow/.*\.py",
-            r"^setup.py",
+            r"^pyproject.toml",
         ],
         FileGroupForCi.JAVASCRIPT_PRODUCTION_FILES: [
             r"^airflow/.*\.[jt]sx?",
@@ -138,8 +139,6 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         ],
         FileGroupForCi.SETUP_FILES: [
             r"^pyproject.toml",
-            r"^setup.cfg",
-            r"^setup.py",
             r"^generated/provider_dependencies.json$",
         ],
         FileGroupForCi.DOC_FILES: [
@@ -353,8 +352,8 @@ class SelectiveChecks:
     def __init__(
         self,
         files: tuple[str, ...] = (),
-        default_branch="main",
-        default_constraints_branch="constraints-main",
+        default_branch=AIRFLOW_BRANCH,
+        default_constraints_branch=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
         commit_ref: str | None = None,
         pr_labels: tuple[str, ...] = (),
         github_event: GithubEvents = GithubEvents.PULL_REQUEST,
@@ -564,41 +563,41 @@ class SelectiveChecks:
             return False
 
     @cached_property
-    def mypy_packages(self) -> list[str]:
-        packages_to_run: list[str] = []
+    def mypy_folders(self) -> list[str]:
+        folders_to_check: list[str] = []
         if (
             self._matching_files(
                 FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
             )
             or self.full_tests_needed
         ):
-            packages_to_run.append("airflow")
+            folders_to_check.append("airflow")
         if (
             self._matching_files(
                 FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
             )
             or self._are_all_providers_affected()
         ) and self._default_branch == "main":
-            packages_to_run.append("airflow/providers")
+            folders_to_check.append("providers")
         if (
             self._matching_files(
                 FileGroupForCi.ALL_DOCS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
             )
             or self.full_tests_needed
         ):
-            packages_to_run.append("docs")
+            folders_to_check.append("docs")
         if (
             self._matching_files(
                 FileGroupForCi.ALL_DEV_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
             )
             or self.full_tests_needed
         ):
-            packages_to_run.append("dev")
-        return packages_to_run
+            folders_to_check.append("dev")
+        return folders_to_check
 
     @cached_property
     def needs_mypy(self) -> bool:
-        return self.mypy_packages != []
+        return self.mypy_folders != []
 
     @cached_property
     def needs_python_scans(self) -> bool:
@@ -1042,3 +1041,9 @@ class SelectiveChecks:
                 if check["python-version"] in self.python_versions
             ]
         )
+
+    @cached_property
+    def is_committer_build(self):
+        if NON_COMMITTER_BUILD_LABEL in self._pr_labels:
+            return False
+        return self._github_actor in COMMITTERS

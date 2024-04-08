@@ -305,6 +305,7 @@ class BigQueryTableExistenceAsyncSensor(BigQueryTableExistenceSensor):
             "Please use `BigQueryTableExistenceSensor` and "
             "set `deferrable` attribute to `True` instead",
             AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
         super().__init__(deferrable=True, **kwargs)
 
@@ -346,5 +347,6 @@ class BigQueryTableExistencePartitionAsyncSensor(BigQueryTablePartitionExistence
             "Please use `BigQueryTablePartitionExistenceSensor` and "
             "set `deferrable` attribute to `True` instead",
             AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
         super().__init__(deferrable=True, **kwargs)

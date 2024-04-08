@@ -374,3 +374,6 @@ class TestAwsAuthManager:
     @pytest.mark.db_test
     def test_security_manager_return_default_security_manager(self, auth_manager_with_appbuilder):
         assert isinstance(auth_manager_with_appbuilder.security_manager, AwsSecurityManagerOverride)
+
+    def test_get_cli_commands_return_cli_commands(self, auth_manager):
+        assert len(auth_manager.get_cli_commands()) > 0

@@ -64,9 +64,9 @@ def test_timedelta_trigger_serialization():
 @pytest.mark.parametrize(
     "tz",
     [
-        pendulum.tz.timezone("UTC"),
-        pendulum.tz.timezone("Europe/Paris"),
-        pendulum.tz.timezone("America/Toronto"),
+        timezone.parse_timezone("UTC"),
+        timezone.parse_timezone("Europe/Paris"),
+        timezone.parse_timezone("America/Toronto"),
     ],
 )
 @pytest.mark.asyncio

@@ -54,6 +54,23 @@ class DiscordWebhookHook(HttpHook):
     conn_type = "discord"
     hook_name = "Discord"
 
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Returns connection widgets to add to connection form."""
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import StringField
+        from wtforms.validators import Optional
+
+        return {
+            "webhook_endpoint": StringField(
+                lazy_gettext("Webhook Endpoint"),
+                widget=BS3TextFieldWidget(),
+                validators=[Optional()],
+                default=None,
+            ),
+        }
+
     def __init__(
         self,
         http_conn_id: str | None = None,

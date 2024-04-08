@@ -35,14 +35,32 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.6.1
+.....
+
+Latest change: 2024-01-22
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+`7a2a4a98e0 <https://github.com/apache/airflow/commit/7a2a4a98e0d735a461d4bb7694b2899c3d04a6e0>`_  2024-01-10   ``Fix assignment of template field in '__init__' in 'papermill.py' (#36530)``
+`b5c6aead44 <https://github.com/apache/airflow/commit/b5c6aead4415b53a294e1671990cbba924ed9445>`_  2024-01-08   ``Bump min provider version for papermill (#36669)``
+`19ebcac239 <https://github.com/apache/airflow/commit/19ebcac2395ef9a6b6ded3a2faa29dc960c1e635>`_  2024-01-07   ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+`6937ae7647 <https://github.com/apache/airflow/commit/6937ae76476b3bc869ef912d000bcc94ad642db1>`_  2023-12-30   ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+`9b5d6bfe27 <https://github.com/apache/airflow/commit/9b5d6bfe273cf6af0972e28ff97f99ea325cd991>`_  2023-12-28   ``Add documentation for 3rd wave of providers in Deember (#36464)``
+`b15d5578da <https://github.com/apache/airflow/commit/b15d5578dac73c4c6a3ca94d90ab0dc9e9e74c9c>`_  2023-12-23   ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+=================================================================================================  ===========  ==================================================================================
+
 3.6.0
 .....
 
-Latest change: 2023-12-07
+Latest change: 2023-12-08
 
 =================================================================================================  ===========  =======================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================
+`999b70178a <https://github.com/apache/airflow/commit/999b70178a1f5d891fd2c88af4831a4ba4c2cbc9>`_  2023-12-08   ``Prepare docs 1st wave of Providers December 2023 (#36112)``
 `d0918d77ee <https://github.com/apache/airflow/commit/d0918d77ee05ab08c83af6956e38584a48574590>`_  2023-12-07   ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
 =================================================================================================  ===========  =======================================================================
 

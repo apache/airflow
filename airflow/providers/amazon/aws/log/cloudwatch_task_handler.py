@@ -98,13 +98,13 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
 
     def set_context(self, ti: TaskInstance, *, identifier: str | None = None):
         super().set_context(ti)
-        _json_serialize = conf.getimport("aws", "cloudwatch_task_handler_json_serializer")
+        _json_serialize = conf.getimport("aws", "cloudwatch_task_handler_json_serializer", fallback=None)
         self.handler = watchtower.CloudWatchLogHandler(
             log_group_name=self.log_group,
             log_stream_name=self._render_filename(ti, ti.try_number),
             use_queues=not getattr(ti, "is_trigger_log_context", False),
             boto3_client=self.hook.get_conn(),
-            json_serialize_default=_json_serialize,
+            json_serialize_default=_json_serialize or json_serialize_legacy,
         )
 
     def close(self):

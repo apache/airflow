@@ -29,6 +29,7 @@ from airflow_breeze.commands.common_options import (
     option_backend,
     option_db_reset,
     option_debug_resources,
+    option_downgrade_pendulum,
     option_downgrade_sqlalchemy,
     option_dry_run,
     option_forward_credentials,
@@ -469,6 +470,7 @@ option_remove_arm_packages = click.option(
 @option_excluded_parallel_test_types
 @option_upgrade_boto
 @option_downgrade_sqlalchemy
+@option_downgrade_pendulum
 @option_collect_only
 @option_remove_arm_packages
 @option_skip_docker_compose_down
@@ -510,6 +512,7 @@ def command_for_tests(**kwargs):
 @option_excluded_parallel_test_types
 @option_upgrade_boto
 @option_downgrade_sqlalchemy
+@option_downgrade_pendulum
 @option_collect_only
 @option_remove_arm_packages
 @option_skip_docker_compose_down
@@ -545,6 +548,7 @@ def command_for_db_tests(**kwargs):
 @option_collect_only
 @option_debug_resources
 @option_downgrade_sqlalchemy
+@option_downgrade_pendulum
 @option_dry_run
 @option_enable_coverage
 @option_excluded_parallel_test_types
@@ -586,6 +590,7 @@ def _run_test_command(
     db_reset: bool,
     debug_resources: bool,
     downgrade_sqlalchemy: bool,
+    downgrade_pendulum: bool,
     enable_coverage: bool,
     excluded_parallel_test_types: str,
     extra_pytest_args: tuple,
@@ -628,6 +633,7 @@ def _run_test_command(
         backend=backend,
         collect_only=collect_only,
         downgrade_sqlalchemy=downgrade_sqlalchemy,
+        downgrade_pendulum=downgrade_pendulum,
         enable_coverage=enable_coverage,
         forward_credentials=forward_credentials,
         forward_ports=False,

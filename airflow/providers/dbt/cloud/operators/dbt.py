@@ -184,6 +184,8 @@ class DbtCloudRunJobOperator(BaseOperator):
                 warnings.warn(
                     "Argument `wait_for_termination` is False and `deferrable` is True , hence "
                     "`deferrable` parameter doesn't have any effect",
+                    UserWarning,
+                    stacklevel=2,
                 )
             return self.run_id
 

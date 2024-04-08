@@ -76,7 +76,7 @@ Package apache-airflow-providers-zendesk
 `Zendesk <https://www.zendesk.com/>`__
 
 
-Release: 4.6.0
+Release: 4.7.0
 
 Provider package
 ----------------

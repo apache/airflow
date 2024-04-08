@@ -146,12 +146,6 @@ option_install_mysql_client_type = click.option(
     default=ALLOWED_INSTALL_MYSQL_CLIENT_TYPES[0],
     envvar="INSTALL_MYSQL_CLIENT_TYPE",
 )
-option_install_providers_from_sources = click.option(
-    "--install-providers-from-sources",
-    help="Install providers from sources when installing.",
-    is_flag=True,
-    envvar="INSTALL_PROVIDERS_FROM_SOURCES",
-)
 option_platform_multiple = click.option(
     "--platform",
     help="Platform for Airflow image.",

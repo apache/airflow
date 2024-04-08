@@ -209,7 +209,7 @@ The following features are supported in the Trigger UI Form:
             * ``maxLength``: Maximum text length
             * | ``format="date"``: Generate a date-picker
               | with calendar pop-up
-            * | ``format="datetime"``: Generate a date and
+            * | ``format="date-time"``: Generate a date and
               | time-picker with calendar pop-up
             * ``format="time"``: Generate a time-picker
             * | ``enum=["a", "b", "c"]``: Generates a

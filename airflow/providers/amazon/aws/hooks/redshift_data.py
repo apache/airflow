@@ -26,6 +26,21 @@ from airflow.providers.amazon.aws.utils import trim_none_values
 
 if TYPE_CHECKING:
     from mypy_boto3_redshift_data import RedshiftDataAPIServiceClient  # noqa
+    from mypy_boto3_redshift_data.type_defs import DescribeStatementResponseTypeDef
+
+FINISHED_STATE = "FINISHED"
+FAILED_STATE = "FAILED"
+ABORTED_STATE = "ABORTED"
+FAILURE_STATES = {FAILED_STATE, ABORTED_STATE}
+RUNNING_STATES = {"PICKED", "STARTED", "SUBMITTED"}
+
+
+class RedshiftDataQueryFailedError(ValueError):
+    """Raise an error that redshift data query failed."""
+
+
+class RedshiftDataQueryAbortedError(ValueError):
+    """Raise an error that redshift data query was aborted."""
 
 
 class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
@@ -108,26 +123,39 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
 
         return statement_id
 
-    def wait_for_results(self, statement_id, poll_interval):
+    def wait_for_results(self, statement_id: str, poll_interval: int) -> str:
         while True:
             self.log.info("Polling statement %s", statement_id)
-            resp = self.conn.describe_statement(
-                Id=statement_id,
-            )
-            status = resp["Status"]
-            if status == "FINISHED":
-                num_rows = resp.get("ResultRows")
-                if num_rows is not None:
-                    self.log.info("Processed %s rows", num_rows)
-                return status
-            elif status in ("FAILED", "ABORTED"):
-                raise ValueError(
-                    f"Statement {statement_id!r} terminated with status {status}. "
-                    f"Response details: {pformat(resp)}"
-                )
-            else:
-                self.log.info("Query %s", status)
+            is_finished = self.check_query_is_finished(statement_id)
+            if is_finished:
+                return FINISHED_STATE
+
             time.sleep(poll_interval)
+
+    def check_query_is_finished(self, statement_id: str) -> bool:
+        """Check whether query finished, raise exception is failed."""
+        resp = self.conn.describe_statement(Id=statement_id)
+        return self.parse_statement_resposne(resp)
+
+    def parse_statement_resposne(self, resp: DescribeStatementResponseTypeDef) -> bool:
+        """Parse the response of describe_statement."""
+        status = resp["Status"]
+        if status == FINISHED_STATE:
+            num_rows = resp.get("ResultRows")
+            if num_rows is not None:
+                self.log.info("Processed %s rows", num_rows)
+            return True
+        elif status in FAILURE_STATES:
+            exception_cls = (
+                RedshiftDataQueryFailedError if status == FAILED_STATE else RedshiftDataQueryAbortedError
+            )
+            raise exception_cls(
+                f"Statement {resp['Id']} terminated with status {status}. "
+                f"Response details: {pformat(resp)}"
+            )
+
+        self.log.info("Query status: %s", status)
+        return False
 
     def get_table_primary_key(
         self,
@@ -201,3 +229,24 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
                 break
 
         return pk_columns or None
+
+    async def is_still_running(self, statement_id: str) -> bool:
+        """Async function to check whether the query is still running.
+
+        :param statement_id: the UUID of the statement
+        """
+        async with self.async_conn as client:
+            desc = await client.describe_statement(Id=statement_id)
+            return desc["Status"] in RUNNING_STATES
+
+    async def check_query_is_finished_async(self, statement_id: str) -> bool:
+        """Async function to check statement is finished.
+
+        It takes statement_id, makes async connection to redshift data to get the query status
+        by statement_id and returns the query status.
+
+        :param statement_id: the UUID of the statement
+        """
+        async with self.async_conn as client:
+            resp = await client.describe_statement(Id=statement_id)
+            return self.parse_statement_resposne(resp)

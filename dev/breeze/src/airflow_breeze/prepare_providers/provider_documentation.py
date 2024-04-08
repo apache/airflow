@@ -656,7 +656,7 @@ def update_release_notes(
 ) -> tuple[bool, bool]:
     """Updates generated files.
 
-    This includes the readme, changes, and/or setup.cfg/setup.py/manifest.in/provider_info.
+    This includes the readme, changes, and provider.yaml files.
 
     :param provider_package_id: id of the package
     :param reapply_templates_only: regenerate already released documentation only - without updating versions

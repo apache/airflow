@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import importlib
+import json
 import logging
 import os
 import pkgutil
@@ -40,6 +41,8 @@ console = Console(width=400, color_system="standard")
 
 AIRFLOW_SOURCES_ROOT = Path(__file__).parents[2].resolve()
 PROVIDERS_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
+GENERATED_PROVIDERS_DEPENDENCIES_FILE = AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json"
+ALL_DEPENDENCIES = json.loads(GENERATED_PROVIDERS_DEPENDENCIES_FILE.read_text())
 
 USE_AIRFLOW_VERSION = os.environ.get("USE_AIRFLOW_VERSION") or ""
 IS_AIRFLOW_VERSION_PROVIDED = re.match("^(\d+)\.(\d+)\.(\d+)\S*$", USE_AIRFLOW_VERSION)
@@ -129,13 +132,7 @@ EXPECTED_SUFFIXES: dict[EntityType, str] = {
 
 
 def get_all_providers() -> list[str]:
-    """Returns all providers for regular packages.
-
-    :return: list of providers that are considered for provider packages
-    """
-    from setup import ALL_PROVIDERS
-
-    return list(ALL_PROVIDERS)
+    return list(ALL_DEPENDENCIES.keys())
 
 
 def import_all_classes(

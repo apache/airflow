@@ -1,0 +1,8 @@
+# List of all the providers that are pre-installed when you run `pip install apache-airflow` without extras
+common.io
+common.sql
+fab
+ftp
+http
+imap
+sqlite

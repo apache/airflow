@@ -78,6 +78,7 @@ def _set_task_deferred_context_var():
 
 
 def _fetch_logs_from_service(url, log_relative_path):
+    # Import occurs in function scope for perf. Ref: https://github.com/apache/airflow/pull/21438
     import httpx
 
     from airflow.utils.jwt_signer import JWTSigner
@@ -170,6 +171,9 @@ class FileTaskHandler(logging.Handler):
     """
 
     trigger_should_wrap = True
+    inherits_from_empty_operator_log_message = (
+        "Operator inherits from empty operator and thus does not have logs"
+    )
 
     def __init__(self, base_log_folder: str, filename_template: str | None = None):
         super().__init__()
@@ -555,8 +559,13 @@ class FileTaskHandler(logging.Handler):
                 messages.append(f"Found logs served from host {url}")
                 logs.append(response.text)
         except Exception as e:
-            messages.append(f"Could not read served logs: {e}")
-            logger.exception("Could not read served logs")
+            from httpx import UnsupportedProtocol
+
+            if isinstance(e, UnsupportedProtocol) and ti.task.inherits_from_empty_operator is True:
+                messages.append(self.inherits_from_empty_operator_log_message)
+            else:
+                messages.append(f"Could not read served logs: {e}")
+                logger.exception("Could not read served logs")
         return messages, logs
 
     def _read_remote_logs(self, ti, try_number, metadata=None) -> tuple[list[str], list[str]]:

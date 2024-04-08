@@ -26,6 +26,31 @@
 Changelog
 ---------
 
+6.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``[FEAT] adds repair run functionality for databricks (#36601)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix databricks_sql hook query failing on empty result for return_tuple (#36827)``
+* ``Rename columns to valid namedtuple attributes + ensure Row.fields are retrieved as tuple (#36949)``
+* ``check status before DatabricksSubmitRunOperator & DatabricksSubmitRunOperator executes in deferrable mode (#36862)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
+   * ``Run mypy checks for full packages in CI (#36638)``
+   * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+   * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+
 6.0.0
 .....
 

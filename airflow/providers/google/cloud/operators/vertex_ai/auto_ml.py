@@ -133,9 +133,14 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         quantiles: list[float] | None = None,
         validation_options: str | None = None,
         budget_milli_node_hours: int = 1000,
+        region: str,
+        impersonation_chain: str | Sequence[str] | None = None,
+        parent_model: str | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(
+            region=region, impersonation_chain=impersonation_chain, parent_model=parent_model, **kwargs
+        )
         self.dataset_id = dataset_id
         self.target_column = target_column
         self.time_column = time_column
@@ -252,9 +257,14 @@ class CreateAutoMLImageTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         test_filter_split: str | None = None,
         budget_milli_node_hours: int | None = None,
         disable_early_stopping: bool = False,
+        region: str,
+        impersonation_chain: str | Sequence[str] | None = None,
+        parent_model: str | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(
+            region=region, impersonation_chain=impersonation_chain, parent_model=parent_model, **kwargs
+        )
         self.dataset_id = dataset_id
         self.prediction_type = prediction_type
         self.multi_label = multi_label
@@ -345,9 +355,14 @@ class CreateAutoMLTabularTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         export_evaluated_data_items: bool = False,
         export_evaluated_data_items_bigquery_destination_uri: str | None = None,
         export_evaluated_data_items_override_destination: bool = False,
+        region: str,
+        impersonation_chain: str | Sequence[str] | None = None,
+        parent_model: str | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(
+            region=region, impersonation_chain=impersonation_chain, parent_model=parent_model, **kwargs
+        )
         self.dataset_id = dataset_id
         self.target_column = target_column
         self.optimization_prediction_type = optimization_prediction_type
@@ -529,9 +544,14 @@ class CreateAutoMLVideoTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         model_type: str = "CLOUD",
         training_filter_split: str | None = None,
         test_filter_split: str | None = None,
+        region: str,
+        impersonation_chain: str | Sequence[str] | None = None,
+        parent_model: str | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(
+            region=region, impersonation_chain=impersonation_chain, parent_model=parent_model, **kwargs
+        )
         self.dataset_id = dataset_id
         self.prediction_type = prediction_type
         self.model_type = model_type

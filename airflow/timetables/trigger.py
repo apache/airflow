@@ -26,7 +26,7 @@ from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 
 if TYPE_CHECKING:
     from dateutil.relativedelta import relativedelta
-    from pendulum.tz.timezone import Timezone
+    from pendulum.tz.timezone import FixedTimezone, Timezone
 
     from airflow.timetables.base import TimeRestriction
 
@@ -48,7 +48,7 @@ class CronTriggerTimetable(CronMixin, Timetable):
         self,
         cron: str,
         *,
-        timezone: str | Timezone,
+        timezone: str | Timezone | FixedTimezone,
         interval: datetime.timedelta | relativedelta = datetime.timedelta(),
     ) -> None:
         super().__init__(cron, timezone)
@@ -77,7 +77,12 @@ class CronTriggerTimetable(CronMixin, Timetable):
         return {"expression": self._expression, "timezone": timezone, "interval": interval}
 
     def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
-        return DataInterval(run_after - self._interval, run_after)
+        return DataInterval(
+            # pendulum.Datetime ± timedelta should return pendulum.Datetime
+            # however mypy decide that output would be datetime.datetime
+            run_after - self._interval,  # type: ignore[arg-type]
+            run_after,
+        )
 
     def next_dagrun_info(
         self,
@@ -101,4 +106,9 @@ class CronTriggerTimetable(CronMixin, Timetable):
             next_start_time = max(start_time_candidates)
         if restriction.latest is not None and restriction.latest < next_start_time:
             return None
-        return DagRunInfo.interval(next_start_time - self._interval, next_start_time)
+        return DagRunInfo.interval(
+            # pendulum.Datetime ± timedelta should return pendulum.Datetime
+            # however mypy decide that output would be datetime.datetime
+            next_start_time - self._interval,  # type: ignore[arg-type]
+            next_start_time,
+        )

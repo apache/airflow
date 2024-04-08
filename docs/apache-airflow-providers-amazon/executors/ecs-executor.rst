@@ -550,7 +550,7 @@ As a final step, access to the database must be configured for the ECS container
 
 3. Select the security group associated with your RDS instance, and click Edit inbound rules.
 
-4. Add a new rule that allows PostgreSQL type traffic to the CIDR of the subnet(s) associated with the DB.
+4. Add a new rule that allows PostgreSQL type traffic to the CIDR of the subnet(s) associated with the Ecs cluster.
 
 Configure Airflow
 ~~~~~~~~~~~~~~~~~

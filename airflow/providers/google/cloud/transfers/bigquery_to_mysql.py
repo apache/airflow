@@ -54,6 +54,7 @@ class BigQueryToMySqlOperator(BigQueryToSqlBaseOperator):
             warnings.warn(
                 "The `mysql_table` parameter has been deprecated. Use `target_table_name` instead.",
                 AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
 
             if target_table_name is not None:

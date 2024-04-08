@@ -176,7 +176,9 @@ def roles_export(args):
     kwargs = {} if not args.pretty else {"sort_keys": False, "indent": 4}
     with open(filename, "w", encoding="utf-8") as f:
         json.dump(export_data, f, **kwargs)
-    print(f"{len(export_data)} roles with permissions successfully exported to {filename}")
+    print(
+        f"{len(exporting_roles)} roles with {len(export_data)} linked permissions successfully exported to {filename}"
+    )
 
 
 @cli_utils.action_cli

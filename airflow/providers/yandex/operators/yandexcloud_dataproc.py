@@ -20,6 +20,7 @@ import warnings
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Iterable, Sequence
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.yandex.hooks.yandexcloud_dataproc import DataprocHook
 
@@ -261,7 +262,11 @@ class DataprocBaseOperator(BaseOperator):
         if self.yandex_conn_id is None:
             xcom_yandex_conn_id = context["task_instance"].xcom_pull(key="yandexcloud_connection_id")
             if xcom_yandex_conn_id:
-                warnings.warn("Implicit pass of `yandex_conn_id` is deprecated, please pass it explicitly")
+                warnings.warn(
+                    "Implicit pass of `yandex_conn_id` is deprecated, please pass it explicitly",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=2,
+                )
                 self.yandex_conn_id = xcom_yandex_conn_id
 
         return DataprocHook(yandex_conn_id=self.yandex_conn_id)
