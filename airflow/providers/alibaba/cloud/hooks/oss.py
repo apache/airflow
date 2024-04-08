@@ -338,17 +338,17 @@ class OSSHook(BaseHook):
         extra_config = self.oss_conn.extra_dejson
         auth_type = extra_config.get("auth_type", None)
         if not auth_type:
-            raise Exception("No auth_type specified in extra_config. ")
+            raise ValueError("No auth_type specified in extra_config. ")
 
         if auth_type != "AK":
-            raise Exception(f"Unsupported auth_type: {auth_type}")
+            raise ValueError(f"Unsupported auth_type: {auth_type}")
         oss_access_key_id = extra_config.get("access_key_id", None)
         oss_access_key_secret = extra_config.get("access_key_secret", None)
         if not oss_access_key_id:
-            raise Exception(f"No access_key_id is specified for connection: {self.oss_conn_id}")
+            raise ValueError(f"No access_key_id is specified for connection: {self.oss_conn_id}")
 
         if not oss_access_key_secret:
-            raise Exception(f"No access_key_secret is specified for connection: {self.oss_conn_id}")
+            raise ValueError(f"No access_key_secret is specified for connection: {self.oss_conn_id}")
 
         return oss2.Auth(oss_access_key_id, oss_access_key_secret)
 
@@ -356,12 +356,12 @@ class OSSHook(BaseHook):
         extra_config = self.oss_conn.extra_dejson
         auth_type = extra_config.get("auth_type", None)
         if not auth_type:
-            raise Exception("No auth_type specified in extra_config. ")
+            raise ValueError("No auth_type specified in extra_config. ")
 
         if auth_type != "AK":
-            raise Exception(f"Unsupported auth_type: {auth_type}")
+            raise ValueError(f"Unsupported auth_type: {auth_type}")
 
         default_region = extra_config.get("region", None)
         if not default_region:
-            raise Exception(f"No region is specified for connection: {self.oss_conn_id}")
+            raise ValueError(f"No region is specified for connection: {self.oss_conn_id}")
         return default_region
