@@ -245,8 +245,10 @@ you can pass ``render_template_as_native_obj=True`` to the DAG as follows:
         data_string = '{"1001": 301.27, "1002": 433.21, "1003": 502.22}'
         return json.loads(data_string)
 
+
     def transform(order_data):
         print(type(order_data))
+        total_order_value = 0
         for value in order_data.values():
             total_order_value += value
         return {"total_order_value": total_order_value}
