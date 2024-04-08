@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 import pluggy
 from sqlalchemy import create_engine, exc, text
-from sqlalchemy.orm import Session as SASession, scoped_session, sessionmaker
+from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
 from airflow import policies
@@ -44,6 +44,7 @@ from airflow.utils.timezone import local_timezone, parse_timezone, utc
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
+    from sqlalchemy.orm import Session as SASession
 
     from airflow.www.utils import UIAlert
 
