@@ -539,7 +539,7 @@ class DbApiHook(BaseHook):
                 self.set_autocommit(conn, False)
             yield conn
 
-    def insert_rows(
+    def _closing_supporting_autocommit(
         self,
         table,
         rows,
@@ -577,8 +577,7 @@ class DbApiHook(BaseHook):
                                 chunked_rows,
                             )
                         )
-                        sql = self._generate_insert_sql(table, values[0], target_fields, replace,
-                                                        **kwargs)
+                        sql = self._generate_insert_sql(table, values[0], target_fields, replace, **kwargs)
                         self.log.debug("Generated sql: %s", sql)
                         cur.fast_executemany = True
                         cur.executemany(sql, values)
@@ -596,7 +595,6 @@ class DbApiHook(BaseHook):
                         if commit_every and i % commit_every == 0:
                             conn.commit()
                             self.log.info("Loaded %s rows into %s so far", i, table)
-
                         conn.commit()
         self.log.info("Done loading. Loaded a total of %s rows into %s", len(rows), table)
 
