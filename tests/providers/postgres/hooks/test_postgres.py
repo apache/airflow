@@ -403,8 +403,7 @@ class TestPostgresHook:
         assert commit_count == self.conn.commit.call_count
 
         sql = f"INSERT INTO {table}  VALUES (%s)"
-        for row in rows:
-            self.cur.execute.assert_any_call(sql, row)
+        self.cur.executemany.assert_any_call(sql, rows)
 
     def test_insert_rows_replace(self):
         table = "table"
