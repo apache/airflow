@@ -1140,6 +1140,34 @@ for prevent to run on unsupported platform.
 - ``breeze``: Run test only inside of Breeze container, it might be useful in case of run
   some potential dangerous things in tests or if it expects to use common Breeze things.
 
+Warnings capture system
+.......................
+
+By default all warnings which captured during tests run saved into the ``tests/warnings.txt``.
+
+If required you could change the path by providing ``--warning-output-path`` in pytest CLI arguments
+or by set environment variable ``CAPTURE_WARNINGS_OUTPUT``.
+
+.. code-block:: console
+
+    root@3f98e75b1ebe:/opt/airflow# pytest tests/core/ --warning-output-path=/foo/bar/spam.egg
+    ...
+    ========================= Warning summary. Total: 34, Unique: 16 ==========================
+    airflow: total 11, unique 1
+    other: total 12, unique 4
+    tests: total 11, unique 11
+    Warnings saved into /foo/bar/spam.egg file.
+
+    ================================= short test summary info =================================
+
+You might also disable capture system by provide ``--disable-capture-warnings`` in pytest CLI arguments
+or by by set `global warnings filter <https://docs.python.org/3/library/warnings.html#the-warnings-filter>`__
+to **ignore**, e.g. by set ``PYTHONWARNINGS`` environment variable to ``ignore``.
+
+.. code-block:: bash
+
+     pytest tests/core/ --disable-capture-warnings
+
 Code Coverage
 -------------
 

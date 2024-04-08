@@ -486,6 +486,7 @@ addopts = [
 norecursedirs = [
     ".eggs",
     "airflow",
+    "tests/_internals",
     "tests/dags_with_system_exit",
     "tests/test_utils",
     "tests/dags_corrupted",
