@@ -2484,8 +2484,7 @@ dags:
     #     GITSYNC_PASSWORD: <base64_encoded_git_password>
     # and specify the name of the secret below
     #
-    # credentialsSecret_v3: git-credentials
-    # credentialsSecret_v4: git-credentials
+    # credentialsSecret: git-credentials
     #
     #
     # If you are using an ssh clone url, you can load
