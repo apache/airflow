@@ -38,7 +38,7 @@ class HDFSHookException(AirflowException):
     """
 
     def __init__(self, *args, **kwargs):
-        raise Exception(_EXCEPTION_MESSAGE)
+        raise RuntimeError(_EXCEPTION_MESSAGE)
 
 
 class HDFSHook(BaseHook):
@@ -52,4 +52,4 @@ class HDFSHook(BaseHook):
     """
 
     def __init__(self, *args, **kwargs):
-        raise Exception(_EXCEPTION_MESSAGE)
+        raise RuntimeError(_EXCEPTION_MESSAGE)

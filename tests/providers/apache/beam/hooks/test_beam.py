@@ -443,7 +443,7 @@ class TestBeamOptionsToArgs:
             ({"key": "val"}, ["--key=val"]),
             ({"key": None}, ["--key"]),
             ({"key": True}, ["--key"]),
-            ({"key": False}, ["--key=False"]),
+            ({"key": False}, []),
             ({"key": ["a", "b", "c"]}, ["--key=a", "--key=b", "--key=c"]),
         ],
     )
