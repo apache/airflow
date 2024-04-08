@@ -228,3 +228,22 @@ class OdbcHook(DbApiHook):
         else:
             field_names = [col[0] for col in result.cursor_description]
             return cast(tuple, namedtuple("Row", field_names, rename=True)(*result))  # type: ignore
+
+    def insert_rows(
+        self,
+        table,
+        rows,
+        target_fields=None,
+        commit_every=1000,
+        replace=False,
+        *,
+        executemany=True,
+        **kwargs,
+    ):
+        super().insert_rows(
+            table=table,
+            rows=rows,
+            target_fields=target_fields,
+            commit_every=commit_every,
+            executemany=executemany,
+        )

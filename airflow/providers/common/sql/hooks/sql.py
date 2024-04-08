@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import contextlib
 import warnings
-from contextlib import closing
+from contextlib import closing, contextmanager
 from datetime import datetime
 from typing import (
     TYPE_CHECKING,
@@ -412,10 +412,7 @@ class DbApiHook(BaseHook):
         else:
             raise ValueError("List of SQL statements is empty")
         _last_result = None
-        with closing(self.get_conn()) as conn:
-            if self.supports_autocommit:
-                self.set_autocommit(conn, autocommit)
-
+        with self._closing_supporting_autocommit() as conn:
             with closing(conn.cursor()) as cur:
                 results = []
                 for sql_statement in sql_list:
@@ -532,6 +529,16 @@ class DbApiHook(BaseHook):
 
         return self._replace_statement_format.format(table, target_fields, ",".join(placeholders))
 
+    @contextmanager
+    def _closing_supporting_autocommit(self):
+        """
+        Context manager that closes the connection after use and detects if autocommit is supported.
+        """
+        with closing(self.get_conn()) as conn:
+            if self.supports_autocommit:
+                self.set_autocommit(conn, False)
+            yield conn
+
     def insert_rows(
         self,
         table,
@@ -554,28 +561,43 @@ class DbApiHook(BaseHook):
         :param commit_every: The maximum number of rows to insert in one
             transaction. Set to 0 to insert all rows in one transaction.
         :param replace: Whether to replace instead of insert
+        :param executemany: Inserts all rows at once in chunks defined by the commit_every parameter, only
+            works if all rows have same number of column names but leads to better performance
         """
-        with closing(self.get_conn()) as conn:
-            if self.supports_autocommit:
-                self.set_autocommit(conn, False)
-
+        with self._closing_supporting_autocommit() as conn:
             conn.commit()
 
             with closing(conn.cursor()) as cur:
-                for chunked_rows in chunked(rows, commit_every):
-                    values = list(
-                        map(
-                            lambda row: tuple(map(lambda cell: self._serialize_cell(cell, conn), row)),
-                            chunked_rows,
+                if executemany:
+                    for chunked_rows in chunked(rows, commit_every):
+                        values = list(
+                            map(
+                                lambda row: tuple(
+                                    map(lambda cell: self._serialize_cell(cell, conn), row)),
+                                chunked_rows,
+                            )
                         )
-                    )
-                    sql = self._generate_insert_sql(table, values[0], target_fields, replace, **kwargs)
-                    self.log.debug("Generated sql: %s", sql)
-                    if self._fast_executemany:
+                        sql = self._generate_insert_sql(table, values[0], target_fields, replace,
+                                                        **kwargs)
+                        self.log.debug("Generated sql: %s", sql)
                         cur.fast_executemany = True
-                    cur.executemany(sql, values)
-                    conn.commit()
-                    self.log.info("Loaded %s rows into %s so far", len(chunked_rows), table)
+                        cur.executemany(sql, values)
+                        conn.commit()
+                        self.log.info("Loaded %s rows into %s so far", len(chunked_rows), table)
+                else:
+                    for i, row in enumerate(rows, 1):
+                        lst = []
+                        for cell in row:
+                            lst.append(self._serialize_cell(cell, conn))
+                        values = tuple(lst)
+                        sql = self._generate_insert_sql(table, values, target_fields, replace, **kwargs)
+                        self.log.debug("Generated sql: %s", sql)
+                        cur.execute(sql, values)
+                        if commit_every and i % commit_every == 0:
+                            conn.commit()
+                            self.log.info("Loaded %s rows into %s so far", i, table)
+
+                        conn.commit()
         self.log.info("Done loading. Loaded a total of %s rows into %s", len(rows), table)
 
     @staticmethod

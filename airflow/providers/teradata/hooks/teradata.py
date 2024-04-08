@@ -110,7 +110,7 @@ class TeradataHook(DbApiHook):
             specific database
         :param rows: the rows to insert into the table
         :param target_fields: the names of the columns to fill in the table, default None.
-            If None, each rows should have some order as table columns name
+            If None, each row should have some order as table columns name
         :param commit_every: the maximum number of rows to insert in one transaction
             Default 5000. Set greater than 0. Set 1 to insert each row in each transaction
         """
@@ -124,6 +124,25 @@ class TeradataHook(DbApiHook):
             raise ValueError("parameter rows could not be None or empty iterable")
 
         self.insert_rows(table=table, rows=rows, target_fields=target_fields, commit_every=commit_every)
+
+    def insert_rows(
+        self,
+        table,
+        rows,
+        target_fields=None,
+        commit_every=1000,
+        replace=False,
+        *,
+        executemany=True,
+        **kwargs,
+    ):
+        super().insert_rows(
+            table=table,
+            rows=rows,
+            target_fields=target_fields,
+            commit_every=commit_every,
+            executemany=executemany,
+        )
 
     def _get_conn_config_teradatasql(self) -> dict[str, Any]:
         """Return set of config params required for connecting to Teradata DB using teradatasql client."""
