@@ -577,7 +577,8 @@ class DbApiHook(BaseHook):
                         )
                         sql = self._generate_insert_sql(table, values[0], target_fields, replace, **kwargs)
                         self.log.debug("Generated sql: %s", sql)
-                        cur.fast_executemany = True
+                        if self._fast_executemany:
+                            cur.fast_executemany = True
                         cur.executemany(sql, values)
                         conn.commit()
                         self.log.info("Loaded %s rows into %s so far", len(chunked_rows), table)
