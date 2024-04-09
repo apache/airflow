@@ -457,7 +457,7 @@ class TestStringifiedDAGs:
         )
         for task in actual["dag"]["tasks"]:
             for k, v in task.items():
-                print(task["task_id"], k, v)
+                print(task["__var"]["task_id"], k, v)
         assert actual == expected
 
     @pytest.mark.db_test
@@ -498,7 +498,11 @@ class TestStringifiedDAGs:
             items should not matter but assertEqual would fail if the order of
             items changes in the dag dictionary
             """
-            dag_dict["dag"]["tasks"] = sorted(dag_dict["dag"]["tasks"], key=sorted)
+            tasks = []
+            for task in sorted(dag_dict["dag"]["tasks"], key=lambda x: x["__var"]["task_id"]):
+                task["__var"] = dict(sorted(task["__var"].items(), key=lambda x: x[0]))
+                tasks.append(task)
+            dag_dict["dag"]["tasks"] = tasks
             dag_dict["dag"]["_access_control"]["__var"]["test_role"]["__var"] = sorted(
                 dag_dict["dag"]["_access_control"]["__var"]["test_role"]["__var"]
             )
@@ -741,9 +745,9 @@ class TestStringifiedDAGs:
         if not task_start_date or dag_start_date >= task_start_date:
             # If dag.start_date > task.start_date -> task.start_date=dag.start_date
             # because of the logic in dag.add_task()
-            assert "start_date" not in serialized_dag["dag"]["tasks"][0]
+            assert "start_date" not in serialized_dag["dag"]["tasks"][0]["__var"]
         else:
-            assert "start_date" in serialized_dag["dag"]["tasks"][0]
+            assert "start_date" in serialized_dag["dag"]["tasks"][0]["__var"]
 
         dag = SerializedDAG.from_dict(serialized_dag)
         simple_task = dag.task_dict["simple_task"]
@@ -779,9 +783,9 @@ class TestStringifiedDAGs:
         if not task_end_date or dag_end_date <= task_end_date:
             # If dag.end_date < task.end_date -> task.end_date=dag.end_date
             # because of the logic in dag.add_task()
-            assert "end_date" not in serialized_dag["dag"]["tasks"][0]
+            assert "end_date" not in serialized_dag["dag"]["tasks"][0]["__var"]
         else:
-            assert "end_date" in serialized_dag["dag"]["tasks"][0]
+            assert "end_date" in serialized_dag["dag"]["tasks"][0]["__var"]
 
         dag = SerializedDAG.from_dict(serialized_dag)
         simple_task = dag.task_dict["simple_task"]
@@ -999,9 +1003,9 @@ class TestStringifiedDAGs:
 
         serialized_dag = SerializedDAG.to_dict(dag)
         if val:
-            assert "params" in serialized_dag["dag"]["tasks"][0]
+            assert "params" in serialized_dag["dag"]["tasks"][0]["__var"]
         else:
-            assert "params" not in serialized_dag["dag"]["tasks"][0]
+            assert "params" not in serialized_dag["dag"]["tasks"][0]["__var"]
 
         deserialized_dag = SerializedDAG.from_dict(serialized_dag)
         deserialized_simple_task = deserialized_dag.task_dict["simple_task"]
