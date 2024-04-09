@@ -28,7 +28,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Container,
-    Generator,
     ItemsView,
     Iterator,
     KeysView,
@@ -360,7 +359,7 @@ def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]:
 
 
 @contextlib.contextmanager
-def suppress_and_warn(*exceptions: type[BaseException]) -> Generator[type[BaseException], None, None]:
+def suppress_and_warn(*exceptions: type[BaseException]):
     """Context manager that suppresses the given exceptions and logs a warning message."""
     try:
         yield
