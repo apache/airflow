@@ -221,9 +221,9 @@ class DbApiHook(BaseHook):
 
     def get_sqlalchemy_url(self) -> URL:
         """
-        Extract the SQLAlchemy URI from the connection.
+        Return a Sqlalchemy.engine.URL object from the connection.
 
-        :return: the extracted uri.
+        :return: the extracted sqlalchemy.engine.URL object.
         """
         conn = self.get_connection(getattr(self, self.conn_name_attr))
         conn.schema = self.__schema or conn.schema
