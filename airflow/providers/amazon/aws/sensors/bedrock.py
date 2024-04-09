@@ -43,7 +43,7 @@ class BaseBedrockSensor(AwsBaseSensor[BedrockHook]):
 
     Subclasses must set the following fields:
         - ``INTERMEDIATE_STATES``
-        - ``FAILURE_STATES`
+        - ``FAILURE_STATES``
         - ``SUCCESS_STATES``
         - ``FAILURE_MESSAGE``
 
@@ -155,7 +155,6 @@ class BedrockProvisionModelThroughputCompletedSensor(BaseBedrockSensor):
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
         :ref:`howto/sensor:BedrockProvisionModelThroughputCompletedSensor`
-
 
     :param model_id: The ARN or name of the provisioned throughput.
 
