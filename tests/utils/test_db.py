@@ -131,10 +131,9 @@ class TestDb:
         [("be2bfac3da23", "e959f08ac86c"), ("ccde3e26fe78", "2e42bb497a22")],
     )
     def test_offline_upgrade_wrong_order(self, from_revision, to_revision):
-        with mock.patch("airflow.utils.db.settings.engine.dialect"):
-            with mock.patch("alembic.command.upgrade"):
-                with pytest.raises(ValueError, match="to.* revision .* older than .*from"):
-                    upgradedb(from_revision=from_revision, to_revision=to_revision, show_sql_only=True)
+        with mock.patch("alembic.command.upgrade"):
+            with pytest.raises(ValueError, match="to.* revision .* older than .*from"):
+                upgradedb(from_revision=from_revision, to_revision=to_revision, show_sql_only=True)
 
     @pytest.mark.parametrize(
         "to_revision, from_revision",
@@ -143,21 +142,19 @@ class TestDb:
         ],
     )
     def test_offline_upgrade_revision_nothing(self, from_revision, to_revision):
-        with mock.patch("airflow.utils.db.settings.engine.dialect"):
-            with mock.patch("alembic.command.upgrade"):
-                with redirect_stdout(StringIO()) as temp_stdout:
-                    upgradedb(to_revision=to_revision, from_revision=from_revision, show_sql_only=True)
-                stdout = temp_stdout.getvalue()
-                assert "nothing to do" in stdout
+        with mock.patch("alembic.command.upgrade"):
+            with redirect_stdout(StringIO()) as temp_stdout:
+                upgradedb(to_revision=to_revision, from_revision=from_revision, show_sql_only=True)
+            stdout = temp_stdout.getvalue()
+            assert "nothing to do" in stdout
 
     @pytest.mark.parametrize(
         "from_revision, to_revision",
         [("90d1635d7b86", "54bebd308c5f"), ("e959f08ac86c", "587bdf053233")],
     )
     def test_offline_upgrade_revision(self, from_revision, to_revision):
-        with mock.patch("airflow.utils.db.settings.engine.dialect"):
-            with mock.patch("alembic.command.upgrade") as mock_alembic_upgrade:
-                upgradedb(from_revision=from_revision, to_revision=to_revision, show_sql_only=True)
+        with mock.patch("alembic.command.upgrade") as mock_alembic_upgrade:
+            upgradedb(from_revision=from_revision, to_revision=to_revision, show_sql_only=True)
         mock_alembic_upgrade.assert_called_once_with(mock.ANY, f"{from_revision}:{to_revision}", sql=True)
 
     @mock.patch("airflow.utils.db._offline_migration")
@@ -172,16 +169,17 @@ class TestDb:
             assert re.match(r"90d1635d7b86:[a-z0-9]+", actual) is not None
 
     def test_offline_upgrade_fails_for_migration_less_than_2_0_0_head(self):
-        with mock.patch("airflow.utils.db.settings.engine.dialect"):
-            with pytest.raises(ValueError, match="Check that e1a11ece99cc is a valid revision"):
-                upgradedb(from_revision="e1a11ece99cc", to_revision="54bebd308c5f", show_sql_only=True)
+        with pytest.raises(ValueError, match="Check that e1a11ece99cc is a valid revision"):
+            upgradedb(from_revision="e1a11ece99cc", to_revision="54bebd308c5f", show_sql_only=True)
 
+    @mock.patch("airflow.utils.db._get_current_revision", mock.MagicMock())
     def test_sqlite_offline_upgrade_raises_with_revision(self):
         with mock.patch("airflow.utils.db.settings.engine.dialect") as dialect:
             dialect.name = "sqlite"
             with pytest.raises(AirflowException, match="Offline migration not supported for SQLite"):
                 upgradedb(from_revision="e1a11ece99cc", to_revision="54bebd308c5f", show_sql_only=True)
 
+    @mock.patch("airflow.utils.db._get_current_revision", mock.MagicMock())
     def test_offline_upgrade_fails_for_migration_less_than_2_2_0_head_for_mssql(self):
         with mock.patch("airflow.utils.db.settings.engine.dialect") as dialect:
             dialect.name = "mssql"
