@@ -34,7 +34,8 @@ from typing import (
     Mapping,
     MutableMapping,
     SupportsIndex,
-    ValuesView, Type,
+    Type,
+    ValuesView,
 )
 
 import attrs
