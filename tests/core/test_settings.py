@@ -26,7 +26,10 @@ from unittest.mock import MagicMock, call, patch
 
 import pytest
 
+from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.exceptions import AirflowClusterPolicyViolation, AirflowConfigException
+from airflow.settings import _ENABLE_AIP_44, TracebackSession, configure_orm
+from airflow.utils.session import create_session
 from tests.test_utils.config import conf_vars
 
 SETTINGS_FILE_POLICY = """
@@ -264,3 +267,61 @@ class TestEngineArgs:
         engine_args = settings.prepare_engine_args()
 
         assert "encoding" not in engine_args
+
+
+@pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
+@conf_vars(
+    {
+        ("core", "database_access_isolation"): "true",
+        ("core", "internal_api_url"): "http://localhost:8888",
+    }
+)
+def test_get_traceback_session_if_aip_44_enabled():
+    # ensure we take the database_access_isolation config
+    InternalApiConfig._init_values()
+    assert InternalApiConfig.get_use_internal_api() is True
+
+    # ensure that the Session object is TracebackSession
+    configure_orm()
+
+    from airflow.settings import Session
+
+    assert Session == TracebackSession
+
+    # no error to create
+    with create_session() as session:
+        assert isinstance(session, TracebackSession)
+
+        with pytest.raises(
+            RuntimeError,
+            match="TracebackSession object was used but internal API is enabled.",
+        ):
+            session.hi()
+
+
+@pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
+@conf_vars(
+    {
+        ("core", "database_access_isolation"): "true",
+        ("core", "internal_api_url"): "http://localhost:8888",
+    }
+)
+@patch("airflow.utils.session.TracebackSession.__new__")
+def test_create_session_ctx_mgr_no_call_methods(mock_new):
+    m = MagicMock()
+    mock_new.return_value = m
+    # ensure we take the database_access_isolation config
+    InternalApiConfig._init_values()
+    assert InternalApiConfig.get_use_internal_api() is True
+
+    # ensure that the Session object is TracebackSession
+    configure_orm()
+
+    # no error to create
+    with create_session() as session:
+        assert isinstance(session, MagicMock)
+        assert session == m
+    method_calls = [x[0] for x in m.method_calls]
+    assert method_calls == []  # commit and close not called when using internal API
+
+    # assert mock_session_obj.call_args_list == []
