@@ -42,7 +42,7 @@ Use ``auth_mechanism`` instead in your ``extra``.
 
 HiveOperator: Removed the method ``get_hook``  in favor of ``hook`` property instead.
 
-HiveStatsCollectionOperator: Removed the deprecated ``col_blacklist`` in favor of ``excluded_columns`.
+HiveStatsCollectionOperator: Removed the deprecated ``col_blacklist`` in favor of ``excluded_columns``.
 
 * ``Setting use_beeline by default for hive cli connection (#38763)``
 * ``Removing deprecated code in hive provider (#38859)``
