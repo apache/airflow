@@ -196,11 +196,11 @@ class DbApiHook(BaseHook):
     @property
     def drivername(self) -> str:
         """
-        Return the database drivername.
+        Return the database driver name.
 
-        Should be implemented in the derived class to return database drivername.
+        Should be implemented in the derived class to return database driver name.
 
-        :return: the drivername for the connection.
+        :return: the driver name for the connection.
         """
         raise NotImplementedError("drivername property should be implemented in the provider subclass.")
 
