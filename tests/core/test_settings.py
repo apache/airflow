@@ -65,6 +65,21 @@ def task_must_have_owners(task: BaseOperator):
 """
 
 
+@pytest.fixture(autouse=True)
+def _rollback_settings_session():
+    """Rollback airflow.setting.Session at the end of the test suite."""
+    from airflow import settings
+
+    with pytest.MonkeyPatch.context() as mp_ctx:
+        # This values will roll back in the end of context if it changed during tests suites
+        mp_ctx.setattr(settings, "Session", settings.Session)
+        mp_ctx.setattr(InternalApiConfig, "_initialized", InternalApiConfig._initialized)
+        mp_ctx.setattr(InternalApiConfig, "_use_internal_api", InternalApiConfig._use_internal_api)
+        mp_ctx.setattr(InternalApiConfig, "_internal_api_endpoint", InternalApiConfig._internal_api_endpoint)
+        yield
+    configure_orm()
+
+
 class SettingsContext:
     def __init__(self, content: str, module_name: str):
         self.content = content
@@ -307,7 +322,7 @@ def test_get_traceback_session_if_aip_44_enabled():
     }
 )
 @patch("airflow.utils.session.TracebackSession.__new__")
-def test_create_session_ctx_mgr_no_call_methods(mock_new):
+def test_create_session_ctx_mgr_no_call_methods(mock_new, monkeypatch):
     m = MagicMock()
     mock_new.return_value = m
     # ensure we take the database_access_isolation config

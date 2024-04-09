@@ -1176,7 +1176,9 @@ def _clear_db(request):
         if exc_module != "builtins":
             exc_name_parts.insert(0, exc_module)
         extra_msg = "" if request.config.option.db_init else ", try to run with flag --with-db-init"
-        pytest.exit(f"Unable clear test DB{extra_msg}, got error {'.'.join(exc_name_parts)}: {ex}")
+        pytest.exit(
+            f"Unable clear test DB{extra_msg}, got error {'.'.join(exc_name_parts)}: {ex}", returncode=-1
+        )
 
 
 @pytest.fixture(autouse=True)
