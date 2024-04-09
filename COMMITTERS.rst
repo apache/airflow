@@ -223,6 +223,6 @@ To be able to merge PRs, committers have to integrate their GitHub ID with Apach
     * name and GitHub ID in `project.rst <https://github.com/apache/airflow/blob/main/docs/apache-airflow/project.rst>`__.
     * If you had been a collaborator role before getting committer, remove your Github ID from ``.asf.yaml``.
 7.  Raise PR to airflow site with the following:
-    * listed your name in the committers list
+    * List your name in the committers list
     `Airflow-Site committers.json <https://github.com/apache/airflow-site/blob/main/landing-pages/site/data/committers.json>`__.
     * Post entry in `Announcements <https://github.com/apache/airflow-site/blob/main/landing-pages/site/content/en/announcements/_index.md>`__.
