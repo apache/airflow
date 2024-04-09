@@ -28,6 +28,7 @@ import {
   Spinner,
   Select,
   IconButton,
+  ButtonGroup,
 } from "@chakra-ui/react";
 import { MdWarning } from "react-icons/md";
 import { BiCollapse, BiExpand } from "react-icons/bi";
@@ -187,7 +188,7 @@ const Logs = ({
     <>
       {externalLogName && externalIndexes.length > 0 && (
         <Box my={1}>
-          <Text>View Logs in {externalLogName} (by attempts):</Text>
+          <Text>View Logs in {externalLogName} Task Instance Try Number:</Text>
           <Flex flexWrap="wrap">
             {externalIndexes.map((index) => (
               <LogLink
@@ -204,7 +205,7 @@ const Logs = ({
       <Box>
         {!showDropdown && (
           <Box>
-            <Text as="span"> (by attempts)</Text>
+            <Text as="span"> Task Instance Try Number</Text>
             <Flex my={1} justifyContent="space-between">
               <Flex flexWrap="wrap">
                 {internalIndexes.map((index) => (
@@ -328,14 +329,35 @@ const Logs = ({
       {isLoading ? (
         <Spinner />
       ) : (
-        !!parsedLogs && (
-          <LogBlock
-            parsedLogs={parsedLogs}
-            wrap={wrap}
-            tryNumber={taskTryNumber}
-            unfoldedGroups={unfoldedLogGroups}
-            setUnfoldedLogGroup={setUnfoldedLogGroup}
-          />
+        parsedLogs && (
+          <>
+            <LogBlock
+              parsedLogs={parsedLogs}
+              wrap={wrap}
+              tryNumber={taskTryNumber}
+              unfoldedGroups={unfoldedLogGroups}
+              setUnfoldedLogGroup={setUnfoldedLogGroup}
+            />
+            <Box>
+              <Text as="span">Log Page Number</Text>
+              <Flex flexWrap="wrap">
+                {/* TODO: Replace [0,1] with API call to get the log size -> # required pages */}
+                {[0, 1].map((index) => (
+                  <ButtonGroup size="sm">
+                    <Button
+                      key={index}
+                      variant={taskTryNumber === index ? "solid" : "ghost"}
+                      colorScheme="blue"
+                      onClick={() => setSelectedTryNumber(index)}
+                      data-testid={`log-attempt-select-button-${index}`}
+                    >
+                      {index}
+                    </Button>
+                  </ButtonGroup>
+                ))}
+              </Flex>
+            </Box>
+          </>
         )
       )}
     </>
