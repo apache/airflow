@@ -51,11 +51,12 @@ def display_commands_index():
         console = AirflowConsole()
         if actions:
             table = SimpleTable(title=help_msg or "Miscellaneous commands")
-            table.add_column(width=40)
+            table.add_column(width=45)
             table.add_column()
             for action_command in sorted(actions, key=lambda d: d.name):
                 table.add_row(" ".join([*prefix, action_command.name]), action_command.help)
             console.print(table)
+            console.print()
 
         if groups:
             for group_command in sorted(groups, key=lambda d: d.name):

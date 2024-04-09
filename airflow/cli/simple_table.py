@@ -133,7 +133,6 @@ class SimpleTable(Table):
         self.show_header = kwargs.get("show_header", False)
         self.title_style = kwargs.get("title_style", "bold green")
         self.title_justify = kwargs.get("title_justify", "left")
-        self.caption = kwargs.get("caption", " ")
 
     def add_column(self, *args, **kwargs) -> None:
         """Add a column to the table. We use different default."""
