@@ -28,13 +28,14 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Container,
+    Generator,
     ItemsView,
     Iterator,
     KeysView,
     Mapping,
     MutableMapping,
     SupportsIndex,
-    ValuesView, Generator,
+    ValuesView,
 )
 
 import attrs

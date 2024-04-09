@@ -26,7 +26,7 @@
 # declare "these are defined, but don't error if others are accessed" someday.
 from __future__ import annotations
 
-from typing import Any, Collection, Container, Iterable, Iterator, Mapping, overload, Generator
+from typing import Any, Collection, Container, Generator, Iterable, Iterator, Mapping, overload
 
 from pendulum import DateTime
 
