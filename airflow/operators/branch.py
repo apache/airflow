@@ -21,12 +21,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Iterable
 
-from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
-from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 if TYPE_CHECKING:
+    from airflow.models import TaskInstance
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
     from airflow.utils.context import Context
 
 
@@ -44,8 +44,13 @@ class BranchMixIn(SkipMixin):
         self, ti: TaskInstance | TaskInstancePydantic, branches_to_execute: str | Iterable[str]
     ) -> str | Iterable[str]:
         """Replace any task group with the root task ids."""
+        if TYPE_CHECKING:
+            assert ti.task
+
         task = ti.task
         dag = task.dag
+        if TYPE_CHECKING:
+            assert dag
         task_ids = []
         if isinstance(branches_to_execute, str):
             branches_to_execute = [branches_to_execute]

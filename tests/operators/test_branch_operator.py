@@ -201,8 +201,8 @@ class TestBranchOperator:
     def test_with_dag_run_task_groups(self):
         self.branch_op = ChooseBranchThree(task_id="make_choice", dag=self.dag)
         self.branch_3 = TaskGroup("branch_3", dag=self.dag)
-        branch_3_task_1 = EmptyOperator(task_id="task_1", dag=self.dag, task_group=self.branch_3)
-        branch_3_task_2 = EmptyOperator(task_id="task_2", dag=self.dag, task_group=self.branch_3)
+        _ = EmptyOperator(task_id="task_1", dag=self.dag, task_group=self.branch_3)
+        _ = EmptyOperator(task_id="task_2", dag=self.dag, task_group=self.branch_3)
 
         self.branch_1.set_upstream(self.branch_op)
         self.branch_2.set_upstream(self.branch_op)
