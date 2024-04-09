@@ -58,6 +58,7 @@ def app(examples_dag_bag):
     @dont_initialize_flask_app_submodules(
         skip_all_except=[
             "init_api_connexion",
+            "init_api_error_handlers",
             "init_appbuilder",
             "init_appbuilder_links",
             "init_appbuilder_views",
