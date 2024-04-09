@@ -67,7 +67,7 @@ class TestSparkSubmitOperator:
             "args should keep embedded spaces",
         ],
         "use_krb5ccache": True,
-        "queue": "yarn_dev_queue2",
+        "yarn_queue": "yarn_dev_queue2",
         "deploy_mode": "client2",
     }
 
@@ -122,7 +122,7 @@ class TestSparkSubmitOperator:
                 "args should keep embedded spaces",
             ],
             "spark_binary": "sparky",
-            "queue": "yarn_dev_queue2",
+            "yarn_queue": "yarn_dev_queue2",
             "deploy_mode": "client2",
             "use_krb5ccache": True,
             "properties_file": "conf/spark-custom.conf",
@@ -153,10 +153,11 @@ class TestSparkSubmitOperator:
         assert expected_dict["driver_memory"] == operator._driver_memory
         assert expected_dict["application_args"] == operator.application_args
         assert expected_dict["spark_binary"] == operator._spark_binary
-        assert expected_dict["queue"] == operator._queue
         assert expected_dict["deploy_mode"] == operator._deploy_mode
         assert expected_dict["properties_file"] == operator.properties_file
         assert expected_dict["use_krb5ccache"] == operator._use_krb5ccache
+        assert expected_dict["queue"] == "something"  # TODO: verify and check default airflow queue here
+        assert expected_dict["yarn_queue"] == operator._yarn_queue
 
     @pytest.mark.db_test
     def test_spark_submit_cmd_connection_overrides(self):
@@ -173,7 +174,7 @@ class TestSparkSubmitOperator:
         assert "sparky" in cmd
 
         # if we don't pass any overrides in arguments
-        config["queue"] = None
+        config["yarn_queue"] = None
         config["deploy_mode"] = None
         operator2 = SparkSubmitOperator(task_id="spark_submit_job2", dag=self.dag, **config)
         cmd2 = " ".join(operator2._get_hook()._build_spark_submit_command("test"))
