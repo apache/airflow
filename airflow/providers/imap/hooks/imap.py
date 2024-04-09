@@ -219,7 +219,7 @@ class ImapHook(BaseHook):
         self, name: str, check_regex: bool, latest_only: bool, mail_folder: str, mail_filter: str
     ) -> list:
         if not self.mail_client:
-            raise Exception("The 'mail_client' should be initialized before!")
+            raise RuntimeError("The 'mail_client' should be initialized before!")
 
         all_matching_attachments = []
 
@@ -240,14 +240,14 @@ class ImapHook(BaseHook):
 
     def _list_mail_ids_desc(self, mail_filter: str) -> Iterable[str]:
         if not self.mail_client:
-            raise Exception("The 'mail_client' should be initialized before!")
+            raise RuntimeError("The 'mail_client' should be initialized before!")
         _, data = self.mail_client.search(None, mail_filter)
         mail_ids = data[0].split()
         return reversed(mail_ids)
 
     def _fetch_mail_body(self, mail_id: str) -> str:
         if not self.mail_client:
-            raise Exception("The 'mail_client' should be initialized before!")
+            raise RuntimeError("The 'mail_client' should be initialized before!")
         _, data = self.mail_client.fetch(mail_id, "(RFC822)")
         mail_body = data[0][1]  # type: ignore # The mail body is always in this specific location
         mail_body_str = mail_body.decode("utf-8")  # type: ignore

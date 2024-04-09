@@ -70,8 +70,6 @@
 
 
 # Core
-- tests/core/test_core.py::TestCore::test_dag_params_and_task_params
-- tests/core/test_core.py::TestCore::test_externally_triggered_dagrun
 - tests/core/test_impersonation_tests.py::TestImpersonation::test_impersonation_subdag
 - tests/core/test_stats.py::TestCustomStatsName::test_does_not_send_stats_using_statsd_when_the_name_is_not_valid
 - tests/core/test_stats.py::TestCustomStatsName::test_does_send_stats_using_statsd_when_the_name_is_valid
@@ -648,8 +646,6 @@
 - tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::test_resolve_application_file_real_file_not_exists
 - tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::test_resolve_application_file_template_file
 - tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::test_resolve_application_file_template_non_dictionary
-- tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::test_spark_kubernetes_operator
-- tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::test_spark_kubernetes_operator_hook
 - tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::test_template_body_templating
 - tests/providers/cncf/kubernetes/test_kubernetes_helper_functions.py::TestCreatePodId::test_create_pod_id
 - tests/providers/cncf/kubernetes/test_kubernetes_helper_functions.py::TestCreatePodId::test_create_pod_id_dag_and_task

@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+8.0.0
+.....
+
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+Changed the default value of ``use_beeline`` in hive cli connection to True.
+Beeline will be always enabled by default in this connection type.
+
+Removed deprecated parameter ``authMechanism`` from HiveHook and dependent operators.
+Use the already existing ``auth_mechanism`` instead in your ``extra``.
+
+Removed the method ``get_hook`` from hive operator. Use the ``hook`` property instead.
+
+Removed the deprecated ``col_blacklist`` property from HiveStatsCollectionOperator.
+Please rename it to ``excluded_columns`` instead.
+
 7.0.1
 .....
 
