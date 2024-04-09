@@ -651,6 +651,7 @@ class DatabricksRunNowOperator(BaseOperator):
         - ``spark_submit_params``
         - ``idempotency_token``
         - ``repair_run``
+        - ``cancel_previous_runs``
 
     :param job_id: the job_id of the existing Databricks job.
         This field will be templated.
@@ -740,6 +741,7 @@ class DatabricksRunNowOperator(BaseOperator):
     :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
     :param deferrable: Run operator in the deferrable mode.
     :param repair_run: Repair the databricks run in case of failure.
+    :param cancel_previous_runs: Cancel all existing running jobs before submitting new one.
     """
 
     # Used in airflow.models.BaseOperator
@@ -771,6 +773,7 @@ class DatabricksRunNowOperator(BaseOperator):
         wait_for_termination: bool = True,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         repair_run: bool = False,
+        cancel_previous_runs: bool = False,
         **kwargs,
     ) -> None:
         """Create a new ``DatabricksRunNowOperator``."""
@@ -784,6 +787,7 @@ class DatabricksRunNowOperator(BaseOperator):
         self.wait_for_termination = wait_for_termination
         self.deferrable = deferrable
         self.repair_run = repair_run
+        self.cancel_previous_runs = cancel_previous_runs
 
         if job_id is not None:
             self.json["job_id"] = job_id
@@ -830,6 +834,9 @@ class DatabricksRunNowOperator(BaseOperator):
                 raise AirflowException(f"Job ID for job name {self.json['job_name']} can not be found")
             self.json["job_id"] = job_id
             del self.json["job_name"]
+
+        if self.cancel_previous_runs and self.json["job_id"] is not None:
+            hook.cancel_all_runs(self.json["job_id"])
 
         self.run_id = hook.run_now(self.json)
         if self.deferrable:

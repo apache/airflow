@@ -76,7 +76,7 @@ class NodegroupStates(Enum):
     NONEXISTENT = "NONEXISTENT"
 
 
-COMMAND = """
+COMMAND = r"""
             output=$({python_executable} -m airflow.providers.amazon.aws.utils.eks_get_token \
                 --cluster-name {eks_cluster_name} {args} 2>&1)
 

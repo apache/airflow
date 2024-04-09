@@ -123,6 +123,14 @@ def slack_webhook_connections():
             schema="http",
             host="some.netloc",
         ),
+        # Not supported anymore
+        Connection(conn_id="conn_token_in_host_1", conn_type=CONN_TYPE, host=TEST_WEBHOOK_URL),
+        Connection(
+            conn_id="conn_token_in_host_2",
+            conn_type=CONN_TYPE,
+            schema="https",
+            host="hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX",
+        ),
     ]
     with pytest.MonkeyPatch.context() as mp:
         for conn in connections:
@@ -196,9 +204,9 @@ class TestSlackWebhookHook:
 
     @pytest.mark.parametrize("conn_id", ["conn_token_in_host_1", "conn_token_in_host_2"])
     def test_wrong_connections(self, conn_id):
-        """Test previously valid connections, but now it is dropped."""
+        """Test previously valid connections, but now support of it is dropped."""
         hook = SlackWebhookHook(slack_webhook_conn_id=conn_id)
-        with pytest.raises(AirflowNotFoundException):
+        with pytest.raises(AirflowNotFoundException, match="does not contain password"):
             hook._get_conn_params()
 
     @pytest.mark.parametrize(

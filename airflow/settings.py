@@ -33,7 +33,7 @@ from sqlalchemy.pool import NullPool
 
 from airflow import policies
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # noqa: F401
-from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.exceptions import AirflowInternalRuntimeError, RemovedInAirflow3Warning
 from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
@@ -210,7 +210,7 @@ class SkipDBTestsSession:
     """This fake session is used to skip DB tests when `_AIRFLOW_SKIP_DB_TESTS` is set."""
 
     def __init__(self):
-        raise RuntimeError(
+        raise AirflowInternalRuntimeError(
             "Your test accessed the DB but `_AIRFLOW_SKIP_DB_TESTS` is set.\n"
             "Either make sure your test does not use database or mark the test with `@pytest.mark.db_test`\n"
             "See https://github.com/apache/airflow/blob/main/contributing-docs/testing/unit_tests.rst#"
