@@ -122,6 +122,7 @@ const LogBlock = ({
     >
       <div dangerouslySetInnerHTML={{ __html: parsedLogs }} />
       <div ref={codeBlockBottomDiv} />
+      1
     </Code>
   );
 };

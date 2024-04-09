@@ -1864,6 +1864,7 @@ paths:
       - $ref: "#/components/parameters/TaskTryNumber"
       - $ref: "#/components/parameters/FullContent"
       - $ref: "#/components/parameters/FilterMapIndex"
+      - $ref: "#/components/parameters/PageNumber"
       - $ref: "#/components/parameters/ContinuationToken"
 
     get:
@@ -2169,22 +2170,22 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateDatasetEvent'
+              $ref: "#/components/schemas/CreateDatasetEvent"
       responses:
-        '200':
+        "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DatasetEvent'
+                $ref: "#/components/schemas/DatasetEvent"
         "400":
           $ref: "#/components/responses/BadRequest"
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /config:
     get:
@@ -4089,17 +4090,17 @@ components:
         ti_deps:
           type: array
           items:
-              type: string
+            type: string
           description: The plugin task instance dependencies
         listeners:
           type: array
           items:
-              type: string
+            type: string
           description: The plugin listeners
         timetables:
           type: array
           items:
-              type: string
+            type: string
           description: The plugin timetables
 
     PluginCollection:
@@ -5256,6 +5257,15 @@ components:
       description: |
         A full content will be returned.
         By default, only the first fragment will be returned.
+
+    PageNumber:
+      in: query
+      name: page_number
+      schema:
+        type: integer
+      required: false
+      description: |
+        Task log page number
 
     ContinuationToken:
       in: query

@@ -604,6 +604,8 @@ export interface paths {
         full_content?: components["parameters"]["FullContent"];
         /** Filter on map index for mapped task. */
         map_index?: components["parameters"]["FilterMapIndex"];
+        /** Task log page number */
+        page_number?: components["parameters"]["PageNumber"];
         /**
          * A token that allows you to continue fetching logs.
          * If passed, it will specify the location from which the download should be continued.
@@ -2435,6 +2437,8 @@ export interface components {
      * By default, only the first fragment will be returned.
      */
     FullContent: boolean;
+    /** @description Task log page number */
+    PageNumber: number;
     /**
      * @description A token that allows you to continue fetching logs.
      * If passed, it will specify the location from which the download should be continued.
@@ -4352,6 +4356,8 @@ export interface operations {
         full_content?: components["parameters"]["FullContent"];
         /** Filter on map index for mapped task. */
         map_index?: components["parameters"]["FilterMapIndex"];
+        /** Task log page number */
+        page_number?: components["parameters"]["PageNumber"];
         /**
          * A token that allows you to continue fetching logs.
          * If passed, it will specify the location from which the download should be continued.
