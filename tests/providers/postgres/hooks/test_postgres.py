@@ -155,10 +155,16 @@ class TestPostgresHookConn:
 
     @mock.patch("airflow.providers.postgres.hooks.postgres.psycopg2.connect")
     def test_get_conn_extra(self, mock_connect):
-        self.connection.extra = '{"connect_timeout": 3}'
+        self.connection.extra = json.dumps({"client_encoding": "utf-8", "connect_timeout": 3})
         self.db_hook.get_conn()
         mock_connect.assert_called_once_with(
-            user="login", password="password", host="host", dbname="database", port=None, connect_timeout=3
+            user="login",
+            password="password",
+            host="host",
+            dbname="database",
+            port=None,
+            connect_timeout=3,
+            client_encoding="utf-8",
         )
 
     @mock.patch("airflow.providers.postgres.hooks.postgres.psycopg2.connect")
