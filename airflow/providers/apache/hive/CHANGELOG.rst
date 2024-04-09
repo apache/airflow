@@ -52,15 +52,11 @@ Features
 
 * ``Adding support to hive hook for high availability Hive installations (#38651)``
 
-Bug Fixes
-~~~~~~~~~
-
-* ``Fix deprecated apache.hive operators arguments in 'MappedOperator' (#38351)``
-
 .. Review and move the new changes to one of the sections above:
    * ``Fix TRY002 for apache hive provider (#38781)``
    * ``Bump ruff to 0.3.3 (#38240)``
    * ``Fix D105 for Apache Hive Provider (#38042)``
+   * ``Fix deprecated apache.hive operators arguments in 'MappedOperator' (#38351)``
 
 7.0.1
 .....
