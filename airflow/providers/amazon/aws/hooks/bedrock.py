@@ -19,6 +19,26 @@ from __future__ import annotations
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
+class BedrockHook(AwsBaseHook):
+    """
+    Interact with Amazon Bedrock.
+
+    Provide thin wrapper around :external+boto3:py:class:`boto3.client("bedrock") <Bedrock.Client>`.
+
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+    """
+
+    client_type = "bedrock"
+
+    def __init__(self, *args, **kwargs) -> None:
+        kwargs["client_type"] = self.client_type
+        super().__init__(*args, **kwargs)
+
+
 class BedrockRuntimeHook(AwsBaseHook):
     """
     Interact with the Amazon Bedrock Runtime.

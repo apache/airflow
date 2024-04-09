@@ -1,1 +1,0 @@
-Remove all remaining flask DAG views and redirect to their React equivalents. Page navigation now happens grid view selection and the tabs to the right of the grid.
