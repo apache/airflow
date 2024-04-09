@@ -47,11 +47,9 @@ class BaseBedrockSensor(AwsBaseSensor[BedrockHook]):
         - ``SUCCESS_STATES``
         - ``FAILURE_MESSAGE``
 
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is None or empty then the default boto3 behaviour is used. If
-        running Airflow in a distributed manner and aws_conn_id is None or
-        empty, then default boto3 configuration would be used (and must be
-        maintained on each worker node).
+    :param deferrable: If True, the sensor will operate in deferrable mode. This mode requires aiobotocore
+        module to be installed.
+        (default: False, but can be overridden in config file by setting default_deferrable to True)
     """
 
     INTERMEDIATE_STATES: tuple[str, ...] = ()
@@ -159,7 +157,7 @@ class BedrockProvisionModelThroughputCompletedSensor(BaseBedrockSensor):
         :ref:`howto/sensor:BedrockProvisionModelThroughputCompletedSensor`
 
 
-    :param model_id: The ARN or name of the provisioned throughput..
+    :param model_id: The ARN or name of the provisioned throughput.
 
     :param deferrable: If True, the sensor will operate in deferrable more. This mode requires aiobotocore
         module to be installed.
