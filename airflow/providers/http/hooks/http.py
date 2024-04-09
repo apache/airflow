@@ -484,7 +484,6 @@ class HttpAsyncHook(HttpHookMixin, BaseHook):
         self,
         endpoint: str | None = None,
         data: dict[str, Any] | str | None = None,
-        json: dict[str, Any] | str | None = None,
         headers: dict[str, Any] | None = None,
         extra_options: dict[str, Any] | None = None,
     ) -> ClientResponse:
@@ -524,7 +523,6 @@ class HttpAsyncHook(HttpHookMixin, BaseHook):
                 raise AirflowException(f"Unexpected HTTP Method: {self.method}")
 
             for attempt in range(1, 1 + self.retry_limit):
-                print(f"headers: {headers}")
                 response = await request_func(
                     url,
                     json=data if self.method in ("POST", "PUT", "PATCH") else None,
@@ -564,7 +562,6 @@ class HttpAsyncHook(HttpHookMixin, BaseHook):
         verify = session_conf.pop("verify")
         if verify is not None:
             session_conf["verify_ssl"] = verify
-        print(f"session_conf: {session_conf}")
         return session_conf
 
     def _retryable_error_async(self, exception: ClientResponseError) -> bool:
