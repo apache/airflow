@@ -111,6 +111,7 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
 
       // Text coloring, detect urls and log timestamps
       const ansiUp = new AnsiUp();
+      ansiUp.url_allowlist = {};
       // Detect urls and log timestamps
       const urlRegex =
         /http(s)?:\/\/[\w.-]+(\.?:[\w.-]+)*([/?#][\w\-._~:/?#[\]@!$&'()*+,;=.%]+)?/g;
