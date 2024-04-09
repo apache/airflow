@@ -378,20 +378,6 @@ combine-as-imports = true
 "tests/providers/qdrant/operators/test_qdrant.py" = ["E402"]
 "tests/providers/snowflake/operators/test_snowflake_sql.py" = ["E402"]
 
-# All the providers modules which do not follow TRY002 yet
-# cncf.kubernetes
-"airflow/providers/cncf/kubernetes/operators/pod.py" = ["TRY002"]
-# common.sql
-"airflow/providers/common/sql/hooks/sql.py" = ["TRY002"]
-# google
-"airflow/providers/google/cloud/hooks/bigquery.py" = ["TRY002"]
-"airflow/providers/google/cloud/hooks/dataflow.py" = ["TRY002"]
-"airflow/providers/google/cloud/hooks/dataproc.py" = ["TRY002"]
-"airflow/providers/google/cloud/operators/dataproc.py" = ["TRY002"]
-"airflow/providers/google/leveldb/hooks/leveldb.py" = ["TRY002"]
-# imap
-"airflow/providers/imap/hooks/imap.py" = ["TRY002"]
-
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.
 ban-relative-imports = "all"

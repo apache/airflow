@@ -910,7 +910,7 @@ class KubernetesPodOperator(BaseOperator):
         self.log.info("Output of curl command to kill istio: %s", output_str)
         resp.close()
         if self.KILL_ISTIO_PROXY_SUCCESS_MSG not in output_str:
-            raise Exception("Error while deleting istio-proxy sidecar: %s", output_str)
+            raise AirflowException("Error while deleting istio-proxy sidecar: %s", output_str)
 
     def process_pod_deletion(self, pod: k8s.V1Pod, *, reraise=True):
         with _optionally_suppress(reraise=reraise):
