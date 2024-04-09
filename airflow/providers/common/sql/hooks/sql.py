@@ -196,9 +196,9 @@ class DbApiHook(BaseHook):
     @property
     def drivername(self) -> str:
         """
-        Return the drivername for the connection.
+        Return the database drivername.
 
-        Should be implemented in the derived class to return database backend and drivername.
+        Should be implemented in the derived class to return database drivername.
 
         :return: the drivername for the connection.
         """
