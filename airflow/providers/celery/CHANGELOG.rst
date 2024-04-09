@@ -27,6 +27,25 @@
 Changelog
 ---------
 
+3.6.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Ensure __exit__ is called in decorator context managers (#38383)``
+* ``Don't dispose sqlalchemy engine when using internal api (#38562)``
+
+Misc
+~~~~
+
+* ``Allow to use 'redis'>=5 (#38385)``
+* ``Reraise of AirflowOptionalProviderFeatureException should be direct (#38555)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump ruff to 0.3.3 (#38240)``
+
 3.6.1
 .....
 
