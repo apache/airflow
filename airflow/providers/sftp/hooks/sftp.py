@@ -516,7 +516,7 @@ class SFTPHookAsync(BaseHook):
         ssh_client_conn = await asyncssh.connect(**conn_config)
         return ssh_client_conn
 
-    async def list_directory(self, path: str = "") -> list[str] | None:
+    async def list_directory(self, path: str = "") -> list[str] | None:  # type: ignore[return]
         """Return a list of files on the SFTP server at the provided path."""
         async with await self._get_conn() as ssh_conn:
             sftp_client = await ssh_conn.start_sftp_client()
@@ -526,7 +526,7 @@ class SFTPHookAsync(BaseHook):
             except asyncssh.SFTPNoSuchFile:
                 return None
 
-    async def read_directory(self, path: str = "") -> Sequence[asyncssh.sftp.SFTPName] | None:
+    async def read_directory(self, path: str = "") -> Sequence[asyncssh.sftp.SFTPName] | None:  # type: ignore[return]
         """Return a list of files along with their attributes on the SFTP server at the provided path."""
         async with await self._get_conn() as ssh_conn:
             sftp_client = await ssh_conn.start_sftp_client()
