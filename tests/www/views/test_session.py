@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from unittest import mock
 
+import httpx
 import pytest
 
 from airflow.exceptions import AirflowConfigException
@@ -29,7 +30,7 @@ pytestmark = pytest.mark.db_test
 
 
 def get_session_cookie(client):
-    return next((cookie for cookie in client.cookies if cookie == "session"), None)
+    return next((cookie for cookie in client.cookies.jar if cookie.name == "session"), None)
 
 
 def test_session_cookie_created_on_login(user_client):
@@ -40,13 +41,25 @@ def test_session_inaccessible_after_logout(user_client):
     session_cookie = get_session_cookie(user_client)
     assert session_cookie is not None
 
-    resp = user_client.get("/logout/")
-    assert resp.status_code == 302
+    # correctly logs in
+    resp = user_client.get("/home")
+    assert resp.status_code == 200
+    assert resp.url == httpx.URL("http://testserver/home")
 
-    # Try to access /home with the session cookie from earlier
-    user_client.set_cookie("session", session_cookie.value)
-    user_client.get("/home/")
-    assert resp.status_code == 302
+    # Same with cookies overwritten
+    user_client.get("/home", cookies={"session": session_cookie.value})
+    assert resp.status_code == 200
+    assert resp.url == httpx.URL("http://testserver/home")
+
+    # logs out
+    resp = user_client.get("/logout/")
+    assert resp.status_code == 200
+    assert resp.url == httpx.URL("http://testserver/login/?next=http%3A%2F%2Ftestserver%2Fhome")
+
+    # Try to access /home with the session cookie from earlier call
+    user_client.get("/home", cookies={"session": session_cookie.value})
+    assert resp.status_code == 200
+    assert resp.url == httpx.URL("http://testserver/login/?next=http%3A%2F%2Ftestserver%2Fhome")
 
 
 def test_invalid_session_backend_option():
