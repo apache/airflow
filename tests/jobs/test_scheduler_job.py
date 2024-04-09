@@ -1816,11 +1816,11 @@ class TestSchedulerJob:
         """
         scheduler_job = Job(executor=mock.MagicMock(slots_available=8))
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull, num_runs=1)
-        self.job_runner._run_scheduler_loop = mock.MagicMock(side_effect=Exception("oops"))
-        mock_processor_agent.return_value.end.side_effect = Exception("double oops")
-        scheduler_job.executor.end = mock.MagicMock(side_effect=Exception("triple oops"))
+        self.job_runner._run_scheduler_loop = mock.MagicMock(side_effect=RuntimeError("oops"))
+        mock_processor_agent.return_value.end.side_effect = RuntimeError("double oops")
+        scheduler_job.executor.end = mock.MagicMock(side_effect=RuntimeError("triple oops"))
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="oops"):
             run_job(scheduler_job, execute_callable=self.job_runner._execute)
 
         self.job_runner.processor_agent.end.assert_called_once()
@@ -1844,11 +1844,11 @@ class TestSchedulerJob:
         assert scheduler_job.executor is default_executor
         assert scheduler_job.executors == [default_executor, second_executor]
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull, num_runs=1)
-        self.job_runner._run_scheduler_loop = mock.MagicMock(side_effect=Exception("oops"))
-        mock_processor_agent.return_value.end.side_effect = Exception("double oops")
-        scheduler_job.executor.end = mock.MagicMock(side_effect=Exception("triple oops"))
+        self.job_runner._run_scheduler_loop = mock.MagicMock(side_effect=RuntimeError("oops"))
+        mock_processor_agent.return_value.end.side_effect = RuntimeError("double oops")
+        scheduler_job.executor.end = mock.MagicMock(side_effect=RuntimeError("triple oops"))
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="oops"):
             run_job(scheduler_job, execute_callable=self.job_runner._execute)
 
         self.job_runner.processor_agent.end.assert_called_once()
