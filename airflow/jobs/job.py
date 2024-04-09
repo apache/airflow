@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from functools import cached_property
+from functools import cached_property, lru_cache
 from time import sleep
 from typing import TYPE_CHECKING, Callable, NoReturn
 
@@ -54,6 +54,19 @@ def _resolve_dagrun_model():
     from airflow.models.dagrun import DagRun
 
     return DagRun
+
+
+@lru_cache
+def health_check_threshold(job_type: str, heartrate: int) -> int | float:
+    grace_multiplier = 2.1
+    health_check_threshold_value: int | float
+    if job_type == "SchedulerJob":
+        health_check_threshold_value = conf.getint("scheduler", "scheduler_health_check_threshold")
+    elif job_type == "TriggererJob":
+        health_check_threshold_value = conf.getfloat("triggerer", "triggerer_health_check_threshold")
+    else:
+        health_check_threshold_value = heartrate * grace_multiplier
+    return health_check_threshold_value
 
 
 class Job(Base, LoggingMixin):
@@ -112,6 +125,7 @@ class Job(Base, LoggingMixin):
             self.executor = executor
         self.start_date = timezone.utcnow()
         self.latest_heartbeat = timezone.utcnow()
+        self.previous_heartbeat = None
         if heartrate is not None:
             self.heartrate = heartrate
         self.unixname = getuser()
@@ -131,22 +145,18 @@ class Job(Base, LoggingMixin):
     def heartrate(self) -> float:
         return Job._heartrate(self.job_type)
 
-    def is_alive(self, grace_multiplier=2.1) -> bool:
+    def is_alive(self) -> bool:
         """
         Is this job currently alive.
 
         We define alive as in a state of RUNNING, and having sent a heartbeat
         within a multiple of the heartrate (default of 2.1)
-
-        :param grace_multiplier: multiplier of heartrate to require heart beat
-            within
         """
+        threshold_value = health_check_threshold(self.job_type, self.heartrate)
         return Job._is_alive(
-            job_type=self.job_type,
-            heartrate=self.heartrate,
             state=self.state,
+            health_check_threshold_value=threshold_value,
             latest_heartbeat=self.latest_heartbeat,
-            grace_multiplier=grace_multiplier,
         )
 
     @provide_session
@@ -206,16 +216,20 @@ class Job(Base, LoggingMixin):
 
             job = Job._update_heartbeat(job=self, session=session)
             self._merge_from(job)
-
+            time_since_last_heartbeat = (timezone.utcnow() - previous_heartbeat).total_seconds()
+            health_check_threshold_value = health_check_threshold(self.job_type, self.heartrate)
+            if time_since_last_heartbeat > health_check_threshold_value:
+                self.log.info("Heartbeat recovered after %.2f seconds", time_since_last_heartbeat)
             # At this point, the DB has updated.
             previous_heartbeat = self.latest_heartbeat
 
             heartbeat_callback(session)
             self.log.debug("[heartbeat]")
+            self.heartbeat_failed = False
         except OperationalError:
             Stats.incr(convert_camel_to_snake(self.__class__.__name__) + "_heartbeat_failure", 1, 1)
             if not self.heartbeat_failed:
-                self.log.exception("%s heartbeat got an exception", self.__class__.__name__)
+                self.log.exception("%s heartbeat failed with error", self.__class__.__name__)
                 self.heartbeat_failed = True
             if self.is_alive():
                 self.log.error(
@@ -278,22 +292,13 @@ class Job(Base, LoggingMixin):
 
     @staticmethod
     def _is_alive(
-        job_type: str | None,
-        heartrate: float,
         state: JobState | str | None,
+        health_check_threshold_value: float | int,
         latest_heartbeat: datetime.datetime,
-        grace_multiplier: float = 2.1,
     ) -> bool:
-        health_check_threshold: float
-        if job_type == "SchedulerJob":
-            health_check_threshold = conf.getint("scheduler", "scheduler_health_check_threshold")
-        elif job_type == "TriggererJob":
-            health_check_threshold = conf.getint("triggerer", "triggerer_health_check_threshold")
-        else:
-            health_check_threshold = heartrate * grace_multiplier
         return (
             state == JobState.RUNNING
-            and (timezone.utcnow() - latest_heartbeat).total_seconds() < health_check_threshold
+            and (timezone.utcnow() - latest_heartbeat).total_seconds() < health_check_threshold_value
         )
 
     @staticmethod

@@ -25,7 +25,7 @@ import pytest
 from flask import Flask
 
 from airflow.auth.managers.models.resource_details import AccessView, DagAccessEntity, DagDetails
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 from airflow.providers.fab.auth_manager.models import User
 from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
@@ -424,7 +424,8 @@ class TestFabAuthManager:
         flask_app.config["SECURITY_MANAGER_CLASS"] = TestSecurityManager
 
         with pytest.raises(
-            Exception, match="Your CUSTOM_SECURITY_MANAGER must extend FabAirflowSecurityManagerOverride."
+            AirflowConfigException,
+            match="Your CUSTOM_SECURITY_MANAGER must extend FabAirflowSecurityManagerOverride.",
         ):
             auth_manager_with_appbuilder.security_manager
 

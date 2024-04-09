@@ -384,10 +384,10 @@ def timetable_plugin(monkeypatch):
 class TestStringifiedDAGs:
     """Unit tests for stringified DAGs."""
 
-    def setup_method(self):
-        self.backup_base_hook_get_connection = BaseHook.get_connection
-        BaseHook.get_connection = mock.Mock(
-            return_value=Connection(
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self):
+        with mock.patch.object(BaseHook, "get_connection") as m:
+            m.return_value = Connection(
                 extra=(
                     "{"
                     '"project_id": "mock", '
@@ -399,11 +399,6 @@ class TestStringifiedDAGs:
                     "}"
                 )
             )
-        )
-        self.maxDiff = None
-
-    def teardown_method(self):
-        BaseHook.get_connection = self.backup_base_hook_get_connection
 
     @pytest.mark.db_test
     def test_serialization(self):
@@ -422,6 +417,7 @@ class TestStringifiedDAGs:
         )
         assert actual == expected
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "timetable, serialized_timetable",
         [
@@ -458,6 +454,7 @@ class TestStringifiedDAGs:
                 print(task["task_id"], k, v)
         assert actual == expected
 
+    @pytest.mark.db_test
     def test_dag_serialization_preserves_empty_access_roles(self):
         """Verify that an explicitly empty access_control dict is preserved."""
         dag = collect_dags(["airflow/example_dags"])["simple_dag"]
@@ -467,6 +464,7 @@ class TestStringifiedDAGs:
 
         assert serialized_dag["dag"]["_access_control"] == {"__type": "dict", "__var": {}}
 
+    @pytest.mark.db_test
     def test_dag_serialization_unregistered_custom_timetable(self):
         """Verify serialization fails without timetable registration."""
         dag = get_timetable_based_simple_dag(CustomSerializationTimetable("bar"))
@@ -506,6 +504,7 @@ class TestStringifiedDAGs:
         expected = json.loads(json.dumps(sorted_serialized_dag(expected)))
         return actual, expected
 
+    @pytest.mark.db_test
     def test_deserialization_across_process(self):
         """A serialized DAG can be deserialized in another process."""
 
@@ -533,6 +532,7 @@ class TestStringifiedDAGs:
         for dag_id in stringified_dags:
             self.validate_deserialized_dag(stringified_dags[dag_id], dags[dag_id])
 
+    @pytest.mark.db_test
     def test_roundtrip_provider_example_dags(self):
         dags = collect_dags(
             [
@@ -546,6 +546,7 @@ class TestStringifiedDAGs:
             serialized_dag = SerializedDAG.from_json(SerializedDAG.to_json(dag))
             self.validate_deserialized_dag(serialized_dag, dag)
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "timetable",
         [cron_timetable("0 0 * * *"), CustomSerializationTimetable("foo")],

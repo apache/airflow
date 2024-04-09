@@ -24,7 +24,7 @@
 requires = [
     "GitPython==3.1.43",
     "gitdb==4.0.11",
-    "hatchling==1.22.4",
+    "hatchling==1.22.5",
     "packaging==24.0",
     "pathspec==0.12.1",
     "pluggy==1.4.0",
@@ -71,7 +71,7 @@ dynamic = ["version", "optional-dependencies", "dependencies"]
 # !!! SEE COMMENTS BELOW TO FIND WHERE DEPENDENCIES ARE MAINTAINED                     !!!!!!!!!
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #
-# !!!!!! Those provuders are defined in `hatch_build.py` and should be maintained there  !!!!!!!
+# !!!!!! Those providers are defined in `hatch_build.py` and should be maintained there  !!!!!!!
 #
 # Those extras are available as regular core airflow extras - they install optional features of Airflow.
 #
@@ -379,45 +379,10 @@ combine-as-imports = true
 "tests/providers/snowflake/operators/test_snowflake_sql.py" = ["E402"]
 
 # All the providers modules which do not follow TRY002 yet
-# airbyte
-"airflow/providers/airbyte/hooks/airbyte.py" = ["TRY002"]
-"airflow/providers/airbyte/operators/airbyte.py" = ["TRY002"]
-"airflow/providers/airbyte/sensors/airbyte.py" = ["TRY002"]
-# alibaba
-"airflow/providers/alibaba/cloud/hooks/oss.py" = ["TRY002"]
-# amazon
-"airflow/providers/amazon/aws/operators/athena.py" = ["TRY002"]
-"airflow/providers/amazon/aws/operators/emr.py" = ["TRY002"]
-# apache.beam
-"airflow/providers/apache/beam/hooks/beam.py" = ["TRY002"]
-# apache.cassandra
-"airflow/providers/apache/cassandra/hooks/cassandra.py" = ["TRY002"]
-# apache.hdfs
-"airflow/providers/apache/hdfs/hooks/hdfs.py" = ["TRY002"]
-"airflow/providers/apache/hdfs/sensors/hdfs.py" = ["TRY002"]
-# apache.hive
-"airflow/providers/apache/hive/hooks/hive.py" = ["TRY002"]
 # cncf.kubernetes
 "airflow/providers/cncf/kubernetes/operators/pod.py" = ["TRY002"]
-# common.sql
-"airflow/providers/common/sql/hooks/sql.py" = ["TRY002"]
-# docker
-"airflow/providers/docker/operators/docker_swarm.py" = ["TRY002"]
-# fab
-"airflow/providers/fab/auth_manager/fab_auth_manager.py" = ["TRY002"]
-"airflow/providers/fab/auth_manager/security_manager/override.py" = ["TRY002"]
-# google
-"airflow/providers/google/cloud/hooks/bigquery.py" = ["TRY002"]
-"airflow/providers/google/cloud/hooks/dataflow.py" = ["TRY002"]
-"airflow/providers/google/cloud/hooks/dataproc.py" = ["TRY002"]
-"airflow/providers/google/cloud/operators/dataproc.py" = ["TRY002"]
-"airflow/providers/google/leveldb/hooks/leveldb.py" = ["TRY002"]
 # imap
 "airflow/providers/imap/hooks/imap.py" = ["TRY002"]
-# microsoft.azure
-"airflow/providers/microsoft/azure/operators/synapse.py" = ["TRY002"]
-# openlineage
-"airflow/providers/openlineage/utils/utils.py" = ["TRY002"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.

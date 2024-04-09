@@ -29,7 +29,6 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow import settings
 from airflow.models import Connection
 from airflow.utils.log.secrets_masker import (
     RedactedIO,
@@ -41,8 +40,7 @@ from airflow.utils.log.secrets_masker import (
 from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from tests.test_utils.config import conf_vars
 
-settings.MASK_SECRETS_IN_LOGS = True
-
+pytestmark = pytest.mark.enable_redact
 p = "password"
 
 

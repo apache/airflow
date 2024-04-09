@@ -1,5 +1,0 @@
-Prevent large string objects from being stored in the Rendered Template Fields
-
-There's now a limit to the length of data that can be stored in the Rendered Template Fields.
-The limit is set to 4096 characters. If the data exceeds this limit, it will be truncated. You can change this limit
-by setting the ``[core]max_template_field_length`` configuration option in your airflow config.
