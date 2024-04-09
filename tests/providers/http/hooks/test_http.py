@@ -701,9 +701,7 @@ class TestHttpAsyncHook:
         """Test api call asynchronously with a connection that has extra field."""
 
         connection_extra = {"bearer": "test", "some": "header"}
-        airflow_connection = get_airflow_connection_with_extra(
-            extra=connection_extra
-        )
+        airflow_connection = get_airflow_connection_with_extra(extra=connection_extra)
 
         aioresponse.post(
             "http://test:8080/v1/test",
@@ -764,9 +762,7 @@ class TestHttpAsyncHook:
             "allow_redirects": False,
             "max_redirects": 3,
         }
-        airflow_connection = get_airflow_connection_with_extra(
-            extra=extra
-        )
+        airflow_connection = get_airflow_connection_with_extra(extra=extra)
 
         with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
             headers, auth, session_conf = HttpAsyncHook().load_connection_settings(headers={"bearer": "test"})

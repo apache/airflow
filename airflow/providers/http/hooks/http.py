@@ -18,10 +18,9 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import warnings
 from logging import Logger
-from typing import TYPE_CHECKING, Any, Callable, cast
+from typing import TYPE_CHECKING, Any, Callable
 
 import aiohttp
 import requests
@@ -139,10 +138,7 @@ class HttpHookMixin:
             _session_conf = conn_extra["session_conf"]
             auth_args: list[str | None] = [conn.login, conn.password]
             auth_kwargs: dict[str, Any] = conn_extra["auth_kwargs"]
-            auth_type: Any = (
-                self.auth_type
-                or self._load_conn_auth_type(module_name=conn_extra["auth_type"])
-            )
+            auth_type: Any = self.auth_type or self._load_conn_auth_type(module_name=conn_extra["auth_type"])
 
             if auth_type:
                 if any(auth_args) or auth_kwargs:
@@ -177,7 +173,9 @@ class HttpHookMixin:
         )  # ignore this as timeout is only accepted in request method of Session
         if timeout is not None:
             session_conf["timeout"] = timeout
-        allow_redirects = extra.pop("allow_redirects", None)  # ignore this as only max_redirects is accepted in Session
+        allow_redirects = extra.pop(
+            "allow_redirects", None
+        )  # ignore this as only max_redirects is accepted in Session
         if allow_redirects is not None:
             session_conf["allow_redirects"] = allow_redirects
         session_conf["proxies"] = extra.pop("proxies", extra.pop("proxy", {}))
@@ -433,11 +431,12 @@ class HttpHook(HttpHookMixin, BaseHook):
         # TODO: remove ignore type when https://github.com/jd/tenacity/issues/428 is resolved
         return self._retry_obj(self.run, *args, **kwargs)  # type: ignore
 
+    @staticmethod
     def _url_from_endpoint(base_url: str | None, endpoint: str | None) -> str:
-       """Combine base url with endpoint."""
-       if base_url and not base_url.endswith("/") and endpoint and not endpoint.startswith("/"):
-           return f"{base_url}/{endpoint}"
-       return (base_url or "") + (endpoint or "")
+        """Combine base url with endpoint."""
+        if base_url and not base_url.endswith("/") and endpoint and not endpoint.startswith("/"):
+            return f"{base_url}/{endpoint}"
+        return (base_url or "") + (endpoint or "")
 
     def test_connection(self):
         """Test HTTP Connection."""
