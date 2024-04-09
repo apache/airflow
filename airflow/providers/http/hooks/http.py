@@ -73,6 +73,7 @@ class HttpHookMixin:
     http_conn_id: str
     base_url: str
     auth_type: Any
+    default_auth_type = HTTPBasicAuth
     get_connection: Callable
     log: Logger
 
@@ -264,7 +265,6 @@ class HttpHook(HttpHookMixin, BaseHook):
     default_conn_name = "http_default"
     conn_type = "http"
     hook_name = "HTTP"
-    default_auth_type = HTTPBasicAuth
 
     def __init__(
         self,
