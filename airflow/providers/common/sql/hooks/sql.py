@@ -179,7 +179,6 @@ class DbApiHook(BaseHook):
         # Hook deriving from the DBApiHook to still have access to the field in its constructor
         self.__schema = schema
         self.log_sql = log_sql
-        self._fast_executemany = fast_executemany
         self.descriptions: list[Sequence[Sequence] | None] = []
         self._insert_statement_format: str = kwargs.get(
             "insert_statement_format", "INSERT INTO {} {} VALUES ({})"
@@ -588,8 +587,6 @@ class DbApiHook(BaseHook):
                         )
                         sql = self._generate_insert_sql(table, values[0], target_fields, replace, **kwargs)
                         self.log.debug("Generated sql: %s", sql)
-                        if self._fast_executemany:
-                            cur.fast_executemany = True
                         cur.executemany(sql, values)
                         conn.commit()
                         self.log.info("Loaded %s rows into %s so far", len(chunked_rows), table)
