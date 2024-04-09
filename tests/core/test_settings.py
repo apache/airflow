@@ -65,6 +65,16 @@ def task_must_have_owners(task: BaseOperator):
 """
 
 
+@pytest.fixture
+def clear_internal_api():
+    try:
+        yield
+    finally:
+        InternalApiConfig._initialized = False
+        InternalApiConfig._use_internal_api = None
+        InternalApiConfig._internal_api_endpoint = None
+
+
 class SettingsContext:
     def __init__(self, content: str, module_name: str):
         self.content = content
@@ -276,27 +286,22 @@ class TestEngineArgs:
         ("core", "internal_api_url"): "http://localhost:8888",
     }
 )
-def test_get_traceback_session_if_aip_44_enabled():
+def test_get_traceback_session_if_aip_44_enabled(clear_internal_api):
     # ensure we take the database_access_isolation config
-    try:
-        InternalApiConfig._init_values()
-        assert InternalApiConfig.get_use_internal_api() is True
+    InternalApiConfig._init_values()
+    assert InternalApiConfig.get_use_internal_api() is True
 
-        with create_session() as session:
-            assert isinstance(session, TracebackSession)
+    with create_session() as session:
+        assert isinstance(session, TracebackSession)
 
-            # no error just to create the session
-            # but below, when we try to use, it will raise
+        # no error just to create the session
+        # but below, when we try to use, it will raise
 
-            with pytest.raises(
-                RuntimeError,
-                match="TracebackSession object was used but internal API is enabled.",
-            ):
-                session.execute()
-    finally:
-        InternalApiConfig._initialized = False
-        InternalApiConfig._use_internal_api = None
-        InternalApiConfig._internal_api_endpoint = None
+        with pytest.raises(
+            RuntimeError,
+            match="TracebackSession object was used but internal API is enabled.",
+        ):
+            session.execute()
 
 
 @pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
@@ -307,20 +312,15 @@ def test_get_traceback_session_if_aip_44_enabled():
     }
 )
 @patch("airflow.utils.session.TracebackSession.__new__")
-def test_create_session_ctx_mgr_no_call_methods(mock_new):
-    try:
-        m = MagicMock()
-        mock_new.return_value = m
-        # ensure we take the database_access_isolation config
-        InternalApiConfig._init_values()
-        assert InternalApiConfig.get_use_internal_api() is True
+def test_create_session_ctx_mgr_no_call_methods(mock_new, clear_internal_api):
+    m = MagicMock()
+    mock_new.return_value = m
+    # ensure we take the database_access_isolation config
+    InternalApiConfig._init_values()
+    assert InternalApiConfig.get_use_internal_api() is True
 
-        with create_session() as session:
-            assert isinstance(session, MagicMock)
-            assert session == m
-        method_calls = [x[0] for x in m.method_calls]
-        assert method_calls == []  # commit and close not called when using internal API
-    finally:
-        InternalApiConfig._initialized = False
-        InternalApiConfig._use_internal_api = None
-        InternalApiConfig._internal_api_endpoint = None
+    with create_session() as session:
+        assert isinstance(session, MagicMock)
+        assert session == m
+    method_calls = [x[0] for x in m.method_calls]
+    assert method_calls == []  # commit and close not called when using internal API
