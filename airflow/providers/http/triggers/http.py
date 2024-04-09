@@ -71,7 +71,7 @@ class HttpTrigger(BaseTrigger):
         self.extra_options = extra_options
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serialize HttpTrigger arguments and classpath."""
+        """Serializes HttpTrigger arguments and classpath."""
         return (
             "airflow.providers.http.triggers.http.HttpTrigger",
             {
@@ -86,7 +86,7 @@ class HttpTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        """Make a series of asynchronous http calls via a http hook."""
+        """Makes a series of asynchronous http calls via an http hook."""
         hook = HttpAsyncHook(
             method=self.method,
             http_conn_id=self.http_conn_id,
@@ -161,7 +161,7 @@ class HttpSensorTrigger(BaseTrigger):
         self.poke_interval = poke_interval
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serialize HttpTrigger arguments and classpath."""
+        """Serializes HttpTrigger arguments and classpath."""
         return (
             "airflow.providers.http.triggers.http.HttpSensorTrigger",
             {
@@ -175,7 +175,7 @@ class HttpSensorTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        """Make a series of asynchronous http calls via an http hook."""
+        """Makes a series of asynchronous http calls via an http hook."""
         hook = self._get_async_hook()
         while True:
             try:
@@ -186,7 +186,6 @@ class HttpSensorTrigger(BaseTrigger):
                     extra_options=self.extra_options,
                 )
                 yield TriggerEvent(True)
-                return
             except AirflowException as exc:
                 if str(exc).startswith("404"):
                     await asyncio.sleep(self.poke_interval)
