@@ -347,7 +347,7 @@ class HttpHook(HttpHookMixin, BaseHook):
 
         session = self.get_conn(headers)
 
-        url = _url_from_endpoint(self.base_url, endpoint)
+        url = self._url_from_endpoint(self.base_url, endpoint)
 
         if self.tcp_keep_alive:
             keep_alive_adapter = TCPKeepAliveAdapter(
@@ -521,7 +521,7 @@ class HttpAsyncHook(HttpHookMixin, BaseHook):
         session_conf = self._process_session_conf(session_conf)
         session_conf.update(extra_options)
 
-        url = _url_from_endpoint(self.base_url, endpoint)
+        url = self._url_from_endpoint(self.base_url, endpoint)
 
         async with aiohttp.ClientSession() as session:
             if self.method == "GET":
