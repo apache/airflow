@@ -182,6 +182,7 @@ const useFilters = (): FilterHookReturn => {
     searchParams.delete(BASE_DATE_PARAM);
     searchParams.delete(RUN_TYPE_PARAM);
     searchParams.delete(RUN_STATE_PARAM);
+    searchParams.delete(EXECUTION_DATE_PARAM);
     setSearchParams(searchParams);
   };
 
