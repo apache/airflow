@@ -2295,7 +2295,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 return f"Format exception for {var_name}: "
 
         if table_input.count(".") + table_input.count(":") > 3:
-            raise Exception(f"{var_print(var_name)}Use either : or . to specify project got {table_input}")
+            raise ValueError(f"{var_print(var_name)}Use either : or . to specify project got {table_input}")
         cmpt = table_input.rsplit(":", 1)
         project_id = None
         rest = table_input
@@ -2307,7 +2307,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 project_id = cmpt[0]
                 rest = cmpt[1]
         else:
-            raise Exception(
+            raise ValueError(
                 f"{var_print(var_name)}Expect format of (<project:)<dataset>.<table>, got {table_input}"
             )
 
@@ -2323,7 +2323,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             dataset_id = cmpt[0]
             table_id = cmpt[1]
         else:
-            raise Exception(
+            raise ValueError(
                 f"{var_print(var_name)} Expect format of (<project.|<project:)<dataset>.<table>, "
                 f"got {table_input}"
             )
@@ -3107,7 +3107,7 @@ def split_tablename(
             return f"Format exception for {var_name}: "
 
     if table_input.count(".") + table_input.count(":") > 3:
-        raise Exception(f"{var_print(var_name)}Use either : or . to specify project got {table_input}")
+        raise ValueError(f"{var_print(var_name)}Use either : or . to specify project got {table_input}")
     cmpt = table_input.rsplit(":", 1)
     project_id = None
     rest = table_input
@@ -3119,7 +3119,7 @@ def split_tablename(
             project_id = cmpt[0]
             rest = cmpt[1]
     else:
-        raise Exception(
+        raise ValueError(
             f"{var_print(var_name)}Expect format of (<project:)<dataset>.<table>, got {table_input}"
         )
 
@@ -3135,7 +3135,7 @@ def split_tablename(
         dataset_id = cmpt[0]
         table_id = cmpt[1]
     else:
-        raise Exception(
+        raise ValueError(
             f"{var_print(var_name)}Expect format of (<project.|<project:)<dataset>.<table>, got {table_input}"
         )
 
