@@ -171,10 +171,10 @@ class TestSparkSubmitOperator:
             task_id="spark_submit_job", spark_binary="sparky", dag=self.dag, **config
         )
         cmd = " ".join(operator._get_hook()._build_spark_submit_command("test"))
-        assert "--queue yarn_dev_queue2" in cmd
+        assert "--queue yarn_dev_queue2" in cmd  # yarn queue
         assert "--deploy-mode client2" in cmd
         assert "sparky" in cmd
-        assert operator.queue == "airflow_custom_queue"  # custom airflow queue
+        assert operator.queue == "airflow_custom_queue"  # airflow queue
 
         # if we don't pass any overrides in arguments, default values
         config["yarn_queue"] = None
@@ -182,7 +182,7 @@ class TestSparkSubmitOperator:
         config.pop("queue", None)  # using default airflow queue
         operator2 = SparkSubmitOperator(task_id="spark_submit_job2", dag=self.dag, **config)
         cmd2 = " ".join(operator2._get_hook()._build_spark_submit_command("test"))
-        assert "--queue root.default" in cmd2
+        assert "--queue root.default" in cmd2  # yarn queue
         assert "--deploy-mode client2" not in cmd2
         assert "spark-submit" in cmd2
         assert operator2.queue == "default"  # airflow queue
