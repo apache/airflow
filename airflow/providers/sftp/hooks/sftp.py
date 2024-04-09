@@ -518,23 +518,22 @@ class SFTPHookAsync(BaseHook):
 
     async def list_directory(self, path: str = "") -> list[str] | None:
         """Return a list of files on the SFTP server at the provided path."""
-        ssh_conn = await self._get_conn()
-        sftp_client = await ssh_conn.start_sftp_client()
-        try:
-            files = await sftp_client.listdir(path)
-            return sorted(files)
-        except asyncssh.SFTPNoSuchFile:
-            return None
+        async with await self._get_conn() as ssh_conn:
+            sftp_client = await ssh_conn.start_sftp_client()
+            try:
+                files = await sftp_client.listdir(path)
+                return sorted(files)
+            except asyncssh.SFTPNoSuchFile:
+                return None
 
     async def read_directory(self, path: str = "") -> Sequence[asyncssh.sftp.SFTPName] | None:
         """Return a list of files along with their attributes on the SFTP server at the provided path."""
-        ssh_conn = await self._get_conn()
-        sftp_client = await ssh_conn.start_sftp_client()
-        try:
-            files = await sftp_client.readdir(path)
-            return files
-        except asyncssh.SFTPNoSuchFile:
-            return None
+        async with await self._get_conn() as ssh_conn:
+            sftp_client = await ssh_conn.start_sftp_client()
+            try:
+                return await sftp_client.readdir(path)
+            except asyncssh.SFTPNoSuchFile:
+                return None
 
     async def get_files_and_attrs_by_pattern(
         self, path: str = "", fnmatch_pattern: str = ""
