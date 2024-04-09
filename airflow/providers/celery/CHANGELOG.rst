@@ -35,6 +35,7 @@ Bug Fixes
 
 * ``Ensure __exit__ is called in decorator context managers (#38383)``
 * ``Don't dispose sqlalchemy engine when using internal api (#38562)``
+* ``Use celery worker CLI from Airflow package for Airflow < 2.8.0 (#38879)``
 
 Misc
 ~~~~

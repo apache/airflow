@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.6.2
 .....
 
-Latest change: 2024-03-27
+Latest change: 2024-04-09
 
 =================================================================================================  ===========  ===============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===============================================================================
+`3e30b3a025 <https://github.com/apache/airflow/commit/3e30b3a02584e13fa130255b25756eaf7dfe35d3>`_  2024-04-09   ``Use celery worker CLI from Airflow package for Airflow < 2.8.0 (#38879)``
 `179b963782 <https://github.com/apache/airflow/commit/179b96378251db258d564ba091deef2ab762d12d>`_  2024-03-27   ``Don't dispose sqlalchemy engine when using internal api (#38562)``
 `2ad923a001 <https://github.com/apache/airflow/commit/2ad923a001cbfc93bbf47cb2fa64fca202c44518>`_  2024-03-27   ``Rerais of AirflowOptionalProviderFeatureException should be direct (#38555)``
 `6296f7e224 <https://github.com/apache/airflow/commit/6296f7e224e0c7772e49f2f3b42a398482f2c986>`_  2024-03-22   ``Allow to use 'redis'>=5 (#38385)``
