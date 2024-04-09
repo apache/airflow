@@ -294,7 +294,7 @@ def test_get_traceback_session_if_aip_44_enabled(clear_internal_api):
     with create_session() as session:
         assert isinstance(session, TracebackSession)
 
-        # no error just to create the session
+        # no error just to create the "session"
         # but below, when we try to use, it will raise
 
         with pytest.raises(
