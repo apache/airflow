@@ -1607,9 +1607,10 @@ def upgradedb(
 
     config = _get_alembic_config()
 
+    _from_revision = _get_current_revision(session)
     if show_sql_only:
         if not from_revision:
-            from_revision = _get_current_revision(session)
+            from_revision = _from_revision
 
         if not to_revision:
             script = _get_script_object()
@@ -1666,11 +1667,14 @@ def upgradedb(
         _reserialize_dags(session=session)
     add_default_pool_if_not_exists(session=session)
     synchronize_log_template(session=session)
-    if _revision_greater(
-        config,
-        _REVISION_HEADS_MAP["2.9.0"],
-        _get_current_revision(session=session),
+    current_version = _get_current_revision(session=session)
+    trigger_kwargs_encryption_version = _REVISION_HEADS_MAP["2.9.0"]
+    if (
+        _from_revision != trigger_kwargs_encryption_version
+        and _revision_greater(config, trigger_kwargs_encryption_version, _from_revision)
+        and _revision_greater(config, current_version, trigger_kwargs_encryption_version)
     ):
+        # _from_revision < trigger_kwargs_encryption_version <= current_version
         encrypt_trigger_kwargs(session=session)
 
 
@@ -1735,20 +1739,23 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
     config = _get_alembic_config()
 
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
+        _from_revision = _get_current_revision(session)
         if show_sql_only:
             log.warning("Generating sql scripts for manual migration.")
             if not from_revision:
-                from_revision = _get_current_revision(session)
+                from_revision = _from_revision
             revision_range = f"{from_revision}:{to_revision}"
             _offline_migration(command.downgrade, config=config, revision=revision_range)
         else:
             log.info("Applying downgrade migrations.")
             command.downgrade(config, revision=to_revision, sql=show_sql_only)
-            if _revision_greater(
-                config,
-                _REVISION_HEADS_MAP["2.9.0"],
-                to_revision,
+            trigger_kwargs_encryption_version = _REVISION_HEADS_MAP["2.9.0"]
+            if (
+                to_revision != trigger_kwargs_encryption_version
+                and _revision_greater(config, _from_revision, trigger_kwargs_encryption_version)
+                and _revision_greater(config, trigger_kwargs_encryption_version, to_revision)
             ):
+                # to_revision < trigger_kwargs_encryption_version <= _from_revision
                 decrypt_trigger_kwargs(session=session)
 
 
