@@ -210,35 +210,48 @@ def init_api_error_handlers(connexion_app: connexion.FlaskApp) -> None:
     """Add error handlers for 404 and 405 errors for existing API paths."""
     from airflow.www import views
 
-    def _handle_http_exception(ex: starlette.exceptions.HTTPException) -> ConnexionResponse:
-        return problem(
-            title=connexion.http_facts.HTTP_STATUS_CODES.get(ex.status_code),
-            detail=ex.detail,
-            status=ex.status_code,
-        )
+    def _handle_api_not_found(error) -> ConnexionResponse | str:
+        from flask.globals import request
 
-    def _handle_api_not_found(
-        request: ConnexionRequest, ex: starlette.exceptions.HTTPException
-    ) -> ConnexionResponse:
-        if any([request.url.path.startswith(p) for p in base_paths]):
+        if any([request.path.startswith(p) for p in base_paths]):
             # 404 errors are never handled on the blueprint level
             # unless raised from a view func so actual 404 errors,
             # i.e. "no route for it" defined, need to be handled
             # here on the application level
-            return _handle_http_exception(ex)
-        else:
-            return views.not_found(ex)
+            return connexion_app._http_exception(error)
+        return views.not_found(error)
 
-    def _handle_method_not_allowed(
+    def _handle_api_method_not_allowed(error) -> ConnexionResponse | str:
+        from flask.globals import request
+
+        if any([request.path.startswith(p) for p in base_paths]):
+            return connexion_app._http_exception(error)
+        return views.method_not_allowed(error)
+
+    def _handle_redirect(
         request: ConnexionRequest, ex: starlette.exceptions.HTTPException
     ) -> ConnexionResponse:
-        if any([request.url.path.startswith(p) for p in base_paths]):
-            return _handle_http_exception(ex)
-        else:
-            return views.method_not_allowed(ex)
+        return problem(
+            title=connexion.http_facts.HTTP_STATUS_CODES.get(ex.status_code),
+            detail=ex.detail,
+            headers={"Location": ex.detail},
+            status=ex.status_code,
+        )
 
-    connexion_app.add_error_handler(404, _handle_api_not_found)
-    connexion_app.add_error_handler(405, _handle_method_not_allowed)
+    # in case of 404 and 405 we handle errors at the Flask APP level in order to have access to
+    # context and be able to render the error page for the UI
+    connexion_app.app.register_error_handler(404, _handle_api_not_found)
+    connexion_app.app.register_error_handler(405, _handle_api_method_not_allowed)
+
+    # We should handle redirects at connexion_app level - the requests will be redirected to the target
+    # location - so they can return application/problem+json response with the Location header regardless
+    # ot the request path - does not matter if it is API or UI request
+    connexion_app.add_error_handler(301, _handle_redirect)
+    connexion_app.add_error_handler(302, _handle_redirect)
+    connexion_app.add_error_handler(307, _handle_redirect)
+    connexion_app.add_error_handler(308, _handle_redirect)
+
+    # Everything else we handle at the connexion_app level by default error handler
     connexion_app.add_error_handler(ProblemException, problem_error_handler)
 
 
