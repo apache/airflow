@@ -22,6 +22,7 @@ from __future__ import annotations
 import contextlib
 import copy
 import functools
+import traceback
 import warnings
 from typing import (
     TYPE_CHECKING,
@@ -357,12 +358,13 @@ def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]:
     return {k: _create_value(k, v) for k, v in source._context.items()}
 
 
+@contextlib.contextmanager
 def suppress_and_warn(*exceptions: Type[BaseException]):
     """Context manager that suppresses the given exceptions and logs a warning message."""
     try:
         yield
     except exceptions as e:
-        warnings.warn(f"Exception suppressed: {e}")
+        warnings.warn(f"Exception suppressed: {e}\n{traceback.format_exc()}", category=UserWarning)
 
 
 def context_get_dataset_events(context: Context) -> DatasetEventAccessors:
