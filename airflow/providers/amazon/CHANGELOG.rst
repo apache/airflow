@@ -44,7 +44,6 @@ Bug Fixes
 
 * ``Reduce 's3hook' memory usage (#37886)``
 * ``Add check in AWS auth manager to check if the Amazon Verified Permissions schema is up to date (#38333)``
-* ``fix: COMMAND string should be raw to avoid SyntaxWarning: invalid escape sequence '\s' (#38734)``
 * ``fix: EmrServerlessStartJobOperator not serializing DAGs correctly when partial/expand is used. (#38022)``
 * ``fix(amazon): add return statement to yield within a while loop in triggers (#38396)``
 * ``Fix set deprecated amazon operators arguments in 'MappedOperator' (#38346)``
@@ -74,6 +73,8 @@ Misc
    * ``Add system test to test the AWS auth manager (#37947)``
    * ``fix: try002 for provider amazon (#38789)``
    * ``Typo fix (#38783)``
+   * ``fix: COMMAND string should be raw to avoid SyntaxWarning: invalid escape sequence '\s' (#38734)``
+   * ``Revert "fix: COMMAND string should be raw to avoid SyntaxWarning: invalid escape sequence '\s' (#38734)" (#38864)``
 
 8.19.0
 ......
