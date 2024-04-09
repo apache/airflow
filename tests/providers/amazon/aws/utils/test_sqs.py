@@ -34,12 +34,12 @@ def response():
 
 
 @pytest.fixture
-def messages_dict_dict():
+def sample_message_1():
     return [{"Body": '{"key": "value1"}'}, {"Body": '{"key": "value2"}'}]
 
 
 @pytest.fixture
-def messages_dict():
+def sample_message_2():
     return [{"Body": "message1"}, {"Body": "message2"}, {"Body": "message3"}]
 
 
@@ -78,9 +78,9 @@ def test_filter_messages_literal():
     assert filtered_messages == [{"Body": "message1"}]
 
 
-def test_filter_messages_jsonpath(messages_dict_dict):
+def test_filter_messages_jsonpath(sample_message_1):
     filtered_messages = filter_messages(
-        messages_dict_dict,
+        sample_message_1,
         message_filtering="jsonpath",
         message_filtering_match_values=["value1"],
         message_filtering_config="key",
@@ -88,15 +88,15 @@ def test_filter_messages_jsonpath(messages_dict_dict):
     assert filtered_messages == [{"Body": '{"key": "value1"}'}]
 
 
-def test_filter_messages_literal_with_matching_values(messages_dict):
+def test_filter_messages_literal_with_matching_values(sample_message_2):
     filtered_messages = filter_messages_literal(
-        messages_dict, message_filtering_match_values=["message1", "message3"]
+        sample_message_2, message_filtering_match_values=["message1", "message3"]
     )
     assert filtered_messages == [{"Body": "message1"}, {"Body": "message3"}]
 
 
-def test_filter_messages_literal_with_no_matching_values(messages_dict):
-    filtered_messages = filter_messages_literal(messages_dict, message_filtering_match_values=["message4"])
+def test_filter_messages_literal_with_no_matching_values(sample_message_2):
+    filtered_messages = filter_messages_literal(sample_message_2, message_filtering_match_values=["message4"])
     assert filtered_messages == []
 
 
@@ -106,9 +106,9 @@ def test_filter_messages_literal_with_empty_messages():
     assert filtered_messages == []
 
 
-def test_filter_messages_jsonpath_with_matching_values(messages_dict_dict):
+def test_filter_messages_jsonpath_with_matching_values(sample_message_1):
     filtered_messages = filter_messages_jsonpath(
-        messages_dict_dict,
+        sample_message_1,
         message_filtering_match_values=["value1"],
         message_filtering_config="key",
         parse=jsonpath_ng.parse,
@@ -116,9 +116,9 @@ def test_filter_messages_jsonpath_with_matching_values(messages_dict_dict):
     assert filtered_messages == [{"Body": '{"key": "value1"}'}]
 
 
-def test_filter_messages_jsonpath_with_no_matching_values(messages_dict_dict):
+def test_filter_messages_jsonpath_with_no_matching_values(sample_message_1):
     filtered_messages = filter_messages_jsonpath(
-        messages_dict_dict,
+        sample_message_1,
         message_filtering_match_values=["value3"],
         message_filtering_config="key",
         parse=jsonpath_ng.parse,
