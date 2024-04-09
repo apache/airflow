@@ -58,11 +58,10 @@ class TestPostgresHookConn:
 
     @mock.patch("airflow.providers.postgres.hooks.postgres.psycopg2.connect")
     def test_get_uri(self, mock_connect):
-        self.connection.extra = json.dumps({"client_encoding": "utf-8"})
         self.connection.conn_type = "postgres"
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
-        assert self.db_hook.get_uri() == "postgresql://login:password@host/database?client_encoding=utf-8"
+        assert self.db_hook.get_uri() == "postgresql://login:password@host/database"
 
     @mock.patch("airflow.providers.postgres.hooks.postgres.psycopg2.connect")
     def test_get_conn_cursor(self, mock_connect):
