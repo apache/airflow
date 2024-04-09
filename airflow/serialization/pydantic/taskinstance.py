@@ -99,6 +99,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     queued_dttm: Optional[datetime]
     queued_by_job_id: Optional[int]
     pid: Optional[int]
+    executor: Optional[str]
     executor_config: Any
     updated_at: Optional[datetime]
     rendered_map_index: Optional[str]

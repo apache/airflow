@@ -102,3 +102,11 @@ def set_default_aws_settings(aws_testing_env_vars, monkeypatch):
             monkeypatch.delenv(env_name, raising=False)
     for env_name, value in aws_testing_env_vars.items():
         monkeypatch.setenv(env_name, value)
+
+
+@pytest.fixture(scope="package", autouse=True)
+def setup_default_aws_connections():
+    with pytest.MonkeyPatch.context() as mp_ctx:
+        mp_ctx.setenv("AIRFLOW_CONN_AWS_DEFAULT", '{"conn_type": "aws"}')
+        mp_ctx.setenv("AIRFLOW_CONN_EMR_DEFAULT", '{"conn_type": "emr", "extra": {}}')
+        yield

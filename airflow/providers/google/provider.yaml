@@ -108,6 +108,8 @@ dependencies:
   - google-auth>=1.0.0
   - google-auth-httplib2>=0.0.1
   - google-cloud-aiplatform>=1.42.1
+  - google-cloud-automl>=2.12.0
+  - google-cloud-bigquery>=3.0.1
   - google-cloud-bigquery-datatransfer>=3.13.0
   - google-cloud-bigtable>=2.17.0
   - google-cloud-build>=3.22.0
@@ -201,6 +203,8 @@ integrations:
     tags: [gmp]
   - integration-name: Google AutoML
     external-doc-url: https://cloud.google.com/automl/
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/automl.rst
     logo: /integration-logos/gcp/Cloud-AutoML.png
     tags: [gcp]
   - integration-name: Google BigQuery Data Transfer Service
@@ -529,6 +533,9 @@ operators:
   - integration-name: Google Cloud Common
     python-modules:
       - airflow.providers.google.cloud.operators.cloud_base
+  - integration-name: Google AutoML
+    python-modules:
+      - airflow.providers.google.cloud.operators.automl
   - integration-name: Google BigQuery
     python-modules:
       - airflow.providers.google.cloud.operators.bigquery
@@ -1229,6 +1236,11 @@ extra-links:
   - airflow.providers.google.cloud.links.cloud_build.CloudBuildListLink
   - airflow.providers.google.cloud.links.cloud_build.CloudBuildTriggersListLink
   - airflow.providers.google.cloud.links.cloud_build.CloudBuildTriggerDetailsLink
+  - airflow.providers.google.cloud.links.automl.AutoMLDatasetLink
+  - airflow.providers.google.cloud.links.automl.AutoMLDatasetListLink
+  - airflow.providers.google.cloud.links.automl.AutoMLModelLink
+  - airflow.providers.google.cloud.links.automl.AutoMLModelTrainLink
+  - airflow.providers.google.cloud.links.automl.AutoMLModelPredictLink
   - airflow.providers.google.cloud.links.life_sciences.LifeSciencesLink
   - airflow.providers.google.cloud.links.cloud_functions.CloudFunctionsDetailsLink
   - airflow.providers.google.cloud.links.cloud_functions.CloudFunctionsListLink

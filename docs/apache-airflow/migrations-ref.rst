@@ -32,14 +32,16 @@ Here's the list of all the Database Migrations that are executed via when you ru
 
 
 
- .. This table is automatically updated by pre-commit by ``scripts/ci/pre_commit/pre_commit_migration_reference.py``
+ .. This table is automatically updated by pre-commit by ``scripts/ci/pre_commit/migration_reference.py``
  .. All table elements are scraped from migration files
  .. Beginning of auto-generated table
 
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | Revision ID                     | Revises ID        | Airflow Version   | Description                                                  |
 +=================================+===================+===================+==============================================================+
-| ``1949afb29106`` (head)         | ``ee1467d4aa35``  | ``2.9.0``         | update trigger kwargs type                                   |
+| ``677fdbb7fc54`` (head)         | ``1949afb29106``  | ``2.10.0``        | add new executor field to db                                 |
++---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
+| ``1949afb29106``                | ``ee1467d4aa35``  | ``2.9.0``         | update trigger kwargs type                                   |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | ``ee1467d4aa35``                | ``b4078ac230a1``  | ``2.9.0``         | add display name for dag and task instance                   |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+

@@ -28,6 +28,7 @@ from google.cloud.aiplatform import schema
 from google.protobuf.struct_pb2 import Value
 
 from airflow.models.dag import DAG
+from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
     GCSDeleteBucketOperator,
@@ -70,6 +71,7 @@ DATA_CONFIG = [
         "gcs_source": {"uris": [AUTOML_DATASET_BUCKET]},
     },
 ]
+extract_object_id = CloudAutoMLHook.extract_object_id
 
 # Example DAG for AutoML Natural Language Text Classification
 with DAG(

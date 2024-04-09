@@ -28,6 +28,7 @@ import time
 import uuid
 from copy import deepcopy
 from datetime import datetime, timedelta
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Iterable, Mapping, NoReturn, Sequence, Union, cast
 
 from aiohttp import ClientSession as ClientSession
@@ -103,14 +104,49 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     conn_type = "gcpbigquery"
     hook_name = "Google Bigquery"
 
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to connection form."""
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import validators
+        from wtforms.fields.simple import BooleanField, StringField
+
+        from airflow.www.validators import ValidJson
+
+        connection_form_widgets = super().get_connection_form_widgets()
+        connection_form_widgets["use_legacy_sql"] = BooleanField(lazy_gettext("Use Legacy SQL"), default=True)
+        connection_form_widgets["location"] = StringField(
+            lazy_gettext("Location"), widget=BS3TextFieldWidget()
+        )
+        connection_form_widgets["priority"] = StringField(
+            lazy_gettext("Priority"),
+            default="INTERACTIVE",
+            widget=BS3TextFieldWidget(),
+            validators=[validators.AnyOf(["INTERACTIVE", "BATCH"])],
+        )
+        connection_form_widgets["api_resource_configs"] = StringField(
+            lazy_gettext("API Resource Configs"), widget=BS3TextFieldWidget(), validators=[ValidJson()]
+        )
+        connection_form_widgets["labels"] = StringField(
+            lazy_gettext("Labels"), widget=BS3TextFieldWidget(), validators=[ValidJson()]
+        )
+        connection_form_widgets["labels"] = StringField(
+            lazy_gettext("Labels"), widget=BS3TextFieldWidget(), validators=[ValidJson()]
+        )
+        return connection_form_widgets
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom field behaviour."""
+        return super().get_ui_field_behaviour()
+
     def __init__(
         self,
-        gcp_conn_id: str = GoogleBaseHook.default_conn_name,
         use_legacy_sql: bool = True,
         location: str | None = None,
         priority: str = "INTERACTIVE",
         api_resource_configs: dict | None = None,
-        impersonation_chain: str | Sequence[str] | None = None,
         impersonation_scopes: str | Sequence[str] | None = None,
         labels: dict | None = None,
         **kwargs,
@@ -120,18 +156,25 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 "The `delegate_to` parameter has been deprecated before and finally removed in this version"
                 " of Google Provider. You MUST convert it to `impersonate_chain`"
             )
-        super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            impersonation_chain=impersonation_chain,
-        )
-        self.use_legacy_sql = use_legacy_sql
-        self.location = location
-        self.priority = priority
+        super().__init__(**kwargs)
+        self.use_legacy_sql: bool = self._get_field("use_legacy_sql", use_legacy_sql)
+        self.location: str | None = self._get_field("location", location)
+        self.priority: str = self._get_field("priority", priority)
         self.running_job_id: str | None = None
-        self.api_resource_configs: dict = api_resource_configs or {}
-        self.labels = labels
-        self.credentials_path = "bigquery_hook_credentials.json"
-        self.impersonation_scopes = impersonation_scopes
+        self.api_resource_configs: dict = self._get_field("api_resource_configs", api_resource_configs or {})
+        self.labels = self._get_field("labels", labels or {})
+        self.impersonation_scopes: str | Sequence[str] | None = impersonation_scopes
+
+    @cached_property
+    @deprecated(
+        reason=(
+            "`BigQueryHook.credentials_path` property is deprecated and will be removed in the future. "
+            "This property used for obtaining credentials path but no longer in actual use. "
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
+    def credentials_path(self) -> str:
+        return "bigquery_hook_credentials.json"
 
     def get_conn(self) -> BigQueryConnection:
         """Get a BigQuery PEP 249 connection object."""
@@ -172,18 +215,17 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         """Override from ``DbApiHook`` for ``get_sqlalchemy_engine()``."""
         return f"bigquery://{self.project_id}"
 
-    def get_sqlalchemy_engine(self, engine_kwargs=None):
+    def get_sqlalchemy_engine(self, engine_kwargs: dict | None = None):
         """Create an SQLAlchemy engine object.
 
         :param engine_kwargs: Kwargs used in :func:`~sqlalchemy.create_engine`.
         """
         if engine_kwargs is None:
             engine_kwargs = {}
-        extras = self.get_connection(self.gcp_conn_id).extra_dejson
-        credentials_path = get_field(extras, "key_path")
+        credentials_path = get_field(self.extras, "key_path")
         if credentials_path:
             return create_engine(self.get_uri(), credentials_path=credentials_path, **engine_kwargs)
-        keyfile_dict = get_field(extras, "keyfile_dict")
+        keyfile_dict = get_field(self.extras, "keyfile_dict")
         if keyfile_dict:
             keyfile_content = keyfile_dict if isinstance(keyfile_dict, dict) else json.loads(keyfile_dict)
             return create_engine(self.get_uri(), credentials_info=keyfile_content, **engine_kwargs)
@@ -2295,7 +2337,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 return f"Format exception for {var_name}: "
 
         if table_input.count(".") + table_input.count(":") > 3:
-            raise Exception(f"{var_print(var_name)}Use either : or . to specify project got {table_input}")
+            raise ValueError(f"{var_print(var_name)}Use either : or . to specify project got {table_input}")
         cmpt = table_input.rsplit(":", 1)
         project_id = None
         rest = table_input
@@ -2307,7 +2349,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 project_id = cmpt[0]
                 rest = cmpt[1]
         else:
-            raise Exception(
+            raise ValueError(
                 f"{var_print(var_name)}Expect format of (<project:)<dataset>.<table>, got {table_input}"
             )
 
@@ -2323,7 +2365,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             dataset_id = cmpt[0]
             table_id = cmpt[1]
         else:
-            raise Exception(
+            raise ValueError(
                 f"{var_print(var_name)} Expect format of (<project.|<project:)<dataset>.<table>, "
                 f"got {table_input}"
             )
@@ -3107,7 +3149,7 @@ def split_tablename(
             return f"Format exception for {var_name}: "
 
     if table_input.count(".") + table_input.count(":") > 3:
-        raise Exception(f"{var_print(var_name)}Use either : or . to specify project got {table_input}")
+        raise ValueError(f"{var_print(var_name)}Use either : or . to specify project got {table_input}")
     cmpt = table_input.rsplit(":", 1)
     project_id = None
     rest = table_input
@@ -3119,7 +3161,7 @@ def split_tablename(
             project_id = cmpt[0]
             rest = cmpt[1]
     else:
-        raise Exception(
+        raise ValueError(
             f"{var_print(var_name)}Expect format of (<project:)<dataset>.<table>, got {table_input}"
         )
 
@@ -3135,7 +3177,7 @@ def split_tablename(
         dataset_id = cmpt[0]
         table_id = cmpt[1]
     else:
-        raise Exception(
+        raise ValueError(
             f"{var_print(var_name)}Expect format of (<project.|<project:)<dataset>.<table>, got {table_input}"
         )
 

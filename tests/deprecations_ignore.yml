@@ -60,11 +60,6 @@
 - tests/cli/commands/test_connection_command.py::TestCliImportConnections::test_cli_connections_import_should_load_connections
 - tests/cli/commands/test_connection_command.py::TestCliImportConnections::test_cli_connections_import_should_not_overwrite_existing_connections
 - tests/cli/commands/test_connection_command.py::TestCliImportConnections::test_cli_connections_import_should_overwrite_existing_connections
-- tests/cli/commands/test_dag_command.py::TestCliDags::test_backfill
-- tests/cli/commands/test_dag_command.py::TestCliDags::test_backfill_fails_without_loading_dags
-- tests/cli/commands/test_dag_command.py::TestCliDags::test_backfill_with_custom_timetable
-- tests/cli/commands/test_dag_command.py::TestCliDags::test_cli_backfill_depends_on_past
-- tests/cli/commands/test_dag_command.py::TestCliDags::test_cli_backfill_depends_on_past_backwards
 - tests/cli/commands/test_kubernetes_command.py::TestGenerateDagYamlCommand::test_generate_dag_yaml
 - tests/cli/commands/test_task_command.py::TestCliTasks::test_parentdag_downstream_clear
 - tests/cli/commands/test_task_command.py::TestCliTasks::test_subdag_clear
@@ -75,8 +70,6 @@
 
 
 # Core
-- tests/core/test_core.py::TestCore::test_dag_params_and_task_params
-- tests/core/test_core.py::TestCore::test_externally_triggered_dagrun
 - tests/core/test_impersonation_tests.py::TestImpersonation::test_impersonation_subdag
 - tests/core/test_stats.py::TestCustomStatsName::test_does_not_send_stats_using_statsd_when_the_name_is_not_valid
 - tests/core/test_stats.py::TestCustomStatsName::test_does_send_stats_using_statsd_when_the_name_is_valid
@@ -342,6 +335,29 @@
 
 
 # WWW
+- tests/www/api/experimental/test_dag_runs_endpoint.py::TestDagRunsEndpoint::test_get_dag_runs_invalid_dag_id
+- tests/www/api/experimental/test_dag_runs_endpoint.py::TestDagRunsEndpoint::test_get_dag_runs_no_runs
+- tests/www/api/experimental/test_dag_runs_endpoint.py::TestDagRunsEndpoint::test_get_dag_runs_success
+- tests/www/api/experimental/test_dag_runs_endpoint.py::TestDagRunsEndpoint::test_get_dag_runs_success_with_capital_state_parameter
+- tests/www/api/experimental/test_dag_runs_endpoint.py::TestDagRunsEndpoint::test_get_dag_runs_success_with_state_no_result
+- tests/www/api/experimental/test_dag_runs_endpoint.py::TestDagRunsEndpoint::test_get_dag_runs_success_with_state_parameter
+- tests/www/api/experimental/test_endpoints.py::TestApiExperimental::test_dag_paused
+- tests/www/api/experimental/test_endpoints.py::TestApiExperimental::test_dagrun_status
+- tests/www/api/experimental/test_endpoints.py::TestApiExperimental::test_get_dag_code
+- tests/www/api/experimental/test_endpoints.py::TestApiExperimental::test_info
+- tests/www/api/experimental/test_endpoints.py::TestApiExperimental::test_task_info
+- tests/www/api/experimental/test_endpoints.py::TestApiExperimental::test_task_instance_info
+- tests/www/api/experimental/test_endpoints.py::TestApiExperimental::test_trigger_dag
+- tests/www/api/experimental/test_endpoints.py::TestApiExperimental::test_trigger_dag_for_date
+- tests/www/api/experimental/test_endpoints.py::TestLineageApiExperimental::test_lineage_info
+- tests/www/api/experimental/test_endpoints.py::TestPoolApiExperimental::test_create_pool
+- tests/www/api/experimental/test_endpoints.py::TestPoolApiExperimental::test_create_pool_with_bad_name
+- tests/www/api/experimental/test_endpoints.py::TestPoolApiExperimental::test_delete_default_pool
+- tests/www/api/experimental/test_endpoints.py::TestPoolApiExperimental::test_delete_pool
+- tests/www/api/experimental/test_endpoints.py::TestPoolApiExperimental::test_delete_pool_non_existing
+- tests/www/api/experimental/test_endpoints.py::TestPoolApiExperimental::test_get_pool
+- tests/www/api/experimental/test_endpoints.py::TestPoolApiExperimental::test_get_pool_non_existing
+- tests/www/api/experimental/test_endpoints.py::TestPoolApiExperimental::test_get_pools
 - tests/www/test_utils.py::test_dag_run_custom_sqla_interface_delete_no_collateral_damage
 - tests/www/views/test_views_acl.py::test_success
 - tests/www/views/test_views_cluster_activity.py::test_historical_metrics_data
@@ -630,8 +646,6 @@
 - tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::test_resolve_application_file_real_file_not_exists
 - tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::test_resolve_application_file_template_file
 - tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::test_resolve_application_file_template_non_dictionary
-- tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::test_spark_kubernetes_operator
-- tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::test_spark_kubernetes_operator_hook
 - tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::test_template_body_templating
 - tests/providers/cncf/kubernetes/test_kubernetes_helper_functions.py::TestCreatePodId::test_create_pod_id
 - tests/providers/cncf/kubernetes/test_kubernetes_helper_functions.py::TestCreatePodId::test_create_pod_id_dag_and_task
@@ -680,6 +694,12 @@
 - tests/providers/databricks/sensors/test_databricks_sql.py::TestDatabricksSqlSensor::test_unsupported_conn_type
 - tests/providers/docker/operators/test_docker.py::test_hook_usage
 - tests/providers/elasticsearch/log/test_es_task_handler.py::test_retrieve_retry_on_timeout
+- tests/providers/google/common/auth_backend/test_google_openid.py::TestGoogleOpenID::test_invalid_id_token
+- tests/providers/google/common/auth_backend/test_google_openid.py::TestGoogleOpenID::test_invalid_iss_in_jwt_token
+- tests/providers/google/common/auth_backend/test_google_openid.py::TestGoogleOpenID::test_malformed_headers
+- tests/providers/google/common/auth_backend/test_google_openid.py::TestGoogleOpenID::test_missing_id_token
+- tests/providers/google/common/auth_backend/test_google_openid.py::TestGoogleOpenID::test_success
+- tests/providers/google/common/auth_backend/test_google_openid.py::TestGoogleOpenID::test_user_not_exists
 - tests/providers/google/cloud/hooks/test_automl.py::TestAutoMLHook::test_batch_predict
 - tests/providers/google/cloud/hooks/test_automl.py::TestAutoMLHook::test_create_dataset
 - tests/providers/google/cloud/hooks/test_automl.py::TestAutoMLHook::test_create_model
@@ -779,6 +799,7 @@
 - tests/providers/google/cloud/hooks/vertex_ai/test_custom_job.py::TestCustomJobWithoutDefaultProjectIdHook::test_get_pipeline_job
 - tests/providers/google/cloud/hooks/vertex_ai/test_custom_job.py::TestCustomJobWithoutDefaultProjectIdHook::test_list_pipeline_jobs
 - tests/providers/google/cloud/operators/test_bigquery.py::TestBigQueryCreateExternalTableOperator::test_execute_with_csv_format
+- tests/providers/google/cloud/operators/test_automl.py::TestAutoMLTrainModelOperator::test_execute
 - tests/providers/google/cloud/operators/test_bigquery.py::TestBigQueryCreateExternalTableOperator::test_execute_with_parquet_format
 - tests/providers/google/cloud/operators/test_bigquery.py::TestBigQueryOperator::test_bigquery_operator_defaults
 - tests/providers/google/cloud/operators/test_bigquery.py::TestBigQueryOperator::test_bigquery_operator_extra_link_when_missing_job_id

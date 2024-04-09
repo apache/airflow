@@ -36,7 +36,7 @@
 #                        much smaller.
 #
 # Use the same builder frontend version for everyone
-ARG AIRFLOW_EXTRAS="aiobotocore,amazon,async,celery,cncf-kubernetes,common-io,docker,elasticsearch,ftp,google,google-auth,graphviz,grpc,hashicorp,http,ldap,microsoft-azure,mysql,odbc,openlineage,pandas,postgres,redis,sendgrid,sftp,slack,snowflake,ssh,statsd,uv,virtualenv"
+ARG AIRFLOW_EXTRAS="aiobotocore,amazon,async,celery,cncf-kubernetes,common-io,docker,elasticsearch,fab,ftp,google,google-auth,graphviz,grpc,hashicorp,http,ldap,microsoft-azure,mysql,odbc,openlineage,pandas,postgres,redis,sendgrid,sftp,slack,snowflake,ssh,statsd,uv,virtualenv"
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 ARG ADDITIONAL_PYTHON_DEPS=""
 
@@ -45,14 +45,14 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="2.8.4"
+ARG AIRFLOW_VERSION="2.9.0"
 
 ARG PYTHON_BASE_IMAGE="python:3.8-slim-bookworm"
 
 ARG AIRFLOW_PIP_VERSION=24.0
-ARG AIRFLOW_UV_VERSION=0.1.24
+ARG AIRFLOW_UV_VERSION=0.1.29
 ARG AIRFLOW_USE_UV="false"
-ARG UV_REQUEST_TIMEOUT="300"
+ARG UV_HTTP_TIMEOUT="300"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
 
@@ -308,7 +308,6 @@ install_mariadb_client() {
     echo "${COLOR_YELLOW}MariaDB client protocol-compatible with MySQL client.${COLOR_RESET}"
     echo
 
-    curl https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
     echo "deb [arch=amd64,arm64] https://archive.mariadb.org/mariadb-${MARIADB_LTS_VERSION}/repo/debian/ $(lsb_release -cs) main" > \
         /etc/apt/sources.list.d/mariadb.list
     # Make sure that dependencies from MariaDB repo are preferred over Debian dependencies
@@ -903,7 +902,7 @@ function install_airflow() {
         AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/postgres,}
         echo "${COLOR_YELLOW}Postgres client installation is disabled. Extra 'postgres' installations were therefore omitted.${COLOR_RESET}"
     fi
-    if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then
+    if [[ "${UPGRADE_INVALIDATION_STRING=}" != "" ]]; then
         echo
         echo "${COLOR_BLUE}Remove airflow and all provider packages installed before potentially${COLOR_RESET}"
         echo
@@ -961,13 +960,12 @@ COPY <<"EOF" /install_additional_dependencies.sh
 #!/usr/bin/env bash
 set -euo pipefail
 
-: "${UPGRADE_TO_NEWER_DEPENDENCIES:?Should be true or false}"
 : "${ADDITIONAL_PYTHON_DEPS:?Should be set}"
 
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
 function install_additional_dependencies() {
-    if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then
+    if [[ "${UPGRADE_INVALIDATION_STRING=}" != "" ]]; then
         echo
         echo "${COLOR_BLUE}Installing additional dependencies while upgrading to newer dependencies${COLOR_RESET}"
         echo
@@ -1489,7 +1487,7 @@ ARG AIRFLOW_VERSION_SPECIFICATION
 # set to "." and "/opt/airflow" respectively.
 ARG AIRFLOW_INSTALLATION_METHOD="apache-airflow"
 # By default we do not upgrade to latest dependencies
-ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
+ARG UPGRADE_INVALIDATION_STRING=""
 ARG AIRFLOW_SOURCES_FROM
 ARG AIRFLOW_SOURCES_TO
 
@@ -1508,10 +1506,11 @@ ARG ADDITIONAL_PIP_INSTALL_FLAGS=""
 ARG AIRFLOW_PIP_VERSION
 ARG AIRFLOW_UV_VERSION
 ARG AIRFLOW_USE_UV
+ARG UV_HTTP_TIMEOUT
 
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION} \
-    UV_REQUEST_TIMEOUT=${UV_REQUEST_TIMEOUT} \
+    UV_HTTP_TIMEOUT=${UV_HTTP_TIMEOUT} \
     AIRFLOW_USE_UV=${AIRFLOW_USE_UV} \
     AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES} \
     AIRFLOW_VERSION=${AIRFLOW_VERSION} \
@@ -1533,7 +1532,7 @@ ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_USER_HOME_DIR=${AIRFLOW_USER_HOME_DIR} \
     AIRFLOW_HOME=${AIRFLOW_HOME} \
     AIRFLOW_UID=${AIRFLOW_UID} \
-    UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
+    UPGRADE_INVALIDATION_STRING=${UPGRADE_INVALIDATION_STRING}
 
 
 # Copy all scripts required for installation - changing any of those should lead to
@@ -1573,7 +1572,7 @@ RUN bash /scripts/docker/install_packaging_tools.sh; \
     bash /scripts/docker/create_prod_venv.sh; \
     if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
         ${INSTALL_PACKAGES_FROM_CONTEXT} == "false" && \
-        ${UPGRADE_TO_NEWER_DEPENDENCIES} == "false" ]]; then \
+        ${UPGRADE_INVALIDATION_STRING} == "" ]]; then \
         bash /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
     fi
 

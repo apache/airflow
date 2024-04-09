@@ -19,7 +19,12 @@ from __future__ import annotations
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.plugins.listener import get_openlineage_listener
-from airflow.providers.openlineage.plugins.macros import lineage_parent_id, lineage_run_id
+from airflow.providers.openlineage.plugins.macros import (
+    lineage_job_name,
+    lineage_job_namespace,
+    lineage_parent_id,
+    lineage_run_id,
+)
 
 
 class OpenLineageProviderPlugin(AirflowPlugin):
@@ -32,5 +37,5 @@ class OpenLineageProviderPlugin(AirflowPlugin):
 
     name = "OpenLineageProviderPlugin"
     if not conf.is_disabled():
-        macros = [lineage_run_id, lineage_parent_id]
+        macros = [lineage_job_namespace, lineage_job_name, lineage_run_id, lineage_parent_id]
         listeners = [get_openlineage_listener()]

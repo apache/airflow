@@ -1,1 +1,0 @@
-The method ``get_permitted_menu_items`` in ``BaseAuthManager`` has been renamed ``filter_permitted_menu_items``

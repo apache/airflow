@@ -144,6 +144,7 @@ class TestGetConnection(TestConnectionEndpoint):
             "extra": "{'param': 'value'}",
         }
 
+    @pytest.mark.enable_redact
     def test_should_mask_sensitive_values_in_extra(self, session):
         connection_model = Connection(
             conn_id="test-connection-id",

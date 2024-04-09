@@ -407,6 +407,7 @@ class TestDataSyncHookMocked:
         # ### Begin tests:
 
         task_execution_arn = self.hook.start_task_execution(self.task_arn)
-        with pytest.raises(AirflowTaskTimeout):
-            result = self.hook.wait_for_task_execution(task_execution_arn, max_iterations=1)
-            assert result is None
+        with pytest.raises(AirflowTaskTimeout) as timeout_exc:
+            self.hook.wait_for_task_execution(task_execution_arn, max_iterations=1)
+        # assert result is None
+        assert str(timeout_exc.value) == "Max iterations exceeded!"

@@ -94,6 +94,7 @@ Committers
 - Tzu-ping Chung (@uranusjr)
 - Vikram Koka (@vikramkoka)
 - Vincent Beck (@vincbeck)
+- Wei Lee (@Lee-W)
 - Xiaodong Deng (@XD-DENG)
 - Xinbin Huang (@xinbinhuang)
 

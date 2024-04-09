@@ -24,7 +24,7 @@
 requires = [
     "GitPython==3.1.43",
     "gitdb==4.0.11",
-    "hatchling==1.22.4",
+    "hatchling==1.22.5",
     "packaging==24.0",
     "pathspec==0.12.1",
     "pluggy==1.4.0",
@@ -71,7 +71,7 @@ dynamic = ["version", "optional-dependencies", "dependencies"]
 # !!! SEE COMMENTS BELOW TO FIND WHERE DEPENDENCIES ARE MAINTAINED                     !!!!!!!!!
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #
-# !!!!!! Those provuders are defined in `hatch_build.py` and should be maintained there  !!!!!!!
+# !!!!!! Those providers are defined in `hatch_build.py` and should be maintained there  !!!!!!!
 #
 # Those extras are available as regular core airflow extras - they install optional features of Airflow.
 #
@@ -284,9 +284,12 @@ extend-select = [
     "D419",
     "PGH004",  # Use specific rule codes when using noqa
     "PGH005", # Invalid unittest.mock.Mock methods/attributes/properties
-    "B006", # Checks for uses of mutable objects as function argument defaults.
     "S101", # Checks use `assert` outside the test cases, test cases should be added into the exclusions
     "B004", # Checks for use of hasattr(x, "__call__") and replaces it with callable(x)
+    "B006", # Checks for uses of mutable objects as function argument defaults.
+    "B017", # Checks for pytest.raises context managers that catch Exception or BaseException.
+    "B019", # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
+    "TRY002", # Prohibit use of `raise Exception`, use specific exceptions instead.
 ]
 ignore = [
     "D203",
@@ -338,14 +341,17 @@ combine-as-imports = true
 "*/example_dags/*" = ["D"]
 "chart/*" = ["D"]
 "dev/*" = ["D"]
-# In addition, ignore top level imports, e.g. pandas, numpy (TID253) and use of assert (S101) in tests
+# In addition, ignore in tests
+# TID253: Banned top level imports, e.g. pandas, numpy
+# S101: Use `assert`
+# TRY002: Use `raise Exception`
 "dev/perf/*" = ["TID253"]
 "dev/check_files.py" = ["S101"]
-"dev/breeze/tests/*" = ["TID253", "S101"]
-"tests/*" = ["D", "TID253", "S101"]
-"docker_tests/*" = ["D", "TID253", "S101"]
-"kubernetes_tests/*" = ["D", "TID253", "S101"]
-"helm_tests/*" = ["D", "TID253", "S101"]
+"dev/breeze/tests/*" = ["TID253", "S101", "TRY002"]
+"tests/*" = ["D", "TID253", "S101", "TRY002"]
+"docker_tests/*" = ["D", "TID253", "S101", "TRY002"]
+"kubernetes_tests/*" = ["D", "TID253", "S101", "TRY002"]
+"helm_tests/*" = ["D", "TID253", "S101", "TRY002"]
 
 # All of the modules which have an extra license header (i.e. that we copy from another project) need to
 # ignore E402 -- module level import not at top level
@@ -367,32 +373,11 @@ combine-as-imports = true
 "tests/providers/google/cloud/operators/test_vertex_ai.py" = ["E402"]
 "tests/providers/google/cloud/operators/vertex_ai/test_generative_model.py" = ["E402"]
 "tests/providers/google/cloud/triggers/test_vertex_ai.py" = ["E402"]
-
 "tests/providers/openai/hooks/test_openai.py" = ["E402"]
 "tests/providers/openai/operators/test_openai.py" = ["E402"]
 "tests/providers/qdrant/hooks/test_qdrant.py" = ["E402"]
 "tests/providers/qdrant/operators/test_qdrant.py" = ["E402"]
 "tests/providers/snowflake/operators/test_snowflake_sql.py" = ["E402"]
-
-# All the test modules which do not follow PT012 yet
-"tests/providers/amazon/aws/hooks/test_base_aws.py" = ["PT012"]
-"tests/providers/amazon/aws/hooks/test_datasync.py" = ["PT012"]
-"tests/providers/amazon/aws/hooks/test_eks.py" = ["PT012"]
-"tests/providers/amazon/aws/hooks/test_redshift_data.py" = ["PT012"]
-"tests/providers/amazon/aws/hooks/test_s3.py" = ["PT012"]
-"tests/providers/amazon/aws/operators/test_emr_serverless.py" = ["PT012"]
-"tests/providers/amazon/aws/operators/test_redshift_data.py" = ["PT012"]
-"tests/providers/amazon/aws/sensors/test_glacier.py" = ["PT012"]
-"tests/providers/amazon/aws/sensors/test_glue.py" = ["PT012"]
-"tests/providers/amazon/aws/sensors/test_lambda_function.py" = ["PT012"]
-"tests/providers/amazon/aws/system/utils/test_helpers.py" = ["PT012"]
-"tests/providers/amazon/aws/transfers/test_redshift_to_s3.py" = ["PT012"]
-"tests/providers/amazon/aws/triggers/test_ecs.py" = ["PT012"]
-"tests/providers/amazon/aws/waiters/test_neptune.py" = ["PT012"]
-"tests/providers/sftp/hooks/test_sftp.py" = ["PT012"]
-"tests/providers/sftp/operators/test_sftp.py" = ["PT012"]
-"tests/providers/sftp/sensors/test_sftp.py" = ["PT012"]
-"tests/providers/sftp/triggers/test_sftp.py" = ["PT012"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.

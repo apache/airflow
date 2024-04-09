@@ -65,6 +65,7 @@ jobs:
       python-versions: "[ '${{ inputs.default-python-version }}' ]"
       default-python-version: ${{ inputs.default-python-version }}
       branch: ${{ inputs.default-branch }}
+      use-uv: "true"
       image-tag: ${{ inputs.image-tag }}
       build-provider-packages: ${{ inputs.default-branch == 'main' }}
       upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
@@ -81,6 +82,7 @@ jobs:
       python-versions: "[ '${{ inputs.default-python-version }}' ]"
       default-python-version: ${{ inputs.default-python-version }}
       branch: ${{ inputs.default-branch }}
+      use-uv: "false"
       image-tag: ${{ inputs.image-tag }}
       build-provider-packages: ${{ inputs.default-branch == 'main' }}
       upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
@@ -107,8 +109,8 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: Login to ghcr.io
@@ -153,8 +155,8 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: Login to ghcr.io
