@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class BaseBedrockSensor(AwsBaseSensor[BedrockHook]):
+class BedrockBaseSensor(AwsBaseSensor[BedrockHook]):
     """
     General sensor behavior for Amazon Bedrock.
 
@@ -83,7 +83,7 @@ class BaseBedrockSensor(AwsBaseSensor[BedrockHook]):
         """Implement in subclasses."""
 
 
-class BedrockCustomizeModelCompletedSensor(BaseBedrockSensor):
+class BedrockCustomizeModelCompletedSensor(BedrockBaseSensor):
     """
     Poll the state of the model customization job until it reaches a terminal state; fails if the job fails.
 
@@ -148,7 +148,7 @@ class BedrockCustomizeModelCompletedSensor(BaseBedrockSensor):
         return self.hook.conn.get_model_customization_job(jobIdentifier=self.job_name)["status"]
 
 
-class BedrockProvisionModelThroughputCompletedSensor(BaseBedrockSensor):
+class BedrockProvisionModelThroughputCompletedSensor(BedrockBaseSensor):
     """
     Poll the provisioned model throughput job until it reaches a terminal state; fails if the job fails.
 
