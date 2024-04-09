@@ -78,7 +78,7 @@ class DagRunPydantic(BaseModelPydantic):
     def get_task_instance(
         self,
         task_id: str,
-        session: Session | None = None,
+        session: Session,
         *,
         map_index: int = -1,
     ) -> TI | TaskInstancePydantic | None:
