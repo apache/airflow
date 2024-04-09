@@ -2172,9 +2172,9 @@ def test_operator_expand_serde():
         bash_command=literal
     )
 
-    serialized = SerializedBaseOperator.serialize(real_op)
+    serialized = BaseSerialization.serialize(real_op)
 
-    assert serialized == {
+    assert serialized["__var"] == {
         "_is_empty": False,
         "_is_mapped": True,
         "_task_module": "airflow.operators.bash",
@@ -2204,7 +2204,7 @@ def test_operator_expand_serde():
         "_expand_input_attr": "expand_input",
     }
 
-    op = SerializedBaseOperator.deserialize_operator(serialized)
+    op = BaseSerialization.deserialize(serialized)
     assert isinstance(op, MappedOperator)
     assert op.deps is MappedOperator.deps_for(BaseOperator)
 
@@ -2230,8 +2230,8 @@ def test_operator_expand_xcomarg_serde():
         task1 = BaseOperator(task_id="op1")
         mapped = MockOperator.partial(task_id="task_2").expand(arg2=XComArg(task1))
 
-    serialized = SerializedBaseOperator.serialize(mapped)
-    assert serialized == {
+    serialized = BaseSerialization.serialize(mapped)
+    assert serialized["__var"] == {
         "_is_empty": False,
         "_is_mapped": True,
         "_task_module": "tests.test_utils.mock_operators",
@@ -2256,7 +2256,7 @@ def test_operator_expand_xcomarg_serde():
         "_expand_input_attr": "expand_input",
     }
 
-    op = SerializedBaseOperator.deserialize_operator(serialized)
+    op = BaseSerialization.deserialize(serialized)
     assert op.deps is MappedOperator.deps_for(BaseOperator)
 
     # The XComArg can't be deserialized before the DAG is.
@@ -2282,8 +2282,8 @@ def test_operator_expand_kwargs_literal_serde(strict):
             strict=strict,
         )
 
-    serialized = SerializedBaseOperator.serialize(mapped)
-    assert serialized == {
+    serialized = BaseSerialization.serialize(mapped)
+    assert serialized["__var"] == {
         "_is_empty": False,
         "_is_mapped": True,
         "_task_module": "tests.test_utils.mock_operators",
@@ -2311,7 +2311,7 @@ def test_operator_expand_kwargs_literal_serde(strict):
         "_expand_input_attr": "expand_input",
     }
 
-    op = SerializedBaseOperator.deserialize_operator(serialized)
+    op = BaseSerialization.deserialize(serialized)
     assert op.deps is MappedOperator.deps_for(BaseOperator)
     assert op._disallow_kwargs_override == strict
 
@@ -2335,7 +2335,7 @@ def test_operator_expand_kwargs_xcomarg_serde(strict):
         mapped = MockOperator.partial(task_id="task_2").expand_kwargs(XComArg(task1), strict=strict)
 
     serialized = SerializedBaseOperator.serialize(mapped)
-    assert serialized == {
+    assert serialized["__var"] == {
         "_is_empty": False,
         "_is_mapped": True,
         "_task_module": "tests.test_utils.mock_operators",
@@ -2357,7 +2357,7 @@ def test_operator_expand_kwargs_xcomarg_serde(strict):
         "_expand_input_attr": "expand_input",
     }
 
-    op = SerializedBaseOperator.deserialize_operator(serialized)
+    op = BaseSerialization.deserialize(serialized)
     assert op.deps is MappedOperator.deps_for(BaseOperator)
     assert op._disallow_kwargs_override == strict
 
@@ -2377,9 +2377,11 @@ def test_operator_expand_deserialized_unmap():
     normal = BashOperator(task_id="a", bash_command=[1, 2], executor_config={"a": "b"})
     mapped = BashOperator.partial(task_id="a", executor_config={"a": "b"}).expand(bash_command=[1, 2])
 
-    serialize = SerializedBaseOperator.serialize
-    deserialize = SerializedBaseOperator.deserialize_operator
-    assert deserialize(serialize(mapped)).unmap(None) == deserialize(serialize(normal))
+    ser_mapped = BaseSerialization.serialize(mapped)
+    deser_mapped = BaseSerialization.deserialize(ser_mapped)
+    ser_normal = BaseSerialization.serialize(normal)
+    deser_normal = BaseSerialization.deserialize(ser_normal)
+    assert deser_mapped.unmap(None) == deser_normal
 
 
 @pytest.mark.db_test
@@ -2405,8 +2407,8 @@ def test_task_resources_serde():
     with DAG("test_task_resources", start_date=execution_date) as _:
         task = EmptyOperator(task_id=task_id, resources={"cpus": 0.1, "ram": 2048})
 
-    serialized = SerializedBaseOperator.serialize(task)
-    assert serialized["resources"] == {
+    serialized = BaseSerialization.serialize(task)
+    assert serialized["__var"]["resources"] == {
         "cpus": {"name": "CPU", "qty": 0.1, "units_str": "core(s)"},
         "disk": {"name": "Disk", "qty": 512, "units_str": "MB"},
         "gpus": {"name": "GPU", "qty": 0, "units_str": "gpu(s)"},
@@ -2431,8 +2433,8 @@ def test_taskflow_expand_serde():
 
     original = dag.get_task("x")
 
-    serialized = SerializedBaseOperator.serialize(original)
-    assert serialized == {
+    serialized = BaseSerialization.serialize(original)
+    assert serialized["__var"] == {
         "_is_empty": False,
         "_is_mapped": True,
         "_task_module": "airflow.decorators.python",
@@ -2471,7 +2473,7 @@ def test_taskflow_expand_serde():
         "_expand_input_attr": "op_kwargs_expand_input",
     }
 
-    deserialized = SerializedBaseOperator.deserialize_operator(serialized)
+    deserialized = BaseSerialization.deserialize(serialized)
     assert isinstance(deserialized, MappedOperator)
     assert deserialized.deps is MappedOperator.deps_for(BaseOperator)
     assert deserialized.upstream_task_ids == set()
@@ -2526,8 +2528,8 @@ def test_taskflow_expand_kwargs_serde(strict):
 
     original = dag.get_task("x")
 
-    serialized = SerializedBaseOperator.serialize(original)
-    assert serialized == {
+    serialized = BaseSerialization.serialize(original)
+    assert serialized["__var"] == {
         "_is_empty": False,
         "_is_mapped": True,
         "_task_module": "airflow.decorators.python",
@@ -2563,7 +2565,7 @@ def test_taskflow_expand_kwargs_serde(strict):
         "_expand_input_attr": "op_kwargs_expand_input",
     }
 
-    deserialized = SerializedBaseOperator.deserialize_operator(serialized)
+    deserialized = BaseSerialization.deserialize(serialized)
     assert isinstance(deserialized, MappedOperator)
     assert deserialized.deps is MappedOperator.deps_for(BaseOperator)
     assert deserialized._disallow_kwargs_override == strict

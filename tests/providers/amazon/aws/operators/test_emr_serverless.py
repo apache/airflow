@@ -38,7 +38,7 @@ from airflow.providers.amazon.aws.operators.emr import (
     EmrServerlessStopApplicationOperator,
 )
 from airflow.serialization.serialized_objects import (
-    SerializedBaseOperator,
+    BaseSerialization,
 )
 from airflow.utils.types import NOTSET
 
@@ -1118,11 +1118,10 @@ class TestEmrServerlessStartJobOperator:
             configuration_overrides=[s3_configuration_overrides, cloudwatch_configuration_overrides],
         )
 
-        serialize = SerializedBaseOperator.serialize
-        deserialize = SerializedBaseOperator.deserialize_operator
-        deserialized_operator = deserialize(serialize(operator))
+        ser_operator = BaseSerialization.serialize(operator)
+        deser_operator = BaseSerialization.deserialize(ser_operator)
 
-        assert deserialized_operator.operator_extra_links == [
+        assert deser_operator.operator_extra_links == [
             EmrServerlessS3LogsLink(),
             EmrServerlessCloudWatchLogsLink(),
         ]
@@ -1140,11 +1139,10 @@ class TestEmrServerlessStartJobOperator:
             configuration_overrides=[s3_configuration_overrides, cloudwatch_configuration_overrides],
         )
 
-        serialize = SerializedBaseOperator.serialize
-        deserialize = SerializedBaseOperator.deserialize_operator
-        deserialized_operator = deserialize(serialize(operator))
+        ser_operator = BaseSerialization.serialize(operator)
+        deser_operator = BaseSerialization.deserialize(ser_operator)
 
-        assert deserialized_operator.operator_extra_links == [
+        assert deser_operator.operator_extra_links == [
             EmrServerlessS3LogsLink(),
             EmrServerlessCloudWatchLogsLink(),
             EmrServerlessDashboardLink(),
