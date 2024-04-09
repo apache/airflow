@@ -495,7 +495,6 @@ class HttpAsyncHook(HttpHookMixin, BaseHook):
 
         :param endpoint: Endpoint to be called, i.e. ``resource/v1/query?``.
         :param data: Payload to be uploaded or request parameters.
-        :param json: Payload to be uploaded as JSON.
         :param headers: Additional headers to be passed through as a dict.
         :param extra_options: Additional kwargs to pass when creating a request.
             For example, ``run(json=obj)`` is passed as
