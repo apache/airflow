@@ -231,12 +231,11 @@ class HttpHookMixin:
                 )
         return None
 
-    @staticmethod
-    def _url_from_endpoint(base_url: str | None, endpoint: str | None) -> str:
+    def url_from_endpoint(self, endpoint: str | None) -> str:
         """Combine base url with endpoint."""
-        if base_url and not base_url.endswith("/") and endpoint and not endpoint.startswith("/"):
-            return f"{base_url}/{endpoint}"
-        return (base_url or "") + (endpoint or "")
+        if self.base_url and not self.base_url.endswith("/") and endpoint and not endpoint.startswith("/"):
+            return self.base_url + "/" + endpoint
+        return (self.base_url or "") + (endpoint or "")
 
 
 class HttpHook(HttpHookMixin, BaseHook):
@@ -309,7 +308,12 @@ class HttpHook(HttpHookMixin, BaseHook):
         session.verify = session_conf["verify"]
         session.cert = session_conf.get("cert")
         session.max_redirects = session_conf["max_redirects"]
-        session.headers.update(headers)
+
+        try:
+            session.headers.update(headers)
+        except TypeError:
+            self.log.warning("Connection to %s has invalid extra field.", self.http_conn_id)
+
         return session
 
     def run(
@@ -335,7 +339,7 @@ class HttpHook(HttpHookMixin, BaseHook):
 
         session = self.get_conn(headers)
 
-        url = self._url_from_endpoint(self.base_url, endpoint)
+        url = self.url_from_endpoint(endpoint)
 
         if self.tcp_keep_alive:
             keep_alive_adapter = TCPKeepAliveAdapter(
@@ -502,7 +506,7 @@ class HttpAsyncHook(HttpHookMixin, BaseHook):
         session_conf = self._process_session_conf(session_conf)
         session_conf.update(extra_options)
 
-        url = self._url_from_endpoint(self.base_url, endpoint)
+        url = self.url_from_endpoint(endpoint)
 
         async with aiohttp.ClientSession() as session:
             if self.method == "GET":
