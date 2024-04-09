@@ -65,23 +65,6 @@ def get_auth_types() -> frozenset[str]:
     return auth_types
 
 
-def json_safe_loads(obj: str | dict | None, default: Any = None) -> Any:
-    """Safely loads optional JSON.
-
-    Returns 'default' (None) if the object is None.
-    Return the object as-is if it is a dictionary.
-
-    This method is used to parse parameters passed in 'extra' into dict.
-    Those parameters can be None (when they are omitted), dict (when the Connection
-    is created via the API) or str (when Connection is created via the UI).
-    """
-    if isinstance(obj, dict):
-        return obj
-    if obj is not None:
-        return json.loads(obj)
-    return default
-
-
 class HttpHookMixin:
     """Common superclass for the HttpHook and HttpAsyncHook.
 
@@ -205,8 +188,8 @@ class HttpHookMixin:
             session_conf["cert"] = cert
         session_conf["max_redirects"] = extra.pop("max_redirects", DEFAULT_REDIRECT_LIMIT)
         auth_type: str | None = extra.pop("auth_type", None)
-        auth_kwargs = cast(dict, json_safe_loads(extra.pop("auth_kwargs", None), default={}))
-        headers = cast(dict, json_safe_loads(extra.pop("headers", None), default={}))
+        auth_kwargs = extra.pop("auth_kwargs", {})
+        headers = extra.pop("headers", {})
 
         if extra:
             warnings.warn(
