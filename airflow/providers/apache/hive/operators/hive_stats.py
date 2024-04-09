@@ -25,7 +25,6 @@ from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.presto.hooks.presto import PrestoHook
-from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -78,7 +77,6 @@ class HiveStatsCollectionOperator(BaseOperator):
         mysql_conn_id: str = "airflow_db",
         ds: str = "{{ ds }}",
         dttm: str = "{{ logical_date.isoformat() }}",
-        col_blacklist: list[str] | None | ArgNotSet = NOTSET,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)

@@ -373,16 +373,6 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
             ],
         )
 
-    def test_col_blacklist_deprecation(self):
-        warn_message = "col_blacklist kwarg passed to.*task_id: fake-task-id.*is deprecated"
-        with pytest.warns(AirflowProviderDeprecationWarning, match=warn_message):
-            HiveStatsCollectionOperator(
-                task_id="fake-task-id",
-                table="airflow.static_babynames_partitioned",
-                partition={"ds": DEFAULT_DATE_DS},
-                col_blacklist=["foo", "bar"],
-            )
-
     @pytest.mark.db_test
     @pytest.mark.parametrize(
         "col_blacklist",
