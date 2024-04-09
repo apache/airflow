@@ -105,6 +105,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         check_interval: int = 60,
         additional_run_config: dict[str, Any] | None = None,
         reuse_existing_run: bool = False,
+        retry_from_failure: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
@@ -121,6 +122,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         self.additional_run_config = additional_run_config or {}
         self.run_id: int | None = None
         self.reuse_existing_run = reuse_existing_run
+        self.retry_from_failure = retry_from_failure
         self.deferrable = deferrable
 
     def execute(self, context: Context):
@@ -150,6 +152,7 @@ class DbtCloudRunJobOperator(BaseOperator):
                 cause=self.trigger_reason,
                 steps_override=self.steps_override,
                 schema_override=self.schema_override,
+                retry_from_failure=self.retry_from_failure,
                 additional_run_config=self.additional_run_config,
             )
             self.run_id = trigger_job_response.json()["data"]["id"]
