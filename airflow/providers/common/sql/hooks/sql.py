@@ -40,7 +40,11 @@ import sqlparse
 from more_itertools import chunked
 from sqlalchemy import create_engine
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+    AirflowProviderDeprecationWarning,
+)
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
@@ -240,7 +244,7 @@ class DbApiHook(BaseHook):
         try:
             from pandas.io import sql as psql
         except ImportError:
-            raise Exception(
+            raise AirflowOptionalProviderFeatureException(
                 "pandas library not installed, run: pip install "
                 "'apache-airflow-providers-common-sql[pandas]'."
             )
@@ -267,7 +271,7 @@ class DbApiHook(BaseHook):
         try:
             from pandas.io import sql as psql
         except ImportError:
-            raise Exception(
+            raise AirflowOptionalProviderFeatureException(
                 "pandas library not installed, run: pip install "
                 "'apache-airflow-providers-common-sql[pandas]'."
             )
