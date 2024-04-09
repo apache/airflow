@@ -20,10 +20,9 @@ name: K8s tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on:
-        description: "The array of labels (in json form) determining type of the runner to use for the build."
-        required: false
-        default: '["ubuntu-22.04"]'
+      runs-on-as-json-default:
+        description: "The array of labels (in json form) determining default runner used for the build."
+        required: true
         type: string
       image-tag:
         description: "Tag to set for the image"
@@ -55,18 +54,20 @@ jobs:
     name: "\
       K8S System:${{ matrix.executor }} - ${{ matrix.use-standard-naming }} - \
       ${{ inputs.kubernetes-versions-list-as-string }}"
-    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
     strategy:
       matrix:
         executor: [KubernetesExecutor, CeleryExecutor, LocalExecutor]
         use-standard-naming: [true, false]
       fail-fast: false
     env:
-      RUNS_ON: ${{ inputs.outputs.runs-on }}
       DEBUG_RESOURCES: ${{ inputs.debug-resources }}
       INCLUDE_SUCCESS_OUTPUTS: ${{ inputs.include-success-outputs }}
       IMAGE_TAG: ${{ inputs.image-tag }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      VERBOSE: "true"
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -75,8 +76,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         id: breeze

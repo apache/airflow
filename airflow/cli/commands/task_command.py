@@ -34,6 +34,7 @@ from pendulum.parsing.exceptions import ParserError
 from sqlalchemy import select
 
 from airflow import settings
+from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagRunNotFound, TaskDeferred, TaskInstanceNotFound
@@ -96,7 +97,7 @@ def _get_dag_run(
     dag: DAG,
     create_if_necessary: CreateIfNecessary,
     exec_date_or_run_id: str | None = None,
-    session: Session,
+    session: Session | None = None,
 ) -> tuple[DagRun | DagRunPydantic, bool]:
     """Try to retrieve a DAG run from a string representing either a run ID or logical date.
 
@@ -115,13 +116,13 @@ def _get_dag_run(
         raise ValueError("Must provide `exec_date_or_run_id` if not `create_if_necessary`.")
     execution_date: pendulum.DateTime | None = None
     if exec_date_or_run_id:
-        dag_run = dag.get_dagrun(run_id=exec_date_or_run_id, session=session)
+        dag_run = DAG.fetch_dagrun(dag_id=dag.dag_id, run_id=exec_date_or_run_id, session=session)
         if dag_run:
             return dag_run, False
         with suppress(ParserError, TypeError):
             execution_date = timezone.parse(exec_date_or_run_id)
         if execution_date:
-            dag_run = dag.get_dagrun(execution_date=execution_date, session=session)
+            dag_run = DAG.fetch_dagrun(dag_id=dag.dag_id, execution_date=execution_date, session=session)
         if dag_run:
             return dag_run, False
         elif not create_if_necessary:
@@ -137,7 +138,7 @@ def _get_dag_run(
 
     if create_if_necessary == "memory":
         dag_run = DagRun(
-            dag.dag_id,
+            dag_id=dag.dag_id,
             run_id=exec_date_or_run_id,
             execution_date=dag_run_execution_date,
             data_interval=dag.timetable.infer_manual_data_interval(run_after=dag_run_execution_date),
@@ -184,6 +185,7 @@ def _get_ti(
     )
 
     ti_or_none = dag_run.get_task_instance(task.task_id, map_index=map_index, session=session)
+    ti: TaskInstance | TaskInstancePydantic
     if ti_or_none is None:
         if not create_if_necessary:
             raise TaskInstanceNotFound(
@@ -191,9 +193,7 @@ def _get_ti(
                 f"run_id or execution_date of {exec_date_or_run_id!r} not found"
             )
         # TODO: Validate map_index is in range?
-        ti: TaskInstance | TaskInstancePydantic = TaskInstance(
-            task, run_id=dag_run.run_id, map_index=map_index
-        )
+        ti = TaskInstance(task, run_id=dag_run.run_id, map_index=map_index)
         ti.dag_run = dag_run
     else:
         ti = ti_or_none
@@ -264,6 +264,9 @@ def _run_task_by_executor(args, dag: DAG, ti: TaskInstance) -> None:
 
 def _run_task_by_local_task_job(args, ti: TaskInstance | TaskInstancePydantic) -> TaskReturnCode | None:
     """Run LocalTaskJob, which monitors the raw task execution process."""
+    if InternalApiConfig.get_use_internal_api():
+        from airflow.models.renderedtifields import RenderedTaskInstanceFields  # noqa: F401
+        from airflow.models.trigger import Trigger  # noqa: F401
     job_runner = LocalTaskJobRunner(
         job=Job(dag_id=ti.dag_id),
         task_instance=ti,

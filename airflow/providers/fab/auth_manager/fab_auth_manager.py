@@ -44,7 +44,7 @@ from airflow.cli.cli_config import (
     GroupCommand,
 )
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.models import DagModel
 from airflow.providers.fab.auth_manager.cli_commands.definition import (
     ROLES_COMMANDS,
@@ -339,7 +339,7 @@ class FabAuthManager(BaseAuthManager):
         sm_from_config = self.appbuilder.get_app.config.get("SECURITY_MANAGER_CLASS")
         if sm_from_config:
             if not issubclass(sm_from_config, FabAirflowSecurityManagerOverride):
-                raise Exception(
+                raise AirflowConfigException(
                     """Your CUSTOM_SECURITY_MANAGER must extend FabAirflowSecurityManagerOverride."""
                 )
             return sm_from_config(self.appbuilder)

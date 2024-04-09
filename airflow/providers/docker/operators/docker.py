@@ -44,6 +44,7 @@ from airflow.providers.docker.exceptions import (
     DockerContainerFailedSkipException,
 )
 from airflow.providers.docker.hooks.docker import DockerHook
+from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from docker import APIClient
@@ -94,7 +95,7 @@ class DockerOperator(BaseOperator):
     :param cpus: Number of CPUs to assign to the container.
         This value gets multiplied with 1024. See
         https://docs.docker.com/engine/reference/run/#cpu-share-constraint
-    :param docker_url: URL of the host running the docker daemon.
+    :param docker_url: URL or list of URLs of the host(s) running the docker daemon.
         Default is the value of the ``DOCKER_HOST`` environment variable or unix://var/run/docker.sock
         if it is unset.
     :param environment: Environment variables to set in the container. (templated)
@@ -160,6 +161,7 @@ class DockerOperator(BaseOperator):
         file before manually shutting down the image. Useful for cases where users want a pickle serialized
         output that is not posted to logs
     :param retrieve_output_path: path for output file that will be retrieved and passed to xcom
+    :param timeout: Timeout for API calls, in seconds. Default is 60 seconds.
     :param device_requests: Expose host resources such as GPUs to the container.
     :param log_opts_max_size: The maximum size of the log before it is rolled.
         A positive integer plus a modifier representing the unit of measure (k, m, or g).
@@ -199,7 +201,7 @@ class DockerOperator(BaseOperator):
         command: str | list[str] | None = None,
         container_name: str | None = None,
         cpus: float = 1.0,
-        docker_url: str | None = None,
+        docker_url: str | list[str] | None = None,
         environment: dict | None = None,
         private_environment: dict | None = None,
         env_file: str | None = None,
@@ -240,9 +242,11 @@ class DockerOperator(BaseOperator):
         skip_on_exit_code: int | Container[int] | None = None,
         port_bindings: dict | None = None,
         ulimits: list[Ulimit] | None = None,
+        # deprecated, no need to include into docstring
+        skip_exit_code: int | Container[int] | ArgNotSet = NOTSET,
         **kwargs,
     ) -> None:
-        if skip_exit_code := kwargs.pop("skip_exit_code", None):
+        if skip_exit_code is not NOTSET:
             warnings.warn(
                 "`skip_exit_code` is deprecated and will be removed in the future. "
                 "Please use `skip_on_exit_code` instead.",
@@ -255,7 +259,7 @@ class DockerOperator(BaseOperator):
                     f"skip_on_exit_code={skip_on_exit_code!r}, skip_exit_code={skip_exit_code!r}."
                 )
                 raise ValueError(msg)
-            skip_on_exit_code = skip_exit_code
+            skip_on_exit_code = skip_exit_code  # type: ignore[assignment]
         if isinstance(auto_remove, bool):
             warnings.warn(
                 "bool value for `auto_remove` is deprecated and will be removed in the future. "

@@ -492,6 +492,14 @@ core:
       type: string
       example: ~
       default: "Disabled"
+    max_templated_field_length:
+      description: |
+        The maximum length of the rendered template field. If the value to be stored in the
+        rendered template field exceeds this size, it's redacted.
+      version_added: 2.9.0
+      type: integer
+      example: ~
+      default: "4096"
 database:
   description: ~
   options:
@@ -1948,7 +1956,7 @@ webserver:
         Require confirmation when changing a DAG in the web UI. This is to prevent accidental changes
         to a DAG that may be running on sensitive environments like production.
         When set to True, confirmation dialog will be shown when a user tries to Pause/Unpause, Trigger a DAG
-      version_added: ~
+      version_added: 2.9.0
       type: boolean
       example: ~
       default: "False"

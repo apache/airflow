@@ -121,6 +121,9 @@ ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "24.0"
 
+DEFAULT_UV_HTTP_TIMEOUT = 300
+DEFAULT_WSL2_HTTP_TIMEOUT = 900
+
 # packages that  providers docs
 REGULAR_DOC_PACKAGES = [
     "apache-airflow",
@@ -293,6 +296,7 @@ COMMITTERS = [
     "BasPH",
     "Fokko",
     "KevinYang21",
+    "Lee-W",
     "Taragolis",
     "XD-DENG",
     "aijamalnk",
@@ -360,7 +364,7 @@ def get_airflow_version():
                 airflow_version = line.split()[2][1:-1]
                 break
     if airflow_version == "unknown":
-        raise Exception("Unable to determine Airflow version")
+        raise RuntimeError("Unable to determine Airflow version")
     return airflow_version
 
 
@@ -429,6 +433,7 @@ DEFAULT_EXTRAS = [
     "common-io",
     "docker",
     "elasticsearch",
+    "fab",
     "ftp",
     "google",
     "google-auth",
@@ -455,11 +460,7 @@ DEFAULT_EXTRAS = [
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]
 
-CHICKEN_EGG_PROVIDERS = " ".join(
-    [
-        "fab",
-    ]
-)
+CHICKEN_EGG_PROVIDERS = " ".join([])
 
 
 def _exclusion(providers: Iterable[str]) -> str:
@@ -471,11 +472,6 @@ BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str]] = [
         "python-version": "3.8",
         "airflow-version": "2.6.0",
         "remove-providers": _exclusion(["openlineage", "common.io", "cohere", "fab", "qdrant"]),
-    },
-    {
-        "python-version": "3.9",
-        "airflow-version": "2.6.0",
-        "remove-providers": _exclusion(["openlineage", "common.io", "fab", "qdrant"]),
     },
     {
         "python-version": "3.8",

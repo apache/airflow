@@ -35,6 +35,7 @@ from uuid import uuid4
 import pendulum
 import pytest
 import time_machine
+from sqlalchemy import select
 
 from airflow import settings
 from airflow.decorators import task, task_group
@@ -2281,7 +2282,7 @@ class TestTaskInstance:
                 task_instance.run()
                 assert task_instance.current_state() == TaskInstanceState.SUCCESS
 
-    def test_outlet_datasets_skipped(self, create_task_instance):
+    def test_outlet_datasets_skipped(self):
         """
         Verify that when we have an outlet dataset on a task, and the task
         is skipped, a DatasetDagRunQueue is not logged, and a DatasetEvent is
@@ -2311,7 +2312,118 @@ class TestTaskInstance:
         # check that no dataset events were generated
         assert session.query(DatasetEvent).count() == 0
 
-    def test_changing_of_dataset_when_ddrq_is_already_populated(self, dag_maker, session):
+    def test_outlet_dataset_extra(self, dag_maker, session):
+        from airflow.datasets import Dataset
+
+        with dag_maker(schedule=None, session=session) as dag:
+
+            @task(outlets=Dataset("test_outlet_dataset_extra_1"))
+            def write1(*, dataset_events):
+                dataset_events["test_outlet_dataset_extra_1"].extra = {"foo": "bar"}
+
+            write1()
+
+            def _write2_post_execute(context, _):
+                context["dataset_events"]["test_outlet_dataset_extra_2"].extra = {"x": 1}
+
+            BashOperator(
+                task_id="write2",
+                bash_command=":",
+                outlets=Dataset("test_outlet_dataset_extra_2"),
+                post_execute=_write2_post_execute,
+            )
+
+        dr: DagRun = dag_maker.create_dagrun()
+        for ti in dr.get_task_instances(session=session):
+            ti.refresh_from_task(dag.get_task(ti.task_id))
+            ti.run(session=session)
+
+        events = dict(iter(session.execute(select(DatasetEvent.source_task_id, DatasetEvent))))
+        assert set(events) == {"write1", "write2"}
+
+        assert events["write1"].source_dag_id == dr.dag_id
+        assert events["write1"].source_run_id == dr.run_id
+        assert events["write1"].source_task_id == "write1"
+        assert events["write1"].dataset.uri == "test_outlet_dataset_extra_1"
+        assert events["write1"].extra == {"foo": "bar"}
+
+        assert events["write2"].source_dag_id == dr.dag_id
+        assert events["write2"].source_run_id == dr.run_id
+        assert events["write2"].source_task_id == "write2"
+        assert events["write2"].dataset.uri == "test_outlet_dataset_extra_2"
+        assert events["write2"].extra == {"x": 1}
+
+    def test_outlet_dataset_extra_ignore_different(self, dag_maker, session):
+        from airflow.datasets import Dataset
+
+        with dag_maker(schedule=None, session=session):
+
+            @task(outlets=Dataset("test_outlet_dataset_extra"))
+            def write(*, dataset_events):
+                dataset_events["test_outlet_dataset_extra"].extra = {"one": 1}
+                dataset_events["different_uri"].extra = {"foo": "bar"}  # Will be silently dropped.
+
+            write()
+
+        dr: DagRun = dag_maker.create_dagrun()
+        dr.get_task_instance("write").run(session=session)
+
+        event = session.scalars(select(DatasetEvent)).one()
+        assert event.source_dag_id == dr.dag_id
+        assert event.source_run_id == dr.run_id
+        assert event.source_task_id == "write"
+        assert event.extra == {"one": 1}
+
+    def test_outlet_dataset_extra_yield(self, dag_maker, session):
+        from airflow.datasets import Dataset
+        from airflow.datasets.metadata import Metadata
+
+        with dag_maker(schedule=None, session=session) as dag:
+
+            @task(outlets=Dataset("test_outlet_dataset_extra_1"))
+            def write1():
+                result = "write_1 result"
+                yield Metadata("test_outlet_dataset_extra_1", {"foo": "bar"})
+                return result
+
+            write1()
+
+            def _write2_post_execute(context, result):
+                yield Metadata("test_outlet_dataset_extra_2", {"x": 1})
+
+            BashOperator(
+                task_id="write2",
+                bash_command=":",
+                outlets=Dataset("test_outlet_dataset_extra_2"),
+                post_execute=_write2_post_execute,
+            )
+
+        dr: DagRun = dag_maker.create_dagrun()
+        for ti in dr.get_task_instances(session=session):
+            ti.refresh_from_task(dag.get_task(ti.task_id))
+            ti.run(session=session)
+
+        xcom = session.scalars(
+            select(XCom).filter_by(dag_id=dr.dag_id, run_id=dr.run_id, task_id="write1", key="return_value")
+        ).one()
+        assert xcom.value == "write_1 result"
+
+        events = dict(iter(session.execute(select(DatasetEvent.source_task_id, DatasetEvent))))
+        assert set(events) == {"write1", "write2"}
+
+        assert events["write1"].source_dag_id == dr.dag_id
+        assert events["write1"].source_run_id == dr.run_id
+        assert events["write1"].source_task_id == "write1"
+        assert events["write1"].dataset.uri == "test_outlet_dataset_extra_1"
+        assert events["write1"].extra == {"foo": "bar"}
+
+        assert events["write2"].source_dag_id == dr.dag_id
+        assert events["write2"].source_run_id == dr.run_id
+        assert events["write2"].source_task_id == "write2"
+        assert events["write2"].dataset.uri == "test_outlet_dataset_extra_2"
+        assert events["write2"].extra == {"x": 1}
+
+    def test_changing_of_dataset_when_ddrq_is_already_populated(self, dag_maker):
         """
         Test that when a task that produces dataset has ran, that changing the consumer
         dag dataset will not cause primary key blank-out
@@ -3227,7 +3339,7 @@ class TestTaskInstance:
 
     def test_refresh_from_db(self, create_task_instance):
         run_date = timezone.utcnow()
-
+        hybrid_props = ["task_display_name"]
         expected_values = {
             "task_id": "test_refresh_from_db_task",
             "dag_id": "test_refresh_from_db_dag",
@@ -3252,6 +3364,7 @@ class TestTaskInstance:
             "rendered_map_index": None,
             "queued_by_job_id": 321,
             "pid": 123,
+            "executor": "some_executor",
             "executor_config": {"Some": {"extra": "information"}},
             "external_executor_id": "some_executor_id",
             "trigger_timeout": None,
@@ -3259,6 +3372,7 @@ class TestTaskInstance:
             "next_kwargs": None,
             "next_method": None,
             "updated_at": None,
+            "task_display_name": "Test Refresh from DB Task",
         }
         # Make sure we aren't missing any new value in our expected_values list.
         expected_keys = {f"task_instance.{key.lstrip('_')}" for key in expected_values}
@@ -3267,9 +3381,14 @@ class TestTaskInstance:
             "This prevents refresh_from_db() from missing a field."
         )
 
-        ti = create_task_instance(task_id=expected_values["task_id"], dag_id=expected_values["dag_id"])
+        ti = create_task_instance(
+            task_id=expected_values["task_id"],
+            task_display_name=expected_values["task_display_name"],
+            dag_id=expected_values["dag_id"],
+        )
         for key, expected_value in expected_values.items():
-            setattr(ti, key, expected_value)
+            if key not in hybrid_props:
+                setattr(ti, key, expected_value)
         with create_session() as session:
             session.merge(ti)
             session.commit()
@@ -3282,9 +3401,10 @@ class TestTaskInstance:
         ti.refresh_from_db()
         for key, expected_value in expected_values.items():
             assert hasattr(ti, key), f"Key {key} is missing in the TaskInstance."
-            assert (
-                getattr(ti, key) == expected_value
-            ), f"Key: {key} had different values. Make sure it loads it in the refresh refresh_from_db()"
+            if key not in hybrid_props:
+                assert (
+                    getattr(ti, key) == expected_value
+                ), f"Key: {key} had different values. Make sure it loads it in the refresh refresh_from_db()"
 
     def test_operator_field_with_serialization(self, create_task_instance):
         ti = create_task_instance()
@@ -3348,10 +3468,20 @@ class TestTaskInstance:
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])
-def test_refresh_from_task(pool_override):
+@pytest.mark.parametrize("queue_by_policy", [None, "forced_queue"])
+def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
+    default_queue = "test_queue"
+    expected_queue = queue_by_policy or default_queue
+    if queue_by_policy:
+        # Apply a dummy cluster policy to check if it is always applied
+        def mock_policy(task_instance: TaskInstance):
+            task_instance.queue = queue_by_policy
+
+        monkeypatch.setattr("airflow.models.taskinstance.task_instance_mutation_hook", mock_policy)
+
     task = EmptyOperator(
         task_id="empty",
-        queue="test_queue",
+        queue=default_queue,
         pool="test_pool1",
         pool_slots=3,
         priority_weight=10,
@@ -3362,7 +3492,7 @@ def test_refresh_from_task(pool_override):
     ti = TI(task, run_id=None)
     ti.refresh_from_task(task, pool_override=pool_override)
 
-    assert ti.queue == task.queue
+    assert ti.queue == expected_queue
 
     if pool_override:
         assert ti.pool == pool_override
@@ -4481,3 +4611,16 @@ def test_taskinstance_with_note(create_task_instance, session):
 
     assert session.query(TaskInstance).filter_by(**filter_kwargs).one_or_none() is None
     assert session.query(TaskInstanceNote).filter_by(**filter_kwargs).one_or_none() is None
+
+
+def test__refresh_from_db_should_not_increment_try_number(dag_maker, session):
+    with dag_maker():
+        BashOperator(task_id="hello", bash_command="hi")
+    dag_maker.create_dagrun(state="success")
+    ti = session.scalar(select(TaskInstance))
+    assert ti.task_id == "hello"  # just to confirm...
+    assert ti.try_number == 1  # starts out as 1
+    ti.refresh_from_db()
+    assert ti.try_number == 1  # stays 1
+    ti.refresh_from_db()
+    assert ti.try_number == 1  # stays 1

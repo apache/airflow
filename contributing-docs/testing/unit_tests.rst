@@ -29,12 +29,45 @@ Follow the guidelines when writing unit tests:
 
 * For standard unit tests that do not require integrations with external systems, make sure to simulate all communications.
 * All Airflow tests are run with ``pytest``. Make sure to set your IDE/runners (see below) to use ``pytest`` by default.
-* For new tests, use standard "asserts" of Python and ``pytest`` decorators/context managers for testing
-  rather than ``unittest`` ones. See `pytest docs <http://doc.pytest.org/en/latest/assert.html>`_ for details.
-* Use a parameterized framework for tests that have variations in parameters.
+* For tests, use standard "asserts" of Python and ``pytest`` decorators/context managers for testing
+  rather than ``unittest`` ones. See `pytest docs <http://doc.pytest.org/en/latest/assert.html>`__ for details.
+* Use a ``pytest.mark.parametrize`` marker for tests that have variations in parameters.
+  See `pytest docs <https://docs.pytest.org/en/latest/how-to/parametrize.html>`__ for details.
 * Use with ``pytest.warn`` to capture warnings rather than ``recwarn`` fixture. We are aiming for 0-warning in our
-  tests, so we run Pytest with ``--disable-warnings`` but instead we have ``pytest-capture-warnings`` plugin that
-  overrides ``recwarn`` fixture behaviour.
+  tests, so we run Pytest with ``--disable-warnings`` but instead we have custom warning capture system.
+
+Handling warnings
+.................
+
+By default, in the new tests selected warnings are prohibited:
+
+* ``airflow.exceptions.AirflowProviderDeprecationWarning``
+* ``airflow.exceptions.RemovedInAirflow3Warning``
+* ``airflow.utils.context.AirflowContextDeprecationWarning``
+
+That mean if one of this warning appear during test run and do not captured the test will failed.
+
+.. code-block:: console
+
+    root@91e633d08aa8:/opt/airflow# pytest tests/models/test_dag.py::TestDag::test_clear_dag
+    ...
+    FAILED tests/models/test_dag.py::TestDag::test_clear_dag[None-None] - airflow.exceptions.RemovedInAirflow3Warning: Calling `DAG.create_dagrun()` without an explicit data interval is deprecated
+
+For avoid this make sure:
+
+* You do not use deprecated method, classes and arguments in your test cases;
+* Your change do not affect other component, e.g. deprecate one part of Airflow Core or one of Community Supported
+  Providers might be a reason for new deprecation warnings. In this case changes should be also made in all affected
+  components in backward compatible way.
+* You use ``pytest.warn`` (see `pytest doc <https://docs.pytest.org/en/latest/how-to/capture-warnings.html#warns>`__
+  context manager for catch warning during the test deprecated components.
+  Yes we still need to test legacy/deprecated stuff until it complitly removed)
+
+.. code-block:: python
+
+    def test_deprecated_argument():
+        with pytest.warns(AirflowProviderDeprecationWarning, match="expected warning pattern"):
+            SomeDeprecatedClass(foo="bar", spam="egg")
 
 
 Airflow configuration for unit tests
@@ -1077,6 +1110,25 @@ This prepares airflow .whl package in the dist folder.
 
 Other Settings
 --------------
+
+Enable masking secrets in tests
+...............................
+
+By default masking secrets in test disabled because it might have side effects
+into the other tests which intends to check logging/stdout/stderr values
+
+If you need to test masking secrets in test cases
+you have to apply ``pytest.mark.enable_redact`` to the specific test case, class or module.
+
+
+.. code-block:: python
+
+    @pytest.mark.enable_redact
+    def test_masking(capsys):
+        mask_secret("eggs")
+        RedactedIO().write("spam eggs and potatoes")
+        assert "spam *** and potatoes" in capsys.readouterr().out
+
 
 Skip test on unsupported platform / environment
 ...............................................

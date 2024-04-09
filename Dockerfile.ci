@@ -254,7 +254,6 @@ install_mariadb_client() {
     echo "${COLOR_YELLOW}MariaDB client protocol-compatible with MySQL client.${COLOR_RESET}"
     echo
 
-    curl https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
     echo "deb [arch=amd64,arm64] https://archive.mariadb.org/mariadb-${MARIADB_LTS_VERSION}/repo/debian/ $(lsb_release -cs) main" > \
         /etc/apt/sources.list.d/mariadb.list
     # Make sure that dependencies from MariaDB repo are preferred over Debian dependencies
@@ -402,13 +401,17 @@ function install_airflow_dependencies_from_branch_tip() {
     if [[ ${INSTALL_POSTGRES_CLIENT} != "true" ]]; then
        AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/postgres,}
     fi
+    local TEMP_AIRFLOW_DIR
+    TEMP_AIRFLOW_DIR=$(mktemp -d)
     # Install latest set of dependencies - without constraints. This is to download a "base" set of
     # dependencies that we can cache and reuse when installing airflow using constraints and latest
     # pyproject.toml in the next step (when we install regular airflow).
     set -x
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
-      ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-      "apache-airflow[${AIRFLOW_EXTRAS}] @ https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz"
+    curl -fsSL "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz" | \
+        tar xz -C "${TEMP_AIRFLOW_DIR}" --strip 1
+    # Make sure editable dependencies are calculated when devel-ci dependencies are installed
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+        --editable "${TEMP_AIRFLOW_DIR}[${AIRFLOW_EXTRAS}]"
     set +x
     common::install_packaging_tools
     set -x
@@ -423,6 +426,7 @@ function install_airflow_dependencies_from_branch_tip() {
     echo
     set +x
     ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} apache-airflow
+    rm -rf "${TEMP_AIRFLOW_DIR}"
     set -x
     # If you want to make sure dependency is removed from cache in your PR when you removed it from
     # pyproject.toml - please add your dependency here as a list of strings
@@ -701,7 +705,7 @@ function install_airflow() {
         AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/postgres,}
         echo "${COLOR_YELLOW}Postgres client installation is disabled. Extra 'postgres' installations were therefore omitted.${COLOR_RESET}"
     fi
-    if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then
+    if [[ "${UPGRADE_INVALIDATION_STRING=}" != "" ]]; then
         echo
         echo "${COLOR_BLUE}Remove airflow and all provider packages installed before potentially${COLOR_RESET}"
         echo
@@ -759,13 +763,12 @@ COPY <<"EOF" /install_additional_dependencies.sh
 #!/usr/bin/env bash
 set -euo pipefail
 
-: "${UPGRADE_TO_NEWER_DEPENDENCIES:?Should be true or false}"
 : "${ADDITIONAL_PYTHON_DEPS:?Should be set}"
 
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
 function install_additional_dependencies() {
-    if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then
+    if [[ "${UPGRADE_INVALIDATION_STRING=}" != "" ]]; then
         echo
         echo "${COLOR_BLUE}Installing additional dependencies while upgrading to newer dependencies${COLOR_RESET}"
         echo
@@ -1017,7 +1020,7 @@ function check_pydantic() {
         echo
         # shellcheck disable=SC2086
         ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} pydantic aws-sam-translator openai \
-           pyiceberg qdrant-client cfn-lint weaviate-client
+           pyiceberg qdrant-client cfn-lint weaviate-client google-cloud-aiplatform
         pip check
     elif [[ ${PYDANTIC=} == "v1" ]]; then
         echo
@@ -1044,11 +1047,11 @@ function check_pydantic() {
 }
 
 
-function check_download_sqlalchemy() {
+function check_downgrade_sqlalchemy() {
     if [[ ${DOWNGRADE_SQLALCHEMY=} != "true" ]]; then
         return
     fi
-    min_sqlalchemy_version=$(grep "\"sqlalchemy>=" pyproject.toml | sed "s/.*>=\([0-9\.]*\).*/\1/" | xargs)
+    min_sqlalchemy_version=$(grep "\"sqlalchemy>=" hatch_build.py | sed "s/.*>=\([0-9\.]*\).*/\1/" | xargs)
     echo
     echo "${COLOR_BLUE}Downgrading sqlalchemy to minimum supported version: ${min_sqlalchemy_version}${COLOR_RESET}"
     echo
@@ -1057,11 +1060,11 @@ function check_download_sqlalchemy() {
     pip check
 }
 
-function check_download_pendulum() {
+function check_downgrade_pendulum() {
     if [[ ${DOWNGRADE_PENDULUM=} != "true" ]]; then
         return
     fi
-    min_pendulum_version=$(grep "\"pendulum>=" pyproject.toml | sed "s/.*>=\([0-9\.]*\).*/\1/" | xargs)
+    min_pendulum_version=$(grep "\"pendulum>=" hatch_build.py | sed "s/.*>=\([0-9\.]*\).*/\1/" | xargs)
     echo
     echo "${COLOR_BLUE}Downgrading pendulum to minimum supported version: ${min_pendulum_version}${COLOR_RESET}"
     echo
@@ -1099,8 +1102,8 @@ determine_airflow_to_use
 environment_initialization
 check_boto_upgrade
 check_pydantic
-check_download_sqlalchemy
-check_download_pendulum
+check_downgrade_sqlalchemy
+check_downgrade_pendulum
 check_run_tests "${@}"
 
 exec /bin/bash "${@}"
@@ -1219,13 +1222,14 @@ ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-main"
 ARG AIRFLOW_CI_BUILD_EPOCH="10"
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
 ARG AIRFLOW_PIP_VERSION=24.0
-ARG AIRFLOW_UV_VERSION=0.1.24
+ARG AIRFLOW_UV_VERSION=0.1.29
 ARG AIRFLOW_USE_UV="true"
 # Setup PIP
 # By default PIP install run without cache to make image smaller
 ARG PIP_NO_CACHE_DIR="true"
 # By default UV install run without cache to make image smaller
 ARG UV_NO_CACHE="true"
+ARG UV_HTTP_TIMEOUT="300"
 # By default PIP has progress bar but you can disable it.
 ARG PIP_PROGRESS_BAR="on"
 # Optimizing installation of Cassandra driver (in case there are no prebuilt wheels which is the
@@ -1242,7 +1246,7 @@ ARG AIRFLOW_VERSION=""
 ARG ADDITIONAL_PIP_INSTALL_FLAGS=""
 
 ARG AIRFLOW_PIP_VERSION=24.0
-ARG AIRFLOW_UV_VERSION=0.1.24
+ARG AIRFLOW_UV_VERSION=0.1.29
 ARG AIRFLOW_USE_UV="true"
 
 ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
@@ -1259,6 +1263,7 @@ ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
     AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION} \
     AIRFLOW_USE_UV=${AIRFLOW_USE_UV} \
+    UV_HTTP_TIMEOUT=${UV_HTTP_TIMEOUT} \
     INSTALL_MYSQL_CLIENT="true" \
     INSTALL_MYSQL_CLIENT_TYPE=${INSTALL_MYSQL_CLIENT_TYPE} \
     INSTALL_MSSQL_CLIENT="true" \
@@ -1309,7 +1314,6 @@ COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/
 COPY generated/* ${AIRFLOW_SOURCES}/generated/
 COPY constraints/* ${AIRFLOW_SOURCES}/constraints/
 COPY LICENSE ${AIRFLOW_SOURCES}/LICENSE
-COPY airflow_pre_installed_providers.txt ${AIRFLOW_SOURCES}/
 COPY hatch_build.py ${AIRFLOW_SOURCES}/
 COPY --from=scripts install_airflow.sh /scripts/docker/
 
@@ -1318,11 +1322,11 @@ COPY --from=scripts install_airflow.sh /scripts/docker/
 # dependency resolution and we do not need to limit the versions of the dependencies
 #
 ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=""
-ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
+ARG UPGRADE_INVALIDATION_STRING=""
 ARG VERSION_SUFFIX_FOR_PYPI=""
 
 ENV EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
-    UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES} \
+    UPGRADE_INVALIDATION_STRING=${UPGRADE_INVALIDATION_STRING} \
     VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI}
 
 # The goal of this line is to install the dependencies from the most current pyproject.toml from sources

@@ -94,6 +94,8 @@ def test_redoc_should_render_template(capture_templates, admin_client):
         "openapi_spec_url": "/api/v1/openapi.yaml",
         "rest_api_enabled": True,
         "get_docs_url": get_docs_url,
+        "excluded_events_raw": "",
+        "included_events_raw": "",
     }
 
 
@@ -505,18 +507,6 @@ INVALID_DATETIME_RESPONSE = re.compile(r"Invalid datetime: &#x?\d+;invalid&#x?\d
         ),
         (
             "dags/example_bash_operator/graph?execution_date=invalid",
-            INVALID_DATETIME_RESPONSE,
-        ),
-        (
-            "dags/example_bash_operator/duration?base_date=invalid",
-            INVALID_DATETIME_RESPONSE,
-        ),
-        (
-            "dags/example_bash_operator/tries?base_date=invalid",
-            INVALID_DATETIME_RESPONSE,
-        ),
-        (
-            "dags/example_bash_operator/landing-times?base_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (

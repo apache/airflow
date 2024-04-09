@@ -72,6 +72,7 @@ from airflow_breeze.commands.common_options import (
     option_run_in_parallel,
     option_skip_cleanup,
     option_use_uv,
+    option_uv_http_timeout,
     option_verbose,
 )
 from airflow_breeze.commands.common_package_installation_options import (
@@ -317,6 +318,7 @@ option_version_suffix_for_pypi_ci = click.option(
 @option_upgrade_on_failure
 @option_upgrade_to_newer_dependencies
 @option_use_uv
+@option_uv_http_timeout
 @option_verbose
 @option_version_suffix_for_pypi_ci
 def build(
@@ -358,6 +360,7 @@ def build(
     upgrade_on_failure: bool,
     upgrade_to_newer_dependencies: bool,
     use_uv: bool,
+    uv_http_timeout: int,
     version_suffix_for_pypi: str,
 ):
     """Build CI image. Include building multiple images for all python versions."""
@@ -426,6 +429,7 @@ def build(
         upgrade_on_failure=upgrade_on_failure,
         upgrade_to_newer_dependencies=upgrade_to_newer_dependencies,
         use_uv=use_uv,
+        uv_http_timeout=uv_http_timeout,
         version_suffix_for_pypi=version_suffix_for_pypi,
     )
     if platform:
@@ -792,7 +796,7 @@ def run_build_ci_image(
                     / "scripts"
                     / "ci"
                     / "pre_commit"
-                    / "pre_commit_update_providers_dependencies.py"
+                    / "update_providers_dependencies.py"
                 ),
             ],
             check=False,

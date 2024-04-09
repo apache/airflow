@@ -32,14 +32,20 @@ Here's the list of all the Database Migrations that are executed via when you ru
 
 
 
- .. This table is automatically updated by pre-commit by ``scripts/ci/pre_commit/pre_commit_migration_reference.py``
+ .. This table is automatically updated by pre-commit by ``scripts/ci/pre_commit/migration_reference.py``
  .. All table elements are scraped from migration files
  .. Beginning of auto-generated table
 
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | Revision ID                     | Revises ID        | Airflow Version   | Description                                                  |
 +=================================+===================+===================+==============================================================+
-| ``b4078ac230a1`` (head)         | ``8e1c784a4fc7``  | ``2.9.0``         | Change value column type to longblob in xcom table for mysql |
+| ``677fdbb7fc54`` (head)         | ``1949afb29106``  | ``2.10.0``        | add new executor field to db                                 |
++---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
+| ``1949afb29106``                | ``ee1467d4aa35``  | ``2.9.0``         | update trigger kwargs type                                   |
++---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
+| ``ee1467d4aa35``                | ``b4078ac230a1``  | ``2.9.0``         | add display name for dag and task instance                   |
++---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
+| ``b4078ac230a1``                | ``8e1c784a4fc7``  | ``2.9.0``         | Change value column type to longblob in xcom table for mysql |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | ``8e1c784a4fc7``                | ``ab34f260b71c``  | ``2.9.0``         | Adding max_consecutive_failed_dag_runs column to dag_model   |
 |                                 |                   |                   | table                                                        |

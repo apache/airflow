@@ -27,6 +27,7 @@ from google.cloud.logging_v2.types import ListLogEntriesRequest, ListLogEntriesR
 from airflow.providers.google.cloud.log.stackdriver_task_handler import StackdriverTaskHandler
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
+from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 
@@ -65,6 +66,39 @@ def test_should_pass_message_to_client(mock_client, mock_get_creds_and_project_i
         mock.ANY, "test-message", labels={"key": "value"}, resource=Resource(type="global", labels={})
     )
     mock_client.assert_called_once_with(credentials="creds", client_info=mock.ANY, project="project_id")
+
+
+@pytest.mark.usefixtures("clean_stackdriver_handlers")
+@mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id")
+@mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.gcp_logging.Client")
+def test_should_use_configured_log_name(mock_client, mock_get_creds_and_project_id):
+    import importlib
+    import logging
+
+    from airflow import settings
+    from airflow.config_templates import airflow_local_settings
+
+    mock_get_creds_and_project_id.return_value = ("creds", "project_id")
+
+    try:
+        with conf_vars(
+            {
+                ("logging", "remote_logging"): "True",
+                ("logging", "remote_base_log_folder"): "stackdriver://host/path",
+            }
+        ):
+            importlib.reload(airflow_local_settings)
+            settings.configure_logging()
+
+            logger = logging.getLogger("airflow.task")
+            handler = logger.handlers[0]
+            assert isinstance(handler, StackdriverTaskHandler)
+            with mock.patch.object(handler, "transport_type") as transport_type_mock:
+                logger.error("foo")
+                transport_type_mock.assert_called_once_with(mock_client.return_value, "path")
+    finally:
+        importlib.reload(airflow_local_settings)
+        settings.configure_logging()
 
 
 @pytest.mark.db_test

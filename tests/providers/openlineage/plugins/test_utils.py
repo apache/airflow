@@ -21,6 +21,7 @@ import json
 import uuid
 from json import JSONEncoder
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 from attrs import define
@@ -28,10 +29,13 @@ from openlineage.client.utils import RedactMixin
 from pkg_resources import parse_version
 
 from airflow.models import DAG as AIRFLOW_DAG, DagModel
+from airflow.operators.bash import BashOperator
 from airflow.providers.openlineage.utils.utils import (
     InfoJsonEncodable,
     OpenLineageRedactor,
     _is_name_redactable,
+    get_fully_qualified_class_name,
+    is_operator_disabled,
 )
 from airflow.utils import timezone
 from airflow.utils.log.secrets_masker import _secrets_masker
@@ -130,6 +134,7 @@ def test_is_name_redactable():
     assert _is_name_redactable("transparent", Mixined())
 
 
+@pytest.mark.enable_redact
 def test_redact_with_exclusions(monkeypatch):
     redactor = OpenLineageRedactor.from_masker(_secrets_masker())
 
@@ -170,3 +175,29 @@ def test_redact_with_exclusions(monkeypatch):
     assert redactor.redact({"password": "passwd"}) == {"password": "***"}
     redacted_nested = redactor.redact(NestedMixined("passwd", NestedMixined("passwd", None)))
     assert redacted_nested == NestedMixined("***", NestedMixined("passwd", None))
+
+
+def test_get_fully_qualified_class_name():
+    from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
+
+    result = get_fully_qualified_class_name(BashOperator(task_id="test", bash_command="exit 0;"))
+    assert result == "airflow.operators.bash.BashOperator"
+
+    result = get_fully_qualified_class_name(OpenLineageAdapter())
+    assert result == "airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter"
+
+
+@patch("airflow.providers.openlineage.conf.disabled_operators")
+def test_is_operator_disabled(mock_disabled_operators):
+    mock_disabled_operators.return_value = {}
+    op = BashOperator(task_id="test", bash_command="exit 0;")
+    assert is_operator_disabled(op) is False
+
+    mock_disabled_operators.return_value = {"random_string"}
+    assert is_operator_disabled(op) is False
+
+    mock_disabled_operators.return_value = {
+        "airflow.operators.bash.BashOperator",
+        "airflow.operators.python.PythonOperator",
+    }
+    assert is_operator_disabled(op) is True

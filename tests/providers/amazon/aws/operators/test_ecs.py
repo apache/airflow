@@ -99,6 +99,7 @@ class EcsBaseTestCase:
     def setup_test_cases(self, monkeypatch):
         self.client = boto3.client("ecs", region_name="eu-west-3")
         monkeypatch.setattr(EcsHook, "conn", self.client)
+        monkeypatch.setenv("AIRFLOW_CONN_AWS_TEST_CONN", '{"conn_type": "aws"}')
 
 
 class TestEcsBaseOperator(EcsBaseTestCase):

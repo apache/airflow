@@ -40,9 +40,7 @@ jobs:
   build-info:
     timeout-minutes: 10
     name: "Build Info"
-    # TODO: when we have it properly set-up with labels we should check for
-    #       "airflow-runner" presence in runs_on
-    runs-on: ["self-hosted", "Linux", "X64"]
+    runs-on: ["ubuntu-22.04"]
     outputs:
       pythonVersions: ${{ steps.selective-checks.outputs.python-versions }}
       allPythonVersions: ${{ steps.selective-checks.outputs.all-python-versions }}
@@ -61,8 +59,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: Selective checks
@@ -73,16 +71,12 @@ jobs:
   release-images:
     timeout-minutes: 120
     name: "Release images: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}"
-    # TODO: when we have it properly set-up with labels we should check for
-    #       "airflow-runner" presence in runs_on
     runs-on: ["self-hosted", "Linux", "X64"]
     needs: [build-info]
     strategy:
       fail-fast: false
       matrix:
-        python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
-    env:
-      RUNS_ON: '["self-hosted", "Linux", "X64"]'
+        python-version: ${{ fromJSON(needs.build-info.outputs.pythonVersions) }}
     if: contains(fromJSON('[
       "ashb",
       "eladkal",
@@ -100,8 +94,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: Free space

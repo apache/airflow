@@ -27,8 +27,8 @@
 #
 # AIRFLOW_VERSION_SPECIFICATION - optional specification for Airflow version to install (
 #                                 might be ==2.0.2 for example or <3.0.0
-# UPGRADE_TO_NEWER_DEPENDENCIES - determines whether eager-upgrade should be performed with the
-#                                 dependencies (with EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS added)
+# UPGRADE_INVALIDATION_STRING - if set with random value determines whether eager-upgrade should be done
+#                               for the dependencies (with EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS added)
 #
 # shellcheck shell=bash disable=SC2086
 # shellcheck source=scripts/docker/common.sh
@@ -62,7 +62,7 @@ function install_airflow() {
         AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/postgres,}
         echo "${COLOR_YELLOW}Postgres client installation is disabled. Extra 'postgres' installations were therefore omitted.${COLOR_RESET}"
     fi
-    if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then
+    if [[ "${UPGRADE_INVALIDATION_STRING=}" != "" ]]; then
         echo
         echo "${COLOR_BLUE}Remove airflow and all provider packages installed before potentially${COLOR_RESET}"
         echo

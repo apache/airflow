@@ -36,22 +36,27 @@ from typing import (
     ValuesView,
 )
 
+import attrs
 import lazy_object_proxy
 
+from airflow.datasets import Dataset, coerce_to_uri
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
 
-# NOTE: Please keep this in sync with Context in airflow/utils/context.pyi.
-KNOWN_CONTEXT_KEYS = {
+# NOTE: Please keep this in sync with the following:
+# * Context in airflow/utils/context.pyi.
+# * Table in docs/apache-airflow/templates-ref.rst
+KNOWN_CONTEXT_KEYS: set[str] = {
     "conf",
     "conn",
     "dag",
     "dag_run",
     "data_interval_end",
     "data_interval_start",
+    "dataset_events",
     "ds",
     "ds_nodash",
     "execution_date",
@@ -74,6 +79,7 @@ KNOWN_CONTEXT_KEYS = {
     "prev_execution_date_success",
     "prev_start_date_success",
     "prev_end_date_success",
+    "reason",
     "run_id",
     "task",
     "task_instance",
@@ -141,6 +147,31 @@ class ConnectionAccessor:
             return Connection.get_connection_from_secrets(key)
         except AirflowNotFoundException:
             return default_conn
+
+
+@attrs.define()
+class DatasetEventAccessor:
+    """Wrapper to access a DatasetEvent instance in template."""
+
+    extra: dict[str, Any]
+
+
+class DatasetEventAccessors(Mapping[str, DatasetEventAccessor]):
+    """Lazy mapping of dataset event accessors."""
+
+    def __init__(self) -> None:
+        self._dict: dict[str, DatasetEventAccessor] = {}
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._dict)
+
+    def __len__(self) -> int:
+        return len(self._dict)
+
+    def __getitem__(self, key: str | Dataset) -> DatasetEventAccessor:
+        if (uri := coerce_to_uri(key)) not in self._dict:
+            self._dict[uri] = DatasetEventAccessor({})
+        return self._dict[uri]
 
 
 class AirflowContextDeprecationWarning(RemovedInAirflow3Warning):
@@ -324,3 +355,10 @@ def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]:
         return lazy_object_proxy.Proxy(factory)
 
     return {k: _create_value(k, v) for k, v in source._context.items()}
+
+
+def context_get_dataset_events(context: Context) -> DatasetEventAccessors:
+    try:
+        return context["dataset_events"]
+    except KeyError:
+        return DatasetEventAccessors()

@@ -28,20 +28,20 @@ permissions:
   packages: read
 env:
   ANSWER: "yes"
-  DB_RESET: "true"
-  VERBOSE: "true"
-  GITHUB_REPOSITORY: ${{ github.repository }}
-  GITHUB_USERNAME: ${{ github.actor }}
   # You can override CONSTRAINTS_GITHUB_REPOSITORY by setting secret in your repo but by default the
   # Airflow one is going to be used
   CONSTRAINTS_GITHUB_REPOSITORY: >-
     ${{ secrets.CONSTRAINTS_GITHUB_REPOSITORY != '' &&
         secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
   # This token is WRITE one - pull_request_target type of events always have the WRITE token
+  DB_RESET: "true"
+  GITHUB_REPOSITORY: ${{ github.repository }}
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  GITHUB_USERNAME: ${{ github.actor }}
   IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
-  USE_SUDO: "true"
   INCLUDE_SUCCESS_OUTPUTS: "true"
+  USE_SUDO: "true"
+  VERBOSE: "true"
 
 concurrency:
   group: build-${{ github.event.pull_request.number || github.ref }}
@@ -51,24 +51,26 @@ jobs:
   build-info:
     timeout-minutes: 10
     name: "Build Info"
-    runs-on: ['ubuntu-22.04']
+    # At build-info stage we do not yet have outputs so we need to hard-code the runs-on to public runners
+    runs-on: ["ubuntu-22.04"]
     env:
       TARGET_BRANCH: ${{ github.event.pull_request.base.ref }}
     outputs:
       image-tag: ${{ github.event.pull_request.head.sha || github.sha }}
       python-versions: ${{ steps.selective-checks.outputs.python-versions }}
-      upgrade-to-newer-dependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
-      all-python-versions-list-as-string: >-
-        ${{ steps.selective-checks.outputs.all-python-versions-list-as-string }}
+      python-versions-list-as-string: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
       default-python-version: ${{ steps.selective-checks.outputs.default-python-version }}
+      upgrade-to-newer-dependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
       run-tests: ${{ steps.selective-checks.outputs.run-tests }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
       ci-image-build: ${{ steps.selective-checks.outputs.ci-image-build }}
       prod-image-build: ${{ steps.selective-checks.outputs.prod-image-build }}
-      cache-directive: ${{ steps.selective-checks.outputs.cache-directive }}
+      docker-cache: ${{ steps.selective-checks.outputs.docker-cache }}
       default-branch: ${{ steps.selective-checks.outputs.default-branch }}
       constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
-      runs-on: ${{steps.selective-checks.outputs.runs-on}}
+      runs-on-as-json-default: ${{ steps.selective-checks.outputs.runs-on-as-json-default }}
+      runs-on-as-json-public: ${{ steps.selective-checks.outputs.runs-on-as-json-public }}
+      runs-on-as-json-self-hosted: ${{ steps.selective-checks.outputs.runs-on-as-json-self-hosted }}
       is-self-hosted-runner: ${{ steps.selective-checks.outputs.is-self-hosted-runner }}
       is-committer-build: ${{ steps.selective-checks.outputs.is-committer-build }}
       is-airflow-runner: ${{ steps.selective-checks.outputs.is-airflow-runner }}
@@ -131,8 +133,8 @@ jobs:
       #  COMPOSITE ACTIONS. WE CAN RUN ANYTHING THAT IS IN THE TARGET BRANCH AND THERE IS NO RISK THAT
       #  CODE WILL BE RUN FROM THE PR.
       ####################################################################################################
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
       - name: "Setup python"
         uses: actions/setup-python@v5
         with:
@@ -158,6 +160,7 @@ jobs:
           PR_LABELS: ${{ steps.get-latest-pr-labels.outputs.pull-request-labels }}
           GITHUB_CONTEXT: ${{ toJson(github) }}
 
+
   build-ci-images:
     name: Build CI images
     permissions:
@@ -171,21 +174,34 @@ jobs:
       needs.build-info.outputs.ci-image-build == 'true' &&
       github.event.pull_request.head.repo.full_name != 'apache/airflow'
     with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
+      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+      runs-on-as-json-self-hosted: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted }}
       do-build: ${{ needs.build-info.outputs.ci-image-build }}
       target-commit-sha: ${{ needs.build-info.outputs.target-commit-sha }}
       pull-request-target: "true"
       is-committer-build: ${{ needs.build-info.outputs.is-committer-build }}
       push-image: "true"
-      upload-constraints: "true"
       use-uv: "true"
       image-tag: ${{ needs.build-info.outputs.image-tag }}
+      platform: "linux/amd64"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.constraints-branch }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      docker-cache: ${{ needs.build-info.outputs.cache-directive }}
+      docker-cache: ${{ needs.build-info.outputs.docker-cache }}
 
+  generate-constraints:
+    name: "Generate constraints"
+    needs: [build-info, build-ci-images]
+    uses: ./.github/workflows/generate-constraints.yml
+    with:
+      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+      python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+      # For regular PRs we do not need "no providers" constraints - they are only needed in canary builds
+      generate-no-providers-constraints: "false"
+      image-tag: ${{ needs.build-info.outputs.image-tag }}
+      chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
+      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
 
   build-prod-images:
     name: Build PROD images
@@ -193,26 +209,29 @@ jobs:
       contents: read
       packages: write
     secrets: inherit
-    needs: [build-info, build-ci-images]
+    needs: [build-info, generate-constraints]
     uses: ./.github/workflows/prod-image-build.yml
     # Only run this it if the PR comes from fork, otherwise build will be done "in-PR-workflow"
     if: |
       needs.build-info.outputs.prod-image-build == 'true' &&
       github.event.pull_request.head.repo.full_name != 'apache/airflow'
     with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
+      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
       build-type: "Regular"
       do-build: ${{ needs.build-info.outputs.ci-image-build }}
+      upload-package-artifact: "true"
       target-commit-sha: ${{ needs.build-info.outputs.target-commit-sha }}
       pull-request-target: "true"
       is-committer-build: ${{ needs.build-info.outputs.is-committer-build }}
       push-image: "true"
-      use-uv: "true"
+      use-uv: ${{ needs.build-info.outputs.default-branch == 'main' && 'true' || 'false' }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
+      platform: "linux/amd64"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
+      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.constraints-branch }}
       build-provider-packages: "true"
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
-      docker-cache: ${{ needs.build-info.outputs.cache-directive }}
+      docker-cache: ${{ needs.build-info.outputs.docker-cache }}

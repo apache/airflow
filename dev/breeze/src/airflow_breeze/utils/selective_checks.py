@@ -63,16 +63,17 @@ from airflow_breeze.utils.path_utils import (
 from airflow_breeze.utils.provider_dependencies import DEPENDENCIES, get_related_providers
 from airflow_breeze.utils.run_utils import run_command
 
-FULL_TESTS_NEEDED_LABEL = "full tests needed"
-DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
-USE_PUBLIC_RUNNERS_LABEL = "use public runners"
-NON_COMMITTER_BUILD_LABEL = "non committer build"
-DEFAULT_VERSIONS_ONLY_LABEL = "default versions only"
 ALL_VERSIONS_LABEL = "all versions"
-LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
+DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
+DEFAULT_VERSIONS_ONLY_LABEL = "default versions only"
 DISABLE_IMAGE_CACHE_LABEL = "disable image cache"
+FULL_TESTS_NEEDED_LABEL = "full tests needed"
 INCLUDE_SUCCESS_OUTPUTS_LABEL = "include success outputs"
+LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
+NON_COMMITTER_BUILD_LABEL = "non committer build"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
+USE_PUBLIC_RUNNERS_LABEL = "use public runners"
+USE_SELF_HOSTED_RUNNERS_LABEL = "use self-hosted runners"
 
 
 ALL_CI_SELECTIVE_TEST_TYPES = (
@@ -129,6 +130,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
             r"^airflow/.*\.py",
             r"^pyproject.toml",
+            r"^hatch_build.py",
         ],
         FileGroupForCi.JAVASCRIPT_PRODUCTION_FILES: [
             r"^airflow/.*\.[jt]sx?",
@@ -356,6 +358,38 @@ def find_all_providers_affected(
     return sorted(all_providers)
 
 
+def _match_files_with_regexps(files: tuple[str, ...], matched_files, matching_regexps):
+    for file in files:
+        if any(re.match(regexp, file) for regexp in matching_regexps):
+            matched_files.append(file)
+
+
+def _exclude_files_with_regexps(files: tuple[str, ...], matched_files, exclude_regexps):
+    for file in files:
+        if any(re.match(regexp, file) for regexp in exclude_regexps):
+            if file in matched_files:
+                matched_files.remove(file)
+
+
+@lru_cache(maxsize=None)
+def _matching_files(
+    files: tuple[str, ...], match_group: FileGroupForCi, match_dict: HashableDict, exclude_dict: HashableDict
+) -> list[str]:
+    matched_files: list[str] = []
+    match_regexps = match_dict[match_group]
+    excluded_regexps = exclude_dict.get(match_group)
+    _match_files_with_regexps(files, matched_files, match_regexps)
+    if excluded_regexps:
+        _exclude_files_with_regexps(files, matched_files, excluded_regexps)
+    count = len(matched_files)
+    if count > 0:
+        get_console().print(f"[warning]{match_group} matched {count} files.[/]")
+        get_console().print(matched_files)
+    else:
+        get_console().print(f"[warning]{match_group} did not match any file.[/]")
+    return matched_files
+
+
 class SelectiveChecks:
     __HASHABLE_FIELDS = {"_files", "_default_branch", "_commit_ref", "_pr_labels", "_github_event"}
 
@@ -439,19 +473,14 @@ class SelectiveChecks:
         if not self._commit_ref:
             get_console().print("[warning]Running everything in all versions as commit is missing[/]")
             return True
-        if self.pyproject_toml_changed:
-            if self.build_system_changed_in_pyproject_toml:
-                get_console().print(
-                    "[warning]Running everything with all versions: build-system"
-                    "changed in pyproject.toml[/]"
-                )
-                return True
-            if self.dependencies_changed_in_pyproject_toml:
-                get_console().print(
-                    "[warning]Running everything with all versions: "
-                    "dependencies changed in pyproject.toml[/]"
-                )
-                return True
+        if self.hatch_build_changed:
+            get_console().print("[warning]Running everything with all versions: hatch_build.py changed[/]")
+            return True
+        if self.pyproject_toml_changed and self.build_system_changed_in_pyproject_toml:
+            get_console().print(
+                "[warning]Running everything with all versions: build-system changed in pyproject.toml[/]"
+            )
+            return True
         if self.generated_dependencies_changed:
             get_console().print(
                 "[warning]Running everything with all versions: provider dependencies changed[/]"
@@ -592,34 +621,10 @@ class SelectiveChecks:
         )
         return " ".join(short_combo_titles)
 
-    def _match_files_with_regexps(self, matched_files, matching_regexps):
-        for file in self._files:
-            if any(re.match(regexp, file) for regexp in matching_regexps):
-                matched_files.append(file)
-
-    def _exclude_files_with_regexps(self, matched_files, exclude_regexps):
-        for file in self._files:
-            if any(re.match(regexp, file) for regexp in exclude_regexps):
-                if file in matched_files:
-                    matched_files.remove(file)
-
-    @lru_cache(maxsize=None)
     def _matching_files(
-        self, match_group: T, match_dict: dict[T, list[str]], exclude_dict: dict[T, list[str]]
+        self, match_group: FileGroupForCi, match_dict: HashableDict, exclude_dict: HashableDict
     ) -> list[str]:
-        matched_files: list[str] = []
-        match_regexps = match_dict[match_group]
-        excluded_regexps = exclude_dict.get(match_group)
-        self._match_files_with_regexps(matched_files, match_regexps)
-        if excluded_regexps:
-            self._exclude_files_with_regexps(matched_files, excluded_regexps)
-        count = len(matched_files)
-        if count > 0:
-            get_console().print(f"[warning]{match_group} matched {count} files.[/]")
-            get_console().print(matched_files)
-        else:
-            get_console().print(f"[warning]{match_group} did not match any file.[/]")
-        return matched_files
+        return _matching_files(self._files, match_group, match_dict, exclude_dict)
 
     def _should_be_run(self, source_area: FileGroupForCi) -> bool:
         if self.full_tests_needed:
@@ -882,6 +887,10 @@ class SelectiveChecks:
         return "generated/provider_dependencies.json" in self._files
 
     @cached_property
+    def hatch_build_changed(self) -> bool:
+        return "hatch_build.py" in self._files
+
+    @cached_property
     def pyproject_toml_changed(self) -> bool:
         if not self._commit_ref:
             get_console().print("[warning]Cannot determine pyproject.toml changes as commit is missing[/]")
@@ -940,28 +949,6 @@ class SelectiveChecks:
         return False
 
     @cached_property
-    def dependencies_changed_in_pyproject_toml(self) -> bool:
-        if not self.pyproject_toml_changed:
-            return False
-        new_deps = self._new_toml["project"]["dependencies"]
-        old_deps = self._old_toml["project"]["dependencies"]
-        if new_deps != old_deps:
-            get_console().print("[warning]Project dependencies changed [/]")
-            self._print_diff(old_deps, new_deps)
-            return True
-        new_optional_deps = self._new_toml["project"].get("optional-dependencies", {})
-        old_optional_deps = self._old_toml["project"].get("optional-dependencies", {})
-        if new_optional_deps != old_optional_deps:
-            get_console().print("[warning]Optional dependencies changed [/]")
-            all_dep_keys = set(new_optional_deps.keys()).union(old_optional_deps.keys())
-            for dep in all_dep_keys:
-                if new_optional_deps.get(dep) != old_optional_deps.get(dep):
-                    get_console().print(f"[warning]Optional dependency {dep} changed[/]")
-                    self._print_diff(old_optional_deps.get(dep, []), new_optional_deps.get(dep, []))
-            return True
-        return False
-
-    @cached_property
     def upgrade_to_newer_dependencies(self) -> bool:
         if (
             len(
@@ -973,10 +960,8 @@ class SelectiveChecks:
         ):
             get_console().print("[warning]Upgrade to newer dependencies: Dependency files changed[/]")
             return True
-        if self.dependencies_changed_in_pyproject_toml:
-            get_console().print(
-                "[warning]Upgrade to newer dependencies: Dependencies changed in pyproject.toml[/]"
-            )
+        if self.hatch_build_changed:
+            get_console().print("[warning]Upgrade to newer dependencies: hatch_build.py changed[/]")
             return True
         if self.build_system_changed_in_pyproject_toml:
             get_console().print(
@@ -1093,7 +1078,7 @@ class SelectiveChecks:
         return True
 
     @cached_property
-    def cache_directive(self) -> str:
+    def docker_cache(self) -> str:
         return (
             "disabled"
             if (self._github_event == GithubEvents.SCHEDULE or DISABLE_IMAGE_CACHE_LABEL in self._pr_labels)
@@ -1127,10 +1112,14 @@ class SelectiveChecks:
         return " ".join(sorted(affected_providers))
 
     @cached_property
-    def runs_on(self) -> str:
+    def runs_on_as_json_default(self) -> str:
         if self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY:
             if self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH]:
+                # Canary and Scheduled runs
                 return RUNS_ON_SELF_HOSTED_RUNNER
+            if self._pr_labels and USE_PUBLIC_RUNNERS_LABEL in self._pr_labels:
+                # Forced public runners
+                return RUNS_ON_PUBLIC_RUNNER
             actor = self._github_actor
             if self._github_event in (GithubEvents.PULL_REQUEST, GithubEvents.PULL_REQUEST_TARGET):
                 try:
@@ -1145,8 +1134,31 @@ class SelectiveChecks:
                         f"[info]Could not find the actor from pull request, "
                         f"falling back to the actor who triggered the PR: {actor}[/]"
                     )
-            if actor in COMMITTERS and USE_PUBLIC_RUNNERS_LABEL not in self._pr_labels:
+            if (
+                actor not in COMMITTERS
+                and self._pr_labels
+                and USE_SELF_HOSTED_RUNNERS_LABEL in self._pr_labels
+            ):
+                get_console().print(
+                    f"[error]The PR has `{USE_SELF_HOSTED_RUNNERS_LABEL}` label, but "
+                    f"{actor} is not a committer. This is not going to work.[/]"
+                )
+                sys.exit(1)
+            if USE_SELF_HOSTED_RUNNERS_LABEL in self._pr_labels:
+                # Forced self-hosted runners
                 return RUNS_ON_SELF_HOSTED_RUNNER
+            if actor in COMMITTERS:
+                return RUNS_ON_SELF_HOSTED_RUNNER
+            else:
+                return RUNS_ON_PUBLIC_RUNNER
+        return RUNS_ON_PUBLIC_RUNNER
+
+    @cached_property
+    def runs_on_as_json_self_hosted(self) -> str:
+        return RUNS_ON_SELF_HOSTED_RUNNER
+
+    @cached_property
+    def runs_on_as_json_public(self) -> str:
         return RUNS_ON_PUBLIC_RUNNER
 
     @cached_property
@@ -1156,7 +1168,7 @@ class SelectiveChecks:
 
         All self-hosted runners have "self-hosted" label.
         """
-        return "self-hosted" in json.loads(self.runs_on)
+        return "self-hosted" in json.loads(self.runs_on_as_json_default)
 
     @cached_property
     def is_airflow_runner(self) -> bool:
@@ -1167,7 +1179,7 @@ class SelectiveChecks:
         """
         # TODO: when we have it properly set-up with labels we should just check for
         #       "airflow-runner" presence in runs_on
-        runs_on_array = json.loads(self.runs_on)
+        runs_on_array = json.loads(self.runs_on_as_json_default)
         return "Linux" in runs_on_array and "X64" in runs_on_array and "self-hosted" in runs_on_array
 
     @cached_property
@@ -1188,7 +1200,7 @@ class SelectiveChecks:
                 or "x64" == label.lower()
                 or "asf-runner" == label
                 or ("ubuntu" in label and "arm" not in label.lower())
-                for label in json.loads(self.runs_on)
+                for label in json.loads(self.runs_on_as_json_public)
             ]
         )
 
@@ -1204,7 +1216,7 @@ class SelectiveChecks:
         return any(
             [
                 "arm" == label.lower() or "arm64" == label.lower() or "asf-arm" == label
-                for label in json.loads(self.runs_on)
+                for label in json.loads(self.runs_on_as_json_public)
             ]
         )
 

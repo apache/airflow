@@ -105,12 +105,11 @@ github:
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
-      #    v2-9-stable:
-      #      required_pull_request_reviews:
-      #        required_approving_review_count: 1
-      #      required_linear_history: true
+    v2-9-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
   collaborators:
-    - Lee-W
     - RNHTTR
     - aritra24
     - dirrao

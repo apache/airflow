@@ -2847,6 +2847,13 @@ components:
           type: string
           readOnly: true
           description: The ID of the DAG.
+        dag_display_name:
+          type: string
+          readOnly: true
+          description: |
+            Human centric display text for the DAG.
+
+            *New in version 2.9.0*
         root_dag_id:
           type: string
           readOnly: true
@@ -3570,6 +3577,12 @@ components:
       properties:
         task_id:
           type: string
+        task_display_name:
+          type: string
+          description: |
+            Human centric display text for the task.
+
+            *New in version 2.9.0*
         dag_id:
           type: string
         dag_run_id:
@@ -3923,6 +3936,9 @@ components:
         class_ref:
           $ref: "#/components/schemas/ClassReference"
         task_id:
+          type: string
+          readOnly: true
+        task_display_name:
           type: string
           readOnly: true
         owner:
@@ -5651,20 +5667,20 @@ tags:
   - name: Connection
   - name: DAG
   - name: DAGRun
+  - name: DagWarning
+  - name: Dataset
   - name: EventLog
   - name: ImportError
   - name: Monitoring
+  - name: Permission
+  - name: Plugin
   - name: Pool
   - name: Provider
+  - name: Role
   - name: TaskInstance
+  - name: User
   - name: Variable
   - name: XCom
-  - name: Plugin
-  - name: Role
-  - name: Permission
-  - name: User
-  - name: DagWarning
-  - name: Dataset
 
 externalDocs:
   url: https://airflow.apache.org/docs/apache-airflow/stable/

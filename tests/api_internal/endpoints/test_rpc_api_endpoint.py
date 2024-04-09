@@ -85,23 +85,23 @@ class TestRpcApiEndpoint:
     @pytest.mark.parametrize(
         "input_params, method_result, result_cmp_func, method_params",
         [
-            ("", None, lambda got, _: got == b"", {}),
-            ("", "test_me", equals, {}),
+            ({}, None, lambda got, _: got == b"", {}),
+            ({}, "test_me", equals, {}),
             (
-                json.dumps(BaseSerialization.serialize({"dag_id": 15, "task_id": "fake-task"})),
+                BaseSerialization.serialize({"dag_id": 15, "task_id": "fake-task"}),
                 ("dag_id_15", "fake-task", 1),
                 equals,
                 {"dag_id": 15, "task_id": "fake-task"},
             ),
             (
-                "",
+                {},
                 TaskInstance(task=EmptyOperator(task_id="task"), run_id="run_id", state=State.RUNNING),
                 lambda a, b: a.model_dump() == TaskInstancePydantic.model_validate(b).model_dump()
                 and isinstance(a.task, BaseOperator),
                 {},
             ),
             (
-                "",
+                {},
                 Connection(conn_id="test_conn", conn_type="http", host="", password=""),
                 lambda a, b: a.get_uri() == b.get_uri() and a.conn_id == b.conn_id,
                 {},
@@ -133,7 +133,7 @@ class TestRpcApiEndpoint:
 
     def test_method_with_exception(self):
         mock_test_method.side_effect = ValueError("Error!!!")
-        data = {"jsonrpc": "2.0", "method": TEST_METHOD_NAME, "params": ""}
+        data = {"jsonrpc": "2.0", "method": TEST_METHOD_NAME, "params": {}}
 
         response = self.client.post(
             "/internal_api/v1/rpcapi", headers={"Content-Type": "application/json"}, data=json.dumps(data)
@@ -143,7 +143,7 @@ class TestRpcApiEndpoint:
         mock_test_method.assert_called_once()
 
     def test_unknown_method(self):
-        data = {"jsonrpc": "2.0", "method": "i-bet-it-does-not-exist", "params": ""}
+        data = {"jsonrpc": "2.0", "method": "i-bet-it-does-not-exist", "params": {}}
 
         response = self.client.post(
             "/internal_api/v1/rpcapi", headers={"Content-Type": "application/json"}, data=json.dumps(data)
@@ -153,7 +153,7 @@ class TestRpcApiEndpoint:
         mock_test_method.assert_not_called()
 
     def test_invalid_jsonrpc(self):
-        data = {"jsonrpc": "1.0", "method": TEST_METHOD_NAME, "params": ""}
+        data = {"jsonrpc": "1.0", "method": TEST_METHOD_NAME, "params": {}}
 
         response = self.client.post(
             "/internal_api/v1/rpcapi", headers={"Content-Type": "application/json"}, data=json.dumps(data)

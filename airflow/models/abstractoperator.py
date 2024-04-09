@@ -19,12 +19,13 @@ from __future__ import annotations
 
 import datetime
 import inspect
+from abc import abstractproperty
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable, Iterator, Sequence
 
+import methodtools
 from sqlalchemy import select
 
-from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models.expandinput import NotFullyPopulated
@@ -59,6 +60,7 @@ if TYPE_CHECKING:
 DEFAULT_OWNER: str = conf.get_mandatory_value("operators", "default_owner")
 DEFAULT_POOL_SLOTS: int = 1
 DEFAULT_PRIORITY_WEIGHT: int = 1
+DEFAULT_EXECUTOR: str | None = None
 DEFAULT_QUEUE: str = conf.get_mandatory_value("operators", "default_queue")
 DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST: bool = conf.getboolean(
     "scheduler", "ignore_first_depends_on_past_by_default"
@@ -157,6 +159,20 @@ class AbstractOperator(Templater, DAGNode):
 
     @property
     def node_id(self) -> str:
+        return self.task_id
+
+    @abstractproperty
+    def task_display_name(self) -> str: ...
+
+    @property
+    def label(self) -> str | None:
+        if self.task_display_name and self.task_display_name != self.task_id:
+            return self.task_display_name
+        # Prefix handling if no display is given is cloned from taskmixin for compatibility
+        tg = self.task_group
+        if tg and tg.node_id and tg.prefix_group_id:
+            # "task_group_id.task_id" -> "task_id"
+            return self.task_id[len(tg.node_id) + 1 :]
         return self.task_id
 
     @property
@@ -477,7 +493,7 @@ class AbstractOperator(Templater, DAGNode):
             return link.get_link(self.unmap(None), ti.dag_run.logical_date)  # type: ignore[misc]
         return link.get_link(self.unmap(None), ti_key=ti.key)
 
-    @cache
+    @methodtools.lru_cache(maxsize=None)
     def get_parse_time_mapped_ti_count(self) -> int:
         """
         Return the number of mapped task instances that can be created on DAG run creation.

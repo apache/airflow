@@ -21,6 +21,7 @@ from __future__ import annotations
 import datetime
 import json
 import logging
+import math
 import re
 import shlex
 import string
@@ -61,8 +62,8 @@ from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode, Kubernete
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     POD_NAME_MAX_LENGTH,
-    add_pod_suffix,
-    create_pod_id,
+    add_unique_suffix,
+    create_unique_id,
 )
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
@@ -710,10 +711,13 @@ class KubernetesPodOperator(BaseOperator):
                     pod=self.pod, event=event, client=self.client, mode=ExecutionMode.SYNC
                 )
 
+            follow = self.logging_interval is None
+            last_log_time = event.get("last_log_time")
+
             if event["status"] in ("error", "failed", "timeout"):
                 # fetch some logs when pod is failed
                 if self.get_logs:
-                    self.write_logs(self.pod)
+                    self.write_logs(self.pod, follow=follow, since_time=last_log_time)
 
                 if self.do_xcom_push:
                     _ = self.extract_xcom(pod=self.pod)
@@ -723,13 +727,12 @@ class KubernetesPodOperator(BaseOperator):
 
             elif event["status"] == "running":
                 if self.get_logs:
-                    last_log_time = event.get("last_log_time")
                     self.log.info("Resuming logs read from time %r", last_log_time)
 
                     pod_log_status = self.pod_manager.fetch_container_logs(
                         pod=self.pod,
                         container_name=self.BASE_CONTAINER_NAME,
-                        follow=self.logging_interval is None,
+                        follow=follow,
                         since_time=last_log_time,
                     )
 
@@ -742,7 +745,7 @@ class KubernetesPodOperator(BaseOperator):
             elif event["status"] == "success":
                 # fetch some logs when pod is executed successfully
                 if self.get_logs:
-                    self.write_logs(self.pod)
+                    self.write_logs(self.pod, follow=follow, since_time=last_log_time)
 
                 if self.do_xcom_push:
                     xcom_sidecar_output = self.extract_xcom(pod=self.pod)
@@ -771,14 +774,20 @@ class KubernetesPodOperator(BaseOperator):
 
     @deprecated(reason="use `trigger_reentry` instead.", category=AirflowProviderDeprecationWarning)
     def execute_complete(self, context: Context, event: dict, **kwargs):
-        self.trigger_reentry(context=context, event=event)
+        return self.trigger_reentry(context=context, event=event)
 
-    def write_logs(self, pod: k8s.V1Pod):
+    def write_logs(self, pod: k8s.V1Pod, follow: bool = False, since_time: DateTime | None = None):
         try:
+            since_seconds = (
+                math.ceil((datetime.datetime.now(tz=datetime.timezone.utc) - since_time).total_seconds())
+                if since_time
+                else None
+            )
             logs = self.pod_manager.read_pod_logs(
                 pod=pod,
                 container_name=self.base_container_name,
-                follow=False,
+                follow=follow,
+                since_seconds=since_seconds,
             )
             for raw_line in logs:
                 line = raw_line.decode("utf-8", errors="backslashreplace").rstrip("\n")
@@ -901,7 +910,7 @@ class KubernetesPodOperator(BaseOperator):
         self.log.info("Output of curl command to kill istio: %s", output_str)
         resp.close()
         if self.KILL_ISTIO_PROXY_SUCCESS_MSG not in output_str:
-            raise Exception("Error while deleting istio-proxy sidecar: %s", output_str)
+            raise AirflowException("Error while deleting istio-proxy sidecar: %s", output_str)
 
     def process_pod_deletion(self, pod: k8s.V1Pod, *, reraise=True):
         with _optionally_suppress(reraise=reraise):
@@ -1040,12 +1049,12 @@ class KubernetesPodOperator(BaseOperator):
         pod = PodGenerator.reconcile_pods(pod_template, pod)
 
         if not pod.metadata.name:
-            pod.metadata.name = create_pod_id(
+            pod.metadata.name = create_unique_id(
                 task_id=self.task_id, unique=self.random_name_suffix, max_length=POD_NAME_MAX_LENGTH
             )
         elif self.random_name_suffix:
             # user has supplied pod name, we're just adding suffix
-            pod.metadata.name = add_pod_suffix(pod_name=pod.metadata.name)
+            pod.metadata.name = add_unique_suffix(name=pod.metadata.name)
 
         if not pod.metadata.namespace:
             hook_namespace = self.hook.get_namespace()

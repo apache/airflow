@@ -27,6 +27,8 @@ from unittest import mock
 import pytest
 
 from airflow import settings
+from airflow.configuration import conf
+from airflow.decorators import task as task_decorator
 from airflow.models import Variable
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.operators.bash import BashOperator
@@ -60,6 +62,17 @@ class ClassWithCustomAttributes:
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+
+class LargeStrObject:
+    def __init__(self):
+        self.a = "a" * 5000
+
+    def __str__(self):
+        return self.a
+
+
+max_length = conf.getint("core", "max_templated_field_length")
 
 
 class TestRenderedTaskInstanceFields:
@@ -111,6 +124,14 @@ class TestRenderedTaskInstanceFields:
                 "{'att3': '{{ task.task_id }}', 'att4': '{{ task.task_id }}', 'template_fields': ['att3']}), "
                 "'template_fields': ['nested1']})",
             ),
+            (
+                "a" * 5000,
+                f"Truncated. You can change this behaviour in [core]max_templated_field_length. {('a'*5000)[:max_length-79]!r}... ",
+            ),
+            (
+                LargeStrObject(),
+                f"Truncated. You can change this behaviour in [core]max_templated_field_length. {str(LargeStrObject())[:max_length-79]!r}... ",
+            ),
         ],
     )
     def test_get_templated_fields(self, templated_field, expected_rendered_field, dag_maker):
@@ -147,6 +168,46 @@ class TestRenderedTaskInstanceFields:
         # i.e. for the TIs that are not stored in RTIF table
         # Fetching them will return None
         assert RTIF.get_templated_fields(ti=ti2) is None
+
+    @pytest.mark.enable_redact
+    def test_secrets_are_masked_when_large_string(self, dag_maker):
+        """
+        Test that secrets are masked when the templated field is a large string
+        """
+        Variable.set(
+            key="api_key",
+            value="test api key are still masked" * 5000,
+        )
+        with dag_maker("test_serialized_rendered_fields"):
+            task = BashOperator(task_id="test", bash_command="echo {{ var.value.api_key }}")
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        ti.task = task
+        rtif = RTIF(ti=ti)
+        assert "***" in rtif.rendered_fields.get("bash_command")
+
+    @mock.patch("airflow.models.BaseOperator.render_template")
+    def test_pandas_dataframes_works_with_the_string_compare(self, render_mock, dag_maker):
+        """Test that rendered dataframe gets passed through the serialized template fields."""
+        import pandas
+
+        render_mock.return_value = pandas.DataFrame({"a": [1, 2, 3]})
+        with dag_maker("test_serialized_rendered_fields"):
+
+            @task_decorator
+            def generate_pd():
+                return pandas.DataFrame({"a": [1, 2, 3]})
+
+            @task_decorator
+            def consume_pd(data):
+                return data
+
+            consume_pd(generate_pd())
+
+        dr = dag_maker.create_dagrun()
+        ti, ti2 = dr.task_instances
+        rtif = RTIF(ti=ti2)
+        rtif.write()
 
     @pytest.mark.parametrize(
         "rtif_num, num_to_keep, remaining_rtifs, expected_query_count",

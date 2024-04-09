@@ -132,8 +132,9 @@ def refresh_provider_metadata_from_yaml_file(provider_yaml_path: Path):
 
         try:
             jsonschema.validate(provider, schema=schema)
-        except jsonschema.ValidationError:
-            raise Exception(f"Unable to parse: {provider_yaml_path}.")
+        except jsonschema.ValidationError as ex:
+            msg = f"Unable to parse: {provider_yaml_path}. Original error {type(ex).__name__}: {ex}"
+            raise RuntimeError(msg)
     except ImportError:
         # we only validate the schema if jsonschema is available. This is needed for autocomplete
         # to not fail with import error if jsonschema is not installed
@@ -176,12 +177,12 @@ def validate_provider_info_with_runtime_schema(provider_info: dict[str, Any]) ->
     try:
         jsonschema.validate(provider_info, schema=schema)
     except jsonschema.ValidationError as ex:
-        get_console().print("[red]Provider info not validated against runtime schema[/]")
-        raise Exception(
-            "Error when validating schema. The schema must be compatible with "
-            "airflow/provider_info.schema.json.",
-            ex,
+        get_console().print(
+            "[red]Error when validating schema. The schema must be compatible with "
+            "[bold]'airflow/provider_info.schema.json'[/bold].\n"
+            f"Original exception [bold]{type(ex).__name__}: {ex}[/]"
         )
+        raise SystemExit(1)
 
 
 def get_provider_info_dict(provider_id: str) -> dict[str, Any]:
@@ -421,6 +422,9 @@ def apply_version_suffix(install_clause: str, version_suffix: str) -> str:
         from packaging.version import Version
 
         base_version = Version(version).base_version
+        # always use `pre-release`+ `0` as the version suffix
+        version_suffix = version_suffix.rstrip("0123456789") + "0"
+
         target_version = Version(str(base_version) + "." + version_suffix)
         return prefix + ">=" + str(target_version)
     return install_clause

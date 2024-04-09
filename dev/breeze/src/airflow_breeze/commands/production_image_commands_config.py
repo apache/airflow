@@ -36,7 +36,6 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--install-airflow-version",
                 "--python",
                 "--tag-as-latest",
-                "--use-uv",
                 "--version-suffix-for-pypi",
             ],
         },
@@ -58,6 +57,8 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--commit-sha",
                 "--debian-version",
                 "--python-image",
+                "--use-uv",
+                "--uv-http-timeout",
             ],
         },
         {

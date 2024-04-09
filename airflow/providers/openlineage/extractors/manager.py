@@ -16,20 +16,15 @@
 # under the License.
 from __future__ import annotations
 
-import os
 from contextlib import suppress
 from typing import TYPE_CHECKING, Iterator
 
-from airflow.configuration import conf
+from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors import BaseExtractor, OperatorLineage
 from airflow.providers.openlineage.extractors.base import DefaultExtractor
 from airflow.providers.openlineage.extractors.bash import BashExtractor
 from airflow.providers.openlineage.extractors.python import PythonExtractor
-from airflow.providers.openlineage.plugins.facets import (
-    UnknownOperatorAttributeRunFacet,
-    UnknownOperatorInstance,
-)
-from airflow.providers.openlineage.utils.utils import get_filtered_unknown_operator_keys
+from airflow.providers.openlineage.utils.utils import get_unknown_source_attribute_run_facet
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
 
@@ -65,22 +60,17 @@ class ExtractorManager(LoggingMixin):
             for operator_class in extractor.get_operator_classnames():
                 self.extractors[operator_class] = extractor
 
-        # Semicolon-separated extractors in Airflow configuration or OPENLINEAGE_EXTRACTORS variable.
-        # Extractors should implement BaseExtractor
-        env_extractors = conf.get("openlineage", "extractors", fallback=os.getenv("OPENLINEAGE_EXTRACTORS"))
-        # skip either when it's empty string or None
-        if env_extractors:
-            for extractor in env_extractors.split(";"):
-                extractor: type[BaseExtractor] = try_import_from_string(extractor.strip())
-                for operator_class in extractor.get_operator_classnames():
-                    if operator_class in self.extractors:
-                        self.log.debug(
-                            "Duplicate extractor found for `%s`. `%s` will be used instead of `%s`",
-                            operator_class,
-                            extractor,
-                            self.extractors[operator_class],
-                        )
-                    self.extractors[operator_class] = extractor
+        for extractor_path in conf.custom_extractors():
+            extractor: type[BaseExtractor] = try_import_from_string(extractor_path)
+            for operator_class in extractor.get_operator_classnames():
+                if operator_class in self.extractors:
+                    self.log.debug(
+                        "Duplicate extractor found for `%s`. `%s` will be used instead of `%s`",
+                        operator_class,
+                        extractor_path,
+                        self.extractors[operator_class],
+                    )
+                self.extractors[operator_class] = extractor
 
     def add_extractor(self, operator_class: str, extractor: type[BaseExtractor]):
         self.extractors[operator_class] = extractor
@@ -121,16 +111,7 @@ class ExtractorManager(LoggingMixin):
 
             # Only include the unkonwnSourceAttribute facet if there is no extractor
             task_metadata = OperatorLineage(
-                run_facets={
-                    "unknownSourceAttribute": UnknownOperatorAttributeRunFacet(
-                        unknownItems=[
-                            UnknownOperatorInstance(
-                                name=task.task_type,
-                                properties=get_filtered_unknown_operator_keys(task),
-                            )
-                        ]
-                    )
-                },
+                run_facets=get_unknown_source_attribute_run_facet(task=task),
             )
             inlets = task.get_inlet_defs()
             outlets = task.get_outlet_defs()

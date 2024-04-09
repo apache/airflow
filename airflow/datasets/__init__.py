@@ -31,6 +31,10 @@ __all__ = ["Dataset", "DatasetAll", "DatasetAny"]
 
 
 def normalize_noop(parts: SplitResult) -> SplitResult:
+    """Place-hold a :class:`~urllib.parse.SplitResult`` normalizer.
+
+    :meta private:
+    """
     return parts
 
 
@@ -43,6 +47,11 @@ def _get_uri_normalizer(scheme: str) -> Callable[[SplitResult], SplitResult] | N
 
 
 def _sanitize_uri(uri: str) -> str:
+    """Sanitize a dataset URI.
+
+    This checks for URI validity, and normalizes the URI if needed. A fully
+    normalized URI is returned.
+    """
     if not uri:
         raise ValueError("Dataset URI cannot be empty")
     if uri.isspace():
@@ -82,6 +91,20 @@ def _sanitize_uri(uri: str) -> str:
     return urllib.parse.urlunsplit(parsed)
 
 
+def coerce_to_uri(value: str | Dataset) -> str:
+    """Coerce a user input into a sanitized URI.
+
+    If the input value is a string, it is treated as a URI and sanitized. If the
+    input is a :class:`Dataset`, the URI it contains is considered sanitized and
+    returned directly.
+
+    :meta private:
+    """
+    if isinstance(value, Dataset):
+        return value.uri
+    return _sanitize_uri(str(value))
+
+
 class BaseDatasetEventInput:
     """Protocol for all dataset triggers to use in ``DAG(schedule=...)``.
 
@@ -97,6 +120,16 @@ class BaseDatasetEventInput:
         if not isinstance(other, BaseDatasetEventInput):
             return NotImplemented
         return DatasetAll(self, other)
+
+    def as_expression(self) -> Any:
+        """Serialize the dataset into its scheduling expression.
+
+        The return value is stored in DagModel for display purposes. It must be
+        JSON-compatible.
+
+        :meta private:
+        """
+        raise NotImplementedError
 
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         raise NotImplementedError
@@ -127,6 +160,13 @@ class Dataset(os.PathLike, BaseDatasetEventInput):
 
     def __hash__(self) -> int:
         return hash(self.uri)
+
+    def as_expression(self) -> Any:
+        """Serialize the dataset into its scheduling expression.
+
+        :meta private:
+        """
+        return self.uri
 
     def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
         yield self.uri, self
@@ -172,6 +212,13 @@ class DatasetAny(_DatasetBooleanCondition):
     def __repr__(self) -> str:
         return f"DatasetAny({', '.join(map(str, self.objects))})"
 
+    def as_expression(self) -> dict[str, Any]:
+        """Serialize the dataset into its scheduling expression.
+
+        :meta private:
+        """
+        return {"any": [o.as_expression() for o in self.objects]}
+
 
 class DatasetAll(_DatasetBooleanCondition):
     """Use to combine datasets schedule references in an "or" relationship."""
@@ -186,3 +233,10 @@ class DatasetAll(_DatasetBooleanCondition):
 
     def __repr__(self) -> str:
         return f"DatasetAll({', '.join(map(str, self.objects))})"
+
+    def as_expression(self) -> Any:
+        """Serialize the dataset into its scheduling expression.
+
+        :meta private:
+        """
+        return {"all": [o.as_expression() for o in self.objects]}

@@ -90,7 +90,7 @@ _REVISION_HEADS_MAP = {
     "2.7.0": "405de8318b3a",
     "2.8.0": "10b52ebd31f7",
     "2.8.1": "88344c1d9134",
-    "2.9.0": "1fd565369930",
+    "2.9.0": "1949afb29106",
 }
 
 
@@ -972,6 +972,33 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
         session.add(LogTemplate(filename=filename, elasticsearch_id=elasticsearch_id))
 
 
+def encrypt_trigger_kwargs(*, session: Session) -> None:
+    """Encrypt trigger kwargs."""
+    from airflow.models.trigger import Trigger
+    from airflow.serialization.serialized_objects import BaseSerialization
+
+    for trigger in session.query(Trigger):
+        # convert serialized dict to string and encrypt it
+        trigger.kwargs = BaseSerialization.deserialize(json.loads(trigger.encrypted_kwargs))
+    session.commit()
+
+
+def decrypt_trigger_kwargs(*, session: Session) -> None:
+    """Decrypt trigger kwargs."""
+    from airflow.models.trigger import Trigger
+    from airflow.serialization.serialized_objects import BaseSerialization
+
+    if not inspect(session.bind).has_table(Trigger.__tablename__):
+        # table does not exist, nothing to do
+        # this can happen when we downgrade to an old version before the Trigger table was added
+        return
+
+    for trigger in session.scalars(select(Trigger.encrypted_kwargs)):
+        # decrypt the string and convert it to serialized dict
+        trigger.encrypted_kwargs = json.dumps(BaseSerialization.serialize(trigger.kwargs))
+    session.commit()
+
+
 def check_conn_id_duplicates(session: Session) -> Iterable[str]:
     """
     Check unique conn_id in connection table.
@@ -1639,6 +1666,12 @@ def upgradedb(
         _reserialize_dags(session=session)
     add_default_pool_if_not_exists(session=session)
     synchronize_log_template(session=session)
+    if _revision_greater(
+        config,
+        _REVISION_HEADS_MAP["2.9.0"],
+        _get_current_revision(session=session),
+    ):
+        encrypt_trigger_kwargs(session=session)
 
 
 @provide_session
@@ -1711,6 +1744,12 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
         else:
             log.info("Applying downgrade migrations.")
             command.downgrade(config, revision=to_revision, sql=show_sql_only)
+            if _revision_greater(
+                config,
+                _REVISION_HEADS_MAP["2.9.0"],
+                to_revision,
+            ):
+                decrypt_trigger_kwargs(session=session)
 
 
 def drop_airflow_models(connection):

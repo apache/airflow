@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import contextlib
+import warnings
 from contextlib import closing
 from datetime import datetime
 from typing import (
@@ -36,11 +37,14 @@ from typing import (
 from urllib.parse import urlparse
 
 import sqlparse
-from deprecated import deprecated
 from more_itertools import chunked
 from sqlalchemy import create_engine
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+    AirflowProviderDeprecationWarning,
+)
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
@@ -50,6 +54,7 @@ if TYPE_CHECKING:
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
 T = TypeVar("T")
+SQL_PLACEHOLDERS = frozenset({"%s", "?"})
 
 
 def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool):
@@ -146,6 +151,8 @@ class DbApiHook(BaseHook):
     connector: ConnectorProtocol | None = None
     # Override with db-specific query to check connection
     _test_connection_sql = "select 1"
+    # Default SQL placeholder
+    _placeholder: str = "%s"
 
     def __init__(self, *args, schema: str | None = None, log_sql: bool = True, **kwargs):
         super().__init__()
@@ -164,7 +171,6 @@ class DbApiHook(BaseHook):
         self.__schema = schema
         self.log_sql = log_sql
         self.descriptions: list[Sequence[Sequence] | None] = []
-        self._placeholder: str = "%s"
         self._insert_statement_format: str = kwargs.get(
             "insert_statement_format", "INSERT INTO {} {} VALUES ({})"
         )
@@ -173,7 +179,17 @@ class DbApiHook(BaseHook):
         )
 
     @property
-    def placeholder(self) -> str:
+    def placeholder(self):
+        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        placeholder = conn.extra_dejson.get("placeholder")
+        if placeholder in SQL_PLACEHOLDERS:
+            return placeholder
+        self.log.warning(
+            "Placeholder defined in Connection '%s' is not listed in 'DEFAULT_SQL_PLACEHOLDERS' "
+            "and got ignored. Falling back to the default placeholder '%s'.",
+            placeholder,
+            self._placeholder,
+        )
         return self._placeholder
 
     def get_conn(self):
@@ -218,7 +234,7 @@ class DbApiHook(BaseHook):
         try:
             from pandas.io import sql as psql
         except ImportError:
-            raise Exception(
+            raise AirflowOptionalProviderFeatureException(
                 "pandas library not installed, run: pip install "
                 "'apache-airflow-providers-common-sql[pandas]'."
             )
@@ -245,7 +261,7 @@ class DbApiHook(BaseHook):
         try:
             from pandas.io import sql as psql
         except ImportError:
-            raise Exception(
+            raise AirflowOptionalProviderFeatureException(
                 "pandas library not installed, run: pip install "
                 "'apache-airflow-providers-common-sql[pandas]'."
             )
@@ -422,14 +438,6 @@ class DbApiHook(BaseHook):
         else:
             return results
 
-    @deprecated(
-        reason=(
-            "The `_make_serializable` method is deprecated and support will be removed in a future "
-            "version of the common.sql provider. Please update the DbApiHook's provider "
-            "to a version based on common.sql >= 1.9.1."
-        ),
-        category=AirflowProviderDeprecationWarning,
-    )
     def _make_common_data_structure(self, result: T | Sequence[T]) -> tuple | list[tuple]:
         """Ensure the data returned from an SQL command is a standard tuple or list[tuple].
 
@@ -444,6 +452,13 @@ class DbApiHook(BaseHook):
         # Back-compatibility call for providers implementing old ´_make_serializable' method.
         with contextlib.suppress(AttributeError):
             result = self._make_serializable(result=result)  # type: ignore[attr-defined]
+            warnings.warn(
+                "The `_make_serializable` method is deprecated and support will be removed in a future "
+                f"version of the common.sql provider. Please update the {self.__class__.__name__}'s provider "
+                "to a version based on common.sql >= 1.9.1.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
 
         if isinstance(result, Sequence):
             return cast(List[tuple], result)

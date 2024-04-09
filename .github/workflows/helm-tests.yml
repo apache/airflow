@@ -20,10 +20,13 @@ name: Helm tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on:
-        description: "The array of labels (in json form) determining type of the runner to use for the build."
-        required: false
-        default: '["ubuntu-22.04"]'
+      runs-on-as-json-default:
+        description: "The array of labels (in json form) determining default runner used for the build."
+        required: true
+        type: string
+      runs-on-as-json-public:
+        description: "The array of labels (in json form) determining public runners."
+        required: true
         type: string
       helm-test-packages:
         description: "Stringified JSON array of helm test packages to test"
@@ -34,20 +37,19 @@ on:  # yamllint disable-line rule:truthy
         required: true
         type: string
       default-python-version:
-        description: Which version of python should be used get CI image
+        description: "Which version of python should be used by default"
         required: true
         type: string
 jobs:
   tests-helm:
     timeout-minutes: 80
-    name: "Unit tests Helm: ${{ matrix.helm-test-package }}:${{ inputs.image-tag }}"
-    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    name: "Unit tests Helm: ${{ matrix.helm-test-package }}"
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
     strategy:
       fail-fast: false
       matrix:
-        helm-test-package: ${{ fromJson(inputs.helm-test-packages) }}
+        helm-test-package: ${{ fromJSON(inputs.helm-test-packages) }}
     env:
-      RUNS_ON: "${{ inputs.runs-on }}"
       # Always use default Python version of CI image for preparing packages
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       PARALLEL_TEST_TYPES: "Helm"
@@ -56,7 +58,10 @@ jobs:
       JOB_ID: "helm-tests"
       USE_XDIST: "true"
       IMAGE_TAG: "${{ inputs.image-tag }}"
+      GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      VERBOSE: "true"
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -65,8 +70,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
       - name: "Prepare breeze & CI image: ${{inputs.default-python-version}}:${{inputs.image-tag}}"
         uses: ./.github/actions/prepare_breeze_and_image
       - name: "Helm Unit Tests: ${{ matrix.helm-test-package }}"
@@ -75,9 +80,8 @@ jobs:
   tests-helm-release:
     timeout-minutes: 80
     name: "Release Helm"
-    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
     env:
-      RUNS_ON: "${{inputs.runs-on}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{inputs.default-python-version}}"
     steps:
       - name: "Cleanup repo"
@@ -87,8 +91,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: Setup git for tagging
@@ -117,11 +121,13 @@ jobs:
         run: ./dev/sign.sh dist/airflow-*.tgz dist/airflow-*-source.tar.gz
         env:
           SIGN_WITH: dev@airflow.apache.org
+      - name: "Fetch Git Tags"
+        run: git fetch --tags
       - name: "Test helm chart issue generation automatically"
         # Adding same tags for now, will address in a follow-up
         run: >
-          breeze release-management generate-issue-content-helm-chart
-          --previous-release helm-chart/0.0.0dev0 --current-release helm-chart/0.0.0dev0
+          breeze release-management generate-issue-content-helm-chart --limit-pr-count 10
+          --latest --verbose
       - name: "Upload Helm artifacts"
         uses: actions/upload-artifact@v4
         with:

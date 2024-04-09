@@ -427,6 +427,7 @@ class TestAwsBaseHook:
         assert mock_class_name.call_count == len(found_classes)
         assert user_agent_tags["Caller"] == found_classes[-1]
 
+    @pytest.mark.db_test
     @mock.patch.object(AwsEcsExecutor, "_load_run_kwargs")
     def test_user_agent_caller_target_executor_found(self, mock_load_run_kwargs):
         with conf_vars(
@@ -449,6 +450,7 @@ class TestAwsBaseHook:
 
         assert user_agent_tags["Caller"] == default_caller_name
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize("env_var, expected_version", [({"AIRFLOW_CTX_DAG_ID": "banana"}, 5), [{}, None]])
     @mock.patch.object(AwsBaseHook, "_get_caller", return_value="Test")
     def test_user_agent_dag_run_key_is_hashed_correctly(self, _, env_var, expected_version):
@@ -1123,13 +1125,11 @@ def test_raise_no_creds_default_credentials_strategy(tmp_path_factory, monkeypat
         monkeypatch.delenv(env_key, raising=False)
 
     hook = AwsBaseHook(aws_conn_id=None, client_type="sts")
-    with pytest.raises(NoCredentialsError):
+    with pytest.raises(NoCredentialsError) as credential_error:
         # Call AWS STS API method GetCallerIdentity
         # which should return result in case of valid credentials
-        result = hook.conn.get_caller_identity()
-        # In normal circumstances lines below should not execute.
-        # We want to show additional information why this test not passed
-        assert not result, f"Credentials Method: {hook.get_session().get_credentials().method}"
+        hook.conn.get_caller_identity()
+    assert str(credential_error.value) == "Unable to locate credentials"
 
 
 TEST_WAITER_CONFIG_LOCATION = Path(__file__).parents[1].joinpath("waiters/test.json")

@@ -20,10 +20,9 @@ name: Special tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on:
-        description: "The array of labels (in json form) determining type of the runner to use for the build."
-        required: false
-        default: '["ubuntu-22.04"]'
+      runs-on-as-json-default:
+        description: "The array of labels (in json form) determining default runner used for the build."
+        required: true
         type: string
       image-tag:
         description: "Tag to set for the image"
@@ -38,11 +37,19 @@ on:  # yamllint disable-line rule:truthy
         required: true
         type: string
       default-python-version:
-        description: Which version of python should be used get CI image
+        description: "Which version of python should be used by default"
         required: true
         type: string
       default-postgres-version:
         description: "The default version of the postgres to use"
+        required: true
+        type: string
+      canary-run:
+        description: "Whether to run canary tests or not (true/false)"
+        required: true
+        type: string
+      upgrade-to-newer-dependencies:
+        description: "Whether to upgrade to newer dependencies or not (true/false)"
         required: true
         type: string
       debug-resources:
@@ -58,7 +65,7 @@ jobs:
       packages: read
     secrets: inherit
     with:
-      runs-on: ${{ inputs.runs-on }}
+      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       downgrade-sqlalchemy: "true"
       test-name: "MinSQLAlchemy-Postgres"
       test-scope: "DB"
@@ -80,7 +87,7 @@ jobs:
       packages: read
     secrets: inherit
     with:
-      runs-on: ${{ inputs.runs-on }}
+      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       upgrade-boto: "true"
       test-name: "LatestBoto-Postgres"
       test-scope: "All"
@@ -102,7 +109,7 @@ jobs:
       packages: read
     secrets: inherit
     with:
-      runs-on: ${{ inputs.runs-on }}
+      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       pydantic: "v1"
       test-name: "Pydantic-V1-Postgres"
       test-scope: "All"
@@ -124,7 +131,7 @@ jobs:
       packages: read
     secrets: inherit
     with:
-      runs-on: ${{ inputs.runs-on }}
+      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       pydantic: "none"
       test-name: "Pydantic-Removed-Postgres"
       test-scope: "All"
@@ -146,7 +153,7 @@ jobs:
       packages: read
     secrets: inherit
     with:
-      runs-on: ${{ inputs.runs-on }}
+      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       downgrade-pendulum: "true"
       test-name: "Pendulum2-Postgres"
       test-scope: "All"
@@ -168,7 +175,7 @@ jobs:
       packages: read
     secrets: inherit
     with:
-      runs-on: ${{ inputs.runs-on }}
+      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       enable-aip-44: "false"
       test-name: "InProgressDisabled-Postgres"
       test-scope: "All"
@@ -190,7 +197,7 @@ jobs:
       packages: read
     secrets: inherit
     with:
-      runs-on: ${{ inputs.runs-on }}
+      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       test-name: "Postgres"
       test-scope: "Quarantined"
       backend: "postgres"
@@ -211,7 +218,7 @@ jobs:
       packages: read
     secrets: inherit
     with:
-      runs-on: ${{ inputs.runs-on }}
+      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       test-name: "Postgres"
       test-scope: "ARM collection"
       backend: "postgres"

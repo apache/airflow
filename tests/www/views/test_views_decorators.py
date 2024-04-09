@@ -146,19 +146,9 @@ def test_action_logging_variables_post(session, admin_client):
     _check_last_log(session, dag_id=None, event="variable.create", execution_date=None)
 
 
+@pytest.mark.enable_redact
 def test_action_logging_variables_masked_secrets(session, admin_client):
     form = dict(key="x_secret", val="randomval")
     admin_client.post("/variable/add", data=form)
     session.commit()
     _check_last_log_masked_variable(session, dag_id=None, event="variable.create", execution_date=None)
-
-
-def test_calendar(admin_client, dagruns):
-    url = "calendar?dag_id=example_bash_operator"
-    resp = admin_client.get(url, follow_redirects=True)
-
-    bash_dagrun, _, _ = dagruns
-
-    datestr = bash_dagrun.execution_date.date().isoformat()
-    expected = rf"{{\"date\":\"{datestr}\",\"state\":\"running\",\"count\":1}}"
-    check_content_in_response(expected, resp)

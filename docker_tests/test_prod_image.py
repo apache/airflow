@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from importlib.util import find_spec
 from pathlib import Path
 
@@ -33,16 +34,19 @@ from docker_tests.docker_utils import (
     run_python_in_docker,
 )
 
-AIRFLOW_PRE_INSTALLED_PROVIDERS_FILE_PATH = SOURCE_ROOT / "airflow_pre_installed_providers.txt"
 PROD_IMAGE_PROVIDERS_FILE_PATH = SOURCE_ROOT / "prod_image_installed_providers.txt"
 AIRFLOW_ROOT_PATH = Path(__file__).parents[2].resolve()
+
+sys.path.insert(0, AIRFLOW_ROOT_PATH.as_posix())  # make sure airflow root is imported
+from hatch_build import PRE_INSTALLED_PROVIDERS  # noqa: E402
+
 SLIM_IMAGE_PROVIDERS = [
-    f"apache-airflow-providers-{provider_id.replace('.','-')}"
-    for provider_id in AIRFLOW_PRE_INSTALLED_PROVIDERS_FILE_PATH.read_text().splitlines()
+    f"apache-airflow-providers-{provider_id.split('>=')[0].replace('.','-')}"
+    for provider_id in PRE_INSTALLED_PROVIDERS
     if not provider_id.startswith("#")
 ]
 REGULAR_IMAGE_PROVIDERS = [
-    f"apache-airflow-providers-{provider_id.replace('.','-')}"
+    f"apache-airflow-providers-{provider_id.split('>=')[0].replace('.','-')}"
     for provider_id in PROD_IMAGE_PROVIDERS_FILE_PATH.read_text().splitlines()
     if not provider_id.startswith("#")
 ]
@@ -81,7 +85,7 @@ class TestPythonPackages:
     def test_required_providers_are_installed(self, default_docker_image):
         if os.environ.get("TEST_SLIM_IMAGE"):
             packages_to_install = set(SLIM_IMAGE_PROVIDERS)
-            package_file = AIRFLOW_PRE_INSTALLED_PROVIDERS_FILE_PATH
+            package_file = "hatch_build.py"
         else:
             packages_to_install = set(REGULAR_IMAGE_PROVIDERS)
             package_file = PROD_IMAGE_PROVIDERS_FILE_PATH

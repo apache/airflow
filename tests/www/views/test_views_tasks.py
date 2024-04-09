@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import html
 import json
-import re
 import unittest.mock
 import urllib.parse
 from getpass import getuser
@@ -29,11 +28,9 @@ import pytest
 import time_machine
 
 from airflow import settings
-from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
-from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCom
@@ -1012,49 +1009,6 @@ def test_action_muldelete_task_instance(session, admin_client, task_search_tuple
     assert session.query(TaskReschedule).count() == 0
 
 
-def test_task_fail_duration(app, admin_client, dag_maker, session):
-    """Task duration page with a TaskFail entry should render without error."""
-    with dag_maker() as dag:
-        op1 = BashOperator(task_id="fail", bash_command="exit 1")
-        op2 = BashOperator(task_id="success", bash_command="exit 0")
-
-    with pytest.raises(AirflowException):
-        op1.run()
-    op2.run()
-
-    op1_fails = (
-        session.query(TaskFail)
-        .filter(
-            TaskFail.task_id == "fail",
-            TaskFail.dag_id == dag.dag_id,
-        )
-        .all()
-    )
-
-    op2_fails = (
-        session.query(TaskFail)
-        .filter(
-            TaskFail.task_id == "success",
-            TaskFail.dag_id == dag.dag_id,
-        )
-        .all()
-    )
-
-    assert len(op1_fails) == 1
-    assert len(op2_fails) == 0
-
-    with unittest.mock.patch.object(app, "dag_bag") as mocked_dag_bag:
-        mocked_dag_bag.get_dag.return_value = dag
-        resp = admin_client.get(f"dags/{dag.dag_id}/duration", follow_redirects=True)
-        html = resp.get_data().decode()
-        cumulative_chart = json.loads(re.search("data_cumlinechart=(.*);", html).group(1))
-        line_chart = json.loads(re.search("data_linechart=(.*);", html).group(1))
-
-        assert resp.status_code == 200
-        assert sorted(item["key"] for item in cumulative_chart) == ["fail", "success"]
-        assert sorted(item["key"] for item in line_chart) == ["fail", "success"]
-
-
 def test_graph_view_doesnt_fail_on_recursion_error(app, dag_maker, admin_client):
     """Test that the graph view doesn't fail on a recursion error."""
     from airflow.models.baseoperator import chain
@@ -1089,6 +1043,7 @@ def test_task_instances(admin_client):
             "duration": None,
             "end_date": None,
             "execution_date": DEFAULT_DATE.isoformat(),
+            "executor": None,
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
@@ -1109,6 +1064,7 @@ def test_task_instances(admin_client):
             "run_id": "TEST_DAGRUN",
             "start_date": None,
             "state": None,
+            "task_display_name": "also_run_this",
             "task_id": "also_run_this",
             "trigger_id": None,
             "trigger_timeout": None,
@@ -1122,6 +1078,7 @@ def test_task_instances(admin_client):
             "duration": None,
             "end_date": None,
             "execution_date": DEFAULT_DATE.isoformat(),
+            "executor": None,
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
@@ -1142,6 +1099,7 @@ def test_task_instances(admin_client):
             "run_id": "TEST_DAGRUN",
             "start_date": None,
             "state": None,
+            "task_display_name": "run_after_loop",
             "task_id": "run_after_loop",
             "trigger_id": None,
             "trigger_timeout": None,
@@ -1155,6 +1113,7 @@ def test_task_instances(admin_client):
             "duration": None,
             "end_date": None,
             "execution_date": DEFAULT_DATE.isoformat(),
+            "executor": None,
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
@@ -1175,6 +1134,7 @@ def test_task_instances(admin_client):
             "run_id": "TEST_DAGRUN",
             "start_date": None,
             "state": None,
+            "task_display_name": "run_this_last",
             "task_id": "run_this_last",
             "trigger_id": None,
             "trigger_timeout": None,
@@ -1188,6 +1148,7 @@ def test_task_instances(admin_client):
             "duration": None,
             "end_date": None,
             "execution_date": DEFAULT_DATE.isoformat(),
+            "executor": None,
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
@@ -1208,6 +1169,7 @@ def test_task_instances(admin_client):
             "run_id": "TEST_DAGRUN",
             "start_date": None,
             "state": None,
+            "task_display_name": "runme_0",
             "task_id": "runme_0",
             "trigger_id": None,
             "trigger_timeout": None,
@@ -1221,6 +1183,7 @@ def test_task_instances(admin_client):
             "duration": None,
             "end_date": None,
             "execution_date": DEFAULT_DATE.isoformat(),
+            "executor": None,
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
@@ -1241,6 +1204,7 @@ def test_task_instances(admin_client):
             "run_id": "TEST_DAGRUN",
             "start_date": None,
             "state": None,
+            "task_display_name": "runme_1",
             "task_id": "runme_1",
             "trigger_id": None,
             "trigger_timeout": None,
@@ -1254,6 +1218,7 @@ def test_task_instances(admin_client):
             "duration": None,
             "end_date": None,
             "execution_date": DEFAULT_DATE.isoformat(),
+            "executor": None,
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
@@ -1274,6 +1239,7 @@ def test_task_instances(admin_client):
             "run_id": "TEST_DAGRUN",
             "start_date": None,
             "state": None,
+            "task_display_name": "runme_2",
             "task_id": "runme_2",
             "trigger_id": None,
             "trigger_timeout": None,
@@ -1287,6 +1253,7 @@ def test_task_instances(admin_client):
             "duration": None,
             "end_date": None,
             "execution_date": DEFAULT_DATE.isoformat(),
+            "executor": None,
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
@@ -1307,6 +1274,7 @@ def test_task_instances(admin_client):
             "run_id": "TEST_DAGRUN",
             "start_date": None,
             "state": None,
+            "task_display_name": "this_will_skip",
             "task_id": "this_will_skip",
             "trigger_id": None,
             "trigger_timeout": None,

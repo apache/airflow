@@ -795,8 +795,9 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         assert task.execute_callable() is False
 
     def test_lambda(self):
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError) as info:
             PythonVirtualenvOperator(python_callable=lambda x: 4, task_id=self.task_id)
+        assert str(info.value) == "PythonVirtualenvOperator only supports functions for python_callable arg"
 
     def test_nonimported_as_arg(self):
         def f(_):
@@ -834,6 +835,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             "ti",
             "var",  # Accessor for Variable; var->json and var->value.
             "conn",  # Accessor for Connection.
+            "dataset_events",  # Accessor for DatasetEvent.
         ]
 
         ti = create_task_instance(dag_id=self.dag_id, task_id=self.task_id, schedule=None)

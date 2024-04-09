@@ -19,7 +19,7 @@
 
 /* global moment */
 
-import React, { useMemo, useRef } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   Box,
   Flex,
@@ -27,11 +27,22 @@ import {
   FormHelperText,
   FormLabel,
   Input,
-  HStack,
+  SimpleGrid,
   Button,
+  RadioGroup,
+  Stack,
+  Radio,
 } from "@chakra-ui/react";
 import { createColumnHelper } from "@tanstack/react-table";
 import { snakeCase } from "lodash";
+
+import {
+  OptionBase,
+  useChakraSelectProps,
+  CreatableSelect,
+  GroupBase,
+  ChakraStylesConfig,
+} from "chakra-react-select";
 
 import { useEventLogs } from "src/api";
 import { getMetaValue, useOffsetTop } from "src/utils";
@@ -43,9 +54,17 @@ import { useTableURLState } from "src/components/NewTable/useTableUrlState";
 import { CodeCell, TimeCell } from "src/components/NewTable/NewCells";
 import { MdRefresh } from "react-icons/md";
 
+const configExcludedEvents = getMetaValue("excluded_audit_log_events");
+const configIncludedEvents = getMetaValue("included_audit_log_events");
+
 interface Props {
   taskId?: string;
   run?: DagRun;
+}
+
+interface Option extends OptionBase {
+  label: string;
+  value: string;
 }
 
 const dagId = getMetaValue("dag_id") || undefined;
@@ -58,6 +77,21 @@ const AuditLog = ({ taskId, run }: Props) => {
   const { tableURLState, setTableURLState } = useTableURLState({
     sorting: [{ id: "when", desc: true }],
   });
+  const includedEvents = configIncludedEvents.length
+    ? configIncludedEvents.split(",")
+    : [];
+  const excludedEvents = configExcludedEvents.length
+    ? configExcludedEvents.split(",")
+    : [];
+
+  let defaultEventFilter = "include";
+  let defaultEvents = includedEvents;
+  if (!includedEvents.length && excludedEvents.length) {
+    defaultEventFilter = "exclude";
+    defaultEvents = excludedEvents;
+  }
+  const [eventFilter, setEventFilter] = useState(defaultEventFilter);
+  const [events, setEvents] = useState(defaultEvents);
 
   const sort = tableURLState.sorting[0];
   const orderBy = sort ? `${sort.desc ? "-" : ""}${snakeCase(sort.id)}` : "";
@@ -72,6 +106,10 @@ const AuditLog = ({ taskId, run }: Props) => {
     limit: tableURLState.pagination.pageSize,
     offset:
       tableURLState.pagination.pageIndex * tableURLState.pagination.pageSize,
+    includedEvents:
+      eventFilter === "include" && events ? events.join(",") : undefined,
+    excludedEvents:
+      eventFilter === "exclude" && events ? events.join(",") : undefined,
   });
 
   const columns = useMemo(() => {
@@ -116,6 +154,35 @@ const AuditLog = ({ taskId, run }: Props) => {
 
   const memoData = useMemo(() => data?.eventLogs, [data?.eventLogs]);
 
+  const chakraStyles: ChakraStylesConfig<Option, true, GroupBase<Option>> = {
+    dropdownIndicator: (provided) => ({
+      ...provided,
+      display: "none",
+    }),
+    indicatorSeparator: (provided) => ({
+      ...provided,
+      display: "none",
+    }),
+    menuList: (provided) => ({
+      ...provided,
+      py: 0,
+    }),
+  };
+
+  const eventsSelectProps = useChakraSelectProps<Option, true>({
+    isMulti: true,
+    noOptionsMessage: () => "Type to add new event",
+    tagVariant: "solid",
+    value: events.map((e) => ({
+      label: e,
+      value: e,
+    })),
+    onChange: (options) => {
+      setEvents((options || []).map(({ value }) => value));
+    },
+    chakraStyles,
+  });
+
   return (
     <Box
       height="100%"
@@ -137,7 +204,7 @@ const AuditLog = ({ taskId, run }: Props) => {
           View full cluster Audit Log
         </LinkButton>
       </Flex>
-      <HStack spacing={2} alignItems="flex-start">
+      <SimpleGrid columns={4} columnGap={2}>
         <FormControl>
           <FormLabel>Show Logs After</FormLabel>
           <Input
@@ -178,7 +245,24 @@ const AuditLog = ({ taskId, run }: Props) => {
           <Input placeholder={taskId} isDisabled />
           <FormHelperText />
         </FormControl>
-      </HStack>
+        <FormControl>
+          <FormLabel display="flex" alignItems="center">
+            Events to
+            <RadioGroup
+              onChange={setEventFilter}
+              value={eventFilter}
+              display="inline-flex"
+              ml={2}
+            >
+              <Stack direction="row">
+                <Radio value="include">Include</Radio>
+                <Radio value="exclude">Exclude</Radio>
+              </Stack>
+            </RadioGroup>
+          </FormLabel>
+          <CreatableSelect {...eventsSelectProps} />
+        </FormControl>
+      </SimpleGrid>
       <NewTable
         key={`${taskId}-${run?.runId}`}
         data={memoData || []}

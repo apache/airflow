@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import random
 import re
+import string
 from unittest import mock
 from unittest.mock import patch
 
@@ -41,6 +43,7 @@ HOOK_CLASS = JOB_OPERATORS_PATH.format("KubernetesHook")
 POLL_INTERVAL = 100
 JOB_NAME = "test-job"
 JOB_NAMESPACE = "test-namespace"
+JOB_POLL_INTERVAL = 20.0
 KUBERNETES_CONN_ID = "test-conn_id"
 
 
@@ -75,6 +78,7 @@ def create_context(task, persist_to_db=False, map_index=None):
     }
 
 
+@pytest.mark.db_test
 @pytest.mark.execution_timeout(300)
 class TestKubernetesJobOperator:
     @pytest.fixture(autouse=True)
@@ -86,7 +90,6 @@ class TestKubernetesJobOperator:
 
         patch.stopall()
 
-    @pytest.mark.db_test
     def test_templates(self, create_task_instance_of_operator):
         dag_id = "TestKubernetesJobOperator"
         ti = create_task_instance_of_operator(
@@ -462,6 +465,7 @@ class TestKubernetesJobOperator:
         job = k.build_job_request_obj({})
         assert re.match(r"job-a-very-reasonable-task-name-[a-z0-9-]+", job.metadata.name) is not None
 
+    @pytest.mark.non_db_test_override
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
     @patch(HOOK_CLASS)
@@ -493,6 +497,7 @@ class TestKubernetesJobOperator:
         assert execute_result is None
         assert not mock_hook.wait_until_job_complete.called
 
+    @pytest.mark.non_db_test_override
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.execute_deferrable"))
@@ -528,6 +533,7 @@ class TestKubernetesJobOperator:
         assert actual_result is None
         assert not mock_hook.wait_until_job_complete.called
 
+    @pytest.mark.non_db_test_override
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
     @patch(HOOK_CLASS)
@@ -542,6 +548,7 @@ class TestKubernetesJobOperator:
         with pytest.raises(AirflowException):
             op.execute(context=dict(ti=mock.MagicMock()))
 
+    @pytest.mark.non_db_test_override
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.defer"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobTrigger"))
     def test_execute_deferrable(self, mock_trigger, mock_execute_deferrable):
@@ -584,6 +591,7 @@ class TestKubernetesJobOperator:
         )
         assert actual_result is None
 
+    @pytest.mark.non_db_test_override
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
     @patch(f"{HOOK_CLASS}.wait_until_job_complete")
@@ -606,6 +614,7 @@ class TestKubernetesJobOperator:
             job_poll_interval=POLL_INTERVAL,
         )
 
+    @pytest.mark.non_db_test_override
     def test_execute_complete(self):
         mock_ti = mock.MagicMock()
         context = {"ti": mock_ti}
@@ -616,6 +625,7 @@ class TestKubernetesJobOperator:
 
         mock_ti.xcom_push.assert_called_once_with(key="job", value=mock_job)
 
+    @pytest.mark.non_db_test_override
     def test_execute_complete_fail(self):
         mock_ti = mock.MagicMock()
         context = {"ti": mock_ti}
@@ -627,6 +637,7 @@ class TestKubernetesJobOperator:
 
         mock_ti.xcom_push.assert_called_once_with(key="job", value=mock_job)
 
+    @pytest.mark.non_db_test_override
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.client"))
     @patch(HOOK_CLASS)
     def test_on_kill(self, mock_hook, mock_client):
@@ -647,6 +658,7 @@ class TestKubernetesJobOperator:
         )
         mock_serialize.assert_called_once_with(mock_job)
 
+    @pytest.mark.non_db_test_override
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.client"))
     @patch(HOOK_CLASS)
     def test_on_kill_termination_grace_period(self, mock_hook, mock_client):
@@ -671,6 +683,7 @@ class TestKubernetesJobOperator:
         )
         mock_serialize.assert_called_once_with(mock_job)
 
+    @pytest.mark.non_db_test_override
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.client"))
     @patch(HOOK_CLASS)
     def test_on_kill_none_job(self, mock_hook, mock_client):
@@ -683,6 +696,7 @@ class TestKubernetesJobOperator:
         mock_serialize.assert_not_called()
 
 
+@pytest.mark.db_test
 @pytest.mark.execution_timeout(300)
 class TestKubernetesDeleteJobOperator:
     @pytest.fixture(autouse=True)
@@ -694,19 +708,120 @@ class TestKubernetesDeleteJobOperator:
 
         patch.stopall()
 
+    @patch(f"{HOOK_CLASS}.get_job_status")
+    @patch(f"{HOOK_CLASS}.wait_until_job_complete")
     @patch("kubernetes.config.load_kube_config")
     @patch("kubernetes.client.api.BatchV1Api.delete_namespaced_job")
-    def test_delete_execute(self, mock_delete_namespaced_job, mock_load_kube_config):
+    def test_execute(
+        self,
+        mock_delete_namespaced_job,
+        mock_load_kube_config,
+        mock_wait_until_job_complete,
+        mock_get_job_status,
+    ):
         op = KubernetesDeleteJobOperator(
             kubernetes_conn_id="kubernetes_default",
             task_id="test_delete_job",
-            name="test_job_name",
-            namespace="test_job_namespace",
+            name=JOB_NAME,
+            namespace=JOB_NAMESPACE,
         )
 
         op.execute(None)
 
-        mock_delete_namespaced_job.assert_called()
+        assert not mock_wait_until_job_complete.called
+        mock_get_job_status.assert_called_once_with(job_name=JOB_NAME, namespace=JOB_NAMESPACE)
+        mock_delete_namespaced_job.assert_called_once_with(name=JOB_NAME, namespace=JOB_NAMESPACE)
+
+    @patch(f"{HOOK_CLASS}.get_job_status")
+    @patch(f"{HOOK_CLASS}.wait_until_job_complete")
+    @patch("kubernetes.config.load_kube_config")
+    @patch("kubernetes.client.api.BatchV1Api.delete_namespaced_job")
+    def test_execute_wait_for_completion_true(
+        self,
+        mock_delete_namespaced_job,
+        mock_load_kube_config,
+        mock_wait_until_job_complete,
+        mock_get_job_status,
+    ):
+        op = KubernetesDeleteJobOperator(
+            kubernetes_conn_id="kubernetes_default",
+            task_id="test_delete_job",
+            name=JOB_NAME,
+            namespace=JOB_NAMESPACE,
+            wait_for_completion=True,
+            poll_interval=JOB_POLL_INTERVAL,
+        )
+
+        op.execute({})
+
+        mock_wait_until_job_complete.assert_called_once_with(
+            job_name=JOB_NAME, namespace=JOB_NAMESPACE, job_poll_interval=JOB_POLL_INTERVAL
+        )
+        assert not mock_get_job_status.called
+        mock_delete_namespaced_job.assert_called_once_with(name=JOB_NAME, namespace=JOB_NAMESPACE)
+
+    @pytest.mark.parametrize(
+        "on_status, success, fail, deleted",
+        [
+            (None, True, True, True),
+            (None, True, False, True),
+            (None, False, True, True),
+            (None, False, False, True),
+            ("Complete", True, True, True),
+            ("Complete", True, False, True),
+            ("Complete", False, True, False),
+            ("Complete", False, False, False),
+            ("Failed", True, True, True),
+            ("Failed", True, False, False),
+            ("Failed", False, True, True),
+            ("Failed", False, False, False),
+        ],
+    )
+    @patch(f"{HOOK_CLASS}.is_job_failed")
+    @patch(f"{HOOK_CLASS}.is_job_successful")
+    @patch("kubernetes.config.load_kube_config")
+    @patch("kubernetes.client.api.BatchV1Api.delete_namespaced_job")
+    def test_execute_delete_on_status(
+        self,
+        mock_delete_namespaced_job,
+        mock_load_kube_config,
+        mock_is_job_successful,
+        mock_is_job_failed,
+        on_status,
+        success,
+        fail,
+        deleted,
+    ):
+        mock_is_job_successful.return_value = success
+        mock_is_job_failed.return_value = fail
+
+        op = KubernetesDeleteJobOperator(
+            kubernetes_conn_id="kubernetes_default",
+            task_id="test_delete_job",
+            name=JOB_NAME,
+            namespace=JOB_NAMESPACE,
+            delete_on_status=on_status,
+        )
+
+        op.execute({})
+
+        assert mock_delete_namespaced_job.called == deleted
+
+    def test_execute_delete_on_status_exception(self):
+        invalid_delete_on_status = "".join(
+            random.choices(string.ascii_letters + string.digits, k=random.randint(1, 16))
+        )
+
+        op = KubernetesDeleteJobOperator(
+            kubernetes_conn_id="kubernetes_default",
+            task_id="test_delete_job",
+            name=JOB_NAME,
+            namespace=JOB_NAMESPACE,
+            delete_on_status=invalid_delete_on_status,
+        )
+
+        with pytest.raises(AirflowException):
+            op.execute({})
 
 
 @pytest.mark.execution_timeout(300)
@@ -720,6 +835,7 @@ class TestKubernetesPatchJobOperator:
 
         patch.stopall()
 
+    @pytest.mark.db_test
     @patch("kubernetes.config.load_kube_config")
     @patch("kubernetes.client.api.BatchV1Api.patch_namespaced_job")
     def test_update_execute(self, mock_patch_namespaced_job, mock_load_kube_config):

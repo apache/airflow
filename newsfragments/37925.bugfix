@@ -1,1 +1,0 @@
-Restores `delegate_to` argument of Google Cloud to Google Drive Transfer Operators, to only be used in the Drive Hook
