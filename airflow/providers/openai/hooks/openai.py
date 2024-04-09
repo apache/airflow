@@ -127,12 +127,12 @@ class OpenAIHook(BaseHook):
         assistant = self.conn.beta.assistants.retrieve(assistant_id=assistant_id)
         return assistant
 
-    def get_assistants(self, **kwargs) -> list[Assistant]:
+    def get_assistants(self, **kwargs: Any) -> list[Assistant]:
         """Get a list of Assistant objects."""
         assistants = self.conn.beta.assistants.list(**kwargs)
         return assistants.data
 
-    def get_assistant_with_name(self, assistant_name: str) -> Assistant | None:
+    def get_assistant_by_name(self, assistant_name: str) -> Assistant | None:
         """Get an OpenAI Assistant object for a given name.
 
         :param assistant_name: The name of the assistant to retrieve
