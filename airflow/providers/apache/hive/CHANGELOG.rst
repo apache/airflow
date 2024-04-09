@@ -35,7 +35,7 @@ Breaking changes
 ~~~~~~~~~~~~~~~~
 
 Changed the default value of ``use_beeline`` in hive cli connection to True.
-Beeline will be always enabled by default in this connection type from now onwards.
+Beeline will be always enabled by default in this connection type
 
 
 
