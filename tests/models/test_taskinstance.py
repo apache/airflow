@@ -2858,8 +2858,9 @@ class TestTaskInstance:
         ],
     )
     @patch("logging.Logger.exception")
+    @patch("logging.Logger.info")
     def test_finished_callbacks_handle_and_log_exception(
-        self, mock_log, finished_state, create_task_instance
+        self, mock_log_info, mock_log_exception, finished_state, create_task_instance
     ):
         called = completed = False
 
@@ -2877,7 +2878,8 @@ class TestTaskInstance:
             callback_name = callback_input[0] if isinstance(callback_input, list) else callback_input
             callback_name = qualname(callback_name).split(".")[-1]
             expected_message = "Error when executing %s callback"
-            mock_log.assert_called_with(expected_message, callback_name)
+            mock_log_info.assert_called_with("Executing %s callback", callback_name)
+            mock_log_exception.assert_called_with(expected_message, callback_name)
 
     @provide_session
     def test_handle_failure(self, create_dummy_dag, session=None):
