@@ -116,7 +116,7 @@ class TestMSGraphTrigger(Base):
                 "method": "GET",
                 "query_parameters": None,
                 "headers": None,
-                "content": None,
+                "data": None,
                 "response_type": "bytes",
                 "conn_id": "msgraph_api",
                 "timeout": None,
