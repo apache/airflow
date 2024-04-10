@@ -35,14 +35,30 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.3.4
+.....
+
+Latest change: 2024-03-19
+
+=================================================================================================  ===========  =======================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================================
+`c6bc052980 <https://github.com/apache/airflow/commit/c6bc0529805be98cffbf336070abee32b93ca39a>`_  2024-03-19   ``Add default for 'task' on TaskInstance / fix attrs on TaskInstancePydantic (#37854)``
+`b5b972a106 <https://github.com/apache/airflow/commit/b5b972a1068e19b09d48ec4d7663dd1d996d594f>`_  2024-03-18   ``Update yanked versions in providers changelogs (#38262)``
+`74892c2195 <https://github.com/apache/airflow/commit/74892c21956cd2e3389697b92365f5d263557303>`_  2024-03-06   ``Fix D105 checks for ES provider (#37880)``
+`83316b8158 <https://github.com/apache/airflow/commit/83316b81584c9e516a8142778fc509f19d95cc3e>`_  2024-03-04   ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+`5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
+=================================================================================================  ===========  =======================================================================================
+
 5.3.3
 .....
 
-Latest change: 2024-02-04
+Latest change: 2024-02-12
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`bfb054e9e8 <https://github.com/apache/airflow/commit/bfb054e9e867b8b9a6a449e43bfba97f645e025e>`_  2024-02-12   ``Prepare docs 1st wave of Providers February 2024 (#37326)``
 `83741051d5 <https://github.com/apache/airflow/commit/83741051d5a774afca1430e6a7d86af5297fe6d0>`_  2024-02-04   ``Avoid 'pendulum.from_timestamp' usage (#37160)``
 `dec2662190 <https://github.com/apache/airflow/commit/dec2662190dd4480d0c631da733e19d2ec9a479d>`_  2024-01-30   ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
 =================================================================================================  ===========  ==================================================================================
