@@ -86,7 +86,7 @@ def log_app(backup_modules, log_path):
         app = create_app(testing=True)
         app.app.config["WTF_CSRF_ENABLED"] = False
         settings.configure_orm()
-        security_manager = app.appbuilder.sm
+        security_manager = app.app.appbuilder.sm
         if not security_manager.find_user(username="test"):
             security_manager.add_user(
                 username="test",
@@ -174,6 +174,9 @@ def tis(dags, session):
     (ti_removed_dag,) = dagrun_removed.task_instances
     ti_removed_dag.try_number = 1
 
+    session.commit()
+    session.close()
+
     yield ti, ti_removed_dag
 
     clear_db_runs()
@@ -233,12 +236,12 @@ def test_get_file_task_log(log_admin_client, tis, state, try_number, num_logs):
 
     response = log_admin_client.get(
         ENDPOINT,
-        data={"username": "test", "password": "test"},
+        params={"username": "test", "password": "test"},
         follow_redirects=True,
     )
     assert response.status_code == 200
 
-    data = response.data.decode()
+    data = response.text
     assert "Log by attempts" in data
     for num in range(1, num_logs + 1):
         assert f"log-group-{num}" in data
@@ -271,8 +274,8 @@ def test_get_logs_with_metadata_as_download_file(log_admin_client, create_expect
         in content_disposition
     )
     assert 200 == response.status_code
-    assert "Log for testing." in response.data.decode("utf-8")
-    assert "localhost\n" in response.data.decode("utf-8")
+    assert "Log for testing." in response.text
+    assert "localhost\n" in response.text
 
 
 DIFFERENT_LOG_FILENAME = "{{ ti.dag_id }}/{{ ti.run_id }}/{{ ti.task_id }}/{{ try_number }}.log"
@@ -313,7 +316,7 @@ def test_get_logs_for_changed_filename_format_db(
 
     # Should find the log under corresponding db entry.
     assert 200 == response.status_code
-    assert "Log for testing." in response.data.decode("utf-8")
+    assert "Log for testing." in response.text
     content_disposition = response.headers["Content-Disposition"]
     expected_filename = (
         f"{dag_run_with_log_filename.dag_id}/{dag_run_with_log_filename.run_id}/{TASK_ID}/{try_number}.log"
@@ -347,7 +350,7 @@ def test_get_logs_with_metadata_as_download_large_file(_, log_admin_client):
     )
     response = log_admin_client.get(url)
 
-    data = response.data.decode()
+    data = response.text
     assert "1st line" in data
     assert "2nd line" in data
     assert "3rd line" in data
@@ -367,12 +370,12 @@ def test_get_logs_with_metadata(log_admin_client, metadata, create_expected_log_
             try_number,
             metadata,
         ),
-        data={"username": "test", "password": "test"},
+        params={"username": "test", "password": "test"},
         follow_redirects=True,
     )
     assert 200 == response.status_code
 
-    data = response.data.decode()
+    data = response.text
     assert '"message":' in data
     assert '"metadata":' in data
     assert "Log for testing." in data
@@ -390,7 +393,7 @@ def test_get_logs_with_invalid_metadata(log_admin_client):
             1,
             metadata,
         ),
-        data={"username": "test", "password": "test"},
+        params={"username": "test", "password": "test"},
         follow_redirects=True,
     )
 
@@ -412,12 +415,12 @@ def test_get_logs_with_metadata_for_removed_dag(_, log_admin_client):
             1,
             "{}",
         ),
-        data={"username": "test", "password": "test"},
+        params={"username": "test", "password": "test"},
         follow_redirects=True,
     )
     assert 200 == response.status_code
 
-    data = response.data.decode()
+    data = response.text
     assert '"message":' in data
     assert '"metadata":' in data
     assert "airflow log line" in data
