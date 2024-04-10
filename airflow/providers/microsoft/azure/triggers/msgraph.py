@@ -22,6 +22,7 @@ import locale
 from base64 import b64encode
 from contextlib import suppress
 from datetime import datetime
+from io import BytesIO
 from json import JSONDecodeError
 from typing import (
     TYPE_CHECKING,
@@ -45,8 +46,6 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
-    from io import BytesIO
-
     from kiota_abstractions.request_adapter import RequestAdapter
     from kiota_abstractions.request_information import QueryParams
     from kiota_abstractions.response_handler import NativeResponseType
@@ -159,7 +158,7 @@ class MSGraphTrigger(BaseTrigger):
         method: str = "GET",
         query_parameters: dict[str, QueryParams] | None = None,
         headers: dict[str, str] | None = None,
-        content: BytesIO | None = None,
+        data: dict[str, Any] | str | BytesIO | None = None,
         conn_id: str = KiotaRequestAdapterHook.default_conn_name,
         timeout: float | None = None,
         proxies: dict | None = None,
@@ -181,7 +180,7 @@ class MSGraphTrigger(BaseTrigger):
         self.method = method
         self.query_parameters = query_parameters
         self.headers = headers
-        self.content = content
+        self.data = data
         self.serializer: ResponseSerializer = self.resolve_type(serializer, default=ResponseSerializer)()
 
     @classmethod
@@ -209,7 +208,7 @@ class MSGraphTrigger(BaseTrigger):
                 "method": self.method,
                 "query_parameters": self.query_parameters,
                 "headers": self.headers,
-                "content": self.content,
+                "data": self.data,
                 "response_type": self.response_type,
             },
         )
@@ -290,10 +289,16 @@ class MSGraphTrigger(BaseTrigger):
             request_information.request_options[ResponseHandlerOption.get_key()] = ResponseHandlerOption(
                 response_handler=CallableResponseHandler(self.response_handler)
             )
-        request_information.content = self.content
         headers = {**self.DEFAULT_HEADERS, **self.headers} if self.headers else self.DEFAULT_HEADERS
         for header_name, header_value in headers.items():
             request_information.headers.try_add(header_name=header_name, header_value=header_value)
+        if isinstance(self.data, BytesIO) or isinstance(self.data, bytes) or isinstance(self.data, str):
+            request_information.content = self.data
+        elif self.data:
+            request_information.headers.try_add(
+                header_name=RequestInformation.CONTENT_TYPE_HEADER, header_value="application/json"
+            )
+            request_information.content = json.dumps(self.data).encode("utf-8")
         return request_information
 
     @staticmethod

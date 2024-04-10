@@ -93,7 +93,7 @@ class MSGraphAsyncOperator(BaseOperator):
         method: str = "GET",
         query_parameters: dict[str, QueryParams] | None = None,
         headers: dict[str, str] | None = None,
-        content: BytesIO | None = None,
+        data: dict[str, Any] | str | BytesIO | None = None,
         conn_id: str = KiotaRequestAdapterHook.default_conn_name,
         key: str = XCOM_RETURN_KEY,
         timeout: float | None = None,
@@ -113,7 +113,7 @@ class MSGraphAsyncOperator(BaseOperator):
         self.method = method
         self.query_parameters = query_parameters
         self.headers = headers
-        self.content = content
+        self.data = data
         self.conn_id = conn_id
         self.key = key
         self.timeout = timeout
@@ -135,7 +135,7 @@ class MSGraphAsyncOperator(BaseOperator):
                 method=self.method,
                 query_parameters=self.query_parameters,
                 headers=self.headers,
-                content=self.content,
+                data=self.data,
                 conn_id=self.conn_id,
                 timeout=self.timeout,
                 proxies=self.proxies,
