@@ -277,7 +277,6 @@ def partial(
     task_display_name: str | None | ArgNotSet = NOTSET,
     logger_name: str | None | ArgNotSet = NOTSET,
     allow_nested_operators: bool = True,
-    starts_execution_from_triggerer: bool = False,
     start_trigger: Trigger | None = None,
     next_method: str | None = None,
     **kwargs,
@@ -349,7 +348,6 @@ def partial(
         "task_display_name": task_display_name,
         "logger_name": logger_name,
         "allow_nested_operators": allow_nested_operators,
-        "starts_execution_from_triggerer": starts_execution_from_triggerer,
         "start_trigger": start_trigger,
         "next_method": next_method,
     }
@@ -882,7 +880,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         task_display_name: str | None = None,
         logger_name: str | None = None,
         allow_nested_operators: bool = True,
-        starts_execution_from_triggerer: bool = False,
         start_trigger: Trigger | None = None,
         next_method: str | None = None,
         **kwargs,
@@ -1085,7 +1082,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if SetupTeardownContext.active:
             SetupTeardownContext.update_context_map(self)
 
-        self.starts_execution_from_triggerer = starts_execution_from_triggerer
         self.start_trigger = start_trigger
         self.next_method = next_method
 

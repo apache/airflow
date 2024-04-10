@@ -206,7 +206,6 @@ class OperatorPartial:
         task_group = partial_kwargs.pop("task_group")
         start_date = partial_kwargs.pop("start_date")
         end_date = partial_kwargs.pop("end_date")
-        starts_execution_from_triggerer = partial_kwargs.pop("starts_execution_from_triggerer")
         start_trigger = partial_kwargs.pop("start_trigger")
         next_method = partial_kwargs.pop("next_method")
 
@@ -240,7 +239,6 @@ class OperatorPartial:
             # For classic operators, this points to expand_input because kwargs
             # to BaseOperator.expand() contribute to operator arguments.
             expand_input_attr="expand_input",
-            starts_execution_from_triggerer=starts_execution_from_triggerer,
             start_trigger=start_trigger,
             next_method=next_method,
         )
@@ -285,7 +283,6 @@ class MappedOperator(AbstractOperator):
     _task_module: str
     _task_type: str
     _operator_name: str
-    starts_execution_from_triggerer: bool | None
     start_trigger: Trigger | None
     next_method: str | None
 
