@@ -28,7 +28,11 @@ from airflow import settings
 from airflow.security import permissions
 from airflow.www import app as application
 from tests.test_utils.api_connexion_utils import create_user, delete_role
-from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
+from tests.test_utils.www import (
+    check_content_in_response,
+    check_content_not_in_response,
+    client_with_login,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -129,6 +133,7 @@ class TestSecurity:
             role_name="role_no_access",
             permissions=[
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER),
             ],
         )
 
@@ -141,7 +146,8 @@ class TestSecurity:
         response = client.post(f"/users/delete/{user_to_delete.id}", follow_redirects=True)
 
         check_content_not_in_response("Deleted Row", response)
-        assert bool(self.security_manager.get_user_by_id(user_to_delete.id)) is True
+        response = client.get(f"/users/show/{user_to_delete.id}", follow_redirects=True)
+        assert response.status_code == 200
 
     def test_user_model_view_with_delete_access(self):
         user_to_delete = create_user(
@@ -156,6 +162,7 @@ class TestSecurity:
             role_name="role_has_access",
             permissions=[
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER),
                 (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_USER),
             ],
         )
@@ -169,7 +176,8 @@ class TestSecurity:
         response = client.post(f"/users/delete/{user_to_delete.id}", follow_redirects=True)
         check_content_in_response("Deleted Row", response)
         check_content_not_in_response(user_to_delete.username, response)
-        assert bool(self.security_manager.get_user_by_id(user_to_delete.id)) is False
+        response = client.get(f"/users/show/{user_to_delete.id}", follow_redirects=True)
+        assert response.status_code == 404
 
 
 # type: ignore[attr-defined]
