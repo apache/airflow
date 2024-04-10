@@ -217,7 +217,7 @@ class DbApiHook(BaseHook):
 
         :return: the extracted sqlalchemy.engine.URL object.
         """
-        raise NotImplementedError("drivername property should be implemented in the provider subclass.")
+        raise NotImplementedError("sqlalchemy_url property should be implemented in the provider subclass.")
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
         """
