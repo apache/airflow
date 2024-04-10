@@ -20,6 +20,18 @@
 Changelog
 ---------
 
+1.3.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'WeaviateIngestOperator'/'WeaviateDocumentIngestOperator' arguments in 'MappedOperator' (#38402)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unused loop variable from airflow package (#38308)``
+
 1.3.3
 .....
 

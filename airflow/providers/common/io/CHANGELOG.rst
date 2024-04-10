@@ -25,6 +25,32 @@
 Changelog
 ---------
 
+1.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix missing reverse quote in docs (#38275)``
+* ``Fix remaining D401 checks (#37434)``
+
+Misc
+~~~~
+
+* ``Improve XComObjectStorageBackend implementation (#38608)``
+* ``Rename to XComObjectStorageBackend (#38607)``
+* ``Turn common.io xcom exception into OptionalProviderFeatureException (#38543)``
+* ``Update ObjectStoragePath for universal_pathlib>=v0.2.2 (#37930)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix XComObjectStoreBackend config var in docs (#38142)``
+   * ``Revert ObjectStorage config variables name (#38415)``
+   * ``Update yanked versions in providers changelogs (#38262)``
+   * ``Revert "Update ObjectStoragePath for universal_pathlib>=v0.2.1 (#37524)" (#37567)``
+   * ``Update ObjectStoragePath for universal_pathlib>=v0.2.1 (#37524)``
+   * ``Add comment about versions updated by release manager (#37488)``
+
 1.3.0
 .....
 
