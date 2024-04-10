@@ -27,6 +27,10 @@ from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
+    from sqlalchemy.orm import Mapped
+
     from airflow.models.dag import DAG
 
 
@@ -41,10 +45,10 @@ class DagPickle(Base):
     The executors pick up the DagPickle id and read the dag definition from the database.
     """
 
-    id = Column(Integer, primary_key=True)
-    pickle = Column(PickleType(pickler=dill))
-    created_dttm = Column(UtcDateTime, default=timezone.utcnow)
-    pickle_hash = Column(BigInteger)
+    id: Mapped[int] = Column(Integer, primary_key=True)
+    pickle: Mapped[bytes | None] = Column(PickleType(pickler=dill))
+    created_dttm: Mapped[datetime] = Column(UtcDateTime, default=timezone.utcnow)
+    pickle_hash: Mapped[int | None] = Column(BigInteger)
 
     __tablename__ = "dag_pickle"
 

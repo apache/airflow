@@ -21,7 +21,7 @@ import json
 import logging
 import warnings
 from json import JSONDecodeError
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 import re2
@@ -37,6 +37,9 @@ from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.module_loading import import_string
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Mapped
 
 log = logging.getLogger(__name__)
 # sanitize the `conn_id` pattern by allowing alphanumeric characters plus
@@ -126,18 +129,20 @@ class Connection(Base, LoggingMixin):
 
     __tablename__ = "connection"
 
-    id = Column(Integer(), primary_key=True)
-    conn_id = Column(String(ID_LEN), unique=True, nullable=False)
-    conn_type = Column(String(500), nullable=False)
-    description = Column(Text().with_variant(Text(5000), "mysql").with_variant(String(5000), "sqlite"))
-    host = Column(String(500))
-    schema = Column(String(500))
-    login = Column(Text())
-    _password = Column("password", Text())
-    port = Column(Integer())
-    is_encrypted = Column(Boolean, unique=False, default=False)
-    is_extra_encrypted = Column(Boolean, unique=False, default=False)
-    _extra = Column("extra", Text())
+    id: Mapped[int] = Column(Integer(), primary_key=True)
+    conn_id: Mapped[str] = Column(String(ID_LEN), unique=True, nullable=False)
+    conn_type: Mapped[str] = Column(String(500), nullable=False)
+    description: Mapped[str | None] = Column(
+        Text().with_variant(Text(5000), "mysql").with_variant(String(5000), "sqlite")
+    )
+    host: Mapped[str | None] = Column(String(500))
+    schema: Mapped[str | None] = Column(String(500))
+    login: Mapped[str | None] = Column(Text())
+    _password: Mapped[str | None] = Column("password", Text())
+    port: Mapped[int | None] = Column(Integer())
+    is_encrypted: Mapped[bool] = Column(Boolean, unique=False, default=False)
+    is_extra_encrypted: Mapped[bool] = Column(Boolean, unique=False, default=False)
+    _extra: Mapped[str | None] = Column("extra", Text())
 
     def __init__(
         self,

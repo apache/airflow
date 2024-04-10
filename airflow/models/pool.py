@@ -31,6 +31,7 @@ from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Mapped
     from sqlalchemy.orm.session import Session
 
 
@@ -49,12 +50,12 @@ class Pool(Base):
 
     __tablename__ = "slot_pool"
 
-    id = Column(Integer, primary_key=True)
-    pool = Column(String(256), unique=True)
+    id: Mapped[int] = Column(Integer, primary_key=True)
+    pool: Mapped[str] = Column(String(256), unique=True)
     # -1 for infinite
-    slots = Column(Integer, default=0)
-    description = Column(Text)
-    include_deferred = Column(Boolean, nullable=False)
+    slots: Mapped[int] = Column(Integer, default=0)
+    description: Mapped[str | None] = Column(Text)
+    include_deferred: Mapped[bool] = Column(Boolean, nullable=False)
 
     DEFAULT_POOL_NAME = "default_pool"
 

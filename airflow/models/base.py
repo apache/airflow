@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import Any
 
 from sqlalchemy import Column, Integer, MetaData, String, text
-from sqlalchemy.orm import registry
+from sqlalchemy.orm import Mapped, registry
 
 from airflow.configuration import conf
 
@@ -87,7 +87,7 @@ class TaskInstanceDependencies(Base):
 
     __abstract__ = True
 
-    task_id = Column(StringID(), nullable=False)
-    dag_id = Column(StringID(), nullable=False)
-    run_id = Column(StringID(), nullable=False)
-    map_index = Column(Integer, nullable=False, server_default=text("-1"))
+    task_id: Mapped[str] = Column(StringID(), nullable=False)
+    dag_id: Mapped[str] = Column(StringID(), nullable=False)
+    run_id: Mapped[str] = Column(StringID(), nullable=False)
+    map_index: Mapped[int] = Column(Integer, nullable=False, server_default=text("-1"))

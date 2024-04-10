@@ -47,6 +47,7 @@ TaskStateChangeCallback = Callable[[Context], None]
 if TYPE_CHECKING:
     import jinja2  # Slow import.
     from sqlalchemy.orm import Session
+    from sqlalchemy.orm import Mapped
 
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.baseoperatorlink import BaseOperatorLink

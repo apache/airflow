@@ -29,6 +29,8 @@ from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.utils.sqlalchemy import ExtendedJSON
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Mapped
+
     from airflow.models.taskinstance import TaskInstance
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
@@ -54,13 +56,13 @@ class TaskMap(TaskInstanceDependencies):
     __tablename__ = "task_map"
 
     # Link to upstream TaskInstance creating this dynamic mapping information.
-    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    run_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    map_index = Column(Integer, primary_key=True)
+    dag_id: Mapped[str] = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    task_id: Mapped[str] = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    run_id: Mapped[str] = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    map_index: Mapped[int] = Column(Integer, primary_key=True)
 
-    length = Column(Integer, nullable=False)
-    keys = Column(ExtendedJSON, nullable=True)
+    length: Mapped[int] = Column(Integer, nullable=False)
+    keys: Mapped[str | None] = Column(ExtendedJSON, nullable=True)
 
     __table_args__ = (
         CheckConstraint(length >= 0, name="task_map_length_not_negative"),

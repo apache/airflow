@@ -71,8 +71,9 @@ if TYPE_CHECKING:
     import datetime
 
     import pendulum
-    from sqlalchemy.orm import Session
+    from sqlalchemy.orm import Mapped, Session
 
+    from airflow.models.dagrun import DagRun
     from airflow.models.taskinstancekey import TaskInstanceKey
 
 
@@ -81,17 +82,17 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
 
     __tablename__ = "xcom"
 
-    dag_run_id = Column(Integer(), nullable=False, primary_key=True)
-    task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False, primary_key=True)
-    map_index = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
-    key = Column(String(512, **COLLATION_ARGS), nullable=False, primary_key=True)
+    dag_run_id: Mapped[int] = Column(Integer(), nullable=False, primary_key=True)
+    task_id: Mapped[str] = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False, primary_key=True)
+    map_index: Mapped[int] = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
+    key: Mapped[str] = Column(String(512, **COLLATION_ARGS), nullable=False, primary_key=True)
 
     # Denormalized for easier lookup.
-    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
-    run_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+    dag_id: Mapped[str] = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+    run_id: Mapped[str] = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
 
-    value = Column(LargeBinary().with_variant(LONGBLOB, "mysql"))
-    timestamp = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    value: Mapped[bytes] = Column(LargeBinary().with_variant(LONGBLOB, "mysql"))
+    timestamp: Mapped[datetime.datetime] = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     __table_args__ = (
         # Ideally we should create a unique index over (key, dag_id, task_id, run_id),
@@ -113,14 +114,14 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         ),
     )
 
-    dag_run = relationship(
+    dag_run: Mapped[DagRun] = relationship(
         "DagRun",
         primaryjoin="BaseXCom.dag_run_id == foreign(DagRun.id)",
         uselist=False,
         lazy="joined",
         passive_deletes="all",
     )
-    execution_date = association_proxy("dag_run", "execution_date")
+    execution_date: Mapped[datetime.datetime] = association_proxy("dag_run", "execution_date")
 
     @reconstructor
     def init_on_load(self):

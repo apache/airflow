@@ -19,11 +19,21 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, text
 from sqlalchemy.orm import relationship
 
 from airflow.models.base import StringID, TaskInstanceDependencies
 from airflow.utils.sqlalchemy import UtcDateTime
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from sqlalchemy.orm import Mapped
+
+    from airflow.models.dagrun import DagRun
+    from airflow.models.taskinstance import TaskInstance
 
 
 class TaskFail(TaskInstanceDependencies):
@@ -31,14 +41,14 @@ class TaskFail(TaskInstanceDependencies):
 
     __tablename__ = "task_fail"
 
-    id = Column(Integer, primary_key=True)
-    task_id = Column(StringID(), nullable=False)
-    dag_id = Column(StringID(), nullable=False)
-    run_id = Column(StringID(), nullable=False)
-    map_index = Column(Integer, nullable=False, server_default=text("-1"))
-    start_date = Column(UtcDateTime)
-    end_date = Column(UtcDateTime)
-    duration = Column(Integer)
+    id: Mapped[int] = Column(Integer, primary_key=True)
+    task_id: Mapped[str] = Column(StringID(), nullable=False)
+    dag_id: Mapped[str] = Column(StringID(), nullable=False)
+    run_id: Mapped[str] = Column(StringID(), nullable=False)
+    map_index: Mapped[int] = Column(Integer, nullable=False, server_default=text("-1"))
+    start_date: Mapped[datetime | None] = Column(UtcDateTime)
+    end_date: Mapped[datetime | None] = Column(UtcDateTime)
+    duration: Mapped[int | None] = Column(Integer)
 
     __table_args__ = (
         Index("idx_task_fail_task_instance", dag_id, task_id, run_id, map_index),
@@ -57,7 +67,7 @@ class TaskFail(TaskInstanceDependencies):
 
     # We don't need a DB level FK here, as we already have that to TI (which has one to DR) but by defining
     # the relationship we can more easily find the execution date for these rows
-    dag_run = relationship(
+    dag_run: Mapped[DagRun] = relationship(
         "DagRun",
         primaryjoin="""and_(
             TaskFail.dag_id == foreign(DagRun.dag_id),
@@ -66,7 +76,7 @@ class TaskFail(TaskInstanceDependencies):
         viewonly=True,
     )
 
-    def __init__(self, ti):
+    def __init__(self, ti: TaskInstance):
         self.dag_id = ti.dag_id
         self.task_id = ti.task_id
         self.run_id = ti.run_id

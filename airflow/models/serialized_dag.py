@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 import zlib
 from datetime import timedelta
-from typing import TYPE_CHECKING, Collection
+from typing import TYPE_CHECKING, Any, Collection
 
 import sqlalchemy_jsonfield
 from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_, exc, or_, select
@@ -45,7 +45,7 @@ from airflow.utils.sqlalchemy import UtcDateTime
 if TYPE_CHECKING:
     from datetime import datetime
 
-    from sqlalchemy.orm import Session
+    from sqlalchemy.orm import Mapped, Session
 
     from airflow.models import Operator
     from airflow.models.dag import DAG
@@ -75,25 +75,25 @@ class SerializedDagModel(Base):
 
     __tablename__ = "serialized_dag"
 
-    dag_id = Column(String(ID_LEN), primary_key=True)
-    fileloc = Column(String(2000), nullable=False)
+    dag_id: Mapped[str] = Column(String(ID_LEN), primary_key=True)
+    fileloc: Mapped[str] = Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
-    fileloc_hash = Column(BigInteger(), nullable=False)
-    _data = Column("data", sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
-    _data_compressed = Column("data_compressed", LargeBinary, nullable=True)
-    last_updated = Column(UtcDateTime, nullable=False)
-    dag_hash = Column(String(32), nullable=False)
-    processor_subdir = Column(String(2000), nullable=True)
+    fileloc_hash: Mapped[int] = Column(BigInteger(), nullable=False)
+    _data: Mapped[Any] = Column("data", sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    _data_compressed: Mapped[bytes | None] = Column("data_compressed", LargeBinary, nullable=True)
+    last_updated: Mapped[datetime] = Column(UtcDateTime, nullable=False)
+    dag_hash: Mapped[str] = Column(String(32), nullable=False)
+    processor_subdir: Mapped[str | None] = Column(String(2000), nullable=True)
 
     __table_args__ = (Index("idx_fileloc_hash", fileloc_hash, unique=False),)
 
-    dag_runs = relationship(
+    dag_runs: Mapped[DagRun] = relationship(
         DagRun,
         primaryjoin=dag_id == foreign(DagRun.dag_id),  # type: ignore
         backref=backref("serialized_dag", uselist=False, innerjoin=True),
     )
 
-    dag_model = relationship(
+    dag_model: Mapped[DagModel] = relationship(
         DagModel,
         primaryjoin=dag_id == DagModel.dag_id,  # type: ignore
         foreign_keys=dag_id,

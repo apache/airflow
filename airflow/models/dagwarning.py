@@ -30,7 +30,9 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
+    from datetime import datetime
+
+    from sqlalchemy.orm import Mapped, Session
 
 
 class DagWarning(Base):
@@ -42,10 +44,10 @@ class DagWarning(Base):
     when parsing DAG and displayed on the Webserver in a flash message.
     """
 
-    dag_id = Column(StringID(), primary_key=True)
-    warning_type = Column(String(50), primary_key=True)
-    message = Column(Text, nullable=False)
-    timestamp = Column(UtcDateTime, nullable=False, default=timezone.utcnow)
+    dag_id: Mapped[str] = Column(StringID(), primary_key=True)
+    warning_type: Mapped[str] = Column(String(50), primary_key=True)
+    message: Mapped[str] = Column(Text, nullable=False)
+    timestamp: Mapped[datetime] = Column(UtcDateTime, nullable=False, default=timezone.utcnow)
 
     __tablename__ = "dag_warning"
     __table_args__ = (

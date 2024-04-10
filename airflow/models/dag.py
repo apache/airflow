@@ -144,11 +144,13 @@ if TYPE_CHECKING:
     from types import ModuleType
 
     from pendulum.tz.timezone import FixedTimezone, Timezone
+    from sqlalchemy.orm import Mapped
     from sqlalchemy.orm.query import Query
     from sqlalchemy.orm.session import Session
 
     from airflow.decorators import TaskDecoratorCollection
     from airflow.models.dagbag import DagBag
+    from airflow.models.dataset import DagScheduleDatasetReference, Dataset
     from airflow.models.operator import Operator
     from airflow.models.slamiss import SlaMiss
     from airflow.serialization.pydantic.dag import DagModelPydantic
@@ -3550,8 +3552,8 @@ class DagTag(Base):
     """A tag name per dag, to allow quick filtering in the DAG view."""
 
     __tablename__ = "dag_tag"
-    name = Column(String(TAG_MAX_LEN), primary_key=True)
-    dag_id = Column(
+    name: Mapped[str] = Column(String(TAG_MAX_LEN), primary_key=True)
+    dag_id: Mapped[str] = Column(
         StringID(),
         ForeignKey("dag.dag_id", name="dag_tag_dag_id_fkey", ondelete="CASCADE"),
         primary_key=True,
@@ -3569,14 +3571,14 @@ class DagOwnerAttributes(Base):
     """
 
     __tablename__ = "dag_owner_attributes"
-    dag_id = Column(
+    dag_id: Mapped[str] = Column(
         StringID(),
         ForeignKey("dag.dag_id", name="dag.dag_id", ondelete="CASCADE"),
         nullable=False,
         primary_key=True,
     )
-    owner = Column(String(500), primary_key=True, nullable=False)
-    link = Column(String(500), nullable=False)
+    owner: Mapped[str] = Column(String(500), primary_key=True, nullable=False)
+    link: Mapped[str] = Column(String(500), nullable=False)
 
     def __repr__(self):
         return f"<DagOwnerAttributes: dag_id={self.dag_id}, owner={self.owner}, link={self.link}>"
@@ -3596,85 +3598,87 @@ class DagModel(Base):
     """
     These items are stored in the database for state related information
     """
-    dag_id = Column(StringID(), primary_key=True)
-    root_dag_id = Column(StringID())
+    dag_id: Mapped[str] = Column(StringID(), primary_key=True)
+    root_dag_id: Mapped[str | None] = Column(StringID())
     # A DAG can be paused from the UI / DB
     # Set this default value of is_paused based on a configuration value!
     is_paused_at_creation = airflow_conf.getboolean("core", "dags_are_paused_at_creation")
-    is_paused = Column(Boolean, default=is_paused_at_creation)
+    is_paused: Mapped[bool] = Column(Boolean, default=is_paused_at_creation)
     # Whether the DAG is a subdag
-    is_subdag = Column(Boolean, default=False)
+    is_subdag: Mapped[bool] = Column(Boolean, default=False)
     # Whether that DAG was seen on the last DagBag load
-    is_active = Column(Boolean, default=False)
+    is_active: Mapped[bool] = Column(Boolean, default=False)
     # Last time the scheduler started
-    last_parsed_time = Column(UtcDateTime)
+    last_parsed_time: Mapped[datetime | None] = Column(UtcDateTime)
     # Last time this DAG was pickled
-    last_pickled = Column(UtcDateTime)
+    last_pickled: Mapped[datetime | None] = Column(UtcDateTime)
     # Time when the DAG last received a refresh signal
     # (e.g. the DAG's "refresh" button was clicked in the web UI)
-    last_expired = Column(UtcDateTime)
+    last_expired: Mapped[datetime | None] = Column(UtcDateTime)
     # Whether (one  of) the scheduler is scheduling this DAG at the moment
-    scheduler_lock = Column(Boolean)
+    scheduler_lock: Mapped[bool | None] = Column(Boolean)
     # Foreign key to the latest pickle_id
-    pickle_id = Column(Integer)
+    pickle_id: Mapped[int | None] = Column(Integer)
     # The location of the file containing the DAG object
     # Note: Do not depend on fileloc pointing to a file; in the case of a
     # packaged DAG, it will point to the subpath of the DAG within the
     # associated zip.
-    fileloc = Column(String(2000))
+    fileloc: Mapped[str | None] = Column(String(2000))
     # The base directory used by Dag Processor that parsed this dag.
-    processor_subdir = Column(String(2000), nullable=True)
+    processor_subdir: Mapped[str] = Column(String(2000), nullable=True)
     # String representing the owners
-    owners = Column(String(2000))
+    owners: Mapped[str] = Column(String(2000))
     # Display name of the dag
-    _dag_display_property_value = Column("dag_display_name", String(2000), nullable=True)
+    _dag_display_property_value: Mapped[str | None] = Column("dag_display_name", String(2000), nullable=True)
     # Description of the dag
-    description = Column(Text)
+    description: Mapped[str | None] = Column(Text)
     # Default view of the DAG inside the webserver
-    default_view = Column(String(25))
+    default_view: Mapped[str | None] = Column(String(25))
     # Schedule interval
-    schedule_interval = Column(Interval)
+    schedule_interval: Mapped[str | None] = Column(Interval)
     # Timetable/Schedule Interval description
-    timetable_description = Column(String(1000), nullable=True)
+    timetable_description: Mapped[str | None] = Column(String(1000), nullable=True)
     # Dataset expression based on dataset triggers
-    dataset_expression = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    dataset_expression: Mapped[str | None] = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
     # Tags for view filter
-    tags = relationship("DagTag", cascade="all, delete, delete-orphan", backref=backref("dag"))
+    tags: Mapped[DagTag] = relationship(
+        "DagTag", cascade="all, delete, delete-orphan", backref=backref("dag")
+    )
     # Dag owner links for DAGs view
-    dag_owner_links = relationship(
+    dag_owner_links: Mapped[DagOwnerAttributes] = relationship(
         "DagOwnerAttributes", cascade="all, delete, delete-orphan", backref=backref("dag")
     )
 
-    max_active_tasks = Column(Integer, nullable=False)
-    max_active_runs = Column(Integer, nullable=True)
-    max_consecutive_failed_dag_runs = Column(Integer, nullable=False)
+    max_active_tasks: Mapped[int] = Column(Integer, nullable=False)
+    max_active_runs: Mapped[int | None] = Column(Integer, nullable=True)
+    max_consecutive_failed_dag_runs: Mapped[int] = Column(Integer, nullable=False)
 
-    has_task_concurrency_limits = Column(Boolean, nullable=False)
-    has_import_errors = Column(Boolean(), default=False, server_default="0")
+    has_task_concurrency_limits: Mapped[bool] = Column(Boolean, nullable=False)
+    has_import_errors: Mapped[bool] = Column(Boolean(), default=False, server_default="0")
 
     # The logical date of the next dag run.
-    next_dagrun = Column(UtcDateTime)
+    next_dagrun: Mapped[datetime | None] = Column(UtcDateTime)
 
     # Must be either both NULL or both datetime.
-    next_dagrun_data_interval_start = Column(UtcDateTime)
-    next_dagrun_data_interval_end = Column(UtcDateTime)
+    next_dagrun_data_interval_start: Mapped[datetime | None] = Column(UtcDateTime)
+    next_dagrun_data_interval_end: Mapped[datetime | None] = Column(UtcDateTime)
 
     # Earliest time at which this ``next_dagrun`` can be created.
-    next_dagrun_create_after = Column(UtcDateTime)
+    next_dagrun_create_after: Mapped[datetime | None] = Column(UtcDateTime)
 
     __table_args__ = (
         Index("idx_root_dag_id", root_dag_id, unique=False),
         Index("idx_next_dagrun_create_after", next_dagrun_create_after, unique=False),
     )
 
-    parent_dag = relationship(
+    parent_dag: Mapped[DagModel] = relationship(
         "DagModel", remote_side=[dag_id], primaryjoin=root_dag_id == dag_id, foreign_keys=[root_dag_id]
     )
-    schedule_dataset_references = relationship(
+    schedule_dataset_references: Mapped[DagScheduleDatasetReference] = relationship(
         "DagScheduleDatasetReference",
         cascade="all, delete, delete-orphan",
     )
-    schedule_datasets = association_proxy("schedule_dataset_references", "dataset")
+    schedule_datasets: Mapped[Dataset] = association_proxy("schedule_dataset_references", "dataset")
     task_outlet_dataset_references = relationship(
         "TaskOutletDatasetReference",
         cascade="all, delete, delete-orphan",

@@ -34,9 +34,10 @@ from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
+    from sqlalchemy.orm import Mapped, Session
     from sqlalchemy.sql import Select
 
+    from airflow.jobs.job import Job
     from airflow.triggers.base import BaseTrigger
 
 
@@ -61,20 +62,22 @@ class Trigger(Base):
 
     __tablename__ = "trigger"
 
-    id = Column(Integer, primary_key=True)
-    classpath = Column(String(1000), nullable=False)
-    encrypted_kwargs = Column("kwargs", Text, nullable=False)
-    created_date = Column(UtcDateTime, nullable=False)
-    triggerer_id = Column(Integer, nullable=True)
+    id: Mapped[int] = Column(Integer, primary_key=True)
+    classpath: Mapped[str] = Column(String(1000), nullable=False)
+    encrypted_kwargs: Mapped[str] = Column("kwargs", Text, nullable=False)
+    created_date: Mapped[datetime.datetime] = Column(UtcDateTime, nullable=False)
+    triggerer_id: Mapped[int | None] = Column(Integer, nullable=True)
 
-    triggerer_job = relationship(
+    triggerer_job: Mapped[Job | None] = relationship(
         "Job",
         primaryjoin="Job.id == Trigger.triggerer_id",
         foreign_keys=triggerer_id,
         uselist=False,
     )
 
-    task_instance = relationship("TaskInstance", back_populates="trigger", lazy="joined", uselist=False)
+    task_instance: Mapped[TaskInstance] = relationship(
+        "TaskInstance", back_populates="trigger", lazy="joined", uselist=False
+    )
 
     def __init__(
         self,

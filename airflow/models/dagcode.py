@@ -34,7 +34,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
+    from sqlalchemy.orm import Mapped, Session
 
 log = logging.getLogger(__name__)
 
@@ -49,11 +49,11 @@ class DagCode(Base):
 
     __tablename__ = "dag_code"
 
-    fileloc_hash = Column(BigInteger, nullable=False, primary_key=True, autoincrement=False)
-    fileloc = Column(String(2000), nullable=False)
+    fileloc_hash: Mapped[int] = Column(BigInteger, nullable=False, primary_key=True, autoincrement=False)
+    fileloc: Mapped[str] = Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
-    last_updated = Column(UtcDateTime, nullable=False)
-    source_code = Column(Text().with_variant(MEDIUMTEXT(), "mysql"), nullable=False)
+    last_updated: Mapped[datetime] = Column(UtcDateTime, nullable=False)
+    source_code: Mapped[str] = Column(Text().with_variant(MEDIUMTEXT(), "mysql"), nullable=False)
 
     def __init__(self, full_filepath: str, source_code: str | None = None):
         self.fileloc = full_filepath

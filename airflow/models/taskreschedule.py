@@ -34,9 +34,10 @@ from airflow.utils.sqlalchemy import UtcDateTime
 if TYPE_CHECKING:
     import datetime
 
-    from sqlalchemy.orm import Query, Session
+    from sqlalchemy.orm import Mapped, Query, Session
     from sqlalchemy.sql import Select
 
+    from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstance
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
@@ -47,16 +48,16 @@ class TaskReschedule(TaskInstanceDependencies):
 
     __tablename__ = "task_reschedule"
 
-    id = Column(Integer, primary_key=True)
-    task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
-    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
-    run_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
-    map_index = Column(Integer, nullable=False, server_default=text("-1"))
-    try_number = Column(Integer, nullable=False)
-    start_date = Column(UtcDateTime, nullable=False)
-    end_date = Column(UtcDateTime, nullable=False)
-    duration = Column(Integer, nullable=False)
-    reschedule_date = Column(UtcDateTime, nullable=False)
+    id: Mapped[int] = Column(Integer, primary_key=True)
+    task_id: Mapped[str] = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+    dag_id: Mapped[str] = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+    run_id: Mapped[str] = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+    map_index: Mapped[int] = Column(Integer, nullable=False, server_default=text("-1"))
+    try_number: Mapped[int] = Column(Integer, nullable=False)
+    start_date: Mapped[datetime.datetime] = Column(UtcDateTime, nullable=False)
+    end_date: Mapped[datetime.datetime] = Column(UtcDateTime, nullable=False)
+    duration: Mapped[int] = Column(Integer, nullable=False)
+    reschedule_date: Mapped[datetime.datetime] = Column(UtcDateTime, nullable=False)
 
     __table_args__ = (
         Index("idx_task_reschedule_dag_task_run", dag_id, task_id, run_id, map_index, unique=False),
@@ -79,8 +80,8 @@ class TaskReschedule(TaskInstanceDependencies):
             ondelete="CASCADE",
         ),
     )
-    dag_run = relationship("DagRun")
-    execution_date = association_proxy("dag_run", "execution_date")
+    dag_run: Mapped[DagRun] = relationship("DagRun")
+    execution_date: Mapped[datetime.datetime] = association_proxy("dag_run", "execution_date")
 
     def __init__(
         self,

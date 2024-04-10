@@ -47,9 +47,12 @@ from airflow.utils.state import JobState
 if TYPE_CHECKING:
     import datetime
 
+    from sqlalchemy.orm import Mapped
     from sqlalchemy.orm.session import Session
 
     from airflow.executors.base_executor import BaseExecutor
+    from airflow.models.dagrun import DagRun
+    from airflow.models.taskinstance import TaskInstance
 
 
 def _resolve_dagrun_model():
@@ -82,18 +85,18 @@ class Job(Base, LoggingMixin):
 
     __tablename__ = "job"
 
-    id = Column(Integer, primary_key=True)
-    dag_id = Column(
+    id: Mapped[int] = Column(Integer, primary_key=True)
+    dag_id: Mapped[str | None] = Column(
         String(ID_LEN),
     )
-    state = Column(String(20))
-    job_type = Column(String(30))
-    start_date = Column(UtcDateTime())
-    end_date = Column(UtcDateTime())
-    latest_heartbeat = Column(UtcDateTime())
-    executor_class = Column(String(500))
-    hostname = Column(String(500))
-    unixname = Column(String(1000))
+    state: Mapped[str | None] = Column(String(20))
+    job_type: Mapped[str | None] = Column(String(30))
+    start_date: Mapped[datetime.datetime | None] = Column(UtcDateTime())
+    end_date: Mapped[datetime.datetime | None] = Column(UtcDateTime())
+    latest_heartbeat: Mapped[datetime.datetime | None] = Column(UtcDateTime())
+    executor_class: Mapped[str | None] = Column(String(500))
+    hostname: Mapped[str | None] = Column(String(500))
+    unixname: Mapped[str | None] = Column(String(1000))
 
     __table_args__ = (
         Index("job_type_heart", job_type, latest_heartbeat),
@@ -101,13 +104,13 @@ class Job(Base, LoggingMixin):
         Index("idx_job_dag_id", dag_id),
     )
 
-    task_instances_enqueued = relationship(
+    task_instances_enqueued: Mapped[TaskInstance] = relationship(
         "TaskInstance",
         primaryjoin="Job.id == foreign(TaskInstance.queued_by_job_id)",
         backref=backref("queued_by_job", uselist=False),
     )
 
-    dag_runs = relationship(
+    dag_runs: Mapped[DagRun] = relationship(
         "DagRun",
         primaryjoin=lambda: Job.id == foreign(_resolve_dagrun_model().creating_job_id),
         backref="creating_job",

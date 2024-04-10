@@ -73,9 +73,9 @@ from airflow.utils.types import NOTSET, DagRunType
 if TYPE_CHECKING:
     from datetime import datetime
 
-    from sqlalchemy.orm import Query, Session
+    from sqlalchemy.orm import Mapped, Query, Session
 
-    from airflow.models.dag import DAG
+    from airflow.models.dag import DAG, DagModel
     from airflow.models.operator import Operator
     from airflow.serialization.pydantic.dag_run import DagRunPydantic
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
@@ -117,37 +117,37 @@ class DagRun(Base, LoggingMixin):
 
     __tablename__ = "dag_run"
 
-    id = Column(Integer, primary_key=True)
-    dag_id = Column(StringID(), nullable=False)
-    queued_at = Column(UtcDateTime)
-    execution_date = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    start_date = Column(UtcDateTime)
-    end_date = Column(UtcDateTime)
-    _state = Column("state", String(50), default=DagRunState.QUEUED)
-    run_id = Column(StringID(), nullable=False)
-    creating_job_id = Column(Integer)
-    external_trigger = Column(Boolean, default=True)
-    run_type = Column(String(50), nullable=False)
-    conf = Column(PickleType)
+    id: Mapped[int] = Column(Integer, primary_key=True)
+    dag_id: Mapped[str] = Column(StringID(), nullable=False)
+    queued_at: Mapped[datetime | None] = Column(UtcDateTime)
+    execution_date: Mapped[datetime] = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    start_date: Mapped[datetime | None] = Column(UtcDateTime)
+    end_date: Mapped[datetime] = Column(UtcDateTime)
+    _state: Mapped[str] = Column("state", String(50), default=DagRunState.QUEUED)
+    run_id: Mapped[str] = Column(StringID(), nullable=False)
+    creating_job_id: Mapped[int | None] = Column(Integer)
+    external_trigger: Mapped[bool] = Column(Boolean, default=True)
+    run_type: Mapped[str] = Column(String(50), nullable=False)
+    conf: Mapped[bytes | None] = Column(PickleType)
     # These two must be either both NULL or both datetime.
-    data_interval_start = Column(UtcDateTime)
-    data_interval_end = Column(UtcDateTime)
+    data_interval_start: Mapped[datetime | None] = Column(UtcDateTime)
+    data_interval_end: Mapped[datetime | None] = Column(UtcDateTime)
     # When a scheduler last attempted to schedule TIs for this DagRun
-    last_scheduling_decision = Column(UtcDateTime)
-    dag_hash = Column(String(32))
+    last_scheduling_decision: Mapped[datetime | None] = Column(UtcDateTime)
+    dag_hash: Mapped[str | None] = Column(String(32))
     # Foreign key to LogTemplate. DagRun rows created prior to this column's
     # existence have this set to NULL. Later rows automatically populate this on
     # insert to point to the latest LogTemplate entry.
-    log_template_id = Column(
+    log_template_id: Mapped[int] = Column(
         Integer,
         ForeignKey("log_template.id", name="task_instance_log_template_id_fkey", ondelete="NO ACTION"),
         default=select(func.max(LogTemplate.__table__.c.id)),
     )
-    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
+    updated_at: Mapped[datetime] = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
     # Keeps track of the number of times the dagrun had been cleared.
     # This number is incremented only when the DagRun is re-Queued,
     # when the DagRun is cleared.
-    clear_number = Column(Integer, default=0, nullable=False)
+    clear_number: Mapped[int] = Column(Integer, default=0, nullable=False)
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
@@ -179,22 +179,22 @@ class DagRun(Base, LoggingMixin):
         ),
     )
 
-    task_instances = relationship(
+    task_instances: Mapped[TI] = relationship(
         TI, back_populates="dag_run", cascade="save-update, merge, delete, delete-orphan"
     )
-    dag_model = relationship(
+    dag_model: Mapped[DagModel] = relationship(
         "DagModel",
         primaryjoin="foreign(DagRun.dag_id) == DagModel.dag_id",
         uselist=False,
         viewonly=True,
     )
-    dag_run_note = relationship(
+    dag_run_note: Mapped[DagRunNote] = relationship(
         "DagRunNote",
         back_populates="dag_run",
         uselist=False,
         cascade="all, delete, delete-orphan",
     )
-    note = association_proxy("dag_run_note", "content", creator=_creator_note)
+    note: Mapped[str | None] = association_proxy("dag_run_note", "content", creator=_creator_note)
 
     DEFAULT_DAGRUNS_TO_EXAMINE = airflow_conf.getint(
         "scheduler",
@@ -1620,17 +1620,19 @@ class DagRunNote(Base):
 
     __tablename__ = "dag_run_note"
 
-    user_id = Column(
+    user_id: Mapped[int] = Column(
         Integer,
         ForeignKey("ab_user.id", name="dag_run_note_user_fkey"),
         nullable=True,
     )
-    dag_run_id = Column(Integer, primary_key=True, nullable=False)
-    content = Column(String(1000).with_variant(Text(1000), "mysql"))
-    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
+    dag_run_id: Mapped[int] = Column(Integer, primary_key=True, nullable=False)
+    content: Mapped[str | None] = Column(String(1000).with_variant(Text(1000), "mysql"))
+    created_at: Mapped[datetime] = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = Column(
+        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
+    )
 
-    dag_run = relationship("DagRun", back_populates="dag_run_note")
+    dag_run: Mapped[DagRun] = relationship("DagRun", back_populates="dag_run_note")
 
     __table_args__ = (
         PrimaryKeyConstraint("dag_run_id", name="dag_run_note_pkey"),

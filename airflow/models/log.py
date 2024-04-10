@@ -17,11 +17,21 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Column, Index, Integer, String, Text
 
 from airflow.models.base import Base, StringID
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from sqlalchemy.orm import Mapped
+
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 
 class Log(Base):
@@ -29,17 +39,17 @@ class Log(Base):
 
     __tablename__ = "log"
 
-    id = Column(Integer, primary_key=True)
-    dttm = Column(UtcDateTime)
-    dag_id = Column(StringID())
-    task_id = Column(StringID())
-    map_index = Column(Integer)
-    event = Column(String(60))
-    execution_date = Column(UtcDateTime)
-    run_id = Column(StringID())
-    owner = Column(String(500))
-    owner_display_name = Column(String(500))
-    extra = Column(Text)
+    id: Mapped[int] = Column(Integer, primary_key=True)
+    dttm: Mapped[datetime | None] = Column(UtcDateTime)
+    dag_id: Mapped[str | None] = Column(StringID())
+    task_id: Mapped[str | None] = Column(StringID())
+    map_index: Mapped[int | None] = Column(Integer)
+    event: Mapped[str | None] = Column(String(60))
+    execution_date: Mapped[datetime | None] = Column(UtcDateTime)
+    run_id: Mapped[str | None] = Column(StringID())
+    owner: Mapped[str | None] = Column(String(500))
+    owner_display_name: Mapped[str | None] = Column(String(500))
+    extra: Mapped[str | None] = Column(Text)
 
     __table_args__ = (
         Index("idx_log_dag", dag_id),
@@ -47,7 +57,15 @@ class Log(Base):
         Index("idx_log_event", event),
     )
 
-    def __init__(self, event, task_instance=None, owner=None, owner_display_name=None, extra=None, **kwargs):
+    def __init__(
+        self,
+        event,
+        task_instance: TaskInstance | TaskInstancePydantic | None = None,
+        owner=None,
+        owner_display_name=None,
+        extra=None,
+        **kwargs,
+    ):
         self.dttm = timezone.utcnow()
         self.event = event
         self.extra = extra

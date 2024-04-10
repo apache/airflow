@@ -17,11 +17,18 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Column, Integer, Text
 
 from airflow.models.base import Base
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from sqlalchemy.orm import Mapped
 
 
 class LogTemplate(Base):
@@ -33,10 +40,10 @@ class LogTemplate(Base):
 
     __tablename__ = "log_template"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    filename = Column(Text, nullable=False)
-    elasticsearch_id = Column(Text, nullable=False)
-    created_at = Column(UtcDateTime, nullable=False, default=timezone.utcnow)
+    id: Mapped[int] = Column(Integer, primary_key=True, autoincrement=True)
+    filename: Mapped[str] = Column(Text, nullable=False)
+    elasticsearch_id: Mapped[str] = Column(Text, nullable=False)
+    created_at: Mapped[datetime] = Column(UtcDateTime, nullable=False, default=timezone.utcnow)
 
     def __repr__(self) -> str:
         attrs = ", ".join(f"{k}={getattr(self, k)}" for k in ("filename", "elasticsearch_id"))

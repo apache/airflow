@@ -147,9 +147,10 @@ if TYPE_CHECKING:
     from pathlib import PurePath
     from types import TracebackType
 
+    from sqlalchemy.orm import Mapped
     from sqlalchemy.orm.session import Session
     from sqlalchemy.sql.elements import BooleanClauseList
-    from sqlalchemy.sql.expression import ColumnOperators
+    from sqlalchemy.sql.operators import ColumnOperators
 
     from airflow.models.abstractoperator import TaskStateChangeCallback
     from airflow.models.baseoperator import BaseOperator
@@ -157,6 +158,8 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.models.dataset import DatasetEvent
     from airflow.models.operator import Operator
+    from airflow.models.renderedtifields import RenderedTaskInstanceFields
+    from airflow.models.trigger import Trigger
     from airflow.serialization.pydantic.dag import DagModelPydantic
     from airflow.serialization.pydantic.dataset import DatasetEventPydantic
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
@@ -1330,51 +1333,53 @@ class TaskInstance(Base, LoggingMixin):
     """
 
     __tablename__ = "task_instance"
-    task_id = Column(StringID(), primary_key=True, nullable=False)
-    dag_id = Column(StringID(), primary_key=True, nullable=False)
-    run_id = Column(StringID(), primary_key=True, nullable=False)
-    map_index = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
+    task_id: Mapped[str] = Column(StringID(), primary_key=True, nullable=False)
+    dag_id: Mapped[str] = Column(StringID(), primary_key=True, nullable=False)
+    run_id: Mapped[str] = Column(StringID(), primary_key=True, nullable=False)
+    map_index: Mapped[str] = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
 
-    start_date = Column(UtcDateTime)
-    end_date = Column(UtcDateTime)
-    duration = Column(Float)
-    state = Column(String(20))
-    _try_number = Column("try_number", Integer, default=0)
-    max_tries = Column(Integer, server_default=text("-1"))
-    hostname = Column(String(1000))
-    unixname = Column(String(1000))
-    job_id = Column(Integer)
-    pool = Column(String(256), nullable=False)
-    pool_slots = Column(Integer, default=1, nullable=False)
-    queue = Column(String(256))
-    priority_weight = Column(Integer)
-    operator = Column(String(1000))
-    custom_operator_name = Column(String(1000))
-    queued_dttm = Column(UtcDateTime)
-    queued_by_job_id = Column(Integer)
-    pid = Column(Integer)
-    executor = Column(String(1000))
-    executor_config = Column(ExecutorConfigType(pickler=dill))
-    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
-    rendered_map_index = Column(String(250))
+    start_date: Mapped[datetime | None] = Column(UtcDateTime)
+    end_date: Mapped[datetime | None] = Column(UtcDateTime)
+    duration: Mapped[float | None] = Column(Float)
+    state: Mapped[str | None] = Column(String(20))
+    _try_number: Mapped[int] = Column("try_number", Integer, default=0)
+    max_tries: Mapped[int] = Column(Integer, server_default=text("-1"))
+    hostname: Mapped[str | None] = Column(String(1000))
+    unixname: Mapped[str | None] = Column(String(1000))
+    job_id: Mapped[int | None] = Column(Integer)
+    pool: Mapped[str] = Column(String(256), nullable=False)
+    pool_slots: Mapped[int] = Column(Integer, default=1, nullable=False)
+    queue: Mapped[str | None] = Column(String(256))
+    priority_weight: Mapped[int | None] = Column(Integer)
+    operator: Mapped[str | None] = Column(String(1000))
+    custom_operator_name: Mapped[str | None] = Column(String(1000))
+    queued_dttm: Mapped[datetime | None] = Column(UtcDateTime)
+    queued_by_job_id: Mapped[int | None] = Column(Integer)
+    pid: Mapped[int | None] = Column(Integer)
+    executor: Mapped[str | None] = Column(String(1000))
+    executor_config: Mapped[bytes | None] = Column(ExecutorConfigType(pickler=dill))
+    updated_at: Mapped[datetime] = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
+    rendered_map_index: Mapped[str | None] = Column(String(250))
 
-    external_executor_id = Column(StringID())
+    external_executor_id: Mapped[str | None] = Column(StringID())
 
     # The trigger to resume on if we are in state DEFERRED
-    trigger_id = Column(Integer)
+    trigger_id: Mapped[int | None] = Column(Integer)
 
     # Optional timeout datetime for the trigger (past this, we'll fail)
-    trigger_timeout = Column(DateTime)
+    trigger_timeout: Mapped[datetime | None] = Column(DateTime)
     # The trigger_timeout should be TIMESTAMP(using UtcDateTime) but for ease of
     # migration, we are keeping it as DateTime pending a change where expensive
     # migration is inevitable.
 
     # The method to call next, and any extra arguments to pass to it.
     # Usually used when resuming from DEFERRED.
-    next_method = Column(String(1000))
-    next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
+    next_method: Mapped[str | None] = Column(String(1000))
+    next_kwargs: Mapped[dict[str, Any] | None] = Column(MutableDict.as_mutable(ExtendedJSON))
 
-    _task_display_property_value = Column("task_display_name", String(2000), nullable=True)
+    _task_display_property_value: Mapped[str | None] = Column(
+        "task_display_name", String(2000), nullable=True
+    )
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they won't display in the UI correctly
 
@@ -1409,7 +1414,7 @@ class TaskInstance(Base, LoggingMixin):
         ),
     )
 
-    dag_model: DagModel = relationship(
+    dag_model: Mapped[DagModel] = relationship(
         "DagModel",
         primaryjoin="TaskInstance.dag_id == DagModel.dag_id",
         foreign_keys=dag_id,
@@ -1418,19 +1423,22 @@ class TaskInstance(Base, LoggingMixin):
         viewonly=True,
     )
 
-    trigger = relationship("Trigger", uselist=False, back_populates="task_instance")
-    triggerer_job = association_proxy("trigger", "triggerer_job")
-    dag_run = relationship("DagRun", back_populates="task_instances", lazy="joined", innerjoin=True)
-    rendered_task_instance_fields = relationship("RenderedTaskInstanceFields", lazy="noload", uselist=False)
-    execution_date = association_proxy("dag_run", "execution_date")
-    task_instance_note = relationship(
+    trigger: Mapped[Trigger] = relationship("Trigger", uselist=False, back_populates="task_instance")
+    triggerer_job: Mapped[Job] = association_proxy("trigger", "triggerer_job")
+    dag_run: Mapped[DagRun] = relationship(
+        "DagRun", back_populates="task_instances", lazy="joined", innerjoin=True
+    )
+    rendered_task_instance_fields: Mapped[RenderedTaskInstanceFields] = relationship(
+        "RenderedTaskInstanceFields", lazy="noload", uselist=False
+    )
+    execution_date: Mapped[datetime] = association_proxy("dag_run", "execution_date")
+    task_instance_note: Mapped[TaskInstanceNote] = relationship(
         "TaskInstanceNote",
         back_populates="task_instance",
         uselist=False,
         cascade="all, delete, delete-orphan",
     )
-    note = association_proxy("task_instance_note", "content", creator=_creator_note)
-
+    note: Mapped[str | None] = association_proxy("task_instance_note", "content", creator=_creator_note)
     task: Operator | None = None
     test_mode: bool = False
     is_trigger_log_context: bool = False
@@ -3826,16 +3834,20 @@ class TaskInstanceNote(TaskInstanceDependencies):
 
     __tablename__ = "task_instance_note"
 
-    user_id = Column(Integer, ForeignKey("ab_user.id", name="task_instance_note_user_fkey"), nullable=True)
-    task_id = Column(StringID(), primary_key=True, nullable=False)
-    dag_id = Column(StringID(), primary_key=True, nullable=False)
-    run_id = Column(StringID(), primary_key=True, nullable=False)
-    map_index = Column(Integer, primary_key=True, nullable=False)
-    content = Column(String(1000).with_variant(Text(1000), "mysql"))
-    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
+    user_id: Mapped[int] = Column(
+        Integer, ForeignKey("ab_user.id", name="task_instance_note_user_fkey"), nullable=True
+    )
+    task_id: Mapped[str] = Column(StringID(), primary_key=True, nullable=False)
+    dag_id: Mapped[str] = Column(StringID(), primary_key=True, nullable=False)
+    run_id: Mapped[str] = Column(StringID(), primary_key=True, nullable=False)
+    map_index: Mapped[int] = Column(Integer, primary_key=True, nullable=False)
+    content: Mapped[str | None] = Column(String(1000).with_variant(Text(1000), "mysql"))
+    created_at: Mapped[datetime] = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = Column(
+        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
+    )
 
-    task_instance = relationship("TaskInstance", back_populates="task_instance_note")
+    task_instance: Mapped[TaskInstance] = relationship("TaskInstance", back_populates="task_instance_note")
 
     __table_args__ = (
         PrimaryKeyConstraint("task_id", "dag_id", "run_id", "map_index", name="task_instance_note_pkey"),

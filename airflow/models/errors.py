@@ -17,18 +17,25 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Column, Integer, String, Text
 
 from airflow.models.base import Base
 from airflow.utils.sqlalchemy import UtcDateTime
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from sqlalchemy.orm import Mapped
 
 
 class ImportError(Base):
     """Stores all Import Errors which are recorded when parsing DAGs and displayed on the Webserver."""
 
     __tablename__ = "import_error"
-    id = Column(Integer, primary_key=True)
-    timestamp = Column(UtcDateTime)
-    filename = Column(String(1024))
-    stacktrace = Column(Text)
-    processor_subdir = Column(String(2000), nullable=True)
+    id: Mapped[int] = Column(Integer, primary_key=True)
+    timestamp: Mapped[datetime] = Column(UtcDateTime)
+    filename: Mapped[str | None] = Column(String(1024))
+    stacktrace: Mapped[str | None] = Column(Text)
+    processor_subdir: Mapped[str | None] = Column(String(2000), nullable=True)

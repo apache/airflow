@@ -36,7 +36,7 @@ from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.session import provide_session
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
+    from sqlalchemy.orm import Mapped, Session
 
 log = logging.getLogger(__name__)
 
@@ -47,11 +47,11 @@ class Variable(Base, LoggingMixin):
     __tablename__ = "variable"
     __NO_DEFAULT_SENTINEL = object()
 
-    id = Column(Integer, primary_key=True)
-    key = Column(String(ID_LEN), unique=True)
-    _val = Column("val", Text().with_variant(MEDIUMTEXT, "mysql"))
-    description = Column(Text)
-    is_encrypted = Column(Boolean, unique=False, default=False)
+    id: Mapped[int] = Column(Integer, primary_key=True)
+    key: Mapped[str] = Column(String(ID_LEN), unique=True)
+    _val: Mapped[str | None] = Column("val", Text().with_variant(MEDIUMTEXT, "mysql"))
+    description: Mapped[str | None] = Column(Text)
+    is_encrypted: Mapped[bool] = Column(Boolean, unique=False, default=False)
 
     def __init__(self, key=None, val=None, description=None):
         super().__init__()

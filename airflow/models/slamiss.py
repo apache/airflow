@@ -17,10 +17,17 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Boolean, Column, Index, String, Text
 
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.utils.sqlalchemy import UtcDateTime
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from sqlalchemy.orm import Mapped
 
 
 class SlaMiss(Base):
@@ -32,13 +39,13 @@ class SlaMiss(Base):
 
     __tablename__ = "sla_miss"
 
-    task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    execution_date = Column(UtcDateTime, primary_key=True)
-    email_sent = Column(Boolean, default=False)
-    timestamp = Column(UtcDateTime)
-    description = Column(Text)
-    notification_sent = Column(Boolean, default=False)
+    task_id: Mapped[str] = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    dag_id: Mapped[str] = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    execution_date: Mapped[datetime] = Column(UtcDateTime, primary_key=True)
+    email_sent: Mapped[bool] = Column(Boolean, default=False)
+    timestamp: Mapped[datetime | None] = Column(UtcDateTime)
+    description: Mapped[str | None] = Column(Text)
+    notification_sent: Mapped[bool] = Column(Boolean, default=False)
 
     __table_args__ = (Index("sm_dag", dag_id, unique=False),)
 
