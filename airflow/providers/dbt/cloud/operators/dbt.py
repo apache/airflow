@@ -38,6 +38,8 @@ if TYPE_CHECKING:
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.context import Context
 
+DBT_CAUSE_MAX_LENGTH = 255
+
 
 class DbtCloudRunJobOperatorLink(BaseOperatorLink):
     """Allows users to monitor the triggered job run directly in dbt Cloud."""
@@ -128,6 +130,7 @@ class DbtCloudRunJobOperator(BaseOperator):
             self.trigger_reason = (
                 f"Triggered via Apache Airflow by task {self.task_id!r} in the {self.dag.dag_id} DAG."
             )
+        self._validate_trigger_reason()
 
         non_terminal_runs = None
         if self.reuse_existing_run:
@@ -248,6 +251,15 @@ class DbtCloudRunJobOperator(BaseOperator):
         if isinstance(self.run_id, int) and self.wait_for_termination is True:
             return generate_openlineage_events_from_dbt_cloud_run(operator=self, task_instance=task_instance)
         return OperatorLineage()
+
+    def _validate_trigger_reason(self) -> None:
+        """Verify that the trigger reason does not exceed maximum length for the 'cause' parameter of dbt."""
+        if len(self.trigger_reason) > DBT_CAUSE_MAX_LENGTH:
+            self.trigger_reason = self.trigger_reason[:DBT_CAUSE_MAX_LENGTH]
+            warnings.warn(
+                f"Trigger reason `{self.trigger_reason}` exceeds dbt's cause length limit of "
+                f"{DBT_CAUSE_MAX_LENGTH} characters and will be truncated."
+            )
 
 
 class DbtCloudGetJobRunArtifactOperator(BaseOperator):
