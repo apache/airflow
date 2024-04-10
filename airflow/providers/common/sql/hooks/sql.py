@@ -39,7 +39,6 @@ from urllib.parse import urlparse
 import sqlparse
 from more_itertools import chunked
 from sqlalchemy import create_engine
-from sqlalchemy.engine import URL
 
 from airflow.exceptions import (
     AirflowException,
@@ -50,6 +49,7 @@ from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
     from pandas import DataFrame
+    from sqlalchemy.engine import URL
 
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
@@ -193,17 +193,6 @@ class DbApiHook(BaseHook):
         )
         return self._placeholder
 
-    @property
-    def drivername(self) -> str:
-        """
-        Return the database driver name.
-
-        Should be implemented in the derived class to return database driver name.
-
-        :return: the driver name for the connection.
-        """
-        raise NotImplementedError("drivername property should be implemented in the provider subclass.")
-
     def get_conn(self):
         """Return a connection object."""
         db = self.get_connection(getattr(self, cast(str, self.conn_name_attr)))
@@ -219,23 +208,16 @@ class DbApiHook(BaseHook):
         conn.schema = self.__schema or conn.schema
         return conn.get_uri()
 
-    def get_sqlalchemy_url(self) -> URL:
+    @property
+    def sqlalchemy_url(self) -> URL:
         """
         Return a Sqlalchemy.engine.URL object from the connection.
 
+        Needs to be implemented in the provider subclass to return the sqlalchemy.engine.URL object.
+
         :return: the extracted sqlalchemy.engine.URL object.
         """
-        conn = self.get_connection(getattr(self, self.conn_name_attr))
-        conn.schema = self.__schema or conn.schema
-        conn.port = conn.port or 5432
-        return URL.create(
-            drivername=self.drivername,
-            username=conn.login,
-            password=conn.password,
-            host=conn.host,
-            port=conn.port,
-            database=conn.schema,
-        )
+        raise NotImplementedError("drivername property should be implemented in the provider subclass.")
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
         """
@@ -246,8 +228,7 @@ class DbApiHook(BaseHook):
         """
         if engine_kwargs is None:
             engine_kwargs = {}
-        sa_uri = self.get_sqlalchemy_url().render_as_string(hide_password=False)
-        return create_engine(sa_uri, **engine_kwargs)
+        return create_engine(self.get_uri(), **engine_kwargs)
 
     def get_pandas_df(
         self,
