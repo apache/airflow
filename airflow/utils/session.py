@@ -24,12 +24,17 @@ from typing import Callable, Generator, TypeVar, cast
 from sqlalchemy.orm import Session as SASession
 
 from airflow import settings
+from airflow.api_internal.internal_api_call import InternalApiConfig
+from airflow.settings import TracebackSession
 from airflow.typing_compat import ParamSpec
 
 
 @contextlib.contextmanager
 def create_session() -> Generator[SASession, None, None]:
     """Contextmanager that will create and teardown a session."""
+    if InternalApiConfig.get_use_internal_api():
+        yield TracebackSession()
+        return
     Session = getattr(settings, "Session", None)
     if Session is None:
         raise RuntimeError("Session must be set before!")
