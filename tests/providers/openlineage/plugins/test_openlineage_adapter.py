@@ -105,7 +105,7 @@ def test_create_client_from_config_with_options():
     }
 )
 def test_fails_to_create_client_without_type():
-    with pytest.raises(Exception):
+    with pytest.raises(KeyError):
         OpenLineageAdapter().get_or_create_openlineage_client()
 
 

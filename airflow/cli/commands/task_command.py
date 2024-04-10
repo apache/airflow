@@ -34,7 +34,7 @@ from pendulum.parsing.exceptions import ParserError
 from sqlalchemy import select
 
 from airflow import settings
-from airflow.api_internal.internal_api_call import InternalApiConfig
+from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagRunNotFound, TaskDeferred, TaskInstanceNotFound
@@ -156,8 +156,10 @@ def _get_dag_run(
     raise ValueError(f"unknown create_if_necessary value: {create_if_necessary!r}")
 
 
+@internal_api_call
 @provide_session
-def _get_ti(
+def _get_ti_db_access(
+    dag: DAG,
     task: Operator,
     map_index: int,
     *,
@@ -167,9 +169,9 @@ def _get_ti(
     session: Session = NEW_SESSION,
 ) -> tuple[TaskInstance | TaskInstancePydantic, bool]:
     """Get the task instance through DagRun.run_id, if that fails, get the TI the old way."""
-    dag = task.dag
-    if dag is None:
-        raise ValueError("Cannot get task instance for a task not assigned to a DAG")
+    if task.dag_id != dag.dag_id:
+        raise ValueError(f"Provided task '{task.task_id}' is not assigned to provided dag {dag.dag_id}.")
+
     if not exec_date_or_run_id and not create_if_necessary:
         raise ValueError("Must provide `exec_date_or_run_id` if not `create_if_necessary`.")
     if needs_expansion(task):
@@ -198,6 +200,33 @@ def _get_ti(
     else:
         ti = ti_or_none
     ti.refresh_from_task(task, pool_override=pool)
+    return ti, dr_created
+
+
+def _get_ti(
+    task: Operator,
+    map_index: int,
+    *,
+    exec_date_or_run_id: str | None = None,
+    pool: str | None = None,
+    create_if_necessary: CreateIfNecessary = False,
+):
+    dag = task.dag
+    if dag is None:
+        raise ValueError("Cannot get task instance for a task not assigned to a DAG")
+
+    ti, dr_created = _get_ti_db_access(
+        dag=dag,
+        task=task,
+        map_index=map_index,
+        exec_date_or_run_id=exec_date_or_run_id,
+        pool=pool,
+        create_if_necessary=create_if_necessary,
+    )
+    # setting ti.task is necessary for AIP-44 since the task object does not serialize perfectly
+    # if we update the serialization logic for Operator to also serialize the dag object on it,
+    # then this would not be necessary;
+    ti.task = task
     return ti, dr_created
 
 
