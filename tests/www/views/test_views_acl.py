@@ -31,7 +31,12 @@ from airflow.utils.types import DagRunType
 from airflow.www.views import FILTER_STATUS_COOKIE
 from tests.test_utils.api_connexion_utils import create_user_scope
 from tests.test_utils.db import clear_db_runs
-from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
+from tests.test_utils.www import (
+    check_content_in_response,
+    check_content_not_in_response,
+    client_with_login,
+    flask_client_with_login,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -235,6 +240,15 @@ def client_all_dags(acl_app, user_all_dags):
     )
 
 
+@pytest.fixture
+def flask_client_all_dags(acl_app, user_all_dags):
+    return flask_client_with_login(
+        acl_app,
+        username="user_all_dags",
+        password="user_all_dags",
+    )
+
+
 def test_index_for_all_dag_user(client_all_dags):
     # The all dag user can access/view all dags.
     resp = client_all_dags.get("/", follow_redirects=True)
@@ -301,10 +315,11 @@ def setup_paused_dag():
     ],
 )
 @pytest.mark.usefixtures("setup_paused_dag")
-def test_dag_autocomplete_status(client_all_dags, status, expected, unexpected):
-    with client_all_dags.session_transaction() as flask_session:
+def test_dag_autocomplete_status(flask_client_all_dags, status, expected, unexpected):
+    with flask_client_all_dags.session_transaction() as flask_session:
         flask_session[FILTER_STATUS_COOKIE] = status
-    resp = client_all_dags.get(
+
+    resp = flask_client_all_dags.get(
         "dagmodel/autocomplete?query=example_branch_",
         follow_redirects=False,
     )
