@@ -80,8 +80,8 @@ class TaskReschedule(TaskInstanceDependencies):
             ondelete="CASCADE",
         ),
     )
-    dag_run: Mapped[DagRun] = relationship("DagRun")
-    execution_date: Mapped[datetime.datetime] = association_proxy("dag_run", "execution_date")
+    dag_run: Mapped[DagRun | None] = relationship("DagRun")
+    execution_date: Mapped[datetime.datetime | None] = association_proxy("dag_run", "execution_date")
 
     def __init__(
         self,

@@ -104,13 +104,13 @@ class Job(Base, LoggingMixin):
         Index("idx_job_dag_id", dag_id),
     )
 
-    task_instances_enqueued: Mapped[TaskInstance] = relationship(
+    task_instances_enqueued: Mapped[TaskInstance | None] = relationship(
         "TaskInstance",
         primaryjoin="Job.id == foreign(TaskInstance.queued_by_job_id)",
         backref=backref("queued_by_job", uselist=False),
     )
 
-    dag_runs: Mapped[DagRun] = relationship(
+    dag_runs: Mapped[DagRun | None] = relationship(
         "DagRun",
         primaryjoin=lambda: Job.id == foreign(_resolve_dagrun_model().creating_job_id),
         backref="creating_job",

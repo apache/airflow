@@ -179,10 +179,10 @@ class DagRun(Base, LoggingMixin):
         ),
     )
 
-    task_instances: Mapped[TI] = relationship(
+    task_instances: Mapped[Sequence[TI]] = relationship(
         TI, back_populates="dag_run", cascade="save-update, merge, delete, delete-orphan"
     )
-    dag_model: Mapped[DagModel] = relationship(
+    dag_model: Mapped[DagModel | None] = relationship(
         "DagModel",
         primaryjoin="foreign(DagRun.dag_id) == DagModel.dag_id",
         uselist=False,

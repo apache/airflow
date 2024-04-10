@@ -1414,7 +1414,7 @@ class TaskInstance(Base, LoggingMixin):
         ),
     )
 
-    dag_model: Mapped[DagModel] = relationship(
+    dag_model: Mapped[DagModel | None] = relationship(
         "DagModel",
         primaryjoin="TaskInstance.dag_id == DagModel.dag_id",
         foreign_keys=dag_id,
@@ -1423,15 +1423,15 @@ class TaskInstance(Base, LoggingMixin):
         viewonly=True,
     )
 
-    trigger: Mapped[Trigger] = relationship("Trigger", uselist=False, back_populates="task_instance")
-    triggerer_job: Mapped[Job] = association_proxy("trigger", "triggerer_job")
+    trigger: Mapped[Trigger | None] = relationship("Trigger", uselist=False, back_populates="task_instance")
+    triggerer_job: Mapped[Job | None] = association_proxy("trigger", "triggerer_job")
     dag_run: Mapped[DagRun] = relationship(
         "DagRun", back_populates="task_instances", lazy="joined", innerjoin=True
     )
-    rendered_task_instance_fields: Mapped[RenderedTaskInstanceFields] = relationship(
+    rendered_task_instance_fields: Mapped[RenderedTaskInstanceFields | None] = relationship(
         "RenderedTaskInstanceFields", lazy="noload", uselist=False
     )
-    execution_date: Mapped[datetime] = association_proxy("dag_run", "execution_date")
+    execution_date: Mapped[datetime | None] = association_proxy("dag_run", "execution_date")
     task_instance_note: Mapped[TaskInstanceNote] = relationship(
         "TaskInstanceNote",
         back_populates="task_instance",

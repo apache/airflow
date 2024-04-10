@@ -99,7 +99,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
             ondelete="CASCADE",
         ),
     )
-    task_instance: Mapped[TaskInstance] = relationship(
+    task_instance: Mapped[TaskInstance | None] = relationship(
         "TaskInstance",
         lazy="joined",
         back_populates="rendered_task_instance_fields",
@@ -107,7 +107,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
     # We don't need a DB level FK here, as we already have that to TI (which has one to DR) but by defining
     # the relationship we can more easily find the execution date for these rows
-    dag_run: Mapped[DagRun] = relationship(
+    dag_run: Mapped[DagRun | None] = relationship(
         "DagRun",
         primaryjoin="""and_(
             RenderedTaskInstanceFields.dag_id == foreign(DagRun.dag_id),
@@ -116,7 +116,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
         viewonly=True,
     )
 
-    execution_date: Mapped[datetime] = association_proxy("dag_run", "execution_date")
+    execution_date: Mapped[datetime | None] = association_proxy("dag_run", "execution_date")
 
     def __init__(self, ti: TaskInstance, render_templates=True, rendered_fields=None):
         self.dag_id = ti.dag_id

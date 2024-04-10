@@ -67,7 +67,7 @@ class TaskFail(TaskInstanceDependencies):
 
     # We don't need a DB level FK here, as we already have that to TI (which has one to DR) but by defining
     # the relationship we can more easily find the execution date for these rows
-    dag_run: Mapped[DagRun] = relationship(
+    dag_run: Mapped[DagRun | None] = relationship(
         "DagRun",
         primaryjoin="""and_(
             TaskFail.dag_id == foreign(DagRun.dag_id),

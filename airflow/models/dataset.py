@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Sequence
 from urllib.parse import urlsplit
 
 import sqlalchemy_jsonfield
@@ -78,10 +78,10 @@ class DatasetModel(Base):
     )
     is_orphaned: Mapped[bool] = Column(Boolean, default=False, nullable=False, server_default="0")
 
-    consuming_dags: Mapped[DagScheduleDatasetReference] = relationship(
+    consuming_dags: Mapped[DagScheduleDatasetReference | None] = relationship(
         "DagScheduleDatasetReference", back_populates="dataset"
     )
-    producing_tasks: Mapped[TaskOutletDatasetReference] = relationship(
+    producing_tasks: Mapped[TaskOutletDatasetReference | None] = relationship(
         "TaskOutletDatasetReference", back_populates="dataset"
     )
 
@@ -128,8 +128,8 @@ class DagScheduleDatasetReference(Base):
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
     )
 
-    dataset: Mapped[DatasetModel] = relationship("DatasetModel", back_populates="consuming_dags")
-    queue_records: Mapped[DatasetDagRunQueue] = relationship(
+    dataset: Mapped[DatasetModel | None] = relationship("DatasetModel", back_populates="consuming_dags")
+    queue_records: Mapped[Sequence[DatasetDagRunQueue]] = relationship(
         "DatasetDagRunQueue",
         primaryjoin="""and_(
             DagScheduleDatasetReference.dataset_id == foreign(DatasetDagRunQueue.dataset_id),
@@ -182,7 +182,7 @@ class TaskOutletDatasetReference(Base):
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
     )
 
-    dataset: Mapped[DatasetModel] = relationship("DatasetModel", back_populates="producing_tasks")
+    dataset: Mapped[DatasetModel | None] = relationship("DatasetModel", back_populates="producing_tasks")
 
     __tablename__ = "task_outlet_dataset_reference"
     __table_args__ = (
@@ -302,7 +302,7 @@ class DatasetEvent(Base):
         {"sqlite_autoincrement": True},  # ensures PK values not reused
     )
 
-    created_dagruns: Mapped[DagRun] = relationship(
+    created_dagruns: Mapped[Sequence[DagRun]] = relationship(
         "DagRun",
         secondary=association_table,
         backref="consumed_dataset_events",
@@ -330,7 +330,7 @@ class DatasetEvent(Base):
         lazy="select",
         uselist=False,
     )
-    dataset: Mapped[DatasetModel] = relationship(
+    dataset: Mapped[DatasetModel | None] = relationship(
         DatasetModel,
         primaryjoin="DatasetEvent.dataset_id == foreign(DatasetModel.id)",
         viewonly=True,

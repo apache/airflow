@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 import zlib
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Collection
+from typing import TYPE_CHECKING, Any, Collection, Sequence
 
 import sqlalchemy_jsonfield
 from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_, exc, or_, select
@@ -87,13 +87,13 @@ class SerializedDagModel(Base):
 
     __table_args__ = (Index("idx_fileloc_hash", fileloc_hash, unique=False),)
 
-    dag_runs: Mapped[DagRun] = relationship(
+    dag_runs: Mapped[Sequence[DagRun]] = relationship(
         DagRun,
         primaryjoin=dag_id == foreign(DagRun.dag_id),  # type: ignore
         backref=backref("serialized_dag", uselist=False, innerjoin=True),
     )
 
-    dag_model: Mapped[DagModel] = relationship(
+    dag_model: Mapped[DagModel | None] = relationship(
         DagModel,
         primaryjoin=dag_id == DagModel.dag_id,  # type: ignore
         foreign_keys=dag_id,

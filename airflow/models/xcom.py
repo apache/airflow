@@ -114,14 +114,14 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         ),
     )
 
-    dag_run: Mapped[DagRun] = relationship(
+    dag_run: Mapped[DagRun | None] = relationship(
         "DagRun",
         primaryjoin="BaseXCom.dag_run_id == foreign(DagRun.id)",
         uselist=False,
         lazy="joined",
         passive_deletes="all",
     )
-    execution_date: Mapped[datetime.datetime] = association_proxy("dag_run", "execution_date")
+    execution_date: Mapped[datetime.datetime | None] = association_proxy("dag_run", "execution_date")
 
     @reconstructor
     def init_on_load(self):

@@ -150,7 +150,7 @@ if TYPE_CHECKING:
 
     from airflow.decorators import TaskDecoratorCollection
     from airflow.models.dagbag import DagBag
-    from airflow.models.dataset import DagScheduleDatasetReference, Dataset
+    from airflow.models.dataset import DagScheduleDatasetReference, TaskOutletDatasetReference
     from airflow.models.operator import Operator
     from airflow.models.slamiss import SlaMiss
     from airflow.serialization.pydantic.dag import DagModelPydantic
@@ -3641,11 +3641,11 @@ class DagModel(Base):
     # Dataset expression based on dataset triggers
     dataset_expression: Mapped[str | None] = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
     # Tags for view filter
-    tags: Mapped[DagTag] = relationship(
+    tags: Mapped[Sequence[DagTag]] = relationship(
         "DagTag", cascade="all, delete, delete-orphan", backref=backref("dag")
     )
     # Dag owner links for DAGs view
-    dag_owner_links: Mapped[DagOwnerAttributes] = relationship(
+    dag_owner_links: Mapped[Sequence[DagOwnerAttributes]] = relationship(
         "DagOwnerAttributes", cascade="all, delete, delete-orphan", backref=backref("dag")
     )
 
@@ -3671,15 +3671,15 @@ class DagModel(Base):
         Index("idx_next_dagrun_create_after", next_dagrun_create_after, unique=False),
     )
 
-    parent_dag: Mapped[DagModel] = relationship(
+    parent_dag: Mapped[DagModel | None] = relationship(
         "DagModel", remote_side=[dag_id], primaryjoin=root_dag_id == dag_id, foreign_keys=[root_dag_id]
     )
-    schedule_dataset_references: Mapped[DagScheduleDatasetReference] = relationship(
+    schedule_dataset_references: Mapped[Sequence[DagScheduleDatasetReference]] = relationship(
         "DagScheduleDatasetReference",
         cascade="all, delete, delete-orphan",
     )
-    schedule_datasets: Mapped[Dataset] = association_proxy("schedule_dataset_references", "dataset")
-    task_outlet_dataset_references = relationship(
+    schedule_datasets: Mapped[Sequence[Dataset]] = association_proxy("schedule_dataset_references", "dataset")
+    task_outlet_dataset_references: Mapped[Sequence[TaskOutletDatasetReference]] = relationship(
         "TaskOutletDatasetReference",
         cascade="all, delete, delete-orphan",
     )

@@ -75,7 +75,7 @@ class Trigger(Base):
         uselist=False,
     )
 
-    task_instance: Mapped[TaskInstance] = relationship(
+    task_instance: Mapped[TaskInstance | None] = relationship(
         "TaskInstance", back_populates="trigger", lazy="joined", uselist=False
     )
 
