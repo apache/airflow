@@ -504,6 +504,75 @@ class TestDatabricksCreateJobsOperator:
         db_mock.reset_job.assert_called_once_with(JOB_ID, expected)
         assert JOB_ID == return_result
 
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_exec_update_job_permission(self, db_mock_class):
+        """
+        Test job permission update.
+        """
+        json = {
+            "name": JOB_NAME,
+            "tags": TAGS,
+            "tasks": TASKS,
+            "job_clusters": JOB_CLUSTERS,
+            "email_notifications": EMAIL_NOTIFICATIONS,
+            "webhook_notifications": WEBHOOK_NOTIFICATIONS,
+            "timeout_seconds": TIMEOUT_SECONDS,
+            "schedule": SCHEDULE,
+            "max_concurrent_runs": MAX_CONCURRENT_RUNS,
+            "git_source": GIT_SOURCE,
+            "access_control_list": ACCESS_CONTROL_LIST,
+        }
+        op = DatabricksCreateJobsOperator(task_id=TASK_ID, json=json)
+        db_mock = db_mock_class.return_value
+        db_mock.find_job_id_by_name.return_value = JOB_ID
+
+        op.execute({})
+
+        expected = utils.normalise_json_content({"access_control_list": ACCESS_CONTROL_LIST})
+
+        db_mock_class.assert_called_once_with(
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
+            caller="DatabricksCreateJobsOperator",
+        )
+
+        db_mock.update_job_permission.assert_called_once_with(expected)
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_exec_update_job_permission_with_empty_acl(self, db_mock_class):
+        """
+        Test job permission update.
+        """
+        json = {
+            "name": JOB_NAME,
+            "tags": TAGS,
+            "tasks": TASKS,
+            "job_clusters": JOB_CLUSTERS,
+            "email_notifications": EMAIL_NOTIFICATIONS,
+            "webhook_notifications": WEBHOOK_NOTIFICATIONS,
+            "timeout_seconds": TIMEOUT_SECONDS,
+            "schedule": SCHEDULE,
+            "max_concurrent_runs": MAX_CONCURRENT_RUNS,
+            "git_source": GIT_SOURCE,
+        }
+        op = DatabricksCreateJobsOperator(task_id=TASK_ID, json=json)
+        db_mock = db_mock_class.return_value
+        db_mock.find_job_id_by_name.return_value = JOB_ID
+
+        op.execute({})
+
+        db_mock_class.assert_called_once_with(
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
+            caller="DatabricksCreateJobsOperator",
+        )
+
+        db_mock.update_job_permission.assert_not_called()
+
 
 class TestDatabricksSubmitRunOperator:
     def test_init_with_notebook_task_named_parameters(self):
