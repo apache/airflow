@@ -23,7 +23,6 @@ import multiprocessing as mp
 import os
 import re
 import signal
-import tempfile
 import threading
 import time
 import uuid
@@ -893,7 +892,7 @@ class TestSigtermOnRunner:
             pytest.param("spawn", 30, id="spawn"),
         ],
     )
-    def test_process_sigterm_works_with_retries(self, mp_method, wait_timeout, daemon, clear_db):
+    def test_process_sigterm_works_with_retries(self, mp_method, wait_timeout, daemon, clear_db, tmp_path):
         """Test that ensures that task runner sets tasks to retry when task runner receive SIGTERM."""
         mp_context = mp.get_context(mp_method)
 
@@ -906,50 +905,49 @@ class TestSigtermOnRunner:
         task_id = "test_on_retry_callback"
         execution_date = DEFAULT_DATE
         run_id = f"test-{execution_date.date().isoformat()}"
+        tmp_file = tmp_path / "test.txt"
+        # Run LocalTaskJob in separate process
+        proc = mp_context.Process(
+            target=self._sigterm_local_task_runner,
+            args=(
+                tmp_file,
+                dag_id,
+                task_id,
+                run_id,
+                execution_date,
+                task_started,
+                retry_callback_called,
+            ),
+            name="LocalTaskJob-TestProcess",
+            daemon=daemon,
+        )
+        proc.start()
 
-        with tempfile.NamedTemporaryFile() as tmpfile:
-            # Run LocalTaskJob in separate process
-            proc = mp_context.Process(
-                target=self._sigterm_local_task_runner,
-                args=(
-                    tmpfile.name,
-                    dag_id,
-                    task_id,
-                    run_id,
-                    execution_date,
-                    task_started,
-                    retry_callback_called,
-                ),
-                name="LocalTaskJob-TestProcess",
-                daemon=daemon,
-            )
-            proc.start()
+        try:
+            with timeout(wait_timeout, "Timeout during waiting start LocalTaskJob"):
+                while task_started.value == 0:
+                    time.sleep(0.2)
+            os.kill(proc.pid, signal.SIGTERM)
 
-            try:
-                with timeout(wait_timeout, "Timeout during waiting start LocalTaskJob"):
-                    while task_started.value == 0:
-                        time.sleep(0.2)
-                os.kill(proc.pid, signal.SIGTERM)
+            with timeout(wait_timeout, "Timeout during waiting callback"):
+                while retry_callback_called.value == 0:
+                    time.sleep(0.2)
+        finally:
+            proc.kill()
 
-                with timeout(wait_timeout, "Timeout during waiting callback"):
-                    while retry_callback_called.value == 0:
-                        time.sleep(0.2)
-            finally:
-                proc.kill()
+        assert retry_callback_called.value == 1
+        # Internally callback finished before TaskInstance commit changes in DB (as of Jan 2022).
+        # So we can't easily check TaskInstance.state without any race conditions drawbacks,
+        # and fact that process with LocalTaskJob could be already killed.
+        # We could add state validation (`UP_FOR_RETRY`) if callback mechanism changed.
 
-            assert retry_callback_called.value == 1
-            # Internally callback finished before TaskInstance commit changes in DB (as of Jan 2022).
-            # So we can't easily check TaskInstance.state without any race conditions drawbacks,
-            # and fact that process with LocalTaskJob could be already killed.
-            # We could add state validation (`UP_FOR_RETRY`) if callback mechanism changed.
-
-            captured = tmpfile.read().decode()
-            for msg in [
-                "Received SIGTERM. Terminating subprocesses",
-                "Task exited with return code 143",
-            ]:
-                # assert msg in captured.out or msg in captured.err
-                assert msg in captured
+        captured = tmp_file.read_text()
+        for msg in [
+            "Received SIGTERM. Terminating subprocesses",
+            "Task exited with return code 143",
+        ]:
+            # assert msg in captured.out or msg in captured.err
+            assert msg in captured
 
     @staticmethod
     def _sigterm_local_task_runner(
