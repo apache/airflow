@@ -398,7 +398,7 @@ def test_get_logs_with_invalid_metadata(log_admin_client):
     )
 
     assert response.status_code == 400
-    assert response.json == {"error": "Invalid JSON metadata"}
+    assert response.json() == {"error": "Invalid JSON metadata"}
 
 
 @unittest.mock.patch(
@@ -442,7 +442,7 @@ def test_get_logs_response_with_ti_equal_to_none(log_admin_client):
     )
     response = log_admin_client.get(url)
 
-    data = response.json
+    data = response.json()
     assert "message" in data
     assert "error" in data
     assert "*** Task instance did not exist in the DB\n" == data["message"]
@@ -466,9 +466,9 @@ def test_get_logs_with_json_response_format(log_admin_client, create_expected_lo
     response = log_admin_client.get(url)
     assert 200 == response.status_code
 
-    assert "message" in response.json
-    assert "metadata" in response.json
-    assert "Log for testing." in response.json["message"][0][1]
+    assert "message" in response.json()
+    assert "metadata" in response.json()
+    assert "Log for testing." in response.json()["message"][0][1]
 
 
 def test_get_logs_invalid_execution_data_format(log_admin_client):
@@ -487,7 +487,7 @@ def test_get_logs_invalid_execution_data_format(log_admin_client):
     )
     response = log_admin_client.get(url)
     assert response.status_code == 400
-    assert response.json == {
+    assert response.json() == {
         "error": (
             "Given execution date 'Tuesday February 27, 2024' could not be identified as a date. "
             "Example date format: 2015-11-16T14:34:15+00:00"
@@ -514,7 +514,7 @@ def test_get_logs_for_handler_without_read_method(mock_reader, log_admin_client)
     response = log_admin_client.get(url)
     assert 200 == response.status_code
 
-    data = response.json
+    data = response.json()
     assert "message" in data
     assert "metadata" in data
     assert "Task log handler does not support read logs." in data["message"]
@@ -532,8 +532,8 @@ def test_redirect_to_external_log_with_local_log_handler(log_admin_client, task_
         try_number,
     )
     response = log_admin_client.get(url)
-    assert 302 == response.status_code
-    assert "/home" == response.headers["Location"]
+    assert 200 == response.status_code
+    assert "/home" == response.url.path
 
 
 class _ExternalHandler(ExternalLoggingMixin):
