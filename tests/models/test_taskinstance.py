@@ -29,7 +29,7 @@ import urllib
 from traceback import format_exception
 from typing import cast
 from unittest import mock
-from unittest.mock import call, mock_open, patch
+from unittest.mock import MagicMock, call, mock_open, patch
 from uuid import uuid4
 
 import pendulum
@@ -66,6 +66,8 @@ from airflow.models.taskinstance import (
     TaskInstance,
     TaskInstance as TI,
     TaskInstanceNote,
+    _get_private_try_number,
+    _get_try_number,
     _run_finished_callback,
 )
 from airflow.models.taskmap import TaskMap
@@ -4624,3 +4626,14 @@ def test__refresh_from_db_should_not_increment_try_number(dag_maker, session):
     assert ti.try_number == 1  # stays 1
     ti.refresh_from_db()
     assert ti.try_number == 1  # stays 1
+
+
+@pytest.mark.parametrize("state", list(TaskInstanceState))
+def test_get_private_try_number(state: str):
+    mock_ti = MagicMock()
+    mock_ti.state = state
+    private_try_number = 2
+    mock_ti._try_number = private_try_number
+    mock_ti.try_number = _get_try_number(task_instance=mock_ti)
+    delattr(mock_ti, "_try_number")
+    assert _get_private_try_number(task_instance=mock_ti) == private_try_number
