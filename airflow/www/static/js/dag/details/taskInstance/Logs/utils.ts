@@ -62,6 +62,7 @@ export const parseLogs = (
   const parsedLines: Array<string> = [];
   const fileSources: Set<string> = new Set();
   const ansiUp = new AnsiUp();
+  ansiUp.url_allowlist = {};
 
   const urlRegex = /((https?:\/\/|http:\/\/)[^\s]+)/g;
   // Detect log groups which can be collapsed
