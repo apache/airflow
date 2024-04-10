@@ -35,14 +35,33 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.6.3
+.....
+
+Latest change: 2024-04-07
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`472b646acb <https://github.com/apache/airflow/commit/472b646acb67162c2b45f0ce9c93c89d9d7c35ae>`_  2024-04-07   ``fix: skip apache beam pipeline options if value is set to false (#38496)``
+`a022d7b70c <https://github.com/apache/airflow/commit/a022d7b70c4a9daae7911c3d04cd6e62fab17dc8>`_  2024-04-06   ``fix: try002 for provider apache beam (#38790)``
+`4506e7afe5 <https://github.com/apache/airflow/commit/4506e7afe57afde8f57afe1a944093298a8c3800>`_  2024-03-19   ``Avoid to use subprocess in asyncio loop (#38292)``
+`0a74928894 <https://github.com/apache/airflow/commit/0a74928894fb57b0160208262ccacad12da23fc7>`_  2024-03-18   ``Bump ruff to 0.3.3 (#38240)``
+`2523cbf3ca <https://github.com/apache/airflow/commit/2523cbf3caa3b7552b5f06de165aa93bfb6718f5>`_  2024-03-18   ``bump mypy version to 1.9.0 (#38239)``
+`2ce28d5681 <https://github.com/apache/airflow/commit/2ce28d5681437e9f9c80aa03a98c0f72268fd9e5>`_  2024-03-08   ``Avoid change attributes into the constructor in Apache Beam operators (#37934)``
+`3f52790d42 <https://github.com/apache/airflow/commit/3f52790d425cd51386715c240d9a38a20756de2a>`_  2024-03-06   ``Resolve G004: Logging statement uses f-string (#37873)``
+`c29d7280bb <https://github.com/apache/airflow/commit/c29d7280bbad8ffbe28f0d268fc887e858911b66>`_  2024-03-05   ``Fix side-effect of default options in Beam Operators (#37916)``
+=================================================================================================  ===========  ==================================================================================
+
 5.6.2
 .....
 
-Latest change: 2024-02-16
+Latest change: 2024-03-04
 
 =================================================================================================  ===========  ===================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================
+`83316b8158 <https://github.com/apache/airflow/commit/83316b81584c9e516a8142778fc509f19d95cc3e>`_  2024-03-04   ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
 `5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
 `b53fe08797 <https://github.com/apache/airflow/commit/b53fe08797d910ffab82b7b2ff6a27ba50b1d8a5>`_  2024-02-14   ``Add Python 3.12 exclusions in providers/pyproject.toml (#37404)``
 =================================================================================================  ===========  ===================================================================

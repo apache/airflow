@@ -35,14 +35,38 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.3.0
+.....
+
+Latest change: 2024-04-10
+
+=================================================================================================  ===========  ======================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================================================
+`6f21f7dc9b <https://github.com/apache/airflow/commit/6f21f7dc9b8e7d47480f59145d803b6907e3ec7d>`_  2024-04-10   ``Update ACL during job reset (#38741)``
+`4e6d3fa4cf <https://github.com/apache/airflow/commit/4e6d3fa4cf60f4b59325bbffa658ebb0b12aee87>`_  2024-04-08   ``Add cancel_previous_run to DatabricksRunNowOperator (#38702)``
+`39b684d91a <https://github.com/apache/airflow/commit/39b684d91aa67d15085d06b024452f792d3e0087>`_  2024-04-01   ``add repair_run support to DatabricksRunNowOperator in deferrable mode (#38619)``
+`c74947a69d <https://github.com/apache/airflow/commit/c74947a69de5aa7893d8f982ef37619f11fd7144>`_  2024-03-22   ``refactor(databricks): remove redundant else block (#38397)``
+`b5b972a106 <https://github.com/apache/airflow/commit/b5b972a1068e19b09d48ec4d7663dd1d996d594f>`_  2024-03-18   ``Update yanked versions in providers changelogs (#38262)``
+`0a74928894 <https://github.com/apache/airflow/commit/0a74928894fb57b0160208262ccacad12da23fc7>`_  2024-03-18   ``Bump ruff to 0.3.3 (#38240)``
+`aa75fbb2b8 <https://github.com/apache/airflow/commit/aa75fbb2b849e1f43b04e2f73ccc834511ea01e5>`_  2024-03-16   ``Restore Python 3.12 support for Databricks (#38207)``
+`4742fc0ea5 <https://github.com/apache/airflow/commit/4742fc0ea564751329fb8abf29bfd6e117fc61de>`_  2024-03-15   ``Rename 'DatabricksSqlOperator''s fields' names to comply with templated fields validation (#38052)``
+`8fc984873a <https://github.com/apache/airflow/commit/8fc984873aab3424df0d44351da136e5c65b81e2>`_  2024-03-12   ``Exclude Python 3.12 for Databricks provider (#38070)``
+`83316b8158 <https://github.com/apache/airflow/commit/83316b81584c9e516a8142778fc509f19d95cc3e>`_  2024-03-04   ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+`14d9bff3ad <https://github.com/apache/airflow/commit/14d9bff3adec09b24470aa7d86a333c57a53c022>`_  2024-02-24   ``update pre-commit (#37665)``
+`5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
+`e346253760 <https://github.com/apache/airflow/commit/e3462537608854368b04f58c25835c8097dec51c>`_  2024-02-15   ``Fix remaining D401 checks (#37434)``
+=================================================================================================  ===========  ======================================================================================================
+
 6.2.0
 .....
 
-Latest change: 2024-02-11
+Latest change: 2024-02-12
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`bfb054e9e8 <https://github.com/apache/airflow/commit/bfb054e9e867b8b9a6a449e43bfba97f645e025e>`_  2024-02-12   ``Prepare docs 1st wave of Providers February 2024 (#37326)``
 `78294c24e2 <https://github.com/apache/airflow/commit/78294c24e2a522815459b5ba9f67b9d2f8143990>`_  2024-02-11   ``Get rid of pytest-httpx as dependency (#37334)``
 `0c4210af62 <https://github.com/apache/airflow/commit/0c4210af62d2e514f37c5c973163c0748716ccff>`_  2024-01-31   ``Bump aiohttp min version to avoid CVE-2024-23829 and CVE-2024-23334 (#37110)``
 `6d748c923b <https://github.com/apache/airflow/commit/6d748c923bd53aa801aba83dfb0180aaa3677667>`_  2024-01-30   ``Update DatabricksSqlOperator to work with namedtuple (#37025)``

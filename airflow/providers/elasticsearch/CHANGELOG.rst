@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+5.3.4
+.....
+
+Misc
+~~~~
+
+* ``Add default for 'task' on TaskInstance / fix attrs on TaskInstancePydantic (#37854)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update yanked versions in providers changelogs (#38262)``
+   * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+   * ``Add comment about versions updated by release manager (#37488)``
+   * ``Fix D105 checks for ES provider (#37880)``
+
 5.3.3
 .....
 

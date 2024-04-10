@@ -71,26 +71,26 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-alibaba
+apache-airflow-providers-alibaba package
 ------------------------------------------------------
 
 Alibaba Cloud integration (including `Alibaba Cloud <https://www.alibabacloud.com/>`__).
 
 
-Release: 2.7.2
+Release: 2.7.3
 
 Provider package
 ----------------
 
-This is a provider package for ``alibaba`` provider. All classes for this provider package
-are in ``airflow.providers.alibaba`` python package.
+This package is for the ``alibaba`` provider.
+All classes for this package are included in the ``airflow.providers.alibaba`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-alibaba``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-alibaba``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------

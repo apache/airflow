@@ -35,16 +35,39 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.3.1
+.....
+
+Latest change: 2024-04-02
+
+=================================================================================================  ===========  =====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =====================================================================================
+`62f948cd30 <https://github.com/apache/airflow/commit/62f948cd309f4adeb6b15a2b634a66bfc87159cc>`_  2024-04-02   ``Improve XComObjectStorageBackend implementation (#38608)``
+`0371ea8f4e <https://github.com/apache/airflow/commit/0371ea8f4e6b53580a0c0ed3cd553b800028d53d>`_  2024-03-29   ``Rename to XComObjectStorageBackend (#38607)``
+`2227414489 <https://github.com/apache/airflow/commit/2227414489877cb19cceac16aa3cc2be89a31a60>`_  2024-03-27   ``Turn common.io xcom exception into OptionalProviderFeatureException (#38543)``
+`fd5fe8d2c6 <https://github.com/apache/airflow/commit/fd5fe8d2c698b9c26cee47fd0af2f211e9fee7e6>`_  2024-03-22   ``Revert ObjectStorage config variables name (#38415)``
+`a2c38ea336 <https://github.com/apache/airflow/commit/a2c38ea33632d930c1f2d5dcc68697a5d6da1e03>`_  2024-03-19   ``Fix missing reverse quote in docs (#38275)``
+`b5b972a106 <https://github.com/apache/airflow/commit/b5b972a1068e19b09d48ec4d7663dd1d996d594f>`_  2024-03-18   ``Update yanked versions in providers changelogs (#38262)``
+`0df0e09be0 <https://github.com/apache/airflow/commit/0df0e09be0fbad0625604db40e85ffe7c2a302d7>`_  2024-03-14   ``Fix XComObjectStoreBackend config var in docs (#38142)``
+`191b5c30e6 <https://github.com/apache/airflow/commit/191b5c30e68566a75f67aefc860f59573b79bed6>`_  2024-03-10   ``Update ObjectStoragePath for universal_pathlib>=v0.2.2 (#37930)``
+`8eaf1bf77b <https://github.com/apache/airflow/commit/8eaf1bf77bdee94a9d94cc9e4e775a7794d1539a>`_  2024-02-20   ``Revert "Update ObjectStoragePath for universal_pathlib>=v0.2.1 (#37524)" (#37567)``
+`08bc0f4490 <https://github.com/apache/airflow/commit/08bc0f44904fe0d8bc8779e0e892e4d42def3983>`_  2024-02-20   ``Update ObjectStoragePath for universal_pathlib>=v0.2.1 (#37524)``
+`5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
+`e346253760 <https://github.com/apache/airflow/commit/e3462537608854368b04f58c25835c8097dec51c>`_  2024-02-15   ``Fix remaining D401 checks (#37434)``
+=================================================================================================  ===========  =====================================================================================
+
 1.3.0
 .....
 
-Latest change: 2024-02-03
+Latest change: 2024-02-12
 
-=================================================================================================  ===========  ========================================================
+=================================================================================================  ===========  =============================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ========================================================
+=================================================================================================  ===========  =============================================================
+`bfb054e9e8 <https://github.com/apache/airflow/commit/bfb054e9e867b8b9a6a449e43bfba97f645e025e>`_  2024-02-12   ``Prepare docs 1st wave of Providers February 2024 (#37326)``
 `573d650708 <https://github.com/apache/airflow/commit/573d650708334c5e4ea4f1d72d01b976edefc6cf>`_  2024-02-03   ``AIP-58: Add object storage backend for xcom (#37058)``
-=================================================================================================  ===========  ========================================================
+=================================================================================================  ===========  =============================================================
 
 1.2.0
 .....
