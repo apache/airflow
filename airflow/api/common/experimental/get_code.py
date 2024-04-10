@@ -34,6 +34,9 @@ def get_code(dag_id: str) -> str:
     :return: code of the DAG
     """
     dag = check_and_get_dag(dag_id=dag_id)
+    if dag.fileloc is None:
+        error_message = f"Dag({dag.dag_id}) has no fileloc"
+        raise AirflowException(error_message)
 
     try:
         return DagCode.get_code_by_fileloc(dag.fileloc)

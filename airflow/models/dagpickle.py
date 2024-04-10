@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import dill
 from sqlalchemy import BigInteger, Column, Integer, PickleType
@@ -46,7 +46,7 @@ class DagPickle(Base):
     """
 
     id: Mapped[int] = Column(Integer, primary_key=True)
-    pickle: Mapped[bytes | None] = Column(PickleType(pickler=dill))
+    pickle: Mapped[Any] = Column(PickleType(pickler=dill))
     created_dttm: Mapped[datetime | None] = Column(UtcDateTime, default=timezone.utcnow)
     pickle_hash: Mapped[int | None] = Column(BigInteger)
 

@@ -140,7 +140,7 @@ class DagRun(Base, LoggingMixin):
     creating_job_id: Mapped[int | None] = Column(Integer)
     external_trigger: Mapped[bool | None] = Column(Boolean, default=True)
     run_type: Mapped[str] = Column(String(50), nullable=False)
-    conf: Mapped[bytes | None] = Column(PickleType)
+    conf: Mapped[Any] = Column(PickleType)
     # These two must be either both NULL or both datetime.
     data_interval_start: Mapped[datetime | None] = Column(UtcDateTime)
     data_interval_end: Mapped[datetime | None] = Column(UtcDateTime)

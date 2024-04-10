@@ -21,7 +21,7 @@ import json
 import logging
 import warnings
 from json import JSONDecodeError
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 import re2
@@ -386,9 +386,9 @@ class Connection(Base, LoggingMixin):
             self.is_extra_encrypted = False
 
     @declared_attr
-    def extra(cls):
+    def extra(cls) -> str:
         """Extra data. The value is decrypted/encrypted when reading/setting the value."""
-        return synonym("_extra", descriptor=property(cls.get_extra, cls.set_extra))
+        return cast(str, synonym("_extra", descriptor=property(cls.get_extra, cls.set_extra)))
 
     def rotate_fernet_key(self):
         """Encrypts data with a new key. See: :ref:`security/fernet`."""

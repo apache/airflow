@@ -49,7 +49,7 @@ def get_dag_runs(dag_id: str, state: str | None = None) -> list[dict[str, Any]]:
                 "state": run.state,
                 "dag_id": run.dag_id,
                 "execution_date": run.execution_date.isoformat(),
-                "start_date": ((run.start_date or "") and run.start_date.isoformat()),
+                "start_date": run.start_date.isoformat() if run.start_date else "",
                 "dag_run_url": url_for("Airflow.graph", dag_id=run.dag_id, execution_date=run.execution_date),
             }
         )

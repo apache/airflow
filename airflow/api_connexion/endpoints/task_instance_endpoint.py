@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Iterable, Sequence, TypeVar
+from typing import TYPE_CHECKING, Any, Iterable, Sequence, TypeVar, cast
 
 from flask import g
 from marshmallow import ValidationError
@@ -252,7 +252,9 @@ def get_mapped_task_instances(
         entry_query = entry_query.order_by(TI.map_index.asc())
 
     # using execute because we want the SlaMiss entity. Scalars don't return None for missing entities
-    task_instances = session.execute(entry_query.offset(offset).limit(limit)).all()
+    task_instances = cast(
+        "list[tuple[TI, SlaMiss | None]]", session.execute(entry_query.offset(offset).limit(limit)).all()
+    )
     return task_instance_collection_schema.dump(
         TaskInstanceCollection(task_instances=task_instances, total_entries=total_entries)
     )
@@ -272,6 +274,8 @@ def _apply_array_filter(query: Select, key: ClauseElement, values: Iterable[Any]
 
 
 def _apply_range_filter(query: Select, key: ClauseElement, value_range: tuple[T, T]) -> Select:
+    gte_value: Any
+    lte_value: Any
     gte_value, lte_value = value_range
     if gte_value is not None:
         query = query.where(key >= gte_value)
@@ -432,7 +436,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     ).add_columns(SlaMiss)
     ti_query = base_query.options(joinedload(TI.rendered_task_instance_fields))
     # using execute because we want the SlaMiss entity. Scalars don't return None for missing entities
-    task_instances = session.execute(ti_query).all()
+    task_instances = cast("list[tuple[TI, SlaMiss | None]]", session.execute(ti_query).all())
 
     return task_instance_collection_schema.dump(
         TaskInstanceCollection(task_instances=task_instances, total_entries=total_entries)
