@@ -3388,6 +3388,31 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
             job_query_resp = await job_client.query(query_request, cast(Session, session))
             return job_query_resp["jobReference"]["jobId"]
 
+    async def cancel_job(self, job_id: str, project_id: str | None, location: str | None) -> None:
+        """
+        Asynchronously cancel a BigQuery job.
+
+        :param job_id: ID of the job to cancel.
+        :param project_id: Google Cloud Project where the job was running.
+        :param location: Location where the job was running.
+        """
+        async with ClientSession() as session:
+            token = await self.get_token(session=session)
+            job = Job(job_id=job_id, project=project_id, location=location, token=token, session=session)  # type: ignore
+
+            self.log.info(
+                "Attempting to cancel BigQuery job: %s in project: %s, location: %s",
+                job_id,
+                project_id,
+                location,
+            )
+            try:
+                await job.cancel()
+                self.log.info("Job %s cancellation requested.", job_id)
+            except Exception as e:
+                self.log.error("Failed to cancel BigQuery job %s: %s", job_id, str(e))
+                raise
+
     def get_records(self, query_results: dict[str, Any], as_dict: bool = False) -> list[Any]:
         """Convert a response from BigQuery to records.
 
