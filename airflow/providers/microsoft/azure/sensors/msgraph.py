@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-from io import BytesIO
 from typing import TYPE_CHECKING, Any, Callable
 
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
@@ -28,7 +27,9 @@ from airflow.sensors.base import BaseSensorOperator, PokeReturnValue
 from airflow.utils.context import Context
 
 if TYPE_CHECKING:
+    from io import BytesIO
     from airflow.triggers.base import TriggerEvent
+    from airflow.utils.context import Context
 
     from kiota_abstractions.request_information import QueryParams
     from kiota_abstractions.response_handler import NativeResponseType
