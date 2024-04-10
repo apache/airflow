@@ -200,7 +200,7 @@ class AirflowSecurityManagerV2(LoggingMixin):
                 return None
             composite_pk = json.loads(resource_pk)
             ti = session.scalar(
-                select(DagRun)
+                select(TaskInstance)
                 .where(
                     TaskInstance.dag_id == composite_pk[0],
                     TaskInstance.task_id == composite_pk[1],
