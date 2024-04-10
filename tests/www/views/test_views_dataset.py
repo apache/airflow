@@ -445,9 +445,13 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
 
 
 class TestGetDatasetNextRunSummary(TestDatasetEndpoint):
-    def test_next_run_dataset_summary(self, dag_maker, admin_client):
-        with dag_maker(dag_id="upstream", schedule=[Dataset(uri="s3://bucket/key/1")], serialized=True):
+    def test_next_run_dataset_summary(self, dag_maker, admin_client, session):
+        with dag_maker(
+            dag_id="upstream", schedule=[Dataset(uri="s3://bucket/key/1")], serialized=True, session=session
+        ):
             EmptyOperator(task_id="task1")
+        session.commit()
+        session.close()
 
         response = admin_client.post("/next_run_datasets_summary", data={"dag_ids": ["upstream"]})
 
