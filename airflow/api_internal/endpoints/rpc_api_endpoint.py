@@ -47,12 +47,14 @@ def _initialize_map() -> dict[str, Callable]:
     from airflow.models.serialized_dag import SerializedDagModel
     from airflow.models.taskinstance import TaskInstance
     from airflow.secrets.metastore import MetastoreBackend
+    from airflow.utils.cli_action_loggers import _default_action_log_internal
     from airflow.utils.log.file_task_handler import FileTaskHandler
 
     functions: list[Callable] = [
+        _default_action_log_internal,
         _get_template_context,
-        _update_rtif,
         _get_ti_db_access,
+        _update_rtif,
         DagFileProcessor.update_import_errors,
         DagFileProcessor.manage_slas,
         DagFileProcessorManager.deactivate_stale_dags,
