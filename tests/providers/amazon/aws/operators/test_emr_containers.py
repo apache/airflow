@@ -144,6 +144,20 @@ class TestEmrContainerOperator:
             exc.value.trigger, EmrContainerTrigger
         ), f"{exc.value.trigger} is not a EmrContainerTrigger"
 
+    @mock.patch.object(EmrContainerHook, "submit_job")
+    @mock.patch.object(
+        EmrContainerHook, "check_query_status", return_value=EmrContainerHook.INTERMEDIATE_STATES[0]
+    )
+    def test_operator_defer_with_timeout(self, mock_submit_job, mock_check_query_status):
+        self.emr_container.deferrable = True
+        self.emr_container.max_polling_attempts = 1000
+
+        error_match = "Final state of EMR Containers job is SUBMITTED.*Max tries of poll status exceeded"
+        with pytest.raises(AirflowException, match=error_match):
+            self.emr_container.execute(context=None)
+
+        assert mock_check_query_status.call_count == 1000
+
 
 class TestEmrEksCreateClusterOperator:
     def setup_method(self):
