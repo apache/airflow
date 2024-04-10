@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from http import HTTPStatus
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from connexion import NoContent
 from marshmallow import ValidationError
@@ -53,6 +53,7 @@ from airflow.www.decorators import action_logging
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
+    from sqlalchemy.engine.cursor import CursorResult
     from sqlalchemy.orm import Session
 
     from airflow.api_connexion.types import APIResponse
@@ -214,7 +215,7 @@ def delete_dag_dataset_queued_event(
     delete_stmt = (
         delete(DatasetDagRunQueue).where(*where_clause).execution_options(synchronize_session="fetch")
     )
-    result = session.execute(delete_stmt)
+    result = cast("CursorResult", session.execute(delete_stmt))
     if result.rowcount > 0:
         return NoContent, HTTPStatus.NO_CONTENT
     raise NotFound(
@@ -261,7 +262,7 @@ def delete_dag_dataset_queued_events(
     """Delete queued Dataset events for a DAG."""
     where_clause = _generate_queued_event_where_clause(dag_id=dag_id, before=before)
     delete_stmt = delete(DatasetDagRunQueue).where(*where_clause)
-    result = session.execute(delete_stmt)
+    result = cast("CursorResult", session.execute(delete_stmt))
     if result.rowcount > 0:
         return NoContent, HTTPStatus.NO_CONTENT
 
@@ -317,7 +318,7 @@ def delete_dataset_queued_events(
         delete(DatasetDagRunQueue).where(*where_clause).execution_options(synchronize_session="fetch")
     )
 
-    result = session.execute(delete_stmt)
+    result = cast("CursorResult", session.execute(delete_stmt))
     if result.rowcount > 0:
         return NoContent, HTTPStatus.NO_CONTENT
     raise NotFound(

@@ -69,6 +69,7 @@ from airflow.utils.sqlalchemy import prohibit_commit, with_row_locks
 if TYPE_CHECKING:
     from multiprocessing.connection import Connection as MultiprocessingConnection
 
+    from sqlalchemy.engine.cursor import CursorResult
     from sqlalchemy.orm import Session
 
 
@@ -525,11 +526,14 @@ class DagFileProcessorManager(LoggingMixin):
                 to_deactivate.add(dag.dag_id)
 
         if to_deactivate:
-            deactivated_dagmodel = session.execute(
-                update(DagModel)
-                .where(DagModel.dag_id.in_(to_deactivate))
-                .values(is_active=False)
-                .execution_options(synchronize_session="fetch")
+            deactivated_dagmodel = cast(
+                "CursorResult",
+                session.execute(
+                    update(DagModel)
+                    .where(DagModel.dag_id.in_(to_deactivate))
+                    .values(is_active=False)
+                    .execution_options(synchronize_session="fetch")
+                ),
             )
             deactivated = deactivated_dagmodel.rowcount
             if deactivated:

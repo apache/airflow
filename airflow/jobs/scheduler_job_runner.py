@@ -29,7 +29,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from functools import lru_cache, partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
+from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator, cast
 
 from sqlalchemy import and_, delete, func, not_, or_, select, text, update
 from sqlalchemy.exc import OperationalError
@@ -80,6 +80,7 @@ if TYPE_CHECKING:
     from types import FrameType
 
     from sqlalchemy.engine import Result
+    from sqlalchemy.engine.cursor import CursorResult
     from sqlalchemy.orm import Query, Session
 
     from airflow.dag_processing.manager import DagFileProcessorAgent
@@ -1609,15 +1610,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 self.log.debug("Calling SchedulerJob.adopt_or_reset_orphaned_tasks method")
                 try:
-                    num_failed = session.execute(
-                        update(Job)
-                        .where(
-                            Job.job_type == "SchedulerJob",
-                            Job.state == JobState.RUNNING,
-                            Job.latest_heartbeat < (timezone.utcnow() - timedelta(seconds=timeout)),
-                        )
-                        .values(state=JobState.FAILED)
-                    ).rowcount
+                    num_failed_fetch = cast(
+                        "CursorResult",
+                        session.execute(
+                            update(Job)
+                            .where(
+                                Job.job_type == "SchedulerJob",
+                                Job.state == JobState.RUNNING,
+                                Job.latest_heartbeat < (timezone.utcnow() - timedelta(seconds=timeout)),
+                            )
+                            .values(state=JobState.FAILED)
+                        ),
+                    )
+                    num_failed = num_failed_fetch.rowcount
 
                     if num_failed:
                         self.log.info("Marked %d SchedulerJob instances as failed", num_failed)
@@ -1674,19 +1679,23 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @provide_session
     def check_trigger_timeouts(self, session: Session = NEW_SESSION) -> None:
         """Mark any "deferred" task as failed if the trigger or execution timeout has passed."""
-        num_timed_out_tasks = session.execute(
-            update(TI)
-            .where(
-                TI.state == TaskInstanceState.DEFERRED,
-                TI.trigger_timeout < timezone.utcnow(),
-            )
-            .values(
-                state=TaskInstanceState.SCHEDULED,
-                next_method="__fail__",
-                next_kwargs={"error": "Trigger/execution timeout"},
-                trigger_id=None,
-            )
-        ).rowcount
+        num_timed_out_tasks_fetch = cast(
+            "CursorResult",
+            session.execute(
+                update(TI)
+                .where(
+                    TI.state == TaskInstanceState.DEFERRED,
+                    TI.trigger_timeout < timezone.utcnow(),
+                )
+                .values(
+                    state=TaskInstanceState.SCHEDULED,
+                    next_method="__fail__",
+                    next_kwargs={"error": "Trigger/execution timeout"},
+                    trigger_id=None,
+                )
+            ),
+        )
+        num_timed_out_tasks = num_timed_out_tasks_fetch.rowcount
         if num_timed_out_tasks:
             self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
 

@@ -21,7 +21,18 @@ import itertools
 import os
 import warnings
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, NamedTuple, Sequence, TypeVar, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Iterable,
+    Iterator,
+    NamedTuple,
+    Sequence,
+    TypeVar,
+    cast,
+    overload,
+)
 
 import re2
 from sqlalchemy import (
@@ -73,6 +84,7 @@ from airflow.utils.types import NOTSET, DagRunType
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from sqlalchemy.engine.cursor import CursorResult
     from sqlalchemy.orm import Mapped, Query, Session
 
     from airflow.models.dag import DAG, DagModel
@@ -1550,38 +1562,46 @@ class DagRun(Base, LoggingMixin):
                 schedulable_ti_ids, max_tis_per_query or len(schedulable_ti_ids)
             )
             for schedulable_ti_ids_chunk in schedulable_ti_ids_chunks:
-                count += session.execute(
-                    update(TI)
-                    .where(
-                        TI.dag_id == self.dag_id,
-                        TI.run_id == self.run_id,
-                        tuple_in_condition((TI.task_id, TI.map_index), schedulable_ti_ids_chunk),
-                    )
-                    .values(state=TaskInstanceState.SCHEDULED)
-                    .execution_options(synchronize_session=False)
-                ).rowcount
+                fetch = cast(
+                    "CursorResult",
+                    session.execute(
+                        update(TI)
+                        .where(
+                            TI.dag_id == self.dag_id,
+                            TI.run_id == self.run_id,
+                            tuple_in_condition((TI.task_id, TI.map_index), schedulable_ti_ids_chunk),
+                        )
+                        .values(state=TaskInstanceState.SCHEDULED)
+                        .execution_options(synchronize_session=False)
+                    ),
+                )
+                count += fetch.rowcount
 
         # Tasks using EmptyOperator should not be executed, mark them as success
         if dummy_ti_ids:
             dummy_ti_ids_chunks = chunks(dummy_ti_ids, max_tis_per_query or len(dummy_ti_ids))
             for dummy_ti_ids_chunk in dummy_ti_ids_chunks:
-                count += session.execute(
-                    update(TI)
-                    .where(
-                        TI.dag_id == self.dag_id,
-                        TI.run_id == self.run_id,
-                        tuple_in_condition((TI.task_id, TI.map_index), dummy_ti_ids_chunk),
-                    )
-                    .values(
-                        state=TaskInstanceState.SUCCESS,
-                        start_date=timezone.utcnow(),
-                        end_date=timezone.utcnow(),
-                        duration=0,
-                    )
-                    .execution_options(
-                        synchronize_session=False,
-                    )
-                ).rowcount
+                fetch = cast(
+                    "CursorResult",
+                    session.execute(
+                        update(TI)
+                        .where(
+                            TI.dag_id == self.dag_id,
+                            TI.run_id == self.run_id,
+                            tuple_in_condition((TI.task_id, TI.map_index), dummy_ti_ids_chunk),
+                        )
+                        .values(
+                            state=TaskInstanceState.SUCCESS,
+                            start_date=timezone.utcnow(),
+                            end_date=timezone.utcnow(),
+                            duration=0,
+                        )
+                        .execution_options(
+                            synchronize_session=False,
+                        )
+                    ),
+                )
+                count += fetch.rowcount
 
         return count
 

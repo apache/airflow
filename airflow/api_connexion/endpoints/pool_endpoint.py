@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from http import HTTPStatus
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from flask import Response
 from marshmallow import ValidationError
@@ -34,6 +34,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.decorators import action_logging
 
 if TYPE_CHECKING:
+    from sqlalchemy.engine.cursor import CursorResult
     from sqlalchemy.orm import Session
 
     from airflow.api_connexion.types import APIResponse, UpdateMask
@@ -46,7 +47,8 @@ def delete_pool(*, pool_name: str, session: Session = NEW_SESSION) -> APIRespons
     """Delete a pool."""
     if pool_name == "default_pool":
         raise BadRequest(detail="Default Pool can't be deleted")
-    affected_count = session.execute(delete(Pool).where(Pool.pool == pool_name)).rowcount
+    affected_count_fetch = cast("CursorResult", session.execute(delete(Pool).where(Pool.pool == pool_name)))
+    affected_count = affected_count_fetch.rowcount
 
     if affected_count == 0:
         raise NotFound(detail=f"Pool with name:'{pool_name}' not found")

@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from http import HTTPStatus
-from typing import TYPE_CHECKING, Collection
+from typing import TYPE_CHECKING, Collection, cast
 
 import pendulum
 from connexion import NoContent
@@ -70,6 +70,7 @@ from airflow.www.decorators import action_logging
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
+    from sqlalchemy.engine.cursor import CursorResult
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
 
@@ -81,9 +82,11 @@ if TYPE_CHECKING:
 @action_logging
 def delete_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Delete a DAG Run."""
-    deleted_count = session.execute(
-        delete(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)
-    ).rowcount
+    deleted_count_fetch = cast(
+        "CursorResult",
+        session.execute(delete(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)),
+    )
+    deleted_count = deleted_count_fetch.rowcount
     if deleted_count == 0:
         raise NotFound(detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found")
     return NoContent, HTTPStatus.NO_CONTENT

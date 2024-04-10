@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from sqlalchemy import and_, delete, or_, select
 
@@ -33,6 +33,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    from sqlalchemy.engine.cursor import CursorResult
     from sqlalchemy.orm import Session
 
 log = logging.getLogger(__name__)
@@ -84,17 +85,23 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session: Session =
 
     for model in get_sqla_model_classes():
         if hasattr(model, "dag_id") and (not keep_records_in_log or model.__name__ != "Log"):
-            count += session.execute(
-                delete(model)
-                .where(model.dag_id.in_(dags_to_delete))
-                .execution_options(synchronize_session="fetch")
-            ).rowcount
+            fetch = cast(
+                "CursorResult",
+                session.execute(
+                    delete(model)
+                    .where(model.dag_id.in_(dags_to_delete))
+                    .execution_options(synchronize_session="fetch")
+                ),
+            )
+            count += fetch.rowcount
     if dag.is_subdag:
         parent_dag_id, task_id = dag_id.rsplit(".", 1)
         for model in TaskFail, models.TaskInstance:
-            count += session.execute(
-                delete(model).where(model.dag_id == parent_dag_id, model.task_id == task_id)
-            ).rowcount
+            fetch = cast(
+                "CursorResult",
+                session.execute(delete(model).where(model.dag_id == parent_dag_id, model.task_id == task_id)),
+            )
+            count += fetch.rowcount
 
     # Delete entries in Import Errors table for a deleted DAG
     # This handles the case when the dag_id is changed in the file

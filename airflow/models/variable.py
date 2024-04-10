@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import Boolean, Column, Integer, String, Text, delete, select
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
@@ -36,6 +36,7 @@ from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.session import provide_session
 
 if TYPE_CHECKING:
+    from sqlalchemy.engine.cursor import CursorResult
     from sqlalchemy.orm import Mapped, Session
 
 log = logging.getLogger(__name__)
@@ -217,7 +218,8 @@ class Variable(Base, LoggingMixin):
 
         :param key: Variable Keys
         """
-        rows = session.execute(delete(Variable).where(Variable.key == key)).rowcount
+        fetch = cast("CursorResult", session.execute(delete(Variable).where(Variable.key == key)))
+        rows = fetch.rowcount
         SecretCache.invalidate_variable(key)
         return rows
 
