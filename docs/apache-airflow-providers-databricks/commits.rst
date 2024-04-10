@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 6.3.0
 .....
 
-Latest change: 2024-04-08
+Latest change: 2024-04-10
 
 =================================================================================================  ===========  ======================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================================
+`6f21f7dc9b <https://github.com/apache/airflow/commit/6f21f7dc9b8e7d47480f59145d803b6907e3ec7d>`_  2024-04-10   ``Update ACL during job reset (#38741)``
 `4e6d3fa4cf <https://github.com/apache/airflow/commit/4e6d3fa4cf60f4b59325bbffa658ebb0b12aee87>`_  2024-04-08   ``Add cancel_previous_run to DatabricksRunNowOperator (#38702)``
 `39b684d91a <https://github.com/apache/airflow/commit/39b684d91aa67d15085d06b024452f792d3e0087>`_  2024-04-01   ``add repair_run support to DatabricksRunNowOperator in deferrable mode (#38619)``
 `c74947a69d <https://github.com/apache/airflow/commit/c74947a69de5aa7893d8f982ef37619f11fd7144>`_  2024-03-22   ``refactor(databricks): remove redundant else block (#38397)``

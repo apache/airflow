@@ -39,6 +39,7 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Fix remaining D401 checks (#37434)``
+* ``Update ACL during job reset (#38741)``
 
 Misc
 ~~~~

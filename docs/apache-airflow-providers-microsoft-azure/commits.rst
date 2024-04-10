@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 10.0.0
 ......
 
-Latest change: 2024-04-08
+Latest change: 2024-04-10
 
 =================================================================================================  ===========  ==============================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==============================================================================================================================
+`768e1169b1 <https://github.com/apache/airflow/commit/768e1169b1946fe536c02ee968a95594d43ebba2>`_  2024-04-10   ``fix cosmos hook static checks by making providing partition_key mandatory (#38199)``
 `b687f59008 <https://github.com/apache/airflow/commit/b687f590086b8cb6f72dc75e547e4dc070d75a1e>`_  2024-04-08   ``fix: try002 for provider microsoft azure (#38805)``
 `901c3a6504 <https://github.com/apache/airflow/commit/901c3a650462cd9e31efe3b5b1a04c7cd1a93596>`_  2024-04-04   ``Feature/refactor azure synapse pipeline class (#38723)``
 `694826d1bd <https://github.com/apache/airflow/commit/694826d1bd0a1593e676deed862519fac73266a4>`_  2024-03-24   ``refactor: Refactored __new__ magic method of BaseOperatorMeta to avoid bad mixing classic and decorated operators (#37937)``

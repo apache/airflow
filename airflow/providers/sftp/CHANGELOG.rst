@@ -34,6 +34,7 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``fix(sftp): add return statement to yield within a while loop in triggers (#38391)``
+* ``Close open connections for deferrable SFTPSensor (#38881)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

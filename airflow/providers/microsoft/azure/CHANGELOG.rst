@@ -30,6 +30,9 @@ Changelog
 10.0.0
 ......
 
+.. warning::
+   * We bumped the minimum version of azure-cosmos to 4.6.0, and providing a partition key is now required to create, get or delete a container and to get a document.
+
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
@@ -48,6 +51,7 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``fix(microsoft/azure): add return statement to yield within a while loop in triggers (#38393)``
+* ``fix cosmos hook static checks by making providing partition_key mandatory (#38199)``
 
 Misc
 ~~~~

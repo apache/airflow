@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 4.9.1
 .....
 
-Latest change: 2024-04-03
+Latest change: 2024-04-10
 
 =================================================================================================  ===========  =====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =====================================================================================
+`d703a224d1 <https://github.com/apache/airflow/commit/d703a224d1f27d6b6eb62f0dd24d085e99f5631c>`_  2024-04-10   ``Close open connections for deferrable SFTPSensor (#38881)``
 `17eaf8eae3 <https://github.com/apache/airflow/commit/17eaf8eae30e6e2d4fac1b582495a052b5871415>`_  2024-04-03   ``Resolve 'PT012' in 'SFTP' provider tests (#38518)``
 `5bf60bcf56 <https://github.com/apache/airflow/commit/5bf60bcf56fb7f2f4ac453216ed487b31cff3b9f>`_  2024-03-22   ``fix(sftp): add return statement to yield within a while loop in triggers (#38391)``
 `b5b972a106 <https://github.com/apache/airflow/commit/b5b972a1068e19b09d48ec4d7663dd1d996d594f>`_  2024-03-18   ``Update yanked versions in providers changelogs (#38262)``
