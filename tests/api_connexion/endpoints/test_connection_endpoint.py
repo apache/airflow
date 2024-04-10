@@ -93,8 +93,8 @@ class TestDeleteConnection(TestConnectionEndpoint):
         assert response.json() == {
             "detail": "The Connection with connection_id: `test-connection` was not found",
             "status": 404,
-            "title": "Not Found",
-            "type": "about:blank",
+            "title": "Connection not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
         }
 
     def test_should_raises_401_unauthenticated(self):
@@ -159,8 +159,8 @@ class TestGetConnection(TestConnectionEndpoint):
         assert {
             "detail": "The Connection with connection_id: `invalid-connection` was not found",
             "status": 404,
-            "title": "Not Found",
-            "type": "about:blank",
+            "title": "Connection not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
         } == response.json()
 
     def test_should_raises_401_unauthenticated(self):
@@ -503,8 +503,8 @@ class TestPatchConnection(TestConnectionEndpoint):
         assert {
             "detail": "The Connection with connection_id: `test-connection-id` was not found",
             "status": 404,
-            "title": "Not Found",
-            "type": "about:blank",
+            "title": "Connection not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
         } == response.json()
 
     def test_should_raises_401_unauthenticated(self, session):

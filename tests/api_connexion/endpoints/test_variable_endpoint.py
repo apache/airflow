@@ -285,9 +285,9 @@ class TestPatchVariable(TestVariableEndpoint):
         )
         assert response.status_code == 404
         assert response.json() == {
-            "title": "Not Found",
+            "title": "Variable not ound",
             "status": 404,
-            "type": "about:blank",
+            "type": EXCEPTIONS_LINK_MAP[404],
             "detail": "Variable does not exist",
         }
         Variable.set("var1", "foo")

@@ -245,7 +245,7 @@ class TestGetPool(TestBasePoolEndpoints):
             "detail": "Pool with name:'invalid_pool' not found",
             "status": 404,
             "title": "Not Found",
-            "type": "about:blank",
+            "type": EXCEPTIONS_LINK_MAP[404],
         } == response.json()
 
     def test_should_raises_401_unauthenticated(self):
@@ -275,7 +275,7 @@ class TestDeletePool(TestBasePoolEndpoints):
             "detail": "Pool with name:'invalid_pool' not found",
             "status": 404,
             "title": "Not Found",
-            "type": "about:blank",
+            "type": EXCEPTIONS_LINK_MAP[404],
         } == response.json()
 
     def test_should_raises_401_unauthenticated(self, session):
@@ -452,7 +452,7 @@ class TestPatchPool(TestBasePoolEndpoints):
             "detail": "Pool with name:'test_pool' not found",
             "status": 404,
             "title": "Not Found",
-            "type": "about:blank",
+            "type": EXCEPTIONS_LINK_MAP[404],
         } == response.json()
 
     def test_should_raises_401_unauthenticated(self, session):
