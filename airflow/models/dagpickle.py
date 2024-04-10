@@ -47,7 +47,7 @@ class DagPickle(Base):
 
     id: Mapped[int] = Column(Integer, primary_key=True)
     pickle: Mapped[bytes | None] = Column(PickleType(pickler=dill))
-    created_dttm: Mapped[datetime] = Column(UtcDateTime, default=timezone.utcnow)
+    created_dttm: Mapped[datetime | None] = Column(UtcDateTime, default=timezone.utcnow)
     pickle_hash: Mapped[int | None] = Column(BigInteger)
 
     __tablename__ = "dag_pickle"

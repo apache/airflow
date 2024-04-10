@@ -42,10 +42,10 @@ class SlaMiss(Base):
     task_id: Mapped[str] = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
     dag_id: Mapped[str] = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
     execution_date: Mapped[datetime] = Column(UtcDateTime, primary_key=True)
-    email_sent: Mapped[bool] = Column(Boolean, default=False)
+    email_sent: Mapped[bool | None] = Column(Boolean, default=False)
     timestamp: Mapped[datetime | None] = Column(UtcDateTime)
     description: Mapped[str | None] = Column(Text)
-    notification_sent: Mapped[bool] = Column(Boolean, default=False)
+    notification_sent: Mapped[bool | None] = Column(Boolean, default=False)
 
     __table_args__ = (Index("sm_dag", dag_id, unique=False),)
 

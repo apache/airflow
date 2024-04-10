@@ -140,8 +140,8 @@ class Connection(Base, LoggingMixin):
     login: Mapped[str | None] = Column(Text())
     _password: Mapped[str | None] = Column("password", Text())
     port: Mapped[int | None] = Column(Integer())
-    is_encrypted: Mapped[bool] = Column(Boolean, unique=False, default=False)
-    is_extra_encrypted: Mapped[bool] = Column(Boolean, unique=False, default=False)
+    is_encrypted: Mapped[bool | None] = Column(Boolean, unique=False, default=False)
+    is_extra_encrypted: Mapped[bool | None] = Column(Boolean, unique=False, default=False)
     _extra: Mapped[str | None] = Column("extra", Text())
 
     def __init__(

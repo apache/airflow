@@ -48,10 +48,10 @@ class Variable(Base, LoggingMixin):
     __NO_DEFAULT_SENTINEL = object()
 
     id: Mapped[int] = Column(Integer, primary_key=True)
-    key: Mapped[str] = Column(String(ID_LEN), unique=True)
+    key: Mapped[str | None] = Column(String(ID_LEN), unique=True)
     _val: Mapped[str | None] = Column("val", Text().with_variant(MEDIUMTEXT, "mysql"))
     description: Mapped[str | None] = Column(Text)
-    is_encrypted: Mapped[bool] = Column(Boolean, unique=False, default=False)
+    is_encrypted: Mapped[bool | None] = Column(Boolean, unique=False, default=False)
 
     def __init__(self, key=None, val=None, description=None):
         super().__init__()

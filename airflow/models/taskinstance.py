@@ -1342,8 +1342,8 @@ class TaskInstance(Base, LoggingMixin):
     end_date: Mapped[datetime | None] = Column(UtcDateTime)
     duration: Mapped[float | None] = Column(Float)
     state: Mapped[str | None] = Column(String(20))
-    _try_number: Mapped[int] = Column("try_number", Integer, default=0)
-    max_tries: Mapped[int] = Column(Integer, server_default=text("-1"))
+    _try_number: Mapped[int | None] = Column("try_number", Integer, default=0)
+    max_tries: Mapped[int | None] = Column(Integer, server_default=text("-1"))
     hostname: Mapped[str | None] = Column(String(1000))
     unixname: Mapped[str | None] = Column(String(1000))
     job_id: Mapped[int | None] = Column(Integer)
@@ -1358,7 +1358,9 @@ class TaskInstance(Base, LoggingMixin):
     pid: Mapped[int | None] = Column(Integer)
     executor: Mapped[str | None] = Column(String(1000))
     executor_config: Mapped[bytes | None] = Column(ExecutorConfigType(pickler=dill))
-    updated_at: Mapped[datetime] = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
+    updated_at: Mapped[datetime | None] = Column(
+        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow
+    )
     rendered_map_index: Mapped[str | None] = Column(String(250))
 
     external_executor_id: Mapped[str | None] = Column(StringID())
@@ -1375,7 +1377,7 @@ class TaskInstance(Base, LoggingMixin):
     # The method to call next, and any extra arguments to pass to it.
     # Usually used when resuming from DEFERRED.
     next_method: Mapped[str | None] = Column(String(1000))
-    next_kwargs: Mapped[dict[str, Any] | None] = Column(MutableDict.as_mutable(ExtendedJSON))
+    next_kwargs: Mapped[Any] = Column(MutableDict.as_mutable(ExtendedJSON))
 
     _task_display_property_value: Mapped[str | None] = Column(
         "task_display_name", String(2000), nullable=True
@@ -3834,7 +3836,7 @@ class TaskInstanceNote(TaskInstanceDependencies):
 
     __tablename__ = "task_instance_note"
 
-    user_id: Mapped[int] = Column(
+    user_id: Mapped[int | None] = Column(
         Integer, ForeignKey("ab_user.id", name="task_instance_note_user_fkey"), nullable=True
     )
     task_id: Mapped[str] = Column(StringID(), primary_key=True, nullable=False)

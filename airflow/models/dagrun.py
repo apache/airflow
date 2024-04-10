@@ -122,11 +122,11 @@ class DagRun(Base, LoggingMixin):
     queued_at: Mapped[datetime | None] = Column(UtcDateTime)
     execution_date: Mapped[datetime] = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     start_date: Mapped[datetime | None] = Column(UtcDateTime)
-    end_date: Mapped[datetime] = Column(UtcDateTime)
-    _state: Mapped[str] = Column("state", String(50), default=DagRunState.QUEUED)
+    end_date: Mapped[datetime | None] = Column(UtcDateTime)
+    _state: Mapped[str | None] = Column("state", String(50), default=DagRunState.QUEUED)
     run_id: Mapped[str] = Column(StringID(), nullable=False)
     creating_job_id: Mapped[int | None] = Column(Integer)
-    external_trigger: Mapped[bool] = Column(Boolean, default=True)
+    external_trigger: Mapped[bool | None] = Column(Boolean, default=True)
     run_type: Mapped[str] = Column(String(50), nullable=False)
     conf: Mapped[bytes | None] = Column(PickleType)
     # These two must be either both NULL or both datetime.
@@ -138,12 +138,14 @@ class DagRun(Base, LoggingMixin):
     # Foreign key to LogTemplate. DagRun rows created prior to this column's
     # existence have this set to NULL. Later rows automatically populate this on
     # insert to point to the latest LogTemplate entry.
-    log_template_id: Mapped[int] = Column(
+    log_template_id: Mapped[int | None] = Column(
         Integer,
         ForeignKey("log_template.id", name="task_instance_log_template_id_fkey", ondelete="NO ACTION"),
         default=select(func.max(LogTemplate.__table__.c.id)),
     )
-    updated_at: Mapped[datetime] = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
+    updated_at: Mapped[datetime | None] = Column(
+        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow
+    )
     # Keeps track of the number of times the dagrun had been cleared.
     # This number is incremented only when the DagRun is re-Queued,
     # when the DagRun is cleared.
@@ -1620,7 +1622,7 @@ class DagRunNote(Base):
 
     __tablename__ = "dag_run_note"
 
-    user_id: Mapped[int] = Column(
+    user_id: Mapped[int | None] = Column(
         Integer,
         ForeignKey("ab_user.id", name="dag_run_note_user_fkey"),
         nullable=True,

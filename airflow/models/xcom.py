@@ -91,7 +91,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
     dag_id: Mapped[str] = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
     run_id: Mapped[str] = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
 
-    value: Mapped[bytes] = Column(LargeBinary().with_variant(LONGBLOB, "mysql"))
+    value: Mapped[bytes | None] = Column(LargeBinary().with_variant(LONGBLOB, "mysql"))
     timestamp: Mapped[datetime.datetime] = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     __table_args__ = (

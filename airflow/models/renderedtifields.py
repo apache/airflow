@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import sqlalchemy_jsonfield
 from sqlalchemy import (
@@ -76,8 +76,8 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
     task_id: Mapped[str] = Column(StringID(), primary_key=True)
     run_id: Mapped[str] = Column(StringID(), primary_key=True)
     map_index: Mapped[str] = Column(Integer, primary_key=True, server_default=text("-1"))
-    rendered_fields: Mapped[str] = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
-    k8s_pod_yaml: Mapped[str | None] = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    rendered_fields: Mapped[Any] = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
+    k8s_pod_yaml: Mapped[Any] = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
 
     __table_args__ = (
         PrimaryKeyConstraint(

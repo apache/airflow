@@ -35,7 +35,7 @@ class ImportError(Base):
 
     __tablename__ = "import_error"
     id: Mapped[int] = Column(Integer, primary_key=True)
-    timestamp: Mapped[datetime] = Column(UtcDateTime)
+    timestamp: Mapped[datetime | None] = Column(UtcDateTime)
     filename: Mapped[str | None] = Column(String(1024))
     stacktrace: Mapped[str | None] = Column(Text)
     processor_subdir: Mapped[str | None] = Column(String(2000), nullable=True)

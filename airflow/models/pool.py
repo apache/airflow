@@ -51,9 +51,9 @@ class Pool(Base):
     __tablename__ = "slot_pool"
 
     id: Mapped[int] = Column(Integer, primary_key=True)
-    pool: Mapped[str] = Column(String(256), unique=True)
+    pool: Mapped[str | None] = Column(String(256), unique=True)
     # -1 for infinite
-    slots: Mapped[int] = Column(Integer, default=0)
+    slots: Mapped[int | None] = Column(Integer, default=0)
     description: Mapped[str | None] = Column(Text)
     include_deferred: Mapped[bool] = Column(Boolean, nullable=False)
 

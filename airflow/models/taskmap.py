@@ -62,7 +62,7 @@ class TaskMap(TaskInstanceDependencies):
     map_index: Mapped[int] = Column(Integer, primary_key=True)
 
     length: Mapped[int] = Column(Integer, nullable=False)
-    keys: Mapped[str | None] = Column(ExtendedJSON, nullable=True)
+    keys: Mapped[Any] = Column(ExtendedJSON, nullable=True)
 
     __table_args__ = (
         CheckConstraint(length >= 0, name="task_map_length_not_negative"),

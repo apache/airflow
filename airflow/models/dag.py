@@ -3639,7 +3639,7 @@ class DagModel(Base):
     # Timetable/Schedule Interval description
     timetable_description: Mapped[str | None] = Column(String(1000), nullable=True)
     # Dataset expression based on dataset triggers
-    dataset_expression: Mapped[str | None] = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    dataset_expression: Mapped[Any] = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
     # Tags for view filter
     tags: Mapped[Sequence[DagTag]] = relationship(
         "DagTag", cascade="all, delete, delete-orphan", backref=backref("dag")
