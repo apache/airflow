@@ -182,6 +182,7 @@ DOC_EXTRAS: dict[str, list[str]] = {
     ],
     "doc-gen": [
         "apache-airflow[doc]",
+        "diagrams>=0.23.4",
         "eralchemy2>=1.3.8",
     ],
     # END OF doc extras

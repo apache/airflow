@@ -36,6 +36,11 @@ Breaking changes
    * ``azure_synapse_pipeline`` connection type has been changed to ``azure_synapse``.
    * The usage of ``default_conn_name=azure_synapse_connection`` is deprecated and will be removed in future. The new default connection name for ``AzureSynapsePipelineHook`` is: ``default_conn_name=azure_synapse_default``.
 
+Significant changes
+~~~~~~~~~~~~~~~~~~~
+.. warning::
+   * We bumped the minimum version of azure-cosmos to 4.6.0, and providing a partition key is now required to create, get or delete a container and to get a document.
+
 9.0.1
 .....
 

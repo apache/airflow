@@ -776,7 +776,6 @@ def _get_template_context(
         nonlocal dag_run
         if dag_run not in session:
             dag_run = session.merge(dag_run, load=False)
-
         dataset_events = dag_run.consumed_dataset_events
         triggering_events: dict[str, list[DatasetEvent | DatasetEventPydantic]] = defaultdict(list)
         for event in dataset_events:
