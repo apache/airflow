@@ -635,6 +635,30 @@ def _create_mapped_with_name_template_taskflow(*, task_id, map_names, template):
     return task1.expand(map_name=map_names)
 
 
+def _create_named_map_index_renders_on_failure_classic(*, task_id, map_names, template):
+    class HasMapName(BaseOperator):
+        def __init__(self, *, map_name: str, **kwargs):
+            super().__init__(**kwargs)
+            self.map_name = map_name
+            raise AirflowSkipException("Imagine this task failed!")
+
+    return HasMapName.partial(task_id=task_id, map_index_template=template).expand(
+        map_name=map_names,
+    )
+
+
+def _create_named_map_index_renders_on_failure_taskflow(*, task_id, map_names, template):
+    from airflow.operators.python import get_current_context
+
+    @task(task_id=task_id, map_index_template=template)
+    def task1(map_name):
+        context = get_current_context()
+        context["map_name"] = map_name
+        raise AirflowSkipException("Imagine this task failed!")
+
+    return task1.expand(map_name=map_names)
+
+
 @pytest.mark.parametrize(
     "template, expected_rendered_names",
     [
@@ -649,6 +673,8 @@ def _create_mapped_with_name_template_taskflow(*, task_id, map_names, template):
     [
         pytest.param(_create_mapped_with_name_template_classic, id="classic"),
         pytest.param(_create_mapped_with_name_template_taskflow, id="taskflow"),
+        pytest.param(_create_named_map_index_renders_on_failure_classic, id="classic-failure"),
+        pytest.param(_create_named_map_index_renders_on_failure_taskflow, id="taskflow-failure"),
     ],
 )
 def test_expand_mapped_task_instance_with_named_index(

@@ -397,7 +397,9 @@ def _creator_note(val):
         return TaskInstanceNote(*val)
 
 
-def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: Context, task_orig: Operator, jinja_env=None):
+def _execute_task(
+    task_instance: TaskInstance | TaskInstancePydantic, context: Context, task_orig: Operator, jinja_env=None
+):
     """
     Execute Task (optionally with a Timeout) and push Xcom results.
 
@@ -455,13 +457,12 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
 
             # DAG authors define map_index_template at the task level
             if jinja_env is not None and (template := context.get("map_index_template")) is not None:
-                rendered_map_index = task_instance.task.rendered_map_index = jinja_env.from_string(template).render(context)
-                task_instance.task.log.info("Map index rendered as %s", rendered_map_index)
-            else: 
+                rendered_map_index = jinja_env.from_string(template).render(context)
+                log.info("Map index rendered as %s", rendered_map_index)
+            else:
                 rendered_map_index = None
 
             task_instance.rendered_map_index = rendered_map_index
-
 
     # If a timeout is specified for the task, make it fail
     # if it goes beyond
