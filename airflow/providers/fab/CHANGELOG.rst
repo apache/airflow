@@ -27,10 +27,7 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Rename 'allowed_filter_attrs' to 'allowed_sort_attrs' (#38626)``
-
-Misc
-~~~~
-
+* ``Fix azure authentication when no email is set (#38872)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
