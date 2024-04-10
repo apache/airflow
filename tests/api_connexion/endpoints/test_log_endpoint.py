@@ -260,8 +260,8 @@ class TestGetLog:
         assert response.json() == {
             "detail": None,
             "status": 404,
-            "title": "Not Found",
-            "type": "about:blank",
+            "title": "TaskInstance not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
         }
 
     def test_get_logs_with_metadata_as_download_large_file(self):
@@ -325,8 +325,8 @@ class TestGetLog:
         assert response.json() == {
             "detail": None,
             "status": 404,
-            "title": "Not Found",
-            "type": "about:blank",
+            "title": "TaskInstance not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
         }
 
     def test_should_raises_401_unauthenticated(self):
@@ -365,7 +365,7 @@ class TestGetLog:
             headers={"Accept": "text/plain", "REMOTE_USER": "test"},
         )
         assert response.status_code == 404
-        assert response.json()["title"] == "Not Found"
+        assert response.json()["title"] == "TaskInstance not found"
 
     def test_should_raise_404_when_filtering_on_map_index_for_unmapped_task(self):
         key = self.flask_app.config["SECRET_KEY"]
@@ -378,4 +378,4 @@ class TestGetLog:
             headers={"Accept": "text/plain", "REMOTE_USER": "test"},
         )
         assert response.status_code == 404
-        assert response.json()["title"] == "Not Found"
+        assert response.json()["title"] == "TaskInstance not found"

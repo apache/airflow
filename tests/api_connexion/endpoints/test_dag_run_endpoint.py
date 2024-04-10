@@ -196,7 +196,7 @@ class TestDeleteDagRun(TestDagRunEndpoint):
             "detail": "DAGRun with DAG ID: 'INVALID_DAG_RUN' and DagRun ID: 'INVALID_DAG_RUN' not found",
             "status": 404,
             "title": "Not Found",
-            "type": "about:blank",
+            "type": EXCEPTIONS_LINK_MAP[404],
         }
 
     def test_should_raises_401_unauthenticated(self, session):
@@ -273,8 +273,8 @@ class TestGetDagRun(TestDagRunEndpoint):
         expected_resp = {
             "detail": "DAGRun with DAG ID: 'invalid-id' and DagRun ID: 'invalid-id' not found",
             "status": 404,
-            "title": "Not Found",
-            "type": "about:blank",
+            "title": "DAGRun not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
         }
         assert expected_resp == response.json()
 
@@ -1505,8 +1505,8 @@ class TestPostDagRun(TestDagRunEndpoint):
         assert {
             "detail": "DAG with dag_id: 'TEST_DAG_ID' not found",
             "status": 404,
-            "title": "Not Found",
-            "type": "about:blank",
+            "title": "DAG not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
         } == response.json()
 
     @pytest.mark.parametrize(
@@ -2021,8 +2021,8 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
         expected_resp = {
             "detail": "DAGRun with DAG ID: 'invalid-id' and DagRun ID: 'invalid-id' not found",
             "status": 404,
-            "title": "Not Found",
-            "type": "about:blank",
+            "title": "DAGRun not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
         }
         assert expected_resp == response.json()
 

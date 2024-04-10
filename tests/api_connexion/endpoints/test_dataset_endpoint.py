@@ -23,6 +23,7 @@ from unittest.mock import ANY
 import pytest
 import time_machine
 
+from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dataset import (
@@ -134,7 +135,7 @@ class TestGetDatasetEndpoint(TestDatasetEndpoint):
             "detail": "The Dataset with uri: `s3://bucket/key` was not found",
             "status": 404,
             "title": "Not Found",
-            "type": "about:blank",
+            "type": EXCEPTIONS_LINK_MAP[404],
         } == response.json()
 
     def test_should_raises_401_unauthenticated(self, session):
@@ -871,8 +872,8 @@ class TestGetDagDatasetQueuedEvent(TestQueuedEventEndpoint):
         assert {
             "detail": "Queue event with dag_id: `not_exists` and dataset uri: `not_exists` was not found",
             "status": 404,
-            "title": "Not Found",
-            "type": "about:blank",
+            "title": "Queue event not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
         } == response.json()
 
     def test_should_raises_401_unauthenticated(self, session):
@@ -954,8 +955,8 @@ class TestDeleteDagDatasetQueuedEvent(TestDatasetEndpoint):
         assert {
             "detail": "Queue event with dag_id: `not_exists` and dataset uri: `not_exists` was not found",
             "status": 404,
-            "title": "Not Found",
-            "type": "about:blank",
+            "title": "Queue event not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
         } == response.json()
 
     def test_should_raises_401_unauthenticated(self, session):
@@ -1011,8 +1012,8 @@ class TestGetDagDatasetQueuedEvents(TestQueuedEventEndpoint):
         assert {
             "detail": "Queue event with dag_id: `not_exists` was not found",
             "status": 404,
-            "title": "Not Found",
-            "type": "about:blank",
+            "title": "Queue event not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
         } == response.json()
 
     def test_should_raises_401_unauthenticated(self):
@@ -1064,8 +1065,8 @@ class TestDeleteDagDatasetQueuedEvents(TestDatasetEndpoint):
         assert {
             "detail": "Queue event with dag_id: `not_exists` was not found",
             "status": 404,
-            "title": "Not Found",
-            "type": "about:blank",
+            "title": "Queue event not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
         } == response.json()
 
     def test_should_raises_401_unauthenticated(self):
@@ -1149,8 +1150,8 @@ class TestGetDatasetQueuedEvents(TestQueuedEventEndpoint):
         assert {
             "detail": "Queue event with dataset uri: `not_exists` was not found",
             "status": 404,
-            "title": "Not Found",
-            "type": "about:blank",
+            "title": "Queue event not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
         } == response.json()
 
     def test_should_raises_401_unauthenticated(self):
@@ -1221,8 +1222,8 @@ class TestDeleteDatasetQueuedEvents(TestQueuedEventEndpoint):
         assert {
             "detail": "Queue event with dataset uri: `not_exists` was not found",
             "status": 404,
-            "title": "Not Found",
-            "type": "about:blank",
+            "title": "Queue event not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
         } == response.json()
 
     def test_should_raises_401_unauthenticated(self):

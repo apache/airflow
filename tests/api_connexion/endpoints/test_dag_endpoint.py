@@ -702,8 +702,8 @@ class TestGetDagDetails(TestDagEndpoint):
         assert response.json() == {
             "detail": "The DAG with dag_id: non_existing_dag_id was not found",
             "status": 404,
-            "title": "Not Found",
-            "type": "about:blank",
+            "title": "DAG not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
         }
 
     @pytest.mark.parametrize(
@@ -1395,8 +1395,8 @@ class TestPatchDag(TestDagEndpoint):
         assert response.json() == {
             "detail": None,
             "status": 404,
-            "title": "Not Found",
-            "type": "about:blank",
+            "title": "Dag with id: 'non_existing_dag' not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
         }
 
     def test_should_respond_404(self):
@@ -2380,8 +2380,8 @@ class TestDeleteDagEndpoint(TestDagEndpoint):
         assert response.json() == {
             "detail": None,
             "status": 404,
-            "title": "Not Found",
-            "type": "about:blank",
+            "title": "Dag with id: 'TEST_DAG_1' not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
         }
 
     def test_raises_when_task_instances_of_dag_is_still_running(self, dag_maker, session):
