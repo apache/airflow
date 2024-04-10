@@ -397,7 +397,7 @@ def _creator_note(val):
         return TaskInstanceNote(*val)
 
 
-def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: Context, task_orig: Operator):
+def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: Context, task_orig: Operator, jinja_env=None):
     """
     Execute Task (optionally with a Timeout) and push Xcom results.
 
@@ -433,7 +433,7 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
         if execute_callable.__name__ == "execute":
             execute_callable_kwargs[f"{task_to_execute.__class__.__name__}__sentinel"] = _sentinel
 
-    def _execute_callable(context: Context, **execute_callable_kwargs):
+    def _execute_callable(context: Context, jinja_env=None, **execute_callable_kwargs):
         try:
             # Print a marker for log grouping of details before task execution
             log.info("::endgroup::")
@@ -453,6 +453,16 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
             # Print a marker post execution for internals of post task processing
             log.info("::group::Post task execution logs")
 
+            # DAG authors define map_index_template at the task level
+            if jinja_env is not None and (template := context.get("map_index_template")) is not None:
+                rendered_map_index = task_instance.task.rendered_map_index = jinja_env.from_string(template).render(context)
+                task_instance.task.log.info("Map index rendered as %s", rendered_map_index)
+            else: 
+                rendered_map_index = None
+
+            task_instance.rendered_map_index = rendered_map_index
+
+
     # If a timeout is specified for the task, make it fail
     # if it goes beyond
     if task_to_execute.execution_timeout:
@@ -470,12 +480,12 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
                 raise AirflowTaskTimeout()
             # Run task in timeout wrapper
             with timeout(timeout_seconds):
-                result = _execute_callable(context=context, **execute_callable_kwargs)
+                result = _execute_callable(context=context, **execute_callable_kwargs, jinja_env=jinja_env)
         except AirflowTaskTimeout:
             task_to_execute.on_kill()
             raise
     else:
-        result = _execute_callable(context=context, **execute_callable_kwargs)
+        result = _execute_callable(context=context, **execute_callable_kwargs, jinja_env=jinja_env)
     cm = nullcontext() if InternalApiConfig.get_use_internal_api() else create_session()
     with cm as session_or_null:
         if task_to_execute.do_xcom_push:
@@ -501,7 +511,13 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
         _record_task_map_for_downstreams(
             task_instance=task_instance, task=task_orig, value=xcom_value, session=session_or_null
         )
-    return result
+
+        print(jinja_env)
+        print(context.get("map_index_template"))
+
+
+
+    return result, task_instance.rendered_map_index
 
 
 def _refresh_from_db(
@@ -2716,29 +2732,26 @@ class TaskInstance(Base, LoggingMixin):
 
             # Execute the task
             with set_current_context(context):
-                result = self._execute_task(context, task_orig)
+                result, rendered_map_index = self._execute_task(context, task_orig, jinja_env=jinja_env)
+
+            self.rendered_map_index = rendered_map_index
 
             # Run post_execute callback
             self.task.post_execute(context=context, result=result)
-
-            # DAG authors define map_index_template at the task level
-            if jinja_env is not None and (template := context.get("map_index_template")) is not None:
-                rendered_map_index = self.rendered_map_index = jinja_env.from_string(template).render(context)
-                self.log.info("Map index rendered as %s", rendered_map_index)
 
         Stats.incr(f"operator_successes_{self.task.task_type}", tags=self.stats_tags)
         # Same metric with tagging
         Stats.incr("operator_successes", tags={**self.stats_tags, "task_type": self.task.task_type})
         Stats.incr("ti_successes", tags=self.stats_tags)
 
-    def _execute_task(self, context: Context, task_orig: Operator):
+    def _execute_task(self, context: Context, task_orig: Operator, jinja_env=None):
         """
         Execute Task (optionally with a Timeout) and push Xcom results.
 
         :param context: Jinja2 context
         :param task_orig: origin task
         """
-        return _execute_task(self, context, task_orig)
+        return _execute_task(self, context, task_orig, jinja_env)
 
     @provide_session
     def defer_task(self, session: Session, defer: TaskDeferred) -> None:
