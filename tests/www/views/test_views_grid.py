@@ -95,11 +95,12 @@ def dag_with_runs(dag_without_runs):
         run_type=DagRunType.SCHEDULED,
         execution_date=dag_without_runs.dag.next_dagrun_info(date).logical_date,
     )
-
     return run_1, run_2
 
 
-def test_no_runs(admin_client, dag_without_runs):
+def test_no_runs(admin_client, dag_without_runs, session):
+    session.commit()
+    session.close()
     resp = admin_client.get(f"/object/grid_data?dag_id={DAG_ID}", follow_redirects=True)
     assert resp.status_code == 200, resp.json()
     assert resp.json() == {
@@ -162,7 +163,9 @@ def test_no_runs(admin_client, dag_without_runs):
     }
 
 
-def test_grid_data_filtered_on_run_type_and_run_state(admin_client, dag_with_runs):
+def test_grid_data_filtered_on_run_type_and_run_state(admin_client, dag_with_runs, session):
+    session.commit()
+    session.close()
     for uri_params, expected_run_types, expected_run_states in [
         ("run_state=success&run_state=queued", ["scheduled"], ["success"]),
         ("run_state=running&run_state=failed", ["scheduled"], ["running"]),
@@ -198,7 +201,6 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
     - One TI not yet finished
     """
     run1, run2 = dag_with_runs
-
     for ti in run1.task_instances:
         ti.state = TaskInstanceState.SUCCESS
     for ti in sorted(run2.task_instances, key=lambda ti: (ti.task_id, ti.map_index)):
@@ -213,9 +215,9 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                 ti.state = TaskInstanceState.RUNNING
                 ti.start_date = pendulum.DateTime(2021, 7, 1, 2, 3, 4, tzinfo=pendulum.UTC)
                 ti.end_date = None
-
+    session.commit()
     session.flush()
-
+    session.close()
     resp = admin_client.get(f"/object/grid_data?dag_id={DAG_ID}", follow_redirects=True)
 
     assert resp.status_code == 200, resp.json()
@@ -429,6 +431,8 @@ def test_has_outlet_dataset_flag(admin_client, dag_maker, session, app, monkeypa
             EmptyOperator(task_id="task4", outlets=[Dataset("foo")])
 
         m.setattr(app.app, "dag_bag", dag_maker.dagbag)
+        session.commit()
+        session.close()
         resp = admin_client.get(f"/object/grid_data?dag_id={DAG_ID}", follow_redirects=True)
 
     def _expected_task_details(task_id, has_outlet_datasets):
