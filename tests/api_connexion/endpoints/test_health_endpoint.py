@@ -54,7 +54,8 @@ class TestGetHealth(TestHealthTestBase):
         SchedulerJobRunner(job=job)
         session.add(job)
         session.commit()
-        resp_json = self.client.get("/api/v1/health").json
+        session.close()
+        resp_json = self.client.get("/api/v1/health").json()
         assert "healthy" == resp_json["metadatabase"]["status"]
         assert "healthy" == resp_json["scheduler"]["status"]
         assert (
@@ -69,7 +70,8 @@ class TestGetHealth(TestHealthTestBase):
         SchedulerJobRunner(job=job)
         session.add(job)
         session.commit()
-        resp_json = self.client.get("/api/v1/health").json
+        session.close()
+        resp_json = self.client.get("/api/v1/health").json()
         assert "healthy" == resp_json["metadatabase"]["status"]
         assert "unhealthy" == resp_json["scheduler"]["status"]
         assert (
@@ -78,7 +80,7 @@ class TestGetHealth(TestHealthTestBase):
         )
 
     def test_unhealthy_scheduler_no_job(self):
-        resp_json = self.client.get("/api/v1/health").json
+        resp_json = self.client.get("/api/v1/health").json()
         assert "healthy" == resp_json["metadatabase"]["status"]
         assert "unhealthy" == resp_json["scheduler"]["status"]
         assert resp_json["scheduler"]["latest_scheduler_heartbeat"] is None
@@ -86,6 +88,6 @@ class TestGetHealth(TestHealthTestBase):
     @mock.patch.object(SchedulerJobRunner, "most_recent_job")
     def test_unhealthy_metadatabase_status(self, most_recent_job_mock):
         most_recent_job_mock.side_effect = Exception
-        resp_json = self.client.get("/api/v1/health").json
+        resp_json = self.client.get("/api/v1/health").json()
         assert "unhealthy" == resp_json["metadatabase"]["status"]
         assert resp_json["scheduler"]["latest_scheduler_heartbeat"] is None
