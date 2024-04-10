@@ -57,7 +57,9 @@ class TestBasicAuth(BaseTestAuth):
         old_auth = getattr(flask_app, "api_auth")
 
         try:
-            with conf_vars({("api", "auth_backends"): "airflow.api.auth.backend.basic_auth"}):
+            with conf_vars(
+                {("api", "auth_backends"): "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth"}
+            ):
                 init_api_experimental_auth(flask_app)
                 yield
         finally:
@@ -190,7 +192,7 @@ class TestSessionWithBasicAuthFallback(BaseTestAuth):
                     (
                         "api",
                         "auth_backends",
-                    ): "airflow.api.auth.backend.session,airflow.api.auth.backend.basic_auth"
+                    ): "airflow.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth"
                 }
             ):
                 init_api_experimental_auth(flask_app)
