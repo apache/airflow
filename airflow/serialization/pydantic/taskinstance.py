@@ -23,7 +23,7 @@ from typing_extensions import Annotated
 
 from airflow.models import Operator
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import TaskInstance, _get_try_number, _set_try_number
 from airflow.serialization.pydantic.dag import DagModelPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -84,7 +84,6 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     execution_date: Optional[datetime]
     duration: Optional[float]
     state: Optional[str]
-    try_number: int
     _try_number: int
     max_tries: int
     hostname: str
@@ -116,6 +115,18 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     raw: Optional[bool]
     is_trigger_log_context: Optional[bool]
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        self._try_number = 0
+
+    @property
+    def try_number(self):
+        return _get_try_number(task_instance=self)
+
+    @try_number.setter
+    def try_number(self, value):
+        _set_try_number(task_instance=self, value=value)
 
     @property
     def _logger_name(self):
