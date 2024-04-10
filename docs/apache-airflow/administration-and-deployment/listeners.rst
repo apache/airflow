@@ -80,8 +80,6 @@ You can use these events to react to ``LocalTaskJob`` state changes.
 
 - ``on_task_instance_failed``
 
-The error that caused the failure may be obtained by calling ```get_last_error``` on the ```TaskInstance```.
-
 .. exampleinclude:: /../../airflow/example_dags/plugins/event_listener.py
     :language: python
     :start-after: [START howto_listen_ti_failure_task]

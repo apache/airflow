@@ -2867,9 +2867,8 @@ class TestTaskInstance:
         # check that the listener callback was called, and that it can access the error
         listener_callback_on_error.assert_called_once()
         callback_args = listener_callback_on_error.call_args.kwargs
-        assert "task_instance" in callback_args
-        ti = callback_args["task_instance"]
-        assert ti.get_last_error() == error_message
+        assert "error" in callback_args
+        assert callback_args["error"] == error_message
 
         context_arg_1 = mock_on_failure_1.call_args.args[0]
         assert context_arg_1
