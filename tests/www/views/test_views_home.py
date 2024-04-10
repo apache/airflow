@@ -85,13 +85,15 @@ def test_home_dags_count(render_template_mock, admin_client, working_dags, sessi
 
     update_stmt = update(DagModel).where(DagModel.dag_id == "filter_test_1").values(is_active=False)
     session.execute(update_stmt)
+    session.commit()
+    session.close()
 
     admin_client.get("home", follow_redirects=True)
     assert call_kwargs()["status_count_all"] == 3
 
 
-def test_home_status_filter_cookie(admin_client):
-    with admin_client:
+def test_home_status_filter_cookie(admin_flask_client):
+    with admin_flask_client as admin_client:
         admin_client.get("home", follow_redirects=True)
         assert "all" == flask.session[FILTER_STATUS_COOKIE]
 
@@ -275,8 +277,8 @@ def broken_dags_after_working(tmp_path):
         _process_file(path, session)
 
 
-def test_home_filter_tags(working_dags, admin_client):
-    with admin_client:
+def test_home_filter_tags(working_dags, admin_flask_client):
+    with admin_flask_client as admin_client:
         admin_client.get("home?tags=example&tags=data", follow_redirects=True)
         assert "example,data" == flask.session[FILTER_TAGS_COOKIE]
 
