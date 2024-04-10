@@ -56,6 +56,7 @@ Extra (optional)
 
     * ``database_name``: Specify the azure cosmos database to use.
     * ``collection_name``: Specify the azure cosmos collection to use.
+    * ``partition_key``: Specify the partition key for the collection.
     * ``subscription_id``: Specify the ID of the subscription used for the initial connection. Required for falling back to DefaultAzureCredential_
     * ``resource_group_name``: Specify the  Azure Resource Group Name under which the desired azure cosmos resides. Required for falling back to DefaultAzureCredential_
     * ``managed_identity_client_id``:  The client ID of a user-assigned managed identity. If provided with `workload_identity_tenant_id`, they'll pass to ``DefaultAzureCredential``.

@@ -127,7 +127,6 @@ New Features
 - Introduce mechanism to support multiple executor configuration (#37635)
 - Add color formatting for ANSI chars in logs from task executions (#37985)
 - Add the dataset_expression as part of DagModel and DAGDetailSchema (#37826)
-- Add TaskFail entries to Gantt chart (#37918)
 - Allow longer rendered_map_index (#37798)
 - Inherit the run_ordering from DatasetTriggeredTimetable for DatasetOrTimeSchedule (#37775)
 - Implement AIP-60 Dataset URI formats (#37005)
@@ -150,7 +149,6 @@ New Features
 - Create new Metrics with Tagging (#36528)
 - Add support for openlineage to AFS and common.io (#36410)
 - Introduce ``@task.bash`` TaskFlow decorator (#30176, #37875)
-- Added functionality to automatically ingest custom airflow.cfg file upon startup (#36289)
 
 Improvements
 """"""""""""
