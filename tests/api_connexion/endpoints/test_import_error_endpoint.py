@@ -20,6 +20,7 @@ from datetime import timedelta
 
 import pytest
 
+from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models.dag import DagModel
 from airflow.models.errors import ImportError
 from airflow.security import permissions
@@ -120,8 +121,8 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
         assert {
             "detail": "The ImportError with import_error_id: `2` was not found",
             "status": 404,
-            "title": "Not Found",
-            "type": "about:blank",
+            "title": "Import error not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
         } == response.json()
 
     def test_should_raises_401_unauthenticated(self, session):
