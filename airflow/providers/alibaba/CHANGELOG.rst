@@ -26,6 +26,21 @@
 Changelog
 ---------
 
+2.7.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Avoid use of 'assert' outside of the tests (#37718)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``fix: try002 for provider alibaba (#38787)``
+   * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+   * ``Add comment about versions updated by release manager (#37488)``
+
 2.7.2
 .....
 

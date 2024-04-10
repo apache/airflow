@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+3.6.2
+.....
+
+Misc
+~~~~
+
+* ``Turn Pydantic into an optional dependency (#37320)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add comment about versions updated by release manager (#37488)``
+   * ``Add Python 3.12 exclusions in providers/pyproject.toml (#37404)``
+   * ``Fix remaining D401 checks (#37434)``
+
 3.6.1
 .....
 
