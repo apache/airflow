@@ -39,7 +39,6 @@ from airflow.providers.amazon.aws.sensors.bedrock import (
     BedrockCustomizeModelCompletedSensor,
     BedrockProvisionModelThroughputCompletedSensor,
 )
-from airflow.providers.amazon.aws.sensors.bedrock import BedrockCustomizeModelCompletedSensor
 from airflow.utils.edgemodifier import Label
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
