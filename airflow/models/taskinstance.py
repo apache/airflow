@@ -512,11 +512,6 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
             task_instance=task_instance, task=task_orig, value=xcom_value, session=session_or_null
         )
 
-        print(jinja_env)
-        print(context.get("map_index_template"))
-
-
-
     return result, task_instance.rendered_map_index
 
 
