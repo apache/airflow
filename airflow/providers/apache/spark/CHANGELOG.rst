@@ -29,6 +29,22 @@
 Changelog
 ---------
 
+4.7.2
+.....
+
+Misc
+~~~~
+
+* ``Rename 'SparkSubmitOperator' fields names to comply with templated fields validation (#38051)``
+* ``Rename 'SparkSqlOperator' fields name to comply with templated fields validation (#38045)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+   * ``Add comment about versions updated by release manager (#37488)``
+   * ``D401 Support in Providers (simple) (#37258)``
+
 4.7.1
 .....
 

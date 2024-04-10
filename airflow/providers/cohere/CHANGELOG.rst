@@ -20,6 +20,19 @@
 Changelog
 ---------
 
+1.1.3
+.....
+
+Misc
+~~~~
+
+* ``Limit 'cohere' to <5 (#38348)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+   * ``Add comment about versions updated by release manager (#37488)``
+
 1.1.2
 .....
 
