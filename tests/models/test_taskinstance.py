@@ -2849,21 +2849,7 @@ class TestTaskInstance:
             ti.refresh_from_db()
             assert ti.state == State.SUCCESS
 
-    @pytest.mark.parametrize(
-        "finished_state",
-        [
-            State.SUCCESS,
-            State.UP_FOR_RETRY,
-            State.FAILED,
-        ],
-    )
-    @patch("logging.Logger.exception")
-    @patch("logging.Logger.info")
-    def test_finished_callbacks_handle_and_log_exception(
-        self, mock_log_info, mock_log_exception, finished_state, create_task_instance
-    ):
-        called = completed = False
-
+    def test_finished_callbacks_handle_and_log_exception(self, caplog):
         def on_finish_callable(context):
             nonlocal called, completed
             called = True
@@ -2871,15 +2857,16 @@ class TestTaskInstance:
             completed = True
 
         for callback_input in [[on_finish_callable], on_finish_callable]:
+            called = completed = False
+            caplog.clear()
             _run_finished_callback(callbacks=callback_input, context={})
 
             assert called
             assert not completed
             callback_name = callback_input[0] if isinstance(callback_input, list) else callback_input
             callback_name = qualname(callback_name).split(".")[-1]
-            expected_message = "Error when executing %s callback"
-            mock_log_info.assert_called_with("Executing %s callback", callback_name)
-            mock_log_exception.assert_called_with(expected_message, callback_name)
+            assert "Executing on_finish_callable callback" in caplog.text
+            assert "Error when executing on_finish_callable callback" in caplog.text
 
     @provide_session
     def test_handle_failure(self, create_dummy_dag, session=None):
