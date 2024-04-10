@@ -729,7 +729,7 @@ class TestBigQueryOperator:
             sql="SELECT * FROM test_table",
         )
         serialized_dag = dag_maker.get_serialized_data()
-        assert "sql" in serialized_dag["dag"]["tasks"][0]
+        assert "sql" in serialized_dag["dag"]["tasks"][0]["__var"]
 
         dag = SerializedDAG.from_dict(serialized_dag)
         simple_task = dag.task_dict[TASK_ID]
@@ -740,7 +740,7 @@ class TestBigQueryOperator:
         #########################################################
 
         # Check Serialized version of operator link
-        assert serialized_dag["dag"]["tasks"][0]["_operator_extra_links"] == [
+        assert serialized_dag["dag"]["tasks"][0]["__var"]["_operator_extra_links"] == [
             {"airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink": {}}
         ]
 
@@ -766,7 +766,7 @@ class TestBigQueryOperator:
             sql=["SELECT * FROM test_table", "SELECT * FROM test_table2"],
         )
         serialized_dag = dag_maker.get_serialized_data()
-        assert "sql" in serialized_dag["dag"]["tasks"][0]
+        assert "sql" in serialized_dag["dag"]["tasks"][0]["__var"]
 
         dag = SerializedDAG.from_dict(serialized_dag)
         simple_task = dag.task_dict[TASK_ID]
@@ -777,7 +777,7 @@ class TestBigQueryOperator:
         #########################################################
 
         # Check Serialized version of operator link
-        assert serialized_dag["dag"]["tasks"][0]["_operator_extra_links"] == [
+        assert serialized_dag["dag"]["tasks"][0]["__var"]["_operator_extra_links"] == [
             {"airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink": {"index": 0}},
             {"airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink": {"index": 1}},
         ]
