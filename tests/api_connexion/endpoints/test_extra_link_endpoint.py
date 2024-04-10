@@ -86,8 +86,9 @@ class TestGetExtraLinks:
             session=session,
             data_interval=DataInterval(timezone.datetime(2020, 1, 1), timezone.datetime(2020, 1, 2)),
         )
+        session.commit()
         session.flush()
-
+        session.close()
         self.client = self.connexion_app.test_client()  # type:ignore
 
     def teardown_method(self) -> None:
