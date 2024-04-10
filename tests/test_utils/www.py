@@ -33,6 +33,16 @@ def client_with_login(app, expected_path=b"/home", **kwargs):
     return client
 
 
+def flask_client_with_login(app, expected_response_code=302, **kwargs):
+    patch_path = "airflow.providers.fab.auth_manager.security_manager.override.check_password_hash"
+    with mock.patch(patch_path) as check_password_hash:
+        check_password_hash.return_value = True
+        client = app.app.test_client()
+        resp = client.post("/login/", data=kwargs)
+        assert resp.status_code == expected_response_code
+    return client
+
+
 def client_without_login(app):
     # Anonymous users can only view if AUTH_ROLE_PUBLIC is set to non-Public
     app.app.config["AUTH_ROLE_PUBLIC"] = "Viewer"
