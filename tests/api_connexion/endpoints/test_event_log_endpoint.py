@@ -91,7 +91,9 @@ def create_log_model(create_task_instance, task_instance, session, request):
         log_model.dttm = when
 
         session.add(log_model)
+        session.commit()
         session.flush()
+        session.close()
         return log_model
 
     return maker
@@ -157,7 +159,9 @@ class TestGetEventLogs(TestEventLogEndpoint):
         log_model_3.dttm = self.default_time_2
 
         session.add(log_model_3)
+        session.commit()
         session.flush()
+        session.close()
         response = self.client.get("/api/v1/eventLogs", headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert response.json() == {
@@ -205,7 +209,9 @@ class TestGetEventLogs(TestEventLogEndpoint):
         log_model_3 = Log(event="cli_scheduler", owner="root", extra='{"host_name": "e24b454f002a"}')
         log_model_3.dttm = self.default_time_2
         session.add(log_model_3)
+        session.commit()
         session.flush()
+        session.close()
         response = self.client.get("/api/v1/eventLogs?order_by=-owner", headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert response.json() == {
@@ -269,6 +275,7 @@ class TestGetEventLogs(TestEventLogEndpoint):
         )
         session.add_all([eventlog1, eventlog2])
         session.commit()
+        session.close()
         for attr in ["dag_id", "task_id", "owner", "event"]:
             attr_value = f"TEST_{attr}_1".upper()
             response = self.client.get(
@@ -285,6 +292,7 @@ class TestGetEventLogs(TestEventLogEndpoint):
         eventlog2 = create_log_model(event="TEST_EVENT_2", when=self.default_time_2)
         session.add_all([eventlog1, eventlog2])
         session.commit()
+        session.close()
         for when_attr, expected_eventlog_event in {
             "before": "TEST_EVENT_1",
             "after": "TEST_EVENT_2",
@@ -304,19 +312,20 @@ class TestGetEventLogs(TestEventLogEndpoint):
         eventlog3 = create_log_model(event="TEST_EVENT_3", when=self.default_time, run_id="run_2")
         session.add_all([eventlog1, eventlog2, eventlog3])
         session.commit()
+        session.close()
         for run_id, expected_eventlogs in {
             "run_1": {"TEST_EVENT_1"},
             "run_2": {"TEST_EVENT_2", "TEST_EVENT_3"},
         }.items():
             response = self.client.get(
                 f"/api/v1/eventLogs?run_id={run_id}",
-                environ_overrides={"REMOTE_USER": "test"},
+                headers={"REMOTE_USER": "test"},
             )
             assert response.status_code == 200
-            assert response.json["total_entries"] == len(expected_eventlogs)
-            assert len(response.json["event_logs"]) == len(expected_eventlogs)
-            assert {eventlog["event"] for eventlog in response.json["event_logs"]} == expected_eventlogs
-            assert all({eventlog["run_id"] == run_id for eventlog in response.json["event_logs"]})
+            assert response.json()["total_entries"] == len(expected_eventlogs)
+            assert len(response.json()["event_logs"]) == len(expected_eventlogs)
+            assert {eventlog["event"] for eventlog in response.json()["event_logs"]} == expected_eventlogs
+            assert all({eventlog["run_id"] == run_id for eventlog in response.json()["event_logs"]})
 
     def test_should_filter_eventlogs_by_included_events(self, create_log_model):
         for event in ["TEST_EVENT_1", "TEST_EVENT_2", "cli_scheduler"]:
@@ -388,7 +397,7 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
         log_models = self._create_event_logs(task_instance, 10)
         session.add_all(log_models)
         session.commit()
-
+        session.close()
         response = self.client.get(url, headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
 
@@ -399,7 +408,9 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
     def test_should_respect_page_size_limit_default(self, task_instance, session):
         log_models = self._create_event_logs(task_instance, 200)
         session.add_all(log_models)
+        session.commit()
         session.flush()
+        session.close()
 
         response = self.client.get("/api/v1/eventLogs", headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
@@ -410,8 +421,9 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
     def test_should_raise_400_for_invalid_order_by_name(self, task_instance, session):
         log_models = self._create_event_logs(task_instance, 200)
         session.add_all(log_models)
+        session.commit()
         session.flush()
-
+        session.close()
         response = self.client.get("/api/v1/eventLogs?order_by=invalid", headers={"REMOTE_USER": "test"})
         assert response.status_code == 400
         msg = "Ordering with 'invalid' is disallowed or the attribute does not exist on the model"
@@ -421,8 +433,9 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
     def test_should_return_conf_max_if_req_max_above_conf(self, task_instance, session):
         log_models = self._create_event_logs(task_instance, 200)
         session.add_all(log_models)
+        session.commit()
         session.flush()
-
+        session.close()
         response = self.client.get("/api/v1/eventLogs?limit=180", headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert len(response.json()["event_logs"]) == 150
