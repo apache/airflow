@@ -21,6 +21,7 @@ from urllib.parse import quote_plus
 
 import pytest
 
+from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
@@ -104,19 +105,19 @@ class TestGetExtraLinks:
         [
             pytest.param(
                 "/api/v1/dags/INVALID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_QUERY/links",
-                "Not Found",
+                "DAG not found",
                 'DAG with ID = "INVALID" not found',
                 id="missing_dag",
             ),
             pytest.param(
                 "/api/v1/dags/TEST_DAG_ID/dagRuns/INVALID/taskInstances/TEST_SINGLE_QUERY/links",
-                "Not Found",
+                "DAG Run not found",
                 'DAG Run with ID = "INVALID" not found',
                 id="missing_dag_run",
             ),
             pytest.param(
                 "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/INVALID/links",
-                "Not Found",
+                "Task not found",
                 'Task with ID = "INVALID" not found',
                 id="missing_task",
             ),
@@ -130,7 +131,7 @@ class TestGetExtraLinks:
             "detail": expected_detail,
             "status": 404,
             "title": expected_title,
-            "type": "about:blank",
+            "type": EXCEPTIONS_LINK_MAP[404],
         } == response.json()
 
     def test_should_raise_403_forbidden(self):

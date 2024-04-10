@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import pytest
 
+from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import Log
 from airflow.security import permissions
 from airflow.utils import timezone
@@ -132,8 +133,8 @@ class TestGetEventLog(TestEventLogEndpoint):
         assert {
             "detail": None,
             "status": 404,
-            "title": "Not Found",
-            "type": "about:blank",
+            "title": "Event Log not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
         } == response.json()
 
     def test_should_raises_401_unauthenticated(self, log_model):
