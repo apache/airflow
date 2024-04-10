@@ -1231,9 +1231,10 @@ def _run_finished_callback(
         callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
         for callback in callbacks:
             try:
+                callback_name = qualname(callback).split(".")[-1]
+                log.info("Executing %s callback", callback_name)
                 callback(context)
             except Exception:
-                callback_name = qualname(callback).split(".")[-1]
                 log.exception("Error when executing %s callback", callback_name)  # type: ignore[attr-defined]
 
 
