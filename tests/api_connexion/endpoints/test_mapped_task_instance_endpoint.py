@@ -23,6 +23,7 @@ import urllib
 
 import pytest
 
+from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagbag import DagBag
@@ -204,7 +205,7 @@ class TestNonExistent(TestMappedTaskInstanceEndpoint):
             headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
-        assert response.json()["title"] == "Not Found"
+        assert response.json()["title"] == "DAG mapped_tis not found"
 
 
 class TestGetMappedTaskInstance(TestMappedTaskInstanceEndpoint):
@@ -268,8 +269,8 @@ class TestGetMappedTaskInstance(TestMappedTaskInstanceEndpoint):
         assert response.json() == {
             "detail": "Task instance is mapped, add the map_index value to the URL",
             "status": 404,
-            "title": "Not Found",
-            "type": "about:blank",
+            "title": "Task instance not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
         }
 
     def test_one_mapped_task_works(self, one_task_with_single_mapped_ti):
@@ -291,8 +292,8 @@ class TestGetMappedTaskInstance(TestMappedTaskInstanceEndpoint):
         assert response.json() == {
             "detail": "Task instance is mapped, add the map_index value to the URL",
             "status": 404,
-            "title": "Not Found",
-            "type": "about:blank",
+            "title": "Task instance not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
         }
 
 
@@ -469,4 +470,4 @@ class TestGetMappedTaskInstances(TestMappedTaskInstanceEndpoint):
             headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
-        assert response.json()["title"] == "Not Found"
+        assert response.json()["title"] == "Task id nonexistent_task not found"
