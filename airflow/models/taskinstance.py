@@ -1230,8 +1230,8 @@ def _run_finished_callback(
     if callbacks:
         callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
         for callback in callbacks:
+            callback_name = qualname(callback).split(".")[-1]
             try:
-                callback_name = qualname(callback).split(".")[-1]
                 log.info("Executing %s callback", callback_name)
                 callback(context)
             except Exception:
