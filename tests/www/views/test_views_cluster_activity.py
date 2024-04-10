@@ -94,7 +94,9 @@ def make_dag_runs(dag_maker, session, time_machine):
 
     time_machine.move_to("2023-07-02T00:00:00+00:00", tick=False)
 
+    session.commit()
     session.flush()
+    session.close()
 
 
 @pytest.mark.usefixtures("freeze_time_for_dagruns", "make_dag_runs")
