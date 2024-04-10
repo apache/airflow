@@ -28,6 +28,8 @@ import json
 import logging
 from typing import Callable
 
+from airflow.api_internal.internal_api_call import InternalApiConfig
+
 logger = logging.getLogger(__name__)
 
 
@@ -107,24 +109,26 @@ def default_action_log(sub_command, user, task_id, dag_id, execution_date, host_
     from airflow.utils.session import create_session
 
     try:
+        # todo: this function needs to be updated for AIP-44
+        event = {
+            "event": f"cli_{sub_command}",
+            "task_instance": None,
+            "owner": user,
+            "extra": json.dumps({"host_name": host_name, "full_command": full_command}),
+            "task_id": task_id,
+            "dag_id": dag_id,
+            "execution_date": execution_date,
+            "dttm": timezone.utcnow(),
+        }
+        if InternalApiConfig.get_use_internal_api():
+            logger.warning("Using database isolation; not storing Log event: %s", event)
+            return
         with create_session() as session:
-            extra = json.dumps({"host_name": host_name, "full_command": full_command})
             # Use bulk_insert_mappings here to avoid importing all models (which using the classes does) early
             # on in the CLI
             session.bulk_insert_mappings(
                 Log,
-                [
-                    {
-                        "event": f"cli_{sub_command}",
-                        "task_instance": None,
-                        "owner": user,
-                        "extra": extra,
-                        "task_id": task_id,
-                        "dag_id": dag_id,
-                        "execution_date": execution_date,
-                        "dttm": timezone.utcnow(),
-                    }
-                ],
+                [event],
             )
     except (OperationalError, ProgrammingError) as e:
         expected = [
