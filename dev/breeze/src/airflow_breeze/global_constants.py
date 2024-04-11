@@ -368,6 +368,7 @@ def get_airflow_version():
     return airflow_version
 
 
+@lru_cache(maxsize=None)
 def get_airflow_extras():
     airflow_dockerfile = AIRFLOW_SOURCES_ROOT / "Dockerfile"
     with open(airflow_dockerfile) as dockerfile:
