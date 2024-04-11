@@ -177,3 +177,4 @@ class JdbcHook(DbApiHook):
         """
         with suppress_and_warn(jaydebeapi.Error):
             return conn.jconn.getAutoCommit()
+        return False
