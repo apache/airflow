@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import html
-import json
 import unittest.mock
 import urllib.parse
 from getpass import getuser
@@ -442,7 +441,7 @@ def test_last_dagruns_success_when_selecting_dags(admin_client):
         "last_dagruns", data={"dag_ids": ["example_subdag_operator"]}, follow_redirects=True
     )
     assert resp.status_code == 200
-    stats = json.loads(resp.data.decode("utf-8"))
+    stats = resp.text
     assert "example_bash_operator" not in stats
     assert "example_subdag_operator" in stats
 
@@ -452,7 +451,7 @@ def test_last_dagruns_success_when_selecting_dags(admin_client):
         data={"dag_ids": ["example_subdag_operator", "example_bash_operator"]},
         follow_redirects=True,
     )
-    stats = json.loads(resp.data.decode("utf-8"))
+    stats = resp.text
     assert "example_bash_operator" in stats
     assert "example_subdag_operator" in stats
     check_content_not_in_response("example_xcom", resp)
@@ -608,6 +607,8 @@ def new_dag_to_delete():
     dag = DAG("new_dag_to_delete", is_paused_upon_creation=True)
     session = settings.Session()
     dag.sync_to_db(session=session)
+    session.commit()
+    session.close()
     return dag
 
 
@@ -792,6 +793,7 @@ def test_task_instance_delete_permission_denied(session, client_ti_without_dag_e
         session=session,
     )
     session.commit()
+    session.close()
     composite_key = _get_appbuilder_pk_string(TaskInstanceModelView, task_instance_to_delete)
     task_id = task_instance_to_delete.task_id
 
@@ -984,7 +986,9 @@ def test_action_muldelete_task_instance(session, admin_client, task_search_tuple
         for task in tasks_to_delete
     ]
     session.bulk_save_objects(trs)
+    session.commit()
     session.flush()
+    session.close()
 
     # run the function to test
     resp = admin_client.post(
@@ -1036,7 +1040,7 @@ def test_task_instances(admin_client):
         follow_redirects=True,
     )
     assert resp.status_code == 200
-    assert resp.json == {
+    assert resp.json() == {
         "also_run_this": {
             "custom_operator_name": None,
             "dag_id": "example_bash_operator",
