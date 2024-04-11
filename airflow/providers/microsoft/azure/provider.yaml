@@ -214,6 +214,9 @@ sensors:
   - integration-name: Microsoft Azure Data Factory
     python-modules:
       - airflow.providers.microsoft.azure.sensors.data_factory
+  - integration-name: Microsoft Graph API
+    python-modules:
+      - airflow.providers.microsoft.azure.sensors.msgraph
 
 filesystems:
   - airflow.providers.microsoft.azure.fs.adls
