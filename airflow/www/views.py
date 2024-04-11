@@ -952,10 +952,7 @@ class Airflow(AirflowBaseView):
                     # if the user doesn't have access to all DAGs, only display errors from visible DAGs
                     import_errors = import_errors.where(
                         errors.ImportError.filename.in_(
-                            select(DagModel.fileloc)
-                            .distinct()
-                            .where(DagModel.dag_id.in_(filter_dag_ids))
-                            .subquery()
+                            select(DagModel.fileloc).distinct().where(DagModel.dag_id.in_(filter_dag_ids))
                         )
                     )
 
