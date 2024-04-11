@@ -887,7 +887,6 @@ class TestMappedSetupTeardown:
                 t = my_teardown.expand(op_args=my_setup.output)
                 with t.as_teardown(setups=my_setup):
                     my_work(my_setup.output)
-            return dag
 
         dr = dag.test()
         states = self.get_states(dr)
