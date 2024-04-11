@@ -30,7 +30,7 @@ requires = [
     "pluggy==1.4.0",
     "smmap==5.0.1",
     "tomli==2.0.1; python_version < '3.11'",
-    "trove-classifiers==2024.3.25",
+    "trove-classifiers==2024.4.10",
 ]
 build-backend = "hatchling.build"
 
@@ -464,6 +464,9 @@ norecursedirs = [
 log_level = "INFO"
 filterwarnings = [
     "error::pytest.PytestCollectionWarning",
+    "error::pytest.PytestReturnNotNoneWarning",
+    # Avoid building cartesian product which might impact performance
+    "error:SELECT statement has a cartesian product between FROM:sqlalchemy.exc.SAWarning:airflow",
     "ignore::DeprecationWarning:flask_appbuilder.filemanager",
     "ignore::DeprecationWarning:flask_appbuilder.widgets",
     # FAB do not support SQLAclhemy 2
