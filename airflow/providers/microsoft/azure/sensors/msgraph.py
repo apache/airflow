@@ -135,6 +135,7 @@ class MSGraphSensor(BaseSensorOperator):
             self.log.debug("is_done: %s", is_done)
 
             return PokeReturnValue(is_done=is_done, xcom_value=response)
+        return PokeReturnValue(is_done=True)
 
     def poke(self, context) -> bool | PokeReturnValue:
         return asyncio.run(self.async_poke(context))
