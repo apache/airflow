@@ -24,6 +24,13 @@ from typing import TYPE_CHECKING, Sequence
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 
+try:
+    from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
+except ModuleNotFoundError as e:
+    from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+    raise AirflowOptionalProviderFeatureException(e)
+
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
@@ -110,13 +117,6 @@ class AzureBlobStorageToS3Operator(BaseOperator):
 
     def execute(self, context: Context) -> list[str]:
         # list all files in the Azure Blob Storage container
-        try:
-            from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
-        except ModuleNotFoundError as e:
-             from airflow.exceptions import AirflowOptionalProviderFeatureException
-
-             raise AirflowOptionalProviderFeatureException(e)
-
         wasb_hook = WasbHook(wasb_conn_id=self.wasb_conn_id, **self.wasb_extra_args)
         s3_hook = S3Hook(
             aws_conn_id=self.aws_conn_id,

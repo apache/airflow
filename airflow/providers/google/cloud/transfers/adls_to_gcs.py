@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Sequence
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 
 try:
+    from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
     from airflow.providers.microsoft.azure.operators.adls import ADLSListOperator
 except ModuleNotFoundError as e:
     from airflow.exceptions import AirflowOptionalProviderFeatureException
@@ -125,13 +126,6 @@ class ADLSToGCSOperator(ADLSListOperator):
         self.google_impersonation_chain = google_impersonation_chain
 
     def execute(self, context: Context):
-        try:
-            from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
-        except ModuleNotFoundError as e:
-            from airflow.exceptions import AirflowOptionalProviderFeatureException
-
-            raise AirflowOptionalProviderFeatureException(e)
-
         # use the super to list all files in an Azure Data Lake path
         files = super().execute(context)
         g_hook = GCSHook(

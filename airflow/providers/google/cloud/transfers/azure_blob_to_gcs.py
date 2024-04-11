@@ -23,6 +23,13 @@ from typing import TYPE_CHECKING, Sequence
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 
+try:
+    from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
+except ModuleNotFoundError as e:
+    from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+    raise AirflowOptionalProviderFeatureException(e)
+
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
@@ -87,13 +94,6 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
     )
 
     def execute(self, context: Context) -> str:
-        try:
-            from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
-        except ModuleNotFoundError as e:
-            from airflow.exceptions import AirflowOptionalProviderFeatureException
-
-            raise AirflowOptionalProviderFeatureException(e)
-
         azure_hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
