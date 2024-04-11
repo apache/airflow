@@ -55,7 +55,7 @@ class TestSqlAlchemyUtils:
 
         # make sure NOT to run in UTC. Only postgres supports storing
         # timezone information in the datetime field
-        if session.bind.dialect.name == "postgresql":
+        if session.get_bind().dialect.name == "postgresql":
             session.execute(text("SET timezone='Europe/Amsterdam'"))
 
         self.session = session
@@ -134,7 +134,9 @@ class TestSqlAlchemyUtils:
         query = mock.Mock()
         session = mock.Mock()
         session.bind.dialect.name = dialect
+        session.get_bind().dialect.name = dialect
         session.bind.dialect.supports_for_update_of = supports_for_update_of
+        session.get_bind().dialect.supports_for_update_of = supports_for_update_of
         with mock.patch("airflow.utils.sqlalchemy.USE_ROW_LEVEL_LOCKING", use_row_level_lock_conf):
             returned_value = with_row_locks(query=query, session=session, nowait=True)
 

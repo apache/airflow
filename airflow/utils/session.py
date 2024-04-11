@@ -73,6 +73,8 @@ def provide_session(func: Callable[PS, RT]) -> Callable[PS, RT]:
     database transaction, you pass it to the function, if not this wrapper
     will create one and close it for you.
     """
+    # FIXME: test_raised_provide_session
+    find_session_idx(func)
 
     @wraps(func)
     def wrapper(*args: PS.args, **kwargs: PS.kwargs) -> RT:

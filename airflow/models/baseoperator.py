@@ -1083,7 +1083,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         return not self == other
 
     def __hash__(self):
-        hash_components = [type(self)]
+        hash_components: list[Any] = [type(self)]
         for component in self._comps:
             val = getattr(self, component, None)
             try:
@@ -1320,7 +1320,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         result = cls.__new__(cls)
         memo[id(self)] = result
 
-        shallow_copy = cls.shallow_copy_attrs + cls._base_operator_shallow_copy_attrs
+        shallow_copy = {*cls.shallow_copy_attrs, *cls._base_operator_shallow_copy_attrs}
 
         for k, v in self.__dict__.items():
             if k == "_BaseOperator__instantiated":
@@ -1992,7 +1992,7 @@ def chain_linear(*elements: DependencyMixin | Sequence[DependencyMixin]):
             raise ValueError("Labels are not supported by chain_linear")
         if prev_elem is not None:
             for task in prev_elem:
-                task >> curr_elem
+                _ = task >> curr_elem
                 if not deps_set:
                     deps_set = True
         prev_elem = [curr_elem] if isinstance(curr_elem, DependencyMixin) else curr_elem

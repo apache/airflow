@@ -350,34 +350,27 @@ class TaskGroup(DAGNode):
         return any(child.has_task(task) for child in self.children.values() if isinstance(child, TaskGroup))
 
     @property
-    def roots(self) -> list[BaseOperator]:
+    def roots(self) -> list[DAGNode]:
         """Required by TaskMixin."""
         return list(self.get_roots())
 
     @property
-    def leaves(self) -> list[BaseOperator]:
+    def leaves(self) -> list[DAGNode]:
         """Required by TaskMixin."""
         return list(self.get_leaves())
 
-    def get_roots(self) -> Generator[BaseOperator, None, None]:
+    def get_roots(self) -> Generator[DAGNode, None, None]:
         """Return a generator of tasks with no upstream dependencies within the TaskGroup."""
-        from airflow.models.baseoperator import BaseOperator
-
         tasks: list[DAGNode] = list(self)
         ids = {getattr(x, "task_id", None) for x in tasks}
         for task in tasks:
-            if not isinstance(task, BaseOperator):
-                continue
-
             if task.upstream_task_ids.isdisjoint(ids):
                 yield task
 
-    def get_leaves(self) -> Generator[BaseOperator, None, None]:
+    def get_leaves(self) -> Generator[DAGNode, None, None]:
         """Return a generator of tasks with no downstream dependencies within the TaskGroup."""
-        from airflow.models.baseoperator import BaseOperator
-
         tasks = list(self)
-        ids = {getattr(x, "task_id", None) for x in tasks}
+        ids = {task_id for x in tasks if (task_id := getattr(x, "task_id", None))}
 
         def has_non_teardown_downstream(task, exclude: str):
             for down_task in task.downstream_list:
@@ -404,11 +397,8 @@ class TaskGroup(DAGNode):
                     yield upstream_task
 
         for task in tasks:
-            if not isinstance(task, BaseOperator):
-                continue
-
             if task.downstream_task_ids.isdisjoint(ids):
-                if not task.is_teardown:
+                if not getattr(task, "is_teardown", None):
                     yield task
                 else:
                     yield from recurse_for_first_non_teardown(task)
