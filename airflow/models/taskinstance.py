@@ -397,9 +397,7 @@ def _creator_note(val):
         return TaskInstanceNote(*val)
 
 
-def _execute_task(
-    task_instance: TaskInstance | TaskInstancePydantic, context: Context, task_orig: Operator, jinja_env=None
-):
+def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: Context, task_orig: Operator):
     """
     Execute Task (optionally with a Timeout) and push Xcom results.
 
@@ -503,7 +501,6 @@ def _execute_task(
         _record_task_map_for_downstreams(
             task_instance=task_instance, task=task_orig, value=xcom_value, session=session_or_null
         )
-
     return result
 
 
