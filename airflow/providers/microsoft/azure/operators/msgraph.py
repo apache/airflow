@@ -229,7 +229,7 @@ class MSGraphAsyncOperator(BaseOperator):
                 dag_id=self.dag_id,
                 key=self.key,
             )
-            or []  # noqa: W503
+            or []
         )
         self.log.info(
             "Pulled XCom with task_id '%s' and dag_id '%s' and key '%s': %s",
