@@ -73,7 +73,7 @@ class MSGraphAsyncOperator(BaseOperator):
         or you can pass a string as `v1.0` or `beta`.
     :param result_processor: Function to further process the response from MS Graph API
         (default is lambda: context, response: response).  When the response returned by the
-        GraphServiceClientHook are bytes, then those will be base64 encoded into a string.
+        `KiotaRequestAdapterHook` are bytes, then those will be base64 encoded into a string.
     :param serializer: Class which handles response serialization (default is ResponseSerializer).
         Bytes will be base64 encoded into a string, so it can be stored as an XCom.
     """
