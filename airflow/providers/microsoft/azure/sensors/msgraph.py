@@ -56,8 +56,6 @@ class MSGraphSensor(BaseSensorOperator):
         to JSON.  If response_type parameter is specified, then the response_handler will be ignored.
     :param method: The HTTP method being used to do the REST call (default is GET).
     :param conn_id: The HTTP Connection ID to run the operator against (templated).
-    :param timeout: The HTTP timeout being used by the `KiotaRequestAdapter` (default is None).
-        When no timeout is specified or set to None then there is no HTTP timeout on each request.
     :param proxies: A dict defining the HTTP proxies to be used (default is None).
     :param api_version: The API version of the Microsoft Graph API to be used (default is v1).
         You can pass an enum named APIVersion which has 2 possible members v1 and beta,
@@ -85,7 +83,6 @@ class MSGraphSensor(BaseSensorOperator):
         headers: dict[str, str] | None = None,
         data: dict[str, Any] | str | BytesIO | None = None,
         conn_id: str = KiotaRequestAdapterHook.default_conn_name,
-        timeout: float | None = None,
         proxies: dict | None = None,
         api_version: APIVersion | None = None,
         event_processor: Callable[[Context, TriggerEvent], bool] = default_event_processor,
@@ -103,7 +100,6 @@ class MSGraphSensor(BaseSensorOperator):
         self.headers = headers
         self.data = data
         self.conn_id = conn_id
-        self.timeout = timeout
         self.proxies = proxies
         self.api_version = api_version
         self.event_processor = event_processor
