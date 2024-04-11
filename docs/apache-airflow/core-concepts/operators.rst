@@ -246,9 +246,9 @@ you can pass ``render_template_as_native_obj=True`` to the DAG as follows:
         return json.loads(data_string)
 
 
-    @task(task_id="transform")
     def transform(order_data):
         print(type(order_data))
+        total_order_value = 0
         for value in order_data.values():
             total_order_value += value
         return {"total_order_value": total_order_value}

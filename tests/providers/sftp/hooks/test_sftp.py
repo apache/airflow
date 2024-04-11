@@ -404,13 +404,12 @@ class TestSFTPHook:
 
     @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_invalid_ssh_hook(self, mock_get_connection):
-        with pytest.raises(AirflowException, match="ssh_hook must be an instance of SSHHook"):
-            connection = Connection(conn_id="sftp_default", login="root", host="localhost")
-            mock_get_connection.return_value = connection
-            with pytest.warns(
-                AirflowProviderDeprecationWarning, match=r"Parameter `ssh_hook` is deprecated.*"
-            ):
-                SFTPHook(ssh_hook="invalid_hook")
+        connection = Connection(conn_id="sftp_default", login="root", host="localhost")
+        mock_get_connection.return_value = connection
+        with pytest.raises(AirflowException, match="ssh_hook must be an instance of SSHHook"), pytest.warns(
+            AirflowProviderDeprecationWarning, match=r"Parameter `ssh_hook` is deprecated.*"
+        ):
+            SFTPHook(ssh_hook="invalid_hook")
 
     @mock.patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_connection")
     def test_valid_ssh_hook(self, mock_get_connection):
@@ -713,12 +712,14 @@ class TestSFTPHookAsync:
         """
         Assert that AirflowException is raised when path does not exist on SFTP server
         """
-        mock_hook_get_conn.return_value = MockSSHClient()
+        mock_hook_get_conn.return_value.__aenter__.return_value = MockSSHClient()
+
         hook = SFTPHookAsync()
 
         expected_files = None
         files = await hook.list_directory(path="/path/does_not/exist/")
         assert files == expected_files
+        mock_hook_get_conn.return_value.__aexit__.assert_called()
 
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync._get_conn")
     @pytest.mark.asyncio
@@ -726,12 +727,13 @@ class TestSFTPHookAsync:
         """
         Assert that AirflowException is raised when path does not exist on SFTP server
         """
-        mock_hook_get_conn.return_value = MockSSHClient()
+        mock_hook_get_conn.return_value.__aenter__.return_value = MockSSHClient()
         hook = SFTPHookAsync()
 
         expected_files = None
         files = await hook.read_directory(path="/path/does_not/exist/")
         assert files == expected_files
+        mock_hook_get_conn.return_value.__aexit__.assert_called()
 
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync._get_conn")
     @pytest.mark.asyncio
@@ -739,12 +741,13 @@ class TestSFTPHookAsync:
         """
         Assert that file list is returned when path exists on SFTP server
         """
-        mock_hook_get_conn.return_value = MockSSHClient()
+        mock_hook_get_conn.return_value.__aenter__.return_value = MockSSHClient()
         hook = SFTPHookAsync()
 
         expected_files = ["..", ".", "file"]
         files = await hook.list_directory(path="/path/exists/")
         assert sorted(files) == sorted(expected_files)
+        mock_hook_get_conn.return_value.__aexit__.assert_called()
 
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync._get_conn")
     @pytest.mark.asyncio
@@ -752,13 +755,14 @@ class TestSFTPHookAsync:
         """
         Assert that filename is returned when file pattern is matched on SFTP server
         """
-        mock_hook_get_conn.return_value = MockSSHClient()
+        mock_hook_get_conn.return_value.__aenter__.return_value = MockSSHClient()
         hook = SFTPHookAsync()
 
         files = await hook.get_files_and_attrs_by_pattern(path="/path/exists/", fnmatch_pattern="file")
 
         assert len(files) == 1
         assert files[0].filename == "file"
+        mock_hook_get_conn.return_value.__aexit__.assert_called()
 
     @pytest.mark.asyncio
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync._get_conn")

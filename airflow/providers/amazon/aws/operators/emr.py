@@ -576,7 +576,7 @@ class EmrContainerOperator(BaseOperator):
                 stacklevel=2,
             )
             if max_polling_attempts and max_polling_attempts != max_tries:
-                raise Exception("max_polling_attempts must be the same value as max_tries")
+                raise ValueError("max_polling_attempts must be the same value as max_tries")
             else:
                 self.max_polling_attempts = max_tries
 

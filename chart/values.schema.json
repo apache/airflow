@@ -77,7 +77,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.8.4",
+            "default": "2.9.0",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -92,7 +92,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.8.4",
+            "default": "2.9.0",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -695,7 +695,7 @@
                         "tag": {
                             "description": "The redis image tag.",
                             "type": "string",
-                            "default": "7-bookworm"
+                            "default": "7.2-bookworm"
                         },
                         "pullPolicy": {
                             "description": "The redis image pull policy.",
@@ -1513,7 +1513,7 @@
                                             "description": "HorizontalPodAutoscalerBehavior configures the scaling behavior of the target.",
                                             "type": "object",
                                             "default": {},
-                                            "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.HorizontalPodAutoscalerBehavior"
+                                            "$ref": "#/definitions/io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerBehavior"
                                         }
                                     }
                                 }
@@ -1567,14 +1567,14 @@
                                 }
                             ],
                             "items": {
-                                "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.MetricSpec"
+                                "$ref": "#/definitions/io.k8s.api.autoscaling.v2.MetricSpec"
                             }
                         },
                         "behavior": {
                             "description": "HorizontalPodAutoscalerBehavior configures the scaling behavior of the target.",
                             "type": "object",
                             "default": {},
-                            "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.HorizontalPodAutoscalerBehavior"
+                            "$ref": "#/definitions/io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerBehavior"
                         }
                     }
                 },
@@ -3223,7 +3223,7 @@
                                             "description": "HorizontalPodAutoscalerBehavior configures the scaling behavior of the target.",
                                             "type": "object",
                                             "default": {},
-                                            "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.HorizontalPodAutoscalerBehavior"
+                                            "$ref": "#/definitions/io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerBehavior"
                                         }
                                     }
                                 }
@@ -7541,7 +7541,7 @@
             "type": "object",
             "additionalProperties": false
         },
-        "io.k8s.api.autoscaling.v2beta2.ContainerResourceMetricSource": {
+        "io.k8s.api.autoscaling.v2.ContainerResourceMetricSource": {
             "description": "ContainerResourceMetricSource indicates how to scale on a resource metric known to Kubernetes, as specified in requests and limits, describing each pod in the current scale target (e.g. CPU or memory).  The values will be averaged together before being compared to the target.  Such metrics are built in to Kubernetes, and have special scaling options on top of those available to normal per-pod metrics using the \"pods\" source.  Only one \"target\" type should be set.",
             "properties": {
                 "container": {
@@ -7553,7 +7553,7 @@
                     "type": "string"
                 },
                 "target": {
-                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.MetricTarget",
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.MetricTarget",
                     "description": "target specifies the target value for the given metric"
                 }
             },
@@ -7565,19 +7565,19 @@
             "type": "object",
             "additionalProperties": false
         },
-        "io.k8s.api.autoscaling.v2beta2.CrossVersionObjectReference": {
+        "io.k8s.api.autoscaling.v2.CrossVersionObjectReference": {
             "description": "CrossVersionObjectReference contains enough information to let you identify the referred resource.",
             "properties": {
                 "apiVersion": {
-                    "description": "API version of the referent",
+                    "description": "apiVersion is the API version of the referent",
                     "type": "string"
                 },
                 "kind": {
-                    "description": "Kind of the referent; More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds\"",
+                    "description": "kind is the kind of the referent; More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
                     "type": "string"
                 },
                 "name": {
-                    "description": "Name of the referent; More info: http://kubernetes.io/docs/user-guide/identifiers#names",
+                    "description": "name is the name of the referent; More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names",
                     "type": "string"
                 }
             },
@@ -7588,15 +7588,15 @@
             "type": "object",
             "additionalProperties": false
         },
-        "io.k8s.api.autoscaling.v2beta2.ExternalMetricSource": {
+        "io.k8s.api.autoscaling.v2.ExternalMetricSource": {
             "description": "ExternalMetricSource indicates how to scale on a metric not associated with any Kubernetes object (for example length of queue in cloud messaging service, or QPS from loadbalancer running outside of cluster).",
             "properties": {
                 "metric": {
-                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.MetricIdentifier",
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.MetricIdentifier",
                     "description": "metric identifies the target metric by name and selector"
                 },
                 "target": {
-                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.MetricTarget",
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.MetricTarget",
                     "description": "target specifies the target value for the given metric"
                 }
             },
@@ -7607,20 +7607,20 @@
             "type": "object",
             "additionalProperties": false
         },
-        "io.k8s.api.autoscaling.v2beta2.HPAScalingPolicy": {
+        "io.k8s.api.autoscaling.v2.HPAScalingPolicy": {
             "description": "HPAScalingPolicy is a single policy which must hold true for a specified past interval.",
             "properties": {
                 "periodSeconds": {
-                    "description": "PeriodSeconds specifies the window of time for which the policy should hold true. PeriodSeconds must be greater than zero and less than or equal to 1800 (30 min).",
+                    "description": "periodSeconds specifies the window of time for which the policy should hold true. PeriodSeconds must be greater than zero and less than or equal to 1800 (30 min).",
                     "format": "int32",
                     "type": "integer"
                 },
                 "type": {
-                    "description": "Type is used to specify the scaling policy.",
+                    "description": "type is used to specify the scaling policy.",
                     "type": "string"
                 },
                 "value": {
-                    "description": "Value contains the amount of change which is permitted by the policy. It must be greater than zero",
+                    "description": "value contains the amount of change which is permitted by the policy. It must be greater than zero",
                     "format": "int32",
                     "type": "integer"
                 }
@@ -7633,22 +7633,23 @@
             "type": "object",
             "additionalProperties": false
         },
-        "io.k8s.api.autoscaling.v2beta2.HPAScalingRules": {
+        "io.k8s.api.autoscaling.v2.HPAScalingRules": {
             "description": "HPAScalingRules configures the scaling behavior for one direction. These Rules are applied after calculating DesiredReplicas from metrics for the HPA. They can limit the scaling velocity by specifying scaling policies. They can prevent flapping by specifying the stabilization window, so that the number of replicas is not set instantly, instead, the safest value from the stabilization window is chosen.",
             "properties": {
                 "policies": {
                     "description": "policies is a list of potential scaling polices which can be used during scaling. At least one policy must be specified, otherwise the HPAScalingRules will be discarded as invalid",
                     "items": {
-                        "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.HPAScalingPolicy"
+                        "$ref": "#/definitions/io.k8s.api.autoscaling.v2.HPAScalingPolicy"
                     },
-                    "type": "array"
+                    "type": "array",
+                    "x-kubernetes-list-type": "atomic"
                 },
                 "selectPolicy": {
-                    "description": "selectPolicy is used to specify which policy should be used. If not set, the default value MaxPolicySelect is used.",
+                    "description": "selectPolicy is used to specify which policy should be used. If not set, the default value Max is used.",
                     "type": "string"
                 },
                 "stabilizationWindowSeconds": {
-                    "description": "StabilizationWindowSeconds is the number of seconds for which past recommendations should be considered while scaling up or scaling down. StabilizationWindowSeconds must be greater than or equal to zero and less than or equal to 3600 (one hour). If not set, use the default values: - For scale up: 0 (i.e. no stabilization is done). - For scale down: 300 (i.e. the stabilization window is 300 seconds long).",
+                    "description": "stabilizationWindowSeconds is the number of seconds for which past recommendations should be considered while scaling up or scaling down. StabilizationWindowSeconds must be greater than or equal to zero and less than or equal to 3600 (one hour). If not set, use the default values: - For scale up: 0 (i.e. no stabilization is done). - For scale down: 300 (i.e. the stabilization window is 300 seconds long).",
                     "format": "int32",
                     "type": "integer"
                 }
@@ -7656,22 +7657,22 @@
             "type": "object",
             "additionalProperties": false
         },
-        "io.k8s.api.autoscaling.v2beta2.HorizontalPodAutoscalerBehavior": {
+        "io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerBehavior": {
             "description": "HorizontalPodAutoscalerBehavior configures the scaling behavior of the target in both Up and Down directions (scaleUp and scaleDown fields respectively).",
             "properties": {
                 "scaleDown": {
-                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.HPAScalingRules",
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.HPAScalingRules",
                     "description": "scaleDown is scaling policy for scaling Down. If not set, the default value is to allow to scale down to minReplicas pods, with a 300 second stabilization window (i.e., the highest recommendation for the last 300sec is used)."
                 },
                 "scaleUp": {
-                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.HPAScalingRules",
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.HPAScalingRules",
                     "description": "scaleUp is scaling policy for scaling Up. If not set, the default value is the higher of:\n  * increase no more than 4 pods per 60 seconds\n  * double the number of pods per 60 seconds\nNo stabilization is used."
                 }
             },
             "type": "object",
             "additionalProperties": false
         },
-        "io.k8s.api.autoscaling.v2beta2.MetricIdentifier": {
+        "io.k8s.api.autoscaling.v2.MetricIdentifier": {
             "description": "MetricIdentifier defines the name and optionally selector for a metric",
             "properties": {
                 "name": {
@@ -7689,27 +7690,27 @@
             "type": "object",
             "additionalProperties": false
         },
-        "io.k8s.api.autoscaling.v2beta2.MetricSpec": {
+        "io.k8s.api.autoscaling.v2.MetricSpec": {
             "description": "MetricSpec specifies how to scale based on a single metric (only `type` and one other matching field should be set at once).",
             "properties": {
                 "containerResource": {
-                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.ContainerResourceMetricSource",
-                    "description": "container resource refers to a resource metric (such as those specified in requests and limits) known to Kubernetes describing a single container in each pod of the current scale target (e.g. CPU or memory). Such metrics are built in to Kubernetes, and have special scaling options on top of those available to normal per-pod metrics using the \"pods\" source. This is an alpha feature and can be enabled by the HPAContainerMetrics feature flag."
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.ContainerResourceMetricSource",
+                    "description": "containerResource refers to a resource metric (such as those specified in requests and limits) known to Kubernetes describing a single container in each pod of the current scale target (e.g. CPU or memory). Such metrics are built in to Kubernetes, and have special scaling options on top of those available to normal per-pod metrics using the \"pods\" source. This is an alpha feature and can be enabled by the HPAContainerMetrics feature flag."
                 },
                 "external": {
-                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.ExternalMetricSource",
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.ExternalMetricSource",
                     "description": "external refers to a global metric that is not associated with any Kubernetes object. It allows autoscaling based on information coming from components running outside of cluster (for example length of queue in cloud messaging service, or QPS from loadbalancer running outside of cluster)."
                 },
                 "object": {
-                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.ObjectMetricSource",
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.ObjectMetricSource",
                     "description": "object refers to a metric describing a single kubernetes object (for example, hits-per-second on an Ingress object)."
                 },
                 "pods": {
-                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.PodsMetricSource",
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.PodsMetricSource",
                     "description": "pods refers to a metric describing each pod in the current scale target (for example, transactions-processed-per-second).  The values will be averaged together before being compared to the target value."
                 },
                 "resource": {
-                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.ResourceMetricSource",
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.ResourceMetricSource",
                     "description": "resource refers to a resource metric (such as those specified in requests and limits) known to Kubernetes describing each pod in the current scale target (e.g. CPU or memory). Such metrics are built in to Kubernetes, and have special scaling options on top of those available to normal per-pod metrics using the \"pods\" source."
                 },
                 "type": {
@@ -7723,7 +7724,7 @@
             "type": "object",
             "additionalProperties": false
         },
-        "io.k8s.api.autoscaling.v2beta2.MetricTarget": {
+        "io.k8s.api.autoscaling.v2.MetricTarget": {
             "description": "MetricTarget defines the target value, average value, or average utilization of a specific metric",
             "properties": {
                 "averageUtilization": {
@@ -7750,18 +7751,19 @@
             "type": "object",
             "additionalProperties": false
         },
-        "io.k8s.api.autoscaling.v2beta2.ObjectMetricSource": {
+        "io.k8s.api.autoscaling.v2.ObjectMetricSource": {
             "description": "ObjectMetricSource indicates how to scale on a metric describing a kubernetes object (for example, hits-per-second on an Ingress object).",
             "properties": {
                 "describedObject": {
-                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.CrossVersionObjectReference"
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.CrossVersionObjectReference",
+                    "description": "describedObject specifies the descriptions of a object,such as kind,name apiVersion"
                 },
                 "metric": {
-                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.MetricIdentifier",
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.MetricIdentifier",
                     "description": "metric identifies the target metric by name and selector"
                 },
                 "target": {
-                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.MetricTarget",
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.MetricTarget",
                     "description": "target specifies the target value for the given metric"
                 }
             },
@@ -7773,15 +7775,15 @@
             "type": "object",
             "additionalProperties": false
         },
-        "io.k8s.api.autoscaling.v2beta2.PodsMetricSource": {
+        "io.k8s.api.autoscaling.v2.PodsMetricSource": {
             "description": "PodsMetricSource indicates how to scale on a metric describing each pod in the current scale target (for example, transactions-processed-per-second). The values will be averaged together before being compared to the target value.",
             "properties": {
                 "metric": {
-                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.MetricIdentifier",
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.MetricIdentifier",
                     "description": "metric identifies the target metric by name and selector"
                 },
                 "target": {
-                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.MetricTarget",
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.MetricTarget",
                     "description": "target specifies the target value for the given metric"
                 }
             },
@@ -7792,7 +7794,7 @@
             "type": "object",
             "additionalProperties": false
         },
-        "io.k8s.api.autoscaling.v2beta2.ResourceMetricSource": {
+        "io.k8s.api.autoscaling.v2.ResourceMetricSource": {
             "description": "ResourceMetricSource indicates how to scale on a resource metric known to Kubernetes, as specified in requests and limits, describing each pod in the current scale target (e.g. CPU or memory).  The values will be averaged together before being compared to the target.  Such metrics are built in to Kubernetes, and have special scaling options on top of those available to normal per-pod metrics using the \"pods\" source.  Only one \"target\" type should be set.",
             "properties": {
                 "name": {
@@ -7800,7 +7802,7 @@
                     "type": "string"
                 },
                 "target": {
-                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.MetricTarget",
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.MetricTarget",
                     "description": "target specifies the target value for the given metric"
                 }
             },
@@ -7815,20 +7817,20 @@
             "description": "Represents a Persistent Disk resource in AWS.\n\nAn AWS EBS disk must exist before mounting to a container. The disk must also be in the same AWS zone as the kubelet. An AWS EBS disk can only be mounted as read/write once. AWS EBS volumes support ownership management and SELinux relabeling.",
             "properties": {
                 "fsType": {
-                    "description": "Filesystem type of the volume that you want to mount. Tip: Ensure that the filesystem type is supported by the host operating system. Examples: \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified. More info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore",
+                    "description": "fsType is the filesystem type of the volume that you want to mount. Tip: Ensure that the filesystem type is supported by the host operating system. Examples: \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified. More info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore",
                     "type": "string"
                 },
                 "partition": {
-                    "description": "The partition in the volume that you want to mount. If omitted, the default is to mount by volume name. Examples: For volume /dev/sda1, you specify the partition as \"1\". Similarly, the volume partition for /dev/sda is \"0\" (or you can leave the property empty).",
+                    "description": "partition is the partition in the volume that you want to mount. If omitted, the default is to mount by volume name. Examples: For volume /dev/sda1, you specify the partition as \"1\". Similarly, the volume partition for /dev/sda is \"0\" (or you can leave the property empty).",
                     "format": "int32",
                     "type": "integer"
                 },
                 "readOnly": {
-                    "description": "Specify \"true\" to force and set the ReadOnly property in VolumeMounts to \"true\". If omitted, the default is \"false\". More info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore",
+                    "description": "readOnly value true will force the readOnly setting in VolumeMounts. More info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore",
                     "type": "boolean"
                 },
                 "volumeID": {
-                    "description": "Unique ID of the persistent disk resource in AWS (Amazon EBS volume). More info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore",
+                    "description": "volumeID is unique ID of the persistent disk resource in AWS (Amazon EBS volume). More info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore",
                     "type": "string"
                 }
             },
@@ -7861,27 +7863,27 @@
             "description": "AzureDisk represents an Azure Data Disk mount on the host and bind mount to the pod.",
             "properties": {
                 "cachingMode": {
-                    "description": "Host Caching mode: None, Read Only, Read Write.",
+                    "description": "cachingMode is the Host Caching mode: None, Read Only, Read Write.",
                     "type": "string"
                 },
                 "diskName": {
-                    "description": "The Name of the data disk in the blob storage",
+                    "description": "diskName is the Name of the data disk in the blob storage",
                     "type": "string"
                 },
                 "diskURI": {
-                    "description": "The URI the data disk in the blob storage",
+                    "description": "diskURI is the URI of data disk in the blob storage",
                     "type": "string"
                 },
                 "fsType": {
-                    "description": "Filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.",
+                    "description": "fsType is Filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.",
                     "type": "string"
                 },
                 "kind": {
-                    "description": "Expected values Shared: multiple blob disks per storage account  Dedicated: single blob disk per storage account  Managed: azure managed data disk (only in managed availability set). defaults to shared",
+                    "description": "kind expected values are Shared: multiple blob disks per storage account  Dedicated: single blob disk per storage account  Managed: azure managed data disk (only in managed availability set). defaults to shared",
                     "type": "string"
                 },
                 "readOnly": {
-                    "description": "Defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts.",
+                    "description": "readOnly Defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts.",
                     "type": "boolean"
                 }
             },
@@ -7896,15 +7898,15 @@
             "description": "AzureFile represents an Azure File Service mount on the host and bind mount to the pod.",
             "properties": {
                 "readOnly": {
-                    "description": "Defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts.",
+                    "description": "readOnly defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts.",
                     "type": "boolean"
                 },
                 "secretName": {
-                    "description": "the name of secret that contains Azure Storage Account Name and Key",
+                    "description": "secretName is the  name of secret that contains Azure Storage Account Name and Key",
                     "type": "string"
                 },
                 "shareName": {
-                    "description": "Share Name",
+                    "description": "shareName is the azure share Name",
                     "type": "string"
                 }
             },
@@ -7919,26 +7921,26 @@
             "description": "Represents a source location of a volume to mount, managed by an external CSI driver",
             "properties": {
                 "driver": {
-                    "description": "Driver is the name of the CSI driver that handles this volume. Consult with your admin for the correct name as registered in the cluster.",
+                    "description": "driver is the name of the CSI driver that handles this volume. Consult with your admin for the correct name as registered in the cluster.",
                     "type": "string"
                 },
                 "fsType": {
-                    "description": "Filesystem type to mount. Ex. \"ext4\", \"xfs\", \"ntfs\". If not provided, the empty value is passed to the associated CSI driver which will determine the default filesystem to apply.",
+                    "description": "fsType to mount. Ex. \"ext4\", \"xfs\", \"ntfs\". If not provided, the empty value is passed to the associated CSI driver which will determine the default filesystem to apply.",
                     "type": "string"
                 },
                 "nodePublishSecretRef": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.LocalObjectReference",
-                    "description": "NodePublishSecretRef is a reference to the secret object containing sensitive information to pass to the CSI driver to complete the CSI NodePublishVolume and NodeUnpublishVolume calls. This field is optional, and  may be empty if no secret is required. If the secret object contains more than one secret, all secret references are passed."
+                    "description": "nodePublishSecretRef is a reference to the secret object containing sensitive information to pass to the CSI driver to complete the CSI NodePublishVolume and NodeUnpublishVolume calls. This field is optional, and  may be empty if no secret is required. If the secret object contains more than one secret, all secret references are passed."
                 },
                 "readOnly": {
-                    "description": "Specifies a read-only configuration for the volume. Defaults to false (read/write).",
+                    "description": "readOnly specifies a read-only configuration for the volume. Defaults to false (read/write).",
                     "type": "boolean"
                 },
                 "volumeAttributes": {
                     "additionalProperties": {
                         "type": "string"
                     },
-                    "description": "VolumeAttributes stores driver-specific properties that are passed to the CSI driver. Consult your driver's documentation for supported values.",
+                    "description": "volumeAttributes stores driver-specific properties that are passed to the CSI driver. Consult your driver's documentation for supported values.",
                     "type": "object"
                 }
             },
@@ -7973,30 +7975,30 @@
             "description": "Represents a Ceph Filesystem mount that lasts the lifetime of a pod Cephfs volumes do not support ownership management or SELinux relabeling.",
             "properties": {
                 "monitors": {
-                    "description": "Required: Monitors is a collection of Ceph monitors More info: https://examples.k8s.io/volumes/cephfs/README.md#how-to-use-it",
+                    "description": "monitors is Required: Monitors is a collection of Ceph monitors More info: https://examples.k8s.io/volumes/cephfs/README.md#how-to-use-it",
                     "items": {
                         "type": "string"
                     },
                     "type": "array"
                 },
                 "path": {
-                    "description": "Optional: Used as the mounted root, rather than the full Ceph tree, default is /",
+                    "description": "path is Optional: Used as the mounted root, rather than the full Ceph tree, default is /",
                     "type": "string"
                 },
                 "readOnly": {
-                    "description": "Optional: Defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts. More info: https://examples.k8s.io/volumes/cephfs/README.md#how-to-use-it",
+                    "description": "readOnly is Optional: Defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts. More info: https://examples.k8s.io/volumes/cephfs/README.md#how-to-use-it",
                     "type": "boolean"
                 },
                 "secretFile": {
-                    "description": "Optional: SecretFile is the path to key ring for User, default is /etc/ceph/user.secret More info: https://examples.k8s.io/volumes/cephfs/README.md#how-to-use-it",
+                    "description": "secretFile is Optional: SecretFile is the path to key ring for User, default is /etc/ceph/user.secret More info: https://examples.k8s.io/volumes/cephfs/README.md#how-to-use-it",
                     "type": "string"
                 },
                 "secretRef": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.LocalObjectReference",
-                    "description": "Optional: SecretRef is reference to the authentication secret for User, default is empty. More info: https://examples.k8s.io/volumes/cephfs/README.md#how-to-use-it"
+                    "description": "secretRef is Optional: SecretRef is reference to the authentication secret for User, default is empty. More info: https://examples.k8s.io/volumes/cephfs/README.md#how-to-use-it"
                 },
                 "user": {
-                    "description": "Optional: User is the rados user name, default is admin More info: https://examples.k8s.io/volumes/cephfs/README.md#how-to-use-it",
+                    "description": "user is optional: User is the rados user name, default is admin More info: https://examples.k8s.io/volumes/cephfs/README.md#how-to-use-it",
                     "type": "string"
                 }
             },
@@ -8010,24 +8012,54 @@
             "description": "Represents a cinder volume resource in Openstack. A Cinder volume must exist before mounting to a container. The volume must also be in the same region as the kubelet. Cinder volumes support ownership management and SELinux relabeling.",
             "properties": {
                 "fsType": {
-                    "description": "Filesystem type to mount. Must be a filesystem type supported by the host operating system. Examples: \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified. More info: https://examples.k8s.io/mysql-cinder-pd/README.md",
+                    "description": "fsType is the filesystem type to mount. Must be a filesystem type supported by the host operating system. Examples: \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified. More info: https://examples.k8s.io/mysql-cinder-pd/README.md",
                     "type": "string"
                 },
                 "readOnly": {
-                    "description": "Optional: Defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts. More info: https://examples.k8s.io/mysql-cinder-pd/README.md",
+                    "description": "readOnly defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts. More info: https://examples.k8s.io/mysql-cinder-pd/README.md",
                     "type": "boolean"
                 },
                 "secretRef": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.LocalObjectReference",
-                    "description": "Optional: points to a secret object containing parameters used to connect to OpenStack."
+                    "description": "secretRef is optional: points to a secret object containing parameters used to connect to OpenStack."
                 },
                 "volumeID": {
-                    "description": "volume id used to identify the volume in cinder. More info: https://examples.k8s.io/mysql-cinder-pd/README.md",
+                    "description": "volumeID used to identify the volume in cinder. More info: https://examples.k8s.io/mysql-cinder-pd/README.md",
                     "type": "string"
                 }
             },
             "required": [
                 "volumeID"
+            ],
+            "type": "object",
+            "additionalProperties": false
+        },
+        "io.k8s.api.core.v1.ClusterTrustBundleProjection": {
+            "description": "ClusterTrustBundleProjection describes how to select a set of ClusterTrustBundle objects and project their contents into the pod filesystem.",
+            "properties": {
+                "labelSelector": {
+                    "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelector",
+                    "description": "Select all ClusterTrustBundles that match this label selector.  Only has effect if signerName is set.  Mutually-exclusive with name.  If unset, interpreted as \"match nothing\".  If set but empty, interpreted as \"match everything\"."
+                },
+                "name": {
+                    "description": "Select a single ClusterTrustBundle by object name.  Mutually-exclusive with signerName and labelSelector.",
+                    "type": "string"
+                },
+                "optional": {
+                    "description": "If true, don't block pod startup if the referenced ClusterTrustBundle(s) aren't available.  If using name, then the named ClusterTrustBundle is allowed not to exist.  If using signerName, then the combination of signerName and labelSelector is allowed to match zero ClusterTrustBundles.",
+                    "type": "boolean"
+                },
+                "path": {
+                    "description": "Relative path from the volume root to write the bundle.",
+                    "type": "string"
+                },
+                "signerName": {
+                    "description": "Select all ClusterTrustBundles that match this signer name. Mutually-exclusive with name.  The contents of all selected ClusterTrustBundles will be unified and deduplicated.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "path"
             ],
             "type": "object",
             "additionalProperties": false
@@ -8074,7 +8106,7 @@
             "description": "Adapts a ConfigMap into a projected volume.\n\nThe contents of the target ConfigMap's Data field will be presented in a projected volume as files using the keys in the Data field as the file names, unless the items element is populated with specific mappings of keys to paths. Note that this is identical to a configmap volume source without the default mode.",
             "properties": {
                 "items": {
-                    "description": "If unspecified, each key-value pair in the Data field of the referenced ConfigMap will be projected into the volume as a file whose name is the key and content is the value. If specified, the listed keys will be projected into the specified paths, and unlisted keys will not be present. If a key is specified which is not present in the ConfigMap, the volume setup will error unless it is marked optional. Paths must be relative and may not contain the '..' path or start with '..'.",
+                    "description": "items if unspecified, each key-value pair in the Data field of the referenced ConfigMap will be projected into the volume as a file whose name is the key and content is the value. If specified, the listed keys will be projected into the specified paths, and unlisted keys will not be present. If a key is specified which is not present in the ConfigMap, the volume setup will error unless it is marked optional. Paths must be relative and may not contain the '..' path or start with '..'.",
                     "items": {
                         "$ref": "#/definitions/io.k8s.api.core.v1.KeyToPath"
                     },
@@ -8085,7 +8117,7 @@
                     "type": "string"
                 },
                 "optional": {
-                    "description": "Specify whether the ConfigMap or its keys must be defined",
+                    "description": "optional specify whether the ConfigMap or its keys must be defined",
                     "type": "boolean"
                 }
             },
@@ -8096,12 +8128,12 @@
             "description": "Adapts a ConfigMap into a volume.\n\nThe contents of the target ConfigMap's Data field will be presented in a volume as files using the keys in the Data field as the file names, unless the items element is populated with specific mappings of keys to paths. ConfigMap volumes support ownership management and SELinux relabeling.",
             "properties": {
                 "defaultMode": {
-                    "description": "Optional: mode bits used to set permissions on created files by default. Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511. YAML accepts both octal and decimal values, JSON requires decimal values for mode bits. Defaults to 0644. Directories within the path are not affected by this setting. This might be in conflict with other options that affect the file mode, like fsGroup, and the result can be other mode bits set.",
+                    "description": "defaultMode is optional: mode bits used to set permissions on created files by default. Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511. YAML accepts both octal and decimal values, JSON requires decimal values for mode bits. Defaults to 0644. Directories within the path are not affected by this setting. This might be in conflict with other options that affect the file mode, like fsGroup, and the result can be other mode bits set.",
                     "format": "int32",
                     "type": "integer"
                 },
                 "items": {
-                    "description": "If unspecified, each key-value pair in the Data field of the referenced ConfigMap will be projected into the volume as a file whose name is the key and content is the value. If specified, the listed keys will be projected into the specified paths, and unlisted keys will not be present. If a key is specified which is not present in the ConfigMap, the volume setup will error unless it is marked optional. Paths must be relative and may not contain the '..' path or start with '..'.",
+                    "description": "items if unspecified, each key-value pair in the Data field of the referenced ConfigMap will be projected into the volume as a file whose name is the key and content is the value. If specified, the listed keys will be projected into the specified paths, and unlisted keys will not be present. If a key is specified which is not present in the ConfigMap, the volume setup will error unless it is marked optional. Paths must be relative and may not contain the '..' path or start with '..'.",
                     "items": {
                         "$ref": "#/definitions/io.k8s.api.core.v1.KeyToPath"
                     },
@@ -8112,7 +8144,7 @@
                     "type": "string"
                 },
                 "optional": {
-                    "description": "Specify whether the ConfigMap or its keys must be defined",
+                    "description": "optional specify whether the ConfigMap or its keys must be defined",
                     "type": "boolean"
                 }
             },
@@ -8123,14 +8155,14 @@
             "description": "A single application container that you want to run within a pod.",
             "properties": {
                 "args": {
-                    "description": "Arguments to the entrypoint. The docker image's CMD is used if this is not provided. Variable references $(VAR_NAME) are expanded using the container's environment. If a variable cannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will produce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless of whether the variable exists or not. Cannot be updated. More info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell",
+                    "description": "Arguments to the entrypoint. The container image's CMD is used if this is not provided. Variable references $(VAR_NAME) are expanded using the container's environment. If a variable cannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will produce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless of whether the variable exists or not. Cannot be updated. More info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell",
                     "items": {
                         "type": "string"
                     },
                     "type": "array"
                 },
                 "command": {
-                    "description": "Entrypoint array. Not executed within a shell. The docker image's ENTRYPOINT is used if this is not provided. Variable references $(VAR_NAME) are expanded using the container's environment. If a variable cannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will produce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless of whether the variable exists or not. Cannot be updated. More info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell",
+                    "description": "Entrypoint array. Not executed within a shell. The container image's ENTRYPOINT is used if this is not provided. Variable references $(VAR_NAME) are expanded using the container's environment. If a variable cannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will produce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless of whether the variable exists or not. Cannot be updated. More info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell",
                     "items": {
                         "type": "string"
                     },
@@ -8153,7 +8185,7 @@
                     "type": "array"
                 },
                 "image": {
-                    "description": "Docker image name. More info: https://kubernetes.io/docs/concepts/containers/images This field is optional to allow higher level config management to default or override container images in workload controllers like Deployments and StatefulSets.",
+                    "description": "Container image name. More info: https://kubernetes.io/docs/concepts/containers/images This field is optional to allow higher level config management to default or override container images in workload controllers like Deployments and StatefulSets.",
                     "type": "string"
                 },
                 "imagePullPolicy": {
@@ -8173,7 +8205,7 @@
                     "type": "string"
                 },
                 "ports": {
-                    "description": "List of ports to expose from the container. Exposing a port here gives the system additional information about the network connections a container uses, but is primarily informational. Not specifying a port here DOES NOT prevent that port from being exposed. Any port which is listening on the default \"0.0.0.0\" address inside a container will be accessible from the network. Cannot be updated.",
+                    "description": "List of ports to expose from the container. Not specifying a port here DOES NOT prevent that port from being exposed. Any port which is listening on the default \"0.0.0.0\" address inside a container will be accessible from the network. Modifying this array with strategic merge patch may corrupt the data. For more information See https://github.com/kubernetes/kubernetes/issues/108255. Cannot be updated.",
                     "items": {
                         "$ref": "#/definitions/io.k8s.api.core.v1.ContainerPort"
                     },
@@ -8190,9 +8222,21 @@
                     "$ref": "#/definitions/io.k8s.api.core.v1.Probe",
                     "description": "Periodic probe of container service readiness. Container will be removed from service endpoints if the probe fails. Cannot be updated. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes"
                 },
+                "resizePolicy": {
+                    "description": "Resources resize policy for the container.",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.ContainerResizePolicy"
+                    },
+                    "type": "array",
+                    "x-kubernetes-list-type": "atomic"
+                },
                 "resources": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements",
                     "description": "Compute Resources required by this container. Cannot be updated. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/"
+                },
+                "restartPolicy": {
+                    "description": "RestartPolicy defines the restart behavior of individual containers in a pod. This field may only be set for init containers, and the only allowed value is \"Always\". For non-init containers or when this field is not specified, the restart behavior is defined by the Pod's restart policy and the container type. Setting the RestartPolicy as \"Always\" for the init container will have the following effect: this init container will be continually restarted on exit until all regular containers have terminated. Once all regular containers have completed, all init containers with restartPolicy \"Always\" will be shut down. This lifecycle differs from normal init containers and is often referred to as a \"sidecar\" container. Although this init container still starts in the init container sequence, it does not wait for the container to complete before proceeding to the next init container. Instead, the next init container starts immediately after this init container is started, or after any startupProbe has successfully completed.",
+                    "type": "string"
                 },
                 "securityContext": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
@@ -8283,6 +8327,25 @@
             "type": "object",
             "additionalProperties": false
         },
+        "io.k8s.api.core.v1.ContainerResizePolicy": {
+            "description": "ContainerResizePolicy represents resource resize policy for the container.",
+            "properties": {
+                "resourceName": {
+                    "description": "Name of the resource to which this resource resize policy applies. Supported values: cpu, memory.",
+                    "type": "string"
+                },
+                "restartPolicy": {
+                    "description": "Restart policy to apply when specified resource is resized. If not specified, it defaults to NotRequired.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "resourceName",
+                "restartPolicy"
+            ],
+            "type": "object",
+            "additionalProperties": false
+        },
         "io.k8s.api.core.v1.DownwardAPIProjection": {
             "description": "Represents downward API info for projecting into a projected volume. Note that this is identical to a downwardAPI volume source without the default mode.",
             "properties": {
@@ -8347,12 +8410,12 @@
             "description": "Represents an empty directory for a pod. Empty directory volumes support ownership management and SELinux relabeling.",
             "properties": {
                 "medium": {
-                    "description": "What type of storage medium should back this directory. The default is \"\" which means to use the node's default medium. Must be an empty string (default) or Memory. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir",
+                    "description": "medium represents what type of storage medium should back this directory. The default is \"\" which means to use the node's default medium. Must be an empty string (default) or Memory. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir",
                     "type": "string"
                 },
                 "sizeLimit": {
                     "$ref": "#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity",
-                    "description": "Total amount of local storage required for this EmptyDir volume. The size limit is also applicable for memory medium. The maximum usage on memory medium EmptyDir would be the minimum value between the SizeLimit specified here and the sum of memory limits of all containers in a pod. The default is nil which means that the limit is undefined. More info: http://kubernetes.io/docs/user-guide/volumes#emptydir"
+                    "description": "sizeLimit is the total amount of local storage required for this EmptyDir volume. The size limit is also applicable for memory medium. The maximum usage on memory medium EmptyDir would be the minimum value between the SizeLimit specified here and the sum of memory limits of all containers in a pod. The default is nil which means that the limit is undefined. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir"
                 }
             },
             "type": "object",
@@ -8451,27 +8514,27 @@
             "description": "Represents a Fibre Channel volume. Fibre Channel volumes can only be mounted as read/write once. Fibre Channel volumes support ownership management and SELinux relabeling.",
             "properties": {
                 "fsType": {
-                    "description": "Filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.",
+                    "description": "fsType is the filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.",
                     "type": "string"
                 },
                 "lun": {
-                    "description": "Optional: FC target lun number",
+                    "description": "lun is Optional: FC target lun number",
                     "format": "int32",
                     "type": "integer"
                 },
                 "readOnly": {
-                    "description": "Optional: Defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts.",
+                    "description": "readOnly is Optional: Defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts.",
                     "type": "boolean"
                 },
                 "targetWWNs": {
-                    "description": "Optional: FC target worldwide names (WWNs)",
+                    "description": "targetWWNs is Optional: FC target worldwide names (WWNs)",
                     "items": {
                         "type": "string"
                     },
                     "type": "array"
                 },
                 "wwids": {
-                    "description": "Optional: FC volume world wide identifiers (wwids) Either wwids or combination of targetWWNs and lun must be set, but not both simultaneously.",
+                    "description": "wwids Optional: FC volume world wide identifiers (wwids) Either wwids or combination of targetWWNs and lun must be set, but not both simultaneously.",
                     "items": {
                         "type": "string"
                     },
@@ -8485,27 +8548,27 @@
             "description": "FlexVolume represents a generic volume resource that is provisioned/attached using an exec based plugin.",
             "properties": {
                 "driver": {
-                    "description": "Driver is the name of the driver to use for this volume.",
+                    "description": "driver is the name of the driver to use for this volume.",
                     "type": "string"
                 },
                 "fsType": {
-                    "description": "Filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\". The default filesystem depends on FlexVolume script.",
+                    "description": "fsType is the filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\". The default filesystem depends on FlexVolume script.",
                     "type": "string"
                 },
                 "options": {
                     "additionalProperties": {
                         "type": "string"
                     },
-                    "description": "Optional: Extra command options if any.",
+                    "description": "options is Optional: this field holds extra command options if any.",
                     "type": "object"
                 },
                 "readOnly": {
-                    "description": "Optional: Defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts.",
+                    "description": "readOnly is Optional: defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts.",
                     "type": "boolean"
                 },
                 "secretRef": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.LocalObjectReference",
-                    "description": "Optional: SecretRef is reference to the secret object containing sensitive information to pass to the plugin scripts. This may be empty if no secret object is specified. If the secret object contains more than one secret, all secrets are passed to the plugin scripts."
+                    "description": "secretRef is Optional: secretRef is reference to the secret object containing sensitive information to pass to the plugin scripts. This may be empty if no secret object is specified. If the secret object contains more than one secret, all secrets are passed to the plugin scripts."
                 }
             },
             "required": [
@@ -8518,11 +8581,11 @@
             "description": "Represents a Flocker volume mounted by the Flocker agent. One and only one of datasetName and datasetUUID should be set. Flocker volumes do not support ownership management or SELinux relabeling.",
             "properties": {
                 "datasetName": {
-                    "description": "Name of the dataset stored as metadata -> name on the dataset for Flocker should be considered as deprecated",
+                    "description": "datasetName is Name of the dataset stored as metadata -> name on the dataset for Flocker should be considered as deprecated",
                     "type": "string"
                 },
                 "datasetUUID": {
-                    "description": "UUID of the dataset. This is unique identifier of a Flocker dataset",
+                    "description": "datasetUUID is the UUID of the dataset. This is unique identifier of a Flocker dataset",
                     "type": "string"
                 }
             },
@@ -8533,20 +8596,20 @@
             "description": "Represents a Persistent Disk resource in Google Compute Engine.\n\nA GCE PD must exist before mounting to a container. The disk must also be in the same GCE project and zone as the kubelet. A GCE PD can only be mounted as read/write once or read-only many times. GCE PDs support ownership management and SELinux relabeling.",
             "properties": {
                 "fsType": {
-                    "description": "Filesystem type of the volume that you want to mount. Tip: Ensure that the filesystem type is supported by the host operating system. Examples: \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified. More info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk",
+                    "description": "fsType is filesystem type of the volume that you want to mount. Tip: Ensure that the filesystem type is supported by the host operating system. Examples: \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified. More info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk",
                     "type": "string"
                 },
                 "partition": {
-                    "description": "The partition in the volume that you want to mount. If omitted, the default is to mount by volume name. Examples: For volume /dev/sda1, you specify the partition as \"1\". Similarly, the volume partition for /dev/sda is \"0\" (or you can leave the property empty). More info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk",
+                    "description": "partition is the partition in the volume that you want to mount. If omitted, the default is to mount by volume name. Examples: For volume /dev/sda1, you specify the partition as \"1\". Similarly, the volume partition for /dev/sda is \"0\" (or you can leave the property empty). More info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk",
                     "format": "int32",
                     "type": "integer"
                 },
                 "pdName": {
-                    "description": "Unique name of the PD resource in GCE. Used to identify the disk in GCE. More info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk",
+                    "description": "pdName is unique name of the PD resource in GCE. Used to identify the disk in GCE. More info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk",
                     "type": "string"
                 },
                 "readOnly": {
-                    "description": "ReadOnly here will force the ReadOnly setting in VolumeMounts. Defaults to false. More info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk",
+                    "description": "readOnly here will force the ReadOnly setting in VolumeMounts. Defaults to false. More info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk",
                     "type": "boolean"
                 }
             },
@@ -8556,19 +8619,37 @@
             "type": "object",
             "additionalProperties": false
         },
+        "io.k8s.api.core.v1.GRPCAction": {
+            "properties": {
+                "port": {
+                    "description": "Port number of the gRPC service. Number must be in the range 1 to 65535.",
+                    "format": "int32",
+                    "type": "integer"
+                },
+                "service": {
+                    "description": "Service is the name of the service to place in the gRPC HealthCheckRequest (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).\n\nIf this is not specified, the default behavior is defined by gRPC.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "port"
+            ],
+            "type": "object",
+            "additionalProperties": false
+        },
         "io.k8s.api.core.v1.GitRepoVolumeSource": {
             "description": "Represents a volume that is populated with the contents of a git repository. Git repo volumes do not support ownership management. Git repo volumes support SELinux relabeling.\n\nDEPRECATED: GitRepo is deprecated. To provision a container with a git repo, mount an EmptyDir into an InitContainer that clones the repo using git, then mount the EmptyDir into the Pod's container.",
             "properties": {
                 "directory": {
-                    "description": "Target directory name. Must not contain or start with '..'.  If '.' is supplied, the volume directory will be the git repository.  Otherwise, if specified, the volume will contain the git repository in the subdirectory with the given name.",
+                    "description": "directory is the target directory name. Must not contain or start with '..'.  If '.' is supplied, the volume directory will be the git repository.  Otherwise, if specified, the volume will contain the git repository in the subdirectory with the given name.",
                     "type": "string"
                 },
                 "repository": {
-                    "description": "Repository URL",
+                    "description": "repository is the URL",
                     "type": "string"
                 },
                 "revision": {
-                    "description": "Commit hash for the specified revision.",
+                    "description": "revision is the commit hash for the specified revision.",
                     "type": "string"
                 }
             },
@@ -8582,15 +8663,15 @@
             "description": "Represents a Glusterfs mount that lasts the lifetime of a pod. Glusterfs volumes do not support ownership management or SELinux relabeling.",
             "properties": {
                 "endpoints": {
-                    "description": "EndpointsName is the endpoint name that details Glusterfs topology. More info: https://examples.k8s.io/volumes/glusterfs/README.md#create-a-pod",
+                    "description": "endpoints is the endpoint name that details Glusterfs topology. More info: https://examples.k8s.io/volumes/glusterfs/README.md#create-a-pod",
                     "type": "string"
                 },
                 "path": {
-                    "description": "Path is the Glusterfs volume path. More info: https://examples.k8s.io/volumes/glusterfs/README.md#create-a-pod",
+                    "description": "path is the Glusterfs volume path. More info: https://examples.k8s.io/volumes/glusterfs/README.md#create-a-pod",
                     "type": "string"
                 },
                 "readOnly": {
-                    "description": "ReadOnly here will force the Glusterfs volume to be mounted with read-only permissions. Defaults to false. More info: https://examples.k8s.io/volumes/glusterfs/README.md#create-a-pod",
+                    "description": "readOnly here will force the Glusterfs volume to be mounted with read-only permissions. Defaults to false. More info: https://examples.k8s.io/volumes/glusterfs/README.md#create-a-pod",
                     "type": "boolean"
                 }
             },
@@ -8638,7 +8719,7 @@
             "description": "HTTPHeader describes a custom header to be used in HTTP probes",
             "properties": {
                 "name": {
-                    "description": "The header field name",
+                    "description": "The header field name. This will be canonicalized upon output, so case-variant names will be understood as the same header.",
                     "type": "string"
                 },
                 "value": {
@@ -8650,25 +8731,6 @@
                 "name",
                 "value"
             ],
-            "type": "object",
-            "additionalProperties": false
-        },
-        "io.k8s.api.core.v1.Handler": {
-            "description": "Handler defines a specific action that should be taken",
-            "properties": {
-                "exec": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.ExecAction",
-                    "description": "One and only one of the following should be specified. Exec specifies the action to take."
-                },
-                "httpGet": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.HTTPGetAction",
-                    "description": "HTTPGet specifies the http request to perform."
-                },
-                "tcpSocket": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.TCPSocketAction",
-                    "description": "TCPSocket specifies an action involving a TCP port. TCP hooks not yet supported"
-                }
-            },
             "type": "object",
             "additionalProperties": false
         },
@@ -8694,11 +8756,11 @@
             "description": "Represents a host path mapped into a pod. Host path volumes do not support ownership management or SELinux relabeling.",
             "properties": {
                 "path": {
-                    "description": "Path of the directory on the host. If the path is a symlink, it will follow the link to the real path. More info: https://kubernetes.io/docs/concepts/storage/volumes#hostpath",
+                    "description": "path of the directory on the host. If the path is a symlink, it will follow the link to the real path. More info: https://kubernetes.io/docs/concepts/storage/volumes#hostpath",
                     "type": "string"
                 },
                 "type": {
-                    "description": "Type for HostPath Volume Defaults to \"\" More info: https://kubernetes.io/docs/concepts/storage/volumes#hostpath",
+                    "description": "type for HostPath Volume Defaults to \"\" More info: https://kubernetes.io/docs/concepts/storage/volumes#hostpath",
                     "type": "string"
                 }
             },
@@ -8712,51 +8774,51 @@
             "description": "Represents an ISCSI disk. ISCSI volumes can only be mounted as read/write once. ISCSI volumes support ownership management and SELinux relabeling.",
             "properties": {
                 "chapAuthDiscovery": {
-                    "description": "whether support iSCSI Discovery CHAP authentication",
+                    "description": "chapAuthDiscovery defines whether support iSCSI Discovery CHAP authentication",
                     "type": "boolean"
                 },
                 "chapAuthSession": {
-                    "description": "whether support iSCSI Session CHAP authentication",
+                    "description": "chapAuthSession defines whether support iSCSI Session CHAP authentication",
                     "type": "boolean"
                 },
                 "fsType": {
-                    "description": "Filesystem type of the volume that you want to mount. Tip: Ensure that the filesystem type is supported by the host operating system. Examples: \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified. More info: https://kubernetes.io/docs/concepts/storage/volumes#iscsi",
+                    "description": "fsType is the filesystem type of the volume that you want to mount. Tip: Ensure that the filesystem type is supported by the host operating system. Examples: \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified. More info: https://kubernetes.io/docs/concepts/storage/volumes#iscsi",
                     "type": "string"
                 },
                 "initiatorName": {
-                    "description": "Custom iSCSI Initiator Name. If initiatorName is specified with iscsiInterface simultaneously, new iSCSI interface <target portal>:<volume name> will be created for the connection.",
+                    "description": "initiatorName is the custom iSCSI Initiator Name. If initiatorName is specified with iscsiInterface simultaneously, new iSCSI interface <target portal>:<volume name> will be created for the connection.",
                     "type": "string"
                 },
                 "iqn": {
-                    "description": "Target iSCSI Qualified Name.",
+                    "description": "iqn is the target iSCSI Qualified Name.",
                     "type": "string"
                 },
                 "iscsiInterface": {
-                    "description": "iSCSI Interface Name that uses an iSCSI transport. Defaults to 'default' (tcp).",
+                    "description": "iscsiInterface is the interface Name that uses an iSCSI transport. Defaults to 'default' (tcp).",
                     "type": "string"
                 },
                 "lun": {
-                    "description": "iSCSI Target Lun number.",
+                    "description": "lun represents iSCSI Target Lun number.",
                     "format": "int32",
                     "type": "integer"
                 },
                 "portals": {
-                    "description": "iSCSI Target Portal List. The portal is either an IP or ip_addr:port if the port is other than default (typically TCP ports 860 and 3260).",
+                    "description": "portals is the iSCSI Target Portal List. The portal is either an IP or ip_addr:port if the port is other than default (typically TCP ports 860 and 3260).",
                     "items": {
                         "type": "string"
                     },
                     "type": "array"
                 },
                 "readOnly": {
-                    "description": "ReadOnly here will force the ReadOnly setting in VolumeMounts. Defaults to false.",
+                    "description": "readOnly here will force the ReadOnly setting in VolumeMounts. Defaults to false.",
                     "type": "boolean"
                 },
                 "secretRef": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.LocalObjectReference",
-                    "description": "CHAP Secret for iSCSI target and initiator authentication"
+                    "description": "secretRef is the CHAP Secret for iSCSI target and initiator authentication"
                 },
                 "targetPortal": {
-                    "description": "iSCSI Target Portal. The Portal is either an IP or ip_addr:port if the port is other than default (typically TCP ports 860 and 3260).",
+                    "description": "targetPortal is iSCSI Target Portal. The Portal is either an IP or ip_addr:port if the port is other than default (typically TCP ports 860 and 3260).",
                     "type": "string"
                 }
             },
@@ -8772,16 +8834,16 @@
             "description": "Maps a string key to a path within a volume.",
             "properties": {
                 "key": {
-                    "description": "The key to project.",
+                    "description": "key is the key to project.",
                     "type": "string"
                 },
                 "mode": {
-                    "description": "Optional: mode bits used to set permissions on this file. Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511. YAML accepts both octal and decimal values, JSON requires decimal values for mode bits. If not specified, the volume defaultMode will be used. This might be in conflict with other options that affect the file mode, like fsGroup, and the result can be other mode bits set.",
+                    "description": "mode is Optional: mode bits used to set permissions on this file. Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511. YAML accepts both octal and decimal values, JSON requires decimal values for mode bits. If not specified, the volume defaultMode will be used. This might be in conflict with other options that affect the file mode, like fsGroup, and the result can be other mode bits set.",
                     "format": "int32",
                     "type": "integer"
                 },
                 "path": {
-                    "description": "The relative path of the file to map the key to. May not be an absolute path. May not contain the path element '..'. May not start with the string '..'.",
+                    "description": "path is the relative path of the file to map the key to. May not be an absolute path. May not contain the path element '..'. May not start with the string '..'.",
                     "type": "string"
                 }
             },
@@ -8796,12 +8858,35 @@
             "description": "Lifecycle describes actions that the management system should take in response to container lifecycle events. For the PostStart and PreStop lifecycle handlers, management of the container blocks until the action is complete, unless the container process fails, in which case the handler is aborted.",
             "properties": {
                 "postStart": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.Handler",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.LifecycleHandler",
                     "description": "PostStart is called immediately after a container is created. If the handler fails, the container is terminated and restarted according to its restart policy. Other management of the container blocks until the hook completes. More info: https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#container-hooks"
                 },
                 "preStop": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.Handler",
-                    "description": "PreStop is called immediately before a container is terminated due to an API request or management event such as liveness/startup probe failure, preemption, resource contention, etc. The handler is not called if the container crashes or exits. The reason for termination is passed to the handler. The Pod's termination grace period countdown begins before the PreStop hooked is executed. Regardless of the outcome of the handler, the container will eventually terminate within the Pod's termination grace period. Other management of the container blocks until the hook completes or until the termination grace period is reached. More info: https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#container-hooks"
+                    "$ref": "#/definitions/io.k8s.api.core.v1.LifecycleHandler",
+                    "description": "PreStop is called immediately before a container is terminated due to an API request or management event such as liveness/startup probe failure, preemption, resource contention, etc. The handler is not called if the container crashes or exits. The Pod's termination grace period countdown begins before the PreStop hook is executed. Regardless of the outcome of the handler, the container will eventually terminate within the Pod's termination grace period (unless delayed by finalizers). Other management of the container blocks until the hook completes or until the termination grace period is reached. More info: https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#container-hooks"
+                }
+            },
+            "type": "object",
+            "additionalProperties": false
+        },
+        "io.k8s.api.core.v1.LifecycleHandler": {
+            "description": "LifecycleHandler defines a specific action that should be taken in a lifecycle hook. One and only one of the fields, except TCPSocket must be specified.",
+            "properties": {
+                "exec": {
+                    "$ref": "#/definitions/io.k8s.api.core.v1.ExecAction",
+                    "description": "Exec specifies the action to take."
+                },
+                "httpGet": {
+                    "$ref": "#/definitions/io.k8s.api.core.v1.HTTPGetAction",
+                    "description": "HTTPGet specifies the http request to perform."
+                },
+                "sleep": {
+                    "$ref": "#/definitions/io.k8s.api.core.v1.SleepAction",
+                    "description": "Sleep represents the duration that the container should sleep before being terminated."
+                },
+                "tcpSocket": {
+                    "$ref": "#/definitions/io.k8s.api.core.v1.TCPSocketAction",
+                    "description": "Deprecated. TCPSocket is NOT supported as a LifecycleHandler and kept for the backward compatibility. There are no validation of this field and lifecycle hooks will fail in runtime when tcp handler is specified."
                 }
             },
             "type": "object",
@@ -8872,15 +8957,15 @@
             "description": "Represents an NFS mount that lasts the lifetime of a pod. NFS volumes do not support ownership management or SELinux relabeling.",
             "properties": {
                 "path": {
-                    "description": "Path that is exported by the NFS server. More info: https://kubernetes.io/docs/concepts/storage/volumes#nfs",
+                    "description": "path that is exported by the NFS server. More info: https://kubernetes.io/docs/concepts/storage/volumes#nfs",
                     "type": "string"
                 },
                 "readOnly": {
-                    "description": "ReadOnly here will force the NFS export to be mounted with read-only permissions. Defaults to false. More info: https://kubernetes.io/docs/concepts/storage/volumes#nfs",
+                    "description": "readOnly here will force the NFS export to be mounted with read-only permissions. Defaults to false. More info: https://kubernetes.io/docs/concepts/storage/volumes#nfs",
                     "type": "boolean"
                 },
                 "server": {
-                    "description": "Server is the hostname or IP address of the NFS server. More info: https://kubernetes.io/docs/concepts/storage/volumes#nfs",
+                    "description": "server is the hostname or IP address of the NFS server. More info: https://kubernetes.io/docs/concepts/storage/volumes#nfs",
                     "type": "string"
                 }
             },
@@ -8998,7 +9083,7 @@
             "description": "PersistentVolumeClaimSpec describes the common attributes of storage devices and allows a Source for provider-specific attributes",
             "properties": {
                 "accessModes": {
-                    "description": "AccessModes contains the desired access modes the volume should have. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1",
+                    "description": "accessModes contains the desired access modes the volume should have. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1",
                     "items": {
                         "type": "string"
                     },
@@ -9006,22 +9091,26 @@
                 },
                 "dataSource": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.TypedLocalObjectReference",
-                    "description": "This field can be used to specify either: * An existing VolumeSnapshot object (snapshot.storage.k8s.io/VolumeSnapshot) * An existing PVC (PersistentVolumeClaim) If the provisioner or an external controller can support the specified data source, it will create a new volume based on the contents of the specified data source. If the AnyVolumeDataSource feature gate is enabled, this field will always have the same contents as the DataSourceRef field."
+                    "description": "dataSource field can be used to specify either: * An existing VolumeSnapshot object (snapshot.storage.k8s.io/VolumeSnapshot) * An existing PVC (PersistentVolumeClaim) If the provisioner or an external controller can support the specified data source, it will create a new volume based on the contents of the specified data source. When the AnyVolumeDataSource feature gate is enabled, dataSource contents will be copied to dataSourceRef, and dataSourceRef contents will be copied to dataSource when dataSourceRef.namespace is not specified. If the namespace is specified, then dataSourceRef will not be copied to dataSource."
                 },
                 "dataSourceRef": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.TypedLocalObjectReference",
-                    "description": "Specifies the object from which to populate the volume with data, if a non-empty volume is desired. This may be any local object from a non-empty API group (non core object) or a PersistentVolumeClaim object. When this field is specified, volume binding will only succeed if the type of the specified object matches some installed volume populator or dynamic provisioner. This field will replace the functionality of the DataSource field and as such if both fields are non-empty, they must have the same value. For backwards compatibility, both fields (DataSource and DataSourceRef) will be set to the same value automatically if one of them is empty and the other is non-empty. There are two important differences between DataSource and DataSourceRef: * While DataSource only allows two specific types of objects, DataSourceRef\n  allows any non-core object, as well as PersistentVolumeClaim objects.\n* While DataSource ignores disallowed values (dropping them), DataSourceRef\n  preserves all values, and generates an error if a disallowed value is\n  specified.\n(Alpha) Using this field requires the AnyVolumeDataSource feature gate to be enabled."
+                    "$ref": "#/definitions/io.k8s.api.core.v1.TypedObjectReference",
+                    "description": "dataSourceRef specifies the object from which to populate the volume with data, if a non-empty volume is desired. This may be any object from a non-empty API group (non core object) or a PersistentVolumeClaim object. When this field is specified, volume binding will only succeed if the type of the specified object matches some installed volume populator or dynamic provisioner. This field will replace the functionality of the dataSource field and as such if both fields are non-empty, they must have the same value. For backwards compatibility, when namespace isn't specified in dataSourceRef, both fields (dataSource and dataSourceRef) will be set to the same value automatically if one of them is empty and the other is non-empty. When namespace is specified in dataSourceRef, dataSource isn't set to the same value and must be empty. There are three important differences between dataSource and dataSourceRef: * While dataSource only allows two specific types of objects, dataSourceRef\n  allows any non-core object, as well as PersistentVolumeClaim objects.\n* While dataSource ignores disallowed values (dropping them), dataSourceRef\n  preserves all values, and generates an error if a disallowed value is\n  specified.\n* While dataSource only allows local objects, dataSourceRef allows objects\n  in any namespaces.\n(Beta) Using this field requires the AnyVolumeDataSource feature gate to be enabled. (Alpha) Using the namespace field of dataSourceRef requires the CrossNamespaceVolumeDataSource feature gate to be enabled."
                 },
                 "resources": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements",
-                    "description": "Resources represents the minimum resources the volume should have. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources"
+                    "$ref": "#/definitions/io.k8s.api.core.v1.VolumeResourceRequirements",
+                    "description": "resources represents the minimum resources the volume should have. If RecoverVolumeExpansionFailure feature is enabled users are allowed to specify resource requirements that are lower than previous value but must still be higher than capacity recorded in the status field of the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources"
                 },
                 "selector": {
                     "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelector",
-                    "description": "A label query over volumes to consider for binding."
+                    "description": "selector is a label query over volumes to consider for binding."
                 },
                 "storageClassName": {
-                    "description": "Name of the StorageClass required by the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1",
+                    "description": "storageClassName is the name of the StorageClass required by the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1",
+                    "type": "string"
+                },
+                "volumeAttributesClassName": {
+                    "description": "volumeAttributesClassName may be used to set the VolumeAttributesClass used by this claim. If specified, the CSI driver will create or update the volume with the attributes defined in the corresponding VolumeAttributesClass. This has a different purpose than storageClassName, it can be changed after the claim is created. An empty string value means that no VolumeAttributesClass will be applied to the claim but it's not allowed to reset this field to empty string once it is set. If unspecified and the PersistentVolumeClaim is unbound, the default VolumeAttributesClass will be set by the persistentvolume controller if it exists. If the resource referred to by volumeAttributesClass does not exist, this PersistentVolumeClaim will be set to a Pending state, as reflected by the modifyVolumeStatus field, until such as a resource exists. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#volumeattributesclass (Alpha) Using this field requires the VolumeAttributesClass feature gate to be enabled.",
                     "type": "string"
                 },
                 "volumeMode": {
@@ -9029,7 +9118,7 @@
                     "type": "string"
                 },
                 "volumeName": {
-                    "description": "VolumeName is the binding reference to the PersistentVolume backing this claim.",
+                    "description": "volumeName is the binding reference to the PersistentVolume backing this claim.",
                     "type": "string"
                 }
             },
@@ -9058,11 +9147,11 @@
             "description": "PersistentVolumeClaimVolumeSource references the user's PVC in the same namespace. This volume finds the bound PV and mounts that volume for the pod. A PersistentVolumeClaimVolumeSource is, essentially, a wrapper around another type of volume that is owned by someone else (the system).",
             "properties": {
                 "claimName": {
-                    "description": "ClaimName is the name of a PersistentVolumeClaim in the same namespace as the pod using this volume. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims",
+                    "description": "claimName is the name of a PersistentVolumeClaim in the same namespace as the pod using this volume. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims",
                     "type": "string"
                 },
                 "readOnly": {
-                    "description": "Will force the ReadOnly setting in VolumeMounts. Default false.",
+                    "description": "readOnly Will force the ReadOnly setting in VolumeMounts. Default false.",
                     "type": "boolean"
                 }
             },
@@ -9076,11 +9165,11 @@
             "description": "Represents a Photon Controller persistent disk resource.",
             "properties": {
                 "fsType": {
-                    "description": "Filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.",
+                    "description": "fsType is the filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.",
                     "type": "string"
                 },
                 "pdID": {
-                    "description": "ID that identifies Photon Controller persistent disk",
+                    "description": "pdID is the ID that identifies Photon Controller persistent disk",
                     "type": "string"
                 }
             },
@@ -9116,14 +9205,30 @@
             "properties": {
                 "labelSelector": {
                     "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelector",
-                    "description": "A label query over a set of resources, in this case pods."
+                    "description": "A label query over a set of resources, in this case pods. If it's null, this PodAffinityTerm matches with no Pods."
+                },
+                "matchLabelKeys": {
+                    "description": "MatchLabelKeys is a set of pod label keys to select which pods will be taken into consideration. The keys are used to lookup values from the incoming pod labels, those key-value labels are merged with `LabelSelector` as `key in (value)` to select the group of existing pods which pods will be taken into consideration for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming pod labels will be ignored. The default value is empty. The same key is forbidden to exist in both MatchLabelKeys and LabelSelector. Also, MatchLabelKeys cannot be set when LabelSelector isn't set. This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array",
+                    "x-kubernetes-list-type": "atomic"
+                },
+                "mismatchLabelKeys": {
+                    "description": "MismatchLabelKeys is a set of pod label keys to select which pods will be taken into consideration. The keys are used to lookup values from the incoming pod labels, those key-value labels are merged with `LabelSelector` as `key notin (value)` to select the group of existing pods which pods will be taken into consideration for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming pod labels will be ignored. The default value is empty. The same key is forbidden to exist in both MismatchLabelKeys and LabelSelector. Also, MismatchLabelKeys cannot be set when LabelSelector isn't set. This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array",
+                    "x-kubernetes-list-type": "atomic"
                 },
                 "namespaceSelector": {
                     "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelector",
-                    "description": "A label query over the set of namespaces that the term applies to. The term is applied to the union of the namespaces selected by this field and the ones listed in the namespaces field. null selector and null or empty namespaces list means \"this pod's namespace\". An empty selector ({}) matches all namespaces. This field is beta-level and is only honored when PodAffinityNamespaceSelector feature is enabled."
+                    "description": "A label query over the set of namespaces that the term applies to. The term is applied to the union of the namespaces selected by this field and the ones listed in the namespaces field. null selector and null or empty namespaces list means \"this pod's namespace\". An empty selector ({}) matches all namespaces."
                 },
                 "namespaces": {
-                    "description": "namespaces specifies a static list of namespace names that the term applies to. The term is applied to the union of the namespaces listed in this field and the ones selected by namespaceSelector. null or empty namespaces list and null namespaceSelector means \"this pod's namespace\"",
+                    "description": "namespaces specifies a static list of namespace names that the term applies to. The term is applied to the union of the namespaces listed in this field and the ones selected by namespaceSelector. null or empty namespaces list and null namespaceSelector means \"this pod's namespace\".",
                     "items": {
                         "type": "string"
                     },
@@ -9165,16 +9270,16 @@
             "description": "PodSecurityContext holds pod-level security attributes and common container settings. Some fields are also present in container.securityContext.  Field values of container.securityContext take precedence over field values of PodSecurityContext.",
             "properties": {
                 "fsGroup": {
-                    "description": "A special supplemental group that applies to all containers in a pod. Some volume types allow the Kubelet to change the ownership of that volume to be owned by the pod:\n\n1. The owning GID will be the FSGroup 2. The setgid bit is set (new files created in the volume will be owned by FSGroup) 3. The permission bits are OR'd with rw-rw----\n\nIf unset, the Kubelet will not modify the ownership and permissions of any volume.",
+                    "description": "A special supplemental group that applies to all containers in a pod. Some volume types allow the Kubelet to change the ownership of that volume to be owned by the pod:\n\n1. The owning GID will be the FSGroup 2. The setgid bit is set (new files created in the volume will be owned by FSGroup) 3. The permission bits are OR'd with rw-rw----\n\nIf unset, the Kubelet will not modify the ownership and permissions of any volume. Note that this field cannot be set when spec.os.name is windows.",
                     "format": "int64",
                     "type": "integer"
                 },
                 "fsGroupChangePolicy": {
-                    "description": "fsGroupChangePolicy defines behavior of changing ownership and permission of the volume before being exposed inside Pod. This field will only apply to volume types which support fsGroup based ownership(and permissions). It will have no effect on ephemeral volume types such as: secret, configmaps and emptydir. Valid values are \"OnRootMismatch\" and \"Always\". If not specified, \"Always\" is used.",
+                    "description": "fsGroupChangePolicy defines behavior of changing ownership and permission of the volume before being exposed inside Pod. This field will only apply to volume types which support fsGroup based ownership(and permissions). It will have no effect on ephemeral volume types such as: secret, configmaps and emptydir. Valid values are \"OnRootMismatch\" and \"Always\". If not specified, \"Always\" is used. Note that this field cannot be set when spec.os.name is windows.",
                     "type": "string"
                 },
                 "runAsGroup": {
-                    "description": "The GID to run the entrypoint of the container process. Uses runtime default if unset. May also be set in SecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence for that container.",
+                    "description": "The GID to run the entrypoint of the container process. Uses runtime default if unset. May also be set in SecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence for that container. Note that this field cannot be set when spec.os.name is windows.",
                     "format": "int64",
                     "type": "integer"
                 },
@@ -9183,20 +9288,20 @@
                     "type": "boolean"
                 },
                 "runAsUser": {
-                    "description": "The UID to run the entrypoint of the container process. Defaults to user specified in image metadata if unspecified. May also be set in SecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence for that container.",
+                    "description": "The UID to run the entrypoint of the container process. Defaults to user specified in image metadata if unspecified. May also be set in SecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence for that container. Note that this field cannot be set when spec.os.name is windows.",
                     "format": "int64",
                     "type": "integer"
                 },
                 "seLinuxOptions": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.SELinuxOptions",
-                    "description": "The SELinux context to be applied to all containers. If unspecified, the container runtime will allocate a random SELinux context for each container.  May also be set in SecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence for that container."
+                    "description": "The SELinux context to be applied to all containers. If unspecified, the container runtime will allocate a random SELinux context for each container.  May also be set in SecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence for that container. Note that this field cannot be set when spec.os.name is windows."
                 },
                 "seccompProfile": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.SeccompProfile",
-                    "description": "The seccomp options to use by the containers in this pod."
+                    "description": "The seccomp options to use by the containers in this pod. Note that this field cannot be set when spec.os.name is windows."
                 },
                 "supplementalGroups": {
-                    "description": "A list of groups applied to the first process run in each container, in addition to the container's primary GID.  If unspecified, no groups will be added to any container.",
+                    "description": "A list of groups applied to the first process run in each container, in addition to the container's primary GID, the fsGroup (if specified), and group memberships defined in the container image for the uid of the container process. If unspecified, no additional groups are added to any container. Note that group memberships defined in the container image for the uid of the container process are still effective, even if they are not included in this list. Note that this field cannot be set when spec.os.name is windows.",
                     "items": {
                         "format": "int64",
                         "type": "integer"
@@ -9204,7 +9309,7 @@
                     "type": "array"
                 },
                 "sysctls": {
-                    "description": "Sysctls hold a list of namespaced sysctls used for the pod. Pods with unsupported sysctls (by the container runtime) might fail to launch.",
+                    "description": "Sysctls hold a list of namespaced sysctls used for the pod. Pods with unsupported sysctls (by the container runtime) might fail to launch. Note that this field cannot be set when spec.os.name is windows.",
                     "items": {
                         "$ref": "#/definitions/io.k8s.api.core.v1.Sysctl"
                     },
@@ -9212,7 +9317,7 @@
                 },
                 "windowsOptions": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.WindowsSecurityContextOptions",
-                    "description": "The Windows specific settings applied to all containers. If unspecified, the options within a container's SecurityContext will be used. If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence."
+                    "description": "The Windows specific settings applied to all containers. If unspecified, the options within a container's SecurityContext will be used. If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence. Note that this field cannot be set when spec.os.name is linux."
                 }
             },
             "type": "object",
@@ -9222,15 +9327,15 @@
             "description": "PortworxVolumeSource represents a Portworx volume resource.",
             "properties": {
                 "fsType": {
-                    "description": "FSType represents the filesystem type to mount Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\". Implicitly inferred to be \"ext4\" if unspecified.",
+                    "description": "fSType represents the filesystem type to mount Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\". Implicitly inferred to be \"ext4\" if unspecified.",
                     "type": "string"
                 },
                 "readOnly": {
-                    "description": "Defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts.",
+                    "description": "readOnly defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts.",
                     "type": "boolean"
                 },
                 "volumeID": {
-                    "description": "VolumeID uniquely identifies a Portworx volume",
+                    "description": "volumeID uniquely identifies a Portworx volume",
                     "type": "string"
                 }
             },
@@ -9265,12 +9370,16 @@
             "properties": {
                 "exec": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.ExecAction",
-                    "description": "One and only one of the following should be specified. Exec specifies the action to take."
+                    "description": "Exec specifies the action to take."
                 },
                 "failureThreshold": {
                     "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1.",
                     "format": "int32",
                     "type": "integer"
+                },
+                "grpc": {
+                    "$ref": "#/definitions/io.k8s.api.core.v1.GRPCAction",
+                    "description": "GRPC specifies an action involving a GRPC port."
                 },
                 "httpGet": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.HTTPGetAction",
@@ -9293,7 +9402,7 @@
                 },
                 "tcpSocket": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.TCPSocketAction",
-                    "description": "TCPSocket specifies an action involving a TCP port. TCP hooks not yet supported"
+                    "description": "TCPSocket specifies an action involving a TCP port."
                 },
                 "terminationGracePeriodSeconds": {
                     "description": "Optional duration in seconds the pod needs to terminate gracefully upon probe failure. The grace period is the duration in seconds after the processes running in the pod are sent a termination signal and the time when the processes are forcibly halted with a kill signal. Set this value longer than the expected cleanup time for your process. If this value is nil, the pod's terminationGracePeriodSeconds will be used. Otherwise, this value overrides the value provided by the pod spec. Value must be non-negative integer. The value zero indicates stop immediately via the kill signal (no opportunity to shut down). This is a beta field and requires enabling ProbeTerminationGracePeriod feature gate. Minimum value is 1. spec.terminationGracePeriodSeconds is used if unset.",
@@ -9313,12 +9422,12 @@
             "description": "Represents a projected volume source",
             "properties": {
                 "defaultMode": {
-                    "description": "Mode bits used to set permissions on created files by default. Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511. YAML accepts both octal and decimal values, JSON requires decimal values for mode bits. Directories within the path are not affected by this setting. This might be in conflict with other options that affect the file mode, like fsGroup, and the result can be other mode bits set.",
+                    "description": "defaultMode are the mode bits used to set permissions on created files by default. Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511. YAML accepts both octal and decimal values, JSON requires decimal values for mode bits. Directories within the path are not affected by this setting. This might be in conflict with other options that affect the file mode, like fsGroup, and the result can be other mode bits set.",
                     "format": "int32",
                     "type": "integer"
                 },
                 "sources": {
-                    "description": "list of volume projections",
+                    "description": "sources is the list of volume projections",
                     "items": {
                         "$ref": "#/definitions/io.k8s.api.core.v1.VolumeProjection"
                     },
@@ -9332,27 +9441,27 @@
             "description": "Represents a Quobyte mount that lasts the lifetime of a pod. Quobyte volumes do not support ownership management or SELinux relabeling.",
             "properties": {
                 "group": {
-                    "description": "Group to map volume access to Default is no group",
+                    "description": "group to map volume access to Default is no group",
                     "type": "string"
                 },
                 "readOnly": {
-                    "description": "ReadOnly here will force the Quobyte volume to be mounted with read-only permissions. Defaults to false.",
+                    "description": "readOnly here will force the Quobyte volume to be mounted with read-only permissions. Defaults to false.",
                     "type": "boolean"
                 },
                 "registry": {
-                    "description": "Registry represents a single or multiple Quobyte Registry services specified as a string as host:port pair (multiple entries are separated with commas) which acts as the central registry for volumes",
+                    "description": "registry represents a single or multiple Quobyte Registry services specified as a string as host:port pair (multiple entries are separated with commas) which acts as the central registry for volumes",
                     "type": "string"
                 },
                 "tenant": {
-                    "description": "Tenant owning the given Quobyte volume in the Backend Used with dynamically provisioned Quobyte volumes, value is set by the plugin",
+                    "description": "tenant owning the given Quobyte volume in the Backend Used with dynamically provisioned Quobyte volumes, value is set by the plugin",
                     "type": "string"
                 },
                 "user": {
-                    "description": "User to map volume access to Defaults to serivceaccount user",
+                    "description": "user to map volume access to Defaults to serivceaccount user",
                     "type": "string"
                 },
                 "volume": {
-                    "description": "Volume is a string that references an already created Quobyte volume by name.",
+                    "description": "volume is a string that references an already created Quobyte volume by name.",
                     "type": "string"
                 }
             },
@@ -9367,44 +9476,58 @@
             "description": "Represents a Rados Block Device mount that lasts the lifetime of a pod. RBD volumes support ownership management and SELinux relabeling.",
             "properties": {
                 "fsType": {
-                    "description": "Filesystem type of the volume that you want to mount. Tip: Ensure that the filesystem type is supported by the host operating system. Examples: \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified. More info: https://kubernetes.io/docs/concepts/storage/volumes#rbd",
+                    "description": "fsType is the filesystem type of the volume that you want to mount. Tip: Ensure that the filesystem type is supported by the host operating system. Examples: \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified. More info: https://kubernetes.io/docs/concepts/storage/volumes#rbd",
                     "type": "string"
                 },
                 "image": {
-                    "description": "The rados image name. More info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it",
+                    "description": "image is the rados image name. More info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it",
                     "type": "string"
                 },
                 "keyring": {
-                    "description": "Keyring is the path to key ring for RBDUser. Default is /etc/ceph/keyring. More info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it",
+                    "description": "keyring is the path to key ring for RBDUser. Default is /etc/ceph/keyring. More info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it",
                     "type": "string"
                 },
                 "monitors": {
-                    "description": "A collection of Ceph monitors. More info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it",
+                    "description": "monitors is a collection of Ceph monitors. More info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it",
                     "items": {
                         "type": "string"
                     },
                     "type": "array"
                 },
                 "pool": {
-                    "description": "The rados pool name. Default is rbd. More info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it",
+                    "description": "pool is the rados pool name. Default is rbd. More info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it",
                     "type": "string"
                 },
                 "readOnly": {
-                    "description": "ReadOnly here will force the ReadOnly setting in VolumeMounts. Defaults to false. More info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it",
+                    "description": "readOnly here will force the ReadOnly setting in VolumeMounts. Defaults to false. More info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it",
                     "type": "boolean"
                 },
                 "secretRef": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.LocalObjectReference",
-                    "description": "SecretRef is name of the authentication secret for RBDUser. If provided overrides keyring. Default is nil. More info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it"
+                    "description": "secretRef is name of the authentication secret for RBDUser. If provided overrides keyring. Default is nil. More info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it"
                 },
                 "user": {
-                    "description": "The rados user name. Default is admin. More info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it",
+                    "description": "user is the rados user name. Default is admin. More info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it",
                     "type": "string"
                 }
             },
             "required": [
                 "monitors",
                 "image"
+            ],
+            "type": "object",
+            "additionalProperties": false
+        },
+        "io.k8s.api.core.v1.ResourceClaim": {
+            "description": "ResourceClaim references one entry in PodSpec.ResourceClaims.",
+            "properties": {
+                "name": {
+                    "description": "Name must match the name of one entry in pod.spec.resourceClaims of the Pod where this field is used. It makes that resource available inside a container.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "name"
             ],
             "type": "object",
             "additionalProperties": false
@@ -9435,6 +9558,17 @@
         "io.k8s.api.core.v1.ResourceRequirements": {
             "description": "ResourceRequirements describes the compute resource requirements.",
             "properties": {
+                "claims": {
+                    "description": "Claims lists the names of resources, defined in spec.resourceClaims, that are used by this container.\n\nThis is an alpha field and requires enabling the DynamicResourceAllocation feature gate.\n\nThis field is immutable. It can only be set for containers.",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.ResourceClaim"
+                    },
+                    "type": "array",
+                    "x-kubernetes-list-map-keys": [
+                        "name"
+                    ],
+                    "x-kubernetes-list-type": "map"
+                },
                 "limits": {
                     "additionalProperties": {
                         "$ref": "#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity"
@@ -9446,7 +9580,7 @@
                     "additionalProperties": {
                         "$ref": "#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity"
                     },
-                    "description": "Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/",
+                    "description": "Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. Requests cannot exceed Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/",
                     "type": "object"
                 }
             },
@@ -9480,43 +9614,43 @@
             "description": "ScaleIOVolumeSource represents a persistent ScaleIO volume",
             "properties": {
                 "fsType": {
-                    "description": "Filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\". Default is \"xfs\".",
+                    "description": "fsType is the filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\". Default is \"xfs\".",
                     "type": "string"
                 },
                 "gateway": {
-                    "description": "The host address of the ScaleIO API Gateway.",
+                    "description": "gateway is the host address of the ScaleIO API Gateway.",
                     "type": "string"
                 },
                 "protectionDomain": {
-                    "description": "The name of the ScaleIO Protection Domain for the configured storage.",
+                    "description": "protectionDomain is the name of the ScaleIO Protection Domain for the configured storage.",
                     "type": "string"
                 },
                 "readOnly": {
-                    "description": "Defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts.",
+                    "description": "readOnly Defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts.",
                     "type": "boolean"
                 },
                 "secretRef": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.LocalObjectReference",
-                    "description": "SecretRef references to the secret for ScaleIO user and other sensitive information. If this is not provided, Login operation will fail."
+                    "description": "secretRef references to the secret for ScaleIO user and other sensitive information. If this is not provided, Login operation will fail."
                 },
                 "sslEnabled": {
-                    "description": "Flag to enable/disable SSL communication with Gateway, default false",
+                    "description": "sslEnabled Flag enable/disable SSL communication with Gateway, default false",
                     "type": "boolean"
                 },
                 "storageMode": {
-                    "description": "Indicates whether the storage for a volume should be ThickProvisioned or ThinProvisioned. Default is ThinProvisioned.",
+                    "description": "storageMode indicates whether the storage for a volume should be ThickProvisioned or ThinProvisioned. Default is ThinProvisioned.",
                     "type": "string"
                 },
                 "storagePool": {
-                    "description": "The ScaleIO Storage Pool associated with the protection domain.",
+                    "description": "storagePool is the ScaleIO Storage Pool associated with the protection domain.",
                     "type": "string"
                 },
                 "system": {
-                    "description": "The name of the storage system as configured in ScaleIO.",
+                    "description": "system is the name of the storage system as configured in ScaleIO.",
                     "type": "string"
                 },
                 "volumeName": {
-                    "description": "The name of a volume already created in the ScaleIO system that is associated with this volume source.",
+                    "description": "volumeName is the name of a volume already created in the ScaleIO system that is associated with this volume source.",
                     "type": "string"
                 }
             },
@@ -9532,7 +9666,7 @@
             "description": "SeccompProfile defines a pod/container's seccomp profile settings. Only one profile source may be set.",
             "properties": {
                 "localhostProfile": {
-                    "description": "localhostProfile indicates a profile defined in a file on the node should be used. The profile must be preconfigured on the node to work. Must be a descending path, relative to the kubelet's configured seccomp profile location. Must only be set if type is \"Localhost\".",
+                    "description": "localhostProfile indicates a profile defined in a file on the node should be used. The profile must be preconfigured on the node to work. Must be a descending path, relative to the kubelet's configured seccomp profile location. Must be set if type is \"Localhost\". Must NOT be set for any other type.",
                     "type": "string"
                 },
                 "type": {
@@ -9596,7 +9730,7 @@
             "description": "Adapts a secret into a projected volume.\n\nThe contents of the target Secret's Data field will be presented in a projected volume as files using the keys in the Data field as the file names. Note that this is identical to a secret volume source without the default mode.",
             "properties": {
                 "items": {
-                    "description": "If unspecified, each key-value pair in the Data field of the referenced Secret will be projected into the volume as a file whose name is the key and content is the value. If specified, the listed keys will be projected into the specified paths, and unlisted keys will not be present. If a key is specified which is not present in the Secret, the volume setup will error unless it is marked optional. Paths must be relative and may not contain the '..' path or start with '..'.",
+                    "description": "items if unspecified, each key-value pair in the Data field of the referenced Secret will be projected into the volume as a file whose name is the key and content is the value. If specified, the listed keys will be projected into the specified paths, and unlisted keys will not be present. If a key is specified which is not present in the Secret, the volume setup will error unless it is marked optional. Paths must be relative and may not contain the '..' path or start with '..'.",
                     "items": {
                         "$ref": "#/definitions/io.k8s.api.core.v1.KeyToPath"
                     },
@@ -9607,7 +9741,7 @@
                     "type": "string"
                 },
                 "optional": {
-                    "description": "Specify whether the Secret or its key must be defined",
+                    "description": "optional field specify whether the Secret or its key must be defined",
                     "type": "boolean"
                 }
             },
@@ -9618,23 +9752,23 @@
             "description": "Adapts a Secret into a volume.\n\nThe contents of the target Secret's Data field will be presented in a volume as files using the keys in the Data field as the file names. Secret volumes support ownership management and SELinux relabeling.",
             "properties": {
                 "defaultMode": {
-                    "description": "Optional: mode bits used to set permissions on created files by default. Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511. YAML accepts both octal and decimal values, JSON requires decimal values for mode bits. Defaults to 0644. Directories within the path are not affected by this setting. This might be in conflict with other options that affect the file mode, like fsGroup, and the result can be other mode bits set.",
+                    "description": "defaultMode is Optional: mode bits used to set permissions on created files by default. Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511. YAML accepts both octal and decimal values, JSON requires decimal values for mode bits. Defaults to 0644. Directories within the path are not affected by this setting. This might be in conflict with other options that affect the file mode, like fsGroup, and the result can be other mode bits set.",
                     "format": "int32",
                     "type": "integer"
                 },
                 "items": {
-                    "description": "If unspecified, each key-value pair in the Data field of the referenced Secret will be projected into the volume as a file whose name is the key and content is the value. If specified, the listed keys will be projected into the specified paths, and unlisted keys will not be present. If a key is specified which is not present in the Secret, the volume setup will error unless it is marked optional. Paths must be relative and may not contain the '..' path or start with '..'.",
+                    "description": "items If unspecified, each key-value pair in the Data field of the referenced Secret will be projected into the volume as a file whose name is the key and content is the value. If specified, the listed keys will be projected into the specified paths, and unlisted keys will not be present. If a key is specified which is not present in the Secret, the volume setup will error unless it is marked optional. Paths must be relative and may not contain the '..' path or start with '..'.",
                     "items": {
                         "$ref": "#/definitions/io.k8s.api.core.v1.KeyToPath"
                     },
                     "type": "array"
                 },
                 "optional": {
-                    "description": "Specify whether the Secret or its keys must be defined",
+                    "description": "optional field specify whether the Secret or its keys must be defined",
                     "type": "boolean"
                 },
                 "secretName": {
-                    "description": "Name of the secret in the pod's namespace to use. More info: https://kubernetes.io/docs/concepts/storage/volumes#secret",
+                    "description": "secretName is the name of the secret in the pod's namespace to use. More info: https://kubernetes.io/docs/concepts/storage/volumes#secret",
                     "type": "string"
                 }
             },
@@ -9645,27 +9779,27 @@
             "description": "SecurityContext holds security configuration that will be applied to a container. Some fields are present in both SecurityContext and PodSecurityContext.  When both are set, the values in SecurityContext take precedence.",
             "properties": {
                 "allowPrivilegeEscalation": {
-                    "description": "AllowPrivilegeEscalation controls whether a process can gain more privileges than its parent process. This bool directly controls if the no_new_privs flag will be set on the container process. AllowPrivilegeEscalation is true always when the container is: 1) run as Privileged 2) has CAP_SYS_ADMIN",
+                    "description": "AllowPrivilegeEscalation controls whether a process can gain more privileges than its parent process. This bool directly controls if the no_new_privs flag will be set on the container process. AllowPrivilegeEscalation is true always when the container is: 1) run as Privileged 2) has CAP_SYS_ADMIN Note that this field cannot be set when spec.os.name is windows.",
                     "type": "boolean"
                 },
                 "capabilities": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.Capabilities",
-                    "description": "The capabilities to add/drop when running containers. Defaults to the default set of capabilities granted by the container runtime."
+                    "description": "The capabilities to add/drop when running containers. Defaults to the default set of capabilities granted by the container runtime. Note that this field cannot be set when spec.os.name is windows."
                 },
                 "privileged": {
-                    "description": "Run container in privileged mode. Processes in privileged containers are essentially equivalent to root on the host. Defaults to false.",
+                    "description": "Run container in privileged mode. Processes in privileged containers are essentially equivalent to root on the host. Defaults to false. Note that this field cannot be set when spec.os.name is windows.",
                     "type": "boolean"
                 },
                 "procMount": {
-                    "description": "procMount denotes the type of proc mount to use for the containers. The default is DefaultProcMount which uses the container runtime defaults for readonly paths and masked paths. This requires the ProcMountType feature flag to be enabled.",
+                    "description": "procMount denotes the type of proc mount to use for the containers. The default is DefaultProcMount which uses the container runtime defaults for readonly paths and masked paths. This requires the ProcMountType feature flag to be enabled. Note that this field cannot be set when spec.os.name is windows.",
                     "type": "string"
                 },
                 "readOnlyRootFilesystem": {
-                    "description": "Whether this container has a read-only root filesystem. Default is false.",
+                    "description": "Whether this container has a read-only root filesystem. Default is false. Note that this field cannot be set when spec.os.name is windows.",
                     "type": "boolean"
                 },
                 "runAsGroup": {
-                    "description": "The GID to run the entrypoint of the container process. Uses runtime default if unset. May also be set in PodSecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence.",
+                    "description": "The GID to run the entrypoint of the container process. Uses runtime default if unset. May also be set in PodSecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence. Note that this field cannot be set when spec.os.name is windows.",
                     "format": "int64",
                     "type": "integer"
                 },
@@ -9674,21 +9808,21 @@
                     "type": "boolean"
                 },
                 "runAsUser": {
-                    "description": "The UID to run the entrypoint of the container process. Defaults to user specified in image metadata if unspecified. May also be set in PodSecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence.",
+                    "description": "The UID to run the entrypoint of the container process. Defaults to user specified in image metadata if unspecified. May also be set in PodSecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence. Note that this field cannot be set when spec.os.name is windows.",
                     "format": "int64",
                     "type": "integer"
                 },
                 "seLinuxOptions": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.SELinuxOptions",
-                    "description": "The SELinux context to be applied to the container. If unspecified, the container runtime will allocate a random SELinux context for each container.  May also be set in PodSecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence."
+                    "description": "The SELinux context to be applied to the container. If unspecified, the container runtime will allocate a random SELinux context for each container.  May also be set in PodSecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence. Note that this field cannot be set when spec.os.name is windows."
                 },
                 "seccompProfile": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.SeccompProfile",
-                    "description": "The seccomp options to use by this container. If seccomp options are provided at both the pod & container level, the container options override the pod options."
+                    "description": "The seccomp options to use by this container. If seccomp options are provided at both the pod & container level, the container options override the pod options. Note that this field cannot be set when spec.os.name is windows."
                 },
                 "windowsOptions": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.WindowsSecurityContextOptions",
-                    "description": "The Windows specific settings applied to all containers. If unspecified, the options from the PodSecurityContext will be used. If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence."
+                    "description": "The Windows specific settings applied to all containers. If unspecified, the options from the PodSecurityContext will be used. If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence. Note that this field cannot be set when spec.os.name is linux."
                 }
             },
             "type": "object",
@@ -9698,16 +9832,16 @@
             "description": "ServiceAccountTokenProjection represents a projected service account token volume. This projection can be used to insert a service account token into the pods runtime filesystem for use against APIs (Kubernetes API Server or otherwise).",
             "properties": {
                 "audience": {
-                    "description": "Audience is the intended audience of the token. A recipient of a token must identify itself with an identifier specified in the audience of the token, and otherwise should reject the token. The audience defaults to the identifier of the apiserver.",
+                    "description": "audience is the intended audience of the token. A recipient of a token must identify itself with an identifier specified in the audience of the token, and otherwise should reject the token. The audience defaults to the identifier of the apiserver.",
                     "type": "string"
                 },
                 "expirationSeconds": {
-                    "description": "ExpirationSeconds is the requested duration of validity of the service account token. As the token approaches expiration, the kubelet volume plugin will proactively rotate the service account token. The kubelet will start trying to rotate the token if the token is older than 80 percent of its time to live or if the token is older than 24 hours.Defaults to 1 hour and must be at least 10 minutes.",
+                    "description": "expirationSeconds is the requested duration of validity of the service account token. As the token approaches expiration, the kubelet volume plugin will proactively rotate the service account token. The kubelet will start trying to rotate the token if the token is older than 80 percent of its time to live or if the token is older than 24 hours.Defaults to 1 hour and must be at least 10 minutes.",
                     "format": "int64",
                     "type": "integer"
                 },
                 "path": {
-                    "description": "Path is the path relative to the mount point of the file to project the token into.",
+                    "description": "path is the path relative to the mount point of the file to project the token into.",
                     "type": "string"
                 }
             },
@@ -9717,27 +9851,42 @@
             "type": "object",
             "additionalProperties": false
         },
+        "io.k8s.api.core.v1.SleepAction": {
+            "description": "SleepAction describes a \"sleep\" action.",
+            "properties": {
+                "seconds": {
+                    "description": "Seconds is the number of seconds to sleep.",
+                    "format": "int64",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "seconds"
+            ],
+            "type": "object",
+            "additionalProperties": false
+        },
         "io.k8s.api.core.v1.StorageOSVolumeSource": {
             "description": "Represents a StorageOS persistent volume resource.",
             "properties": {
                 "fsType": {
-                    "description": "Filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.",
+                    "description": "fsType is the filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.",
                     "type": "string"
                 },
                 "readOnly": {
-                    "description": "Defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts.",
+                    "description": "readOnly defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts.",
                     "type": "boolean"
                 },
                 "secretRef": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.LocalObjectReference",
-                    "description": "SecretRef specifies the secret to use for obtaining the StorageOS API credentials.  If not specified, default values will be attempted."
+                    "description": "secretRef specifies the secret to use for obtaining the StorageOS API credentials.  If not specified, default values will be attempted."
                 },
                 "volumeName": {
-                    "description": "VolumeName is the human-readable name of the StorageOS volume.  Volume names are only unique within a namespace.",
+                    "description": "volumeName is the human-readable name of the StorageOS volume.  Volume names are only unique within a namespace.",
                     "type": "string"
                 },
                 "volumeNamespace": {
-                    "description": "VolumeNamespace specifies the scope of the volume within StorageOS.  If no namespace is specified then the Pod's namespace will be used.  This allows the Kubernetes name scoping to be mirrored within StorageOS for tighter integration. Set VolumeName to any name to override the default behaviour. Set to \"default\" if you are not using namespaces within StorageOS. Namespaces that do not pre-exist within StorageOS will be created.",
+                    "description": "volumeNamespace specifies the scope of the volume within StorageOS.  If no namespace is specified then the Pod's namespace will be used.  This allows the Kubernetes name scoping to be mirrored within StorageOS for tighter integration. Set VolumeName to any name to override the default behaviour. Set to \"default\" if you are not using namespaces within StorageOS. Namespaces that do not pre-exist within StorageOS will be created.",
                     "type": "string"
                 }
             },
@@ -9816,17 +9965,38 @@
                     "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelector",
                     "description": "LabelSelector is used to find matching pods. Pods that match this label selector are counted to determine the number of pods in their corresponding topology domain."
                 },
+                "matchLabelKeys": {
+                    "description": "MatchLabelKeys is a set of pod label keys to select the pods over which spreading will be calculated. The keys are used to lookup values from the incoming pod labels, those key-value labels are ANDed with labelSelector to select the group of existing pods over which spreading will be calculated for the incoming pod. The same key is forbidden to exist in both MatchLabelKeys and LabelSelector. MatchLabelKeys cannot be set when LabelSelector isn't set. Keys that don't exist in the incoming pod labels will be ignored. A null or empty list means only match against labelSelector.\n\nThis is a beta field and requires the MatchLabelKeysInPodTopologySpread feature gate to be enabled (enabled by default).",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array",
+                    "x-kubernetes-list-type": "atomic"
+                },
                 "maxSkew": {
-                    "description": "MaxSkew describes the degree to which pods may be unevenly distributed. When `whenUnsatisfiable=DoNotSchedule`, it is the maximum permitted difference between the number of matching pods in the target topology and the global minimum. For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same labelSelector spread as 1/1/0: | zone1 | zone2 | zone3 | |   P   |   P   |       | - if MaxSkew is 1, incoming pod can only be scheduled to zone3 to become 1/1/1; scheduling it onto zone1(zone2) would make the ActualSkew(2-0) on zone1(zone2) violate MaxSkew(1). - if MaxSkew is 2, incoming pod can be scheduled onto any zone. When `whenUnsatisfiable=ScheduleAnyway`, it is used to give higher precedence to topologies that satisfy it. It's a required field. Default value is 1 and 0 is not allowed.",
+                    "description": "MaxSkew describes the degree to which pods may be unevenly distributed. When `whenUnsatisfiable=DoNotSchedule`, it is the maximum permitted difference between the number of matching pods in the target topology and the global minimum. The global minimum is the minimum number of matching pods in an eligible domain or zero if the number of eligible domains is less than MinDomains. For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same labelSelector spread as 2/2/1: In this case, the global minimum is 1. | zone1 | zone2 | zone3 | |  P P  |  P P  |   P   | - if MaxSkew is 1, incoming pod can only be scheduled to zone3 to become 2/2/2; scheduling it onto zone1(zone2) would make the ActualSkew(3-1) on zone1(zone2) violate MaxSkew(1). - if MaxSkew is 2, incoming pod can be scheduled onto any zone. When `whenUnsatisfiable=ScheduleAnyway`, it is used to give higher precedence to topologies that satisfy it. It's a required field. Default value is 1 and 0 is not allowed.",
                     "format": "int32",
                     "type": "integer"
                 },
+                "minDomains": {
+                    "description": "MinDomains indicates a minimum number of eligible domains. When the number of eligible domains with matching topology keys is less than minDomains, Pod Topology Spread treats \"global minimum\" as 0, and then the calculation of Skew is performed. And when the number of eligible domains with matching topology keys equals or greater than minDomains, this value has no effect on scheduling. As a result, when the number of eligible domains is less than minDomains, scheduler won't schedule more than maxSkew Pods to those domains. If value is nil, the constraint behaves as if MinDomains is equal to 1. Valid values are integers greater than 0. When value is not nil, WhenUnsatisfiable must be DoNotSchedule.\n\nFor example, in a 3-zone cluster, MaxSkew is set to 2, MinDomains is set to 5 and pods with the same labelSelector spread as 2/2/2: | zone1 | zone2 | zone3 | |  P P  |  P P  |  P P  | The number of domains is less than 5(MinDomains), so \"global minimum\" is treated as 0. In this situation, new pod with the same labelSelector cannot be scheduled, because computed skew will be 3(3 - 0) if new Pod is scheduled to any of the three zones, it will violate MaxSkew.\n\nThis is a beta field and requires the MinDomainsInPodTopologySpread feature gate to be enabled (enabled by default).",
+                    "format": "int32",
+                    "type": "integer"
+                },
+                "nodeAffinityPolicy": {
+                    "description": "NodeAffinityPolicy indicates how we will treat Pod's nodeAffinity/nodeSelector when calculating pod topology spread skew. Options are: - Honor: only nodes matching nodeAffinity/nodeSelector are included in the calculations. - Ignore: nodeAffinity/nodeSelector are ignored. All nodes are included in the calculations.\n\nIf this value is nil, the behavior is equivalent to the Honor policy. This is a beta-level feature default enabled by the NodeInclusionPolicyInPodTopologySpread feature flag.",
+                    "type": "string"
+                },
+                "nodeTaintsPolicy": {
+                    "description": "NodeTaintsPolicy indicates how we will treat node taints when calculating pod topology spread skew. Options are: - Honor: nodes without taints, along with tainted nodes for which the incoming pod has a toleration, are included. - Ignore: node taints are ignored. All nodes are included.\n\nIf this value is nil, the behavior is equivalent to the Ignore policy. This is a beta-level feature default enabled by the NodeInclusionPolicyInPodTopologySpread feature flag.",
+                    "type": "string"
+                },
                 "topologyKey": {
-                    "description": "TopologyKey is the key of node labels. Nodes that have a label with this key and identical values are considered to be in the same topology. We consider each <key, value> as a \"bucket\", and try to put balanced number of pods into each bucket. It's a required field.",
+                    "description": "TopologyKey is the key of node labels. Nodes that have a label with this key and identical values are considered to be in the same topology. We consider each <key, value> as a \"bucket\", and try to put balanced number of pods into each bucket. We define a domain as a particular instance of a topology. Also, we define an eligible domain as a domain whose nodes meet the requirements of nodeAffinityPolicy and nodeTaintsPolicy. e.g. If TopologyKey is \"kubernetes.io/hostname\", each Node is a domain of that topology. And, if TopologyKey is \"topology.kubernetes.io/zone\", each zone is a domain of that topology. It's a required field.",
                     "type": "string"
                 },
                 "whenUnsatisfiable": {
-                    "description": "WhenUnsatisfiable indicates how to deal with a pod if it doesn't satisfy the spread constraint. - DoNotSchedule (default) tells the scheduler not to schedule it. - ScheduleAnyway tells the scheduler to schedule the pod in any location,\n  but giving higher precedence to topologies that would help reduce the\n  skew.\nA constraint is considered \"Unsatisfiable\" for an incoming pod if and only if every possible node assigment for that pod would violate \"MaxSkew\" on some topology. For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same labelSelector spread as 3/1/1: | zone1 | zone2 | zone3 | | P P P |   P   |   P   | If WhenUnsatisfiable is set to DoNotSchedule, incoming pod can only be scheduled to zone2(zone3) to become 3/2/1(3/1/2) as ActualSkew(2-1) on zone2(zone3) satisfies MaxSkew(1). In other words, the cluster can still be imbalanced, but scheduler won't make it *more* imbalanced. It's a required field.",
+                    "description": "WhenUnsatisfiable indicates how to deal with a pod if it doesn't satisfy the spread constraint. - DoNotSchedule (default) tells the scheduler not to schedule it. - ScheduleAnyway tells the scheduler to schedule the pod in any location,\n  but giving higher precedence to topologies that would help reduce the\n  skew.\nA constraint is considered \"Unsatisfiable\" for an incoming pod if and only if every possible node assignment for that pod would violate \"MaxSkew\" on some topology. For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same labelSelector spread as 3/1/1: | zone1 | zone2 | zone3 | | P P P |   P   |   P   | If WhenUnsatisfiable is set to DoNotSchedule, incoming pod can only be scheduled to zone2(zone3) to become 3/2/1(3/1/2) as ActualSkew(2-1) on zone2(zone3) satisfies MaxSkew(1). In other words, the cluster can still be imbalanced, but scheduler won't make it *more* imbalanced. It's a required field.",
                     "type": "string"
                 }
             },
@@ -9862,128 +10032,154 @@
             "x-kubernetes-map-type": "atomic",
             "additionalProperties": false
         },
+        "io.k8s.api.core.v1.TypedObjectReference": {
+            "properties": {
+                "apiGroup": {
+                    "description": "APIGroup is the group for the resource being referenced. If APIGroup is not specified, the specified Kind must be in the core API group. For any other third-party types, APIGroup is required.",
+                    "type": "string"
+                },
+                "kind": {
+                    "description": "Kind is the type of resource being referenced",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "Name is the name of resource being referenced",
+                    "type": "string"
+                },
+                "namespace": {
+                    "description": "Namespace is the namespace of resource being referenced Note that when a namespace is specified, a gateway.networking.k8s.io/ReferenceGrant object is required in the referent namespace to allow that namespace's owner to accept the reference. See the ReferenceGrant documentation for details. (Alpha) This field requires the CrossNamespaceVolumeDataSource feature gate to be enabled.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "kind",
+                "name"
+            ],
+            "type": "object",
+            "additionalProperties": false
+        },
         "io.k8s.api.core.v1.Volume": {
             "description": "Volume represents a named volume in a pod that may be accessed by any container in the pod.",
             "properties": {
                 "awsElasticBlockStore": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.AWSElasticBlockStoreVolumeSource",
-                    "description": "AWSElasticBlockStore represents an AWS Disk resource that is attached to a kubelet's host machine and then exposed to the pod. More info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore"
+                    "description": "awsElasticBlockStore represents an AWS Disk resource that is attached to a kubelet's host machine and then exposed to the pod. More info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore"
                 },
                 "azureDisk": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.AzureDiskVolumeSource",
-                    "description": "AzureDisk represents an Azure Data Disk mount on the host and bind mount to the pod."
+                    "description": "azureDisk represents an Azure Data Disk mount on the host and bind mount to the pod."
                 },
                 "azureFile": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.AzureFileVolumeSource",
-                    "description": "AzureFile represents an Azure File Service mount on the host and bind mount to the pod."
+                    "description": "azureFile represents an Azure File Service mount on the host and bind mount to the pod."
                 },
                 "cephfs": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.CephFSVolumeSource",
-                    "description": "CephFS represents a Ceph FS mount on the host that shares a pod's lifetime"
+                    "description": "cephFS represents a Ceph FS mount on the host that shares a pod's lifetime"
                 },
                 "cinder": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.CinderVolumeSource",
-                    "description": "Cinder represents a cinder volume attached and mounted on kubelets host machine. More info: https://examples.k8s.io/mysql-cinder-pd/README.md"
+                    "description": "cinder represents a cinder volume attached and mounted on kubelets host machine. More info: https://examples.k8s.io/mysql-cinder-pd/README.md"
                 },
                 "configMap": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.ConfigMapVolumeSource",
-                    "description": "ConfigMap represents a configMap that should populate this volume"
+                    "description": "configMap represents a configMap that should populate this volume"
                 },
                 "csi": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.CSIVolumeSource",
-                    "description": "CSI (Container Storage Interface) represents ephemeral storage that is handled by certain external CSI drivers (Beta feature)."
+                    "description": "csi (Container Storage Interface) represents ephemeral storage that is handled by certain external CSI drivers (Beta feature)."
                 },
                 "downwardAPI": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.DownwardAPIVolumeSource",
-                    "description": "DownwardAPI represents downward API about the pod that should populate this volume"
+                    "description": "downwardAPI represents downward API about the pod that should populate this volume"
                 },
                 "emptyDir": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.EmptyDirVolumeSource",
-                    "description": "EmptyDir represents a temporary directory that shares a pod's lifetime. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir"
+                    "description": "emptyDir represents a temporary directory that shares a pod's lifetime. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir"
                 },
                 "ephemeral": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.EphemeralVolumeSource",
-                    "description": "Ephemeral represents a volume that is handled by a cluster storage driver. The volume's lifecycle is tied to the pod that defines it - it will be created before the pod starts, and deleted when the pod is removed.\n\nUse this if: a) the volume is only needed while the pod runs, b) features of normal volumes like restoring from snapshot or capacity\n   tracking are needed,\nc) the storage driver is specified through a storage class, and d) the storage driver supports dynamic volume provisioning through\n   a PersistentVolumeClaim (see EphemeralVolumeSource for more\n   information on the connection between this volume type\n   and PersistentVolumeClaim).\n\nUse PersistentVolumeClaim or one of the vendor-specific APIs for volumes that persist for longer than the lifecycle of an individual pod.\n\nUse CSI for light-weight local ephemeral volumes if the CSI driver is meant to be used that way - see the documentation of the driver for more information.\n\nA pod can use both types of ephemeral volumes and persistent volumes at the same time.\n\nThis is a beta feature and only available when the GenericEphemeralVolume feature gate is enabled."
+                    "description": "ephemeral represents a volume that is handled by a cluster storage driver. The volume's lifecycle is tied to the pod that defines it - it will be created before the pod starts, and deleted when the pod is removed.\n\nUse this if: a) the volume is only needed while the pod runs, b) features of normal volumes like restoring from snapshot or capacity\n   tracking are needed,\nc) the storage driver is specified through a storage class, and d) the storage driver supports dynamic volume provisioning through\n   a PersistentVolumeClaim (see EphemeralVolumeSource for more\n   information on the connection between this volume type\n   and PersistentVolumeClaim).\n\nUse PersistentVolumeClaim or one of the vendor-specific APIs for volumes that persist for longer than the lifecycle of an individual pod.\n\nUse CSI for light-weight local ephemeral volumes if the CSI driver is meant to be used that way - see the documentation of the driver for more information.\n\nA pod can use both types of ephemeral volumes and persistent volumes at the same time."
                 },
                 "fc": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.FCVolumeSource",
-                    "description": "FC represents a Fibre Channel resource that is attached to a kubelet's host machine and then exposed to the pod."
+                    "description": "fc represents a Fibre Channel resource that is attached to a kubelet's host machine and then exposed to the pod."
                 },
                 "flexVolume": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.FlexVolumeSource",
-                    "description": "FlexVolume represents a generic volume resource that is provisioned/attached using an exec based plugin."
+                    "description": "flexVolume represents a generic volume resource that is provisioned/attached using an exec based plugin."
                 },
                 "flocker": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.FlockerVolumeSource",
-                    "description": "Flocker represents a Flocker volume attached to a kubelet's host machine. This depends on the Flocker control service being running"
+                    "description": "flocker represents a Flocker volume attached to a kubelet's host machine. This depends on the Flocker control service being running"
                 },
                 "gcePersistentDisk": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.GCEPersistentDiskVolumeSource",
-                    "description": "GCEPersistentDisk represents a GCE Disk resource that is attached to a kubelet's host machine and then exposed to the pod. More info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk"
+                    "description": "gcePersistentDisk represents a GCE Disk resource that is attached to a kubelet's host machine and then exposed to the pod. More info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk"
                 },
                 "gitRepo": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.GitRepoVolumeSource",
-                    "description": "GitRepo represents a git repository at a particular revision. DEPRECATED: GitRepo is deprecated. To provision a container with a git repo, mount an EmptyDir into an InitContainer that clones the repo using git, then mount the EmptyDir into the Pod's container."
+                    "description": "gitRepo represents a git repository at a particular revision. DEPRECATED: GitRepo is deprecated. To provision a container with a git repo, mount an EmptyDir into an InitContainer that clones the repo using git, then mount the EmptyDir into the Pod's container."
                 },
                 "glusterfs": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.GlusterfsVolumeSource",
-                    "description": "Glusterfs represents a Glusterfs mount on the host that shares a pod's lifetime. More info: https://examples.k8s.io/volumes/glusterfs/README.md"
+                    "description": "glusterfs represents a Glusterfs mount on the host that shares a pod's lifetime. More info: https://examples.k8s.io/volumes/glusterfs/README.md"
                 },
                 "hostPath": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.HostPathVolumeSource",
-                    "description": "HostPath represents a pre-existing file or directory on the host machine that is directly exposed to the container. This is generally used for system agents or other privileged things that are allowed to see the host machine. Most containers will NOT need this. More info: https://kubernetes.io/docs/concepts/storage/volumes#hostpath"
+                    "description": "hostPath represents a pre-existing file or directory on the host machine that is directly exposed to the container. This is generally used for system agents or other privileged things that are allowed to see the host machine. Most containers will NOT need this. More info: https://kubernetes.io/docs/concepts/storage/volumes#hostpath"
                 },
                 "iscsi": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.ISCSIVolumeSource",
-                    "description": "ISCSI represents an ISCSI Disk resource that is attached to a kubelet's host machine and then exposed to the pod. More info: https://examples.k8s.io/volumes/iscsi/README.md"
+                    "description": "iscsi represents an ISCSI Disk resource that is attached to a kubelet's host machine and then exposed to the pod. More info: https://examples.k8s.io/volumes/iscsi/README.md"
                 },
                 "name": {
-                    "description": "Volume's name. Must be a DNS_LABEL and unique within the pod. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names",
+                    "description": "name of the volume. Must be a DNS_LABEL and unique within the pod. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names",
                     "type": "string"
                 },
                 "nfs": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.NFSVolumeSource",
-                    "description": "NFS represents an NFS mount on the host that shares a pod's lifetime More info: https://kubernetes.io/docs/concepts/storage/volumes#nfs"
+                    "description": "nfs represents an NFS mount on the host that shares a pod's lifetime More info: https://kubernetes.io/docs/concepts/storage/volumes#nfs"
                 },
                 "persistentVolumeClaim": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.PersistentVolumeClaimVolumeSource",
-                    "description": "PersistentVolumeClaimVolumeSource represents a reference to a PersistentVolumeClaim in the same namespace. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims"
+                    "description": "persistentVolumeClaimVolumeSource represents a reference to a PersistentVolumeClaim in the same namespace. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims"
                 },
                 "photonPersistentDisk": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.PhotonPersistentDiskVolumeSource",
-                    "description": "PhotonPersistentDisk represents a PhotonController persistent disk attached and mounted on kubelets host machine"
+                    "description": "photonPersistentDisk represents a PhotonController persistent disk attached and mounted on kubelets host machine"
                 },
                 "portworxVolume": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.PortworxVolumeSource",
-                    "description": "PortworxVolume represents a portworx volume attached and mounted on kubelets host machine"
+                    "description": "portworxVolume represents a portworx volume attached and mounted on kubelets host machine"
                 },
                 "projected": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.ProjectedVolumeSource",
-                    "description": "Items for all in one resources secrets, configmaps, and downward API"
+                    "description": "projected items for all in one resources secrets, configmaps, and downward API"
                 },
                 "quobyte": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.QuobyteVolumeSource",
-                    "description": "Quobyte represents a Quobyte mount on the host that shares a pod's lifetime"
+                    "description": "quobyte represents a Quobyte mount on the host that shares a pod's lifetime"
                 },
                 "rbd": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.RBDVolumeSource",
-                    "description": "RBD represents a Rados Block Device mount on the host that shares a pod's lifetime. More info: https://examples.k8s.io/volumes/rbd/README.md"
+                    "description": "rbd represents a Rados Block Device mount on the host that shares a pod's lifetime. More info: https://examples.k8s.io/volumes/rbd/README.md"
                 },
                 "scaleIO": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.ScaleIOVolumeSource",
-                    "description": "ScaleIO represents a ScaleIO persistent volume attached and mounted on Kubernetes nodes."
+                    "description": "scaleIO represents a ScaleIO persistent volume attached and mounted on Kubernetes nodes."
                 },
                 "secret": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.SecretVolumeSource",
-                    "description": "Secret represents a secret that should populate this volume. More info: https://kubernetes.io/docs/concepts/storage/volumes#secret"
+                    "description": "secret represents a secret that should populate this volume. More info: https://kubernetes.io/docs/concepts/storage/volumes#secret"
                 },
                 "storageos": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.StorageOSVolumeSource",
-                    "description": "StorageOS represents a StorageOS volume attached and mounted on Kubernetes nodes."
+                    "description": "storageOS represents a StorageOS volume attached and mounted on Kubernetes nodes."
                 },
                 "vsphereVolume": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.VsphereVirtualDiskVolumeSource",
-                    "description": "VsphereVolume represents a vSphere volume attached and mounted on kubelets host machine"
+                    "description": "vsphereVolume represents a vSphere volume attached and mounted on kubelets host machine"
                 }
             },
             "required": [
@@ -10049,21 +10245,46 @@
         "io.k8s.api.core.v1.VolumeProjection": {
             "description": "Projection that may be projected along with other supported volume types",
             "properties": {
+                "clusterTrustBundle": {
+                    "$ref": "#/definitions/io.k8s.api.core.v1.ClusterTrustBundleProjection",
+                    "description": "ClusterTrustBundle allows a pod to access the `.spec.trustBundle` field of ClusterTrustBundle objects in an auto-updating file.\n\nAlpha, gated by the ClusterTrustBundleProjection feature gate.\n\nClusterTrustBundle objects can either be selected by name, or by the combination of signer name and a label selector.\n\nKubelet performs aggressive normalization of the PEM contents written into the pod filesystem.  Esoteric PEM features such as inter-block comments and block headers are stripped.  Certificates are deduplicated. The ordering of certificates within the file is arbitrary, and Kubelet may change the order over time."
+                },
                 "configMap": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.ConfigMapProjection",
-                    "description": "information about the configMap data to project"
+                    "description": "configMap information about the configMap data to project"
                 },
                 "downwardAPI": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.DownwardAPIProjection",
-                    "description": "information about the downwardAPI data to project"
+                    "description": "downwardAPI information about the downwardAPI data to project"
                 },
                 "secret": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.SecretProjection",
-                    "description": "information about the secret data to project"
+                    "description": "secret information about the secret data to project"
                 },
                 "serviceAccountToken": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.ServiceAccountTokenProjection",
-                    "description": "information about the serviceAccountToken data to project"
+                    "description": "serviceAccountToken is information about the serviceAccountToken data to project"
+                }
+            },
+            "type": "object",
+            "additionalProperties": false
+        },
+        "io.k8s.api.core.v1.VolumeResourceRequirements": {
+            "description": "VolumeResourceRequirements describes the storage resource requirements for a volume.",
+            "properties": {
+                "limits": {
+                    "additionalProperties": {
+                        "$ref": "#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity"
+                    },
+                    "description": "Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/",
+                    "type": "object"
+                },
+                "requests": {
+                    "additionalProperties": {
+                        "$ref": "#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity"
+                    },
+                    "description": "Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. Requests cannot exceed Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/",
+                    "type": "object"
                 }
             },
             "type": "object",
@@ -10073,19 +10294,19 @@
             "description": "Represents a vSphere volume resource.",
             "properties": {
                 "fsType": {
-                    "description": "Filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.",
+                    "description": "fsType is filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.",
                     "type": "string"
                 },
                 "storagePolicyID": {
-                    "description": "Storage Policy Based Management (SPBM) profile ID associated with the StoragePolicyName.",
+                    "description": "storagePolicyID is the storage Policy Based Management (SPBM) profile ID associated with the StoragePolicyName.",
                     "type": "string"
                 },
                 "storagePolicyName": {
-                    "description": "Storage Policy Based Management (SPBM) profile name.",
+                    "description": "storagePolicyName is the storage Policy Based Management (SPBM) profile name.",
                     "type": "string"
                 },
                 "volumePath": {
-                    "description": "Path that identifies vSphere volume vmdk",
+                    "description": "volumePath is the path that identifies vSphere volume vmdk",
                     "type": "string"
                 }
             },
@@ -10127,7 +10348,7 @@
                     "type": "string"
                 },
                 "hostProcess": {
-                    "description": "HostProcess determines if a container should be run as a 'Host Process' container. This field is alpha-level and will only be honored by components that enable the WindowsHostProcessContainers feature flag. Setting this field without the feature flag will result in errors when validating the Pod. All of a Pod's containers must have the same effective HostProcess value (it is not allowed to have a mix of HostProcess containers and non-HostProcess containers).  In addition, if HostProcess is true then HostNetwork must also be set to true.",
+                    "description": "HostProcess determines if a container should be run as a 'Host Process' container. All of a Pod's containers must have the same effective HostProcess value (it is not allowed to have a mix of HostProcess containers and non-HostProcess containers). In addition, if HostProcess is true then HostNetwork must also be set to true.",
                     "type": "boolean"
                 },
                 "runAsUserName": {
@@ -10139,14 +10360,14 @@
             "additionalProperties": false
         },
         "io.k8s.api.networking.v1.IPBlock": {
-            "description": "IPBlock describes a particular CIDR (Ex. \"192.168.1.1/24\",\"2001:db9::/64\") that is allowed to the pods matched by a NetworkPolicySpec's podSelector. The except entry describes CIDRs that should not be included within this rule.",
+            "description": "IPBlock describes a particular CIDR (Ex. \"192.168.1.0/24\",\"2001:db8::/64\") that is allowed to the pods matched by a NetworkPolicySpec's podSelector. The except entry describes CIDRs that should not be included within this rule.",
             "properties": {
                 "cidr": {
-                    "description": "CIDR is a string representing the IP Block Valid examples are \"192.168.1.1/24\" or \"2001:db9::/64\"",
+                    "description": "cidr is a string representing the IPBlock Valid examples are \"192.168.1.0/24\" or \"2001:db8::/64\"",
                     "type": "string"
                 },
                 "except": {
-                    "description": "Except is a slice of CIDRs that should not be included within an IP Block Valid examples are \"192.168.1.1/24\" or \"2001:db9::/64\" Except values will be rejected if they are outside the CIDR range",
+                    "description": "except is a slice of CIDRs that should not be included within an IPBlock Valid examples are \"192.168.1.0/24\" or \"2001:db8::/64\" Except values will be rejected if they are outside the cidr range",
                     "items": {
                         "type": "string"
                     },
@@ -10164,15 +10385,15 @@
             "properties": {
                 "ipBlock": {
                     "$ref": "#/definitions/io.k8s.api.networking.v1.IPBlock",
-                    "description": "IPBlock defines policy on a particular IPBlock. If this field is set then neither of the other fields can be."
+                    "description": "ipBlock defines policy on a particular IPBlock. If this field is set then neither of the other fields can be."
                 },
                 "namespaceSelector": {
                     "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelector",
-                    "description": "Selects Namespaces using cluster-scoped labels. This field follows standard label selector semantics; if present but empty, it selects all namespaces.\n\nIf PodSelector is also set, then the NetworkPolicyPeer as a whole selects the Pods matching PodSelector in the Namespaces selected by NamespaceSelector. Otherwise it selects all Pods in the Namespaces selected by NamespaceSelector."
+                    "description": "namespaceSelector selects namespaces using cluster-scoped labels. This field follows standard label selector semantics; if present but empty, it selects all namespaces.\n\nIf podSelector is also set, then the NetworkPolicyPeer as a whole selects the pods matching podSelector in the namespaces selected by namespaceSelector. Otherwise it selects all pods in the namespaces selected by namespaceSelector."
                 },
                 "podSelector": {
                     "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelector",
-                    "description": "This is a label selector which selects Pods. This field follows standard label selector semantics; if present but empty, it selects all pods.\n\nIf NamespaceSelector is also set, then the NetworkPolicyPeer as a whole selects the Pods matching PodSelector in the Namespaces selected by NamespaceSelector. Otherwise it selects the Pods matching PodSelector in the policy's own Namespace."
+                    "description": "podSelector is a label selector which selects pods. This field follows standard label selector semantics; if present but empty, it selects all pods.\n\nIf namespaceSelector is also set, then the NetworkPolicyPeer as a whole selects the pods matching podSelector in the Namespaces selected by NamespaceSelector. Otherwise it selects the pods matching podSelector in the policy's own namespace."
                 }
             },
             "type": "object",
@@ -10182,16 +10403,16 @@
             "description": "NetworkPolicyPort describes a port to allow traffic on",
             "properties": {
                 "endPort": {
-                    "description": "If set, indicates that the range of ports from port to endPort, inclusive, should be allowed by the policy. This field cannot be defined if the port field is not defined or if the port field is defined as a named (string) port. The endPort must be equal or greater than port. This feature is in Beta state and is enabled by default. It can be disabled using the Feature Gate \"NetworkPolicyEndPort\".",
+                    "description": "endPort indicates that the range of ports from port to endPort if set, inclusive, should be allowed by the policy. This field cannot be defined if the port field is not defined or if the port field is defined as a named (string) port. The endPort must be equal or greater than port.",
                     "format": "int32",
                     "type": "integer"
                 },
                 "port": {
                     "$ref": "#/definitions/io.k8s.apimachinery.pkg.util.intstr.IntOrString",
-                    "description": "The port on the given protocol. This can either be a numerical or named port on a pod. If this field is not provided, this matches all port names and numbers. If present, only traffic on the specified protocol AND port will be matched."
+                    "description": "port represents the port on the given protocol. This can either be a numerical or named port on a pod. If this field is not provided, this matches all port names and numbers. If present, only traffic on the specified protocol AND port will be matched."
                 },
                 "protocol": {
-                    "description": "The protocol (TCP, UDP, or SCTP) which traffic must match. If not specified, this field defaults to TCP.",
+                    "description": "protocol represents the protocol (TCP, UDP, or SCTP) which traffic must match. If not specified, this field defaults to TCP.",
                     "type": "string"
                 }
             },
@@ -10239,9 +10460,7 @@
             "properties": {
                 "key": {
                     "description": "key is the label key that the selector applies to.",
-                    "type": "string",
-                    "x-kubernetes-patch-merge-key": "key",
-                    "x-kubernetes-patch-strategy": "merge"
+                    "type": "string"
                 },
                 "operator": {
                     "description": "operator represents a key's relationship to a set of values. Valid operators are In, NotIn, Exists and DoesNotExist.",
@@ -10291,7 +10510,7 @@
                 },
                 "time": {
                     "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Time",
-                    "description": "Time is timestamp of when these fields were set. It should always be empty if Operation is 'Apply'"
+                    "description": "Time is the timestamp of when the ManagedFields entry was added. The timestamp will also be updated if a field is added, the manager changes any of the owned fields value or removes a field. The timestamp does not update when a field is removed from the entry because another manager took it over."
                 }
             },
             "type": "object",
@@ -10304,12 +10523,8 @@
                     "additionalProperties": {
                         "type": "string"
                     },
-                    "description": "Annotations is an unstructured key value map stored with a resource that may be set by external tools to store and retrieve arbitrary metadata. They are not queryable and should be preserved when modifying objects. More info: http://kubernetes.io/docs/user-guide/annotations",
+                    "description": "Annotations is an unstructured key value map stored with a resource that may be set by external tools to store and retrieve arbitrary metadata. They are not queryable and should be preserved when modifying objects. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations",
                     "type": "object"
-                },
-                "clusterName": {
-                    "description": "The name of the cluster which the object belongs to. This is used to distinguish resources with same name and namespace in different clusters. This field is not set anywhere right now and apiserver is going to ignore it if set in create or update request.",
-                    "type": "string"
                 },
                 "creationTimestamp": {
                     "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Time",
@@ -10333,7 +10548,7 @@
                     "x-kubernetes-patch-strategy": "merge"
                 },
                 "generateName": {
-                    "description": "GenerateName is an optional prefix, used by the server, to generate a unique name ONLY IF the Name field has not been provided. If this field is used, the name returned to the client will be different than the name passed. This value will also be combined with a unique suffix. The provided value has the same validation rules as the Name field, and may be truncated by the length of the suffix required to make the value unique on the server.\n\nIf this field is specified and the generated name exists, the server will NOT return a 409 - instead, it will either return 201 Created or 500 with Reason ServerTimeout indicating a unique name could not be found in the time allotted, and the client should retry (optionally after the time indicated in the Retry-After header).\n\nApplied only if Name is not specified. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#idempotency",
+                    "description": "GenerateName is an optional prefix, used by the server, to generate a unique name ONLY IF the Name field has not been provided. If this field is used, the name returned to the client will be different than the name passed. This value will also be combined with a unique suffix. The provided value has the same validation rules as the Name field, and may be truncated by the length of the suffix required to make the value unique on the server.\n\nIf this field is specified and the generated name exists, the server will return a 409.\n\nApplied only if Name is not specified. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#idempotency",
                     "type": "string"
                 },
                 "generation": {
@@ -10345,7 +10560,7 @@
                     "additionalProperties": {
                         "type": "string"
                     },
-                    "description": "Map of string keys and values that can be used to organize and categorize (scope and select) objects. May match selectors of replication controllers and services. More info: http://kubernetes.io/docs/user-guide/labels",
+                    "description": "Map of string keys and values that can be used to organize and categorize (scope and select) objects. May match selectors of replication controllers and services. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels",
                     "type": "object"
                 },
                 "managedFields": {
@@ -10356,11 +10571,11 @@
                     "type": "array"
                 },
                 "name": {
-                    "description": "Name must be unique within a namespace. Is required when creating resources, although some resources may allow a client to request the generation of an appropriate name automatically. Name is primarily intended for creation idempotence and configuration definition. Cannot be updated. More info: http://kubernetes.io/docs/user-guide/identifiers#names",
+                    "description": "Name must be unique within a namespace. Is required when creating resources, although some resources may allow a client to request the generation of an appropriate name automatically. Name is primarily intended for creation idempotence and configuration definition. Cannot be updated. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names",
                     "type": "string"
                 },
                 "namespace": {
-                    "description": "Namespace defines the space within which each name must be unique. An empty namespace is equivalent to the \"default\" namespace, but \"default\" is the canonical representation. Not all objects are required to be scoped to a namespace - the value of this field for those objects will be empty.\n\nMust be a DNS_LABEL. Cannot be updated. More info: http://kubernetes.io/docs/user-guide/namespaces",
+                    "description": "Namespace defines the space within which each name must be unique. An empty namespace is equivalent to the \"default\" namespace, but \"default\" is the canonical representation. Not all objects are required to be scoped to a namespace - the value of this field for those objects will be empty.\n\nMust be a DNS_LABEL. Cannot be updated. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces",
                     "type": "string"
                 },
                 "ownerReferences": {
@@ -10377,11 +10592,11 @@
                     "type": "string"
                 },
                 "selfLink": {
-                    "description": "SelfLink is a URL representing this object. Populated by the system. Read-only.\n\nDEPRECATED Kubernetes will stop propagating this field in 1.20 release and the field is planned to be removed in 1.21 release.",
+                    "description": "Deprecated: selfLink is a legacy read-only field that is no longer populated by the system.",
                     "type": "string"
                 },
                 "uid": {
-                    "description": "UID is the unique in time and space value for this object. It is typically generated by the server on successful creation of a resource and is not allowed to change on PUT operations.\n\nPopulated by the system. Read-only. More info: http://kubernetes.io/docs/user-guide/identifiers#uids",
+                    "description": "UID is the unique in time and space value for this object. It is typically generated by the server on successful creation of a resource and is not allowed to change on PUT operations.\n\nPopulated by the system. Read-only. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#uids",
                     "type": "string"
                 }
             },
@@ -10396,7 +10611,7 @@
                     "type": "string"
                 },
                 "blockOwnerDeletion": {
-                    "description": "If true, AND if the owner has the \"foregroundDeletion\" finalizer, then the owner cannot be deleted from the key-value store until this reference is removed. Defaults to false. To set this field, a user needs \"delete\" permission of the owner, otherwise 422 (Unprocessable Entity) will be returned.",
+                    "description": "If true, AND if the owner has the \"foregroundDeletion\" finalizer, then the owner cannot be deleted from the key-value store until this reference is removed. See https://kubernetes.io/docs/concepts/architecture/garbage-collection/#foreground-deletion for how the garbage collector interacts with this field and enforces the foreground deletion. Defaults to false. To set this field, a user needs \"delete\" permission of the owner, otherwise 422 (Unprocessable Entity) will be returned.",
                     "type": "boolean"
                 },
                 "controller": {
@@ -10408,11 +10623,11 @@
                     "type": "string"
                 },
                 "name": {
-                    "description": "Name of the referent. More info: http://kubernetes.io/docs/user-guide/identifiers#names",
+                    "description": "Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names",
                     "type": "string"
                 },
                 "uid": {
-                    "description": "UID of the referent. More info: http://kubernetes.io/docs/user-guide/identifiers#uids",
+                    "description": "UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#uids",
                     "type": "string"
                 }
             },

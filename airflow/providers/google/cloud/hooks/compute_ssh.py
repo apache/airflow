@@ -334,7 +334,7 @@ class ComputeEngineSSHHook(SSHHook):
         )
 
     def _authorize_os_login(self, pubkey):
-        username = self._oslogin_hook._get_credentials_email()
+        username = self._oslogin_hook._get_credentials_email
         self.log.info("Importing SSH public key using OSLogin: user=%s", username)
         expiration = int((time.time() + self.expire_time) * 1000000)
         ssh_public_key = {"key": pubkey, "expiration_time_usec": expiration}

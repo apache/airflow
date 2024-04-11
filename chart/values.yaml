@@ -68,13 +68,13 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.8.4"
+defaultAirflowTag: "2.9.0"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.8.4"
+airflowVersion: "2.9.0"
 
 # Images
 images:
@@ -109,7 +109,9 @@ images:
     pullPolicy: IfNotPresent
   redis:
     repository: redis
-    tag: 7-bookworm
+    # Redis is limited to 7.2-bookworm due to licencing change
+    # https://redis.io/blog/redis-adopts-dual-source-available-licensing/
+    tag: 7.2-bookworm
     pullPolicy: IfNotPresent
   pgbouncer:
     repository: apache/airflow

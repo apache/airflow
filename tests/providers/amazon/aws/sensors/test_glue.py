@@ -128,13 +128,11 @@ class TestGlueJobSensor:
 
         with pytest.raises(AirflowException):
             assert not op.poke({})
-            mock_print_job_logs.assert_called_once_with(
-                job_name=job_name,
-                run_id=job_run_id,
-                log_group_suffix="error",
-                filter_pattern="?ERROR ?Exception",
-                next_token=ANY,
-            )
+        mock_print_job_logs.assert_called_once_with(
+            job_name=job_name,
+            run_id=job_run_id,
+            continuation_tokens=ANY,
+        )
 
     @pytest.mark.parametrize(
         "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))

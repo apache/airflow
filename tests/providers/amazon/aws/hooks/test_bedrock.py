@@ -16,12 +16,19 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.amazon.aws.hooks.bedrock import BedrockRuntimeHook
+import pytest
+
+from airflow.providers.amazon.aws.hooks.bedrock import BedrockHook, BedrockRuntimeHook
 
 
-class TestBedrockRuntimeHook:
-    def test_conn_returns_a_boto3_connection(self):
-        hook = BedrockRuntimeHook()
-
-        assert hook.conn is not None
-        assert hook.conn.meta.service_model.service_name == "bedrock-runtime"
+class TestBedrockHooks:
+    @pytest.mark.parametrize(
+        "test_hook, service_name",
+        [
+            pytest.param(BedrockHook(), "bedrock", id="bedrock"),
+            pytest.param(BedrockRuntimeHook(), "bedrock-runtime", id="bedrock-runtime"),
+        ],
+    )
+    def test_bedrock_hooks(self, test_hook, service_name):
+        assert test_hook.conn is not None
+        assert test_hook.conn.meta.service_model.service_name == service_name

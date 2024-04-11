@@ -51,6 +51,7 @@ DELETE_RUN_ENDPOINT = ("POST", "api/2.1/jobs/runs/delete")
 REPAIR_RUN_ENDPOINT = ("POST", "api/2.1/jobs/runs/repair")
 OUTPUT_RUNS_JOB_ENDPOINT = ("GET", "api/2.1/jobs/runs/get-output")
 CANCEL_ALL_RUNS_ENDPOINT = ("POST", "api/2.1/jobs/runs/cancel-all")
+UPDATE_PERMISSION_ENDPOINT = ("PATCH", "api/2.0/permissions/jobs")
 
 INSTALL_LIBS_ENDPOINT = ("POST", "api/2.0/libraries/install")
 UNINSTALL_LIBS_ENDPOINT = ("POST", "api/2.0/libraries/uninstall")
@@ -529,7 +530,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def get_latest_repair_id(self, run_id: int) -> int | None:
         """Get latest repair id if any exist for run_id else None."""
-        json = {"run_id": run_id, "include_history": True}
+        json = {"run_id": run_id, "include_history": "true"}
         response = self._do_api_call(GET_RUN_ENDPOINT, json)
         repair_history = response["repair_history"]
         if len(repair_history) == 1:
@@ -654,6 +655,15 @@ class DatabricksHook(BaseDatabricksHook):
                 raise e
 
         return None
+
+    def update_job_permission(self, json: dict[str, Any]) -> dict:
+        """
+        Update databricks job permission.
+
+        :param json: payload
+        :return: json containing permission specification
+        """
+        return self._do_api_call(UPDATE_PERMISSION_ENDPOINT, json)
 
     def test_connection(self) -> tuple[bool, str]:
         """Test the Databricks connectivity from UI."""

@@ -21,7 +21,6 @@ import operator
 import os
 import random
 import re
-import shlex
 import shutil
 import subprocess
 import sys
@@ -155,6 +154,7 @@ from airflow_breeze.utils.run_utils import (
     run_command,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
+from airflow_breeze.utils.version_utils import get_latest_airflow_version, get_latest_helm_chart_version
 from airflow_breeze.utils.versions import is_pre_release
 from airflow_breeze.utils.virtualenv_utils import create_pip_command, create_venv
 
@@ -972,8 +972,12 @@ def tag_providers(
     remotes = ["origin", "apache"]
     for remote in remotes:
         try:
-            command = ["git", "remote", "get-url", "--push", shlex.quote(remote)]
-            result = run_command(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+            result = run_command(
+                ["git", "remote", "get-url", "--push", remote],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+            )
             if "apache/airflow.git" in result.stdout:
                 found_remote = remote
                 break
@@ -992,7 +996,7 @@ def tag_providers(
                 tag = f"{provider}/{match.group(2)}"
                 try:
                     run_command(
-                        ["git", "tag", shlex.quote(tag), "-m", f"Release {date.today()} of providers"],
+                        ["git", "tag", tag, "-m", f"Release {date.today()} of providers"],
                         check=True,
                     )
                     tags.append(tag)
@@ -1001,11 +1005,8 @@ def tag_providers(
 
     if tags:
         try:
-            push_command = ["git", "push", remote] + [shlex.quote(tag) for tag in tags]
             push_result = run_command(
-                push_command,
-                text=True,
-                capture_output=True,
+                ["git", "push", found_remote, *tags],
                 check=False,
             )
             if push_result.returncode == 0:
@@ -1015,7 +1016,7 @@ def tag_providers(
             if clean_local_tags:
                 for tag in tags:
                     try:
-                        run_command(["git", "tag", "-d", shlex.quote(tag)], check=True)
+                        run_command(["git", "tag", "-d", tag], check=True)
                     except subprocess.CalledProcessError:
                         pass
                 get_console().print("\n[success]Cleaning up local tags...[/]")
@@ -1142,7 +1143,7 @@ def _get_all_providers_in_dist(
     for file in DIST_DIR.glob(f"{filename_prefix}*.tar.gz"):
         matched = filename_pattern.match(file.name)
         if not matched:
-            raise Exception(f"Cannot parse provider package name from {file.name}")
+            raise SystemExit(f"Cannot parse provider package name from {file.name}")
         provider_package_id = matched.group(1).replace("_", ".")
         yield provider_package_id
 
@@ -1167,7 +1168,7 @@ def get_all_providers_in_dist(package_format: str, install_selected_providers: s
             )
         )
     else:
-        raise Exception(f"Unknown package format {package_format}")
+        raise SystemExit(f"Unknown package format {package_format}")
     if install_selected_providers:
         filter_list = install_selected_providers.split(",")
         return [provider for provider in all_found_providers if provider in filter_list]
@@ -1292,11 +1293,12 @@ def install_provider_packages(
                     if dependency not in chunk:
                         chunk.append(dependency)
         if len(list_of_all_providers) != total_num_providers:
-            raise Exception(
+            msg = (
                 f"Total providers {total_num_providers} is different "
                 f"than {len(list_of_all_providers)} (just to be sure"
                 f" no rounding errors crippled in)"
             )
+            raise RuntimeError(msg)
         parallelism = min(parallelism, len(provider_chunks))
         with ci_group(f"Installing providers in {parallelism} chunks"):
             all_params = [f"Chunk {n}" for n in range(parallelism)]
@@ -2290,13 +2292,11 @@ def print_issue_content(
 @click.option(
     "--previous-release",
     type=str,
-    required=True,
     help="commit reference (for example hash or tag) of the previous release.",
 )
 @click.option(
     "--current-release",
     type=str,
-    required=True,
     help="commit reference (for example hash or tag) of the current release.",
 )
 @click.option("--excluded-pr-list", type=str, help="Coma-separated list of PRs to exclude from the issue.")
@@ -2306,6 +2306,11 @@ def print_issue_content(
     default=None,
     help="Limit PR count processes (useful for testing small subset of PRs).",
 )
+@click.option(
+    "--latest",
+    is_flag=True,
+    help="Run the command against latest released version of airflow helm charts",
+)
 @option_verbose
 def generate_issue_content_helm_chart(
     github_token: str,
@@ -2313,6 +2318,7 @@ def generate_issue_content_helm_chart(
     current_release: str,
     excluded_pr_list: str,
     limit_pr_count: int | None,
+    latest: bool,
 ):
     generate_issue_content(
         github_token,
@@ -2321,7 +2327,7 @@ def generate_issue_content_helm_chart(
         excluded_pr_list,
         limit_pr_count,
         is_helm_chart=True,
-        latest=False,
+        latest=latest,
     )
 
 
@@ -3264,18 +3270,25 @@ def generate_issue_content(
     current = current_release
 
     if latest:
-        import requests
-
-        response = requests.get("https://pypi.org/pypi/apache-airflow/json")
-        response.raise_for_status()
-        latest_released_version = response.json()["info"]["version"]
-        previous = str(latest_released_version)
-        current = os.getenv("VERSION", "HEAD")
-        if current == "HEAD":
-            get_console().print(
-                "\n[warning]Environment variable VERSION not set, setting current release "
-                "version as 'HEAD'\n"
-            )
+        if is_helm_chart:
+            latest_helm_version = get_latest_helm_chart_version()
+            get_console().print(f"\n[info] Latest stable version of helm chart is {latest_helm_version}\n")
+            previous = f"helm-chart/{latest_helm_version}"
+            current = os.getenv("VERSION", "HEAD")
+            if current == "HEAD":
+                get_console().print(
+                    "\n[warning]Environment variable VERSION not set, setting current release "
+                    "version as 'HEAD' for helm chart release\n"
+                )
+        else:
+            latest_airflow_version = get_latest_airflow_version()
+            previous = str(latest_airflow_version)
+            current = os.getenv("VERSION", "HEAD")
+            if current == "HEAD":
+                get_console().print(
+                    "\n[warning]Environment variable VERSION not set, setting current release "
+                    "version as 'HEAD'\n"
+                )
 
     changes = get_changes(verbose, previous, current, is_helm_chart)
     change_prs = [change.pr for change in changes]
@@ -3342,4 +3355,4 @@ def generate_issue_content(
                 users[pr_number].add(linked_issue.user.login)
             progress.advance(task)
 
-    print_issue_content(current_release, pull_requests, linked_issues, users, is_helm_chart)
+    print_issue_content(current, pull_requests, linked_issues, users, is_helm_chart)

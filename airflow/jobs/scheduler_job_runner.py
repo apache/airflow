@@ -270,8 +270,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         self.log.info("%s\n%s received, printing debug\n%s", "-" * 80, sig_name, "-" * 80)
 
-        self.job.executor.debug_dump()
-        self.log.info("-" * 80)
+        for executor in self.job.executors:
+            self.log.info("Debug dump for the executor %s", executor)
+            executor.debug_dump()
+            self.log.info("-" * 80)
 
     def __get_concurrency_maps(self, states: Iterable[TaskInstanceState], session: Session) -> ConcurrencyMap:
         """
@@ -819,19 +821,21 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
         try:
-            self.job.executor.job_id = self.job.id
+            callback_sink: PipeCallbackSink | DatabaseCallbackSink
+
             if self.processor_agent:
                 self.log.debug("Using PipeCallbackSink as callback sink.")
-                self.job.executor.callback_sink = PipeCallbackSink(
-                    get_sink_pipe=self.processor_agent.get_callbacks_pipe
-                )
+                callback_sink = PipeCallbackSink(get_sink_pipe=self.processor_agent.get_callbacks_pipe)
             else:
                 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 
                 self.log.debug("Using DatabaseCallbackSink as callback sink.")
-                self.job.executor.callback_sink = DatabaseCallbackSink()
+                callback_sink = DatabaseCallbackSink()
 
-            self.job.executor.start()
+            for executor in self.job.executors:
+                executor.job_id = self.job.id
+                executor.callback_sink = callback_sink
+                executor.start()
 
             self.register_signals()
 
@@ -860,10 +864,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.exception("Exception when executing SchedulerJob._run_scheduler_loop")
             raise
         finally:
-            try:
-                self.job.executor.end()
-            except Exception:
-                self.log.exception("Exception when executing Executor.end")
+            for executor in self.job.executors:
+                try:
+                    executor.end()
+                except Exception:
+                    self.log.exception("Exception when executing Executor.end on %s", executor)
             if self.processor_agent:
                 try:
                     self.processor_agent.end()

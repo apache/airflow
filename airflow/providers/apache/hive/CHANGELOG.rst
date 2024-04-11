@@ -27,6 +27,37 @@
 Changelog
 ---------
 
+8.0.0
+.....
+
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+Changed the default value of ``use_beeline`` in hive cli connection to True.
+Beeline will be always enabled by default in this connection type.
+
+Removed deprecated parameter ``authMechanism`` from HiveHook and dependent operators.
+Use ``auth_mechanism`` instead in your ``extra``.
+
+HiveOperator: Removed the method ``get_hook``  in favor of ``hook`` property instead.
+
+HiveStatsCollectionOperator: Removed the deprecated ``col_blacklist`` in favor of ``excluded_columns``.
+
+* ``Setting use_beeline by default for hive cli connection (#38763)``
+* ``Removing deprecated code in hive provider (#38859)``
+
+Features
+~~~~~~~~
+
+* ``Adding support to hive hook for high availability Hive installations (#38651)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix TRY002 for apache hive provider (#38781)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``Fix D105 for Apache Hive Provider (#38042)``
+   * ``Fix deprecated apache.hive operators arguments in 'MappedOperator' (#38351)``
+
 7.0.1
 .....
 

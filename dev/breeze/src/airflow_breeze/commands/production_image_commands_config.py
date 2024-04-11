@@ -58,7 +58,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--debian-version",
                 "--python-image",
                 "--use-uv",
-                "--uv-request-timeout",
+                "--uv-http-timeout",
             ],
         },
         {

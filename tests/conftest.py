@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import functools
 import json
 import os
 import platform
@@ -88,8 +89,6 @@ if skip_db_tests:
     # Make sure sqlalchemy will not be usable for pure unit tests even if initialized
     os.environ["AIRFLOW__CORE__SQL_ALCHEMY_CONN"] = "bad_schema:///"
     os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = "bad_schema:///"
-    # Force database isolation mode for pure unit tests
-    os.environ["AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION"] = "True"
     os.environ["_IN_UNIT_TESTS"] = "true"
     # Set it here to pass the flag to python-xdist spawned processes
     os.environ["_AIRFLOW_SKIP_DB_TESTS"] = "true"
@@ -308,12 +307,24 @@ def initial_db_init():
     from flask import Flask
 
     from airflow.configuration import conf
+    from airflow.exceptions import RemovedInAirflow3Warning
     from airflow.utils import db
     from airflow.www.extensions.init_appbuilder import init_appbuilder
     from airflow.www.extensions.init_auth_manager import get_auth_manager
 
+    ignore_warnings = {
+        RemovedInAirflow3Warning: [
+            # SubDagOperator warnings
+            "This class is deprecated. Please use `airflow.utils.task_group.TaskGroup`."
+        ]
+    }
+
     db.resetdb()
-    db.bootstrap_dagbag()
+    with warnings.catch_warnings():
+        for warning_category, messages in ignore_warnings.items():
+            for message in messages:
+                warnings.filterwarnings("ignore", message=re.escape(message), category=warning_category)
+        db.bootstrap_dagbag()
     # minimal app to add roles
     flask_app = Flask(__name__)
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
@@ -401,6 +412,7 @@ def pytest_configure(config: pytest.Config) -> None:
         "markers",
         "external_python_operator: external python operator tests are 'long', we should run them separately",
     )
+    config.addinivalue_line("markers", "enable_redact: do not mock redact secret masker")
 
     os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
     configure_warning_output(config)
@@ -584,6 +596,34 @@ def skip_if_credential_file_missing(item):
         credential_path = os.path.join(os.environ.get("CREDENTIALS_DIR"), credential_file)
         if not os.path.exists(credential_path):
             pytest.skip(f"The test requires credential file {credential_path}: {item}")
+
+
+@functools.lru_cache(maxsize=None)
+def deprecations_ignore() -> tuple[str, ...]:
+    with open(Path(__file__).resolve().parent / "deprecations_ignore.yml") as fp:
+        return tuple(yaml.safe_load(fp))
+
+
+def setup_error_warnings(item: pytest.Item):
+    if item.nodeid.startswith(deprecations_ignore()):
+        return
+
+    # We cannot add everything related to the airflow package it into `filterwarnings`
+    # in the pyproject.toml sections, because it invokes airflow import before we setup test environment.
+    # Instead of that, we are dynamically adding as `filterwarnings` marker.
+    prohibited_warnings = (
+        "airflow.exceptions.RemovedInAirflow3Warning",
+        "airflow.utils.context.AirflowContextDeprecationWarning",
+        "airflow.exceptions.AirflowProviderDeprecationWarning",
+    )
+    for w in prohibited_warnings:
+        # Add marker at the beginning of the markers list. In this case, it does not conflict with
+        # filterwarnings markers, which are set explicitly in the test suite.
+        item.add_marker(pytest.mark.filterwarnings(f"error::{w}"), append=False)
+
+
+def pytest_itemcollected(item: pytest.Item):
+    setup_error_warnings(item)
 
 
 def pytest_runtest_setup(item):
@@ -1156,24 +1196,23 @@ def clear_lru_cache():
 
 
 @pytest.fixture(autouse=True)
-def refuse_to_run_test_from_wrongly_named_files(request):
-    dirname: str = request.node.fspath.dirname
-    filename: str = request.node.fspath.basename
-    is_system_test: bool = "tests/system/" in dirname
-    if is_system_test and not (
-        request.node.fspath.basename.startswith("example_")
-        or request.node.fspath.basename.startswith("test_")
-    ):
-        raise Exception(
+def refuse_to_run_test_from_wrongly_named_files(request: pytest.FixtureRequest):
+    filepath = request.node.path
+    is_system_test: bool = "tests/system/" in os.fspath(filepath.parent)
+    test_name = request.node.name
+    if request.node.cls:
+        test_name = f"{request.node.cls.__name__}.{test_name}"
+    if is_system_test and not filepath.name.startswith(("example_", "test_")):
+        pytest.fail(
             f"All test method files in tests/system must start with 'example_' or 'test_'. "
-            f"Seems that {filename} contains {request.function} that looks like a test case. "
+            f"Seems that {os.fspath(filepath)!r} contains {test_name!r} that looks like a test case. "
             f"Please rename the file to follow the example_* or test_* pattern if you want to run the tests "
             f"in it."
         )
-    if not is_system_test and not request.node.fspath.basename.startswith("test_"):
-        raise Exception(
-            f"All test method files in tests/ must start with 'test_'. Seems that {filename} "
-            f"contains {request.function} that looks like a test case. Please rename the file to "
+    elif not is_system_test and not filepath.name.startswith("test_"):
+        pytest.fail(
+            f"All test method files in tests/ must start with 'test_'. Seems that {os.fspath(filepath)!r} "
+            f"contains {test_name!r} that looks like a test case. Please rename the file to "
             f"follow the test_* pattern if you want to run the tests in it."
         )
 
@@ -1206,26 +1245,23 @@ def cleanup_providers_manager():
         ProvidersManager()._cleanup()
 
 
-@pytest.fixture(scope="session")
-def deprecations_ignore() -> tuple[str, ...]:
-    with open(Path(__file__).absolute().parent.resolve() / "deprecations_ignore.yml") as fp:
-        return tuple(yaml.safe_load(fp))
-
-
 @pytest.fixture(autouse=True)
-def check_deprecations(request: pytest.FixtureRequest, deprecations_ignore):
-    from airflow.exceptions import AirflowProviderDeprecationWarning, RemovedInAirflow3Warning
-    from airflow.utils.context import AirflowContextDeprecationWarning
+def _disable_redact(request: pytest.FixtureRequest, mocker):
+    """Disable redacted text in tests, except specific."""
+    from airflow import settings
 
-    if request.node.nodeid.startswith(deprecations_ignore):
-        yield
+    if next(request.node.iter_markers("enable_redact"), None):
+        with pytest.MonkeyPatch.context() as mp_ctx:
+            mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", True)
+            yield
         return
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("error", AirflowProviderDeprecationWarning)
-        warnings.simplefilter("error", RemovedInAirflow3Warning)
-        warnings.simplefilter("error", AirflowContextDeprecationWarning)
+    mocked_redact = mocker.patch("airflow.utils.log.secrets_masker.SecretsMasker.redact")
+    mocked_redact.side_effect = lambda item, name=None, max_depth=None: item
+    with pytest.MonkeyPatch.context() as mp_ctx:
+        mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", False)
         yield
+    return
 
 
 # The code below is a modified version of capture-warning code from

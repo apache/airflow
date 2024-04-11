@@ -169,6 +169,7 @@ class TestRenderedTaskInstanceFields:
         # Fetching them will return None
         assert RTIF.get_templated_fields(ti=ti2) is None
 
+    @pytest.mark.enable_redact
     def test_secrets_are_masked_when_large_string(self, dag_maker):
         """
         Test that secrets are masked when the templated field is a large string

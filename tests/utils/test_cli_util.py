@@ -35,6 +35,10 @@ from airflow.models.log import Log
 from airflow.utils import cli, cli_action_loggers, timezone
 from airflow.utils.cli import _search_for_dag_file, get_dag_by_pickle
 
+# Mark entire module as db_test because ``action_cli`` wrapper still could use DB on callbacks:
+# - ``cli_action_loggers.on_pre_execution``
+# - ``cli_action_loggers.on_post_execution``
+pytestmark = pytest.mark.db_test
 repo_root = Path(airflow.__file__).parent.parent
 
 

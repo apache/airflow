@@ -23,6 +23,7 @@ import json
 import logging
 import os
 import sys
+import traceback
 import warnings
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -33,7 +34,7 @@ from sqlalchemy.pool import NullPool
 
 from airflow import policies
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # noqa: F401
-from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.exceptions import AirflowInternalRuntimeError, RemovedInAirflow3Warning
 from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
@@ -207,15 +208,43 @@ def configure_vars():
 
 
 class SkipDBTestsSession:
-    """This fake session is used to skip DB tests when `_AIRFLOW_SKIP_DB_TESTS` is set."""
+    """
+    This fake session is used to skip DB tests when `_AIRFLOW_SKIP_DB_TESTS` is set.
+
+    :meta private:
+    """
 
     def __init__(self):
-        raise RuntimeError(
+        raise AirflowInternalRuntimeError(
             "Your test accessed the DB but `_AIRFLOW_SKIP_DB_TESTS` is set.\n"
             "Either make sure your test does not use database or mark the test with `@pytest.mark.db_test`\n"
             "See https://github.com/apache/airflow/blob/main/contributing-docs/testing/unit_tests.rst#"
             "best-practices-for-db-tests on how "
             "to deal with it and consult examples."
+        )
+
+    def remove(*args, **kwargs):
+        pass
+
+
+class TracebackSession:
+    """
+    Session that throws error when you try to use it.
+
+    Also stores stack at instantiation call site.
+
+    :meta private:
+    """
+
+    def __init__(self):
+        self.traceback = traceback.extract_stack()
+
+    def __getattr__(self, item):
+        raise RuntimeError(
+            "TracebackSession object was used but internal API is enabled. "
+            "You'll need to ensure you are making only RPC calls with this object. "
+            "The stack list below will show where the TracebackSession object was created."
+            + "\n".join(traceback.format_list(self.traceback))
         )
 
     def remove(*args, **kwargs):
@@ -242,7 +271,13 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
 
     global Session
     global engine
-    if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
+    from airflow.api_internal.internal_api_call import InternalApiConfig
+
+    if InternalApiConfig.get_use_internal_api():
+        Session = TracebackSession
+        engine = None
+        return
+    elif os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
         # Skip DB initialization in unit tests, if DB tests are skipped
         Session = SkipDBTestsSession
         engine = None

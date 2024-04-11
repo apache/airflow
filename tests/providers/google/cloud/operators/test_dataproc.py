@@ -1065,7 +1065,7 @@ def test_create_cluster_operator_extra_links(dag_maker, create_task_instance_of_
     deserialized_task = deserialized_dag.task_dict[TASK_ID]
 
     # Assert operator links for serialized DAG
-    assert serialized_dag["dag"]["tasks"][0]["_operator_extra_links"] == [
+    assert serialized_dag["dag"]["tasks"][0]["__var"]["_operator_extra_links"] == [
         {"airflow.providers.google.cloud.links.dataproc.DataprocClusterLink": {}}
     ]
 
@@ -1167,7 +1167,7 @@ def test_scale_cluster_operator_extra_links(dag_maker, create_task_instance_of_o
     deserialized_task = deserialized_dag.task_dict[TASK_ID]
 
     # Assert operator links for serialized DAG
-    assert serialized_dag["dag"]["tasks"][0]["_operator_extra_links"] == [
+    assert serialized_dag["dag"]["tasks"][0]["__var"]["_operator_extra_links"] == [
         {"airflow.providers.google.cloud.links.dataproc.DataprocLink": {}}
     ]
 
@@ -1562,7 +1562,7 @@ def test_submit_job_operator_extra_links(mock_hook, dag_maker, create_task_insta
     deserialized_task = deserialized_dag.task_dict[TASK_ID]
 
     # Assert operator links for serialized_dag
-    assert serialized_dag["dag"]["tasks"][0]["_operator_extra_links"] == [
+    assert serialized_dag["dag"]["tasks"][0]["__var"]["_operator_extra_links"] == [
         {"airflow.providers.google.cloud.links.dataproc.DataprocJobLink": {}}
     ]
 
@@ -1767,7 +1767,7 @@ def test_update_cluster_operator_extra_links(dag_maker, create_task_instance_of_
     deserialized_task = deserialized_dag.task_dict[TASK_ID]
 
     # Assert operator links for serialized_dag
-    assert serialized_dag["dag"]["tasks"][0]["_operator_extra_links"] == [
+    assert serialized_dag["dag"]["tasks"][0]["__var"]["_operator_extra_links"] == [
         {"airflow.providers.google.cloud.links.dataproc.DataprocClusterLink": {}}
     ]
 
@@ -1989,7 +1989,7 @@ def test_instantiate_workflow_operator_extra_links(mock_hook, dag_maker, create_
     deserialized_task = deserialized_dag.task_dict[TASK_ID]
 
     # Assert operator links for serialized_dag
-    assert serialized_dag["dag"]["tasks"][0]["_operator_extra_links"] == [
+    assert serialized_dag["dag"]["tasks"][0]["__var"]["_operator_extra_links"] == [
         {"airflow.providers.google.cloud.links.dataproc.DataprocWorkflowLink": {}}
     ]
 
@@ -2151,7 +2151,7 @@ def test_instantiate_inline_workflow_operator_extra_links(
     deserialized_task = deserialized_dag.task_dict[TASK_ID]
 
     # Assert operator links for serialized_dag
-    assert serialized_dag["dag"]["tasks"][0]["_operator_extra_links"] == [
+    assert serialized_dag["dag"]["tasks"][0]["__var"]["_operator_extra_links"] == [
         {"airflow.providers.google.cloud.links.dataproc.DataprocWorkflowLink": {}}
     ]
 
@@ -2472,7 +2472,7 @@ def test_submit_spark_job_operator_extra_links(mock_hook, dag_maker, create_task
     deserialized_task = deserialized_dag.task_dict[TASK_ID]
 
     # Assert operator links for serialized DAG
-    assert serialized_dag["dag"]["tasks"][0]["_operator_extra_links"] == [
+    assert serialized_dag["dag"]["tasks"][0]["__var"]["_operator_extra_links"] == [
         {"airflow.providers.google.cloud.links.dataproc.DataprocLink": {}}
     ]
 
