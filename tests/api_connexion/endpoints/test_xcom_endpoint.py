@@ -161,7 +161,7 @@ class TestGetXComEntry(TestXComEndpoint):
             headers={"REMOTE_USER": "test"},
         )
         assert 404 == response.status_code
-        assert response.json()["title"] == "Not Found"
+        assert response.json()["title"] == "XCom entry not found"
 
     def test_should_raises_401_unauthenticated(self):
         dag_id = "test-dag-id"
