@@ -621,7 +621,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         execution_date: pendulum.DateTime | None = None,
         dag_id: str | None = None,
         task_id: str | None = None,
-        session: Session = NEW_SESSION,
+        session: Session | None = NEW_SESSION,
         *,
         run_id: str | None = None,
         map_index: int | None = None,
@@ -785,7 +785,7 @@ class LazyXComAccess(collections.abc.Sequence):
         # calculate only that eagerly.
         with self._get_bound_query() as query:
             statement = query.statement.compile(
-                query.session.get_bind(),
+                query.session.get_bind(),  # type: ignore[union-attr]
                 # This inlines all the values into the SQL string to simplify
                 # cross-process commuinication as much as possible.
                 compile_kwargs={"literal_binds": True},

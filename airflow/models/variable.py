@@ -94,12 +94,14 @@ class Variable(Base, LoggingMixin):
             self._val = fernet.encrypt(bytes(value, "utf-8")).decode()
             self.is_encrypted = fernet.is_encrypted
 
-    @declared_attr
-    def val(cls):
-        """Get Airflow Variable from Metadata DB and decode it using the Fernet Key."""
-        return synonym("_val", descriptor=property(cls.get_val, cls.set_val))
+    if not TYPE_CHECKING:
+        # FIXME: sqlalchemy2
+        @declared_attr
+        def val(cls):
+            return synonym("_val", descriptor=property(cls.get_val, cls.set_val))
 
     val: Mapped[str | None]
+    """Get Airflow Variable from Metadata DB and decode it using the Fernet Key."""
 
     @classmethod
     def setdefault(cls, key, default, description=None, deserialize_json=False):

@@ -27,7 +27,7 @@ import time
 import warnings
 from dataclasses import dataclass
 from tempfile import gettempdir
-from typing import TYPE_CHECKING, Callable, Generator, Iterable
+from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, cast
 
 from sqlalchemy import (
     Table,
@@ -58,11 +58,11 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session  
 if TYPE_CHECKING:
     from alembic.runtime.environment import EnvironmentContext
     from alembic.script import ScriptDirectory
+    from sqlalchemy.engine.reflection import Inspector
     from sqlalchemy.orm import Query, Session
     from sqlalchemy.sql.elements import ClauseElement
-    from sqlalchemy.sql.selectable import Select
+    from sqlalchemy.sql.selectable import Select, Subquery
 
-    from airflow.models.base import Base
     from airflow.models.connection import Connection
 
 log = logging.getLogger(__name__)
@@ -769,7 +769,7 @@ def _get_alembic_config():
     else:
         config = Config(os.path.join(package_dir, alembic_file))
     config.set_main_option("script_location", directory.replace("%", "%%"))
-    config.set_main_option("sqlalchemy.url", settings.SQL_ALCHEMY_CONN.replace("%", "%%"))
+    config.set_main_option("sqlalchemy.url", (settings.SQL_ALCHEMY_CONN or "").replace("%", "%%"))
     return config
 
 
@@ -838,11 +838,12 @@ def _configured_alembic_environment() -> Generator[EnvironmentContext, None, Non
 
 def check_and_run_migrations():
     """Check and run migrations if necessary. Only use in a tty."""
+    db_command: Callable[..., Any]
     with _configured_alembic_environment() as env:
         context = env.get_context()
         source_heads = set(env.script.get_heads())
         db_heads = set(context.get_current_heads())
-        db_command = None
+        db_command = cast("Callable", None)
         command_name = None
         verb = None
     if len(db_heads) < 1:
@@ -988,7 +989,8 @@ def decrypt_trigger_kwargs(*, session: Session) -> None:
     from airflow.models.trigger import Trigger
     from airflow.serialization.serialized_objects import BaseSerialization
 
-    if not inspect(session.bind).has_table(Trigger.__tablename__):
+    insp = cast("Inspector", inspect(session.bind))
+    if not insp.has_table(Trigger.__tablename__):
         # table does not exist, nothing to do
         # this can happen when we downgrade to an old version before the Trigger table was added
         return
@@ -1053,7 +1055,7 @@ def check_username_duplicates(session: Session) -> Iterable[str]:
             )
 
 
-def reflect_tables(tables: list[Base | str] | None, session):
+def reflect_tables(tables: list[Any | str] | None, session: Session):
     """
     When running checks prior to upgrades, we use reflection to determine current state of the database.
 
@@ -1062,7 +1064,7 @@ def reflect_tables(tables: list[Base | str] | None, session):
     """
     import sqlalchemy.schema
 
-    bind = session.bind
+    bind = session.get_bind()
     metadata = sqlalchemy.schema.MetaData()
 
     if tables is None:
@@ -1109,7 +1111,7 @@ def check_table_for_duplicates(
     """
     minimal_table_obj = table(table_name, *(column(x) for x in uniqueness))
     try:
-        subquery = session.execute(
+        subquery = (
             select(minimal_table_obj, func.count().label("dupe_count"))
             .group_by(*(text(x) for x in uniqueness))
             .having(func.count() > text("1"))
@@ -1197,7 +1199,8 @@ def check_run_id_null(session: Session) -> Iterable[str]:
     invalid_dagrun_count = session.scalar(select(func.count(dagrun_table.c.id)).where(invalid_dagrun_filter))
     if invalid_dagrun_count > 0:
         dagrun_dangling_table_name = _format_airflow_moved_table_name(dagrun_table.name, "2.2", "dangling")
-        if dagrun_dangling_table_name in inspect(session.get_bind()).get_table_names():
+        insp = cast("Inspector", inspect(session.get_bind()))
+        if dagrun_dangling_table_name in insp.get_table_names():
             yield _format_dangling_error(
                 source_table=dagrun_table.name,
                 target_table=dagrun_dangling_table_name,
@@ -1221,9 +1224,9 @@ def check_run_id_null(session: Session) -> Iterable[str]:
 
 def _create_table_as(
     *,
-    session,
+    session: Session,
     dialect_name: str,
-    source_query: Query,
+    source_query: Query | Select,
     target_table_name: str,
     source_table_name: str,
 ):
@@ -1248,7 +1251,7 @@ def _create_table_as(
 
 
 def _move_dangling_data_to_new_table(
-    session, source_table: Table, source_query: Query, target_table_name: str
+    session: Session, source_table: Table, source_query: Query, target_table_name: str
 ):
     bind = session.get_bind()
     dialect_name = bind.dialect.name
@@ -1279,15 +1282,14 @@ def _move_dangling_data_to_new_table(
         if dialect_name == "sqlite":
             pk_cols = source_table.primary_key.columns
 
-            delete = source_table.delete().where(
-                tuple_(*pk_cols).in_(session.select(*target_table.primary_key.columns).subquery())
-            )
+            delete_subq = select(*target_table.primary_key.columns).subquery()
+            delete_stmt = delete(source_table).where(tuple_(*pk_cols).in_(delete_subq))
         else:
-            delete = source_table.delete().where(
+            delete_stmt = delete(source_table).where(
                 and_(col == target_table.c[col.name] for col in source_table.primary_key.columns)
             )
-        log.debug(delete.compile())
-        session.execute(delete)
+        log.debug(delete_stmt.compile())
+        session.execute(delete_stmt)
     session.commit()
 
     log.debug("exiting move function")
@@ -1349,7 +1351,7 @@ def _dangling_against_task_instance(session, source_table, dag_run, task_instanc
 
 
 def _move_duplicate_data_to_new_table(
-    session, source_table: Table, subquery: Query, uniqueness: list[str], target_table_name: str
+    session: Session, source_table: Table, subquery: Subquery, uniqueness: list[str], target_table_name: str
 ):
     """
     When adding a uniqueness constraint we first should ensure that there are no duplicate rows.
@@ -1441,7 +1443,7 @@ def check_bad_references(session: Session) -> Iterable[str]:
         ref_table="task_instance",
     )
 
-    models_list: list[tuple[Base, str, BadReferenceConfig]] = [
+    models_list: list[tuple[Any, str, BadReferenceConfig]] = [
         (TaskInstance, "2.2", missing_dag_run_config),
         (TaskReschedule, "2.2", missing_ti_config),
         (RenderedTaskInstanceFields, "2.3", missing_ti_config),
@@ -1458,7 +1460,8 @@ def check_bad_references(session: Session) -> Iterable[str]:
         # Key table doesn't exist -- likely empty DB.
         return
 
-    existing_table_names = set(inspect(session.get_bind()).get_table_names())
+    insp = cast("Inspector", inspect(session.get_bind()))
+    existing_table_names = set(insp.get_table_names())
     errored = False
 
     for model, change_version, bad_ref_cfg in models_list:
@@ -1826,17 +1829,22 @@ def create_global_lock(
         if dialect.name == "postgresql":
             conn.execute(text("SET LOCK_TIMEOUT to :timeout"), {"timeout": lock_timeout})
             conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": lock.value})
-        elif dialect.name == "mysql" and dialect.server_version_info >= (5, 6):
+        elif (
+            dialect.name == "mysql" and dialect.server_version_info and dialect.server_version_info >= (5, 6)
+        ):
             conn.execute(text("SELECT GET_LOCK(:id, :timeout)"), {"id": str(lock), "timeout": lock_timeout})
 
         yield
     finally:
         if dialect.name == "postgresql":
             conn.execute(text("SET LOCK_TIMEOUT TO DEFAULT"))
-            (unlocked,) = conn.execute(text("SELECT pg_advisory_unlock(:id)"), {"id": lock.value}).fetchone()
+            cursor = conn.execute(text("SELECT pg_advisory_unlock(:id)"), {"id": lock.value})
+            (unlocked,) = cursor.one()
             if not unlocked:
                 raise RuntimeError("Error releasing DB lock!")
-        elif dialect.name == "mysql" and dialect.server_version_info >= (5, 6):
+        elif (
+            dialect.name == "mysql" and dialect.server_version_info and dialect.server_version_info >= (5, 6)
+        ):
             conn.execute(text("select RELEASE_LOCK(:id)"), {"id": str(lock)})
 
 

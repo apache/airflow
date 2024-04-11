@@ -177,18 +177,21 @@ class Trigger(Base):
                 )
 
         # Get all triggers that have no task instances depending on them and delete them
-        ids: Select | list[int] = (
+        stmt: Select = (
             select(cls.id)
             .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=True)
             .group_by(cls.id)
             .having(func.count(TaskInstance.trigger_id) == 0)
         )
+        delete_stmt = delete(Trigger).execution_options(synchronize_session=False)
         if session.get_bind().dialect.name == "mysql":
             # MySQL doesn't support DELETE with JOIN, so we need to do it in two steps
-            ids = session.scalars(ids).all()
-        session.execute(
-            delete(Trigger).where(Trigger.id.in_(ids)).execution_options(synchronize_session=False)
-        )
+            ids: list[int] = session.scalars(stmt).all()
+            delete_stmt = delete_stmt.where(Trigger.id.in_(ids))
+        else:
+            delete_stmt = delete_stmt.where(Trigger.id.in_(stmt))
+
+        session.execute(delete_stmt)
 
     @classmethod
     @internal_api_call

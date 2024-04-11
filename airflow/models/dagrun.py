@@ -359,9 +359,11 @@ class DagRun(Base, LoggingMixin):
             if state == DagRunState.QUEUED:
                 self.queued_at = timezone.utcnow()
 
-    @declared_attr
-    def state(self):
-        return synonym("_state", descriptor=property(self.get_state, self.set_state))
+    if not TYPE_CHECKING:
+        # FIXME: sqlalchemy2
+        @declared_attr
+        def state(self):
+            return synonym("_state", descriptor=property(self.get_state, self.set_state))
 
     state: Mapped[str | None]
 
@@ -714,7 +716,7 @@ class DagRun(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         :param state: the dag run state
         """
-        filters = [
+        filters: list[Any] = [
             DagRun.dag_id == dag_run.dag_id,
             DagRun.execution_date < dag_run.execution_date,
         ]
@@ -1321,6 +1323,14 @@ class DagRun(Base, LoggingMixin):
         ti_mutation_hook: Callable,
         hook_is_noop: Literal[False],
     ) -> Callable[[Operator, Iterable[int]], Iterator[TI]]: ...
+
+    @overload
+    def _get_task_creator(
+        self,
+        created_counts: dict[str, int],
+        ti_mutation_hook: Callable,
+        hook_is_noop: Literal[True, False],
+    ) -> Callable[[Operator, Iterable[int]], Iterator[dict[str, Any]] | Iterator[TI]]: ...
 
     def _get_task_creator(
         self,

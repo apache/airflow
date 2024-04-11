@@ -40,8 +40,7 @@ if TYPE_CHECKING:
     from sqlalchemy.exc import OperationalError
     from sqlalchemy.orm import Query, Session
     from sqlalchemy.sql import ColumnElement, Select
-    from sqlalchemy.sql.operators import ColumnOperators
-    from sqlalchemy.types import TypeEngine
+    from sqlalchemy.types import Boolean, TypeEngine
 
 log = logging.getLogger(__name__)
 
@@ -484,7 +483,7 @@ def is_lock_not_available_error(error: OperationalError):
 def tuple_in_condition(
     columns: tuple[ColumnElement, ...],
     collection: Iterable[Any],
-) -> ColumnOperators: ...
+) -> ColumnElement[Boolean]: ...
 
 
 @overload
@@ -493,7 +492,7 @@ def tuple_in_condition(
     collection: Select,
     *,
     session: Session,
-) -> ColumnOperators: ...
+) -> ColumnElement[Boolean]: ...
 
 
 def tuple_in_condition(
@@ -501,7 +500,7 @@ def tuple_in_condition(
     collection: Iterable[Any] | Select,
     *,
     session: Session | None = None,
-) -> ColumnOperators:
+) -> ColumnElement[Boolean]:
     """
     Generate a tuple-in-collection operator to use in ``.where()``.
 
@@ -517,7 +516,7 @@ def tuple_in_condition(
 def tuple_not_in_condition(
     columns: tuple[ColumnElement, ...],
     collection: Iterable[Any],
-) -> ColumnOperators: ...
+) -> ColumnElement[Boolean]: ...
 
 
 @overload
@@ -526,7 +525,7 @@ def tuple_not_in_condition(
     collection: Select,
     *,
     session: Session,
-) -> ColumnOperators: ...
+) -> ColumnElement[Boolean]: ...
 
 
 def tuple_not_in_condition(
@@ -534,7 +533,7 @@ def tuple_not_in_condition(
     collection: Iterable[Any] | Select,
     *,
     session: Session | None = None,
-) -> ColumnOperators:
+) -> ColumnElement[Boolean]:
     """
     Generate a tuple-not-in-collection operator to use in ``.where()``.
 

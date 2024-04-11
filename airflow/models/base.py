@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, TypeAlias, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import Column, Integer, MetaData, String, text
 from sqlalchemy.orm import Mapped, registry
@@ -26,9 +26,8 @@ from airflow.configuration import conf
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import RelationshipProperty
+    from typing_extensions import TypeAlias
 
-    _T = TypeVar("_T", bound=Any)
-    ColumnOrRelationship: TypeAlias = Union[Column[_T], RelationshipProperty[_T]]
 
 SQL_ALCHEMY_SCHEMA = conf.get("database", "SQL_ALCHEMY_SCHEMA")
 

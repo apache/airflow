@@ -27,6 +27,7 @@ import warnings
 from collections import deque
 from contextlib import suppress
 from copy import copy
+from logging.handlers import QueueListener
 from queue import SimpleQueue
 from typing import TYPE_CHECKING
 
@@ -228,7 +229,7 @@ def setup_queue_listener():
     this_logger = logging.getLogger(__name__)
     if handlers:
         this_logger.info("Setting up logging queue listener with handlers %s", handlers)
-        listener = logging.handlers.QueueListener(queue, *handlers, respect_handler_level=True)
+        listener = QueueListener(queue, *handlers, respect_handler_level=True)
         listener.start()
         return listener
     else:
@@ -331,7 +332,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
         self.log.info("Starting the triggerer")
         try:
             # set job_id so that it can be used in log file names
-            self.trigger_runner.job_id = self.job.id
+            setattr(self.trigger_runner, "job_id", self.job.id)
 
             # Kick off runner thread
             self.trigger_runner.start()
@@ -491,6 +492,8 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         while self.to_create:
             trigger_id, trigger_instance = self.to_create.popleft()
             if trigger_id not in self.triggers:
+                if trigger_instance.task_instance is None:
+                    continue
                 ti: TaskInstance = trigger_instance.task_instance
                 self.triggers[trigger_id] = {
                     "task": asyncio.create_task(self.run_trigger(trigger_id, trigger_instance)),
@@ -550,7 +553,8 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                         "Trigger %s exited without sending an event. Dependent tasks will be failed.",
                         details["name"],
                     )
-                    self.failed_triggers.append((trigger_id, saved_exc))
+                    if saved_exc is not None:
+                        self.failed_triggers.append((trigger_id, saved_exc))
                 del self.triggers[trigger_id]
             await asyncio.sleep(0)
 

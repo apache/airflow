@@ -216,7 +216,7 @@ class Job(Base, LoggingMixin):
                 seconds_remaining = (
                     self.heartrate - (timezone.utcnow() - self.latest_heartbeat).total_seconds()
                 )
-                sleep_for = max(0, seconds_remaining)
+                sleep_for = max(0.0, seconds_remaining)
             sleep(sleep_for)
 
             job = Job._update_heartbeat(job=self, session=session)

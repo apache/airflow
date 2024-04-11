@@ -211,6 +211,7 @@ class OperatorPartial:
         except AttributeError:
             operator_name = self.operator_class.__name__
 
+        dummy: dict[str, Any] = {}
         op = MappedOperator(
             operator_class=self.operator_class,
             expand_input=expand_input,
@@ -236,6 +237,7 @@ class OperatorPartial:
             # For classic operators, this points to expand_input because kwargs
             # to BaseOperator.expand() contribute to operator arguments.
             expand_input_attr="expand_input",
+            **dummy,
         )
         return op
 
@@ -352,7 +354,6 @@ class MappedOperator(AbstractOperator):
             "_on_failure_fail_dagrun",
         }
 
-    @methodtools.lru_cache(maxsize=None)
     @staticmethod
     def deps_for(operator_class: type[BaseOperator]) -> frozenset[BaseTIDep]:
         operator_deps = operator_class.deps
@@ -362,6 +363,9 @@ class MappedOperator(AbstractOperator):
                 f"not a {type(operator_deps).__name__}"
             )
         return operator_deps | {MappedTaskIsExpanded()}
+
+    if not TYPE_CHECKING:
+        deps_for = methodtools.lru_cache(maxsize=None)(deps_for)
 
     @property
     def task_type(self) -> str:
@@ -789,7 +793,6 @@ class MappedOperator(AbstractOperator):
         for operator, _ in XComArg.iter_xcom_references(self._get_specified_expand_input()):
             yield operator
 
-    @methodtools.lru_cache(maxsize=None)
     def get_parse_time_mapped_ti_count(self) -> int:
         current_count = self._get_specified_expand_input().get_parse_time_mapped_ti_count()
         try:
@@ -797,6 +800,9 @@ class MappedOperator(AbstractOperator):
         except NotMapped:
             return current_count
         return parent_count * current_count
+
+    if not TYPE_CHECKING:
+        get_parse_time_mapped_ti_count = methodtools.lru_cache(maxsize=None)(get_parse_time_mapped_ti_count)
 
     def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int:
         current_count = self._get_specified_expand_input().get_total_map_length(run_id, session=session)

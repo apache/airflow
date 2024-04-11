@@ -406,12 +406,19 @@ class SerializedDagModel(Base):
             query = session.execute(
                 select(cls.dag_id, func.json_extract(cls._data, "$.dag.dag_dependencies"))
             )
-            iterator = ((dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query)
-        else:
-            iterator = session.execute(
-                select(cls.dag_id, func.json_extract_path(cls._data, "dag", "dag_dependencies"))
+            iterator_gen = (
+                (dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query
             )
-        return {dag_id: [DagDependency(**d) for d in (deps_data or [])] for dag_id, deps_data in iterator}
+            return {
+                dag_id: [DagDependency(**d) for d in (deps_data or [])] for dag_id, deps_data in iterator_gen
+            }
+
+        iterator_scalar = session.execute(
+            select(cls.dag_id, func.json_extract_path(cls._data, "dag", "dag_dependencies"))
+        )
+        return {
+            dag_id: [DagDependency(**d) for d in (deps_data or [])] for dag_id, deps_data in iterator_scalar
+        }
 
     @staticmethod
     @internal_api_call

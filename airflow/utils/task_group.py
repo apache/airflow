@@ -221,7 +221,7 @@ class TaskGroup(DAGNode):
                 task.task_group = self
         existing_tg = task.task_group
         if isinstance(task, AbstractOperator) and existing_tg is not None and existing_tg != self:
-            raise TaskAlreadyInTaskGroup(task.node_id, existing_tg.node_id, self.node_id)
+            raise TaskAlreadyInTaskGroup(task.node_id, existing_tg.node_id, str(self.node_id))
 
         # Set the TG first, as setting it might change the return value of node_id!
         task.task_group = weakref.proxy(self)
@@ -361,16 +361,23 @@ class TaskGroup(DAGNode):
 
     def get_roots(self) -> Generator[BaseOperator, None, None]:
         """Return a generator of tasks with no upstream dependencies within the TaskGroup."""
-        tasks = list(self)
-        ids = {x.task_id for x in tasks}
+        from airflow.models.baseoperator import BaseOperator
+
+        tasks: list[DAGNode] = list(self)
+        ids = {getattr(x, "task_id", None) for x in tasks}
         for task in tasks:
+            if not isinstance(task, BaseOperator):
+                continue
+
             if task.upstream_task_ids.isdisjoint(ids):
                 yield task
 
     def get_leaves(self) -> Generator[BaseOperator, None, None]:
         """Return a generator of tasks with no downstream dependencies within the TaskGroup."""
+        from airflow.models.baseoperator import BaseOperator
+
         tasks = list(self)
-        ids = {x.task_id for x in tasks}
+        ids = {getattr(x, "task_id", None) for x in tasks}
 
         def has_non_teardown_downstream(task, exclude: str):
             for down_task in task.downstream_list:
@@ -397,6 +404,9 @@ class TaskGroup(DAGNode):
                     yield upstream_task
 
         for task in tasks:
+            if not isinstance(task, BaseOperator):
+                continue
+
             if task.downstream_task_ids.isdisjoint(ids):
                 if not task.is_teardown:
                     yield task
@@ -549,7 +559,7 @@ class TaskGroup(DAGNode):
         """Return an iterator of the child tasks."""
         from airflow.models.abstractoperator import AbstractOperator
 
-        groups_to_visit = [self]
+        groups_to_visit: list[TaskGroup] = [self]
 
         while groups_to_visit:
             visiting = groups_to_visit.pop(0)
@@ -586,7 +596,6 @@ class MappedTaskGroup(TaskGroup):
         for op, _ in XComArg.iter_xcom_references(self._expand_input):
             yield op
 
-    @methodtools.lru_cache(maxsize=None)
     def get_parse_time_mapped_ti_count(self) -> int:
         """
         Return the Number of instances a task in this group should be mapped to, when a DAG run is created.
@@ -606,6 +615,9 @@ class MappedTaskGroup(TaskGroup):
             operator.mul,
             (g._expand_input.get_parse_time_mapped_ti_count() for g in self.iter_mapped_task_groups()),
         )
+
+    if not TYPE_CHECKING:
+        get_parse_time_mapped_ti_count = methodtools.lru_cache(maxsize=None)(get_parse_time_mapped_ti_count)
 
     def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int:
         """
@@ -686,12 +698,15 @@ def task_group_to_dict(task_item_or_group):
             setup_teardown_type["setupTeardownType"] = "setup"
         elif task.is_teardown is True:
             setup_teardown_type["setupTeardownType"] = "teardown"
+
+        ui_fgcolor = getattr(task, "ui_fgcolor", "")
+        ui_color = getattr(task, "ui_color", "")
         return {
             "id": task.task_id,
             "value": {
                 "label": task.label,
-                "labelStyle": f"fill:{task.ui_fgcolor};",
-                "style": f"fill:{task.ui_color};",
+                "labelStyle": f"fill:{ui_fgcolor};",
+                "style": f"fill:{ui_color};",
                 "rx": 5,
                 "ry": 5,
                 **setup_teardown_type,

@@ -60,7 +60,6 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import lazyload, reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
@@ -150,8 +149,9 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Mapped, Mapper
     from sqlalchemy.orm.session import Session
-    from sqlalchemy.sql.elements import BooleanClauseList
+    from sqlalchemy.sql.elements import BooleanClauseList, ColumnElement
     from sqlalchemy.sql.operators import ColumnOperators
+    from sqlalchemy.types import Boolean
 
     from airflow.models.abstractoperator import TaskStateChangeCallback
     from airflow.models.baseoperator import BaseOperator
@@ -168,6 +168,12 @@ if TYPE_CHECKING:
     from airflow.typing_compat import Literal, TypeGuard
     from airflow.utils.task_group import TaskGroup
 
+    # This is a workaround because mypy doesn't work with hybrid_property
+    # TODO: remove this hack and move hybrid_property back to main import block
+    # See https://github.com/python/mypy/issues/4430
+    hybrid_property = property
+else:
+    from sqlalchemy.ext.hybrid import hybrid_property
 
 PAST_DEPENDS_MET = "past_depends_met"
 
@@ -301,31 +307,10 @@ def clear_task_instances(
         # run_id, try_number, map_index, and task_id to construct the where clause in a
         # hierarchical manner. This speeds up the delete statement by more than 40x for
         # large number of tis (50k+).
-        conditions = or_(
-            and_(
-                TR.dag_id == dag_id,
-                or_(
-                    and_(
-                        TR.run_id == run_id,
-                        or_(
-                            and_(
-                                TR.map_index == map_index,
-                                or_(
-                                    and_(TR.try_number == try_number, TR.task_id.in_(task_ids))
-                                    for try_number, task_ids in task_tries.items()
-                                ),
-                            )
-                            for map_index, task_tries in map_indexes.items()
-                        ),
-                    )
-                    for run_id, map_indexes in run_ids.items()
-                ),
-            )
-            for dag_id, run_ids in task_id_by_key.items()
-        )
+        conditions = _condition_by_dag_id(task_id_by_key)
 
-        delete_qry = TR.__table__.delete().where(conditions)
-        session.execute(delete_qry)
+        delete_stmt = delete(TR).where(conditions)
+        session.execute(delete_stmt)
 
     if job_ids:
         from airflow.jobs.job import Job
@@ -505,7 +490,7 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
 def _refresh_from_db(
     *,
     task_instance: TaskInstance | TaskInstancePydantic,
-    session: Session = NEW_SESSION,
+    session: Session | None = None,
     lock_for_update: bool = False,
 ) -> None:
     """
@@ -522,6 +507,8 @@ def _refresh_from_db(
     if session and task_instance in session:
         session.refresh(task_instance, TaskInstance.__mapper__.column_attrs.keys())
 
+    # provide_session
+    session = cast("Session", session)
     ti = TaskInstance.get_task_instance(
         dag_id=task_instance.dag_id,
         task_id=task_instance.task_id,
@@ -878,7 +865,7 @@ def _handle_failure(
     *,
     task_instance: TaskInstance | TaskInstancePydantic,
     error: None | str | BaseException,
-    session: Session,
+    session: Session | None,
     test_mode: bool | None = None,
     context: Context | None = None,
     force_fail: bool = False,
@@ -898,6 +885,8 @@ def _handle_failure(
     if test_mode is None:
         test_mode = task_instance.test_mode
 
+    # provide_session
+    session = cast("Session", session)
     failure_context = TaskInstance.fetch_handle_failure_context(
         ti=task_instance,
         error=error,
@@ -1043,7 +1032,7 @@ def _get_previous_dagrun(
     *,
     task_instance: TaskInstance | TaskInstancePydantic,
     state: DagRunState | None = None,
-    session: Session = NEW_SESSION,
+    session: Session | None = None,
 ) -> DagRun | None:
     """
     Return the DagRun that ran prior to this task instance's DagRun.
@@ -1061,6 +1050,8 @@ def _get_previous_dagrun(
     if dag is None:
         return None
 
+    # provide_session
+    session = cast("Session", session)
     dr = task_instance.get_dagrun(session=session)
     dr.dag = dag
 
@@ -1086,7 +1077,7 @@ def _get_previous_execution_date(
     *,
     task_instance: TaskInstance | TaskInstancePydantic,
     state: DagRunState | None,
-    session: Session,
+    session: Session | None,
 ) -> pendulum.DateTime | None:
     """
     Get execution date from property previous_ti_success.
@@ -1098,6 +1089,8 @@ def _get_previous_execution_date(
     :meta private:
     """
     log.debug("previous_execution_date was called")
+    # provide_session
+    session = cast("Session", session)
     prev_ti = task_instance.get_previous_ti(state=state, session=session)
     return pendulum.instance(prev_ti.execution_date) if prev_ti and prev_ti.execution_date else None
 
@@ -1285,7 +1278,7 @@ def _date_or_empty(*, task_instance: TaskInstance | TaskInstancePydantic, attr: 
 def _get_previous_ti(
     *,
     task_instance: TaskInstance | TaskInstancePydantic,
-    session: Session,
+    session: Session | None,
     state: DagRunState | None = None,
 ) -> TaskInstance | TaskInstancePydantic | None:
     """
@@ -1297,6 +1290,8 @@ def _get_previous_ti(
 
     :meta private:
     """
+    # provide_session
+    session = cast("Session", session)
     dagrun = task_instance.get_previous_dagrun(state, session=session)
     if dagrun is None:
         return None
@@ -1912,7 +1907,9 @@ class TaskInstance(Base, LoggingMixin):
     @staticmethod
     @internal_api_call
     @provide_session
-    def _clear_xcom_data(ti: TaskInstance | TaskInstancePydantic, session: Session = NEW_SESSION) -> None:
+    def _clear_xcom_data(
+        ti: TaskInstance | TaskInstancePydantic, session: Session | None = NEW_SESSION
+    ) -> None:
         """Clear all XCom data from the database for the task instance.
 
         If the task is unmapped, all XComs matching this task ID in the same DAG
@@ -1927,6 +1924,8 @@ class TaskInstance(Base, LoggingMixin):
             map_index: int | None = None
         else:
             map_index = ti.map_index
+        # provide_session
+        session = cast("Session", session)
         XCom.clear(
             dag_id=ti.dag_id,
             task_id=ti.task_id,
@@ -1946,7 +1945,9 @@ class TaskInstance(Base, LoggingMixin):
 
     @staticmethod
     @internal_api_call
-    def _set_state(ti: TaskInstance | TaskInstancePydantic, state, session: Session) -> bool:
+    def _set_state(ti: TaskInstance | TaskInstancePydantic, state, session: Session | None) -> bool:
+        # internal_api_call
+        session = cast("Session", session)
         if not isinstance(ti, TaskInstance):
             ti = session.scalars(
                 select(TaskInstance).where(
@@ -3000,7 +3001,7 @@ class TaskInstance(Base, LoggingMixin):
             session.add(Log(TaskInstanceState.FAILED.value, ti))
 
             # Log failure duration
-            session.add(TaskFail(ti=ti))
+            session.add(TaskFail(ti=cast("TaskInstance", ti)))
 
         ti.clear_next_method_args()
 
@@ -3377,7 +3378,7 @@ class TaskInstance(Base, LoggingMixin):
         if map_indexes is None or isinstance(map_indexes, int):
             query = query.order_by(XCom.map_index)
         elif isinstance(map_indexes, range):
-            order = XCom.map_index
+            order: ColumnElement[Any] = XCom.map_index.asc()
             if map_indexes.step < 0:
                 order = order.desc()
             query = query.order_by(order)
@@ -3509,7 +3510,7 @@ class TaskInstance(Base, LoggingMixin):
         task_id_only = [v for v in vals if isinstance(v, str)]
         with_map_index = [v for v in vals if not isinstance(v, str)]
 
-        filters: list[ColumnOperators] = []
+        filters: list[ColumnElement[Any]] = []
         if task_id_only:
             filters.append(cls.task_id.in_(task_id_only))
         if with_map_index:
@@ -3893,6 +3894,39 @@ class TaskInstanceNote(TaskInstanceDependencies):
         if self.map_index != -1:
             prefix += f" map_index={self.map_index}"
         return prefix + ">"
+
+
+def _condition_by_try_number(task_tries: Mapping[int, set[str]]) -> ColumnElement[Boolean]:
+    return or_(
+        and_(TR.try_number == try_number, TR.task_id.in_(task_ids))
+        for try_number, task_ids in task_tries.items()
+    )
+
+
+def _condition_by_map_index(
+    map_indexes: Mapping[int, Mapping[int, set[str]]],
+) -> ColumnElement[Boolean]:
+    return or_(
+        and_(TR.map_index == map_index, _condition_by_try_number(task_tries))
+        for map_index, task_tries in map_indexes.items()
+    )
+
+
+def _condition_by_run_id(
+    run_ids: Mapping[str, Mapping[int, Mapping[int, set[str]]]],
+) -> ColumnElement[Boolean]:
+    return or_(
+        and_(TR.run_id == run_id, _condition_by_map_index(map_indexes))
+        for run_id, map_indexes in run_ids.items()
+    )
+
+
+def _condition_by_dag_id(
+    task_id_by_key: Mapping[str, Mapping[str, Mapping[int, Mapping[int, set[str]]]]],
+) -> ColumnElement[Boolean]:
+    return or_(
+        and_(TR.dag_id == dag_id, _condition_by_run_id(run_ids)) for dag_id, run_ids in task_id_by_key.items()
+    )
 
 
 STATICA_HACK = True

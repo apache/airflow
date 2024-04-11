@@ -47,7 +47,6 @@ TaskStateChangeCallback = Callable[[Context], None]
 if TYPE_CHECKING:
     import jinja2  # Slow import.
     from sqlalchemy.orm import Session
-    from sqlalchemy.orm import Mapped
 
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.baseoperatorlink import BaseOperatorLink
@@ -233,7 +232,7 @@ class AbstractOperator(Templater, DAGNode):
             setups = [setups] if isinstance(setups, DependencyMixin) else setups
             for s in setups:
                 s.is_setup = True
-                s >> self
+                _ = s >> self
         return self
 
     def get_direct_relative_ids(self, upstream: bool = False) -> set[str]:
@@ -494,7 +493,6 @@ class AbstractOperator(Templater, DAGNode):
             return link.get_link(self.unmap(None), ti.dag_run.logical_date)  # type: ignore[misc]
         return link.get_link(self.unmap(None), ti_key=ti.key)
 
-    @methodtools.lru_cache(maxsize=None)
     def get_parse_time_mapped_ti_count(self) -> int:
         """
         Return the number of mapped task instances that can be created on DAG run creation.
@@ -511,6 +509,9 @@ class AbstractOperator(Templater, DAGNode):
         if group is None:
             raise NotMapped
         return group.get_parse_time_mapped_ti_count()
+
+    if not TYPE_CHECKING:
+        get_parse_time_mapped_ti_count = methodtools.lru_cache(maxsize=None)(get_parse_time_mapped_ti_count)
 
     def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int:
         """
@@ -611,7 +612,7 @@ class AbstractOperator(Templater, DAGNode):
                 else:
                     self.log.debug("Deleting the original task instance: %s", unmapped_ti)
                     session.delete(unmapped_ti)
-                state = unmapped_ti.state
+                state = TaskInstanceState(unmapped_ti.state)
 
         if total_length is None or total_length < 1:
             # Nothing to fixup.

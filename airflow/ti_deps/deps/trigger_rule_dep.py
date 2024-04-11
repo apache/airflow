@@ -31,7 +31,7 @@ from airflow.utils.trigger_rule import TriggerRule as TR
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
-    from sqlalchemy.sql.expression import ColumnOperators
+    from sqlalchemy.sql.operators import ColumnOperators
 
     from airflow import DAG
     from airflow.models.taskinstance import TaskInstance
@@ -69,7 +69,7 @@ class _UpstreamTIStates(NamedTuple):
         for ti in finished_upstreams:
             if TYPE_CHECKING:
                 assert ti.task
-            curr_state = {ti.state: 1}
+            curr_state = {str(ti.state): 1}
             counter.update(curr_state)
             if ti.task.is_setup:
                 setup_counter.update(curr_state)

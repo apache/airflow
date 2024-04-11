@@ -17,9 +17,12 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, AsyncIterator
+from typing import TYPE_CHECKING, Any, AsyncIterator
 
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstance
 
 
 class BaseTrigger(abc.ABC, LoggingMixin):
@@ -39,8 +42,8 @@ class BaseTrigger(abc.ABC, LoggingMixin):
     def __init__(self, **kwargs):
         # these values are set by triggerer when preparing to run the instance
         # when run, they are injected into logger record.
-        self.task_instance = None
-        self.trigger_id = None
+        self.task_instance: TaskInstance | None = None
+        self.trigger_id: int | None = None
 
     def _set_context(self, context):
         """Part of LoggingMixin and used mainly for configuration of task logging; not used for triggers."""

@@ -279,7 +279,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                     TaskInstance.task_id,
                     TaskInstance.run_id,
                     TaskInstance.map_index,
-                ).in_(running_tis_ids)
+                ).in_(running_tis_ids),
             )
         ).all()
         # dict of refreshed TaskInstance by key to easily find them

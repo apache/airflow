@@ -355,14 +355,14 @@ class Connection(Base, LoggingMixin):
             self._password = fernet.encrypt(bytes(value, "utf-8")).decode()
             self.is_encrypted = fernet.is_encrypted
 
-    if TYPE_CHECKING:
-        password: Mapped[str | None]
-    else:
-
+    if not TYPE_CHECKING:
+        # FIXME: sqlalchemy2
         @declared_attr
         def password(cls):
-            """Password. The value is decrypted/encrypted when reading/setting the value."""
             return synonym("_password", descriptor=property(cls.get_password, cls.set_password))
+
+    password: Mapped[str | None]
+    """Password. The value is decrypted/encrypted when reading/setting the value."""
 
     def get_extra(self) -> str:
         """Return encrypted extra-data."""
@@ -391,12 +391,14 @@ class Connection(Base, LoggingMixin):
             self._extra = value
             self.is_extra_encrypted = False
 
-    @declared_attr
-    def extra(cls):
-        """Extra data. The value is decrypted/encrypted when reading/setting the value."""
-        return synonym("_extra", descriptor=property(cls.get_extra, cls.set_extra))
+    if not TYPE_CHECKING:
+
+        @declared_attr
+        def extra(cls):
+            return synonym("_extra", descriptor=property(cls.get_extra, cls.set_extra))
 
     extra: Mapped[str]
+    """Extra data. The value is decrypted/encrypted when reading/setting the value."""
 
     def rotate_fernet_key(self):
         """Encrypts data with a new key. See: :ref:`security/fernet`."""

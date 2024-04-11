@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Iterable, Optional
+from typing import TYPE_CHECKING, Any, Iterable, Optional, cast
 
 from typing_extensions import Annotated
 
@@ -394,7 +394,8 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
             job_id=job_id,
             pool=pool,
             external_executor_id=external_executor_id,
-            session=session,
+            # provide_session
+            session=cast("Session", session),
         )
 
     def schedule_downstream_tasks(self, session: Session | None = None, max_tis_per_query: int | None = None):
@@ -403,8 +404,9 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
 
         :meta: private
         """
+        # provide_session
         return TaskInstance._schedule_downstream_tasks(
-            ti=self, session=session, max_tis_per_query=max_tis_per_query
+            ti=self, session=cast("Session", session), max_tis_per_query=max_tis_per_query
         )
 
     def command_as_list(
