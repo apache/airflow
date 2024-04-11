@@ -197,6 +197,7 @@ class TestTaskInstanceEndpoint:
             tis.append(ti)
 
         session.commit()
+        session.close()
         return tis
 
 
@@ -218,6 +219,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         # https://github.com/apache/airflow/issues/14421
         session.query(TaskInstance).update({TaskInstance.operator: None}, synchronize_session="fetch")
         session.commit()
+        session.close()
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
             headers={"REMOTE_USER": username},
@@ -265,6 +267,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         TriggererJobRunner(job=ti.triggerer_job)
         ti.triggerer_job.state = "running"
         session.commit()
+        session.close()
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
             headers={"REMOTE_USER": "test"},
@@ -372,6 +375,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         rendered_fields = RTIF(tis[0], render_templates=False)
         session.add(rendered_fields)
         session.commit()
+        session.close()
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
             headers={"REMOTE_USER": "test"},
@@ -428,6 +432,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 setattr(ti, attr, getattr(old_ti, attr))
             session.add(ti)
         session.commit()
+        session.close()
 
         # in each loop, we should get the right mapped TI back
         for map_index in (1, 2):
@@ -488,7 +493,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
-        assert response.json()["title"] == "Not Found"
+        assert response.json()["title"] == "Task instance not found"
 
     def test_unmapped_map_index_should_return_404(self, session):
         self.create_task_instances(session)
@@ -1662,7 +1667,10 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         )
 
         assert 404 == response.status_code
-        assert response.json()["title"] == "Not Found"
+        assert (
+            response.json()["title"]
+            == "Dag Run id TEST_DAG_RUN_ID_100 not found in dag example_python_operator"
+        )
         _check_last_log(session, dag_id=dag_id, event="api.post_clear_task_instances", execution_date=None)
 
     def test_should_raises_401_unauthenticated(self):
@@ -1739,7 +1747,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             },
         )
         assert response.status_code == 404
-        assert response.json()["title"] == "Not Found"
+        assert response.json()["title"] == "Dag is non-existent-dag not found"
 
 
 class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
@@ -2179,6 +2187,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
         session.add(ti)
         session.commit()
+        session.close()
 
         self.client.patch(
             f"{self.ENDPOINT_URL}/{map_index}",
@@ -2241,7 +2250,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             },
         )
         assert response.status_code == 404
-        assert response.json()["title"] == "Not Found"
+        assert response.json()["title"] == "DAG not found"
         assert response.json()["detail"] == "DAG 'non-existent-dag' not found"
 
     def test_should_raise_404_for_non_existent_task_in_dag(self):
@@ -2254,7 +2263,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             },
         )
         assert response.status_code == 404
-        assert response.json()["title"] == "Not Found"
+        assert response.json()["title"] == "Task not found"
         assert (
             response.json()["detail"] == "Task 'non_existent_task' not found in DAG 'example_python_operator'"
         )
@@ -2402,6 +2411,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
                 setattr(ti, attr, getattr(old_ti, attr))
             session.add(ti)
         session.commit()
+        session.close()
 
         # in each loop, we should get the right mapped TI back
         for map_index in (1, 2):
@@ -2451,6 +2461,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
             ti.task_instance_note = None
             session.add(ti)
         session.commit()
+        session.close()
         new_note_value = "My super cool TaskInstance note."
         response = self.client.patch(
             "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
