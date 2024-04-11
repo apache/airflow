@@ -32,13 +32,16 @@ Definition of the public interface for airflow.providers.common.sql.hooks.sql
 isort:skip_file
 """
 from _typeshed import Incomplete
-from typing import Any, Callable, Generator, Iterable, Mapping, Protocol, Sequence, TypeVar, overload
-
-from pandas import DataFrame as DataFrame
-
+from airflow.exceptions import (
+    AirflowException as AirflowException,
+    AirflowOptionalProviderFeatureException as AirflowOptionalProviderFeatureException,
+    AirflowProviderDeprecationWarning as AirflowProviderDeprecationWarning,
+)
 from airflow.hooks.base import BaseHook as BaseHook
 from airflow.providers.openlineage.extractors import OperatorLineage as OperatorLineage
 from airflow.providers.openlineage.sqlparser import DatabaseInfo as DatabaseInfo
+from pandas import DataFrame as DataFrame
+from typing import Any, Callable, Generator, Iterable, Mapping, Protocol, Sequence, TypeVar, overload
 
 T = TypeVar("T")
 SQL_PLACEHOLDERS: Incomplete
