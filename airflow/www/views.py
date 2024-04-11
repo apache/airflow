@@ -3167,7 +3167,6 @@ class Airflow(AirflowBaseView):
     def grid_data(self):
         """Return grid data."""
         dag_id = request.args.get("dag_id")
-        run_id = request.args.get("dag_run_id")
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
 
         if not dag:
@@ -3185,43 +3184,25 @@ class Airflow(AirflowBaseView):
         if num_runs is None:
             num_runs = conf.getint("webserver", "default_dag_run_display_number")
 
-        dagrun = None
-        if run_id:
-            with create_session() as session:
-                dagrun = dag.get_dagrun(run_id=run_id, session=session)
-                if not dagrun:
-                    return {"error": f"can't find dag_run_id={run_id}"}, 404
-            base_date = dagrun.execution_date
-        else:
-            try:
-                base_date = timezone.parse(request.args["base_date"], strict=True)
-            except (KeyError, ValueError):
-                base_date = dag.get_latest_execution_date() or timezone.utcnow()
+        try:
+            base_date = timezone.parse(request.args["base_date"], strict=True)
+        except (KeyError, ValueError):
+            base_date = dag.get_latest_execution_date() or timezone.utcnow()
 
         with create_session() as session:
             query = select(DagRun).where(DagRun.dag_id == dag.dag_id, DagRun.execution_date <= base_date)
 
         run_types = request.args.getlist("run_type")
         if run_types:
-            if run_id:
-                return {"error": "Can not provide filters when dag_run_id filter is selected."}, 400
             query = query.where(DagRun.run_type.in_(run_types))
 
         run_states = request.args.getlist("run_state")
         if run_states:
-            if run_id:
-                return {"error": "Can not provide filters when dag_run_id filter is selected."}, 400
             query = query.where(DagRun.state.in_(run_states))
 
         dag_runs = wwwutils.sorted_dag_runs(
             query, ordering=dag.timetable.run_ordering, limit=num_runs, session=session
         )
-        if dagrun:
-            found_requested_run_id = any(True for d in dag_runs if d.run_id == run_id)
-            if not found_requested_run_id:
-                return {
-                    "error": f"Dag with dag_run_id={run_id} found, but not in selected time range or filters."
-                }, 404
 
         encoded_runs = [wwwutils.encode_dag_run(dr, json_encoder=utils_json.WebEncoder) for dr in dag_runs]
         data = {
