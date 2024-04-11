@@ -20,8 +20,7 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
-from apprise import NotifyFormat, NotifyType
-from apprise import common
+from apprise import NotifyFormat, NotifyType, common
 
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.apprise.notifications.apprise import (

@@ -20,8 +20,7 @@ from __future__ import annotations
 from functools import cached_property
 from typing import Iterable
 
-from apprise import AppriseConfig, NotifyFormat, NotifyType
-from apprise import common
+from apprise import AppriseConfig, NotifyFormat, NotifyType, common
 
 from airflow.notifications.basenotifier import BaseNotifier
 from airflow.providers.apprise.hooks.apprise import AppriseHook

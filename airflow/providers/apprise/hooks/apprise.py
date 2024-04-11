@@ -21,8 +21,7 @@ import json
 from typing import Any, Iterable
 
 import apprise
-from apprise import AppriseConfig, NotifyFormat, NotifyType
-from apprise import common
+from apprise import AppriseConfig, NotifyFormat, NotifyType, common
 
 from airflow.hooks.base import BaseHook
 
