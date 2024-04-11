@@ -70,8 +70,8 @@ class TestDatasetManager:
         dsem = DatasetManager()
 
         ds = Dataset(uri="test_dataset_uri")
-        dag1 = DagModel(dag_id="dag1")
-        dag2 = DagModel(dag_id="dag2")
+        dag1 = DagModel(dag_id="dag1", is_active=True)
+        dag2 = DagModel(dag_id="dag2", is_active=True)
         session.add_all([dag1, dag2])
 
         dsm = DatasetModel(uri="test_dataset_uri")
