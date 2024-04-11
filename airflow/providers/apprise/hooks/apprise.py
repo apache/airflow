@@ -22,7 +22,7 @@ from typing import Any, Iterable
 
 import apprise
 from apprise import AppriseConfig, NotifyFormat, NotifyType
-from apprise.common import MATCH_ALL_TAG
+from apprise import common
 
 from airflow.hooks.base import BaseHook
 
@@ -72,7 +72,7 @@ class AppriseHook(BaseHook):
         title: str | None = None,
         notify_type: NotifyType = NotifyType.INFO,
         body_format: NotifyFormat = NotifyFormat.TEXT,
-        tag: str | Iterable[str] = MATCH_ALL_TAG,
+        tag: str | Iterable[str] = common.MATCH_ALL_TAG,
         attach: str | Iterable[str] | None = None,
         interpret_escapes: bool | None = None,
         config: AppriseConfig | None = None,

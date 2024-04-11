@@ -21,7 +21,7 @@ from functools import cached_property
 from typing import Iterable
 
 from apprise import AppriseConfig, NotifyFormat, NotifyType
-from apprise.common import MATCH_ALL_TAG
+from apprise import common
 
 from airflow.notifications.basenotifier import BaseNotifier
 from airflow.providers.apprise.hooks.apprise import AppriseHook
@@ -54,7 +54,7 @@ class AppriseNotifier(BaseNotifier):
         title: str | None = None,
         notify_type: NotifyType = NotifyType.INFO,
         body_format: NotifyFormat = NotifyFormat.TEXT,
-        tag: str | Iterable[str] = MATCH_ALL_TAG,
+        tag: str | Iterable[str] = common.MATCH_ALL_TAG,
         attach: str | None = None,
         interpret_escapes: bool | None = None,
         config: AppriseConfig | None = None,

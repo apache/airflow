@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, call, patch
 import apprise
 import pytest
 from apprise import NotifyFormat, NotifyType
-from apprise.common import MATCH_ALL_TAG
+from apprise import common
 
 from airflow.models import Connection
 from airflow.providers.apprise.hooks.apprise import AppriseHook
@@ -105,7 +105,7 @@ class TestAppriseHook:
                 title="",
                 notify_type=NotifyType.INFO,
                 body_format=NotifyFormat.TEXT,
-                tag=MATCH_ALL_TAG,
+                tag=common.MATCH_ALL_TAG,
                 attach=None,
                 interpret_escapes=None,
             )
