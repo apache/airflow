@@ -598,7 +598,7 @@ class DbApiHook(BaseHook):
 
     @classmethod
     def _serialize_cells(cls, row, conn=None):
-        return tuple(map(lambda cell: cls._serialize_cell(cell, conn), row))
+        return tuple(cls._serialize_cell(cell, conn) for cell in row)
 
     @staticmethod
     def _serialize_cell(cell, conn=None) -> str | None:
