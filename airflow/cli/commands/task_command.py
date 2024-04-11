@@ -169,8 +169,11 @@ def _get_ti_db_access(
     session: Session = NEW_SESSION,
 ) -> tuple[TaskInstance | TaskInstancePydantic, bool]:
     """Get the task instance through DagRun.run_id, if that fails, get the TI the old way."""
-    if task.dag_id != dag.dag_id:
-        raise ValueError(f"Provided task '{task.task_id}' is not assigned to provided dag {dag.dag_id}.")
+    # this check is imperfect because diff dags could have tasks with same name
+    # but in a task, dag_id is a property that accesses its dag, and we don't
+    # currently include the dag when serializing an operator
+    if task.task_id not in dag.task_dict:
+        raise ValueError(f"Provided task {task.task_id} is not in dag '{dag.dag_id}.")
 
     if not exec_date_or_run_id and not create_if_necessary:
         raise ValueError("Must provide `exec_date_or_run_id` if not `create_if_necessary`.")
