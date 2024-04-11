@@ -1,6 +1,7 @@
 aarch
 abc
 accessor
+AccessSecretVersionResponse
 accountmaking
 aci
 Ack
@@ -947,6 +948,7 @@ linter
 linux
 ListGenerator
 ListInfoTypesResponse
+ListSecretsPager
 Liveness
 liveness
 livy
@@ -1408,10 +1410,13 @@ sdk
 sdks
 searchpath
 SearchResultGenerator
+secretmanager
 SecretManagerClient
+SecretManagerServiceClient
 secretRef
 secretRefs
 SecretsManagerBackend
+SecretVersion
 securable
 securecookie
 securestring
@@ -1498,7 +1503,10 @@ sshHook
 sshtunnel
 SSHTunnelForwarder
 ssl
+sslcert
+sslkey
 sslmode
+sslrootcert
 ssm
 Stackdriver
 stackdriver
