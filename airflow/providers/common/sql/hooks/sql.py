@@ -17,8 +17,9 @@
 from __future__ import annotations
 
 import contextlib
+import traceback
 import warnings
-from contextlib import closing
+from contextlib import closing, contextmanager
 from datetime import datetime
 from typing import (
     TYPE_CHECKING,
@@ -109,6 +110,15 @@ def fetch_one_handler(cursor) -> list[tuple] | None:
         return cursor.fetchone()
     else:
         return None
+
+
+@contextmanager
+def suppress_and_warn(*exceptions: type[BaseException]):
+    """Context manager that suppresses the given exceptions and logs a warning message."""
+    try:
+        yield
+    except exceptions as e:
+        warnings.warn(f"Exception suppressed: {e}\n{traceback.format_exc()}", category=UserWarning)
 
 
 class ConnectorProtocol(Protocol):

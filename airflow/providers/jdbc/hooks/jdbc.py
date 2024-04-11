@@ -21,8 +21,7 @@ from typing import TYPE_CHECKING, Any
 
 import jaydebeapi
 
-from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.utils.context import suppress_and_warn
+from airflow.providers.common.sql.hooks.sql import DbApiHook, suppress_and_warn
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection

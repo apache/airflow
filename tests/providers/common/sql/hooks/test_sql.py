@@ -23,9 +23,10 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning, DeserializingResultError
 from airflow.models import Connection
-from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
+from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, suppress_and_warn
+from airflow.utils.context import AirflowContextDeprecationWarning
 from airflow.utils.session import provide_session
 from tests.providers.common.sql.test_utils import mock_hook
 
@@ -251,3 +252,12 @@ class TestDbApiHook:
     def test_placeholder_config_from_extra(self):
         dbapi_hook = mock_hook(DbApiHook, conn_params={"extra": {"placeholder": "?"}})
         assert dbapi_hook.placeholder == "?"
+
+    def test_suppress_and_warn_when_raised_exception_is_suppressed(self):
+        with suppress_and_warn(AirflowContextDeprecationWarning):
+            raise AirflowContextDeprecationWarning()
+
+    def test_suppress_and_warn_when_raised_exception_is_not_suppressed(self):
+        with pytest.raises(AirflowContextDeprecationWarning):
+            with suppress_and_warn(DeserializingResultError):
+                raise AirflowContextDeprecationWarning()
