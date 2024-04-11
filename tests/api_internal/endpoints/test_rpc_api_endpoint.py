@@ -123,9 +123,9 @@ class TestRpcApiEndpoint:
         )
         assert response.status_code == 200
         if method_result:
-            response_data = BaseSerialization.deserialize(json.loads(response.data), use_pydantic_models=True)
+            response_data = BaseSerialization.deserialize(json.loads(response.text), use_pydantic_models=True)
         else:
-            response_data = response.data
+            response_data = response.text
 
         assert result_cmp_func(response_data, method_result)
 
@@ -139,7 +139,7 @@ class TestRpcApiEndpoint:
             "/internal_api/v1/rpcapi", headers={"Content-Type": "application/json"}, data=json.dumps(data)
         )
         assert response.status_code == 500
-        assert response.data, b"Error executing method: test_method."
+        assert response.text, b"Error executing method: test_method."
         mock_test_method.assert_called_once()
 
     def test_unknown_method(self):
@@ -149,7 +149,7 @@ class TestRpcApiEndpoint:
             "/internal_api/v1/rpcapi", headers={"Content-Type": "application/json"}, data=json.dumps(data)
         )
         assert response.status_code == 400
-        assert response.data == b"Unrecognized method: i-bet-it-does-not-exist."
+        assert response.text == "Unrecognized method: i-bet-it-does-not-exist."
         mock_test_method.assert_not_called()
 
     def test_invalid_jsonrpc(self):
@@ -159,5 +159,5 @@ class TestRpcApiEndpoint:
             "/internal_api/v1/rpcapi", headers={"Content-Type": "application/json"}, data=json.dumps(data)
         )
         assert response.status_code == 400
-        assert response.data == b"Expected jsonrpc 2.0 request."
+        assert response.text == "Expected jsonrpc 2.0 request."
         mock_test_method.assert_not_called()
