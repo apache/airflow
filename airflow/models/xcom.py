@@ -584,7 +584,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         task_id: str,
         run_id: str,
         map_index: int | None = None,
-        session: Session = NEW_SESSION,
+        session: Session | None = NEW_SESSION,
     ) -> None:
         """Clear all XCom data from the database for the given task instance.
 
@@ -607,7 +607,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         execution_date: pendulum.DateTime,
         dag_id: str,
         task_id: str,
-        session: Session = NEW_SESSION,
+        session: Session | None = NEW_SESSION,
     ) -> None:
         """Clear all XCom data from the database for the given task instance.
 

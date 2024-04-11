@@ -653,7 +653,7 @@ class DagRun(Base, LoggingMixin):
     def get_task_instance(
         self,
         task_id: str,
-        session: Session = NEW_SESSION,
+        session: Session | None = NEW_SESSION,
         *,
         map_index: int = -1,
     ) -> TI | TaskInstancePydantic | None:
@@ -677,7 +677,7 @@ class DagRun(Base, LoggingMixin):
         dag_id: str,
         dag_run_id: str,
         task_id: str,
-        session: Session = NEW_SESSION,
+        session: Session | None = NEW_SESSION,
         map_index: int = -1,
     ) -> TI | TaskInstancePydantic | None:
         """
@@ -688,6 +688,8 @@ class DagRun(Base, LoggingMixin):
         :param task_id: the task id
         :param session: Sqlalchemy ORM Session
         """
+        # provide_session
+        session = cast("Session", session)
         return session.scalars(
             select(TI).filter_by(dag_id=dag_id, run_id=dag_run_id, task_id=task_id, map_index=map_index)
         ).one_or_none()
@@ -737,8 +739,7 @@ class DagRun(Base, LoggingMixin):
         :param dag_run_id: the DAG run ID
         :param session: SQLAlchemy ORM Session
         """
-        dag_run = session.get(DagRun, dag_run_id)
-        assert dag_run  # noqa: S101
+        dag_run = cast("DagRun", session.get(DagRun, dag_run_id))
         return session.scalar(
             select(DagRun)
             .where(

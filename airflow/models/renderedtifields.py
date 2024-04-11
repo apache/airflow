@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import sqlalchemy_jsonfield
 from sqlalchemy import (
@@ -130,17 +130,14 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
         if render_templates:
             ti.render_templates()
 
-        if TYPE_CHECKING:
-            assert ti.task
-
-        self.task = ti.task
+        self.task = cast("Operator", ti.task)
         if os.environ.get("AIRFLOW_IS_K8S_EXECUTOR_POD", None):
             # we can safely import it here from provider. In Airflow 2.7.0+ you need to have new version
             # of kubernetes provider installed to reach this place
             from airflow.providers.cncf.kubernetes.template_rendering import render_k8s_pod_yaml
 
             self.k8s_pod_yaml = render_k8s_pod_yaml(ti)
-        self.rendered_fields = rendered_fields or get_serialized_template_fields(task=ti.task)
+        self.rendered_fields = rendered_fields or get_serialized_template_fields(task=self.task)
 
         self._redact()
 

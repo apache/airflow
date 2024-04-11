@@ -21,7 +21,7 @@ import inspect
 import json
 import logging
 from functools import wraps
-from typing import Callable, TypeVar
+from typing import Any, Callable, TypeVar
 
 import requests
 import tenacity
@@ -121,7 +121,7 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
         return response.content
 
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: PS.args, **kwargs: PS.kwargs) -> Any:
         use_internal_api = InternalApiConfig.get_use_internal_api()
         if not use_internal_api:
             return func(*args, **kwargs)

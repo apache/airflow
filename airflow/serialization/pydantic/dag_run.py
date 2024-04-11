@@ -66,7 +66,7 @@ class DagRunPydantic(BaseModelPydantic):
     def get_task_instances(
         self,
         state: Iterable[TaskInstanceState | None] | None = None,
-        session: Session = NEW_SESSION,
+        session: Session | None = NEW_SESSION,
     ) -> list[TI]:
         """
         Return the task instances for this dag run.
@@ -78,7 +78,7 @@ class DagRunPydantic(BaseModelPydantic):
     def get_task_instance(
         self,
         task_id: str,
-        session: Session,
+        session: Session | None,
         *,
         map_index: int = -1,
     ) -> TI | TaskInstancePydantic | None:

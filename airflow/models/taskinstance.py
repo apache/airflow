@@ -1867,8 +1867,10 @@ class TaskInstance(Base, LoggingMixin):
         task_id: str,
         map_index: int,
         lock_for_update: bool = False,
-        session: Session = NEW_SESSION,
+        session: Session | None = NEW_SESSION,
     ) -> TaskInstance | TaskInstancePydantic | None:
+        # provide_session
+        session = cast("Session", session)
         query = (
             session.query(TaskInstance)
             .options(lazyload("dag_run"))  # lazy load dag run to avoid locking it
@@ -1930,8 +1932,6 @@ class TaskInstance(Base, LoggingMixin):
             map_index: int | None = None
         else:
             map_index = ti.map_index
-        # provide_session
-        session = cast("Session", session)
         XCom.clear(
             dag_id=ti.dag_id,
             task_id=ti.task_id,
@@ -2290,7 +2290,7 @@ class TaskInstance(Base, LoggingMixin):
         job_id: int | str | None = None,
         pool: str | None = None,
         external_executor_id: str | None = None,
-        session: Session = NEW_SESSION,
+        session: Session | None = NEW_SESSION,
     ) -> bool:
         """
         Check dependencies and then sets state to RUNNING if they are met.
@@ -2316,6 +2316,8 @@ class TaskInstance(Base, LoggingMixin):
         if TYPE_CHECKING:
             assert task_instance.task
 
+        # provide_session
+        session = cast("Session", session)
         if isinstance(task_instance, TaskInstance):
             ti: TaskInstance = task_instance
         else:  # isinstance(task_instance, TaskInstancePydantic)
@@ -3534,12 +3536,15 @@ class TaskInstance(Base, LoggingMixin):
     def _schedule_downstream_tasks(
         cls,
         ti: TaskInstance | TaskInstancePydantic,
-        session: Session = NEW_SESSION,
+        session: Session | None = NEW_SESSION,
         max_tis_per_query: int | None = None,
     ):
         from sqlalchemy.exc import OperationalError
 
         from airflow.models.dagrun import DagRun
+
+        # provide_session
+        session = cast("Session", session)
 
         try:
             # Re-select the row with a lock
@@ -3552,15 +3557,13 @@ class TaskInstance(Base, LoggingMixin):
                 nowait=True,
             ).one()
 
-            task = ti.task
-            if TYPE_CHECKING:
-                assert task
-                assert task.dag
+            task = cast("Operator", ti.task)
+            dag = cast("DAG", task.dag)
 
             # Get a partial DAG with just the specific tasks we want to examine.
             # In order for dep checks to work correctly, we include ourself (so
             # TriggerRuleDep can check the state of the task we just executed).
-            partial_dag = task.dag.partial_subset(
+            partial_dag = dag.partial_subset(
                 task.downstream_task_ids,
                 include_downstream=True,
                 include_upstream=False,
@@ -3587,7 +3590,7 @@ class TaskInstance(Base, LoggingMixin):
             ]
             for schedulable_ti in schedulable_tis:
                 if getattr(schedulable_ti, "task", None) is None:
-                    schedulable_ti.task = task.dag.get_task(schedulable_ti.task_id)
+                    schedulable_ti.task = dag.get_task(schedulable_ti.task_id)
 
             num = dag_run.schedule_tis(schedulable_tis, session=session, max_tis_per_query=max_tis_per_query)
             cls.logger().info("%d downstream tasks scheduled from follow-on schedule check", num)

@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Iterable, Sequence
+from typing import TYPE_CHECKING, Iterable, Sequence, cast
 
 from sqlalchemy import select, update
 
@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from pendulum import DateTime
     from sqlalchemy.orm import Session
 
+    from airflow.models.dag import DAG
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
     from airflow.models.taskmixin import DAGNode
@@ -197,17 +198,12 @@ class SkipMixin(LoggingMixin):
             )
 
         dag_run = ti.get_dagrun()
-        if TYPE_CHECKING:
-            assert isinstance(dag_run, DagRun)
-            assert ti.task
 
         # TODO(potiuk): Handle TaskInstancePydantic case differently - we need to figure out the way to
         # pass task that has been set in LocalTaskJob but in the way that TaskInstancePydantic definition
         # does not attempt to serialize the field from/to ORM
-        task = ti.task
-        dag = task.dag
-        if TYPE_CHECKING:
-            assert dag
+        task = cast("Operator", ti.task)
+        dag = cast("DAG", task.dag)
 
         valid_task_ids = set(dag.task_ids)
         invalid_task_ids = branch_task_id_set - valid_task_ids
@@ -238,7 +234,7 @@ class SkipMixin(LoggingMixin):
             skip_tasks = [
                 (t.task_id, downstream_ti.map_index)
                 for t in downstream_tasks
-                if (downstream_ti := dag_run.get_task_instance(t.task_id, map_index=ti.map_index))
+                if (downstream_ti := dag_run.get_task_instance(t.task_id, None, map_index=ti.map_index))
                 and t.task_id not in branch_task_id_set
             ]
 
