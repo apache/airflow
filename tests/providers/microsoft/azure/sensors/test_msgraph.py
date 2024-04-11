@@ -32,11 +32,11 @@ class TestMSGraphSensor(Base):
 
         with self.patch_hook_and_request_adapter(response):
             sensor = MSGraphSensor(
-                    task_id="check_workspaces_status",
-                    conn_id="powerbi",
-                    url="myorg/admin/workspaces/scanStatus/0a1b1bf3-37de-48f7-9863-ed4cda97a9ef",
-                    timeout=350.0,
-                )
+                task_id="check_workspaces_status",
+                conn_id="powerbi",
+                url="myorg/admin/workspaces/scanStatus/0a1b1bf3-37de-48f7-9863-ed4cda97a9ef",
+                timeout=350.0,
+            )
             actual = sensor.execute(
                 context=MockedTaskInstance(task=sensor, run_id="run_id", state=TaskInstanceState.RUNNING)
             )
