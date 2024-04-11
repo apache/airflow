@@ -29,7 +29,7 @@ from contextlib import suppress
 from copy import copy
 from logging.handlers import QueueListener
 from queue import SimpleQueue
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from sqlalchemy import func, select
 
@@ -683,7 +683,9 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                 self.failed_triggers.append((new_id, err))
                 continue
 
-            self.set_trigger_logging_metadata(new_trigger_orm.task_instance, new_id, new_trigger_instance)
+            self.set_trigger_logging_metadata(
+                cast("TaskInstance", new_trigger_orm.task_instance), new_id, new_trigger_instance
+            )
             self.to_create.append((new_id, new_trigger_instance))
         # Enqueue orphaned triggers for cancellation
         self.to_cancel.extend(cancel_trigger_ids)

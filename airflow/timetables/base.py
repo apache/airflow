@@ -133,7 +133,7 @@ class Timetable(Protocol):
                 DeprecationWarning,
                 stacklevel=2,
             )
-            return self.can_run
+            return getattr(self, "can_run")
         return self._can_be_scheduled
 
     """Whether this timetable can actually schedule runs in an automated manner.

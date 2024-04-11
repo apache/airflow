@@ -274,7 +274,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         # list of TaskInstance of running tasks in executor (refreshed from db in batch)
         refreshed_running_tis = session.scalars(
             select(TaskInstance).where(
-                tuple_(
+                tuple_(  # type: ignore[type-var]
                     TaskInstance.dag_id,
                     TaskInstance.task_id,
                     TaskInstance.run_id,

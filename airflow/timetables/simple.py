@@ -16,14 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Collection, Sequence
+from typing import TYPE_CHECKING, Any, Collection, Sequence, cast
 
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 from airflow.utils import timezone
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from pendulum import DateTime
-    from sqlalchemy import Session
+    from sqlalchemy.orm import Session
 
     from airflow.models.dataset import DatasetEvent
     from airflow.timetables.base import TimeRestriction
@@ -62,7 +64,7 @@ class NullTimetable(_TrivialTimetable):
     This corresponds to ``schedule=None``.
     """
 
-    can_be_scheduled = False
+    can_be_scheduled = False  # type: ignore[type-var]
     description: str = "Never, external triggers only"
 
     @property
@@ -182,6 +184,8 @@ class DatasetTriggeredTimetable(_TrivialTimetable):
         if not events:
             return DataInterval(logical_date, logical_date)
 
+        start_dates: list[datetime | None]
+        end_dates: list[datetime | None]
         start_dates, end_dates = [], []
         for event in events:
             if event.source_dag_run is not None:
@@ -191,9 +195,9 @@ class DatasetTriggeredTimetable(_TrivialTimetable):
                 start_dates.append(event.timestamp)
                 end_dates.append(event.timestamp)
 
-        start = min(start_dates)
-        end = max(end_dates)
-        return DataInterval(start, end)
+        start = min(x for x in start_dates if x)
+        end = max(x for x in end_dates if x)
+        return DataInterval(cast("DateTime", start), cast("DateTime", end))
 
     def next_dagrun_info(
         self,

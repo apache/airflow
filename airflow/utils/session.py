@@ -33,7 +33,7 @@ from airflow.typing_compat import ParamSpec
 def create_session() -> Generator[SASession, None, None]:
     """Contextmanager that will create and teardown a session."""
     if InternalApiConfig.get_use_internal_api():
-        yield TracebackSession()
+        yield cast("SASession", TracebackSession())
         return
     Session = getattr(settings, "Session", None)
     if Session is None:
@@ -76,12 +76,13 @@ def provide_session(func: Callable[PS, RT]) -> Callable[PS, RT]:
     session_args_idx = find_session_idx(func)
 
     @wraps(func)
-    def wrapper(*args, **kwargs) -> RT:
+    def wrapper(*args: PS.args, **kwargs: PS.kwargs) -> RT:
         if "session" in kwargs or session_args_idx < len(args):
             return func(*args, **kwargs)
         else:
             with create_session() as session:
-                return func(*args, session=session, **kwargs)
+                kwargs["session"] = session
+                return func(*args, **kwargs)
 
     return wrapper
 

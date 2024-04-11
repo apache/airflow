@@ -1221,10 +1221,12 @@ class DagRun(Base, LoggingMixin):
             )
 
         created_counts: dict[str, int] = defaultdict(int)
+        task_creator: Callable[[Operator, Iterable[int]], Iterator[Any]]
         task_creator = self._get_task_creator(created_counts, task_instance_mutation_hook, hook_is_noop)
 
         # Create the missing tasks, including mapped tasks
         tasks_to_create = (task for task in dag.task_dict.values() if task_filter(task))
+        tis_to_create: Iterator[Any]
         tis_to_create = self._create_tasks(tasks_to_create, task_creator, session=session)
         self._create_task_instances(self.dag_id, tis_to_create, created_counts, hook_is_noop, session=session)
 

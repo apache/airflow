@@ -645,6 +645,8 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
                 f"Passed execution_date={execution_date}, run_id={run_id}"
             )
 
+        # provide_session
+        session = cast("Session", session)
         if execution_date is not None:
             message = "Passing 'execution_date' to 'XCom.clear()' is deprecated. Use 'run_id' instead."
             warnings.warn(message, RemovedInAirflow3Warning, stacklevel=3)

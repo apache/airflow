@@ -23,7 +23,7 @@ import datetime
 import json
 import logging
 from importlib import metadata
-from typing import TYPE_CHECKING, Any, Generator, Iterable, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Generator, Iterable, TypeVar, cast, overload
 
 from dateutil import relativedelta
 from packaging import version
@@ -338,7 +338,7 @@ class Interval(TypeDecorator):
         return data
 
 
-def nulls_first(col, session: Session) -> dict[str, Any]:
+def nulls_first(col: ColumnElement[Any], session: Session) -> ColumnElement[Any]:
     """Specify *NULLS FIRST* to the column ordering.
 
     This is only done to Postgres, currently the only backend that supports it.
@@ -391,7 +391,7 @@ def with_row_locks(
         kwargs["nowait"] = True
     if skip_locked:
         kwargs["skip_locked"] = True
-    return query.with_for_update(**kwargs)
+    return cast("QueryOrSelectT", query.with_for_update(**kwargs))
 
 
 @contextlib.contextmanager

@@ -186,10 +186,10 @@ def render_log_filename(ti: TaskInstance, try_number, filename_template) -> str:
         jinja_context["try_number"] = try_number
         return render_template_to_string(filename_jinja_template, jinja_context)
 
-    return filename_template.format(
+    return (filename_template or "").format(
         dag_id=ti.dag_id,
         task_id=ti.task_id,
-        execution_date=ti.execution_date.isoformat(),
+        execution_date=ti.execution_date.isoformat() if ti.execution_date else "",
         try_number=try_number,
     )
 

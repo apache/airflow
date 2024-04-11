@@ -211,7 +211,7 @@ class Job(Base, LoggingMixin):
                 self.kill()
 
             # Figure out how long to sleep for
-            sleep_for = 0
+            sleep_for: float = 0
             if self.latest_heartbeat:
                 seconds_remaining = (
                     self.heartrate - (timezone.utcnow() - self.latest_heartbeat).total_seconds()

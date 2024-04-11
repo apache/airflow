@@ -622,6 +622,7 @@ def _get_template_context(
         assert task_instance.task
         assert task
         assert task.dag
+
     try:
         dag: DAG = task.dag
     except AirflowException:
@@ -658,6 +659,8 @@ def _get_template_context(
 
     @cache  # Prevent multiple database access.
     def _get_previous_dagrun_success() -> DagRun | None:
+        if TYPE_CHECKING:
+            assert session
         return task_instance.get_previous_dagrun(state=DagRunState.SUCCESS, session=session)
 
     def _get_previous_dagrun_data_interval_success() -> DataInterval | None:
@@ -773,6 +776,9 @@ def _get_template_context(
                 triggering_events[event.dataset.uri].append(event)
 
         return triggering_events
+
+    if TYPE_CHECKING:
+        assert task
 
     try:
         expanded_ti_count: int | None = task.get_mapped_ti_count(task_instance.run_id, session=session)
@@ -1835,7 +1841,7 @@ class TaskInstance(Base, LoggingMixin):
 
         :param session: SQLAlchemy ORM Session
         """
-        mapper = cast("Mapper", inspect(TaskInstance))
+        mapper = cast("Mapper", inspect(TaskInstance))  # type: ignore[redundant-cast]
         filters = (col == getattr(self, col.name) for col in mapper.primary_key)
         return session.query(TaskInstance.state).filter(*filters).scalar()
 
@@ -2313,7 +2319,7 @@ class TaskInstance(Base, LoggingMixin):
         if isinstance(task_instance, TaskInstance):
             ti: TaskInstance = task_instance
         else:  # isinstance(task_instance, TaskInstancePydantic)
-            mapper = cast("Mapper", inspect(TaskInstance))
+            mapper = cast("Mapper", inspect(TaskInstance))  # type: ignore[redundant-cast]
             filters = (col == getattr(task_instance, col.name) for col in mapper.primary_key)
             ti = session.query(TaskInstance).filter(*filters).scalar()
             dag_model = ti.dag_model
@@ -3896,37 +3902,50 @@ class TaskInstanceNote(TaskInstanceDependencies):
         return prefix + ">"
 
 
+def _sub_condition_by_try_number(try_number: int, task_ids: set[str]) -> ColumnElement[Boolean]:
+    return and_(TR.try_number == try_number, TR.task_id.in_(task_ids))
+
+
 def _condition_by_try_number(task_tries: Mapping[int, set[str]]) -> ColumnElement[Boolean]:
     return or_(
-        and_(TR.try_number == try_number, TR.task_id.in_(task_ids))
-        for try_number, task_ids in task_tries.items()
+        *(_sub_condition_by_try_number(try_number, task_ids) for try_number, task_ids in task_tries.items())
     )
+
+
+def _sub_condition_by_map_index(map_index: int, task_tries: Mapping[int, set[str]]) -> ColumnElement[Boolean]:
+    return and_(TR.map_index == map_index, _condition_by_try_number(task_tries))
 
 
 def _condition_by_map_index(
     map_indexes: Mapping[int, Mapping[int, set[str]]],
 ) -> ColumnElement[Boolean]:
     return or_(
-        and_(TR.map_index == map_index, _condition_by_try_number(task_tries))
-        for map_index, task_tries in map_indexes.items()
+        *(_sub_condition_by_map_index(map_index, task_tries) for map_index, task_tries in map_indexes.items())
     )
+
+
+def _sub_condition_by_run_id(
+    run_id: str, map_indexes: Mapping[int, Mapping[int, set[str]]]
+) -> ColumnElement[Boolean]:
+    return and_(TR.run_id == run_id, _condition_by_map_index(map_indexes))
 
 
 def _condition_by_run_id(
     run_ids: Mapping[str, Mapping[int, Mapping[int, set[str]]]],
 ) -> ColumnElement[Boolean]:
-    return or_(
-        and_(TR.run_id == run_id, _condition_by_map_index(map_indexes))
-        for run_id, map_indexes in run_ids.items()
-    )
+    return or_(*(_sub_condition_by_run_id(run_id, map_indexes) for run_id, map_indexes in run_ids.items()))
+
+
+def _sub_condition_by_dag_id(
+    dag_id: str, run_ids: Mapping[str, Mapping[int, Mapping[int, set[str]]]]
+) -> ColumnElement[Boolean]:
+    return and_(TR.dag_id == dag_id, _condition_by_run_id(run_ids))
 
 
 def _condition_by_dag_id(
     task_id_by_key: Mapping[str, Mapping[str, Mapping[int, Mapping[int, set[str]]]]],
 ) -> ColumnElement[Boolean]:
-    return or_(
-        and_(TR.dag_id == dag_id, _condition_by_run_id(run_ids)) for dag_id, run_ids in task_id_by_key.items()
-    )
+    return or_(*(_sub_condition_by_dag_id(dag_id, run_ids) for dag_id, run_ids in task_id_by_key.items()))
 
 
 STATICA_HACK = True
