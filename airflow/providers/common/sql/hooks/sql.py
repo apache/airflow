@@ -557,8 +557,9 @@ class DbApiHook(BaseHook):
         :param commit_every: The maximum number of rows to insert in one
             transaction. Set to 0 to insert all rows in one transaction.
         :param replace: Whether to replace instead of insert
-        :param executemany: Inserts all rows at once in chunks defined by the commit_every parameter, only
-            works if all rows have same number of column names but leads to better performance
+        :param executemany: (Deprecated) If True, all rows are inserted at once in
+            chunks defined by the commit_every parameter. This only works if all rows
+            have same number of column names, but leads to better performance.
         """
         if executemany:
             warnings.warn(
