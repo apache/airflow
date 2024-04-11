@@ -32,7 +32,13 @@ Definition of the public interface for airflow.providers.common.sql.sensors.sql
 isort:skip_file
 """
 from _typeshed import Incomplete
-from airflow.sensors.base import BaseSensorOperator
+from airflow.exceptions import (
+    AirflowException as AirflowException,
+    AirflowSkipException as AirflowSkipException,
+)
+from airflow.hooks.base import BaseHook as BaseHook
+from airflow.providers.common.sql.hooks.sql import DbApiHook as DbApiHook
+from airflow.sensors.base import BaseSensorOperator as BaseSensorOperator
 from typing import Any, Sequence
 
 class SqlSensor(BaseSensorOperator):
@@ -51,11 +57,11 @@ class SqlSensor(BaseSensorOperator):
         *,
         conn_id,
         sql,
-        parameters: Incomplete | None = ...,
-        success: Incomplete | None = ...,
-        failure: Incomplete | None = ...,
-        fail_on_empty: bool = ...,
-        hook_params: Incomplete | None = ...,
+        parameters: Incomplete | None = None,
+        success: Incomplete | None = None,
+        failure: Incomplete | None = None,
+        fail_on_empty: bool = False,
+        hook_params: Incomplete | None = None,
         **kwargs,
     ) -> None: ...
     def poke(self, context: Any): ...
