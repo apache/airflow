@@ -21,6 +21,7 @@ from unittest.mock import MagicMock, call, patch
 
 import apprise
 import pytest
+from apprise import NotifyFormat, NotifyType
 
 from airflow.models import Connection
 from airflow.providers.apprise.hooks.apprise import AppriseHook
@@ -97,13 +98,13 @@ class TestAppriseHook:
         apprise_obj.add = MagicMock()
         with patch.object(apprise, "Apprise", return_value=apprise_obj):
             hook = AppriseHook()
-            hook.notify(body="test", config=True)
+            hook.notify(body="test")
             apprise_obj.notify.assert_called_once_with(
                 body="test",
                 title="",
-                notify_type="info",
-                body_format="text",
-                tag=None,
+                notify_type=NotifyType.INFO,
+                body_format=NotifyFormat.TEXT,
+                tag="all",
                 attach=None,
                 interpret_escapes=None,
             )
