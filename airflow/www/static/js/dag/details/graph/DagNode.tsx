@@ -57,7 +57,6 @@ const DagNode = ({
 
   if (!task) return null;
 
-  const isGroup = !!task.children?.length;
   const groupBg = isOpen ? `${colors.blue[500]}15` : "blue.50";
   const { isMapped } = task;
   const mappedStates = instance?.mappedStates;
@@ -87,7 +86,7 @@ const DagNode = ({
 
   let borderWidth = 2;
   if (isZoomedOut) {
-    if (isSelected) borderWidth = 8;
+    if (isSelected) borderWidth = 10;
     else borderWidth = 6;
   } else if (isSelected) borderWidth = 4;
 
@@ -130,8 +129,8 @@ const DagNode = ({
         }}
         px={isZoomedOut ? 1 : 2}
         mt={isZoomedOut ? -2 : 0}
-        alignItems={isZoomedOut && !isGroup ? "center" : undefined}
-        justifyContent={isZoomedOut && !isGroup ? "center" : undefined}
+        alignItems={isZoomedOut && !isOpen ? "center" : undefined}
+        justifyContent={isZoomedOut && !isOpen ? "center" : undefined}
         flexDirection="column"
         overflow="wrap"
       >
