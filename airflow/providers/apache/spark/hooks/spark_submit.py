@@ -248,7 +248,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
             # Determine optional yarn queue from the extra field
             extra = conn.extra_dejson
-            conn_data["yarn_queue"] = self._yarn_queue if self._yarn_queue else extra.get("queue")
+            conn_data["queue"] = self._yarn_queue if self._yarn_queue else extra.get("queue")
             conn_data["deploy_mode"] = self._deploy_mode if self._deploy_mode else extra.get("deploy-mode")
             if not self.spark_binary:
                 self.spark_binary = extra.get("spark-binary", DEFAULT_SPARK_BINARY)
@@ -386,8 +386,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             connection_cmd += ["--class", self._java_class]
         if self._verbose:
             connection_cmd += ["--verbose"]
-        if self._connection["yarn_queue"]:
-            connection_cmd += ["--queue", self._connection["yarn_queue"]]
+        if self._connection["queue"]:
+            connection_cmd += ["--queue", self._connection["queue"]]
         if self._connection["deploy_mode"]:
             connection_cmd += ["--deploy-mode", self._connection["deploy_mode"]]
 
