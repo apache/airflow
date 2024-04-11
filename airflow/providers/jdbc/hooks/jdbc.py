@@ -17,14 +17,26 @@
 # under the License.
 from __future__ import annotations
 
+import traceback
+import warnings
+from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
 import jaydebeapi
 
-from airflow.providers.common.sql.hooks.sql import DbApiHook, suppress_and_warn
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
+
+
+@contextmanager
+def suppress_and_warn(*exceptions: type[BaseException]):
+    """Context manager that suppresses the given exceptions and logs a warning message."""
+    try:
+        yield
+    except exceptions as e:
+        warnings.warn(f"Exception suppressed: {e}\n{traceback.format_exc()}", category=UserWarning)
 
 
 class JdbcHook(DbApiHook):
