@@ -364,7 +364,7 @@ class Connection(Base, LoggingMixin):
     password: Mapped[str | None]
     """Password. The value is decrypted/encrypted when reading/setting the value."""
 
-    def get_extra(self) -> str:
+    def get_extra(self) -> str | None:
         """Return encrypted extra-data."""
         if self._extra and self.is_extra_encrypted:
             fernet = get_fernet()
@@ -378,7 +378,7 @@ class Connection(Base, LoggingMixin):
             extra_val = self._extra
         if extra_val:
             self._validate_extra(extra_val, self.conn_id)
-        return extra_val or ""
+        return extra_val
 
     def set_extra(self, value: str):
         """Encrypt extra-data and save in object attribute to object."""
@@ -397,7 +397,7 @@ class Connection(Base, LoggingMixin):
         def extra(cls):
             return synonym("_extra", descriptor=property(cls.get_extra, cls.set_extra))
 
-    extra: Mapped[str]
+    extra: Mapped[str | None]
     """Extra data. The value is decrypted/encrypted when reading/setting the value."""
 
     def rotate_fernet_key(self):

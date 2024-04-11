@@ -73,16 +73,18 @@ def provide_session(func: Callable[PS, RT]) -> Callable[PS, RT]:
     database transaction, you pass it to the function, if not this wrapper
     will create one and close it for you.
     """
-    session_args_idx = find_session_idx(func)
 
     @wraps(func)
     def wrapper(*args: PS.args, **kwargs: PS.kwargs) -> RT:
-        if "session" in kwargs or session_args_idx < len(args):
-            return func(*args, **kwargs)
-        else:
+        sig = signature(func)
+        bind_args = sig.bind_partial(*args, **kwargs)
+        session = bind_args.arguments.get("session")
+
+        if session is None:
             with create_session() as session:
-                kwargs["session"] = session
-                return func(*args, **kwargs)
+                bind_args.arguments["session"] = session
+                return func(*bind_args.args, **bind_args.kwargs)
+        return func(*args, **kwargs)
 
     return wrapper
 

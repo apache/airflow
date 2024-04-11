@@ -291,7 +291,7 @@ def clear_task_instances(
                 # task are not found since database records could be
                 # outdated. We make max_tries the maximum value of its
                 # original max_tries or the last attempted try number.
-                ti.max_tries = max(ti.max_tries or -1, ti.prev_attempted_tries)
+                ti.max_tries = max(-1 if ti.max_tries is None else ti.max_tries, ti.prev_attempted_tries)
             ti.state = None
             ti.external_executor_id = None
             ti.clear_next_method_args()
@@ -525,7 +525,7 @@ def _refresh_from_db(
         task_instance.duration = ti.duration
         task_instance.state = ti.state
         task_instance.try_number = _get_private_try_number(task_instance=ti)
-        task_instance.max_tries = ti.max_tries or -1
+        task_instance.max_tries = -1 if ti.max_tries is None else ti.max_tries
         task_instance.hostname = str(ti.hostname)
         task_instance.unixname = str(ti.unixname)
         task_instance.job_id = ti.job_id
@@ -859,12 +859,16 @@ def _is_eligible_to_retry(*, task_instance: TaskInstance | TaskInstancePydantic)
         return True
     if not getattr(task_instance, "task", None):
         # Couldn't load the task, don't know number of retries, guess:
-        return (task_instance.try_number or 0) <= (task_instance.max_tries or -1)
+        try_number = 0 if task_instance.try_number is None else task_instance.try_number
+        max_tries = -1 if task_instance.max_tries is None else task_instance.max_tries
+        return try_number <= max_tries
 
     if TYPE_CHECKING:
         assert task_instance.task
 
-    return task_instance.task.retries and (task_instance.try_number or 0) <= (task_instance.max_tries or -1)
+    try_number = 0 if task_instance.try_number is None else task_instance.try_number
+    max_tries = -1 if task_instance.max_tries is None else task_instance.max_tries
+    return task_instance.task.retries and try_number <= max_tries
 
 
 def _handle_failure(
@@ -2393,7 +2397,7 @@ class TaskInstance(Base, LoggingMixin):
                     "at task runtime. Attempt %s of "
                     "%s. State set to NONE.",
                     ti.try_number,
-                    (ti.max_tries or -1) + 1,
+                    (-1 if ti.max_tries is None else ti.max_tries) + 1,
                 )
                 ti.queued_dttm = timezone.utcnow()
                 session.merge(ti)
@@ -2403,7 +2407,9 @@ class TaskInstance(Base, LoggingMixin):
         if ti.next_kwargs is not None:
             cls.logger().info("Resuming after deferral")
         else:
-            cls.logger().info("Starting attempt %s of %s", ti.try_number, (ti.max_tries or -1) + 1)
+            cls.logger().info(
+                "Starting attempt %s of %s", ti.try_number, (-1 if ti.max_tries is None else ti.max_tries) + 1
+            )
         if not ti._try_number:
             ti._try_number = 0
         ti._try_number += 1

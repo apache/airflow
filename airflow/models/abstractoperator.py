@@ -564,7 +564,7 @@ class AbstractOperator(Templater, DAGNode):
                 )
             total_length = None
 
-        state: TaskInstanceState | None = None
+        state: TaskInstanceState | str | None = None
         unmapped_ti: TaskInstance | None = session.scalars(
             select(TaskInstance).where(
                 TaskInstance.dag_id == self.dag_id,
@@ -612,7 +612,7 @@ class AbstractOperator(Templater, DAGNode):
                 else:
                     self.log.debug("Deleting the original task instance: %s", unmapped_ti)
                     session.delete(unmapped_ti)
-                state = TaskInstanceState(unmapped_ti.state)
+                state = unmapped_ti.state
 
         if total_length is None or total_length < 1:
             # Nothing to fixup.
