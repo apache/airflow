@@ -1794,7 +1794,9 @@ class TestBigQueryHookLegacySql(_BigQueryBaseTestClass):
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.build")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
-    def test_hook_uses_legacy_sql_by_default(self, mock_insert, _):
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryCursor._get_query_result")
+    def test_hook_uses_legacy_sql_by_default(self, mock_get_query_result, mock_insert, _):
+        mock_get_query_result.return_value = {}
         self.hook.get_first("query")
         _, kwargs = mock_insert.call_args
         assert kwargs["configuration"]["query"]["useLegacySql"] is True
@@ -1805,9 +1807,11 @@ class TestBigQueryHookLegacySql(_BigQueryBaseTestClass):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.build")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryCursor._get_query_result")
     def test_legacy_sql_override_propagates_properly(
-        self, mock_insert, mock_build, mock_get_creds_and_proj_id
+        self, mock_get_query_result, mock_insert, mock_build, mock_get_creds_and_proj_id
     ):
+        mock_get_query_result.return_value = {}
         bq_hook = BigQueryHook(use_legacy_sql=False)
         bq_hook.get_first("query")
         _, kwargs = mock_insert.call_args
