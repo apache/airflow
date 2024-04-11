@@ -50,7 +50,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     rand_str,
 )
 from airflow.providers.cncf.kubernetes.pod_generator_deprecated import (
-    PodDefaults,
+    PodDefaults as PodDefaultsDeprecated,
     PodGenerator as PodGeneratorDeprecated,
 )
 from airflow.utils import yaml
@@ -180,10 +180,10 @@ class PodGenerator:
         """Add sidecar."""
         pod_cp = copy.deepcopy(pod)
         pod_cp.spec.volumes = pod.spec.volumes or []
-        pod_cp.spec.volumes.insert(0, PodDefaults.VOLUME)
+        pod_cp.spec.volumes.insert(0, PodDefaultsDeprecated.VOLUME)
         pod_cp.spec.containers[0].volume_mounts = pod_cp.spec.containers[0].volume_mounts or []
-        pod_cp.spec.containers[0].volume_mounts.insert(0, PodDefaults.VOLUME_MOUNT)
-        pod_cp.spec.containers.append(PodDefaults.SIDECAR_CONTAINER)
+        pod_cp.spec.containers[0].volume_mounts.insert(0, PodDefaultsDeprecated.VOLUME_MOUNT)
+        pod_cp.spec.containers.append(PodDefaultsDeprecated.SIDECAR_CONTAINER)
 
         return pod_cp
 
