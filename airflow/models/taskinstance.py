@@ -435,7 +435,7 @@ def _execute_task(
         if execute_callable.__name__ == "execute":
             execute_callable_kwargs[f"{task_to_execute.__class__.__name__}__sentinel"] = _sentinel
 
-    def _execute_callable(context: Context, jinja_env=None, **execute_callable_kwargs):
+    def _execute_callable(context: Context, **execute_callable_kwargs):
         try:
             # Print a marker for log grouping of details before task execution
             log.info("::endgroup::")
@@ -455,15 +455,6 @@ def _execute_task(
             # Print a marker post execution for internals of post task processing
             log.info("::group::Post task execution logs")
 
-            # DAG authors define map_index_template at the task level
-            if jinja_env is not None and (template := context.get("map_index_template")) is not None:
-                rendered_map_index = jinja_env.from_string(template).render(context)
-                log.info("Map index rendered as %s", rendered_map_index)
-            else:
-                rendered_map_index = None
-
-            task_instance.rendered_map_index = rendered_map_index
-
     # If a timeout is specified for the task, make it fail
     # if it goes beyond
     if task_to_execute.execution_timeout:
@@ -481,12 +472,12 @@ def _execute_task(
                 raise AirflowTaskTimeout()
             # Run task in timeout wrapper
             with timeout(timeout_seconds):
-                result = _execute_callable(context=context, **execute_callable_kwargs, jinja_env=jinja_env)
+                result = _execute_callable(context=context, **execute_callable_kwargs)
         except AirflowTaskTimeout:
             task_to_execute.on_kill()
             raise
     else:
-        result = _execute_callable(context=context, **execute_callable_kwargs, jinja_env=jinja_env)
+        result = _execute_callable(context=context, **execute_callable_kwargs)
     cm = nullcontext() if InternalApiConfig.get_use_internal_api() else create_session()
     with cm as session_or_null:
         if task_to_execute.do_xcom_push:
@@ -513,7 +504,7 @@ def _execute_task(
             task_instance=task_instance, task=task_orig, value=xcom_value, session=session_or_null
         )
 
-    return result, task_instance.rendered_map_index
+    return result
 
 
 def _refresh_from_db(
@@ -2653,6 +2644,16 @@ class TaskInstance(Base, LoggingMixin):
                     session=session,
                 )
 
+    def _render_map_index(self, context, jinja_env=None):
+        # DAG authors define map_index_template at the task level
+        if jinja_env is not None and (template := context.get("map_index_template")) is not None:
+            rendered_map_index = jinja_env.from_string(template).render(context)
+            log.info("Map index rendered as %s", rendered_map_index)
+        else:
+            rendered_map_index = None
+
+        return rendered_map_index
+
     def _execute_task_with_callbacks(self, context: Context, test_mode: bool = False, *, session: Session):
         """Prepare Task for Execution."""
         if TYPE_CHECKING:
@@ -2725,11 +2726,18 @@ class TaskInstance(Base, LoggingMixin):
                 previous_state=TaskInstanceState.QUEUED, task_instance=self, session=session
             )
 
-            # Execute the task
-            with set_current_context(context):
-                result, rendered_map_index = self._execute_task(context, task_orig, jinja_env=jinja_env)
-
-            self.rendered_map_index = rendered_map_index
+            try:
+                # Execute the task
+                with set_current_context(context):
+                    result = self._execute_task(context, task_orig)
+            except Exception:
+                # If the task failed, swallow rendering error so it doesn't mask the main error.
+                with contextlib.suppress(jinja2.TemplateSyntaxError, jinja2.UndefinedError):
+                    self.rendered_map_index = self._render_map_index(context, jinja_env=jinja_env)
+                raise
+            else:
+                # If the task succeeded, render normally to let rendering error bubble up.
+                self.rendered_map_index = self._render_map_index(context, jinja_env=jinja_env)
 
             # Run post_execute callback
             self.task.post_execute(context=context, result=result)
@@ -2739,14 +2747,14 @@ class TaskInstance(Base, LoggingMixin):
         Stats.incr("operator_successes", tags={**self.stats_tags, "task_type": self.task.task_type})
         Stats.incr("ti_successes", tags=self.stats_tags)
 
-    def _execute_task(self, context: Context, task_orig: Operator, jinja_env=None):
+    def _execute_task(self, context: Context, task_orig: Operator):
         """
         Execute Task (optionally with a Timeout) and push Xcom results.
 
         :param context: Jinja2 context
         :param task_orig: origin task
         """
-        return _execute_task(self, context, task_orig, jinja_env)
+        return _execute_task(self, context, task_orig)
 
     @provide_session
     def defer_task(self, session: Session, defer: TaskDeferred) -> None:
