@@ -147,11 +147,15 @@ class DatasetManager(LoggingMixin):
     def _postgres_queue_dagruns(self, dataset: DatasetModel, session: Session) -> None:
         from sqlalchemy.dialects.postgresql import insert
 
-        consuming_dags = (r.dag for r in dataset.consuming_dags)
-        session.execute(
-            insert(DatasetDagRunQueue).values(dataset_id=dataset.id).on_conflict_do_nothing(),
-            [{"target_dag_id": dag.dag_id} for dag in consuming_dags if dag.is_active and not dag.is_paused],
-        )
+        values = [
+            {"target_dag_id": dag.dag_id}
+            for dag in (r.dag for r in dataset.consuming_dags)
+            if dag.is_active and not dag.is_paused
+        ]
+        if not values:
+            return
+        stmt = insert(DatasetDagRunQueue).values(dataset_id=dataset.id).on_conflict_do_nothing()
+        session.execute(stmt, values)
 
 
 def resolve_dataset_manager() -> DatasetManager:
