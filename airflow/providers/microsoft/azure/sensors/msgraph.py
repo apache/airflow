@@ -24,18 +24,18 @@ from typing import TYPE_CHECKING, Any, Callable, Sequence
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.providers.microsoft.azure.triggers.msgraph import MSGraphTrigger, ResponseSerializer
 from airflow.sensors.base import BaseSensorOperator, PokeReturnValue
-from airflow.utils.context import Context
 
 if TYPE_CHECKING:
     from io import BytesIO
-    from airflow.triggers.base import TriggerEvent
-    from airflow.utils.context import Context
 
     from kiota_abstractions.request_information import QueryParams
     from kiota_abstractions.response_handler import NativeResponseType
     from kiota_abstractions.serialization import ParsableFactory
     from kiota_http.httpx_request_adapter import ResponseType
     from msgraph_core import APIVersion
+
+    from airflow.triggers.base import TriggerEvent
+    from airflow.utils.context import Context
 
 
 def default_event_processor(context: Context, event: TriggerEvent) -> bool:
