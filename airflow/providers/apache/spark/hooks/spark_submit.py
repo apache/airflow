@@ -231,7 +231,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         # Build from connection master or default to yarn if not available
         conn_data = {
             "master": "yarn",
-            "queue": None,
+            "queue": None,  # yarn queue
             "deploy_mode": None,
             "spark_binary": self.spark_binary or DEFAULT_SPARK_BINARY,
             "namespace": None,
