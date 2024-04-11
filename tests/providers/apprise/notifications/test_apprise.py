@@ -20,7 +20,8 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
-from apprise import NotifyType
+from apprise import NotifyType, NotifyFormat
+from apprise.common import MATCH_ALL_TAG
 
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.apprise.notifications.apprise import (
@@ -42,8 +43,8 @@ class TestAppriseNotifier:
             body="DISK at 99%",
             notify_type=NotifyType.FAILURE,
             title=None,
-            body_format=None,
-            tag=None,
+            body_format=NotifyFormat.TEXT,
+            tag=MATCH_ALL_TAG,
             attach=None,
             interpret_escapes=None,
             config=None,
@@ -59,8 +60,8 @@ class TestAppriseNotifier:
             body="DISK at 99%",
             notify_type=NotifyType.FAILURE,
             title=None,
-            body_format=None,
-            tag=None,
+            body_format=NotifyFormat.TEXT,
+            tag=MATCH_ALL_TAG,
             attach=None,
             interpret_escapes=None,
             config=None,
@@ -82,8 +83,8 @@ class TestAppriseNotifier:
             notify_type=NotifyType.FAILURE,
             title="DISK at 99% test_notifier",
             body="System can crash soon test_notifier",
-            body_format=None,
-            tag=None,
+            body_format=NotifyFormat.TEXT,
+            tag=MATCH_ALL_TAG,
             attach=None,
             interpret_escapes=None,
             config=None,

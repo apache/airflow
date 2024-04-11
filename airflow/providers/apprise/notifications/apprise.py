@@ -20,11 +20,11 @@ from __future__ import annotations
 from functools import cached_property
 from typing import Iterable
 
-from airflow.notifications.basenotifier import BaseNotifier
-from airflow.providers.apprise.hooks.apprise import AppriseHook
-
 from apprise import AppriseConfig, NotifyFormat, NotifyType
 from apprise.common import MATCH_ALL_TAG
+
+from airflow.notifications.basenotifier import BaseNotifier
+from airflow.providers.apprise.hooks.apprise import AppriseHook
 
 
 class AppriseNotifier(BaseNotifier):
@@ -78,10 +78,16 @@ class AppriseNotifier(BaseNotifier):
 
     def notify(self, context):
         """Send a alert to a apprise configured service."""
-        self.hook.notify(body=self.body, title=self.title, notify_type=self.notify_type,
-                         body_format=self.body_format,
-                         tag=self.tag, attach=self.attach, interpret_escapes=self.interpret_escapes,
-                         config=self.config)
+        self.hook.notify(
+            body=self.body,
+            title=self.title,
+            notify_type=self.notify_type,
+            body_format=self.body_format,
+            tag=self.tag,
+            attach=self.attach,
+            interpret_escapes=self.interpret_escapes,
+            config=self.config,
+        )
 
 
 send_apprise_notification = AppriseNotifier
