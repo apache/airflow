@@ -21,8 +21,8 @@ from unittest.mock import MagicMock, call, patch
 
 import apprise
 import pytest
+from apprise import NotifyFormat, NotifyType
 from apprise.common import MATCH_ALL_TAG
-from apprise import NotifyType, NotifyFormat
 
 from airflow.models import Connection
 from airflow.providers.apprise.hooks.apprise import AppriseHook

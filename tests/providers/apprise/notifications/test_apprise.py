@@ -20,7 +20,7 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
-from apprise import NotifyType, NotifyFormat
+from apprise import NotifyFormat, NotifyType
 from apprise.common import MATCH_ALL_TAG
 
 from airflow.operators.empty import EmptyOperator
