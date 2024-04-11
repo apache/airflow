@@ -472,7 +472,7 @@ BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str]] = [
         "python-version": "3.8",
         "airflow-version": "2.6.0",
         "remove-providers": _exclusion(
-            ["openlineage", "common.io", "cohere", "fab", "qdrant", "microsoft-azure"]
+            ["openlineage", "common.io", "cohere", "fab", "qdrant", "microsoft.azure"]
         ),
     },
     {
