@@ -156,13 +156,7 @@ class DbApiHook(BaseHook):
     # Default SQL placeholder
     _placeholder: str = "%s"
 
-    def __init__(
-        self,
-        *args,
-        schema: str | None = None,
-        log_sql: bool = True,
-        **kwargs,
-    ):
+    def __init__(self, *args, schema: str | None = None, log_sql: bool = True, **kwargs):
         super().__init__()
         if not self.conn_name_attr:
             raise AirflowException("conn_name_attr is not defined")
