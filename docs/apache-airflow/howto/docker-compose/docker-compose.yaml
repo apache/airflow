@@ -102,7 +102,9 @@ services:
     restart: always
 
   redis:
-    image: redis:latest
+    # Redis is limited to 7.2-bookworm due to licencing change
+    # https://redis.io/blog/redis-adopts-dual-source-available-licensing/
+    image: redis:7.2-bookworm
     expose:
       - 6379
     healthcheck:
