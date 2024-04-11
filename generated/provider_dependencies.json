@@ -958,7 +958,7 @@
   "redis": {
     "deps": [
       "apache-airflow>=2.6.0",
-      "redis>=4.5.2,!=4.5.5,!=5.0.2"
+      "redis>=4.5.2,!=4.5.5,!=5.0.2,<7.4"
     ],
     "devel-deps": [],
     "cross-providers-deps": [],
