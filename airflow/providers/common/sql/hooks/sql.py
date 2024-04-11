@@ -161,7 +161,6 @@ class DbApiHook(BaseHook):
         *args,
         schema: str | None = None,
         log_sql: bool = True,
-        fast_executemany: bool = False,
         **kwargs,
     ):
         super().__init__()
