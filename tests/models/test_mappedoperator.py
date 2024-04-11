@@ -704,7 +704,7 @@ def test_expand_mapped_task_instance_with_named_index(
         .order_by(TaskInstance.map_index)
     ).all()
 
-    indices = [str(index) for index in indices]
+    indices = [str(index) if index is not None else None for index in indices]
 
     assert indices == expected_rendered_names
 
