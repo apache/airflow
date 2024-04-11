@@ -161,7 +161,7 @@ class HttpSensorTrigger(BaseTrigger):
         self.poke_interval = poke_interval
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes HttpTrigger arguments and classpath."""
+        """Serialize HttpTrigger arguments and classpath."""
         return (
             "airflow.providers.http.triggers.http.HttpSensorTrigger",
             {
@@ -175,7 +175,7 @@ class HttpSensorTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        """Makes a series of asynchronous http calls via an http hook."""
+        """Make a series of asynchronous http calls via a http hook."""
         hook = self._get_async_hook()
         while True:
             try:
