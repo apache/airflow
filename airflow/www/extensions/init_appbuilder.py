@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import logging
 from functools import reduce
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from flask import Blueprint, current_app, url_for
 from flask_appbuilder import __version__
@@ -675,7 +675,7 @@ def init_appbuilder(app: Flask) -> AirflowAppBuilder:
     """Init `Flask App Builder <https://flask-appbuilder.readthedocs.io/en/latest/>`__."""
     return AirflowAppBuilder(
         app=app,
-        session=settings.Session,
+        session=cast("Session", settings.Session),
         base_template="airflow/main.html",
         update_perms=conf.getboolean(
             "fab", "UPDATE_FAB_PERMS", fallback=conf.getboolean("webserver", "UPDATE_FAB_PERMS")

@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, Index, Integer, String, Text
 
-from airflow.models.base import Base, StringID
+from airflow.models.base import Base, Hint, StringID
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -39,17 +39,17 @@ class Log(Base):
 
     __tablename__ = "log"
 
-    id: Mapped[int] = Column(Integer, primary_key=True)
-    dttm: Mapped[datetime | None] = Column(UtcDateTime)
-    dag_id: Mapped[str | None] = Column(StringID())
-    task_id: Mapped[str | None] = Column(StringID())
-    map_index: Mapped[int | None] = Column(Integer)
-    event: Mapped[str | None] = Column(String(60))
-    execution_date: Mapped[datetime | None] = Column(UtcDateTime)
-    run_id: Mapped[str | None] = Column(StringID())
-    owner: Mapped[str | None] = Column(String(500))
-    owner_display_name: Mapped[str | None] = Column(String(500))
-    extra: Mapped[str | None] = Column(Text)
+    id: Mapped[int] = Hint.col | Column(Integer, primary_key=True)
+    dttm: Mapped[datetime | None] = Hint.col | Column(UtcDateTime)
+    dag_id: Mapped[str | None] = Hint.col | Column(StringID())
+    task_id: Mapped[str | None] = Hint.col | Column(StringID())
+    map_index: Mapped[int | None] = Hint.col | Column(Integer)
+    event: Mapped[str | None] = Hint.col | Column(String(60))
+    execution_date: Mapped[datetime | None] = Hint.col | Column(UtcDateTime)
+    run_id: Mapped[str | None] = Hint.col | Column(StringID())
+    owner: Mapped[str | None] = Hint.col | Column(String(500))
+    owner_display_name: Mapped[str | None] = Hint.col | Column(String(500))
+    extra: Mapped[str | None] = Hint.col | Column(Text)
 
     __table_args__ = (
         Index("idx_log_dag", dag_id),
@@ -78,8 +78,10 @@ class Log(Base):
             self.execution_date = task_instance.execution_date
             self.run_id = task_instance.run_id
             self.map_index = task_instance.map_index
-            if getattr(task_instance, "task", None):
-                task_owner = task_instance.task.owner
+
+            task = getattr(task_instance, "task", None)
+            if task:
+                task_owner = task.owner
 
         if "task_id" in kwargs:
             self.task_id = kwargs["task_id"]

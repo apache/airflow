@@ -30,7 +30,7 @@ from sqlalchemy.orm import declared_attr, reconstructor, synonym
 
 from airflow.configuration import ensure_secrets_loaded
 from airflow.exceptions import AirflowException, AirflowNotFoundException, RemovedInAirflow3Warning
-from airflow.models.base import ID_LEN, Base
+from airflow.models.base import ID_LEN, Base, Hint
 from airflow.models.crypto import get_fernet
 from airflow.secrets.cache import SecretCache
 from airflow.utils.helpers import prune_dict
@@ -39,6 +39,7 @@ from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
+    from cryptography.fernet import MultiFernet
     from sqlalchemy.orm import Mapped
 
 log = logging.getLogger(__name__)
@@ -79,7 +80,7 @@ def sanitize_conn_id(conn_id: str | None, max_length=CONN_ID_MAX_LEN) -> str | N
         return None
 
     # if we reach here, then we matched something, return the first match
-    return res.group(0)
+    return cast(str, res.group(0))
 
 
 def _parse_netloc_to_hostname(uri_parts):
@@ -129,20 +130,20 @@ class Connection(Base, LoggingMixin):
 
     __tablename__ = "connection"
 
-    id: Mapped[int] = Column(Integer(), primary_key=True)
-    conn_id: Mapped[str] = Column(String(ID_LEN), unique=True, nullable=False)
-    conn_type: Mapped[str] = Column(String(500), nullable=False)
-    description: Mapped[str | None] = Column(
+    id: Mapped[int] = Hint.col | Column(Integer(), primary_key=True)
+    conn_id: Mapped[str] = Hint.col | Column(String(ID_LEN), unique=True, nullable=False)
+    conn_type: Mapped[str] = Hint.col | Column(String(500), nullable=False)
+    description: Mapped[str | None] = Hint.col | Column(
         Text().with_variant(Text(5000), "mysql").with_variant(String(5000), "sqlite")
     )
-    host: Mapped[str | None] = Column(String(500))
-    schema: Mapped[str | None] = Column(String(500))
-    login: Mapped[str | None] = Column(Text())
-    _password: Mapped[str | None] = Column("password", Text())
-    port: Mapped[int | None] = Column(Integer())
-    is_encrypted: Mapped[bool | None] = Column(Boolean, unique=False, default=False)
-    is_extra_encrypted: Mapped[bool | None] = Column(Boolean, unique=False, default=False)
-    _extra: Mapped[str | None] = Column("extra", Text())
+    host: Mapped[str | None] = Hint.col | Column(String(500))
+    schema: Mapped[str | None] = Hint.col | Column(String(500))
+    login: Mapped[str | None] = Hint.col | Column(Text())
+    _password: Mapped[str | None] = Hint.col | Column("password", Text())
+    port: Mapped[int | None] = Hint.col | Column(Integer())
+    is_encrypted: Mapped[bool | None] = Hint.col | Column(Boolean, unique=False, default=False)
+    is_extra_encrypted: Mapped[bool | None] = Hint.col | Column(Boolean, unique=False, default=False)
+    _extra: Mapped[str | None] = Hint.col | Column("extra", Text())
 
     def __init__(
         self,
@@ -286,6 +287,7 @@ class Connection(Base, LoggingMixin):
         else:
             uri = "//"
 
+        host: str | None
         if self.host and "://" in self.host:
             protocol, host = self.host.split("://", 1)
         else:
@@ -353,10 +355,14 @@ class Connection(Base, LoggingMixin):
             self._password = fernet.encrypt(bytes(value, "utf-8")).decode()
             self.is_encrypted = fernet.is_encrypted
 
-    @declared_attr
-    def password(cls):
-        """Password. The value is decrypted/encrypted when reading/setting the value."""
-        return synonym("_password", descriptor=property(cls.get_password, cls.set_password))
+    if TYPE_CHECKING:
+        password: Mapped[str | None]
+    else:
+
+        @declared_attr
+        def password(cls):
+            """Password. The value is decrypted/encrypted when reading/setting the value."""
+            return synonym("_password", descriptor=property(cls.get_password, cls.set_password))
 
     def get_extra(self) -> str:
         """Return encrypted extra-data."""
@@ -372,7 +378,7 @@ class Connection(Base, LoggingMixin):
             extra_val = self._extra
         if extra_val:
             self._validate_extra(extra_val, self.conn_id)
-        return extra_val
+        return extra_val or ""
 
     def set_extra(self, value: str):
         """Encrypt extra-data and save in object attribute to object."""
@@ -386,16 +392,20 @@ class Connection(Base, LoggingMixin):
             self.is_extra_encrypted = False
 
     @declared_attr
-    def extra(cls) -> str:
+    def extra(cls):
         """Extra data. The value is decrypted/encrypted when reading/setting the value."""
-        return cast(str, synonym("_extra", descriptor=property(cls.get_extra, cls.set_extra)))
+        return synonym("_extra", descriptor=property(cls.get_extra, cls.set_extra))
+
+    extra: Mapped[str]
 
     def rotate_fernet_key(self):
         """Encrypts data with a new key. See: :ref:`security/fernet`."""
         fernet = get_fernet()
         if self._password and self.is_encrypted:
+            fernet = cast("MultiFernet", fernet)
             self._password = fernet.rotate(self._password.encode("utf-8")).decode()
         if self._extra and self.is_extra_encrypted:
+            fernet = cast("MultiFernet", fernet)
             self._extra = fernet.rotate(self._extra.encode("utf-8")).decode()
 
     def get_hook(self, *, hook_params=None):
@@ -532,7 +542,7 @@ class Connection(Base, LoggingMixin):
 
         :meta private:
         """
-        conn = {
+        conn: dict[str, Any] = {
             "conn_id": self.conn_id,
             "conn_type": self.conn_type,
             "description": self.description,
@@ -543,7 +553,7 @@ class Connection(Base, LoggingMixin):
             "port": self.port,
         }
         if prune_empty:
-            conn = prune_dict(val=conn, mode="strict")
+            conn = cast("dict[str, Any]", prune_dict(val=conn, mode="strict"))
         if (extra := self.extra_dejson) or not prune_empty:
             conn["extra"] = extra
 

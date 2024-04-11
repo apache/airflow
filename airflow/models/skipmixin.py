@@ -32,7 +32,7 @@ from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from pendulum import DateTime
-    from sqlalchemy import Session
+    from sqlalchemy.orm import Session
 
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator

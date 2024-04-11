@@ -31,7 +31,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.base import ID_LEN, Base
+from airflow.models.base import ID_LEN, Base, Hint
 from airflow.serialization.pydantic.job import JobPydantic
 from airflow.stats import Stats
 from airflow.utils import timezone
@@ -85,18 +85,16 @@ class Job(Base, LoggingMixin):
 
     __tablename__ = "job"
 
-    id: Mapped[int] = Column(Integer, primary_key=True)
-    dag_id: Mapped[str | None] = Column(
-        String(ID_LEN),
-    )
-    state: Mapped[str | None] = Column(String(20))
-    job_type: Mapped[str | None] = Column(String(30))
-    start_date: Mapped[datetime.datetime | None] = Column(UtcDateTime())
-    end_date: Mapped[datetime.datetime | None] = Column(UtcDateTime())
-    latest_heartbeat: Mapped[datetime.datetime | None] = Column(UtcDateTime())
-    executor_class: Mapped[str | None] = Column(String(500))
-    hostname: Mapped[str | None] = Column(String(500))
-    unixname: Mapped[str | None] = Column(String(1000))
+    id: Mapped[int] = Hint.col | Column(Integer, primary_key=True)
+    dag_id: Mapped[str | None] = Hint.col | Column(String(ID_LEN))
+    state: Mapped[str | None] = Hint.col | Column(String(20))
+    job_type: Mapped[str | None] = Hint.col | Column(String(30))
+    start_date: Mapped[datetime.datetime | None] = Hint.col | Column(UtcDateTime())
+    end_date: Mapped[datetime.datetime | None] = Hint.col | Column(UtcDateTime())
+    latest_heartbeat: Mapped[datetime.datetime | None] = Hint.col | Column(UtcDateTime())
+    executor_class: Mapped[str | None] = Hint.col | Column(String(500))
+    hostname: Mapped[str | None] = Hint.col | Column(String(500))
+    unixname: Mapped[str | None] = Hint.col | Column(String(1000))
 
     __table_args__ = (
         Index("job_type_heart", job_type, latest_heartbeat),
@@ -104,13 +102,13 @@ class Job(Base, LoggingMixin):
         Index("idx_job_dag_id", dag_id),
     )
 
-    task_instances_enqueued: Mapped[TaskInstance | None] = relationship(
+    task_instances_enqueued: Mapped[TaskInstance | None] = Hint.rel | relationship(
         "TaskInstance",
         primaryjoin="Job.id == foreign(TaskInstance.queued_by_job_id)",
         backref=backref("queued_by_job", uselist=False),
     )
 
-    dag_runs: Mapped[DagRun | None] = relationship(
+    dag_runs: Mapped[DagRun | None] = Hint.rel | relationship(
         "DagRun",
         primaryjoin=lambda: Job.id == foreign(_resolve_dagrun_model().creating_job_id),
         backref="creating_job",
@@ -149,7 +147,7 @@ class Job(Base, LoggingMixin):
 
     @cached_property
     def heartrate(self) -> float:
-        return Job._heartrate(self.job_type)
+        return Job._heartrate(self.job_type or "")
 
     def is_alive(self) -> bool:
         """
@@ -159,6 +157,7 @@ class Job(Base, LoggingMixin):
         within a multiple of the heartrate (default of 2.1)
         """
         threshold_value = health_check_threshold(self.job_type, self.heartrate)
+        assert self.latest_heartbeat  # noqa: S101
         return Job._is_alive(
             state=self.state,
             health_check_threshold_value=threshold_value,
@@ -222,7 +221,9 @@ class Job(Base, LoggingMixin):
 
             job = Job._update_heartbeat(job=self, session=session)
             self._merge_from(job)
-            time_since_last_heartbeat = (timezone.utcnow() - previous_heartbeat).total_seconds()
+            time_since_last_heartbeat = (
+                (timezone.utcnow() - previous_heartbeat).total_seconds() if previous_heartbeat else 0
+            )
             health_check_threshold_value = health_check_threshold(self.job_type, self.heartrate)
             if time_since_last_heartbeat > health_check_threshold_value:
                 self.log.info("Heartbeat recovered after %.2f seconds", time_since_last_heartbeat)
@@ -268,7 +269,7 @@ class Job(Base, LoggingMixin):
     @provide_session
     def most_recent_job(self, session: Session = NEW_SESSION) -> Job | JobPydantic | None:
         """Return the most recent job of this type, if any, based on last heartbeat received."""
-        return most_recent_job(self.job_type, session=session)
+        return most_recent_job(self.job_type or "", session=session)
 
     def _merge_from(self, job: Job | JobPydantic | None):
         if job is None:
@@ -310,7 +311,7 @@ class Job(Base, LoggingMixin):
     @staticmethod
     @internal_api_call
     @provide_session
-    def _kill(job_id: str, session: Session = NEW_SESSION) -> Job | JobPydantic:
+    def _kill(job_id: int | str, session: Session = NEW_SESSION) -> Job | JobPydantic:
         job = session.scalar(select(Job).where(Job.id == job_id).limit(1))
         job.end_date = timezone.utcnow()
         session.merge(job)

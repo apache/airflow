@@ -18,6 +18,9 @@
 from __future__ import annotations
 
 import logging
+from typing import Callable, cast
+
+from typing_extensions import Concatenate
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -29,11 +32,13 @@ log = logging.getLogger(__name__)
 class FernetProtocol(Protocol):
     """This class is only used for TypeChecking (for IDEs, mypy, etc)."""
 
-    def decrypt(self, b):
-        """Decrypt with Fernet."""
+    is_encrypted: bool
 
-    def encrypt(self, b):
-        """Encrypt with Fernet."""
+    decrypt: Callable[Concatenate[bytes, ...], bytes]
+    """Decrypt with Fernet."""
+
+    encrypt: Callable[Concatenate[bytes, ...], bytes]
+    """Encrypt with Fernet."""
 
 
 class NullFernet:
@@ -82,11 +87,12 @@ def get_fernet():
             log.warning("empty cryptography key - values will not be stored encrypted.")
             _fernet = NullFernet()
         else:
-            _fernet = MultiFernet(
-                [Fernet(fernet_part.encode("utf-8")) for fernet_part in fernet_key.split(",")]
+            _fernet = cast(
+                "FernetProtocol",
+                MultiFernet([Fernet(fernet_part.encode("utf-8")) for fernet_part in fernet_key.split(",")]),
             )
             _fernet.is_encrypted = True
     except (ValueError, TypeError) as value_error:
         raise AirflowException(f"Could not create Fernet object: {value_error}")
 
-    return _fernet
+    return cast("FernetProtocol", _fernet)

@@ -78,7 +78,7 @@ from sqlalchemy.orm import backref, joinedload, load_only, relationship
 from sqlalchemy.sql import Select, expression
 
 import airflow.templates
-from airflow import settings, utils
+from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
 from airflow.datasets import BaseDatasetEventInput, Dataset, DatasetAll
@@ -95,7 +95,7 @@ from airflow.exceptions import (
 )
 from airflow.jobs.job import run_job
 from airflow.models.abstractoperator import AbstractOperator, TaskStateChangeCallback
-from airflow.models.base import Base, StringID
+from airflow.models.base import Base, Hint, StringID
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
@@ -144,8 +144,8 @@ if TYPE_CHECKING:
     from types import ModuleType
 
     from pendulum.tz.timezone import FixedTimezone, Timezone
+    from sqlalchemy.engine.result import ScalarResult
     from sqlalchemy.orm import Mapped
-    from sqlalchemy.orm.query import Query
     from sqlalchemy.orm.session import Session
 
     from airflow.decorators import TaskDecoratorCollection
@@ -849,7 +849,7 @@ class DAG(LoggingMixin):
         return self.dag_id < other.dag_id
 
     def __hash__(self):
-        hash_components = [type(self)]
+        hash_components: list[Any] = [type(self)]
         for c in self._comps:
             # task_ids returns a list and lists can't be hashed
             if c == "task_ids":
@@ -1708,7 +1708,7 @@ class DAG(LoggingMixin):
         # Check SubDag for class but don't check class directly
         from airflow.operators.subdag import SubDagOperator
 
-        subdag_lst = []
+        subdag_lst: list[DAG] = []
         for task in self.tasks:
             if (
                 isinstance(task, SubDagOperator)
@@ -1716,7 +1716,7 @@ class DAG(LoggingMixin):
                 # TODO remove in Airflow 2.0
                 type(task).__name__ == "SubDagOperator"
                 or task.task_type == "SubDagOperator"
-            ):
+            ) and task.subdag:
                 subdag_lst.append(task.subdag)
                 subdag_lst += task.subdag.subdags
         return subdag_lst
@@ -1818,7 +1818,7 @@ class DAG(LoggingMixin):
             exclude_task_ids=(),
             session=session,
         )
-        return session.scalars(cast(Select, query).order_by(DagRun.execution_date)).all()
+        return session.scalars(query.order_by(DagRun.execution_date)).all()
 
     @overload
     def _get_task_instances(
@@ -1835,7 +1835,7 @@ class DAG(LoggingMixin):
         exclude_task_ids: Collection[str | tuple[str, int]] | None,
         session: Session,
         dag_bag: DagBag | None = ...,
-    ) -> Iterable[TaskInstance]: ...  # pragma: no cover
+    ) -> Select: ...  # pragma: no cover
 
     @overload
     def _get_task_instances(
@@ -1876,7 +1876,7 @@ class DAG(LoggingMixin):
         recursion_depth: int = 0,
         max_recursion_depth: int | None = None,
         visited_external_tis: set[TaskInstanceKey] | None = None,
-    ) -> Iterable[TaskInstance] | set[TaskInstanceKey]:
+    ) -> Select | set[TaskInstanceKey]:
         TI = TaskInstance
 
         # If we are looking at subdags/dependent dags we want to avoid UNION calls
@@ -1961,7 +1961,7 @@ class DAG(LoggingMixin):
                     session=session,
                     dag_bag=dag_bag,
                     recursion_depth=recursion_depth,
-                    max_recursion_depth=max_recursion_depth,
+                    max_recursion_depth=max_recursion_depth or 0,
                     visited_external_tis=visited_external_tis,
                 )
             )
@@ -2161,6 +2161,7 @@ class DAG(LoggingMixin):
         end_date = resolve_execution_date if not future else None
         start_date = resolve_execution_date if not past else None
 
+        frozen_task_ids = frozenset({task_id})
         subdag.clear(
             start_date=start_date,
             end_date=end_date,
@@ -2169,7 +2170,7 @@ class DAG(LoggingMixin):
             only_failed=True,
             session=session,
             # Exclude the task itself from being cleared
-            exclude_task_ids=frozenset({task_id}),
+            exclude_task_ids=frozen_task_ids,
         )
 
         return altered
@@ -2262,6 +2263,7 @@ class DAG(LoggingMixin):
                 include_upstream=False,
             )
 
+            frozen_task_ids = frozenset(task_ids)
             task_subset.clear(
                 start_date=start_date,
                 end_date=end_date,
@@ -2270,7 +2272,7 @@ class DAG(LoggingMixin):
                 only_failed=True,
                 session=session,
                 # Exclude the task from the current group from being cleared
-                exclude_task_ids=frozenset(task_ids),
+                exclude_task_ids=frozen_task_ids,
             )
 
         return altered
@@ -2364,6 +2366,8 @@ class DAG(LoggingMixin):
         :param exclude_task_ids: A set of ``task_id`` or (``task_id``, ``map_index``)
             tuples that should not be cleared
         """
+        from airflow.utils import helpers
+
         if get_tis:
             warnings.warn(
                 "Passing `get_tis` to dag.clear() is deprecated. Use `dry_run` parameter instead.",
@@ -2409,20 +2413,20 @@ class DAG(LoggingMixin):
         if dry_run:
             return session.scalars(tis).all()
 
-        tis = session.scalars(tis).all()
+        tis_result = session.scalars(tis).all()
 
-        count = len(list(tis))
+        count = len(list(tis_result))
         do_it = True
         if count == 0:
             return 0
         if confirm_prompt:
-            ti_list = "\n".join(str(t) for t in tis)
+            ti_list = "\n".join(str(t) for t in tis_result)
             question = f"You are about to delete these {count} tasks:\n{ti_list}\n\nAre you sure? [y/n]"
-            do_it = utils.helpers.ask_yesno(question)
+            do_it = helpers.ask_yesno(question)
 
         if do_it:
             clear_task_instances(
-                list(tis),
+                list(tis_result),
                 session,
                 dag=self,
                 dag_run_state=dag_run_state,
@@ -2448,6 +2452,8 @@ class DAG(LoggingMixin):
         dag_run_state=DagRunState.QUEUED,
         dry_run=False,
     ):
+        from airflow.utils import helpers
+
         all_tis = []
         for dag in dags:
             tis = dag.clear(
@@ -2474,7 +2480,7 @@ class DAG(LoggingMixin):
         if confirm_prompt:
             ti_list = "\n".join(str(t) for t in all_tis)
             question = f"You are about to delete these {count} tasks:\n{ti_list}\n\nAre you sure? [y/n]"
-            do_it = utils.helpers.ask_yesno(question)
+            do_it = helpers.ask_yesno(question)
 
         if do_it:
             for dag in dags:
@@ -2546,7 +2552,7 @@ class DAG(LoggingMixin):
 
         # deep-copying self.task_dict and self._task_group takes a long time, and we don't want all
         # the tasks anyway, so we copy the tasks manually later
-        memo = {id(self.task_dict): None, id(self._task_group): None}
+        memo: dict[int, Any] = {id(self.task_dict): None, id(self._task_group): None}
         dag = copy.deepcopy(self, memo)  # type: ignore
 
         if isinstance(task_ids_or_regex, (str, Pattern)):
@@ -3247,7 +3253,7 @@ class DAG(LoggingMixin):
                 for _, dataset in dag.dataset_triggers.iter_datasets():
                     dag_references[dag.dag_id].add(dataset.uri)
                     input_datasets[DatasetModel.from_public(dataset)] = None
-            curr_outlet_references = curr_orm_dag and curr_orm_dag.task_outlet_dataset_references
+            curr_outlet_references = curr_orm_dag.task_outlet_dataset_references if curr_orm_dag else None
             for task in dag.tasks:
                 dataset_outlets = [x for x in task.outlets or [] if isinstance(x, Dataset)]
                 if not dataset_outlets:
@@ -3297,7 +3303,7 @@ class DAG(LoggingMixin):
                 and existing_dags.get(dag_id).schedule_dataset_references  # type: ignore
                 or []
             )
-            dag_refs_to_add = {x for x in dag_refs_needed if x not in dag_refs_stored}
+            dag_refs_to_add = list({x for x in dag_refs_needed if x not in dag_refs_stored})
             session.bulk_save_objects(dag_refs_to_add)
             for obj in dag_refs_stored - dag_refs_needed:
                 session.delete(obj)
@@ -3314,7 +3320,7 @@ class DAG(LoggingMixin):
                 for uri in uri_list
             }
             task_refs_stored = existing_task_outlet_refs_dict[(dag_id, task_id)]
-            task_refs_to_add = {x for x in task_refs_needed if x not in task_refs_stored}
+            task_refs_to_add = list({x for x in task_refs_needed if x not in task_refs_stored})
             session.bulk_save_objects(task_refs_to_add)
             for obj in task_refs_stored - task_refs_needed:
                 session.delete(obj)
@@ -3336,7 +3342,7 @@ class DAG(LoggingMixin):
         if len(dags) == 1:
             # Index optimized fast path to avoid more complicated & slower groupby queryplan
             existing_dag_id = dags[0]
-            last_automated_runs_subq = (
+            last_automated_runs_scalar_subq = (
                 select(func.max(DagRun.execution_date).label("max_execution_date"))
                 .where(
                     DagRun.dag_id == existing_dag_id,
@@ -3345,7 +3351,7 @@ class DAG(LoggingMixin):
                 .scalar_subquery()
             )
             query = select(DagRun).where(
-                DagRun.dag_id == existing_dag_id, DagRun.execution_date == last_automated_runs_subq
+                DagRun.dag_id == existing_dag_id, DagRun.execution_date == last_automated_runs_scalar_subq
             )
         else:
             last_automated_runs_subq = (
@@ -3552,8 +3558,8 @@ class DagTag(Base):
     """A tag name per dag, to allow quick filtering in the DAG view."""
 
     __tablename__ = "dag_tag"
-    name: Mapped[str] = Column(String(TAG_MAX_LEN), primary_key=True)
-    dag_id: Mapped[str] = Column(
+    name: Mapped[str] = Hint.col | Column(String(TAG_MAX_LEN), primary_key=True)
+    dag_id: Mapped[str] = Hint.col | Column(
         StringID(),
         ForeignKey("dag.dag_id", name="dag_tag_dag_id_fkey", ondelete="CASCADE"),
         primary_key=True,
@@ -3571,14 +3577,14 @@ class DagOwnerAttributes(Base):
     """
 
     __tablename__ = "dag_owner_attributes"
-    dag_id: Mapped[str] = Column(
+    dag_id: Mapped[str] = Hint.col | Column(
         StringID(),
         ForeignKey("dag.dag_id", name="dag.dag_id", ondelete="CASCADE"),
         nullable=False,
         primary_key=True,
     )
-    owner: Mapped[str] = Column(String(500), primary_key=True, nullable=False)
-    link: Mapped[str] = Column(String(500), nullable=False)
+    owner: Mapped[str] = Hint.col | Column(String(500), primary_key=True, nullable=False)
+    link: Mapped[str] = Hint.col | Column(String(500), nullable=False)
 
     def __repr__(self):
         return f"<DagOwnerAttributes: dag_id={self.dag_id}, owner={self.owner}, link={self.link}>"
@@ -3598,88 +3604,92 @@ class DagModel(Base):
     """
     These items are stored in the database for state related information
     """
-    dag_id: Mapped[str] = Column(StringID(), primary_key=True)
-    root_dag_id: Mapped[str | None] = Column(StringID())
+    dag_id: Mapped[str] = Hint.col | Column(StringID(), primary_key=True)
+    root_dag_id: Mapped[str | None] = Hint.col | Column(StringID())
     # A DAG can be paused from the UI / DB
     # Set this default value of is_paused based on a configuration value!
     is_paused_at_creation = airflow_conf.getboolean("core", "dags_are_paused_at_creation")
-    is_paused: Mapped[bool] = Column(Boolean, default=is_paused_at_creation)
+    is_paused: Mapped[bool] = Hint.col | Column(Boolean, default=is_paused_at_creation)
     # Whether the DAG is a subdag
-    is_subdag: Mapped[bool] = Column(Boolean, default=False)
+    is_subdag: Mapped[bool] = Hint.col | Column(Boolean, default=False)
     # Whether that DAG was seen on the last DagBag load
-    is_active: Mapped[bool] = Column(Boolean, default=False)
+    is_active: Mapped[bool] = Hint.col | Column(Boolean, default=False)
     # Last time the scheduler started
-    last_parsed_time: Mapped[datetime | None] = Column(UtcDateTime)
+    last_parsed_time: Mapped[datetime | None] = Hint.col | Column(UtcDateTime)
     # Last time this DAG was pickled
-    last_pickled: Mapped[datetime | None] = Column(UtcDateTime)
+    last_pickled: Mapped[datetime | None] = Hint.col | Column(UtcDateTime)
     # Time when the DAG last received a refresh signal
     # (e.g. the DAG's "refresh" button was clicked in the web UI)
-    last_expired: Mapped[datetime | None] = Column(UtcDateTime)
+    last_expired: Mapped[datetime | None] = Hint.col | Column(UtcDateTime)
     # Whether (one  of) the scheduler is scheduling this DAG at the moment
-    scheduler_lock: Mapped[bool | None] = Column(Boolean)
+    scheduler_lock: Mapped[bool | None] = Hint.col | Column(Boolean)
     # Foreign key to the latest pickle_id
-    pickle_id: Mapped[int | None] = Column(Integer)
+    pickle_id: Mapped[int | None] = Hint.col | Column(Integer)
     # The location of the file containing the DAG object
     # Note: Do not depend on fileloc pointing to a file; in the case of a
     # packaged DAG, it will point to the subpath of the DAG within the
     # associated zip.
-    fileloc: Mapped[str | None] = Column(String(2000))
+    fileloc: Mapped[str | None] = Hint.col | Column(String(2000))
     # The base directory used by Dag Processor that parsed this dag.
-    processor_subdir: Mapped[str] = Column(String(2000), nullable=True)
+    processor_subdir: Mapped[str] = Hint.col | Column(String(2000), nullable=True)
     # String representing the owners
-    owners: Mapped[str] = Column(String(2000))
+    owners: Mapped[str] = Hint.col | Column(String(2000))
     # Display name of the dag
-    _dag_display_property_value: Mapped[str | None] = Column("dag_display_name", String(2000), nullable=True)
+    _dag_display_property_value: Mapped[str | None] = Hint.col | Column(
+        "dag_display_name", String(2000), nullable=True
+    )
     # Description of the dag
-    description: Mapped[str | None] = Column(Text)
+    description: Mapped[str | None] = Hint.col | Column(Text)
     # Default view of the DAG inside the webserver
-    default_view: Mapped[str | None] = Column(String(25))
+    default_view: Mapped[str | None] = Hint.col | Column(String(25))
     # Schedule interval
-    schedule_interval: Mapped[str | None] = Column(Interval)
+    schedule_interval: Mapped[str | None] = Hint.col | Column(Interval)
     # Timetable/Schedule Interval description
-    timetable_description: Mapped[str | None] = Column(String(1000), nullable=True)
+    timetable_description: Mapped[str | None] = Hint.col | Column(String(1000), nullable=True)
     # Dataset expression based on dataset triggers
-    dataset_expression: Mapped[Any] = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    dataset_expression: Mapped[Any] = Hint.col | Column(
+        sqlalchemy_jsonfield.JSONField(json=json), nullable=True
+    )
     # Tags for view filter
-    tags: Mapped[Sequence[DagTag]] = relationship(
+    tags: Mapped[list[DagTag]] = Hint.rel | relationship(
         "DagTag", cascade="all, delete, delete-orphan", backref=backref("dag")
     )
     # Dag owner links for DAGs view
-    dag_owner_links: Mapped[Sequence[DagOwnerAttributes]] = relationship(
+    dag_owner_links: Mapped[list[DagOwnerAttributes]] = Hint.rel | relationship(
         "DagOwnerAttributes", cascade="all, delete, delete-orphan", backref=backref("dag")
     )
 
-    max_active_tasks: Mapped[int] = Column(Integer, nullable=False)
-    max_active_runs: Mapped[int | None] = Column(Integer, nullable=True)
-    max_consecutive_failed_dag_runs: Mapped[int] = Column(Integer, nullable=False)
+    max_active_tasks: Mapped[int] = Hint.col | Column(Integer, nullable=False)
+    max_active_runs: Mapped[int | None] = Hint.col | Column(Integer, nullable=True)
+    max_consecutive_failed_dag_runs: Mapped[int] = Hint.col | Column(Integer, nullable=False)
 
-    has_task_concurrency_limits: Mapped[bool] = Column(Boolean, nullable=False)
-    has_import_errors: Mapped[bool] = Column(Boolean(), default=False, server_default="0")
+    has_task_concurrency_limits: Mapped[bool] = Hint.col | Column(Boolean, nullable=False)
+    has_import_errors: Mapped[bool] = Hint.col | Column(Boolean(), default=False, server_default="0")
 
     # The logical date of the next dag run.
-    next_dagrun: Mapped[datetime | None] = Column(UtcDateTime)
+    next_dagrun: Mapped[datetime | None] = Hint.col | Column(UtcDateTime)
 
     # Must be either both NULL or both datetime.
-    next_dagrun_data_interval_start: Mapped[datetime | None] = Column(UtcDateTime)
-    next_dagrun_data_interval_end: Mapped[datetime | None] = Column(UtcDateTime)
+    next_dagrun_data_interval_start: Mapped[datetime | None] = Hint.col | Column(UtcDateTime)
+    next_dagrun_data_interval_end: Mapped[datetime | None] = Hint.col | Column(UtcDateTime)
 
     # Earliest time at which this ``next_dagrun`` can be created.
-    next_dagrun_create_after: Mapped[datetime | None] = Column(UtcDateTime)
+    next_dagrun_create_after: Mapped[datetime | None] = Hint.col | Column(UtcDateTime)
 
     __table_args__ = (
         Index("idx_root_dag_id", root_dag_id, unique=False),
         Index("idx_next_dagrun_create_after", next_dagrun_create_after, unique=False),
     )
 
-    parent_dag: Mapped[DagModel | None] = relationship(
+    parent_dag: Mapped[DagModel | None] = Hint.rel | relationship(
         "DagModel", remote_side=[dag_id], primaryjoin=root_dag_id == dag_id, foreign_keys=[root_dag_id]
     )
-    schedule_dataset_references: Mapped[Sequence[DagScheduleDatasetReference]] = relationship(
+    schedule_dataset_references: Mapped[list[DagScheduleDatasetReference]] = Hint.rel | relationship(
         "DagScheduleDatasetReference",
         cascade="all, delete, delete-orphan",
     )
-    schedule_datasets: Mapped[Sequence[Dataset]] = association_proxy("schedule_dataset_references", "dataset")
-    task_outlet_dataset_references: Mapped[Sequence[TaskOutletDatasetReference]] = relationship(
+    schedule_datasets: Mapped[list[Dataset]] = association_proxy("schedule_dataset_references", "dataset")
+    task_outlet_dataset_references: Mapped[list[TaskOutletDatasetReference]] = Hint.rel | relationship(
         "TaskOutletDatasetReference",
         cascade="all, delete, delete-orphan",
     )
@@ -3780,8 +3790,7 @@ class DagModel(Base):
             .where(DagModel.dag_id.in_(dag_ids))
         )
 
-        paused_dag_ids = {paused_dag_id for (paused_dag_id,) in paused_dag_ids}
-        return paused_dag_ids
+        return {paused_dag_id for (paused_dag_id,) in paused_dag_ids}
 
     def get_default_view(self) -> str:
         """Get the Default DAG View, returns the default config value if DagModel does not have a value."""
@@ -3862,7 +3871,9 @@ class DagModel(Base):
                 dag_model.is_active = False
 
     @classmethod
-    def dags_needing_dagruns(cls, session: Session) -> tuple[Query, dict[str, tuple[datetime, datetime]]]:
+    def dags_needing_dagruns(
+        cls, session: Session
+    ) -> tuple[ScalarResult, dict[str, tuple[datetime, datetime]]]:
         """
         Return (and lock) a list of Dag objects that are due to create a new DagRun.
 

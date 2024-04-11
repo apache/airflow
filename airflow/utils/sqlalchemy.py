@@ -23,7 +23,7 @@ import datetime
 import json
 import logging
 from importlib import metadata
-from typing import TYPE_CHECKING, Any, Generator, Iterable, overload
+from typing import TYPE_CHECKING, Any, Generator, Iterable, TypeVar, overload
 
 from dateutil import relativedelta
 from packaging import version
@@ -40,10 +40,12 @@ if TYPE_CHECKING:
     from sqlalchemy.exc import OperationalError
     from sqlalchemy.orm import Query, Session
     from sqlalchemy.sql import ColumnElement, Select
-    from sqlalchemy.sql.expression import ColumnOperators
+    from sqlalchemy.sql.operators import ColumnOperators
     from sqlalchemy.types import TypeEngine
 
 log = logging.getLogger(__name__)
+
+QueryOrSelectT = TypeVar("QueryOrSelectT", bound="Query | Select")
 
 
 class UtcDateTime(TypeDecorator):
@@ -344,7 +346,7 @@ def nulls_first(col, session: Session) -> dict[str, Any]:
     Other databases do not need it since NULL values are considered lower than
     any other values, and appear first when the order is ASC (ascending).
     """
-    if session.bind.dialect.name == "postgresql":
+    if session.get_bind().dialect.name == "postgresql":
         return nullsfirst(col)
     else:
         return col
@@ -354,13 +356,13 @@ USE_ROW_LEVEL_LOCKING: bool = conf.getboolean("scheduler", "use_row_level_lockin
 
 
 def with_row_locks(
-    query: Query,
+    query: QueryOrSelectT,
     session: Session,
     *,
     nowait: bool = False,
     skip_locked: bool = False,
     **kwargs,
-) -> Query:
+) -> QueryOrSelectT:
     """
     Apply with_for_update to the SQLAlchemy query if row level locking is in use.
 
@@ -379,12 +381,12 @@ def with_row_locks(
     :param kwargs: Extra kwargs to pass to with_for_update (of, nowait, skip_locked, etc)
     :return: updated query
     """
-    dialect = session.bind.dialect
+    dialect = session.get_bind().dialect
 
     # Don't use row level locks if the MySQL dialect (Mariadb & MySQL < 8) does not support it.
     if not USE_ROW_LEVEL_LOCKING:
         return query
-    if dialect.name == "mysql" and not dialect.supports_for_update_of:
+    if dialect.name == "mysql" and not getattr(dialect, "supports_for_update_of", None):
         return query
     if nowait:
         kwargs["nowait"] = True
@@ -394,7 +396,7 @@ def with_row_locks(
 
 
 @contextlib.contextmanager
-def lock_rows(query: Query, session: Session) -> Generator[None, None, None]:
+def lock_rows(query: Query | Select, session: Session) -> Generator[None, None, None]:
     """Lock database rows during the context manager block.
 
     This is a convenient method for ``with_row_locks`` when we don't need the

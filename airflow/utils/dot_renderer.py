@@ -203,7 +203,7 @@ def render_dag(dag: DAG, tis: list[TaskInstance] | None = None) -> graphviz.Digr
     )
     states_by_task_id = None
     if tis is not None:
-        states_by_task_id = {ti.task_id: ti.state for ti in tis}
+        states_by_task_id = {ti.task_id: str(ti.state) for ti in tis}
 
     _draw_nodes(dag.task_group, dot, states_by_task_id)
 

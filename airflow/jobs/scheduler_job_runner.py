@@ -81,7 +81,8 @@ if TYPE_CHECKING:
 
     from sqlalchemy.engine import Result
     from sqlalchemy.engine.cursor import CursorResult
-    from sqlalchemy.orm import Query, Session
+    from sqlalchemy.engine.result import ScalarResult
+    from sqlalchemy.orm import Session
 
     from airflow.dag_processing.manager import DagFileProcessorAgent
     from airflow.models.taskinstance import TaskInstanceKey
@@ -420,6 +421,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.info("%s tasks up for execution:\n%s", len(task_instances_to_examine), task_instance_str)
 
             for task_instance in task_instances_to_examine:
+                assert task_instance.dag_model  # noqa: S101
                 pool_name = task_instance.pool
 
                 pool_stats = pools.get(pool_name)
@@ -634,7 +636,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 continue
             command = ti.command_as_list(
                 local=True,
-                pickle_id=ti.dag_model.pickle_id,
+                pickle_id=ti.dag_model.pickle_id,  # type: ignore[union-attr]
             )
 
             priority = ti.priority_weight
@@ -644,7 +646,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.job.executor.queue_command(
                 ti,
                 command,
-                priority=priority,
+                priority=priority or 1,
                 queue=queue,
             )
 
@@ -702,9 +704,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         query = select(TI).where(filter_for_tis).options(selectinload(TI.dag_model))
         # row lock this entire set of taskinstances to make sure the scheduler doesn't fail when we have
         # multi-schedulers
-        tis_query: Query = with_row_locks(query, of=TI, session=session, skip_locked=True)
+        tis_query = with_row_locks(query, of=TI, session=session, skip_locked=True)
         tis: Iterator[TI] = session.scalars(tis_query)
+        ti: TI
         for ti in tis:
+            assert ti.dag_model  # noqa: S101
             try_number = ti_primary_key_to_try_number_map[ti.key.primary]
             buffer_key = ti.key.with_try_number(try_number)
             state, info = event_buffer.pop(buffer_key)
@@ -774,6 +778,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # Get task from the Serialized DAG
                 try:
                     dag = self.dagbag.get_dag(ti.dag_id)
+                    assert dag  # noqa: S101
                     task = dag.get_task(ti.task_id)
                 except Exception:
                     self.log.exception("Marking task instance %s as %s", ti, state)
@@ -782,7 +787,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.task = task
                 if task.on_retry_callback or task.on_failure_callback:
                     request = TaskCallbackRequest(
-                        full_filepath=ti.dag_model.fileloc,
+                        full_filepath=ti.dag_model.fileloc or "",
                         simple_task_instance=SimpleTaskInstance.from_ti(ti),
                         msg=msg % (ti, state, ti.state, info),
                         processor_subdir=ti.dag_model.processor_subdir,
@@ -1111,7 +1116,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         return num_queued_tis
 
     @retry_db_transaction
-    def _get_next_dagruns_to_examine(self, state: DagRunState, session: Session) -> Query:
+    def _get_next_dagruns_to_examine(self, state: DagRunState, session: Session) -> ScalarResult:
         """Get Next DagRuns to Examine with retries."""
         return DagRun.next_dagruns_to_examine(state, session)
 
@@ -1220,13 +1225,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             dag_id: timezone.coerce_datetime(last_time)
             for dag_id, (_, last_time) in dataset_triggered_dag_info.items()
         }
-        existing_dagruns: set[tuple[str, timezone.DateTime]] = set(
-            session.execute(
-                select(DagRun.dag_id, DagRun.execution_date).where(
-                    tuple_in_condition((DagRun.dag_id, DagRun.execution_date), exec_dates.items())
-                )
+        existing_dagruns_fetch: list[Any] = session.execute(
+            select(DagRun.dag_id, DagRun.execution_date).where(
+                tuple_in_condition((DagRun.dag_id, DagRun.execution_date), exec_dates.items())
             )
-        )
+        ).all()
+        existing_dagruns: set[tuple[str, timezone.DateTime]] = set(existing_dagruns_fetch)
 
         for dag_model in dag_models:
             dag = self.dagbag.get_dag(dag_model.dag_id, session=session)
@@ -1459,6 +1463,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
             dag_run.notify_dagrun_state_changed()
+            assert dag_run.end_date  # noqa: S101
             duration = dag_run.end_date - dag_run.start_date
             Stats.timing(f"dagrun.duration.failed.{dag_run.dag_id}", duration)
             Stats.timing("dagrun.duration.failed", duration, tags={"dag_id": dag_run.dag_id})
@@ -1644,8 +1649,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                     # Lock these rows, so that another scheduler can't try and adopt these too
                     tis_to_adopt_or_reset = with_row_locks(query, of=TI, session=session, skip_locked=True)
-                    tis_to_adopt_or_reset = session.scalars(tis_to_adopt_or_reset).all()
-                    to_reset = self.job.executor.try_adopt_task_instances(tis_to_adopt_or_reset)
+                    tis_to_adopt_or_reset_result = session.scalars(tis_to_adopt_or_reset).all()
+                    to_reset = self.job.executor.try_adopt_task_instances(tis_to_adopt_or_reset_result)
 
                     reset_tis_message = []
                     for ti in to_reset:
@@ -1653,11 +1658,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         ti.state = None
                         ti.queued_by_job_id = None
 
-                    for ti in set(tis_to_adopt_or_reset) - set(to_reset):
+                    for ti in set(tis_to_adopt_or_reset_result) - set(to_reset):
                         ti.queued_by_job_id = self.job.id
 
                     Stats.incr("scheduler.orphaned_tasks.cleared", len(to_reset))
-                    Stats.incr("scheduler.orphaned_tasks.adopted", len(tis_to_adopt_or_reset) - len(to_reset))
+                    Stats.incr(
+                        "scheduler.orphaned_tasks.adopted", len(tis_to_adopt_or_reset_result) - len(to_reset)
+                    )
 
                     if to_reset:
                         task_instance_str = "\n\t".join(reset_tis_message)
@@ -1712,7 +1719,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         limit_dttm = timezone.utcnow() - timedelta(seconds=self._zombie_threshold_secs)
 
         with create_session() as session:
-            zombies: list[tuple[TI, str, str]] = (
+            zombies: list[Any] = (
                 session.execute(
                     select(TI, DM.fileloc, DM.processor_subdir)
                     .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
@@ -1731,10 +1738,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .unique()
                 .all()
             )
-
         if zombies:
             self.log.warning("Failing (%s) jobs without heartbeat after %s", len(zombies), limit_dttm)
 
+        ti: TI
+        file_loc: str
+        processor_subdir: str
         for ti, file_loc, processor_subdir in zombies:
             zombie_message_details = self._generate_zombie_message_details(ti)
             request = TaskCallbackRequest(
@@ -1756,7 +1765,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @staticmethod
     def _generate_zombie_message_details(ti: TI) -> dict[str, Any]:
-        zombie_message_details = {
+        zombie_message_details: dict[str, Any] = {
             "DAG Id": ti.dag_id,
             "Task Id": ti.task_id,
             "Run Id": ti.run_id,

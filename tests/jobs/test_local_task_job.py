@@ -605,7 +605,7 @@ class TestLocalTaskJob:
                         TaskInstance.task_id == ti.task_id,
                         TaskInstance.run_id == ti.run_id,
                     )
-                    .one_or_none()
+                    .one()
                 )
                 return pid[0]
 

@@ -55,6 +55,8 @@ from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from flask_appbuilder.models.sqla import Model
     from pendulum.datetime import DateTime
     from pygments.lexer import Lexer
@@ -68,7 +70,7 @@ if TYPE_CHECKING:
 TI = TaskInstance
 
 
-def datetime_to_string(value: DateTime | None) -> str | None:
+def datetime_to_string(value: datetime | None) -> str | None:
     if value is None:
         return None
     return value.isoformat()
@@ -96,7 +98,7 @@ def get_instance_with_map(task_instance, session):
     return get_mapped_summary(task_instance, mapped_instances)
 
 
-def get_try_count(try_number: int, state: State):
+def get_try_count(try_number: int, state: State | str):
     if state in (TaskInstanceState.DEFERRED, TaskInstanceState.UP_FOR_RESCHEDULE):
         return try_number + 1
     return try_number

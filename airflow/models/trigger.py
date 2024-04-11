@@ -18,14 +18,14 @@ from __future__ import annotations
 
 import datetime
 from traceback import format_exception
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable, cast
 
 from sqlalchemy import Column, Integer, String, Text, delete, func, or_, select, update
 from sqlalchemy.orm import joinedload, relationship
 from sqlalchemy.sql.functions import coalesce
 
 from airflow.api_internal.internal_api_call import internal_api_call
-from airflow.models.base import Base
+from airflow.models.base import Base, Hint
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.retries import run_with_db_retries
@@ -34,6 +34,7 @@ from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    from cryptography.fernet import MultiFernet
     from sqlalchemy.orm import Mapped, Session
     from sqlalchemy.sql import Select
 
@@ -62,20 +63,20 @@ class Trigger(Base):
 
     __tablename__ = "trigger"
 
-    id: Mapped[int] = Column(Integer, primary_key=True)
-    classpath: Mapped[str] = Column(String(1000), nullable=False)
-    encrypted_kwargs: Mapped[str] = Column("kwargs", Text, nullable=False)
-    created_date: Mapped[datetime.datetime] = Column(UtcDateTime, nullable=False)
-    triggerer_id: Mapped[int | None] = Column(Integer, nullable=True)
+    id: Mapped[int] = Hint.col | Column(Integer, primary_key=True)
+    classpath: Mapped[str] = Hint.col | Column(String(1000), nullable=False)
+    encrypted_kwargs: Mapped[str] = Hint.col | Column("kwargs", Text, nullable=False)
+    created_date: Mapped[datetime.datetime] = Hint.col | Column(UtcDateTime, nullable=False)
+    triggerer_id: Mapped[int | None] = Hint.col | Column(Integer, nullable=True)
 
-    triggerer_job: Mapped[Job | None] = relationship(
+    triggerer_job: Mapped[Job | None] = Hint.rel | relationship(
         "Job",
         primaryjoin="Job.id == Trigger.triggerer_id",
         foreign_keys=triggerer_id,
         uselist=False,
     )
 
-    task_instance: Mapped[TaskInstance | None] = relationship(
+    task_instance: Mapped[TaskInstance | None] = Hint.rel | relationship(
         "TaskInstance", back_populates="trigger", lazy="joined", uselist=False
     )
 
@@ -127,7 +128,9 @@ class Trigger(Base):
         """Encrypts data with a new key. See: :ref:`security/fernet`."""
         from airflow.models.crypto import get_fernet
 
-        self.encrypted_kwargs = get_fernet().rotate(self.encrypted_kwargs.encode("utf-8")).decode("utf-8")
+        fernet = cast("MultiFernet", get_fernet())
+
+        self.encrypted_kwargs = fernet.rotate(self.encrypted_kwargs.encode("utf-8")).decode("utf-8")
 
     @classmethod
     @internal_api_call
@@ -174,13 +177,13 @@ class Trigger(Base):
                 )
 
         # Get all triggers that have no task instances depending on them and delete them
-        ids = (
+        ids: Select | list[int] = (
             select(cls.id)
             .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=True)
             .group_by(cls.id)
             .having(func.count(TaskInstance.trigger_id) == 0)
         )
-        if session.bind.dialect.name == "mysql":
+        if session.get_bind().dialect.name == "mysql":
             # MySQL doesn't support DELETE with JOIN, so we need to do it in two steps
             ids = session.scalars(ids).all()
         session.execute(

@@ -27,15 +27,16 @@ from sqlalchemy.orm import declared_attr, reconstructor, synonym
 
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import ensure_secrets_loaded
-from airflow.models.base import ID_LEN, Base
+from airflow.models.base import ID_LEN, Base, Hint
 from airflow.models.crypto import get_fernet
 from airflow.secrets.cache import SecretCache
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from cryptography.fernet import MultiFernet
     from sqlalchemy.engine.cursor import CursorResult
     from sqlalchemy.orm import Mapped, Session
 
@@ -48,11 +49,11 @@ class Variable(Base, LoggingMixin):
     __tablename__ = "variable"
     __NO_DEFAULT_SENTINEL = object()
 
-    id: Mapped[int] = Column(Integer, primary_key=True)
-    key: Mapped[str | None] = Column(String(ID_LEN), unique=True)
-    _val: Mapped[str | None] = Column("val", Text().with_variant(MEDIUMTEXT, "mysql"))
-    description: Mapped[str | None] = Column(Text)
-    is_encrypted: Mapped[bool | None] = Column(Boolean, unique=False, default=False)
+    id: Mapped[int] = Hint.col | Column(Integer, primary_key=True)
+    key: Mapped[str | None] = Hint.col | Column(String(ID_LEN), unique=True)
+    _val: Mapped[str | None] = Hint.col | Column("val", Text().with_variant(MEDIUMTEXT, "mysql"))
+    description: Mapped[str | None] = Hint.col | Column(Text)
+    is_encrypted: Mapped[bool | None] = Hint.col | Column(Boolean, unique=False, default=False)
 
     def __init__(self, key=None, val=None, description=None):
         super().__init__()
@@ -63,7 +64,7 @@ class Variable(Base, LoggingMixin):
     @reconstructor
     def on_db_load(self):
         if self._val:
-            mask_secret(self.val, self.key)
+            mask_secret(cast(str, self.val), self.key)
 
     def __repr__(self):
         # Hiding the value
@@ -97,6 +98,8 @@ class Variable(Base, LoggingMixin):
     def val(cls):
         """Get Airflow Variable from Metadata DB and decode it using the Fernet Key."""
         return synonym("_val", descriptor=property(cls.get_val, cls.set_val))
+
+    val: Mapped[str | None]
 
     @classmethod
     def setdefault(cls, key, default, description=None, deserialize_json=False):
@@ -159,7 +162,7 @@ class Variable(Base, LoggingMixin):
         value: Any,
         description: str | None = None,
         serialize_json: bool = False,
-        session: Session = None,
+        session: Session = NEW_SESSION,
     ) -> None:
         """Set a value for an Airflow Variable with a given Key.
 
@@ -192,7 +195,7 @@ class Variable(Base, LoggingMixin):
         key: str,
         value: Any,
         serialize_json: bool = False,
-        session: Session = None,
+        session: Session = NEW_SESSION,
     ) -> None:
         """Update a given Airflow Variable with the Provided value.
 
@@ -213,7 +216,7 @@ class Variable(Base, LoggingMixin):
     @staticmethod
     @provide_session
     @internal_api_call
-    def delete(key: str, session: Session = None) -> int:
+    def delete(key: str, session: Session = NEW_SESSION) -> int:
         """Delete an Airflow Variable for a given key.
 
         :param key: Variable Keys
@@ -227,6 +230,7 @@ class Variable(Base, LoggingMixin):
         """Rotate Fernet Key."""
         fernet = get_fernet()
         if self._val and self.is_encrypted:
+            fernet = cast("MultiFernet", fernet)
             self._val = fernet.rotate(self._val.encode("utf-8")).decode()
 
     @staticmethod

@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, Column, Index, String, Text
 
-from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
+from airflow.models.base import COLLATION_ARGS, ID_LEN, Base, Hint
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
@@ -39,13 +39,13 @@ class SlaMiss(Base):
 
     __tablename__ = "sla_miss"
 
-    task_id: Mapped[str] = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    dag_id: Mapped[str] = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    execution_date: Mapped[datetime] = Column(UtcDateTime, primary_key=True)
-    email_sent: Mapped[bool | None] = Column(Boolean, default=False)
-    timestamp: Mapped[datetime | None] = Column(UtcDateTime)
-    description: Mapped[str | None] = Column(Text)
-    notification_sent: Mapped[bool | None] = Column(Boolean, default=False)
+    task_id: Mapped[str] = Hint.col | Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    dag_id: Mapped[str] = Hint.col | Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    execution_date: Mapped[datetime] = Hint.col | Column(UtcDateTime, primary_key=True)
+    email_sent: Mapped[bool | None] = Hint.col | Column(Boolean, default=False)
+    timestamp: Mapped[datetime | None] = Hint.col | Column(UtcDateTime)
+    description: Mapped[str | None] = Hint.col | Column(Text)
+    notification_sent: Mapped[bool | None] = Hint.col | Column(Boolean, default=False)
 
     __table_args__ = (Index("sm_dag", dag_id, unique=False),)
 

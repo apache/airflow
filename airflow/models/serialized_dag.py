@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 import zlib
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Collection, Sequence
+from typing import TYPE_CHECKING, Any, Collection
 
 import sqlalchemy_jsonfield
 from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_, exc, or_, select
@@ -31,7 +31,7 @@ from sqlalchemy.sql.expression import func, literal
 
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.exceptions import TaskNotFound
-from airflow.models.base import ID_LEN, Base
+from airflow.models.base import ID_LEN, Base, Hint
 from airflow.models.dag import DagModel
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun
@@ -75,27 +75,27 @@ class SerializedDagModel(Base):
 
     __tablename__ = "serialized_dag"
 
-    dag_id: Mapped[str] = Column(String(ID_LEN), primary_key=True)
-    fileloc: Mapped[str] = Column(String(2000), nullable=False)
+    dag_id: Mapped[str] = Hint.col | Column(String(ID_LEN), primary_key=True)
+    fileloc: Mapped[str] = Hint.col | Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
-    fileloc_hash: Mapped[int] = Column(BigInteger(), nullable=False)
-    _data: Mapped[Any] = Column("data", sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
-    _data_compressed: Mapped[bytes | None] = Column("data_compressed", LargeBinary, nullable=True)
-    last_updated: Mapped[datetime] = Column(UtcDateTime, nullable=False)
-    dag_hash: Mapped[str] = Column(String(32), nullable=False)
-    processor_subdir: Mapped[str | None] = Column(String(2000), nullable=True)
+    fileloc_hash: Mapped[int] = Hint.col | Column(BigInteger(), nullable=False)
+    _data: Mapped[Any] = Hint.col | Column("data", sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    _data_compressed: Mapped[bytes | None] = Hint.col | Column("data_compressed", LargeBinary, nullable=True)
+    last_updated: Mapped[datetime] = Hint.col | Column(UtcDateTime, nullable=False)
+    dag_hash: Mapped[str] = Hint.col | Column(String(32), nullable=False)
+    processor_subdir: Mapped[str | None] = Hint.col | Column(String(2000), nullable=True)
 
     __table_args__ = (Index("idx_fileloc_hash", fileloc_hash, unique=False),)
 
-    dag_runs: Mapped[Sequence[DagRun]] = relationship(
+    dag_runs: Mapped[list[DagRun]] = Hint.rel | relationship(
         DagRun,
-        primaryjoin=dag_id == foreign(DagRun.dag_id),  # type: ignore
+        primaryjoin=dag_id == foreign(DagRun.dag_id),
         backref=backref("serialized_dag", uselist=False, innerjoin=True),
     )
 
-    dag_model: Mapped[DagModel | None] = relationship(
+    dag_model: Mapped[DagModel | None] = Hint.rel | relationship(
         DagModel,
-        primaryjoin=dag_id == DagModel.dag_id,  # type: ignore
+        primaryjoin=dag_id == DagModel.dag_id,
         foreign_keys=dag_id,
         uselist=False,
         innerjoin=True,
@@ -387,9 +387,12 @@ class SerializedDagModel(Base):
         :param session: ORM Session
         :return: A tuple of DAG Hash and last updated datetime, or None if the DAG is not found
         """
-        return session.execute(
+        row = session.execute(
             select(cls.dag_hash, cls.last_updated).where(cls.dag_id == dag_id)
         ).one_or_none()
+        if row is None:
+            return None
+        return tuple(row)
 
     @classmethod
     @provide_session
@@ -399,7 +402,7 @@ class SerializedDagModel(Base):
 
         :param session: ORM Session
         """
-        if session.bind.dialect.name in ["sqlite", "mysql"]:
+        if session.get_bind().dialect.name in ["sqlite", "mysql"]:
             query = session.execute(
                 select(cls.dag_id, func.json_extract(cls._data, "$.dag.dag_dependencies"))
             )

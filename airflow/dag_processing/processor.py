@@ -428,6 +428,7 @@ class DagFileProcessor(LoggingMixin):
         """
         dagbag = DagFileProcessor._get_dagbag(dag_folder)
         dag = dagbag.get_dag(dag_id)
+        assert dag  # noqa: S101
         cls.logger().info("Running SLA Checks for %s", dag.dag_id)
         if not any(isinstance(ti.sla, timedelta) for ti in dag.tasks):
             cls.logger().info("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
@@ -512,7 +513,8 @@ class DagFileProcessor(LoggingMixin):
 
             task_list = "\n".join(sla.task_id + " on " + sla.execution_date.isoformat() for sla in slas)
             blocking_task_list = "\n".join(
-                ti.task_id + " on " + ti.execution_date.isoformat() for ti in blocking_tis
+                ti.task_id + " on " + (ti.execution_date.isoformat() if ti.execution_date else "")
+                for ti in blocking_tis
             )
             # Track whether email or any alert notification sent
             # We consider email or the alert callback as notifications

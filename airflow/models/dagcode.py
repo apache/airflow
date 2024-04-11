@@ -27,7 +27,7 @@ from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.sql.expression import literal
 
 from airflow.exceptions import AirflowException, DagCodeNotFound
-from airflow.models.base import Base
+from airflow.models.base import Base, Hint
 from airflow.utils import timezone
 from airflow.utils.file import correct_maybe_zipped, open_maybe_zipped
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -49,11 +49,13 @@ class DagCode(Base):
 
     __tablename__ = "dag_code"
 
-    fileloc_hash: Mapped[int] = Column(BigInteger, nullable=False, primary_key=True, autoincrement=False)
-    fileloc: Mapped[str] = Column(String(2000), nullable=False)
+    fileloc_hash: Mapped[int] = Hint.col | Column(
+        BigInteger, nullable=False, primary_key=True, autoincrement=False
+    )
+    fileloc: Mapped[str] = Hint.col | Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
-    last_updated: Mapped[datetime] = Column(UtcDateTime, nullable=False)
-    source_code: Mapped[str] = Column(Text().with_variant(MEDIUMTEXT(), "mysql"), nullable=False)
+    last_updated: Mapped[datetime] = Hint.col | Column(UtcDateTime, nullable=False)
+    source_code: Mapped[str] = Hint.col | Column(Text().with_variant(MEDIUMTEXT(), "mysql"), nullable=False)
 
     def __init__(self, full_filepath: str, source_code: str | None = None):
         self.fileloc = full_filepath

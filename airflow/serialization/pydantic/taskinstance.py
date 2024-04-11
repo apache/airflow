@@ -418,7 +418,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         local: bool = False,
         pickle_id: int | None = None,
         raw: bool = False,
-        job_id: str | None = None,
+        job_id: int | str | None = None,
         pool: str | None = None,
         cfg_path: str | None = None,
     ) -> list[str]:

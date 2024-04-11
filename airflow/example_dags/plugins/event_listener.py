@@ -36,10 +36,12 @@ def on_task_instance_running(previous_state: TaskInstanceState, task_instance: T
     This will give more information about current task_instance that is running its dag_run,
     task and dag information.
     """
+    from airflow.utils.state import TaskInstanceState
+
     print("Task instance is in running state")
     print(" Previous state of the Task instance:", previous_state)
 
-    state: TaskInstanceState = task_instance.state
+    state: TaskInstanceState = TaskInstanceState(task_instance.state)
     name: str = task_instance.task_id
     start_date = task_instance.start_date
 

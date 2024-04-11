@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import Boolean, Column, Integer, String, Text, func, select
 
 from airflow.exceptions import AirflowException, PoolNotFound
-from airflow.models.base import Base
+from airflow.models.base import Base, Hint
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.typing_compat import TypedDict
 from airflow.utils.db import exists_query
@@ -50,12 +50,12 @@ class Pool(Base):
 
     __tablename__ = "slot_pool"
 
-    id: Mapped[int] = Column(Integer, primary_key=True)
-    pool: Mapped[str | None] = Column(String(256), unique=True)
+    id: Mapped[int] = Hint.col | Column(Integer, primary_key=True)
+    pool: Mapped[str | None] = Hint.col | Column(String(256), unique=True)
     # -1 for infinite
-    slots: Mapped[int | None] = Column(Integer, default=0)
-    description: Mapped[str | None] = Column(Text)
-    include_deferred: Mapped[bool] = Column(Boolean, nullable=False)
+    slots: Mapped[int | None] = Hint.col | Column(Integer, default=0)
+    description: Mapped[str | None] = Hint.col | Column(Text)
+    include_deferred: Mapped[bool] = Hint.col | Column(Boolean, nullable=False)
 
     DEFAULT_POOL_NAME = "default_pool"
 
@@ -176,6 +176,7 @@ class Pool(Base):
             query = with_row_locks(query, session=session, nowait=True)
 
         pool_rows = session.execute(query)
+        total_slots: int
         for pool_name, total_slots, include_deferred in pool_rows:
             if total_slots == -1:
                 total_slots = float("inf")  # type: ignore
@@ -345,4 +346,4 @@ class Pool(Base):
         """
         if self.slots == -1:
             return float("inf")
-        return self.slots - self.occupied_slots(session)
+        return (self.slots or 0) - self.occupied_slots(session)

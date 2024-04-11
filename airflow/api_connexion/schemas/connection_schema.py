@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import json
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
@@ -56,7 +56,7 @@ class ConnectionSchema(ConnectionCollectionItemSchema):
         from airflow.utils.log.secrets_masker import redact
 
         try:
-            extra = json.loads(obj.extra)
+            extra: Any = json.loads(obj.extra)
             return json.dumps(redact(extra))
         except json.JSONDecodeError:
             # we can't redact fields in an unstructured `extra`

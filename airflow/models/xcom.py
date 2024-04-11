@@ -50,7 +50,7 @@ from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
+from airflow.models.base import COLLATION_ARGS, ID_LEN, Hint, TaskInstanceDependencies
 from airflow.utils import timezone
 from airflow.utils.helpers import exactly_one, is_container
 from airflow.utils.json import XComDecoder, XComEncoder
@@ -82,17 +82,23 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
 
     __tablename__ = "xcom"
 
-    dag_run_id: Mapped[int] = Column(Integer(), nullable=False, primary_key=True)
-    task_id: Mapped[str] = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False, primary_key=True)
-    map_index: Mapped[int] = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
-    key: Mapped[str] = Column(String(512, **COLLATION_ARGS), nullable=False, primary_key=True)
+    dag_run_id: Mapped[int] = Hint.col | Column(Integer(), nullable=False, primary_key=True)
+    task_id: Mapped[str] = Hint.col | Column(
+        String(ID_LEN, **COLLATION_ARGS), nullable=False, primary_key=True
+    )
+    map_index: Mapped[int] = Hint.col | Column(
+        Integer, primary_key=True, nullable=False, server_default=text("-1")
+    )
+    key: Mapped[str] = Hint.col | Column(String(512, **COLLATION_ARGS), nullable=False, primary_key=True)
 
     # Denormalized for easier lookup.
-    dag_id: Mapped[str] = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
-    run_id: Mapped[str] = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+    dag_id: Mapped[str] = Hint.col | Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+    run_id: Mapped[str] = Hint.col | Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
 
-    value: Mapped[bytes | None] = Column(LargeBinary().with_variant(LONGBLOB, "mysql"))
-    timestamp: Mapped[datetime.datetime] = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    value: Mapped[bytes | None] = Hint.col | Column(LargeBinary().with_variant(LONGBLOB, "mysql"))
+    timestamp: Mapped[datetime.datetime] = Hint.col | Column(
+        UtcDateTime, default=timezone.utcnow, nullable=False
+    )
 
     __table_args__ = (
         # Ideally we should create a unique index over (key, dag_id, task_id, run_id),
@@ -114,7 +120,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         ),
     )
 
-    dag_run: Mapped[DagRun | None] = relationship(
+    dag_run: Mapped[DagRun | None] = Hint.rel | relationship(
         "DagRun",
         primaryjoin="BaseXCom.dag_run_id == foreign(DagRun.id)",
         uselist=False,

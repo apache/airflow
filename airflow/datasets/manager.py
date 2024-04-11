@@ -122,7 +122,7 @@ class DatasetManager(LoggingMixin):
         # so that the adding of these rows happens in the same transaction
         # where `ti.state` is changed.
 
-        if session.bind.dialect.name == "postgresql":
+        if session.get_bind().dialect.name == "postgresql":
             return self._postgres_queue_dagruns(dataset, session)
         return self._slow_path_queue_dagruns(dataset, session)
 

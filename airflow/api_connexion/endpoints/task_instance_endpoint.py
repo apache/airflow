@@ -367,7 +367,7 @@ def get_task_instances(
         .limit(limit)
     )
     # using execute because we want the SlaMiss entity. Scalars don't return None for missing entities
-    task_instances = session.execute(entry_query).all()
+    task_instances = cast("list[tuple[TI, SlaMiss | None]]", session.execute(entry_query).all())
     return task_instance_collection_schema.dump(
         TaskInstanceCollection(task_instances=task_instances, total_entries=total_entries)
     )

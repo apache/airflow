@@ -189,7 +189,7 @@ class BaseExecutor(LoggingMixin):
         self.queue_command(
             task_instance,
             command_list_to_run,
-            priority=task_instance.priority_weight,
+            priority=task_instance.priority_weight or 1,
             queue=task_instance.task.queue,
         )
 

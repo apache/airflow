@@ -35,7 +35,7 @@ from collections import defaultdict
 from functools import cached_property
 from json import JSONDecodeError
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Collection, Iterator, Mapping, MutableMapping, Sequence
+from typing import TYPE_CHECKING, Any, Collection, Iterable, Iterator, Mapping, MutableMapping, Sequence
 from urllib.parse import unquote, urljoin, urlsplit
 
 import configupdater
@@ -107,7 +107,7 @@ from airflow.models.dagrun import RUN_ID_REGEX, DagRun, DagRunType
 from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.models.operator import needs_expansion
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
+from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, TaskInstanceState
 from airflow.plugins_manager import PLUGINS_ATTRIBUTES_TO_DUMP
 from airflow.providers_manager import ProvidersManager
 from airflow.security import permissions
@@ -329,10 +329,10 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
         .order_by(TaskInstance.task_id, TaskInstance.run_id)
     )
 
-    grouped_tis: dict[str, list[TaskInstance]] = collections.defaultdict(
-        list,
-        ((task_id, list(tis)) for task_id, tis in itertools.groupby(query, key=lambda ti: ti.task_id)),
+    tis: Iterable[tuple[Any, list[Any]]] = (
+        (task_id, list(tis)) for task_id, tis in itertools.groupby(query, key=lambda ti: ti.task_id)
     )
+    grouped_tis: dict[str, list[TaskInstance]] = collections.defaultdict(list, tis)
 
     @cache
     def get_task_group_children_getter() -> operator.methodcaller:
@@ -377,10 +377,10 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
                         }
                         continue
                     record["queued_dttm"] = min(
-                        filter(None, [record["queued_dttm"], ti_summary.queued_dttm]), default=None
+                        (x for x in (record["queued_dttm"], ti_summary.queued_dttm) if x), default=None
                     )
                     record["start_date"] = min(
-                        filter(None, [record["start_date"], ti_summary.start_date]), default=None
+                        (x for x in (record["start_date"], ti_summary.start_date) if x), default=None
                     )
                     # Sometimes the start date of a group might be before the queued date of the group
                     if (
@@ -390,7 +390,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
                     ):
                         record["queued_dttm"] = None
                     record["end_date"] = max(
-                        filter(None, [record["end_date"], ti_summary.end_date]), default=None
+                        (x for x in (record["end_date"], ti_summary.end_date) if x), default=None
                     )
                     record["mapped_states"][ti_summary.state] = ti_summary.state_count
                 if record:
@@ -408,7 +408,9 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
                         "queued_dttm": task_instance.queued_dttm,
                         "start_date": task_instance.start_date,
                         "end_date": task_instance.end_date,
-                        "try_number": wwwutils.get_try_count(task_instance._try_number, task_instance.state),
+                        "try_number": wwwutils.get_try_count(
+                            task_instance._try_number or 0, str(task_instance.state)
+                        ),
                         "note": task_instance.note,
                     }
                     for task_instance in grouped_tis[item.task_id]
@@ -1189,7 +1191,7 @@ class Airflow(AirflowBaseView):
 
         running_dag_run_query_result = running_dag_run_query_result.where(DagRun.dag_id.in_(filter_dag_ids))
 
-        running_dag_run_query_result = running_dag_run_query_result.subquery("running_dag_run")
+        running_dag_run_query_result_subq = running_dag_run_query_result.subquery("running_dag_run")
 
         # Select all task_instances from active dag_runs.
         running_task_instance_query_result = select(
@@ -1197,10 +1199,10 @@ class Airflow(AirflowBaseView):
             TaskInstance.state.label("state"),
             sqla.literal(True).label("is_dag_running"),
         ).join(
-            running_dag_run_query_result,
+            running_dag_run_query_result_subq,
             and_(
-                running_dag_run_query_result.c.dag_id == TaskInstance.dag_id,
-                running_dag_run_query_result.c.run_id == TaskInstance.run_id,
+                running_dag_run_query_result_subq.c.dag_id == TaskInstance.dag_id,
+                running_dag_run_query_result_subq.c.run_id == TaskInstance.run_id,
             ),
         )
 
@@ -1213,7 +1215,7 @@ class Airflow(AirflowBaseView):
             )
 
             last_dag_run = last_dag_run.where(DagRun.dag_id.in_(filter_dag_ids))
-            last_dag_run = last_dag_run.subquery("last_dag_run")
+            last_dag_run_subq = last_dag_run.subquery("last_dag_run")
 
             # Select all task_instances from active dag_runs.
             # If no dag_run is active, return task instances from most recent dag_run.
@@ -1225,10 +1227,10 @@ class Airflow(AirflowBaseView):
                 )
                 .join(TaskInstance.dag_run)
                 .join(
-                    last_dag_run,
+                    last_dag_run_subq,
                     and_(
-                        last_dag_run.c.dag_id == TaskInstance.dag_id,
-                        last_dag_run.c.execution_date == DagRun.execution_date,
+                        last_dag_run_subq.c.dag_id == TaskInstance.dag_id,
+                        last_dag_run_subq.c.execution_date == DagRun.execution_date,
                     ),
                 )
             )
@@ -1640,7 +1642,7 @@ class Airflow(AirflowBaseView):
 
         num_logs = 0
         if ti is not None:
-            num_logs = wwwutils.get_try_count(ti._try_number, ti.state)
+            num_logs = wwwutils.get_try_count(ti._try_number or 0, str(ti.state))
         logs = [""] * num_logs
         root = request.args.get("root", "")
         return self.render_template(

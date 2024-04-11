@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any
 import dill
 from sqlalchemy import BigInteger, Column, Integer, PickleType
 
-from airflow.models.base import Base
+from airflow.models.base import Base, Hint
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -45,10 +45,10 @@ class DagPickle(Base):
     The executors pick up the DagPickle id and read the dag definition from the database.
     """
 
-    id: Mapped[int] = Column(Integer, primary_key=True)
-    pickle: Mapped[Any] = Column(PickleType(pickler=dill))
-    created_dttm: Mapped[datetime | None] = Column(UtcDateTime, default=timezone.utcnow)
-    pickle_hash: Mapped[int | None] = Column(BigInteger)
+    id: Mapped[int] = Hint.col | Column(Integer, primary_key=True)
+    pickle: Mapped[Any] = Hint.col | Column(PickleType(pickler=dill))
+    created_dttm: Mapped[datetime | None] = Hint.col | Column(UtcDateTime, default=timezone.utcnow)
+    pickle_hash: Mapped[int | None] = Hint.col | Column(BigInteger)
 
     __tablename__ = "dag_pickle"
 

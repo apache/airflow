@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from http import HTTPStatus
-from typing import TYPE_CHECKING, Collection, cast
+from typing import TYPE_CHECKING, Any, Collection, cast
 
 import pendulum
 from connexion import NoContent
@@ -268,7 +268,7 @@ def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
     """Get list of DAG Runs."""
     body = get_json_request_dict()
     try:
-        data = dagruns_batch_form_schema.load(body)
+        data: Any = dagruns_batch_form_schema.load(body)
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
 

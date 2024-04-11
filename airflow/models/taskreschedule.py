@@ -27,7 +27,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship
 
 from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
+from airflow.models.base import COLLATION_ARGS, ID_LEN, Hint, TaskInstanceDependencies
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -48,16 +48,16 @@ class TaskReschedule(TaskInstanceDependencies):
 
     __tablename__ = "task_reschedule"
 
-    id: Mapped[int] = Column(Integer, primary_key=True)
-    task_id: Mapped[str] = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
-    dag_id: Mapped[str] = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
-    run_id: Mapped[str] = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
-    map_index: Mapped[int] = Column(Integer, nullable=False, server_default=text("-1"))
-    try_number: Mapped[int] = Column(Integer, nullable=False)
-    start_date: Mapped[datetime.datetime] = Column(UtcDateTime, nullable=False)
-    end_date: Mapped[datetime.datetime] = Column(UtcDateTime, nullable=False)
-    duration: Mapped[int] = Column(Integer, nullable=False)
-    reschedule_date: Mapped[datetime.datetime] = Column(UtcDateTime, nullable=False)
+    id: Mapped[int] = Hint.col | Column(Integer, primary_key=True)
+    task_id: Mapped[str] = Hint.col | Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+    dag_id: Mapped[str] = Hint.col | Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+    run_id: Mapped[str] = Hint.col | Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+    map_index: Mapped[int] = Hint.col | Column(Integer, nullable=False, server_default=text("-1"))
+    try_number: Mapped[int] = Hint.col | Column(Integer, nullable=False)
+    start_date: Mapped[datetime.datetime] = Hint.col | Column(UtcDateTime, nullable=False)
+    end_date: Mapped[datetime.datetime] = Hint.col | Column(UtcDateTime, nullable=False)
+    duration: Mapped[int] = Hint.col | Column(Integer, nullable=False)
+    reschedule_date: Mapped[datetime.datetime] = Hint.col | Column(UtcDateTime, nullable=False)
 
     __table_args__ = (
         Index("idx_task_reschedule_dag_task_run", dag_id, task_id, run_id, map_index, unique=False),
@@ -80,7 +80,7 @@ class TaskReschedule(TaskInstanceDependencies):
             ondelete="CASCADE",
         ),
     )
-    dag_run: Mapped[DagRun | None] = relationship("DagRun")
+    dag_run: Mapped[DagRun | None] = Hint.rel | relationship("DagRun")
     execution_date: Mapped[datetime.datetime | None] = association_proxy("dag_run", "execution_date")
 
     def __init__(

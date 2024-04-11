@@ -17,12 +17,18 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any, TypeAlias, TypeVar, Union, cast
 
 from sqlalchemy import Column, Integer, MetaData, String, text
 from sqlalchemy.orm import Mapped, registry
 
 from airflow.configuration import conf
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import RelationshipProperty
+
+    _T = TypeVar("_T", bound=Any)
+    ColumnOrRelationship: TypeAlias = Union[Column[_T], RelationshipProperty[_T]]
 
 SQL_ALCHEMY_SCHEMA = conf.get("database", "SQL_ALCHEMY_SCHEMA")
 
@@ -78,6 +84,41 @@ def get_id_collation_args():
 COLLATION_ARGS: dict[str, Any] = get_id_collation_args()
 
 
+class _ColumnMeta(type):
+    def __add__(self, col: Column[Any]) -> Mapped[Any]:
+        return cast("Mapped[Any]", col)
+
+    def __or__(self, col: Column[Any]) -> Mapped[Any]:
+        return cast("Mapped[Any]", col)
+
+
+class _RelationshipMeta(type):
+    def __add__(self, col: RelationshipProperty[Any]) -> Mapped[Any]:
+        return cast("Mapped[Any]", col)
+
+    def __or__(self, col: RelationshipProperty[Any]) -> Mapped[Any]:
+        return cast("Mapped[Any]", col)
+
+
+class Col(metaclass=_ColumnMeta):
+    """cast sqlalchemy.Column as sa.Mapped."""
+
+
+class Rel(metaclass=_RelationshipMeta):
+    """cast sqlalchemy.orm.relationship as sa.Mapped."""
+
+
+class Hint:
+    """cast sqlalchemy.* as sa.Mapped."""
+
+    col: TypeAlias = Col
+    Col: TypeAlias = Col
+    COL: TypeAlias = Col
+    rel: TypeAlias = Rel
+    Rel: TypeAlias = Rel
+    REL: TypeAlias = Rel
+
+
 def StringID(*, length=ID_LEN, **kwargs) -> String:
     return String(length=length, **kwargs, **COLLATION_ARGS)
 
@@ -87,7 +128,7 @@ class TaskInstanceDependencies(Base):
 
     __abstract__ = True
 
-    task_id: Mapped[str] = Column(StringID(), nullable=False)
-    dag_id: Mapped[str] = Column(StringID(), nullable=False)
-    run_id: Mapped[str] = Column(StringID(), nullable=False)
-    map_index: Mapped[int] = Column(Integer, nullable=False, server_default=text("-1"))
+    task_id: Mapped[str] = Col | Column(StringID(), nullable=False)
+    dag_id: Mapped[str] = Col | Column(StringID(), nullable=False)
+    run_id: Mapped[str] = Col | Column(StringID(), nullable=False)
+    map_index: Mapped[int] = Col | Column(Integer, nullable=False, server_default=text("-1"))

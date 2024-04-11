@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, Integer, Text
 
-from airflow.models.base import Base
+from airflow.models.base import Base, Hint
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -40,10 +40,10 @@ class LogTemplate(Base):
 
     __tablename__ = "log_template"
 
-    id: Mapped[int] = Column(Integer, primary_key=True, autoincrement=True)
-    filename: Mapped[str] = Column(Text, nullable=False)
-    elasticsearch_id: Mapped[str] = Column(Text, nullable=False)
-    created_at: Mapped[datetime] = Column(UtcDateTime, nullable=False, default=timezone.utcnow)
+    id: Mapped[int] = Hint.col | Column(Integer, primary_key=True, autoincrement=True)
+    filename: Mapped[str] = Hint.col | Column(Text, nullable=False)
+    elasticsearch_id: Mapped[str] = Hint.col | Column(Text, nullable=False)
+    created_at: Mapped[datetime] = Hint.col | Column(UtcDateTime, nullable=False, default=timezone.utcnow)
 
     def __repr__(self) -> str:
         attrs = ", ".join(f"{k}={getattr(self, k)}" for k in ("filename", "elasticsearch_id"))

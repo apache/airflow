@@ -34,7 +34,8 @@ from sqlalchemy import and_, column, false, func, inspect, select, table, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import aliased
-from sqlalchemy.sql.expression import ClauseElement, Executable, tuple_
+from sqlalchemy.sql import Executable
+from sqlalchemy.sql.expression import ClauseElement, tuple_
 
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
