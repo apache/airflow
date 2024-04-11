@@ -107,7 +107,7 @@ from airflow.models.dagrun import RUN_ID_REGEX, DagRun, DagRunType
 from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.models.operator import needs_expansion
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, TaskInstanceState
+from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
 from airflow.plugins_manager import PLUGINS_ATTRIBUTES_TO_DUMP
 from airflow.providers_manager import ProvidersManager
 from airflow.security import permissions

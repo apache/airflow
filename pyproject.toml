@@ -535,6 +535,7 @@ warn_unused_ignores = false
 plugins = [
     "dev/mypy/plugin/decorators.py",
     "dev/mypy/plugin/outputs.py",
+    "sqlalchemy.ext.mypy.plugin"
 ]
 pretty = true
 show_error_codes = true

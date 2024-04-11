@@ -211,7 +211,7 @@ class OperatorPartial:
         except AttributeError:
             operator_name = self.operator_class.__name__
 
-        dummy: dict[str, Any] = {}
+        under_score_args: dict[str, Any] = {}
         op = MappedOperator(
             operator_class=self.operator_class,
             expand_input=expand_input,
@@ -237,7 +237,7 @@ class OperatorPartial:
             # For classic operators, this points to expand_input because kwargs
             # to BaseOperator.expand() contribute to operator arguments.
             expand_input_attr="expand_input",
-            **dummy,
+            **under_score_args,
         )
         return op
 
