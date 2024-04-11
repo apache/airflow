@@ -71,7 +71,12 @@ class AirbyteHook(HttpHook):
     async def get_headers_tenants_from_connection(self) -> tuple[dict[str, Any], str]:
         """Get Headers, tenants from the connection details."""
         connection: Connection = await sync_to_async(self.get_connection)(self.http_conn_id)
-        base_url = connection.host
+        # schema defaults to HTTP
+        schema = connection.schema if connection.schema else "http"
+        base_url = f"{schema}://{connection.host}"
+
+        if connection.port:
+            base_url += f":{connection.port}"
 
         if self.api_type == "config":
             credentials = f"{connection.login}:{connection.password}"
