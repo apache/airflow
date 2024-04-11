@@ -25,9 +25,11 @@ from unittest.mock import Mock, patch
 import jaydebeapi
 import pytest
 
+from airflow.exceptions import DeserializingResultError
 from airflow.models import Connection
-from airflow.providers.jdbc.hooks.jdbc import JdbcHook
+from airflow.providers.jdbc.hooks.jdbc import JdbcHook, suppress_and_warn
 from airflow.utils import db
+from airflow.utils.context import AirflowContextDeprecationWarning
 
 pytestmark = pytest.mark.db_test
 
@@ -176,3 +178,12 @@ class TestJdbcHook:
                     "have supplied 'driver_class' via connection extra but it will not be used"
                 ) in caplog.text
                 assert driver_class == "Blah driver class"
+
+    def test_suppress_and_warn_when_raised_exception_is_suppressed(self):
+        with suppress_and_warn(AirflowContextDeprecationWarning):
+            raise AirflowContextDeprecationWarning()
+
+    def test_suppress_and_warn_when_raised_exception_is_not_suppressed(self):
+        with pytest.raises(AirflowContextDeprecationWarning):
+            with suppress_and_warn(DeserializingResultError):
+                raise AirflowContextDeprecationWarning()
