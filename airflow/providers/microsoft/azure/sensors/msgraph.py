@@ -46,28 +46,28 @@ def default_event_processor(context: Context, event: TriggerEvent) -> bool:
 
 class MSGraphSensor(BaseSensorOperator):
     """
-        A Microsoft Graph API sensor which allows you to poll an async REST call to the Microsoft Graph API.
+    A Microsoft Graph API sensor which allows you to poll an async REST call to the Microsoft Graph API.
 
-        :param url: The url being executed on the Microsoft Graph API (templated).
-        :param response_type: The expected return type of the response as a string. Possible value are: `bytes`,
-            `str`, `int`, `float`, `bool` and `datetime` (default is None).
-        :param response_handler: Function to convert the native HTTPX response returned by the hook (default is
-            lambda response, error_map: response.json()).  The default expression will convert the native response
-            to JSON.  If response_type parameter is specified, then the response_handler will be ignored.
-        :param method: The HTTP method being used to do the REST call (default is GET).
-        :param conn_id: The HTTP Connection ID to run the operator against (templated).
-        :param timeout: The HTTP timeout being used by the `KiotaRequestAdapter` (default is None).
-            When no timeout is specified or set to None then there is no HTTP timeout on each request.
-        :param proxies: A dict defining the HTTP proxies to be used (default is None).
-        :param api_version: The API version of the Microsoft Graph API to be used (default is v1).
-            You can pass an enum named APIVersion which has 2 possible members v1 and beta,
-            or you can pass a string as `v1.0` or `beta`.
-        :param event_processor: Function which checks the response from MS Graph API (default is the
-            `default_event_processor` method) and returns a boolean.  When the result is True, the sensor
-            will stop poking, otherwise it will continue until it's True or times out.
-        :param serializer: Class which handles response serialization (default is ResponseSerializer).
-            Bytes will be base64 encoded into a string, so it can be stored as an XCom.
-        """
+    :param url: The url being executed on the Microsoft Graph API (templated).
+    :param response_type: The expected return type of the response as a string. Possible value are: `bytes`,
+        `str`, `int`, `float`, `bool` and `datetime` (default is None).
+    :param response_handler: Function to convert the native HTTPX response returned by the hook (default is
+        lambda response, error_map: response.json()).  The default expression will convert the native response
+        to JSON.  If response_type parameter is specified, then the response_handler will be ignored.
+    :param method: The HTTP method being used to do the REST call (default is GET).
+    :param conn_id: The HTTP Connection ID to run the operator against (templated).
+    :param timeout: The HTTP timeout being used by the `KiotaRequestAdapter` (default is None).
+        When no timeout is specified or set to None then there is no HTTP timeout on each request.
+    :param proxies: A dict defining the HTTP proxies to be used (default is None).
+    :param api_version: The API version of the Microsoft Graph API to be used (default is v1).
+        You can pass an enum named APIVersion which has 2 possible members v1 and beta,
+        or you can pass a string as `v1.0` or `beta`.
+    :param event_processor: Function which checks the response from MS Graph API (default is the
+        `default_event_processor` method) and returns a boolean.  When the result is True, the sensor
+        will stop poking, otherwise it will continue until it's True or times out.
+    :param serializer: Class which handles response serialization (default is ResponseSerializer).
+        Bytes will be base64 encoded into a string, so it can be stored as an XCom.
+    """
 
     template_fields: Sequence[str] = ("url", "conn_id")
 
