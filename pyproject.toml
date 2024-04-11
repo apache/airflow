@@ -464,6 +464,8 @@ norecursedirs = [
 log_level = "INFO"
 filterwarnings = [
     "error::pytest.PytestCollectionWarning",
+    # Avoid building cartesian product which might impact performance
+    "error:SELECT statement has a cartesian product between FROM:sqlalchemy.exc.SAWarning:airflow",
     "ignore::DeprecationWarning:flask_appbuilder.filemanager",
     "ignore::DeprecationWarning:flask_appbuilder.widgets",
     # FAB do not support SQLAclhemy 2
