@@ -37,14 +37,32 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.9.1
+.....
+
+Latest change: 2024-03-28
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`a9a6976dd2 <https://github.com/apache/airflow/commit/a9a6976dd234ff84af7db4253fe700b9ccc6aa4a>`_  2024-03-28   ``docs: yandex provider grammatical improvements (#38589)``
+`30817a5c6d <https://github.com/apache/airflow/commit/30817a5c6df1be3ec080ff1c542899092679768f>`_  2024-03-22   ``support iam token from metadata, simplify code (#38411)``
+`390bec1c82 <https://github.com/apache/airflow/commit/390bec1c82f6a6ac0efdc51a1355b5aae79516cb>`_  2024-03-20   ``Add Yandex Query support from Yandex.Cloud (#37458)``
+`0a74928894 <https://github.com/apache/airflow/commit/0a74928894fb57b0160208262ccacad12da23fc7>`_  2024-03-18   ``Bump ruff to 0.3.3 (#38240)``
+`c0b849ad2b <https://github.com/apache/airflow/commit/c0b849ad2b3f7015f7cb2a45aefd1fa3828bda31>`_  2024-03-11   ``Avoid use of 'assert' outside of the tests (#37718)``
+`83316b8158 <https://github.com/apache/airflow/commit/83316b81584c9e516a8142778fc509f19d95cc3e>`_  2024-03-04   ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+`5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
+=================================================================================================  ===========  ==================================================================
+
 3.9.0
 .....
 
-Latest change: 2024-02-08
+Latest change: 2024-02-12
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`bfb054e9e8 <https://github.com/apache/airflow/commit/bfb054e9e867b8b9a6a449e43bfba97f645e025e>`_  2024-02-12   ``Prepare docs 1st wave of Providers February 2024 (#37326)``
 `08036e5df5 <https://github.com/apache/airflow/commit/08036e5df5ae3ec9f600219361f86a1a3e8e9d19>`_  2024-02-08   ``D401 Support in Providers (simple) (#37258)``
 `cea58c1111 <https://github.com/apache/airflow/commit/cea58c11118cb6776cc14b9460d674b251888bad>`_  2024-02-02   ``fix: using endpoint from connection if not specified (#37076)``
 `3ec781946a <https://github.com/apache/airflow/commit/3ec781946a7fcb5fa5bc99449d59d5981e6257ab>`_  2024-02-01   ``Add secrets-backends section into the Yandex provider yaml definition (#37065)``

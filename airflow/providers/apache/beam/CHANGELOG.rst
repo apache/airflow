@@ -26,6 +26,24 @@
 Changelog
 ---------
 
+5.6.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: skip apache beam pipeline options if value is set to false (#38496)``
+* ``Fix side-effect of default options in Beam Operators (#37916)``
+* ``Avoid to use subprocess in asyncio loop (#38292)``
+* ``Avoid change attributes into the constructor in Apache Beam operators (#37934)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``fix: try002 for provider apache beam (#38790)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``bump mypy version to 1.9.0 (#38239)``
+   * ``Resolve G004: Logging statement uses f-string (#37873)``
+
 5.6.2
 .....
 

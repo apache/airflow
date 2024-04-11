@@ -81,7 +81,7 @@ This package is for Yandex, including:
     - `Yandex.Cloud <https://cloud.yandex.com/>`__
 
 
-Release: 3.9.0
+Release: 3.9.1
 
 Provider package
 ----------------
@@ -101,9 +101,10 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.6.0``
-``yandexcloud``     ``>=0.228.0``
-==================  ==================
+=======================  ==================
+PIP package              Version required
+=======================  ==================
+``apache-airflow``       ``>=2.6.0``
+``yandexcloud``          ``>=0.228.0``
+``yandex-query-client``  ``>=0.1.2``
+=======================  ==================

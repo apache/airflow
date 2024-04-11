@@ -26,6 +26,27 @@
 Changelog
 ---------
 
+3.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Ensure Airbyte Provider is Compatible with Cloud and Config APIs (#37943)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: try002 for provider airbyte (#38786)``
+* ``fix(airbyte): add return statement to yield within a while loop in triggers (#38390)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``Add comment about versions updated by release manager (#37488)``
+   * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+   * ``Applied D401 to airbyte files. (#37370)``
+
 3.6.0
 .....
 

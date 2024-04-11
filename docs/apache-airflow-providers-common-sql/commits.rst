@@ -35,14 +35,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.12.0
+......
+
+Latest change: 2024-04-09
+
+=================================================================================================  ===========  =====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =====================================================================================
+`94153d70ac <https://github.com/apache/airflow/commit/94153d70ac894d7c5249d183304646995d5df3e4>`_  2024-04-09   ``fix: try002 for provider common sql (#38800)``
+`ef97ed245b <https://github.com/apache/airflow/commit/ef97ed245b1ff4349eb9687aa09743dcbe6546a8>`_  2024-04-07   ``Add hook_params to template_fields for BaseSQLOperator-related Operators (#38724)``
+`0b1308ce45 <https://github.com/apache/airflow/commit/0b1308ce455ed9a6c0263ae63aa0166fed278453>`_  2024-04-06   ``Make 'placeholder' of DbApiHook configurable in UI (#38528)``
+`b06f401fa5 <https://github.com/apache/airflow/commit/b06f401fa5d16ab93db9f0f9ce9b4586b666d045>`_  2024-03-28   ``Undeprecating 'DBApiHookForTests._make_common_data_structure' (#38573)``
+`b5b972a106 <https://github.com/apache/airflow/commit/b5b972a1068e19b09d48ec4d7663dd1d996d594f>`_  2024-03-18   ``Update yanked versions in providers changelogs (#38262)``
+`0a74928894 <https://github.com/apache/airflow/commit/0a74928894fb57b0160208262ccacad12da23fc7>`_  2024-03-18   ``Bump ruff to 0.3.3 (#38240)``
+=================================================================================================  ===========  =====================================================================================
+
 1.11.1
 ......
 
-Latest change: 2024-03-01
+Latest change: 2024-03-04
 
 =================================================================================================  ===========  =================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =================================================================================
+`83316b8158 <https://github.com/apache/airflow/commit/83316b81584c9e516a8142778fc509f19d95cc3e>`_  2024-03-04   ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
 `2ab60812a0 <https://github.com/apache/airflow/commit/2ab60812a040cb8b760acaf396f625d0d719e4be>`_  2024-03-01   ``Make 'executemany' keyword arguments only in 'DbApiHook.insert_rows' (#37840)``
 `9e4bdc9e45 <https://github.com/apache/airflow/commit/9e4bdc9e457c275eb2cead5d80c2f79c3b9a0085>`_  2024-02-27   ``Limit 'pandas' to '<2.2' (#37748)``
 =================================================================================================  ===========  =================================================================================
