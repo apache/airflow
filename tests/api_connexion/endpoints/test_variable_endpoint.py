@@ -258,7 +258,7 @@ class TestPatchVariable(TestVariableEndpoint):
             headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
-        assert response.json == {"key": "var1", "value": "updated", "description": None}
+        assert response.json() == {"key": "var1", "value": "updated", "description": None}
         _check_last_log(
             session, dag_id=None, event="api.variable.edit", execution_date=None, expected_extra=payload
         )
@@ -285,7 +285,7 @@ class TestPatchVariable(TestVariableEndpoint):
         )
         assert response.status_code == 404
         assert response.json() == {
-            "title": "Variable not ound",
+            "title": "Variable not found",
             "status": 404,
             "type": EXCEPTIONS_LINK_MAP[404],
             "detail": "Variable does not exist",
@@ -370,7 +370,7 @@ class TestPostVariables(TestVariableEndpoint):
         response = self.client.post(
             "/api/v1/variables",
             json=payload,
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         expected_extra = {
@@ -385,7 +385,7 @@ class TestPostVariables(TestVariableEndpoint):
             expected_extra=expected_extra,
         )
         response = self.client.get("/api/v1/variables/api_key", headers={"REMOTE_USER": "test"})
-        assert response.json == payload
+        assert response.json() == payload
 
     def test_should_reject_invalid_request(self, session):
         response = self.client.post(
