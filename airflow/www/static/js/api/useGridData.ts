@@ -83,9 +83,8 @@ const useGridData = () => {
     onBaseDateChange,
   } = useFilters();
   const {
-    firstRunIdSetByUrl,
     onSelect,
-    selected: { taskId },
+    selected: { taskId, runId },
   } = useSelection();
   const query = useQuery(
     [
@@ -97,7 +96,7 @@ const useGridData = () => {
       root,
       filterUpstream,
       filterDownstream,
-      firstRunIdSetByUrl,
+      runId,
     ],
     async () => {
       const params = {
@@ -113,13 +112,10 @@ const useGridData = () => {
       const response = await axios.get<AxiosResponse, GridData>(gridDataUrl, {
         params,
       });
-      if (
-        firstRunIdSetByUrl &&
-        !response.dagRuns.find((dr) => dr.runId === firstRunIdSetByUrl)
-      ) {
+      if (runId && !response.dagRuns.find((dr) => dr.runId === runId)) {
         const dagRunUrl = getMetaValue("dag_run_url")
           .replace("__DAG_ID__", dagId)
-          .replace("__DAG_RUN_ID__", firstRunIdSetByUrl);
+          .replace("__DAG_RUN_ID__", runId);
 
         // If the run id cannot be found in the response, try fetching it to see if its real and then adjust the base date filter
         try {
@@ -129,6 +125,7 @@ const useGridData = () => {
           if (selectedRun?.executionDate) {
             onBaseDateChange(selectedRun.executionDate);
           }
+          // otherwise the run_id isn't valid and we should unselect it
         } catch (e) {
           onSelect({ taskId });
         }
