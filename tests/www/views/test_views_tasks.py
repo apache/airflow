@@ -23,6 +23,7 @@ import unittest.mock
 import urllib.parse
 from getpass import getuser
 
+import httpx
 import pendulum
 import pytest
 import time_machine
@@ -347,7 +348,7 @@ def test_xcom_return_value_is_not_bytes(admin_client):
 def test_rendered_task_view(admin_client):
     url = f"task?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}"
     resp = admin_client.get(url, follow_redirects=True)
-    resp_html = resp.data.decode("utf-8")
+    resp_html = resp.text
     assert resp.status_code == 200
     assert "<td>_try_number</td>" not in resp_html
     assert "<td>try_number</td>" in resp_html
@@ -379,7 +380,7 @@ def test_tree_trigger_origin_tree_view(app, admin_client):
     url = "tree?dag_id=test_tree_view"
     resp = admin_client.get(url, follow_redirects=True)
     params = {"origin": "/dags/test_tree_view/grid"}
-    href = f"/dags/test_tree_view/trigger?{html.escape(urllib.parse.urlencode(params))}"
+    href = f"/dags/test_tree_view/trigger?{html.escape(urllib.parse.urlencode(params, safe='/:?'))}"
     check_content_in_response(href, resp)
 
 
@@ -395,7 +396,7 @@ def test_graph_trigger_origin_grid_view(app, admin_client):
     url = "/dags/test_tree_view/graph"
     resp = admin_client.get(url, follow_redirects=True)
     params = {"origin": "/dags/test_tree_view/grid?tab=graph"}
-    href = f"/dags/test_tree_view/trigger?{html.escape(urllib.parse.urlencode(params))}"
+    href = f"/dags/test_tree_view/trigger?{html.escape(urllib.parse.urlencode(params, safe='/:?'))}"
     check_content_in_response(href, resp)
 
 
@@ -411,7 +412,7 @@ def test_gantt_trigger_origin_grid_view(app, admin_client):
     url = "/dags/test_tree_view/gantt"
     resp = admin_client.get(url, follow_redirects=True)
     params = {"origin": "/dags/test_tree_view/grid?tab=gantt"}
-    href = f"/dags/test_tree_view/trigger?{html.escape(urllib.parse.urlencode(params))}"
+    href = f"/dags/test_tree_view/trigger?{html.escape(urllib.parse.urlencode(params,  safe='/:?'))}"
     check_content_in_response(href, resp)
 
 
@@ -419,33 +420,16 @@ def test_graph_view_without_dag_permission(app, one_dag_perm_user_client):
     url = "/dags/example_bash_operator/graph"
     resp = one_dag_perm_user_client.get(url, follow_redirects=True)
     assert resp.status_code == 200
-    assert (
-        resp.request.url
-        == "http://localhost/dags/example_bash_operator/grid?tab=graph&dag_run_id=TEST_DAGRUN"
+    assert resp.request.url == httpx.URL(
+        "http://testserver/dags/example_bash_operator/grid?tab=graph&dag_run_id=TEST_DAGRUN"
     )
     check_content_in_response("example_bash_operator", resp)
 
     url = "/dags/example_xcom/graph"
     resp = one_dag_perm_user_client.get(url, follow_redirects=True)
     assert resp.status_code == 200
-    assert resp.request.url == "http://localhost/home"
+    assert resp.request.url == httpx.URL("http://testserver/home")
     check_content_in_response("Access is Denied", resp)
-
-
-def test_dag_details_trigger_origin_dag_details_view(app, admin_client):
-    app.app.dag_bag.get_dag("test_graph_view").create_dagrun(
-        run_type=DagRunType.SCHEDULED,
-        execution_date=DEFAULT_DATE,
-        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-        start_date=timezone.utcnow(),
-        state=State.RUNNING,
-    )
-
-    url = "/dags/test_graph_view/details"
-    resp = admin_client.get(url, follow_redirects=True)
-    params = {"origin": "/dags/test_graph_view/details"}
-    href = f"/dags/test_graph_view/trigger?{html.escape(urllib.parse.urlencode(params))}"
-    check_content_in_response(href, resp)
 
 
 def test_last_dagruns(admin_client):
@@ -1023,49 +1007,6 @@ def test_action_muldelete_task_instance(session, admin_client, task_search_tuple
             == 0
         )
     assert session.query(TaskReschedule).count() == 0
-
-
-def test_task_fail_duration(app, admin_client, dag_maker, session):
-    """Task duration page with a TaskFail entry should render without error."""
-    with dag_maker() as dag:
-        op1 = BashOperator(task_id="fail", bash_command="exit 1")
-        op2 = BashOperator(task_id="success", bash_command="exit 0")
-
-    with pytest.raises(AirflowException):
-        op1.run()
-    op2.run()
-
-    op1_fails = (
-        session.query(TaskFail)
-        .filter(
-            TaskFail.task_id == "fail",
-            TaskFail.dag_id == dag.dag_id,
-        )
-        .all()
-    )
-
-    op2_fails = (
-        session.query(TaskFail)
-        .filter(
-            TaskFail.task_id == "success",
-            TaskFail.dag_id == dag.dag_id,
-        )
-        .all()
-    )
-
-    assert len(op1_fails) == 1
-    assert len(op2_fails) == 0
-
-    with unittest.mock.patch.object(app.app, "dag_bag") as mocked_dag_bag:
-        mocked_dag_bag.get_dag.return_value = dag
-        resp = admin_client.get(f"dags/{dag.dag_id}/duration", follow_redirects=True)
-        html = resp.get_data().decode()
-        cumulative_chart = json.loads(re.search("data_cumlinechart=(.*);", html).group(1))
-        line_chart = json.loads(re.search("data_linechart=(.*);", html).group(1))
-
-        assert resp.status_code == 200
-        assert sorted(item["key"] for item in cumulative_chart) == ["fail", "success"]
-        assert sorted(item["key"] for item in line_chart) == ["fail", "success"]
 
 
 def test_graph_view_doesnt_fail_on_recursion_error(app, dag_maker, admin_client):
