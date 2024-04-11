@@ -152,7 +152,7 @@ class TestEmrContainerOperator:
         self.emr_container.deferrable = True
         self.emr_container.max_polling_attempts = 1000
 
-        error_match = "Final state of EMR Containers job is SUBMITTED.*Max tries of poll status exceeded"
+        error_match = "Waiter error: max attempts reached"
         with pytest.raises(AirflowException, match=error_match):
             self.emr_container.execute(context=None)
 
