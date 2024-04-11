@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
 from typing import TYPE_CHECKING
 from urllib.parse import urljoin, urlparse
 
@@ -113,15 +112,15 @@ class KiotaRequestAdapterHook(BaseHook):
             proxies["http://"] = proxies.pop("http")
         if proxies.get("https"):
             proxies["https://"] = proxies.pop("https")
-        if proxies.get("no_proxy"):
-            for url in proxies.pop("no_proxy", "").split(","):
+        if proxies.get("no"):
+            for url in proxies.pop("no", "").split(","):
                 proxies[cls.format_no_proxy_url(url.strip())] = None
         return proxies
 
     @classmethod
     def to_msal_proxies(cls, authority: str | None, proxies: dict):
         if authority:
-            no_proxies = proxies.get("no_proxy")
+            no_proxies = proxies.get("no")
             if no_proxies:
                 for url in no_proxies.split(","):
                     domain_name = urlparse(url).path.replace("*", "")
@@ -144,11 +143,13 @@ class KiotaRequestAdapterHook(BaseHook):
             api_version = self.get_api_version(config)
             host = self.get_host(connection)
             base_url = config.get("base_url", urljoin(host, api_version.value))
+            authority = config.get("authority")
             proxies = self.proxies or config.get("proxies", {})
+            msal_proxies = self.to_msal_proxies(authority=authority, proxies=proxies)
+            httpx_proxies = self.to_httpx_proxies(proxies=proxies)
             scopes = config.get("scopes", ["https://graph.microsoft.com/.default"])
             verify = config.get("verify", True)
             trust_env = config.get("trust_env", False)
-            authority = config.get("authority")
             disable_instance_discovery = config.get("disable_instance_discovery", False)
             allowed_hosts = (config.get("allowed_hosts", authority) or "").split(",")
 
@@ -168,20 +169,24 @@ class KiotaRequestAdapterHook(BaseHook):
             self.log.info("Timeout: %s", self.timeout)
             self.log.info("Trust env: %s", trust_env)
             self.log.info("Authority: %s", authority)
-            self.log.info("Proxies: %s", json.dumps(proxies))
+            self.log.info("Disable instance discovery: %s", disable_instance_discovery)
+            self.log.info("Allowed hosts: %s", allowed_hosts)
+            self.log.info("Proxies: %s", proxies)
+            self.log.info("MSAL Proxies: %s", msal_proxies)
+            self.log.info("HTTPX Proxies: %s", httpx_proxies)
             credentials = ClientSecretCredential(
                 tenant_id=tenant_id,  # type: ignore
                 client_id=connection.login,
                 client_secret=connection.password,
                 authority=authority,
-                proxies=self.to_msal_proxies(authority=authority, proxies=proxies),
+                proxies=msal_proxies,
                 disable_instance_discovery=disable_instance_discovery,
                 connection_verify=verify,
             )
             http_client = GraphClientFactory.create_with_default_middleware(
                 api_version=api_version,
                 client=httpx.AsyncClient(
-                    proxies=self.to_httpx_proxies(proxies=proxies),
+                    proxies=httpx_proxies,
                     timeout=Timeout(timeout=self.timeout),
                     verify=verify,
                     trust_env=trust_env,
