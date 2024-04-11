@@ -69,6 +69,7 @@ class TestGetPools(TestBasePoolEndpoints):
         pool_model = Pool(pool="test_pool_a", slots=3, include_deferred=True)
         session.add(pool_model)
         session.commit()
+        session.close()
         result = session.query(Pool).all()
         assert len(result) == 2  # accounts for the default pool as well
         response = self.client.get("/api/v1/pools", headers={"REMOTE_USER": "test"})
@@ -107,6 +108,7 @@ class TestGetPools(TestBasePoolEndpoints):
         pool_model = Pool(pool="test_pool_a", slots=3, include_deferred=True)
         session.add(pool_model)
         session.commit()
+        session.close()
         result = session.query(Pool).all()
         assert len(result) == 2  # accounts for the default pool as well
         response = self.client.get("/api/v1/pools?order_by=slots", headers={"REMOTE_USER": "test"})
@@ -178,6 +180,7 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
         pools = [Pool(pool=f"test_pool{i}", slots=1, include_deferred=False) for i in range(1, 121)]
         session.add_all(pools)
         session.commit()
+        session.close()
         result = session.query(Pool).count()
         assert result == 121  # accounts for default pool as well
         response = self.client.get(url, headers={"REMOTE_USER": "test"})
@@ -189,6 +192,7 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
         pools = [Pool(pool=f"test_pool{i}", slots=1, include_deferred=False) for i in range(1, 121)]
         session.add_all(pools)
         session.commit()
+        session.close()
         result = session.query(Pool).count()
         assert result == 121
         response = self.client.get("/api/v1/pools", headers={"REMOTE_USER": "test"})
@@ -199,6 +203,7 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
         pools = [Pool(pool=f"test_pool{i}", slots=1, include_deferred=False) for i in range(1, 121)]
         session.add_all(pools)
         session.commit()
+        session.close()
         result = session.query(Pool).count()
         assert result == 121
         response = self.client.get("/api/v1/pools?order_by=open_slots", headers={"REMOTE_USER": "test"})
@@ -211,6 +216,7 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
         pools = [Pool(pool=f"test_pool{i}", slots=1, include_deferred=False) for i in range(1, 200)]
         session.add_all(pools)
         session.commit()
+        session.close()
         result = session.query(Pool).count()
         assert result == 200
         response = self.client.get("/api/v1/pools?limit=180", headers={"REMOTE_USER": "test"})
@@ -223,6 +229,7 @@ class TestGetPool(TestBasePoolEndpoints):
         pool_model = Pool(pool="test_pool_a", slots=3, include_deferred=True)
         session.add(pool_model)
         session.commit()
+        session.close()
         response = self.client.get("/api/v1/pools/test_pool_a", headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert {
@@ -260,11 +267,12 @@ class TestDeletePool(TestBasePoolEndpoints):
         pool_instance = Pool(pool=pool_name, slots=3, include_deferred=False)
         session.add(pool_instance)
         session.commit()
-
-        response = self.client.delete(f"api/v1/pools/{pool_name}", environ_overrides={"REMOTE_USER": "test"})
+        session.close()
+        response = self.client.delete(f"api/v1/pools/{pool_name}", headers={"REMOTE_USER": "test"})
+        assert response.json() == {}
         assert response.status_code == 204
         # Check if the pool is deleted from the db
-        response = self.client.get(f"api/v1/pools/{pool_name}", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(f"api/v1/pools/{pool_name}", headers={"REMOTE_USER": "test"})
         assert response.status_code == 404
         _check_last_log(session, dag_id=None, event="api.delete_pool", execution_date=None)
 
@@ -283,7 +291,7 @@ class TestDeletePool(TestBasePoolEndpoints):
         pool_instance = Pool(pool=pool_name, slots=3, include_deferred=False)
         session.add(pool_instance)
         session.commit()
-
+        session.close()
         response = self.client.delete(f"api/v1/pools/{pool_name}")
 
         assert response.status_code == 401
@@ -297,7 +305,7 @@ class TestDeletePool(TestBasePoolEndpoints):
             pool_instance = Pool(pool=pool_name, slots=3, include_deferred=False)
             session.add(pool_instance)
             session.commit()
-
+            session.close()
             response = self.client.delete(f"api/v1/pools/{pool_name}", headers={"REMOTE_USER": "test"})
             assert response.status_code == 204
             # Check if the pool is deleted from the db
@@ -332,6 +340,7 @@ class TestPostPool(TestBasePoolEndpoints):
         pool_instance = Pool(pool=pool_name, slots=3, include_deferred=False)
         session.add(pool_instance)
         session.commit()
+        session.close()
         response = self.client.post(
             "api/v1/pools",
             json={"name": "test_pool_a", "slots": 3, "include_deferred": False},
@@ -391,6 +400,7 @@ class TestPatchPool(TestBasePoolEndpoints):
         pool = Pool(pool="test_pool", slots=2, include_deferred=True)
         session.add(pool)
         session.commit()
+        session.close()
         response = self.client.patch(
             "api/v1/pools/test_pool",
             json={"name": "test_pool_a", "slots": 3, "include_deferred": False},
@@ -430,6 +440,7 @@ class TestPatchPool(TestBasePoolEndpoints):
         pool = Pool(pool="test_pool", slots=2, include_deferred=False)
         session.add(pool)
         session.commit()
+        session.close()
         response = self.client.patch(
             "api/v1/pools/test_pool", json=request_json, headers={"REMOTE_USER": "test"}
         )
@@ -459,7 +470,7 @@ class TestPatchPool(TestBasePoolEndpoints):
         pool = Pool(pool="test_pool", slots=2, include_deferred=False)
         session.add(pool)
         session.commit()
-
+        session.close()
         response = self.client.patch(
             "api/v1/pools/test_pool",
             json={"name": "test_pool_a", "slots": 3},
@@ -606,7 +617,6 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
         response = self.client.patch(url, json=json, headers={"REMOTE_USER": "test"})
         assert response.status_code == status_code
         assert response.json() == expected_response
-        assert response.json == expected_response
         _check_last_log(session, dag_id=None, event="api.patch_pool", execution_date=None)
 
 
@@ -658,6 +668,7 @@ class TestPatchPoolWithUpdateMask(TestBasePoolEndpoints):
         pool = Pool(pool="test_pool", slots=3, include_deferred=False)
         session.add(pool)
         session.commit()
+        session.close()
         response = self.client.patch(url, json=patch_json, headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert {
@@ -708,6 +719,7 @@ class TestPatchPoolWithUpdateMask(TestBasePoolEndpoints):
         pool = Pool(pool="test_pool", slots=3, include_deferred=False)
         session.add(pool)
         session.commit()
+        session.close()
         response = self.client.patch(url, json=patch_json, headers={"REMOTE_USER": "test"})
         assert response.status_code == 400
         assert {
