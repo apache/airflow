@@ -25,6 +25,7 @@ import pytest
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG
+from airflow.models.taskinstance import set_current_context
 from airflow.providers.databricks.hooks.databricks import RunState
 from airflow.providers.databricks.operators.databricks import (
     DatabricksCreateJobsOperator,
@@ -907,6 +908,35 @@ class TestDatabricksSubmitRunOperator:
         db_mock.cancel_run.assert_called_once_with(RUN_ID)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_on_kill_without_run_id(self, db_mock_class):
+        run = {
+            "new_cluster": NEW_CLUSTER,
+            "notebook_task": NOTEBOOK_TASK,
+        }
+        op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=run, do_xcom_push=False)
+        db_mock = db_mock_class.return_value
+
+        op.on_kill()
+
+        db_mock.cancel_run.assert_not_called()
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_on_kill_with_run_id_from_xcom(self, db_mock_class):
+        run = {
+            "new_cluster": NEW_CLUSTER,
+            "notebook_task": NOTEBOOK_TASK,
+        }
+        op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=run, do_xcom_push=True)
+        db_mock = db_mock_class.return_value
+        context_mock = {"ti": MagicMock()}
+        context_mock["ti"].xcom_pull.return_value = RUN_ID
+
+        with set_current_context(context_mock):
+            op.on_kill()
+
+        db_mock.cancel_run.assert_called_once_with(RUN_ID)
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_wait_for_termination(self, db_mock_class):
         run = {
             "new_cluster": NEW_CLUSTER,
@@ -1341,6 +1371,28 @@ class TestDatabricksRunNowOperator:
         op.run_id = RUN_ID
 
         op.on_kill()
+        db_mock.cancel_run.assert_called_once_with(RUN_ID)
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_on_kill_without_run_id(self, db_mock_class):
+        run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=run, do_xcom_push=False)
+        db_mock = db_mock_class.return_value
+
+        op.on_kill()
+        db_mock.cancel_run.assert_not_called()
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_on_kill_with_run_id_from_xcom(self, db_mock_class):
+        run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=run, do_xcom_push=True)
+        db_mock = db_mock_class.return_value
+        context_mock = {"ti": MagicMock()}
+        context_mock["ti"].xcom_pull.return_value = RUN_ID
+
+        with set_current_context(context_mock):
+            op.on_kill()
+
         db_mock.cancel_run.assert_called_once_with(RUN_ID)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")

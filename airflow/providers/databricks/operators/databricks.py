@@ -29,6 +29,7 @@ from deprecated import deprecated
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
+from airflow.operators.python import get_current_context
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunState
 from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
 from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event
@@ -174,6 +175,23 @@ def _handle_deferrable_databricks_operator_completion(event: dict, log: Logger) 
         )
         return
     raise AirflowException(error_message)
+
+
+def _handle_operator_on_kill(operator: "DatabricksSubmitRunOperator | DatabricksRunNowOperator") -> None:
+    if operator.do_xcom_push and not operator.run_id:
+        # If the operator is deferred, the run-id won't be available as an attribute.
+        # In case xcom-push is enabled, we can restore the value from there.
+        operator.run_id = get_current_context()["ti"].xcom_pull(
+            task_ids=operator.task_id, key=XCOM_RUN_ID_KEY
+        )
+
+    if operator.run_id:
+        operator._hook.cancel_run(operator.run_id)
+        operator.log.info(
+            "Task: %s with run_id: %s was requested to be cancelled.", operator.task_id, operator.run_id
+        )
+    else:
+        operator.log.error("Error: Task: %s with invalid run_id was requested to be cancelled.", operator.task_id)
 
 
 class DatabricksJobRunLink(BaseOperatorLink):
@@ -564,13 +582,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
             _handle_databricks_operator_execution(self, self._hook, self.log, context)
 
     def on_kill(self):
-        if self.run_id:
-            self._hook.cancel_run(self.run_id)
-            self.log.info(
-                "Task: %s with run_id: %s was requested to be cancelled.", self.task_id, self.run_id
-            )
-        else:
-            self.log.error("Error: Task: %s with invalid run_id was requested to be cancelled.", self.task_id)
+        _handle_operator_on_kill(self)
 
     def execute_complete(self, context: dict | None, event: dict):
         _handle_deferrable_databricks_operator_completion(event, self.log)
@@ -862,13 +874,7 @@ class DatabricksRunNowOperator(BaseOperator):
                 _handle_deferrable_databricks_operator_execution(self, self._hook, self.log, context)
 
     def on_kill(self) -> None:
-        if self.run_id:
-            self._hook.cancel_run(self.run_id)
-            self.log.info(
-                "Task: %s with run_id: %s was requested to be cancelled.", self.task_id, self.run_id
-            )
-        else:
-            self.log.error("Error: Task: %s with invalid run_id was requested to be cancelled.", self.task_id)
+        _handle_operator_on_kill(self)
 
 
 @deprecated(
