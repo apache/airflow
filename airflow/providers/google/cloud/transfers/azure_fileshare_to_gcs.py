@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING, Sequence
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url, gcs_object_is_directory
-from airflow.providers.microsoft.azure.hooks.fileshare import AzureFileShareHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -115,6 +114,13 @@ class AzureFileShareToGCSOperator(BaseOperator):
             )
 
     def execute(self, context: Context):
+        try:
+            from airflow.providers.microsoft.azure.hooks.fileshare import AzureFileShareHook
+        except ModuleNotFoundError as e:
+            from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+            raise AirflowOptionalProviderFeatureException(e)
+
         self._check_inputs()
         azure_fileshare_hook = AzureFileShareHook(
             share_name=self.share_name,
