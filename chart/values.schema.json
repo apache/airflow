@@ -695,7 +695,7 @@
                         "tag": {
                             "description": "The redis image tag.",
                             "type": "string",
-                            "default": "7-bookworm"
+                            "default": "7.2-bookworm"
                         },
                         "pullPolicy": {
                             "description": "The redis image pull policy.",
