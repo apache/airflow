@@ -88,7 +88,12 @@ from airflow.providers.google.cloud.operators.vertex_ai.pipeline_job import (
     ListPipelineJobOperator,
     RunPipelineJobOperator,
 )
-from airflow.providers.google.cloud.triggers.vertex_ai import RunPipelineJobTrigger
+from airflow.providers.google.cloud.triggers.vertex_ai import (
+    CustomContainerTrainingJobTrigger,
+    CustomPythonPackageTrainingJobTrigger,
+    CustomTrainingJobTrigger,
+    RunPipelineJobTrigger,
+)
 from airflow.utils import timezone
 
 VERTEX_AI_PATH = "airflow.providers.google.cloud.operators.vertex_ai.{}"
@@ -194,6 +199,8 @@ TEST_VERSION_ALIASES = ["new-alias"]
 
 TEST_TEMPLATE_PATH = "test_template_path"
 
+SYNC_DEPRECATION_WARNING = "The 'sync' parameter is deprecated and will be removed after 01.10.2024."
+
 
 class TestVertexAICreateCustomContainerTrainingJobOperator:
     @mock.patch(VERTEX_AI_PATH.format("custom_job.Dataset"))
@@ -227,7 +234,8 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
             dataset_id=TEST_DATASET_ID,
             parent_model=TEST_PARENT_MODEL,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        with pytest.warns(AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING):
+            op.execute(context={"ti": mock.MagicMock()})
         mock_dataset.assert_called_once_with(name=TEST_DATASET_ID)
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.create_custom_container_training_job.assert_called_once_with(
@@ -284,6 +292,97 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
             model_version_description=None,
         )
 
+    @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomContainerTrainingJobOperator.hook"))
+    def test_execute_enters_deferred_state(self, mock_hook):
+        task = CreateCustomContainerTrainingJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            staging_bucket=STAGING_BUCKET,
+            display_name=DISPLAY_NAME,
+            args=ARGS,
+            container_uri=CONTAINER_URI,
+            model_serving_container_image_uri=CONTAINER_URI,
+            command=COMMAND_2,
+            model_display_name=DISPLAY_NAME_2,
+            replica_count=REPLICA_COUNT,
+            machine_type=MACHINE_TYPE,
+            accelerator_type=ACCELERATOR_TYPE,
+            accelerator_count=ACCELERATOR_COUNT,
+            training_fraction_split=TRAINING_FRACTION_SPLIT,
+            validation_fraction_split=VALIDATION_FRACTION_SPLIT,
+            test_fraction_split=TEST_FRACTION_SPLIT,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            deferrable=True,
+        )
+        mock_hook.return_value.exists.return_value = False
+        with pytest.raises(TaskDeferred) as exc:
+            with pytest.warns(AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING):
+                task.execute(context={"ti": mock.MagicMock()})
+        assert isinstance(
+            exc.value.trigger, CustomContainerTrainingJobTrigger
+        ), "Trigger is not a CustomContainerTrainingJobTrigger"
+
+    @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomContainerTrainingJobOperator.xcom_push"))
+    @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomContainerTrainingJobOperator.hook"))
+    def test_execute_complete_success(self, mock_hook, mock_xcom_push):
+        task = CreateCustomContainerTrainingJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            staging_bucket=STAGING_BUCKET,
+            display_name=DISPLAY_NAME,
+            args=ARGS,
+            container_uri=CONTAINER_URI,
+            model_serving_container_image_uri=CONTAINER_URI,
+            command=COMMAND_2,
+            model_display_name=DISPLAY_NAME_2,
+            replica_count=REPLICA_COUNT,
+            machine_type=MACHINE_TYPE,
+            accelerator_type=ACCELERATOR_TYPE,
+            accelerator_count=ACCELERATOR_COUNT,
+            training_fraction_split=TRAINING_FRACTION_SPLIT,
+            validation_fraction_split=VALIDATION_FRACTION_SPLIT,
+            test_fraction_split=TEST_FRACTION_SPLIT,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            deferrable=True,
+        )
+        expected_result = {}
+        mock_hook.return_value.exists.return_value = False
+        mock_xcom_push.return_value = None
+        actual_result = task.execute_complete(
+            context=None, event={"status": "success", "message": "", "job": {}}
+        )
+        assert actual_result == expected_result
+
+    def test_execute_complete_error_status_raises_exception(self):
+        task = CreateCustomContainerTrainingJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            staging_bucket=STAGING_BUCKET,
+            display_name=DISPLAY_NAME,
+            args=ARGS,
+            container_uri=CONTAINER_URI,
+            model_serving_container_image_uri=CONTAINER_URI,
+            command=COMMAND_2,
+            model_display_name=DISPLAY_NAME_2,
+            replica_count=REPLICA_COUNT,
+            machine_type=MACHINE_TYPE,
+            accelerator_type=ACCELERATOR_TYPE,
+            accelerator_count=ACCELERATOR_COUNT,
+            training_fraction_split=TRAINING_FRACTION_SPLIT,
+            validation_fraction_split=VALIDATION_FRACTION_SPLIT,
+            test_fraction_split=TEST_FRACTION_SPLIT,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            deferrable=True,
+        )
+        with pytest.raises(AirflowException):
+            task.execute_complete(context=None, event={"status": "error", "message": "test message"})
+
 
 class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
     @mock.patch(VERTEX_AI_PATH.format("custom_job.Dataset"))
@@ -318,7 +417,8 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
             dataset_id=TEST_DATASET_ID,
             parent_model=TEST_PARENT_MODEL,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        with pytest.warns(AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING):
+            op.execute(context={"ti": mock.MagicMock()})
         mock_dataset.assert_called_once_with(name=TEST_DATASET_ID)
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.create_custom_python_package_training_job.assert_called_once_with(
@@ -376,6 +476,100 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
             sync=True,
         )
 
+    @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomPythonPackageTrainingJobOperator.hook"))
+    def test_execute_enters_deferred_state(self, mock_hook):
+        task = CreateCustomPythonPackageTrainingJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            staging_bucket=STAGING_BUCKET,
+            display_name=DISPLAY_NAME,
+            python_package_gcs_uri=PYTHON_PACKAGE_GCS_URI,
+            python_module_name=PYTHON_MODULE_NAME,
+            container_uri=CONTAINER_URI,
+            args=ARGS,
+            model_serving_container_image_uri=CONTAINER_URI,
+            model_display_name=DISPLAY_NAME_2,
+            replica_count=REPLICA_COUNT,
+            machine_type=MACHINE_TYPE,
+            accelerator_type=ACCELERATOR_TYPE,
+            accelerator_count=ACCELERATOR_COUNT,
+            training_fraction_split=TRAINING_FRACTION_SPLIT,
+            validation_fraction_split=VALIDATION_FRACTION_SPLIT,
+            test_fraction_split=TEST_FRACTION_SPLIT,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            deferrable=True,
+        )
+        mock_hook.return_value.exists.return_value = False
+        with pytest.raises(TaskDeferred) as exc:
+            with pytest.warns(AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING):
+                task.execute(context={"ti": mock.MagicMock()})
+        assert isinstance(
+            exc.value.trigger, CustomPythonPackageTrainingJobTrigger
+        ), "Trigger is not a CustomPythonPackageTrainingJobTrigger"
+
+    @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomPythonPackageTrainingJobOperator.xcom_push"))
+    @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomPythonPackageTrainingJobOperator.hook"))
+    def test_execute_complete_success(self, mock_hook, mock_xcom_push):
+        task = CreateCustomPythonPackageTrainingJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            staging_bucket=STAGING_BUCKET,
+            display_name=DISPLAY_NAME,
+            python_package_gcs_uri=PYTHON_PACKAGE_GCS_URI,
+            python_module_name=PYTHON_MODULE_NAME,
+            container_uri=CONTAINER_URI,
+            args=ARGS,
+            model_serving_container_image_uri=CONTAINER_URI,
+            model_display_name=DISPLAY_NAME_2,
+            replica_count=REPLICA_COUNT,
+            machine_type=MACHINE_TYPE,
+            accelerator_type=ACCELERATOR_TYPE,
+            accelerator_count=ACCELERATOR_COUNT,
+            training_fraction_split=TRAINING_FRACTION_SPLIT,
+            validation_fraction_split=VALIDATION_FRACTION_SPLIT,
+            test_fraction_split=TEST_FRACTION_SPLIT,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            deferrable=True,
+        )
+        expected_result = {}
+        mock_hook.return_value.exists.return_value = False
+        mock_xcom_push.return_value = None
+        actual_result = task.execute_complete(
+            context=None, event={"status": "success", "message": "", "job": {}}
+        )
+        assert actual_result == expected_result
+
+    def test_execute_complete_error_status_raises_exception(self):
+        task = CreateCustomPythonPackageTrainingJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            staging_bucket=STAGING_BUCKET,
+            display_name=DISPLAY_NAME,
+            python_package_gcs_uri=PYTHON_PACKAGE_GCS_URI,
+            python_module_name=PYTHON_MODULE_NAME,
+            container_uri=CONTAINER_URI,
+            args=ARGS,
+            model_serving_container_image_uri=CONTAINER_URI,
+            model_display_name=DISPLAY_NAME_2,
+            replica_count=REPLICA_COUNT,
+            machine_type=MACHINE_TYPE,
+            accelerator_type=ACCELERATOR_TYPE,
+            accelerator_count=ACCELERATOR_COUNT,
+            training_fraction_split=TRAINING_FRACTION_SPLIT,
+            validation_fraction_split=VALIDATION_FRACTION_SPLIT,
+            test_fraction_split=TEST_FRACTION_SPLIT,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            deferrable=True,
+        )
+        with pytest.raises(AirflowException):
+            task.execute_complete(context=None, event={"status": "error", "message": "test message"})
+
 
 class TestVertexAICreateCustomTrainingJobOperator:
     @mock.patch(VERTEX_AI_PATH.format("custom_job.Dataset"))
@@ -403,7 +597,8 @@ class TestVertexAICreateCustomTrainingJobOperator:
             dataset_id=TEST_DATASET_ID,
             parent_model=TEST_PARENT_MODEL,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        with pytest.warns(AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING):
+            op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_dataset.assert_called_once_with(name=TEST_DATASET_ID)
         mock_hook.return_value.create_custom_training_job.assert_called_once_with(
@@ -460,6 +655,79 @@ class TestVertexAICreateCustomTrainingJobOperator:
             model_version_aliases=None,
             model_version_description=None,
         )
+
+    @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomTrainingJobOperator.hook"))
+    def test_execute_enters_deferred_state(self, mock_hook):
+        task = CreateCustomTrainingJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            staging_bucket=STAGING_BUCKET,
+            display_name=DISPLAY_NAME,
+            script_path=PYTHON_PACKAGE,
+            args=PYTHON_PACKAGE_CMDARGS,
+            container_uri=CONTAINER_URI,
+            model_serving_container_image_uri=CONTAINER_URI,
+            requirements=[],
+            replica_count=1,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            deferrable=True,
+        )
+        mock_hook.return_value.exists.return_value = False
+        with pytest.raises(TaskDeferred) as exc:
+            with pytest.warns(AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING):
+                task.execute(context={"ti": mock.MagicMock()})
+        assert isinstance(
+            exc.value.trigger, CustomTrainingJobTrigger
+        ), "Trigger is not a CustomTrainingJobTrigger"
+
+    @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomTrainingJobOperator.xcom_push"))
+    @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomTrainingJobOperator.hook"))
+    def test_execute_complete_success(self, mock_hook, mock_xcom_push):
+        task = CreateCustomTrainingJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            staging_bucket=STAGING_BUCKET,
+            display_name=DISPLAY_NAME,
+            script_path=PYTHON_PACKAGE,
+            args=PYTHON_PACKAGE_CMDARGS,
+            container_uri=CONTAINER_URI,
+            model_serving_container_image_uri=CONTAINER_URI,
+            requirements=[],
+            replica_count=1,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            deferrable=True,
+        )
+        expected_result = {}
+        mock_hook.return_value.exists.return_value = False
+        mock_xcom_push.return_value = None
+        actual_result = task.execute_complete(
+            context=None, event={"status": "success", "message": "", "job": {}}
+        )
+        assert actual_result == expected_result
+
+    def test_execute_complete_error_status_raises_exception(self):
+        task = CreateCustomTrainingJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            staging_bucket=STAGING_BUCKET,
+            display_name=DISPLAY_NAME,
+            script_path=PYTHON_PACKAGE,
+            args=PYTHON_PACKAGE_CMDARGS,
+            container_uri=CONTAINER_URI,
+            model_serving_container_image_uri=CONTAINER_URI,
+            requirements=[],
+            replica_count=1,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            deferrable=True,
+        )
+        with pytest.raises(AirflowException):
+            task.execute_complete(context=None, event={"status": "error", "message": "test message"})
 
 
 class TestVertexAIDeleteCustomTrainingJobOperator:
