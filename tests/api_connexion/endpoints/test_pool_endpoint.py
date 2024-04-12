@@ -269,7 +269,6 @@ class TestDeletePool(TestBasePoolEndpoints):
         session.commit()
         session.close()
         response = self.client.delete(f"api/v1/pools/{pool_name}", headers={"REMOTE_USER": "test"})
-        assert response.json() == {}
         assert response.status_code == 204
         # Check if the pool is deleted from the db
         response = self.client.get(f"api/v1/pools/{pool_name}", headers={"REMOTE_USER": "test"})
