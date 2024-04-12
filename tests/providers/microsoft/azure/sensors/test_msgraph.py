@@ -33,7 +33,8 @@ class TestMSGraphSensor(Base):
             sensor = MSGraphSensor(
                 task_id="check_workspaces_status",
                 conn_id="powerbi",
-                url="myorg/admin/workspaces/scanStatus/0a1b1bf3-37de-48f7-9863-ed4cda97a9ef",
+                url="myorg/admin/workspaces/scanStatus/{scanId}",
+                path_parameters={"scanId": "0a1b1bf3-37de-48f7-9863-ed4cda97a9ef"},
                 timeout=350.0,
             )
             actual = sensor.execute(context=mock_context(task=sensor))
