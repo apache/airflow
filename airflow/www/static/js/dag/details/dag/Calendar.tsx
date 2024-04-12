@@ -21,7 +21,7 @@
 
 import React from "react";
 import type { EChartsOption } from "echarts";
-import { Box, Spinner, Flex } from "@chakra-ui/react";
+import { Box, Spinner, Flex, Text } from "@chakra-ui/react";
 
 import ReactECharts from "src/components/ReactECharts";
 import { useCalendarData } from "src/api";
@@ -36,6 +36,10 @@ const Calendar = () => {
   if (!calendarData) return null;
 
   const { dagStates } = calendarData;
+
+  if (dagStates.length < 1) {
+    return <Text>Calendar view requires at least one DAG Run.</Text>;
+  }
 
   const startDate = dagStates[0].date;
   const endDate = dagStates[dagStates.length - 1].date;
