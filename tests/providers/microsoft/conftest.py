@@ -21,7 +21,7 @@ import json
 import random
 import string
 from os.path import dirname, join
-from typing import Any, Iterable, TypeVar
+from typing import TYPE_CHECKING, Any, Iterable, TypeVar
 from unittest.mock import MagicMock
 
 import pytest
@@ -29,6 +29,9 @@ from httpx import Response
 from msgraph_core import APIVersion
 
 from airflow.models import Connection
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 T = TypeVar("T", dict, str, Connection)
 
@@ -102,7 +105,6 @@ def mock_response(status_code, content: Any = None) -> Response:
 
 def mock_context(task):
     from datetime import datetime
-    from sqlalchemy.orm import Session
 
     from airflow.models import TaskInstance
     from airflow.utils.session import NEW_SESSION
