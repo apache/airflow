@@ -46,6 +46,9 @@ def on_task_instance_success(
 
 @hookspec
 def on_task_instance_failed(
-    previous_state: TaskInstanceState | None, task_instance: TaskInstance, session: Session | None
+    previous_state: TaskInstanceState | None,
+    task_instance: TaskInstance,
+    error: None | str | BaseException,
+    session: Session | None,
 ):
     """Execute when task state changes to FAIL. previous_state can be None."""

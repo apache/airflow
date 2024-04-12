@@ -74,6 +74,7 @@ class PostgresHook(DbApiHook):
     conn_type = "postgres"
     hook_name = "Postgres"
     supports_autocommit = True
+    supports_executemany = True
 
     def __init__(self, *args, options: str | None = None, **kwargs) -> None:
         if "schema" in kwargs:
