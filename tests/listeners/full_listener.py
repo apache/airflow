@@ -50,7 +50,7 @@ def on_task_instance_success(previous_state, task_instance, session):
 
 
 @hookimpl
-def on_task_instance_failed(previous_state, task_instance, session):
+def on_task_instance_failed(previous_state, task_instance, error: None | str | BaseException, session):
     state.append(TaskInstanceState.FAILED)
 
 
