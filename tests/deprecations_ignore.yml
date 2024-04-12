@@ -659,6 +659,8 @@
 - tests/providers/cncf/kubernetes/test_pod_generator.py::TestPodGenerator::test_pod_name_confirm_to_max_length
 - tests/providers/cncf/kubernetes/test_pod_generator.py::TestPodGenerator::test_pod_name_is_valid
 - tests/providers/cncf/kubernetes/test_template_rendering.py::test_render_k8s_pod_yaml
+- tests/providers/common/sql/hooks/test_dbapi.py::TestDbApiHook::test_insert_rows_executemany
+- tests/providers/common/sql/hooks/test_dbapi.py::TestDbApiHook::test_insert_rows_replace_executemany_hana_dialect
 - tests/providers/common/sql/hooks/test_dbapi.py::TestDbApiHook::test_instance_check_works_for_legacy_db_api_hook
 - tests/providers/common/sql/operators/test_sql.py::TestSQLCheckOperatorDbHook::test_get_hook
 - tests/providers/common/sql/operators/test_sql.py::TestSqlBranch::test_branch_false_with_dag_run
@@ -1059,6 +1061,10 @@
 - tests/providers/ssh/hooks/test_ssh.py::TestSSHHook::test_tunnel_without_password
 - tests/providers/tableau/hooks/test_tableau.py::TestTableauHook::test_get_conn_auth_via_token_and_site_in_init
 - tests/providers/tableau/hooks/test_tableau.py::TestTableauHook::test_get_conn_ssl_default
+- tests/providers/teradata/hooks/test_teradata.py::TestTeradataHook::test_bulk_insert_rows_with_fields
+- tests/providers/teradata/hooks/test_teradata.py::TestTeradataHook::test_bulk_insert_rows_with_commit_every
+- tests/providers/teradata/hooks/test_teradata.py::TestTeradataHook::test_bulk_insert_rows_without_fields
+- tests/providers/teradata/hooks/test_teradata.py::TestTeradataHook::test_bulk_insert_rows_no_rows
 - tests/providers/trino/operators/test_trino.py::test_execute_openlineage_events
 - tests/providers/vertica/operators/test_vertica.py::TestVerticaOperator::test_execute
 - tests/providers/weaviate/operators/test_weaviate.py::TestWeaviateIngestOperator::test_constructor
