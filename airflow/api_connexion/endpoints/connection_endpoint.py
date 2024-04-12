@@ -91,7 +91,7 @@ def get_connection(*, connection_id: str, session: Session = NEW_SESSION) -> API
 @provide_session
 def get_connections(
     *,
-    limit: int,
+    limit: int | None = None,
     offset: int = 0,
     order_by: str = "id",
     session: Session = NEW_SESSION,
