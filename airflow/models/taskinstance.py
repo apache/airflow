@@ -2719,7 +2719,7 @@ class TaskInstance(Base, LoggingMixin):
                 if jinja_env is None or (template := context.get("map_index_template")) is None:
                     return None
                 rendered_map_index = jinja_env.from_string(template).render(context)
-                log.info("Map index rendered as %s", rendered_map_index)
+                log.debug("Map index rendered as %s", rendered_map_index)
                 return rendered_map_index
 
             # Execute the task.
