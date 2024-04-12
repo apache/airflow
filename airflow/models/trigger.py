@@ -65,18 +65,16 @@ class Trigger(Base):
     _table_args_ = lambda: (
         Column("id", Integer(), primary_key=True),
         Column("classpath", String(1000), nullable=False),
-        Column("kwargs", Text(), nullable=False),
+        Column("kwargs", Text(), key="encrypted_kwargs", nullable=False),
         Column("created_date", UtcDateTime(), nullable=False),
         Column("triggerer_id", Integer(), nullable=True),
     )
-    _mapper_args_ = lambda table: {
-        "exclude_properties": ["kwargs"],
+    _mapper_args_ = lambda: {
         "properties": {
-            "encrypted_kwargs": table.c.kwargs,
             "triggerer_job": relationship(
                 "Job",
                 primaryjoin="Job.id == Trigger.triggerer_id",
-                foreign_keys=table.c.triggerer_id,
+                foreign_keys="Trigger.triggerer_id",
                 uselist=False,
             ),
             "task_instance": relationship(
@@ -87,13 +85,15 @@ class Trigger(Base):
 
     id: Mapped[int]
     classpath: Mapped[str]
-    encrypted_kwargs: Mapped[str]
     created_date: Mapped[datetime.datetime]
     triggerer_id: Mapped[int | None]
 
     # relationship
     triggerer_job: Mapped[Job | None]
     task_instance: Mapped[TaskInstance | None]
+
+    # key
+    encrypted_kwargs: Mapped[str]
 
     def __init__(
         self,

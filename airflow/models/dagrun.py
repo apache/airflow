@@ -138,7 +138,7 @@ class DagRun(Base, LoggingMixin):
         Column("execution_date", UtcDateTime(), default=timezone.utcnow, nullable=False),
         Column("start_date", UtcDateTime()),
         Column("end_date", UtcDateTime()),
-        state := Column("state", String(50), default=DagRunState.QUEUED),
+        state := Column("state", String(50), key="_state", default=DagRunState.QUEUED),
         Column("run_id", StringID(), nullable=False),
         Column("creating_job_id", Integer()),
         Column("external_trigger", Boolean(), default=True),
@@ -171,7 +171,7 @@ class DagRun(Base, LoggingMixin):
         Index("idx_dag_run_dag_id", dag_id),
         Index(
             "idx_dag_run_running_dags",
-            "state",
+            state,
             "dag_id",
             postgresql_where=text("state='running'"),
             sqlite_where=text("state='running'"),
@@ -180,14 +180,13 @@ class DagRun(Base, LoggingMixin):
         # duplicate index on mysql. Not the end of the world
         Index(
             "idx_dag_run_queued_dags",
-            "state",
+            state,
             "dag_id",
             postgresql_where=text("state='queued'"),
             sqlite_where=text("state='queued'"),
         ),
     )
-    _mapper_args_ = lambda table: {
-        "exclude_properties": ["state"],
+    _mapper_args_ = lambda: {
         "properties": {
             "task_instances": relationship(
                 TI, back_populates="dag_run", cascade="save-update, merge, delete, delete-orphan"
@@ -204,7 +203,6 @@ class DagRun(Base, LoggingMixin):
                 uselist=False,
                 cascade="all, delete, delete-orphan",
             ),
-            "_state": table.c.state,
         },
     }
 
@@ -214,7 +212,6 @@ class DagRun(Base, LoggingMixin):
     execution_date: Mapped[datetime]
     start_date: Mapped[datetime | None]
     end_date: Mapped[datetime | None]
-    _state: Mapped[str | None]
     run_id: Mapped[str]
     creating_job_id: Mapped[int | None]
     external_trigger: Mapped[bool | None]
@@ -235,6 +232,9 @@ class DagRun(Base, LoggingMixin):
 
     # association_proxy
     note: Mapped[str | None] = association_proxy("dag_run_note", "content", creator=_creator_note)
+
+    # key
+    _state: str | None
 
     # declared_attr
     state: Mapped[str | None]

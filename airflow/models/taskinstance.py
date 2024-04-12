@@ -1346,34 +1346,34 @@ class TaskInstance(Base, LoggingMixin):
         task_id := Column("task_id", StringID(), primary_key=True, nullable=False),
         dag_id := Column("dag_id", StringID(), primary_key=True, nullable=False),
         run_id := Column("run_id", StringID(), primary_key=True, nullable=False),
-        Column("map_index", Integer, primary_key=True, nullable=False, server_default=text("-1")),
-        Column("start_date", UtcDateTime),
-        Column("end_date", UtcDateTime),
-        Column("duration", Float),
+        Column("map_index", Integer(), primary_key=True, nullable=False, server_default=text("-1")),
+        Column("start_date", UtcDateTime()),
+        Column("end_date", UtcDateTime()),
+        Column("duration", Float()),
         state := Column("state", String(20)),
-        Column("try_number", Integer, default=0),
-        Column("max_tries", Integer, server_default=text("-1")),
+        Column("try_number", Integer(), key="_try_number", default=0),
+        Column("max_tries", Integer(), server_default=text("-1")),
         Column("hostname", String(1000)),
         Column("unixname", String(1000)),
-        job_id := Column("job_id", Integer),
+        job_id := Column("job_id", Integer()),
         pool := Column("pool", String(256), nullable=False),
-        Column("pool_slots", Integer, default=1, nullable=False),
+        Column("pool_slots", Integer(), default=1, nullable=False),
         Column("queue", String(256)),
-        priority_weight := Column("priority_weight", Integer),
+        priority_weight := Column("priority_weight", Integer()),
         Column("operator", String(1000)),
         Column("custom_operator_name", String(1000)),
-        Column("queued_dttm", UtcDateTime),
-        Column("queued_by_job_id", Integer),
-        Column("pid", Integer),
+        Column("queued_dttm", UtcDateTime()),
+        Column("queued_by_job_id", Integer()),
+        Column("pid", Integer()),
         Column("executor", String(1000)),
         Column("executor_config", ExecutorConfigType(pickler=dill)),
         Column("updated_at", UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow),
         Column("rendered_map_index", String(250)),
         Column("external_executor_id", StringID()),
         # The trigger to resume on if we are in state DEFERRED
-        trigger_id := Column("trigger_id", Integer),
+        trigger_id := Column("trigger_id", Integer()),
         # Optional timeout datetime for the trigger (past this, we'll fail)
-        Column("trigger_timeout", DateTime),
+        Column("trigger_timeout", DateTime()),
         # The trigger_timeout should be TIMESTAMP(using UtcDateTime) but for ease of
         # migration, we are keeping it as DateTime pending a change where expensive
         # migration is inevitable.
@@ -1381,7 +1381,7 @@ class TaskInstance(Base, LoggingMixin):
         # Usually used when resuming from DEFERRED.
         Column("next_method", String(1000)),
         Column("next_kwargs", MutableDict.as_mutable(ExtendedJSON)),
-        Column("task_display_name", String(2000), nullable=True),
+        Column("task_display_name", String(2000), key="_task_display_property_value", nullable=True),
         # If adding new fields here then remember to add them to
         # refresh_from_db() or they won't display in the UI correctly
         Index("ti_dag_state", dag_id, state),
@@ -1413,15 +1413,12 @@ class TaskInstance(Base, LoggingMixin):
             ondelete="CASCADE",
         ),
     )
-    _mapper_args_ = lambda table: {
-        "exclude_properties": ["try_number", "task_display_name"],
+    _mapper_args_ = lambda: {
         "properties": {
-            "_try_number": table.c.try_number,
-            "_task_display_property_value": table.c.task_display_name,
             "dag_model": relationship(
                 "DagModel",
                 primaryjoin="TaskInstance.dag_id == DagModel.dag_id",
-                foreign_keys=table.c.dag_id,
+                foreign_keys="TaskInstance.dag_id",
                 uselist=False,
                 innerjoin=True,
                 viewonly=True,
@@ -1448,7 +1445,6 @@ class TaskInstance(Base, LoggingMixin):
     end_date: Mapped[datetime | None]
     duration: Mapped[float | None]
     state: Mapped[str | None]
-    _try_number: Mapped[int | None]
     max_tries: Mapped[int | None]
     hostname: Mapped[str | None]
     unixname: Mapped[str | None]
@@ -1471,7 +1467,6 @@ class TaskInstance(Base, LoggingMixin):
     trigger_timeout: Mapped[datetime | None]
     next_method: Mapped[str | None]
     next_kwargs: Mapped[Any]
-    _task_display_property_value: Mapped[str | None]
 
     # relationship
     dag_model: Mapped[DagModel | None]
@@ -1488,6 +1483,51 @@ class TaskInstance(Base, LoggingMixin):
     execution_date: Mapped[datetime | None] = association_proxy("dag_run", "execution_date")
     #
     note: Mapped[str | None] = association_proxy("task_instance_note", "content", creator=_creator_note)
+
+    # key
+    _try_number: int | None
+    _task_display_property_value: str | None
+
+    task_display_name: Mapped[str]
+    try_number: Mapped[int]
+    if not TYPE_CHECKING:
+        # FIXME: sqlalchemy2
+        @hybrid_property
+        def task_display_name(self) -> str:
+            return self._task_display_property_value or self.task_id
+
+        @hybrid_property
+        def try_number(self):
+            """
+            Return the try number that a task number will be when it is actually run.
+
+            If the TaskInstance is currently running, this will match the column in the
+            database, in all other cases this will be incremented.
+
+            This is designed so that task logs end up in the right file.
+            """
+            return _get_try_number(task_instance=self)
+
+        @try_number.expression
+        def try_number(cls):
+            """
+            Return the expression to be used by SQLAlchemy when filtering on try_number.
+
+            This is required because the override in the get_try_number function causes
+            try_number values to be off by one when listing tasks in the UI.
+
+            :meta private:
+            """
+            return cls._try_number
+
+        @try_number.setter
+        def try_number(self, value: int) -> None:
+            """
+            Set a task try number.
+
+            :param value: the try number
+            """
+            _set_try_number(task_instance=self, value=value)
 
     # STATICA_HACK
     queued_by_job: Mapped[Job]
@@ -1614,39 +1654,6 @@ class TaskInstance(Base, LoggingMixin):
         """Initialize the attributes that aren't stored in the DB."""
         self.test_mode = False  # can be changed when calling 'run'
 
-    @hybrid_property
-    def try_number(self):
-        """
-        Return the try number that a task number will be when it is actually run.
-
-        If the TaskInstance is currently running, this will match the column in the
-        database, in all other cases this will be incremented.
-
-        This is designed so that task logs end up in the right file.
-        """
-        return _get_try_number(task_instance=self)
-
-    @try_number.expression
-    def try_number(cls):
-        """
-        Return the expression to be used by SQLAlchemy when filtering on try_number.
-
-        This is required because the override in the get_try_number function causes
-        try_number values to be off by one when listing tasks in the UI.
-
-        :meta private:
-        """
-        return cls._try_number
-
-    @try_number.setter
-    def try_number(self, value: int) -> None:
-        """
-        Set a task try number.
-
-        :param value: the try number
-        """
-        _set_try_number(task_instance=self, value=value)
-
     @property
     def prev_attempted_tries(self) -> int:
         """
@@ -1666,10 +1673,6 @@ class TaskInstance(Base, LoggingMixin):
     def operator_name(self) -> str | None:
         """@property: use a more friendly display name for the operator, if set."""
         return self.custom_operator_name or self.operator
-
-    @hybrid_property
-    def task_display_name(self) -> str:
-        return self._task_display_property_value or self.task_id
 
     @staticmethod
     def _command_as_list(

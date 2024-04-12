@@ -28,7 +28,7 @@ import warnings
 import zipfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, NamedTuple, cast
 
 from sqlalchemy.exc import OperationalError
 from tabulate import tabulate
@@ -186,6 +186,8 @@ class DagBag(LoggingMixin):
         # Avoid circular import
         from airflow.models.dag import DagModel
 
+        # provide_session
+        session = cast("Session", session)
         if self.read_dags_from_db:
             # Import here so that serialized dag is only imported when serialization is enabled
             from airflow.models.serialized_dag import SerializedDagModel

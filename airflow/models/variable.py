@@ -50,20 +50,27 @@ class Variable(Base, LoggingMixin):
     _table_args_ = lambda: (
         Column("id", Integer, primary_key=True),
         Column("key", String(ID_LEN), unique=True),
-        Column("val", Text().with_variant(MEDIUMTEXT, "mysql")),
+        Column("val", Text().with_variant(MEDIUMTEXT, "mysql"), key="_val"),
         Column("description", Text),
         Column("is_encrypted", Boolean, unique=False, default=False),
     )
-    _mapper_args_ = lambda table: {
-        "exclude_properties": ["val"],
-        "properties": {"_val": table.c.val},
-    }
 
     id: Mapped[int]
     key: Mapped[str | None]
-    _val: Mapped[str | None]
     description: Mapped[str | None]
     is_encrypted: Mapped[bool | None]
+
+    # key
+    _val: str | None
+
+    # declared_attr
+    val: Mapped[str | None]
+    """Get Airflow Variable from Metadata DB and decode it using the Fernet Key."""
+    if not TYPE_CHECKING:
+        # FIXME: sqlalchemy2
+        @declared_attr
+        def val(cls):
+            return synonym("_val", descriptor=property(cls.get_val, cls.set_val))
 
     __NO_DEFAULT_SENTINEL = object()
 
@@ -105,15 +112,6 @@ class Variable(Base, LoggingMixin):
             fernet = get_fernet()
             self._val = fernet.encrypt(bytes(value, "utf-8")).decode()
             self.is_encrypted = fernet.is_encrypted
-
-    if not TYPE_CHECKING:
-        # FIXME: sqlalchemy2
-        @declared_attr
-        def val(cls):
-            return synonym("_val", descriptor=property(cls.get_val, cls.set_val))
-
-    val: Mapped[str | None]
-    """Get Airflow Variable from Metadata DB and decode it using the Fernet Key."""
 
     @classmethod
     def setdefault(cls, key, default, description=None, deserialize_json=False):

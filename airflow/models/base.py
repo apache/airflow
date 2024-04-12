@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 from collections import deque
-from inspect import signature
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Mapping
 
 from sqlalchemy import Column, Constraint, Index, Integer, MetaData, String, text
@@ -65,9 +64,7 @@ class Base:
     """sqlalchemy mapper base class."""
 
     _table_args_: ClassVar[Callable[[], tuple[Any, ...]] | tuple[Any, ...] | None]
-    _mapper_args_: ClassVar[
-        Callable[[Table], Mapping[str, Any]] | Callable[[], Mapping[str, Any]] | Mapping[str, Any] | None
-    ]
+    _mapper_args_: ClassVar[Callable[[], Mapping[str, Any]] | Mapping[str, Any] | None]
 
     __abstract__: ClassVar[bool] = True
     __table__: ClassVar[Table]
@@ -195,9 +192,7 @@ def _resolve_mapper_args(mapper_class: type[Base]) -> dict[str, Any]:
     if not issubclass(mapper_class, Base):
         raise TypeError("not sqlalchemy mapper class")
 
-    mapper_args: (
-        Callable[[Table], Mapping[str, Any]] | Callable[[], Mapping[str, Any]] | Mapping[str, Any] | None
-    )
+    mapper_args: Callable[[], Mapping[str, Any]] | Mapping[str, Any] | None
     mapper_args_mapping: dict[str, Any] = {}
 
     for mapper_upper_class in mapper_class.mro():
@@ -206,11 +201,7 @@ def _resolve_mapper_args(mapper_class: type[Base]) -> dict[str, Any]:
 
         mapper_args = getattr(mapper_upper_class, _SA_MAPPER_ARGS, None)
         if callable(mapper_args):
-            sig = signature(mapper_args)
-            if sig.parameters:
-                mapper_args = mapper_args(mapper_class.__table__)  # type: ignore
-            else:
-                mapper_args = mapper_args()  # type: ignore
+            mapper_args = mapper_args()
         if not mapper_args:
             continue
 

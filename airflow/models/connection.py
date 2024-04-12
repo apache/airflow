@@ -137,19 +137,12 @@ class Connection(Base, LoggingMixin):
         Column("host", String(500)),
         Column("schema", String(500)),
         Column("login", Text()),
-        Column("password", Text()),
+        Column("password", Text(), key="_password"),
         Column("port", Integer()),
         Column("is_encrypted", Boolean(), unique=False, default=False),
         Column("is_extra_encrypted", Boolean(), unique=False, default=False),
-        Column("extra", Text()),
+        Column("extra", Text(), key="_extra"),
     )
-    _mapper_args_ = lambda table: {
-        "exclude_properties": ["password", "extra"],
-        "properties": {
-            "_password": table.c.password,
-            "_extra": table.c.extra,
-        },
-    }
 
     id: Mapped[int]
     conn_id: Mapped[str]
@@ -158,11 +151,29 @@ class Connection(Base, LoggingMixin):
     host: Mapped[str | None]
     schema: Mapped[str | None]
     login: Mapped[str | None]
-    _password: Mapped[str | None]
     port: Mapped[int | None]
     is_encrypted: Mapped[bool | None]
     is_extra_encrypted: Mapped[bool | None]
-    _extra: Mapped[str | None]
+
+    # key
+    _password: str | None
+    _extra: str | None
+
+    # declared_attr
+    password: Mapped[str | None]
+    """Password. The value is decrypted/encrypted when reading/setting the value."""
+    extra: Mapped[str | None]
+    """Extra data. The value is decrypted/encrypted when reading/setting the value."""
+
+    if not TYPE_CHECKING:
+        # FIXME: sqlalchemy2
+        @declared_attr
+        def password(cls):
+            return synonym("_password", descriptor=property(cls.get_password, cls.set_password))
+
+        @declared_attr
+        def extra(cls):
+            return synonym("_extra", descriptor=property(cls.get_extra, cls.set_extra))
 
     def __init__(
         self,
@@ -374,15 +385,6 @@ class Connection(Base, LoggingMixin):
             self._password = fernet.encrypt(bytes(value, "utf-8")).decode()
             self.is_encrypted = fernet.is_encrypted
 
-    if not TYPE_CHECKING:
-        # FIXME: sqlalchemy2
-        @declared_attr
-        def password(cls):
-            return synonym("_password", descriptor=property(cls.get_password, cls.set_password))
-
-    password: Mapped[str | None]
-    """Password. The value is decrypted/encrypted when reading/setting the value."""
-
     def get_extra(self) -> str | None:
         """Return encrypted extra-data."""
         if self._extra and self.is_extra_encrypted:
@@ -409,15 +411,6 @@ class Connection(Base, LoggingMixin):
         else:
             self._extra = value
             self.is_extra_encrypted = False
-
-    if not TYPE_CHECKING:
-
-        @declared_attr
-        def extra(cls):
-            return synonym("_extra", descriptor=property(cls.get_extra, cls.set_extra))
-
-    extra: Mapped[str | None]
-    """Extra data. The value is decrypted/encrypted when reading/setting the value."""
 
     def rotate_fernet_key(self):
         """Encrypts data with a new key. See: :ref:`security/fernet`."""

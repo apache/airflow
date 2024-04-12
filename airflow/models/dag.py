@@ -3665,7 +3665,7 @@ class DagModel(Base):
         # String representing the owners
         Column("owners", String(2000)),
         # Display name of the dag
-        Column("dag_display_name", String(2000), nullable=True),
+        Column("dag_display_name", String(2000), key="_dag_display_property_value", nullable=True),
         # Description of the dag
         Column("description", Text()),
         # Default view of the DAG inside the webserver
@@ -3692,10 +3692,8 @@ class DagModel(Base):
         Index("idx_root_dag_id", root_dag_id, unique=False),
         Index("idx_next_dagrun_create_after", next_dagrun_create_after, unique=False),
     )
-    _mapper_args_ = lambda table: {
-        "exclude_properties": ["dag_display_name"],
+    _mapper_args_ = lambda: {
         "properties": {
-            "_dag_display_property_value": table.c.dag_display_name,
             # Tags for view filter
             "tags": relationship("DagTag", cascade="all, delete, delete-orphan", backref=backref("dag")),
             # Dag owner links for DAGs view
@@ -3705,9 +3703,7 @@ class DagModel(Base):
             #
             "parent_dag": relationship(
                 "DagModel",
-                remote_side=[table.c.dag_id],
-                primaryjoin=table.c.root_dag_id == table.c.dag_id,
-                foreign_keys=[table.c.root_dag_id],
+                primaryjoin="foreign(DagModel.root_dag_id) == remote(DagModel.dag_id)",
             ),
             "schedule_dataset_references": relationship(
                 "DagScheduleDatasetReference",
@@ -3733,7 +3729,6 @@ class DagModel(Base):
     fileloc: Mapped[str | None]
     processor_subdir: Mapped[str]
     owners: Mapped[str]
-    _dag_display_property_value: Mapped[str | None]
     description: Mapped[str | None]
     default_view: Mapped[str | None]
     schedule_interval: Mapped[str | None]
@@ -3761,6 +3756,9 @@ class DagModel(Base):
 
     # association_proxy
     schedule_datasets: Mapped[list[Dataset]] = association_proxy("schedule_dataset_references", "dataset")
+
+    # key
+    _dag_display_property_value: str | None
 
     # backref
     if TYPE_CHECKING:

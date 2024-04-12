@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any, Collection
 
 import sqlalchemy_jsonfield
 from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_, exc, or_, select
-from sqlalchemy.orm import backref, foreign, relationship
+from sqlalchemy.orm import backref, relationship
 from sqlalchemy.sql.expression import func, literal
 
 from airflow.api_internal.internal_api_call import internal_api_call
@@ -79,39 +79,35 @@ class SerializedDagModel(Base):
         Column("filelog", String(2000), nullable=False),
         # The max length of fileloc exceeds the limit of indexing.
         fileloc_hash := Column("fileloc_hash", BigInteger(), nullable=False),
-        Column("data", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
-        Column("data_compressed", LargeBinary(), nullable=True),
+        Column("data", sqlalchemy_jsonfield.JSONField(json=json), key="_data", nullable=True),
+        Column("data_compressed", LargeBinary(), key="_data_compressed", nullable=True),
         Column("last_updated", UtcDateTime(), nullable=False),
         Column("dag_hash", String(32), nullable=False),
         Column("processor_subdir", String(2000), nullable=True),
         Index("idx_fileloc_hash", fileloc_hash, unique=False),
     )
-    _mapper_args_ = lambda table: {
-        "exclude_properties": ["data", "data_compressed"],
+    _mapper_args_ = lambda: {
+        "exclude_properties": ["_data_compressed"],
         "properties": {
             "dag_runs": relationship(
                 DagRun,
-                primaryjoin=table.c.dag_id == foreign(DagRun.dag_id),
+                primaryjoin="SerializedDagModel.dag_id == foreign(DagRun.dag_id)",
                 backref=backref("serialized_dag", uselist=False, innerjoin=True),
             ),
             "dag_model": relationship(
                 DagModel,
-                primaryjoin=table.c.dag_id == DagModel.dag_id,
-                foreign_keys=table.c.dag_id,
+                primaryjoin="SerializedDagModel.dag_id == DagModel.dag_id",
+                foreign_keys="SerializedDagModel.dag_id",
                 uselist=False,
                 innerjoin=True,
                 backref=backref("serialized_dag", uselist=False, innerjoin=True),
             ),
-            "_data": table.c.data,
-            "_data_compressed": table.c.data_compressed,
         },
     }
 
     dag_id: Mapped[str]
     fileloc: Mapped[str]
     fileloc_hash: Mapped[int]
-    _data: Mapped[Any]
-    _data_compressed: Mapped[bytes | None]
     last_updated: Mapped[datetime]
     dag_hash: Mapped[str]
     processor_subdir: Mapped[str | None]
@@ -119,6 +115,10 @@ class SerializedDagModel(Base):
     # relationship
     dag_runs: Mapped[list[DagRun]]
     dag_model: Mapped[DagModel | None]
+
+    # key
+    _data: Any
+    _data_compressed: bytes | None
 
     load_op_links = True
 
