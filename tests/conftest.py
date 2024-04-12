@@ -1115,19 +1115,20 @@ def get_test_dag():
 
 @pytest.fixture
 def create_log_template(request):
-    from airflow import settings
     from airflow.models.tasklog import LogTemplate
 
-    session = settings.Session()
-
     def _create_log_template(filename_template, elasticsearch_id=""):
-        log_template = LogTemplate(filename=filename_template, elasticsearch_id=elasticsearch_id)
-        session.add(log_template)
-        session.commit()
+        from airflow.utils.session import create_session
+
+        with create_session() as session:
+            log_template = LogTemplate(filename=filename_template, elasticsearch_id=elasticsearch_id)
+            session.add(log_template)
+            session.commit()
 
         def _delete_log_template():
-            session.delete(log_template)
-            session.commit()
+            with create_session() as session:
+                session.delete(log_template)
+                session.commit()
 
         request.addfinalizer(_delete_log_template)
 
