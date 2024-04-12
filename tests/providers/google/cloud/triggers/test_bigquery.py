@@ -601,7 +601,7 @@ class TestBigQueryValueCheckTrigger:
         get_job_output.return_value = {}
         get_records.return_value = [[2], [4]]
 
-        asyncio.create_task(value_check_trigger.run().__anext__())
+        await value_check_trigger.run().__anext__()
         await asyncio.sleep(0.5)
 
         generator = value_check_trigger.run()
