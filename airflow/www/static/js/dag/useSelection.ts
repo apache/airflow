@@ -17,7 +17,6 @@
  * under the License.
  */
 
-import { createContext, useContext } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   LIMIT_PARAM,
@@ -35,13 +34,8 @@ export interface SelectionProps {
   mapIndex?: number;
 }
 
-// The first run_id need to be treated differently from the selection, because it is used in backend to
-// calculate the base_date, which we don't want jumping around when user is clicking in the grid.
-export const DagRunSelectionContext = createContext<string | null>(null);
-
 const useSelection = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const firstRunIdSetByUrl = useContext(DagRunSelectionContext);
 
   // Clear selection, but keep other search params
   const clearSelection = () => {
@@ -99,7 +93,6 @@ const useSelection = () => {
     },
     clearSelection,
     onSelect,
-    firstRunIdSetByUrl,
   };
 };
 
