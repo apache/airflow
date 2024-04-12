@@ -71,7 +71,7 @@ class AppriseHook(BaseHook):
         title: str | None = None,
         notify_type: NotifyType = NotifyType.INFO,
         body_format: NotifyFormat = NotifyFormat.TEXT,
-        tag: str | Iterable[str] = 'all',
+        tag: str | Iterable[str] = "all",
         attach: str | Iterable[str] | None = None,
         interpret_escapes: bool | None = None,
         config: AppriseConfig | None = None,

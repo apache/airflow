@@ -104,7 +104,7 @@ class TestAppriseHook:
                 title="",
                 notify_type=NotifyType.INFO,
                 body_format=NotifyFormat.TEXT,
-                tag='all',
+                tag="all",
                 attach=None,
                 interpret_escapes=None,
             )
