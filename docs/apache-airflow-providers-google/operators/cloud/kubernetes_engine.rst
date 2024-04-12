@@ -312,6 +312,36 @@ delete resource in the specified Google Kubernetes Engine cluster.
     :start-after: [START howto_operator_gke_delete_resource]
     :end-before: [END howto_operator_gke_delete_resource]
 
+
+.. _howto/operator:GKESuspendJobOperator:
+
+Suspend a Job on a GKE cluster
+""""""""""""""""""""""""""""""
+
+You can use :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKESuspendJobOperator` to
+suspend Job in the specified Google Kubernetes Engine cluster.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_job.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gke_suspend_job]
+    :end-before: [END howto_operator_gke_suspend_job]
+
+
+.. _howto/operator:GKEResumeJobOperator:
+
+Resume a Job on a GKE cluster
+"""""""""""""""""""""""""""""
+
+You can use :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEResumeJobOperator` to
+resume Job in the specified Google Kubernetes Engine cluster.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_job.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gke_resume_job]
+    :end-before: [END howto_operator_gke_resume_job]
+
 Reference
 ^^^^^^^^^
 

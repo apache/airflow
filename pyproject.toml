@@ -290,6 +290,7 @@ extend-select = [
     "B017", # Checks for pytest.raises context managers that catch Exception or BaseException.
     "B019", # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
     "TRY002", # Prohibit use of `raise Exception`, use specific exceptions instead.
+    "RUF006", # Checks for asyncio dangling task
 ]
 ignore = [
     "D203",

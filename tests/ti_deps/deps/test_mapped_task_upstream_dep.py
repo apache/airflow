@@ -153,6 +153,7 @@ def test_mapped_task_upstream_dep(
     assert ti.state == expected_state
 
 
+@pytest.mark.quarantined  # FIXME: https://github.com/apache/airflow/issues/38955
 @pytest.mark.parametrize("failure_mode", [None, FAILED, UPSTREAM_FAILED])
 @pytest.mark.parametrize("skip_upstream", [True, False])
 @pytest.mark.parametrize("testcase", ["task", "group"])
