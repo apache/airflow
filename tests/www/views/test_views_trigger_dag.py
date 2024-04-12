@@ -48,8 +48,8 @@ def initialize_one_dag():
 
 def test_trigger_dag_button_normal_exist(admin_client):
     resp = admin_client.get("/", follow_redirects=True)
-    assert "/dags/example_bash_operator/trigger" in resp.data.decode("utf-8")
-    assert "return confirmDeleteDag(this, 'example_bash_operator')" in resp.data.decode("utf-8")
+    assert "/dags/example_bash_operator/trigger" in resp.text
+    assert "return confirmDeleteDag(this, 'example_bash_operator')" in resp.text
 
 
 # test trigger button with and without run_id
@@ -174,10 +174,10 @@ def test_trigger_dag_form(admin_client):
         ("%2Fgraph%3Fdag_id%3Dexample_bash_operator", "http://localhost/graph?dag_id=example_bash_operator"),
     ],
 )
-def test_trigger_dag_form_origin_url(admin_client, test_origin, expected_origin):
+def test_trigger_dag_form_origin_url(admin_flask_client, test_origin, expected_origin):
     test_dag_id = "example_bash_operator"
 
-    resp = admin_client.get(f"dags/{test_dag_id}/trigger?origin={test_origin}")
+    resp = admin_flask_client.get(f"dags/{test_dag_id}/trigger?origin={test_origin}")
     check_content_in_response(f'<a class="btn" href="{expected_origin}">Cancel</a>', resp)
 
 
@@ -210,7 +210,7 @@ def test_trigger_dag_params_conf(admin_client, request_conf, expected_conf):
         check_content_in_response(str(expected_conf[key]), resp)
 
 
-def test_trigger_dag_params_render(admin_client, dag_maker, session, app, monkeypatch):
+def test_trigger_dag_params_render(admin_flask_client, dag_maker, session, app, monkeypatch):
     """
     Test that textarea in Trigger DAG UI is pre-populated
     with param value set in DAG.
@@ -237,7 +237,7 @@ def test_trigger_dag_params_render(admin_client, dag_maker, session, app, monkey
             EmptyOperator(task_id="task1")
 
         m.setattr(app.app, "dag_bag", dag_maker.dagbag)
-        resp = admin_client.get(f"dags/{DAG_ID}/trigger")
+        resp = admin_flask_client.get(f"dags/{DAG_ID}/trigger")
 
     check_content_in_response(
         f'<textarea style="display: none;" id="json_start" name="json_start">{expected_dag_conf}</textarea>',
@@ -246,7 +246,7 @@ def test_trigger_dag_params_render(admin_client, dag_maker, session, app, monkey
 
 
 @pytest.mark.parametrize("allow_html", [False, True])
-def test_trigger_dag_html_allow(admin_client, dag_maker, session, app, monkeypatch, allow_html):
+def test_trigger_dag_html_allow(admin_flask_client, dag_maker, session, app, monkeypatch, allow_html):
     """
     Test that HTML is escaped per default in description.
     """
@@ -278,7 +278,7 @@ def test_trigger_dag_html_allow(admin_client, dag_maker, session, app, monkeypat
                 EmptyOperator(task_id="task1")
 
             m.setattr(app.app, "dag_bag", dag_maker.dagbag)
-            resp = admin_client.get(f"dags/{DAG_ID}/trigger")
+            resp = admin_flask_client.get(f"dags/{DAG_ID}/trigger")
 
         if expect_escape:
             check_content_in_response(escape(HTML_DESCRIPTION1), resp)
@@ -309,7 +309,7 @@ def test_viewer_cant_trigger_dag(app):
     Test that the test_viewer user can't trigger DAGs.
     """
     with create_test_client(
-        app,
+        app.app,
         user_name="test_user",
         role_name="test_role",
         permissions=[
@@ -324,7 +324,7 @@ def test_viewer_cant_trigger_dag(app):
         assert "Access is Denied" in response_data
 
 
-def test_trigger_dag_params_array_value_none_render(admin_client, dag_maker, session, app, monkeypatch):
+def test_trigger_dag_params_array_value_none_render(admin_flask_client, dag_maker, session, app, monkeypatch):
     """
     Test that textarea in Trigger DAG UI is pre-populated
     with param value None and type ["null", "array"] set in DAG.
@@ -342,7 +342,7 @@ def test_trigger_dag_params_array_value_none_render(admin_client, dag_maker, ses
             EmptyOperator(task_id="task1")
 
         m.setattr(app.app, "dag_bag", dag_maker.dagbag)
-        resp = admin_client.get(f"dags/{DAG_ID}/trigger")
+        resp = admin_flask_client.get(f"dags/{DAG_ID}/trigger")
 
     check_content_in_response(
         f'<textarea style="display: none;" id="json_start" name="json_start">{expected_dag_conf}</textarea>',
