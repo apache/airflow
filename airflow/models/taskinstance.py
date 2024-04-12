@@ -969,7 +969,7 @@ def _set_try_number(*, task_instance: TaskInstance | TaskInstancePydantic, value
 
     :meta private:
     """
-    task_instance._try_number = value
+    task_instance._try_number = value  # type: ignore[union-attr]
 
 
 def _refresh_from_task(
