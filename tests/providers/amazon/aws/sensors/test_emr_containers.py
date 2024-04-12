@@ -84,3 +84,16 @@ class TestEmrContainerSensor:
         assert isinstance(
             e.value.trigger, EmrContainerTrigger
         ), f"{e.value.trigger} is not a EmrContainerTrigger"
+
+    @mock.patch.object(
+        EmrContainerHook, "check_query_status", return_value=EmrContainerHook.INTERMEDIATE_STATES[0]
+    )
+    def test_sensor_defer_with_timeout(self, mock_check_query_status):
+        self.sensor.deferrable = True
+        self.sensor.max_polling_attempts = 1000
+
+        error_match = "Waiter error: max attempts reached"
+        with pytest.raises(TaskDeferred, match=error_match):
+            self.sensor.execute(context=None)
+
+        assert mock_check_query_status.call_count == 1000
