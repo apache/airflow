@@ -43,7 +43,7 @@ if TYPE_CHECKING:
 @provide_session
 def get_dag_warnings(
     *,
-    limit: int,
+    limit: int | None = None,
     dag_id: str | None = None,
     warning_type: str | None = None,
     offset: int | None = None,
