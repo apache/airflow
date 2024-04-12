@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-04-10T13:48:49.137896
+# This constraints file was automatically generated on 2024-04-12T13:26:24.893192
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -24,7 +24,7 @@ Flask-Session==0.5.0
 Flask-WTF==1.2.1
 Flask==2.2.5
 Jinja2==3.1.3
-Mako==1.3.2
+Mako==1.3.3
 MarkupSafe==2.1.5
 PyJWT==2.8.0
 PyYAML==6.0.1
@@ -34,8 +34,8 @@ SQLAlchemy-Utils==0.41.2
 SQLAlchemy==1.4.52
 WTForms==3.1.2
 Werkzeug==2.2.3
-aiobotocore==2.12.2
-aiohttp==3.9.3
+aiobotocore==2.12.3
+aiohttp==3.9.4
 aioitertools==0.11.0
 aiosignal==1.3.1
 alembic==1.13.1
@@ -51,7 +51,7 @@ attrs==23.2.0
 backoff==2.2.1
 bcrypt==4.1.2
 blinker==1.7.0
-botocore==1.34.51
+botocore==1.34.69
 cachelib==0.9.0
 certifi==2024.2.2
 cffi==1.16.0
@@ -70,7 +70,7 @@ dill==0.3.8
 distlib==0.3.8
 dnspython==2.6.1
 docopt==0.6.2
-docutils==0.21
+docutils==0.21.1
 email_validator==2.1.1
 eventlet==0.36.1
 exceptiongroup==1.2.0
@@ -90,7 +90,7 @@ h11==0.14.0
 hdfs==2.7.3
 httpcore==1.0.5
 httpx==0.27.0
-idna==3.6
+idna==3.7
 importlib_metadata==7.1.0
 importlib_resources==6.4.0
 inflection==0.5.1
@@ -140,8 +140,8 @@ pure-sasl==0.6.2
 pyasn1==0.6.0
 pyasn1_modules==0.4.0
 pycparser==2.22
-pydantic==2.6.4
-pydantic_core==2.16.3
+pydantic==2.7.0
+pydantic_core==2.18.1
 pykerberos==1.2.4
 pyspnego==0.10.2
 python-daemon==3.0.1

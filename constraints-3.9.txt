@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-04-10T13:55:29.642551
+# This constraints file was automatically generated on 2024-04-12T13:33:09.052188
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -50,7 +50,7 @@ JPype1==1.5.0
 JayDeBeApi==1.2.3
 Jinja2==3.1.3
 Js2Py==0.74
-Mako==1.3.2
+Mako==1.3.3
 Markdown==3.6
 MarkupSafe==2.1.5
 PyAthena==3.6.0
@@ -69,15 +69,15 @@ WTForms==3.1.2
 Werkzeug==2.2.3
 adal==1.2.7
 adlfs==2024.2.0
-aiobotocore==2.12.2
+aiobotocore==2.12.3
 aiofiles==23.2.1
-aiohttp==3.9.3
+aiohttp==3.9.4
 aioitertools==0.11.0
 aioresponses==0.7.6
 aiosignal==1.3.1
 alabaster==0.7.16
 alembic==1.13.1
-alibabacloud-adb20211201==1.3.2
+alibabacloud-adb20211201==1.3.3
 alibabacloud-tea==0.3.6
 alibabacloud_credentials==0.3.2
 alibabacloud_endpoint_util==0.0.3
@@ -231,8 +231,8 @@ billiard==4.2.0
 bitarray==2.9.2
 black==24.3.0
 blinker==1.7.0
-boto3==1.34.51
-botocore==1.34.51
+boto3==1.34.69
+botocore==1.34.69
 cachelib==0.9.0
 cachetools==5.3.3
 cassandra-driver==3.29.1
@@ -273,6 +273,7 @@ debugpy==1.8.1
 decorator==5.1.1
 defusedxml==0.7.1
 deltalake==0.16.4
+diagrams==0.23.4
 dill==0.3.1.1
 distlib==0.3.8
 distro==1.9.0
@@ -388,7 +389,7 @@ hyperframe==6.0.1
 hyperlink==21.0.0
 icdiff==2.0.7
 identify==2.5.35
-idna==3.6
+idna==3.7
 ijson==3.2.3
 imagesize==1.4.1
 importlib-metadata==6.11.0
@@ -415,7 +416,7 @@ json-merge-patch==0.2
 jsondiff==2.0.0
 jsonpatch==1.33
 jsonpath-ng==1.6.1
-jsonpickle==3.0.3
+jsonpickle==3.0.4
 jsonpointer==2.4
 jsonschema-path==0.3.2
 jsonschema-specifications==2023.12.1
@@ -424,7 +425,7 @@ junit-xml==1.9
 jupyter_client==8.6.1
 jupyter_core==5.7.2
 keyring==25.1.0
-kombu==5.3.6
+kombu==5.3.7
 krb5==0.5.1
 kubernetes==29.0.0
 kubernetes_asyncio==29.0.0
@@ -454,11 +455,11 @@ mpmath==1.3.0
 msal-extensions==1.1.0
 msal==1.28.0
 msrest==0.7.1
-msrestazure==0.6.4
+msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.0.5
 mypy-boto3-appflow==1.34.0
-mypy-boto3-rds==1.34.81
+mypy-boto3-rds==1.34.83
 mypy-boto3-redshift-data==1.34.0
 mypy-boto3-s3==1.34.65
 mypy-extensions==1.0.0
@@ -475,7 +476,7 @@ nodeenv==1.8.0
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.16.2
+openai==1.17.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.12.0
@@ -493,7 +494,7 @@ opentelemetry-proto==1.24.0
 opentelemetry-sdk==1.24.0
 opentelemetry-semantic-conventions==0.45b0
 opsgenie-sdk==2.1.5
-oracledb==2.1.1
+oracledb==2.1.2
 ordered-set==4.1.0
 orjson==3.10.0
 oss2==2.18.4
@@ -544,8 +545,8 @@ pyasn1==0.5.1
 pycountry==23.12.11
 pycparser==2.22
 pycryptodome==3.20.0
-pydantic==2.6.4
-pydantic_core==2.16.3
+pydantic==2.7.0
+pydantic_core==2.18.1
 pydata-google-auth==1.8.2
 pydot==1.4.2
 pydruid==0.6.6
@@ -630,7 +631,7 @@ smmap==5.0.1
 sniffio==1.3.1
 snowballstemmer==2.2.0
 snowflake-connector-python==3.8.1
-snowflake-sqlalchemy==1.5.1
+snowflake-sqlalchemy==1.5.2
 sortedcontainers==2.4.0
 soupsieve==2.5
 sphinx-airflow-theme==0.0.12
@@ -665,7 +666,7 @@ sympy==1.12
 tableauserverclient==0.25
 tabulate==0.9.0
 tenacity==8.2.3
-teradatasql==20.0.0.9
+teradatasql==20.0.0.10
 teradatasqlalchemy==20.0.0.0
 termcolor==2.4.0
 text-unidecode==1.3
@@ -682,6 +683,7 @@ traitlets==5.14.2
 trino==0.328.0
 trove-classifiers==2024.4.10
 twine==5.0.0
+typed-ast==1.5.5
 types-Deprecated==1.2.9.20240311
 types-Markdown==3.6.0.20240316
 types-PyMySQL==1.1.0.1
