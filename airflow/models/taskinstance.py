@@ -929,7 +929,7 @@ def _handle_failure(
         TaskInstance.save_to_db(failure_context["ti"], session)
 
 
-def _get_try_number(*, task_instance: TaskInstance | TaskInstancePydantic) -> int:
+def _get_try_number(*, task_instance: TaskInstance) -> int:
     """
     Return the try number that a task number will be when it is actually run.
 
@@ -964,7 +964,7 @@ def _get_private_try_number(*, task_instance: TaskInstance | TaskInstancePydanti
     return task_instance.try_number - 1
 
 
-def _set_try_number(*, task_instance: TaskInstance | TaskInstancePydantic, value: int) -> None:
+def _set_try_number(*, task_instance: TaskInstance, value: int) -> None:
     """
     Set a task try number.
 
@@ -3100,8 +3100,6 @@ class TaskInstance(Base, LoggingMixin):
             if task and task.dag and task.dag.fail_stop:
                 _stop_remaining_tasks(task_instance=ti, session=session)
         else:
-            if not ti._try_number:
-                ti._try_number = 0
             if ti.state == TaskInstanceState.QUEUED:
                 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
@@ -3110,7 +3108,7 @@ class TaskInstance(Base, LoggingMixin):
                     #  e.g. we could make refresh_from_db return a TI and replace ti with that
                     raise RuntimeError("Expected TaskInstance here. Further AIP-44 work required.")
                 # We increase the try_number to fail the task if it fails to start after sometime
-                ti._try_number += 1
+                ti.try_number += 1
             ti.state = State.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")
             callbacks = task.on_retry_callback if task else None
