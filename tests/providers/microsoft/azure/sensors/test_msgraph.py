@@ -16,10 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-import json
-
 from airflow.providers.microsoft.azure.sensors.msgraph import MSGraphSensor
-from airflow.triggers.base import TriggerEvent
 from tests.providers.microsoft.azure.base import Base
 from tests.providers.microsoft.conftest import load_json, mock_context, mock_json_response
 
@@ -39,7 +36,7 @@ class TestMSGraphSensor(Base):
             )
             actual = sensor.execute(context=mock_context(task=sensor))
 
-            assert isinstance(actual, TriggerEvent)
-            assert actual.payload["status"] == "success"
-            assert actual.payload["type"] == "builtins.dict"
-            assert actual.payload["response"] == json.dumps(status)
+            assert isinstance(actual, dict)
+            assert actual["id"] == "0a1b1bf3-37de-48f7-9863-ed4cda97a9ef"
+            assert actual["createdDateTime"] == "2024-04-10T15:05:17.357"
+            assert actual["status"] == "Succeeded"

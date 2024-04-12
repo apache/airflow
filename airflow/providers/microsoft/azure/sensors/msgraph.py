@@ -103,7 +103,7 @@ class MSGraphSensor(BaseSensorOperator):
         self.proxies = proxies
         self.api_version = api_version
         self.event_processor = event_processor
-        self.serializer = serializer
+        self.serializer = serializer()
 
     @property
     def trigger(self):
@@ -121,7 +121,7 @@ class MSGraphSensor(BaseSensorOperator):
             timeout=self.timeout,
             proxies=self.proxies,
             api_version=self.api_version,
-            serializer=self.serializer,
+            serializer=type(self.serializer),
         )
 
     async def async_poke(self, context: Context) -> bool | PokeReturnValue:
@@ -134,7 +134,11 @@ class MSGraphSensor(BaseSensorOperator):
 
             self.log.debug("is_done: %s", is_done)
 
-            return PokeReturnValue(is_done=is_done, xcom_value=response)
+            value = self.serializer.deserialize(response.payload["response"])
+
+            self.log.debug("value: %s", value)
+
+            return PokeReturnValue(is_done=is_done, xcom_value=value)
         return PokeReturnValue(is_done=True)
 
     def poke(self, context) -> bool | PokeReturnValue:
