@@ -245,10 +245,13 @@ class DagRun(Base, LoggingMixin):
             return synonym("_state", descriptor=property(self.get_state, self.set_state))
 
     # backref
-    # airflow.models.dataset.DatasetEvent.created_dagruns
-    consumed_dataset_events: Mapped[Sequence[DatasetEvent]]
-    # airflow.models.serialized_dag.SerializedDagModel
-    serialized_dag: Mapped[SerializedDagModel]
+    if TYPE_CHECKING:
+        # airflow.models.dataset.DatasetEvent.created_dagruns
+        @property
+        def consumed_dataset_events(self) -> Sequence[DatasetEvent]: ...
+        # airflow.models.serialized_dag.SerializedDagModel
+        @property
+        def serialized_dag(self) -> SerializedDagModel: ...
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:

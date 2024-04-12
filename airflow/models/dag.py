@@ -3575,8 +3575,10 @@ class DagTag(Base):
     dag_id: Mapped[str]
 
     # backref
-    # airflow.models.dag.DagModel
-    dag: Mapped[DagModel]
+    if TYPE_CHECKING:
+        # airflow.models.dag.DagModel
+        @property
+        def dag(self) -> DagModel: ...
 
     def __repr__(self):
         return self.name
@@ -3607,8 +3609,10 @@ class DagOwnerAttributes(Base):
     link: Mapped[str]
 
     # backref
-    # airflow.models.dag.DagModel
-    dag_owner_links: Mapped[DagModel]
+    if TYPE_CHECKING:
+        # airflow.models.dag.DagModel
+        @property
+        def dag_owner_links(self) -> DagModel: ...
 
     def __repr__(self):
         return f"<DagOwnerAttributes: dag_id={self.dag_id}, owner={self.owner}, link={self.link}>"
@@ -3759,8 +3763,10 @@ class DagModel(Base):
     schedule_datasets: Mapped[list[Dataset]] = association_proxy("schedule_dataset_references", "dataset")
 
     # backref
-    # airflow.models.serialized_dag.SerializedDagModel
-    serialized_dag: Mapped[SerializedDagModel]
+    if TYPE_CHECKING:
+        # airflow.models.serialized_dag.SerializedDagModel
+        @property
+        def serialized_dag(self) -> SerializedDagModel: ...
 
     NUM_DAGS_PER_DAGRUN_QUERY = airflow_conf.getint(
         "scheduler", "max_dagruns_to_create_per_loop", fallback=10
