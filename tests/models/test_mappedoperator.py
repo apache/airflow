@@ -640,6 +640,9 @@ def _create_named_map_index_renders_on_failure_classic(*, task_id, map_names, te
         def __init__(self, *, map_name: str, **kwargs):
             super().__init__(**kwargs)
             self.map_name = map_name
+
+        def execute(self, context):
+            context["map_name"] = self.map_name
             raise AirflowSkipException("Imagine this task failed!")
 
     return HasMapName.partial(task_id=task_id, map_index_template=template).expand(
@@ -703,8 +706,6 @@ def test_expand_mapped_task_instance_with_named_index(
         )
         .order_by(TaskInstance.map_index)
     ).all()
-
-    indices = [str(index) if index is not None else None for index in indices]
 
     assert indices == expected_rendered_names
 
