@@ -357,7 +357,7 @@ class TestGetLog:
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
             params={"token": token},
-            headers={"Accept": "text/plain", "REMOTE_USER": "test_no_permission"},
+            headers={"Accept": "text/plain", "REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403
 
