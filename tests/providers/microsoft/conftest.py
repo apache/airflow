@@ -117,26 +117,26 @@ def mock_context(task):
             self.values = {}
 
         def xcom_pull(
-                self,
-                task_ids: Iterable[str] | str | None = None,
-                dag_id: str | None = None,
-                key: str = XCOM_RETURN_KEY,
-                include_prior_dates: bool = False,
-                session: Session = NEW_SESSION,
-                *,
-                map_indexes: Iterable[int] | int | None = None,
-                default: Any | None = None,
+            self,
+            task_ids: Iterable[str] | str | None = None,
+            dag_id: str | None = None,
+            key: str = XCOM_RETURN_KEY,
+            include_prior_dates: bool = False,
+            session: Session = NEW_SESSION,
+            *,
+            map_indexes: Iterable[int] | int | None = None,
+            default: Any | None = None,
         ) -> Any:
             self.task_id = task_ids
             self.dag_id = dag_id
             return self.values.get(f"{task_ids}_{dag_id}_{key}")
 
         def xcom_push(
-                self,
-                key: str,
-                value: Any,
-                execution_date: datetime | None = None,
-                session: Session = NEW_SESSION,
+            self,
+            key: str,
+            value: Any,
+            execution_date: datetime | None = None,
+            session: Session = NEW_SESSION,
         ) -> None:
             self.values[f"{self.task_id}_{self.dag_id}_{key}"] = value
 
