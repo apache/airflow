@@ -100,7 +100,7 @@ class TestGetSource:
         dag_docstring = self._get_dag_file_docstring(test_dag.fileloc)
 
         url = f"/api/v1/dagSources/{url_safe_serializer.dumps(test_dag.fileloc)}"
-        response = self.client.get(url, headers={"Accept": "text/plain", "REMOTE_USER": "test"})
+        response = self.client.get(url, headers={"REMOTE_USER": "test"})
         assert 200 == response.status_code
         assert dag_docstring in response.text
         assert "text/plain" == response.headers["Content-Type"]
