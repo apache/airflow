@@ -32,11 +32,10 @@ class TestMSGraphSensor(Base):
                 conn_id="powerbi",
                 url="myorg/admin/workspaces/scanStatus/{scanId}",
                 path_parameters={"scanId": "0a1b1bf3-37de-48f7-9863-ed4cda97a9ef"},
+                result_processor=lambda context, result: result["id"],
                 timeout=350.0,
             )
             actual = sensor.execute(context=mock_context(task=sensor))
 
-            assert isinstance(actual, dict)
-            assert actual["id"] == "0a1b1bf3-37de-48f7-9863-ed4cda97a9ef"
-            assert actual["createdDateTime"] == "2024-04-10T15:05:17.357"
-            assert actual["status"] == "Succeeded"
+            assert isinstance(actual, str)
+            assert actual == "0a1b1bf3-37de-48f7-9863-ed4cda97a9ef"

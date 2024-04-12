@@ -63,6 +63,9 @@ class MSGraphSensor(BaseSensorOperator):
     :param event_processor: Function which checks the response from MS Graph API (default is the
         `default_event_processor` method) and returns a boolean.  When the result is True, the sensor
         will stop poking, otherwise it will continue until it's True or times out.
+    :param result_processor: Function to further process the response from MS Graph API
+        (default is lambda: context, response: response).  When the response returned by the
+        `KiotaRequestAdapterHook` are bytes, then those will be base64 encoded into a string.
     :param serializer: Class which handles response serialization (default is ResponseSerializer).
         Bytes will be base64 encoded into a string, so it can be stored as an XCom.
     """
@@ -86,6 +89,7 @@ class MSGraphSensor(BaseSensorOperator):
         proxies: dict | None = None,
         api_version: APIVersion | None = None,
         event_processor: Callable[[Context, TriggerEvent], bool] = default_event_processor,
+        result_processor: Callable[[Context, Any], Any] = lambda context, result: result,
         serializer: type[ResponseSerializer] = ResponseSerializer,
         **kwargs,
     ):
@@ -103,6 +107,7 @@ class MSGraphSensor(BaseSensorOperator):
         self.proxies = proxies
         self.api_version = api_version
         self.event_processor = event_processor
+        self.result_processor = result_processor
         self.serializer = serializer()
 
     @property
@@ -127,18 +132,22 @@ class MSGraphSensor(BaseSensorOperator):
     async def async_poke(self, context: Context) -> bool | PokeReturnValue:
         self.log.info("Sensor triggered")
 
-        async for response in self.trigger.run():
-            self.log.debug("response: %s", response)
+        async for event in self.trigger.run():
+            self.log.debug("event: %s", event)
 
-            is_done = self.event_processor(context, response)
+            is_done = self.event_processor(context, event)
 
             self.log.debug("is_done: %s", is_done)
 
-            value = self.serializer.deserialize(response.payload["response"])
+            response = self.serializer.deserialize(event.payload["response"])
 
-            self.log.debug("value: %s", value)
+            self.log.debug("deserialize event: %s", response)
 
-            return PokeReturnValue(is_done=is_done, xcom_value=value)
+            result = self.result_processor(context, response)
+
+            self.log.debug("result: %s", result)
+
+            return PokeReturnValue(is_done=is_done, xcom_value=result)
         return PokeReturnValue(is_done=True)
 
     def poke(self, context) -> bool | PokeReturnValue:
