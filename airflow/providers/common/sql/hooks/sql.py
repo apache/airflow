@@ -568,6 +568,7 @@ class DbApiHook(BaseHook):
                 stacklevel=2,
             )
 
+        nb_rows = 0
         with self._create_autocommit_connection() as conn:
             conn.commit()
             with closing(conn.cursor()) as cur:
@@ -584,6 +585,7 @@ class DbApiHook(BaseHook):
                         cur.executemany(sql, values)
                         conn.commit()
                         self.log.info("Loaded %s rows into %s so far", len(chunked_rows), table)
+                        nb_rows += len(chunked_rows)
                 else:
                     for i, row in enumerate(rows, 1):
                         values = self._serialize_cells(row, conn)
@@ -593,8 +595,9 @@ class DbApiHook(BaseHook):
                         if commit_every and i % commit_every == 0:
                             conn.commit()
                             self.log.info("Loaded %s rows into %s so far", i, table)
+                        nb_rows += 1
                     conn.commit()
-        self.log.info("Done loading. Loaded a total of %s rows into %s", len(list(rows)), table)
+        self.log.info("Done loading. Loaded a total of %s rows into %s", nb_rows, table)
 
     @classmethod
     def _serialize_cells(cls, row, conn=None):
