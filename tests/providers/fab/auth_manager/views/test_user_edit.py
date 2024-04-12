@@ -22,7 +22,7 @@ import pytest
 from airflow.security import permissions
 from airflow.www import app as application
 from tests.test_utils.api_connexion_utils import create_user
-from tests.test_utils.www import client_with_login
+from tests.test_utils.www import flask_client_with_login
 
 
 @pytest.fixture(scope="module")
@@ -46,7 +46,7 @@ def user_user_reader(fab_app):
 @pytest.fixture
 def client_user_reader(fab_app, user_user_reader):
     fab_app.app.config["WTF_CSRF_ENABLED"] = False
-    return client_with_login(
+    return flask_client_with_login(
         fab_app,
         username="user_user_reader",
         password="user_user_reader",
