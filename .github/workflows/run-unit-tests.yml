@@ -141,6 +141,7 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
       UPGRADE_BOTO: "${{ inputs.upgrade-boto }}"
       VERBOSE: "true"
+      SYSTEM_TESTS_ENV_ID: "test"
     steps:
       - name: "Cleanup repo"
         shell: bash
