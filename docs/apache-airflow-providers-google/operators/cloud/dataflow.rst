@@ -208,7 +208,7 @@ from the staging and execution steps. There are two types of templates for Dataf
 See the `official documentation for Dataflow templates
 <https://cloud.google.com/dataflow/docs/concepts/dataflow-templates>`_ for more information.
 
-Here is an example of running Classic template with
+Here is an example of running a Dataflow job using a Classic Template with
 :class:`~airflow.providers.google.cloud.operators.dataflow.DataflowTemplatedJobStartOperator`:
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_template.py
@@ -217,10 +217,18 @@ Here is an example of running Classic template with
     :start-after: [START howto_operator_start_template_job]
     :end-before: [END howto_operator_start_template_job]
 
+Also for this action you can use the operator in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_template.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_start_template_job_deferrable]
+    :end-before: [END howto_operator_start_template_job_deferrable]
+
 See the `list of Google-provided templates that can be used with this operator
 <https://cloud.google.com/dataflow/docs/guides/templates/provided-templates>`_.
 
-Here is an example of running Flex template with
+Here is an example of running a Dataflow job using a Flex Template with
 :class:`~airflow.providers.google.cloud.operators.dataflow.DataflowStartFlexTemplateOperator`:
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_template.py
@@ -228,6 +236,14 @@ Here is an example of running Flex template with
     :dedent: 4
     :start-after: [START howto_operator_start_flex_template_job]
     :end-before: [END howto_operator_start_flex_template_job]
+
+Also for this action you can use the operator in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_template.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_start_flex_template_job_deferrable]
+    :end-before: [END howto_operator_start_flex_template_job_deferrable]
 
 .. _howto/operator:DataflowStartSqlJobOperator:
 
