@@ -217,7 +217,12 @@ class DbApiHook(BaseHook):
 
         :return: the extracted sqlalchemy.engine.URL object.
         """
-        raise NotImplementedError("sqlalchemy_url property should be implemented in the provider subclass.")
+        qualname = f"{self.__class__.__module__}.{self.__class__.__qualname__}"
+        if qualname != "airflow.providers.common.sql.hooks.sql.DbApiHook":
+            msg = f"{qualname!r} not implements/supports built SQLAlchemy URI."
+        else:
+            msg = "`sqlalchemy_url` property should be implemented in the provider subclass."
+        raise NotImplementedError(msg)
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
         """
