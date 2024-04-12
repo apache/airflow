@@ -18,7 +18,6 @@ from __future__ import annotations
 
 from unittest import mock
 
-import httpx
 import pytest
 
 from airflow.exceptions import AirflowConfigException
@@ -44,22 +43,22 @@ def test_session_inaccessible_after_logout(user_client):
     # correctly logs in
     resp = user_client.get("/home")
     assert resp.status_code == 200
-    assert resp.url == httpx.URL("http://testserver/home")
+    assert resp.url.raw_path == b"/home"
 
     # Same with cookies overwritten
     user_client.get("/home", cookies={"session": session_cookie.value})
     assert resp.status_code == 200
-    assert resp.url == httpx.URL("http://testserver/home")
+    assert resp.url.raw_path == b"/home"
 
     # logs out
     resp = user_client.get("/logout/")
     assert resp.status_code == 200
-    assert resp.url == httpx.URL("http://testserver/login/?next=http%3A%2F%2Ftestserver%2Fhome")
+    assert resp.url.raw_path == b"/login/?next=http%3A%2F%2Ftestserver%2Fhome"
 
     # Try to access /home with the session cookie from earlier call
     user_client.get("/home", cookies={"session": session_cookie.value})
     assert resp.status_code == 200
-    assert resp.url == httpx.URL("http://testserver/login/?next=http%3A%2F%2Ftestserver%2Fhome")
+    assert resp.url.raw_path == b"/login/?next=http%3A%2F%2Ftestserver%2Fhome"
 
 
 def test_invalid_session_backend_option():
@@ -91,14 +90,16 @@ def test_session_id_rotates(app, user_client):
     old_session_cookie = get_session_cookie(user_client)
     assert old_session_cookie is not None
 
-    resp = user_client.get("/logout/")
-    assert resp.status_code == 302
+    resp = user_client.get("/logout/", follow_redirects=True)
+    assert resp.status_code == 200
 
     patch_path = "airflow.providers.fab.auth_manager.security_manager.override.check_password_hash"
     with mock.patch(patch_path) as check_password_hash:
         check_password_hash.return_value = True
-        resp = user_client.post("/login/", data={"username": "test_user", "password": "test_user"})
-    assert resp.status_code == 302
+        resp = user_client.post(
+            "/login/", data={"username": "test_user", "password": "test_user"}, follow_redirects=True
+        )
+    assert resp.status_code == 200
 
     new_session_cookie = get_session_cookie(user_client)
     assert new_session_cookie is not None
@@ -112,10 +113,10 @@ def test_check_active_user(app, user_client):
     assert resp.url.raw_path == b"/home"
 
 
-def test_check_deactivated_user_redirected_to_login(app, user_client):
+def test_check_deactivated_user_redirected_to_login(app, flask_user_client):
     with app.app.test_request_context():
         user = app.app.appbuilder.sm.find_user(username="test_user")
         user.active = False
-        resp = user_client.get("/home", follow_redirects=True)
+        resp = flask_user_client.get("/home", follow_redirects=True)
         assert resp.status_code == 200
         assert "/login" in resp.request.url

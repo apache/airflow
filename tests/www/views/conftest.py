@@ -138,6 +138,11 @@ def user_client(app):
 
 
 @pytest.fixture
+def flask_user_client(app):
+    return flask_client_with_login(app, username="test_user", password="test_user")
+
+
+@pytest.fixture
 def anonymous_client(app):
     return client_without_login(app)
 
