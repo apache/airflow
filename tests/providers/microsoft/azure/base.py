@@ -29,9 +29,8 @@ from airflow.exceptions import TaskDeferred
 from airflow.models import Operator, TaskInstance
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.utils.session import NEW_SESSION
-from airflow.utils.state import TaskInstanceState
 from airflow.utils.xcom import XCOM_RETURN_KEY
-from tests.providers.microsoft.conftest import get_airflow_connection
+from tests.providers.microsoft.conftest import get_airflow_connection, mock_context
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -94,8 +93,7 @@ class Base:
         return asyncio.run(self._run_tigger(trigger))
 
     def execute_operator(self, operator: Operator) -> tuple[Any, Any]:
-        task_instance = MockedTaskInstance(task=operator, run_id="run_id", state=TaskInstanceState.RUNNING)
-        context = {"ti": task_instance}
+        context = mock_context(task=operator)
         return asyncio.run(self.deferrable_operator(context, operator))
 
     async def deferrable_operator(self, context, operator):

@@ -20,9 +20,8 @@ import json
 
 from airflow.providers.microsoft.azure.sensors.msgraph import MSGraphSensor
 from airflow.triggers.base import TriggerEvent
-from airflow.utils.state import TaskInstanceState
-from tests.providers.microsoft.azure.base import Base, MockedTaskInstance
-from tests.providers.microsoft.conftest import load_json, mock_json_response
+from tests.providers.microsoft.azure.base import Base
+from tests.providers.microsoft.conftest import load_json, mock_context, mock_json_response
 
 
 class TestMSGraphSensor(Base):
@@ -37,9 +36,7 @@ class TestMSGraphSensor(Base):
                 url="myorg/admin/workspaces/scanStatus/0a1b1bf3-37de-48f7-9863-ed4cda97a9ef",
                 timeout=350.0,
             )
-            actual = sensor.execute(
-                context=MockedTaskInstance(task=sensor, run_id="run_id", state=TaskInstanceState.RUNNING)
-            )
+            actual = sensor.execute(context=mock_context(task=sensor))
 
             assert isinstance(actual, TriggerEvent)
             assert actual.payload["status"] == "success"

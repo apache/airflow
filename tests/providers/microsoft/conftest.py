@@ -100,6 +100,47 @@ def mock_response(status_code, content: Any = None) -> Response:
     return response
 
 
+def mock_context(task):
+    from datetime import datetime
+    from sqlalchemy.orm import Session
+
+    from airflow.models import TaskInstance
+    from airflow.utils.session import NEW_SESSION
+    from airflow.utils.state import TaskInstanceState
+    from airflow.utils.xcom import XCOM_RETURN_KEY
+
+    class MockedTaskInstance(TaskInstance):
+        def __init__(self):
+            super().__init__(task=task, run_id="run_id", state=TaskInstanceState.RUNNING)
+            self.values = {}
+
+        def xcom_pull(
+                self,
+                task_ids: Iterable[str] | str | None = None,
+                dag_id: str | None = None,
+                key: str = XCOM_RETURN_KEY,
+                include_prior_dates: bool = False,
+                session: Session = NEW_SESSION,
+                *,
+                map_indexes: Iterable[int] | int | None = None,
+                default: Any | None = None,
+        ) -> Any:
+            self.task_id = task_ids
+            self.dag_id = dag_id
+            return self.values.get(f"{task_ids}_{dag_id}_{key}")
+
+        def xcom_push(
+                self,
+                key: str,
+                value: Any,
+                execution_date: datetime | None = None,
+                session: Session = NEW_SESSION,
+        ) -> None:
+            self.values[f"{self.task_id}_{self.dag_id}_{key}"] = value
+
+    return {"ti": MockedTaskInstance()}
+
+
 def load_json(*locations: Iterable[str]):
     with open(join(dirname(__file__), "azure", join(*locations)), encoding="utf-8") as file:
         return json.load(file)
