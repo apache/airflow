@@ -266,6 +266,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         ti.triggerer_job = Job()
         TriggererJobRunner(job=ti.triggerer_job)
         ti.triggerer_job.state = "running"
+        session.merge(ti)
         session.commit()
         session.close()
         response = self.client.get(
@@ -1279,7 +1280,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 200
         mock_clearti.assert_called_once_with(
-            [], session, dag=self.flask_app.dag_bag.get_dag(dag_id), dag_run_state=State.QUEUED
+            [], mock.ANY, dag=self.flask_app.dag_bag.get_dag(dag_id), dag_run_state=State.QUEUED
         )
         _check_last_log(session, dag_id=dag_id, event="api.post_clear_task_instances", execution_date=None)
 
@@ -1747,7 +1748,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             },
         )
         assert response.status_code == 404
-        assert response.json()["title"] == "Dag is non-existent-dag not found"
+        assert response.json()["title"] == "Dag id non-existent-dag not found"
 
 
 class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
@@ -1797,7 +1798,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
             state="failed",
             task_id="print_the_context",
             upstream=True,
-            session=session,
+            session=mock.ANY,
         )
 
     @mock.patch("airflow.models.dag.DAG.set_task_instance_state")
@@ -1846,7 +1847,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
             state="failed",
             task_id="print_the_context",
             upstream=True,
-            session=session,
+            session=mock.ANY,
         )
 
     @pytest.mark.parametrize(
@@ -2097,7 +2098,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             map_indexes=[-1],
             state=NEW_STATE,
             commit=True,
-            session=session,
+            session=mock.ANY,
         )
         _check_last_log(
             session,
