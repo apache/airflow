@@ -1413,6 +1413,7 @@ class TaskInstance(Base, LoggingMixin):
         cascade="all, delete, delete-orphan",
     )
     note = association_proxy("task_instance_note", "content", creator=_creator_note)
+
     task: Operator | None = None
     test_mode: bool = False
     is_trigger_log_context: bool = False
@@ -2945,7 +2946,7 @@ class TaskInstance(Base, LoggingMixin):
     ):
         """Handle Failure for the TaskInstance."""
         get_listener_manager().hook.on_task_instance_failed(
-            previous_state=TaskInstanceState.RUNNING, task_instance=ti, session=session
+            previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error, session=session
         )
 
         if error:

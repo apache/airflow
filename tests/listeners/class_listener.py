@@ -47,7 +47,9 @@ class ClassBasedListener:
         self.state.append(TaskInstanceState.SUCCESS)
 
     @hookimpl
-    def on_task_instance_failed(self, previous_state, task_instance, session):
+    def on_task_instance_failed(
+        self, previous_state, task_instance, error: None | str | BaseException, session
+    ):
         self.state.append(TaskInstanceState.FAILED)
 
 
