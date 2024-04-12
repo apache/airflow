@@ -94,7 +94,7 @@ def get_dag_details(
 @provide_session
 def get_dags(
     *,
-    limit: int,
+    limit: int | None = None,
     offset: int = 0,
     tags: Collection[str] | None = None,
     dag_id_pattern: str | None = None,

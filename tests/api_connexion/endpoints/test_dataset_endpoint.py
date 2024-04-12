@@ -134,7 +134,7 @@ class TestGetDatasetEndpoint(TestDatasetEndpoint):
         assert {
             "detail": "The Dataset with uri: `s3://bucket/key` was not found",
             "status": 404,
-            "title": "Not Found",
+            "title": "Dataset not found",
             "type": EXCEPTIONS_LINK_MAP[404],
         } == response.json()
 
@@ -224,7 +224,7 @@ class TestGetDatasets(TestDatasetEndpoint):
         )  # missing attr
 
         assert response.status_code == 400
-        msg = "Extra query parameter(s) order_by not in spec"
+        msg = "Ordering with 'fake' is disallowed or the attribute does not exist on the model"
         assert response.json()["detail"] == msg
 
     def test_should_raises_401_unauthenticated(self, session):
@@ -688,7 +688,7 @@ class TestPostDatasetEvents(TestDatasetEndpoint):
         self._create_dataset(session)
         event_payload = {"dataset_uri": "s3://bucket/key", "extra": {"password": "bar"}}
         response = self.client.post(
-            "/api/v1/datasets/events", json=event_payload, environ_overrides={"REMOTE_USER": "test"}
+            "/api/v1/datasets/events", json=event_payload, headers={"REMOTE_USER": "test"}
         )
 
         assert response.status_code == 200

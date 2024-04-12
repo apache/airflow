@@ -2106,29 +2106,6 @@ paths:
         "403":
           $ref: "#/components/responses/PermissionDenied"
 
-  /datasets/{uri}:
-    parameters:
-      - $ref: "#/components/parameters/DatasetURI"
-    get:
-      summary: Get a dataset
-      description: Get a dataset by uri.
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: get_dataset
-      tags: [Dataset]
-      responses:
-        "200":
-          description: Success.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Dataset"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/PermissionDenied"
-        "404":
-          $ref: "#/components/responses/NotFound"
-
   /datasets/events:
     get:
       summary: Get dataset events
@@ -2185,6 +2162,30 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/NotFound'
+
+  /datasets/{uri}:
+    parameters:
+      - $ref: "#/components/parameters/DatasetURI"
+    get:
+      summary: Get a dataset
+      description: Get a dataset by uri.
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      operationId: get_dataset
+      tags: [Dataset]
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dataset"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
 
   /config:
     get:
