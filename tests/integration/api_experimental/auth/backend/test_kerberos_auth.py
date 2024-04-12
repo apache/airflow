@@ -100,7 +100,7 @@ class TestApiKerberos:
             response = client.post(
                 url_template.format("example_bash_operator"),
                 data=json.dumps(dict(run_id="my_run" + datetime.now().isoformat())),
-                content_type="application/json",
+                headers={"Content-Type": "application/json"},
             )
 
             assert 401 == response.status_code
