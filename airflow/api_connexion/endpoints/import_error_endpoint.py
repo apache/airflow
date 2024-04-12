@@ -77,7 +77,7 @@ def get_import_error(*, import_error_id: int, session: Session = NEW_SESSION) ->
 @provide_session
 def get_import_errors(
     *,
-    limit: int,
+    limit: int | None = None,
     offset: int | None = None,
     order_by: str = "import_error_id",
     session: Session = NEW_SESSION,
