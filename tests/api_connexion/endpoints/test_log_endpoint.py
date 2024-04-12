@@ -113,6 +113,8 @@ class TestGetLog:
             ti.hostname = "localhost"
 
         self.ti = dr.task_instances[0]
+        session.commit()
+        session.close()
 
     @pytest.fixture
     def configure_loggers(self, tmp_path, create_log_template):
@@ -146,6 +148,11 @@ class TestGetLog:
 
         logging.config.dictConfig(logging_config)
 
+        create_log_template(
+            "dag_id={{ ti.dag_id }}/run_id={{ ti.run_id }}/task_id={{ ti.task_id }}/"
+            "{% if ti.map_index >= 0 %}map_index={{ ti.map_index }}/{% endif %}"
+            "attempt={{ try_number }}.log"
+        )
         yield
 
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
@@ -166,7 +173,7 @@ class TestGetLog:
             f"{self.log_dir}/dag_id={self.DAG_ID}/run_id={self.RUN_ID}/task_id={self.TASK_ID}/attempt=1.log"
         )
         assert (
-            response.text
+            response.json()["content"]
             == f"[('localhost', '*** Found local files:\\n***   * {expected_filename}\\nLog for testing.')]"
         )
         info = serializer.loads(response.json()["continuation_token"])
@@ -202,7 +209,7 @@ class TestGetLog:
         )
         assert 200 == response.status_code
         assert (
-            response.text("utf-8")
+            response.text
             == f"localhost\n*** Found local files:\n***   * {expected_filename}\nLog for testing.\n"
         )
 

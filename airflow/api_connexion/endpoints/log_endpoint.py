@@ -107,7 +107,10 @@ def get_log(
         logs = logs[0] if task_try_number is not None else logs
         # we must have token here, so we can safely ignore it
         token = URLSafeSerializer(key).dumps(metadata)  # type: ignore[assignment]
-        return logs_schema.dump(LogResponseObject(continuation_token=token, content=logs))
+        return Response(
+            logs_schema.dumps(LogResponseObject(continuation_token=token, content=logs)),
+            headers={"Content-Type": "application/json"},
+        )
     # text/plain. Stream
     logs = task_log_reader.read_log_stream(ti, task_try_number, metadata)
 
