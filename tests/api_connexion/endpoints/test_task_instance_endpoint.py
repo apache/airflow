@@ -499,7 +499,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
     def test_unmapped_map_index_should_return_404(self, session):
         self.create_task_instances(session)
         response = self.client.get(
-            "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/-1",
+            "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/-6",
             headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
