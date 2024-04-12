@@ -1636,7 +1636,7 @@ class DAG(LoggingMixin):
         dag_id: str,
         execution_date: datetime | None = None,
         run_id: str | None = None,
-        session: Session = NEW_SESSION,
+        session: Session | None = NEW_SESSION,
     ) -> DagRun | DagRunPydantic:
         """
         Return the dag run for a given execution date or run_id if it exists, otherwise none.
@@ -1647,6 +1647,8 @@ class DAG(LoggingMixin):
         :param session:
         :return: The DagRun if found, otherwise None.
         """
+        # provide_session
+        session = cast("Session", session)
         if not (execution_date or run_id):
             raise TypeError("You must provide either the execution_date or the run_id")
         query = select(DagRun)
@@ -2989,7 +2991,7 @@ class DAG(LoggingMixin):
         external_trigger: bool | None = False,
         conf: dict | None = None,
         run_type: DagRunType | None = None,
-        session: Session = NEW_SESSION,
+        session: Session | None = NEW_SESSION,
         dag_hash: str | None = None,
         creating_job_id: int | None = None,
         data_interval: tuple[datetime, datetime] | None = None,
@@ -3011,6 +3013,8 @@ class DAG(LoggingMixin):
         :param dag_hash: Hash of Serialized DAG
         :param data_interval: Data interval of the DagRun
         """
+        # provide_session
+        session = cast("Session", session)
         logical_date = timezone.coerce_datetime(execution_date)
 
         if data_interval and not isinstance(data_interval, DataInterval):

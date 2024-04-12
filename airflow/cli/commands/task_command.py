@@ -27,7 +27,7 @@ import os
 import sys
 import textwrap
 from contextlib import contextmanager, redirect_stderr, redirect_stdout, suppress
-from typing import TYPE_CHECKING, Generator, Protocol, Union, cast
+from typing import TYPE_CHECKING, Any, Generator, NoReturn, Protocol, Union, cast, overload
 
 import pendulum
 from pendulum.parsing.exceptions import ParserError
@@ -92,12 +92,68 @@ def _generate_temporary_run_id() -> str:
     return f"__airflow_temporary_run_{timezone.utcnow().isoformat()}__"
 
 
+@overload
+def _get_dag_run(
+    *,
+    dag: DAG,
+    create_if_necessary: Literal[False],
+    exec_date_or_run_id: None = ...,
+    session: Session | None = ...,
+) -> NoReturn: ...
+@overload
+def _get_dag_run(
+    *,
+    dag: DAG,
+    create_if_necessary: CreateIfNecessary,
+    exec_date_or_run_id: str,
+    session: Session | None = ...,
+) -> tuple[DagRun | DagRunPydantic, bool]: ...
+@overload
+def _get_dag_run(
+    *,
+    dag: DAG,
+    create_if_necessary: Literal["memory"],
+    exec_date_or_run_id: None = ...,
+    session: Session | None = ...,
+) -> tuple[DagRun | DagRunPydantic, bool]: ...
+@overload
+def _get_dag_run(
+    *,
+    dag: DAG,
+    create_if_necessary: Literal["db"],
+    exec_date_or_run_id: None = ...,
+    session: Session | None = ...,
+) -> tuple[DagRun | DagRunPydantic, bool]: ...
+@overload
+def _get_dag_run(
+    *,
+    dag: DAG,
+    create_if_necessary: CreateIfNecessary,
+    exec_date_or_run_id: None = ...,
+    session: Session | None = ...,
+) -> tuple[DagRun | DagRunPydantic, bool]: ...
+@overload
+def _get_dag_run(
+    *,
+    dag: DAG,
+    create_if_necessary: Any,
+    exec_date_or_run_id: None = ...,
+    session: Session | None = ...,
+) -> NoReturn: ...
+@overload
+def _get_dag_run(
+    *,
+    dag: DAG,
+    create_if_necessary: CreateIfNecessary,
+    exec_date_or_run_id: str | None = ...,
+    session: Session | None = ...,
+) -> tuple[DagRun | DagRunPydantic, bool]: ...
 def _get_dag_run(
     *,
     dag: DAG,
     create_if_necessary: CreateIfNecessary,
     exec_date_or_run_id: str | None = None,
-    session: Session,
+    session: Session | None = None,
 ) -> tuple[DagRun | DagRunPydantic, bool]:
     """Try to retrieve a DAG run from a string representing either a run ID or logical date.
 
