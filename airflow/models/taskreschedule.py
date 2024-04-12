@@ -27,7 +27,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship
 
 from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.models.base import COLLATION_ARGS, ID_LEN, Hint, TaskInstanceDependencies
+from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -47,19 +47,17 @@ class TaskReschedule(TaskInstanceDependencies):
     """TaskReschedule tracks rescheduled task instances."""
 
     __tablename__ = "task_reschedule"
-
-    id: Mapped[int] = Hint.col | Column(Integer, primary_key=True)
-    task_id: Mapped[str] = Hint.col | Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
-    dag_id: Mapped[str] = Hint.col | Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
-    run_id: Mapped[str] = Hint.col | Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
-    map_index: Mapped[int] = Hint.col | Column(Integer, nullable=False, server_default=text("-1"))
-    try_number: Mapped[int] = Hint.col | Column(Integer, nullable=False)
-    start_date: Mapped[datetime.datetime] = Hint.col | Column(UtcDateTime, nullable=False)
-    end_date: Mapped[datetime.datetime] = Hint.col | Column(UtcDateTime, nullable=False)
-    duration: Mapped[int] = Hint.col | Column(Integer, nullable=False)
-    reschedule_date: Mapped[datetime.datetime] = Hint.col | Column(UtcDateTime, nullable=False)
-
-    __table_args__ = (
+    _table_args_ = lambda: (
+        Column("id", Integer(), primary_key=True),
+        task_id := Column("task_id", String(ID_LEN, **COLLATION_ARGS), nullable=False),
+        dag_id := Column("dag_id", String(ID_LEN, **COLLATION_ARGS), nullable=False),
+        run_id := Column("run_id", String(ID_LEN, **COLLATION_ARGS), nullable=False),
+        map_index := Column("map_index", Integer(), nullable=False, server_default=text("-1")),
+        Column("try_number", Integer(), nullable=False),
+        Column("start_date", UtcDateTime(), nullable=False),
+        Column("end_date", UtcDateTime(), nullable=False),
+        Column("duration", Integer(), nullable=False),
+        Column("reschedule_date", UtcDateTime(), nullable=False),
         Index("idx_task_reschedule_dag_task_run", dag_id, task_id, run_id, map_index, unique=False),
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],
@@ -80,7 +78,23 @@ class TaskReschedule(TaskInstanceDependencies):
             ondelete="CASCADE",
         ),
     )
-    dag_run: Mapped[DagRun | None] = Hint.rel | relationship("DagRun")
+    _mapper_args_ = lambda: {"properties": {"dag_run": relationship("DagRun")}}
+
+    id: Mapped[int]
+    task_id: Mapped[str]
+    dag_id: Mapped[str]
+    run_id: Mapped[str]
+    map_index: Mapped[int]
+    try_number: Mapped[int]
+    start_date: Mapped[datetime.datetime]
+    end_date: Mapped[datetime.datetime]
+    duration: Mapped[int]
+    reschedule_date: Mapped[datetime.datetime]
+
+    # relationship
+    dag_run: Mapped[DagRun | None]
+
+    # association_proxy
     execution_date: Mapped[datetime.datetime | None] = association_proxy("dag_run", "execution_date")
 
     def __init__(

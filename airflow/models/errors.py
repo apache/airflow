@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, Integer, String, Text
 
-from airflow.models.base import Base, Hint
+from airflow.models.base import Base
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
@@ -34,8 +34,15 @@ class ImportError(Base):
     """Stores all Import Errors which are recorded when parsing DAGs and displayed on the Webserver."""
 
     __tablename__ = "import_error"
-    id: Mapped[int] = Hint.col | Column(Integer, primary_key=True)
-    timestamp: Mapped[datetime | None] = Hint.col | Column(UtcDateTime)
-    filename: Mapped[str | None] = Hint.col | Column(String(1024))
-    stacktrace: Mapped[str | None] = Hint.col | Column(Text)
-    processor_subdir: Mapped[str | None] = Hint.col | Column(String(2000), nullable=True)
+    _table_args_ = lambda: (
+        Column("id", Integer(), primary_key=True),
+        Column("timestamp", UtcDateTime()),
+        Column("filename", String(1024)),
+        Column("stacktrace", Text()),
+        Column("processor_subdir", String(2000), nullable=True),
+    )
+    id: Mapped[int]
+    timestamp: Mapped[datetime | None]
+    filename: Mapped[str | None]
+    stacktrace: Mapped[str | None]
+    processor_subdir: Mapped[str | None]

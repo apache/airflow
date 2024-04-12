@@ -31,7 +31,7 @@ from sqlalchemy.sql.expression import func, literal
 
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.exceptions import TaskNotFound
-from airflow.models.base import ID_LEN, Base, Hint
+from airflow.models.base import ID_LEN, Base
 from airflow.models.dag import DagModel
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun
@@ -74,33 +74,51 @@ class SerializedDagModel(Base):
     """
 
     __tablename__ = "serialized_dag"
-
-    dag_id: Mapped[str] = Hint.col | Column(String(ID_LEN), primary_key=True)
-    fileloc: Mapped[str] = Hint.col | Column(String(2000), nullable=False)
-    # The max length of fileloc exceeds the limit of indexing.
-    fileloc_hash: Mapped[int] = Hint.col | Column(BigInteger(), nullable=False)
-    _data: Mapped[Any] = Hint.col | Column("data", sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
-    _data_compressed: Mapped[bytes | None] = Hint.col | Column("data_compressed", LargeBinary, nullable=True)
-    last_updated: Mapped[datetime] = Hint.col | Column(UtcDateTime, nullable=False)
-    dag_hash: Mapped[str] = Hint.col | Column(String(32), nullable=False)
-    processor_subdir: Mapped[str | None] = Hint.col | Column(String(2000), nullable=True)
-
-    __table_args__ = (Index("idx_fileloc_hash", fileloc_hash, unique=False),)
-
-    dag_runs: Mapped[list[DagRun]] = Hint.rel | relationship(
-        DagRun,
-        primaryjoin=dag_id == foreign(DagRun.dag_id),
-        backref=backref("serialized_dag", uselist=False, innerjoin=True),
+    _table_args_ = lambda: (
+        Column("dag_id", String(ID_LEN), primary_key=True),
+        Column("filelog", String(2000), nullable=False),
+        # The max length of fileloc exceeds the limit of indexing.
+        fileloc_hash := Column("fileloc_hash", BigInteger(), nullable=False),
+        Column("data", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
+        Column("data_compressed", LargeBinary(), nullable=True),
+        Column("last_updated", UtcDateTime(), nullable=False),
+        Column("dag_hash", String(32), nullable=False),
+        Column("processor_subdir", String(2000), nullable=True),
+        Index("idx_fileloc_hash", fileloc_hash, unique=False),
     )
+    _mapper_args_ = lambda table: {
+        "exclude_properties": ["data", "data_compressed"],
+        "properties": {
+            "dag_runs": relationship(
+                DagRun,
+                primaryjoin=table.c.dag_id == foreign(DagRun.dag_id),
+                backref=backref("serialized_dag", uselist=False, innerjoin=True),
+            ),
+            "dag_model": relationship(
+                DagModel,
+                primaryjoin=table.c.dag_id == DagModel.dag_id,
+                foreign_keys=table.c.dag_id,
+                uselist=False,
+                innerjoin=True,
+                backref=backref("serialized_dag", uselist=False, innerjoin=True),
+            ),
+            "_data": table.c.data,
+            "_data_compressed": table.c.data_compressed,
+        },
+    }
 
-    dag_model: Mapped[DagModel | None] = Hint.rel | relationship(
-        DagModel,
-        primaryjoin=dag_id == DagModel.dag_id,
-        foreign_keys=dag_id,
-        uselist=False,
-        innerjoin=True,
-        backref=backref("serialized_dag", uselist=False, innerjoin=True),
-    )
+    dag_id: Mapped[str]
+    fileloc: Mapped[str]
+    fileloc_hash: Mapped[int]
+    _data: Mapped[Any]
+    _data_compressed: Mapped[bytes | None]
+    last_updated: Mapped[datetime]
+    dag_hash: Mapped[str]
+    processor_subdir: Mapped[str | None]
+
+    # relationship
+    dag_runs: Mapped[list[DagRun]]
+    dag_model: Mapped[DagModel | None]
 
     load_op_links = True
 

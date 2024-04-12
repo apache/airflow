@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, Index, Integer, String, Text
 
-from airflow.models.base import Base, Hint, StringID
+from airflow.models.base import Base, StringID
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -38,24 +38,34 @@ class Log(Base):
     """Used to actively log events to the database."""
 
     __tablename__ = "log"
-
-    id: Mapped[int] = Hint.col | Column(Integer, primary_key=True)
-    dttm: Mapped[datetime | None] = Hint.col | Column(UtcDateTime)
-    dag_id: Mapped[str | None] = Hint.col | Column(StringID())
-    task_id: Mapped[str | None] = Hint.col | Column(StringID())
-    map_index: Mapped[int | None] = Hint.col | Column(Integer)
-    event: Mapped[str | None] = Hint.col | Column(String(60))
-    execution_date: Mapped[datetime | None] = Hint.col | Column(UtcDateTime)
-    run_id: Mapped[str | None] = Hint.col | Column(StringID())
-    owner: Mapped[str | None] = Hint.col | Column(String(500))
-    owner_display_name: Mapped[str | None] = Hint.col | Column(String(500))
-    extra: Mapped[str | None] = Hint.col | Column(Text)
-
-    __table_args__ = (
+    _table_args_ = lambda: (
+        Column("id", Integer(), primary_key=True),
+        dttm := Column("dttm", UtcDateTime()),
+        dag_id := Column("dag_id", StringID()),
+        Column("task_id", StringID()),
+        Column("map_index", Integer()),
+        event := Column("event", String(60)),
+        Column("execution_date", UtcDateTime()),
+        Column("run_id", StringID()),
+        Column("owner", String(500)),
+        Column("owner_display_name", String(500)),
+        Column("extra", Text()),
         Index("idx_log_dag", dag_id),
         Index("idx_log_dttm", dttm),
         Index("idx_log_event", event),
     )
+
+    id: Mapped[int]
+    dttm: Mapped[datetime | None]
+    dag_id: Mapped[str | None]
+    task_id: Mapped[str | None]
+    map_index: Mapped[int | None]
+    event: Mapped[str | None]
+    execution_date: Mapped[datetime | None]
+    run_id: Mapped[str | None]
+    owner: Mapped[str | None]
+    owner_display_name: Mapped[str | None]
+    extra: Mapped[str | None]
 
     def __init__(
         self,

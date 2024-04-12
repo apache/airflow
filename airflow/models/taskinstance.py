@@ -87,7 +87,7 @@ from airflow.exceptions import (
     XComForMappingNotPushed,
 )
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.base import Base, Hint, StringID, TaskInstanceDependencies, _sentinel
+from airflow.models.base import Base, StringID, TaskInstanceDependencies, _sentinel
 from airflow.models.dagbag import DagBag
 from airflow.models.log import Log
 from airflow.models.mappedoperator import MappedOperator
@@ -769,6 +769,8 @@ def _get_template_context(
         nonlocal dag_run
         if dag_run not in session:
             dag_run = session.merge(dag_run, load=False)
+        if TYPE_CHECKING:
+            assert dag_run
         dataset_events = dag_run.consumed_dataset_events
         triggering_events: dict[str, list[DatasetEvent | DatasetEventPydantic]] = defaultdict(list)
         for event in dataset_events:
@@ -1338,61 +1340,48 @@ class TaskInstance(Base, LoggingMixin):
     """
 
     __tablename__ = "task_instance"
-    task_id: Mapped[str] = Hint.col | Column(StringID(), primary_key=True, nullable=False)
-    dag_id: Mapped[str] = Hint.col | Column(StringID(), primary_key=True, nullable=False)
-    run_id: Mapped[str] = Hint.col | Column(StringID(), primary_key=True, nullable=False)
-    map_index: Mapped[int] = Hint.col | Column(
-        Integer, primary_key=True, nullable=False, server_default=text("-1")
-    )
-
-    start_date: Mapped[datetime | None] = Hint.col | Column(UtcDateTime)
-    end_date: Mapped[datetime | None] = Hint.col | Column(UtcDateTime)
-    duration: Mapped[float | None] = Hint.col | Column(Float)
-    state: Mapped[str | None] = Hint.col | Column(String(20))
-    _try_number: Mapped[int | None] = Hint.col | Column("try_number", Integer, default=0)
-    max_tries: Mapped[int | None] = Hint.col | Column(Integer, server_default=text("-1"))
-    hostname: Mapped[str | None] = Hint.col | Column(String(1000))
-    unixname: Mapped[str | None] = Hint.col | Column(String(1000))
-    job_id: Mapped[int | None] = Hint.col | Column(Integer)
-    pool: Mapped[str] = Hint.col | Column(String(256), nullable=False)
-    pool_slots: Mapped[int] = Hint.col | Column(Integer, default=1, nullable=False)
-    queue: Mapped[str | None] = Hint.col | Column(String(256))
-    priority_weight: Mapped[int | None] = Hint.col | Column(Integer)
-    operator: Mapped[str | None] = Hint.col | Column(String(1000))
-    custom_operator_name: Mapped[str | None] = Hint.col | Column(String(1000))
-    queued_dttm: Mapped[datetime | None] = Hint.col | Column(UtcDateTime)
-    queued_by_job_id: Mapped[int | None] = Hint.col | Column(Integer)
-    pid: Mapped[int | None] = Hint.col | Column(Integer)
-    executor: Mapped[str | None] = Hint.col | Column(String(1000))
-    executor_config: Mapped[Any] = Hint.col | Column(ExecutorConfigType(pickler=dill))
-    updated_at: Mapped[datetime | None] = Hint.col | Column(
-        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow
-    )
-    rendered_map_index: Mapped[str | None] = Hint.col | Column(String(250))
-
-    external_executor_id: Mapped[str | None] = Hint.col | Column(StringID())
-
-    # The trigger to resume on if we are in state DEFERRED
-    trigger_id: Mapped[int | None] = Hint.col | Column(Integer)
-
-    # Optional timeout datetime for the trigger (past this, we'll fail)
-    trigger_timeout: Mapped[datetime | None] = Hint.col | Column(DateTime)
-    # The trigger_timeout should be TIMESTAMP(using UtcDateTime) but for ease of
-    # migration, we are keeping it as DateTime pending a change where expensive
-    # migration is inevitable.
-
-    # The method to call next, and any extra arguments to pass to it.
-    # Usually used when resuming from DEFERRED.
-    next_method: Mapped[str | None] = Hint.col | Column(String(1000))
-    next_kwargs: Mapped[Any] = Hint.col | Column(MutableDict.as_mutable(ExtendedJSON))
-
-    _task_display_property_value: Mapped[str | None] = Hint.col | Column(
-        "task_display_name", String(2000), nullable=True
-    )
-    # If adding new fields here then remember to add them to
-    # refresh_from_db() or they won't display in the UI correctly
-
-    __table_args__ = (
+    _table_args_ = lambda: (
+        task_id := Column("task_id", StringID(), primary_key=True, nullable=False),
+        dag_id := Column("dag_id", StringID(), primary_key=True, nullable=False),
+        run_id := Column("run_id", StringID(), primary_key=True, nullable=False),
+        Column("map_index", Integer, primary_key=True, nullable=False, server_default=text("-1")),
+        Column("start_date", UtcDateTime),
+        Column("end_date", UtcDateTime),
+        Column("duration", Float),
+        state := Column("state", String(20)),
+        Column("try_number", Integer, default=0),
+        Column("max_tries", Integer, server_default=text("-1")),
+        Column("hostname", String(1000)),
+        Column("unixname", String(1000)),
+        job_id := Column("job_id", Integer),
+        pool := Column("pool", String(256), nullable=False),
+        Column("pool_slots", Integer, default=1, nullable=False),
+        Column("queue", String(256)),
+        priority_weight := Column("priority_weight", Integer),
+        Column("operator", String(1000)),
+        Column("custom_operator_name", String(1000)),
+        Column("queued_dttm", UtcDateTime),
+        Column("queued_by_job_id", Integer),
+        Column("pid", Integer),
+        Column("executor", String(1000)),
+        Column("executor_config", ExecutorConfigType(pickler=dill)),
+        Column("updated_at", UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow),
+        Column("rendered_map_index", String(250)),
+        Column("external_executor_id", StringID()),
+        # The trigger to resume on if we are in state DEFERRED
+        trigger_id := Column("trigger_id", Integer),
+        # Optional timeout datetime for the trigger (past this, we'll fail)
+        Column("trigger_timeout", DateTime),
+        # The trigger_timeout should be TIMESTAMP(using UtcDateTime) but for ease of
+        # migration, we are keeping it as DateTime pending a change where expensive
+        # migration is inevitable.
+        # The method to call next, and any extra arguments to pass to it.
+        # Usually used when resuming from DEFERRED.
+        Column("next_method", String(1000)),
+        Column("next_kwargs", MutableDict.as_mutable(ExtendedJSON)),
+        Column("task_display_name", String(2000), nullable=True),
+        # If adding new fields here then remember to add them to
+        # refresh_from_db() or they won't display in the UI correctly
         Index("ti_dag_state", dag_id, state),
         Index("ti_dag_run", dag_id, run_id),
         Index("ti_state", state),
@@ -1422,34 +1411,85 @@ class TaskInstance(Base, LoggingMixin):
             ondelete="CASCADE",
         ),
     )
+    _mapper_args_ = lambda table: {
+        "exclude_properties": ["try_number", "task_display_name"],
+        "properties": {
+            "_try_number": table.c.try_number,
+            "_task_display_property_value": table.c.task_display_name,
+            "dag_model": relationship(
+                "DagModel",
+                primaryjoin="TaskInstance.dag_id == DagModel.dag_id",
+                foreign_keys=table.c.dag_id,
+                uselist=False,
+                innerjoin=True,
+                viewonly=True,
+            ),
+            "trigger": relationship("Trigger", uselist=False, back_populates="task_instance"),
+            "dag_run": relationship("DagRun", back_populates="task_instances", lazy="joined", innerjoin=True),
+            "rendered_task_instance_fields": relationship(
+                "RenderedTaskInstanceFields", lazy="noload", uselist=False
+            ),
+            "task_instance_note": relationship(
+                "TaskInstanceNote",
+                back_populates="task_instance",
+                uselist=False,
+                cascade="all, delete, delete-orphan",
+            ),
+        },
+    }
 
-    dag_model: Mapped[DagModel | None] = Hint.rel | relationship(
-        "DagModel",
-        primaryjoin="TaskInstance.dag_id == DagModel.dag_id",
-        foreign_keys=dag_id,
-        uselist=False,
-        innerjoin=True,
-        viewonly=True,
-    )
+    task_id: Mapped[str]
+    dag_id: Mapped[str]
+    run_id: Mapped[str]
+    map_index: Mapped[int]
+    start_date: Mapped[datetime | None]
+    end_date: Mapped[datetime | None]
+    duration: Mapped[float | None]
+    state: Mapped[str | None]
+    _try_number: Mapped[int | None]
+    max_tries: Mapped[int | None]
+    hostname: Mapped[str | None]
+    unixname: Mapped[str | None]
+    job_id: Mapped[int | None]
+    pool: Mapped[str]
+    pool_slots: Mapped[int]
+    queue: Mapped[str | None]
+    priority_weight: Mapped[int | None]
+    operator: Mapped[str | None]
+    custom_operator_name: Mapped[str | None]
+    queued_dttm: Mapped[datetime | None]
+    queued_by_job_id: Mapped[int | None]
+    pid: Mapped[int | None]
+    executor: Mapped[str | None]
+    executor_config: Mapped[Any]
+    updated_at: Mapped[datetime | None]
+    rendered_map_index: Mapped[str | None]
+    external_executor_id: Mapped[str | None]
+    trigger_id: Mapped[int | None]
+    trigger_timeout: Mapped[datetime | None]
+    next_method: Mapped[str | None]
+    next_kwargs: Mapped[Any]
+    _task_display_property_value: Mapped[str | None]
 
-    trigger: Mapped[Trigger | None] = Hint.rel | relationship(
-        "Trigger", uselist=False, back_populates="task_instance"
-    )
+    # relationship
+    dag_model: Mapped[DagModel | None]
+    trigger: Mapped[Trigger | None]
+    #
+    dag_run: Mapped[DagRun]
+    rendered_task_instance_fields: Mapped[RenderedTaskInstanceFields | None]
+    #
+    task_instance_note: Mapped[TaskInstanceNote]
+
+    # association_proxy
     triggerer_job: Mapped[Job | None] = association_proxy("trigger", "triggerer_job")
-    dag_run: Mapped[DagRun] = Hint.rel | relationship(
-        "DagRun", back_populates="task_instances", lazy="joined", innerjoin=True
-    )
-    rendered_task_instance_fields: Mapped[RenderedTaskInstanceFields | None] = Hint.rel | relationship(
-        "RenderedTaskInstanceFields", lazy="noload", uselist=False
-    )
+    #
     execution_date: Mapped[datetime | None] = association_proxy("dag_run", "execution_date")
-    task_instance_note: Mapped[TaskInstanceNote] = Hint.rel | relationship(
-        "TaskInstanceNote",
-        back_populates="task_instance",
-        uselist=False,
-        cascade="all, delete, delete-orphan",
-    )
+    #
     note: Mapped[str | None] = association_proxy("task_instance_note", "content", creator=_creator_note)
+
+    # STATICA_HACK
+    queued_by_job: Mapped[Job]
+
     task: Operator | None = None
     test_mode: bool = False
     is_trigger_log_context: bool = False
@@ -3867,25 +3907,19 @@ class TaskInstanceNote(TaskInstanceDependencies):
     """For storage of arbitrary notes concerning the task instance."""
 
     __tablename__ = "task_instance_note"
-
-    user_id: Mapped[int | None] = Hint.col | Column(
-        Integer, ForeignKey("ab_user.id", name="task_instance_note_user_fkey"), nullable=True
-    )
-    task_id: Mapped[str] = Hint.col | Column(StringID(), primary_key=True, nullable=False)
-    dag_id: Mapped[str] = Hint.col | Column(StringID(), primary_key=True, nullable=False)
-    run_id: Mapped[str] = Hint.col | Column(StringID(), primary_key=True, nullable=False)
-    map_index: Mapped[int] = Hint.col | Column(Integer, primary_key=True, nullable=False)
-    content: Mapped[str | None] = Hint.col | Column(String(1000).with_variant(Text(1000), "mysql"))
-    created_at: Mapped[datetime] = Hint.col | Column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    updated_at: Mapped[datetime] = Hint.col | Column(
-        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
-    )
-
-    task_instance: Mapped[TaskInstance] = Hint.rel | relationship(
-        "TaskInstance", back_populates="task_instance_note"
-    )
-
-    __table_args__ = (
+    _table_args_ = lambda: (
+        Column(
+            "user_id", Integer(), ForeignKey("ab_user.id", name="task_instance_note_user_fkey"), nullable=True
+        ),
+        task_id := Column("task_id", StringID(), primary_key=True, nullable=False),
+        dag_id := Column("dag_id", StringID(), primary_key=True, nullable=False),
+        run_id := Column("run_id", StringID(), primary_key=True, nullable=False),
+        map_index := Column("map_index", Integer(), primary_key=True, nullable=False),
+        Column("content", String(1000).with_variant(Text(1000), "mysql")),
+        Column("created_at", UtcDateTime(), default=timezone.utcnow, nullable=False),
+        Column(
+            "updated_at", UtcDateTime(), default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
+        ),
         PrimaryKeyConstraint("task_id", "dag_id", "run_id", "map_index", name="task_instance_note_pkey"),
         ForeignKeyConstraint(
             (dag_id, task_id, run_id, map_index),
@@ -3899,6 +3933,20 @@ class TaskInstanceNote(TaskInstanceDependencies):
             ondelete="CASCADE",
         ),
     )
+    _mapper_args_ = lambda: {
+        "properties": {"task_instance": relationship("TaskInstance", back_populates="task_instance_note")}
+    }
+
+    user_id: Mapped[int | None]
+    task_id: Mapped[str]
+    dag_id: Mapped[str]
+    run_id: Mapped[str]
+    map_index: Mapped[int]
+    content: Mapped[str | None]
+    created_at: Mapped[datetime]
+    updated_at: Mapped[datetime]
+
+    task_instance: Mapped[TaskInstance]
 
     def __init__(self, content, user_id=None):
         self.content = content

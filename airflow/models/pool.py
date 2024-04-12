@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import Boolean, Column, Integer, String, Text, func, select
 
 from airflow.exceptions import AirflowException, PoolNotFound
-from airflow.models.base import Base, Hint
+from airflow.models.base import Base
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.typing_compat import TypedDict
 from airflow.utils.db import exists_query
@@ -49,13 +49,20 @@ class Pool(Base):
     """the class to get Pool info."""
 
     __tablename__ = "slot_pool"
+    _table_args_ = lambda: (
+        Column("id", Integer(), primary_key=True),
+        Column("pool", String(256), unique=True),
+        # -1 for infinite
+        Column("slots", Integer(), default=0),
+        Column("description", Text()),
+        Column("include_deferred", Boolean(), nullable=False),
+    )
 
-    id: Mapped[int] = Hint.col | Column(Integer, primary_key=True)
-    pool: Mapped[str | None] = Hint.col | Column(String(256), unique=True)
-    # -1 for infinite
-    slots: Mapped[int | None] = Hint.col | Column(Integer, default=0)
-    description: Mapped[str | None] = Hint.col | Column(Text)
-    include_deferred: Mapped[bool] = Hint.col | Column(Boolean, nullable=False)
+    id: Mapped[int]
+    pool: Mapped[str | None]
+    slots: Mapped[int | None]
+    description: Mapped[str | None]
+    include_deferred: Mapped[bool]
 
     DEFAULT_POOL_NAME = "default_pool"
 

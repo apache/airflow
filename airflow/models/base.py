@@ -17,18 +17,21 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from collections import deque
+from inspect import signature
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Mapping
 
-from sqlalchemy import Column, Integer, MetaData, String, text
-from sqlalchemy.orm import Mapped, registry
+from sqlalchemy import Column, Constraint, Index, Integer, MetaData, String, text
+from sqlalchemy.orm import Mapped, Mapper, declared_attr, registry
 
 from airflow.configuration import conf
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import RelationshipProperty
-    from typing_extensions import TypeAlias
+    from sqlalchemy.schema import Table
 
 
+_SA_TABLE_ARGS = "_table_args_"
+_SA_MAPPER_ARGS = "_mapper_args_"
 SQL_ALCHEMY_SCHEMA = conf.get("database", "SQL_ALCHEMY_SCHEMA")
 
 # For more information about what the tokens in the naming convention
@@ -53,9 +56,38 @@ metadata = MetaData(schema=_get_schema(), naming_convention=naming_convention)
 mapper_registry = registry(metadata=metadata)
 _sentinel = object()
 
-Base: Any = mapper_registry.generate_base()
 
 ID_LEN = 250
+
+
+@mapper_registry.as_declarative_base()
+class Base:
+    """sqlalchemy mapper base class."""
+
+    _table_args_: ClassVar[Callable[[], tuple[Any, ...]] | tuple[Any, ...] | None]
+    _mapper_args_: ClassVar[
+        Callable[[Table], Mapping[str, Any]] | Callable[[], Mapping[str, Any]] | Mapping[str, Any] | None
+    ]
+
+    __abstract__: ClassVar[bool] = True
+    __table__: ClassVar[Table]
+    __mapper__: ClassVar[Mapper]
+    metadata: ClassVar[MetaData]
+
+    if TYPE_CHECKING:
+        __table_args__: ClassVar[tuple[Any, ...]]
+        __mapper_args__: ClassVar[dict[str, Any]]
+
+        def __init__(self, *args: Any, **kwargs: Any) -> None: ...
+    else:
+
+        @declared_attr
+        def __table_args__(cls: type[Any]) -> tuple[Any, ...]:
+            return _resolve_table_args(cls)
+
+        @declared_attr
+        def __mapper_args__(cls: type[Any]) -> dict[str, Any]:
+            return _resolve_mapper_args(cls)
 
 
 def get_id_collation_args():
@@ -83,41 +115,6 @@ def get_id_collation_args():
 COLLATION_ARGS: dict[str, Any] = get_id_collation_args()
 
 
-class _ColumnMeta(type):
-    def __add__(self, col: Column[Any]) -> Mapped[Any]:
-        return cast("Mapped[Any]", col)
-
-    def __or__(self, col: Column[Any]) -> Mapped[Any]:
-        return cast("Mapped[Any]", col)
-
-
-class _RelationshipMeta(type):
-    def __add__(self, col: RelationshipProperty[Any]) -> Mapped[Any]:
-        return cast("Mapped[Any]", col)
-
-    def __or__(self, col: RelationshipProperty[Any]) -> Mapped[Any]:
-        return cast("Mapped[Any]", col)
-
-
-class Col(metaclass=_ColumnMeta):
-    """cast sqlalchemy.Column as sa.Mapped."""
-
-
-class Rel(metaclass=_RelationshipMeta):
-    """cast sqlalchemy.orm.relationship as sa.Mapped."""
-
-
-class Hint:
-    """cast sqlalchemy.* as sa.Mapped."""
-
-    col: TypeAlias = Col
-    Col: TypeAlias = Col
-    COL: TypeAlias = Col
-    rel: TypeAlias = Rel
-    Rel: TypeAlias = Rel
-    REL: TypeAlias = Rel
-
-
 def StringID(*, length=ID_LEN, **kwargs) -> String:
     return String(length=length, **kwargs, **COLLATION_ARGS)
 
@@ -126,8 +123,97 @@ class TaskInstanceDependencies(Base):
     """Base class for depending models linked to TaskInstance."""
 
     __abstract__ = True
+    _table_args_ = lambda: (
+        Column("task_id", StringID(), nullable=False),
+        Column("dag_id", StringID(), nullable=False),
+        Column("run_id", StringID(), nullable=False),
+        Column("map_index", Integer(), nullable=False, server_default=text("-1")),
+    )
 
-    task_id: Mapped[str] = Col | Column(StringID(), nullable=False)
-    dag_id: Mapped[str] = Col | Column(StringID(), nullable=False)
-    run_id: Mapped[str] = Col | Column(StringID(), nullable=False)
-    map_index: Mapped[int] = Col | Column(Integer, nullable=False, server_default=text("-1"))
+    task_id: Mapped[str]
+    dag_id: Mapped[str]
+    run_id: Mapped[str]
+    map_index: Mapped[int]
+
+
+def _resolve_table_args(table_class: type[Base]) -> tuple[Any, ...]:
+    if not issubclass(table_class, Base):
+        raise TypeError("not sqlalchemy table class")
+
+    table_args: Callable[[], tuple[Any, ...]] | tuple[Any, ...] | None
+    table_args_queue: deque[Any] = deque()
+    table_args_mapping: dict[str, Any] = {}
+
+    for table_upper_class in table_class.mro():
+        if table_upper_class is Base:
+            break
+
+        table_args = getattr(table_upper_class, _SA_TABLE_ARGS, None)
+        if callable(table_args):
+            table_args = table_args()
+        if not table_args:
+            continue
+
+        last_sa_args = table_args[-1]
+        if isinstance(last_sa_args, Mapping):
+            table_args_mapping.update(last_sa_args)
+            table_args = table_args[:-1]
+
+        table_args_queue.extend(table_args)
+
+    registries: tuple[set[str], set[str], set[str]] = (set(), set(), set())
+    table_args = tuple(
+        table_arg
+        for element in table_args_queue
+        if (table_arg := _resolve_table_arg_elements(element, registries)) is not None
+    )
+    if table_args_mapping:
+        return *table_args, table_args_mapping
+    return table_args
+
+
+def _resolve_table_arg_elements(element: Any, registries: tuple[set[str], set[str], set[str]]) -> Any:
+    if isinstance(element, Column):
+        registry = registries[0]
+    elif isinstance(element, Index):
+        registry = registries[1]
+    elif isinstance(element, Constraint):
+        registry = registries[2]
+    else:
+        raise NotImplementedError
+
+    if not element.name:
+        raise NotImplementedError
+
+    if element.name in registry:
+        return None
+    registry.add(element.name)
+    return element
+
+
+def _resolve_mapper_args(mapper_class: type[Base]) -> dict[str, Any]:
+    if not issubclass(mapper_class, Base):
+        raise TypeError("not sqlalchemy mapper class")
+
+    mapper_args: (
+        Callable[[Table], Mapping[str, Any]] | Callable[[], Mapping[str, Any]] | Mapping[str, Any] | None
+    )
+    mapper_args_mapping: dict[str, Any] = {}
+
+    for mapper_upper_class in mapper_class.mro():
+        if mapper_upper_class is Base:
+            break
+
+        mapper_args = getattr(mapper_upper_class, _SA_MAPPER_ARGS, None)
+        if callable(mapper_args):
+            sig = signature(mapper_args)
+            if sig.parameters:
+                mapper_args = mapper_args(mapper_class.__table__)  # type: ignore
+            else:
+                mapper_args = mapper_args()  # type: ignore
+        if not mapper_args:
+            continue
+
+        mapper_args_mapping.update(mapper_args)
+
+    return mapper_args_mapping

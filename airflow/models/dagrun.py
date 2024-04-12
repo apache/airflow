@@ -66,7 +66,7 @@ from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskN
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import Log
 from airflow.models.abstractoperator import NotMapped
-from airflow.models.base import Base, Hint, StringID
+from airflow.models.base import Base, StringID
 from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.tasklog import LogTemplate
@@ -89,7 +89,9 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Mapped, Session
 
     from airflow.models.dag import DAG, DagModel
+    from airflow.models.dataset import DatasetEvent
     from airflow.models.operator import Operator
+    from airflow.models.serialized_dag import SerializedDagModel
     from airflow.serialization.pydantic.dag_run import DagRunPydantic
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
     from airflow.serialization.pydantic.tasklog import LogTemplatePydantic
@@ -129,49 +131,40 @@ class DagRun(Base, LoggingMixin):
     """
 
     __tablename__ = "dag_run"
-
-    id: Mapped[int] = Hint.col | Column(Integer, primary_key=True)
-    dag_id: Mapped[str] = Hint.col | Column(StringID(), nullable=False)
-    queued_at: Mapped[datetime | None] = Hint.col | Column(UtcDateTime)
-    execution_date: Mapped[datetime] = Hint.col | Column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    start_date: Mapped[datetime | None] = Hint.col | Column(UtcDateTime)
-    end_date: Mapped[datetime | None] = Hint.col | Column(UtcDateTime)
-    _state: Mapped[str | None] = Hint.col | Column("state", String(50), default=DagRunState.QUEUED)
-    run_id: Mapped[str] = Hint.col | Column(StringID(), nullable=False)
-    creating_job_id: Mapped[int | None] = Hint.col | Column(Integer)
-    external_trigger: Mapped[bool | None] = Hint.col | Column(Boolean, default=True)
-    run_type: Mapped[str] = Hint.col | Column(String(50), nullable=False)
-    conf: Mapped[Any] = Hint.col | Column(PickleType)
-    # These two must be either both NULL or both datetime.
-    data_interval_start: Mapped[datetime | None] = Hint.col | Column(UtcDateTime)
-    data_interval_end: Mapped[datetime | None] = Hint.col | Column(UtcDateTime)
-    # When a scheduler last attempted to schedule TIs for this DagRun
-    last_scheduling_decision: Mapped[datetime | None] = Hint.col | Column(UtcDateTime)
-    dag_hash: Mapped[str | None] = Hint.col | Column(String(32))
-    # Foreign key to LogTemplate. DagRun rows created prior to this column's
-    # existence have this set to NULL. Later rows automatically populate this on
-    # insert to point to the latest LogTemplate entry.
-    log_template_id: Mapped[int | None] = Hint.col | Column(
-        Integer,
-        ForeignKey("log_template.id", name="task_instance_log_template_id_fkey", ondelete="NO ACTION"),
-        default=select(func.max(LogTemplate.__table__.c.id)),
-    )
-    updated_at: Mapped[datetime | None] = Hint.col | Column(
-        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow
-    )
-    # Keeps track of the number of times the dagrun had been cleared.
-    # This number is incremented only when the DagRun is re-Queued,
-    # when the DagRun is cleared.
-    clear_number: Mapped[int] = Hint.col | Column(Integer, default=0, nullable=False)
-
-    # Remove this `if` after upgrading Sphinx-AutoAPI
-    if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
-        dag: DAG | None
-    else:
-        dag: DAG | None = None
-
-    __table_args__ = (
-        Index("dag_id_state", dag_id, _state),
+    _table_args_ = lambda: (
+        Column("id", Integer(), primary_key=True),
+        dag_id := Column("dag_id", StringID(), nullable=False),
+        Column("queued_at", UtcDateTime()),
+        Column("execution_date", UtcDateTime(), default=timezone.utcnow, nullable=False),
+        Column("start_date", UtcDateTime()),
+        Column("end_date", UtcDateTime()),
+        state := Column("state", String(50), default=DagRunState.QUEUED),
+        Column("run_id", StringID(), nullable=False),
+        Column("creating_job_id", Integer()),
+        Column("external_trigger", Boolean(), default=True),
+        Column("run_type", String(50), nullable=False),
+        Column("conf", PickleType()),
+        # These two must be either both NULL or both datetime.
+        Column("data_interval_start", UtcDateTime()),
+        Column("data_interval_end", UtcDateTime()),
+        # When a scheduler last attempted to schedule TIs for this DagRun
+        last_scheduling_decision := Column("last_scheduling_decision", UtcDateTime()),
+        Column("dag_hash", String(32)),
+        # Foreign key to LogTemplate. DagRun rows created prior to this column's
+        # existence have this set to NULL. Later rows automatically populate this on
+        # insert to point to the latest LogTemplate entry.
+        Column(
+            "log_template_id",
+            Integer(),
+            ForeignKey("log_template.id", name="task_instance_log_template_id_fkey", ondelete="NO ACTION"),
+            default=select(func.max(LogTemplate.__table__.c.id)),
+        ),
+        Column("updated_at", UtcDateTime(), default=timezone.utcnow, onupdate=timezone.utcnow),
+        # Keeps track of the number of times the dagrun had been cleared.
+        # This number is incremented only when the DagRun is re-Queued,
+        # when the DagRun is cleared.
+        Column("clear_number", Integer(), default=0, nullable=False),
+        Index("dag_id_state", dag_id, state),
         UniqueConstraint("dag_id", "execution_date", name="dag_run_dag_id_execution_date_key"),
         UniqueConstraint("dag_id", "run_id", name="dag_run_dag_id_run_id_key"),
         Index("idx_last_scheduling_decision", last_scheduling_decision),
@@ -193,23 +186,75 @@ class DagRun(Base, LoggingMixin):
             sqlite_where=text("state='queued'"),
         ),
     )
+    _mapper_args_ = lambda table: {
+        "exclude_properties": ["state"],
+        "properties": {
+            "task_instances": relationship(
+                TI, back_populates="dag_run", cascade="save-update, merge, delete, delete-orphan"
+            ),
+            "dag_model": relationship(
+                "DagModel",
+                primaryjoin="foreign(DagRun.dag_id) == DagModel.dag_id",
+                uselist=False,
+                viewonly=True,
+            ),
+            "dag_run_note": relationship(
+                "DagRunNote",
+                back_populates="dag_run",
+                uselist=False,
+                cascade="all, delete, delete-orphan",
+            ),
+            "_state": table.c.state,
+        },
+    }
 
-    task_instances: Mapped[list[TI]] = Hint.rel | relationship(
-        TI, back_populates="dag_run", cascade="save-update, merge, delete, delete-orphan"
-    )
-    dag_model: Mapped[DagModel | None] = Hint.rel | relationship(
-        "DagModel",
-        primaryjoin="foreign(DagRun.dag_id) == DagModel.dag_id",
-        uselist=False,
-        viewonly=True,
-    )
-    dag_run_note: Mapped[DagRunNote] = Hint.rel | relationship(
-        "DagRunNote",
-        back_populates="dag_run",
-        uselist=False,
-        cascade="all, delete, delete-orphan",
-    )
+    id: Mapped[int]
+    dag_id: Mapped[str]
+    queued_at: Mapped[datetime | None]
+    execution_date: Mapped[datetime]
+    start_date: Mapped[datetime | None]
+    end_date: Mapped[datetime | None]
+    _state: Mapped[str | None]
+    run_id: Mapped[str]
+    creating_job_id: Mapped[int | None]
+    external_trigger: Mapped[bool | None]
+    run_type: Mapped[str]
+    conf: Mapped[Any]
+    data_interval_start: Mapped[datetime | None]
+    data_interval_end: Mapped[datetime | None]
+    last_scheduling_decision: Mapped[datetime | None]
+    dag_hash: Mapped[str | None]
+    log_template_id: Mapped[int | None]
+    updated_at: Mapped[datetime | None]
+    clear_number: Mapped[int]
+
+    # relationship
+    task_instances: Mapped[list[TI]]
+    dag_model: Mapped[DagModel | None]
+    dag_run_note: Mapped[DagRunNote]
+
+    # association_proxy
     note: Mapped[str | None] = association_proxy("dag_run_note", "content", creator=_creator_note)
+
+    # declared_attr
+    state: Mapped[str | None]
+    if not TYPE_CHECKING:
+        # FIXME: sqlalchemy2
+        @declared_attr
+        def state(self):
+            return synonym("_state", descriptor=property(self.get_state, self.set_state))
+
+    # backref
+    # airflow.models.dataset.DatasetEvent.created_dagruns
+    consumed_dataset_events: Mapped[Sequence[DatasetEvent]]
+    # airflow.models.serialized_dag.SerializedDagModel
+    serialized_dag: Mapped[SerializedDagModel]
+
+    # Remove this `if` after upgrading Sphinx-AutoAPI
+    if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
+        dag: DAG | None
+    else:
+        dag: DAG | None = None
 
     DEFAULT_DAGRUNS_TO_EXAMINE = airflow_conf.getint(
         "scheduler",
@@ -358,14 +403,6 @@ class DagRun(Base, LoggingMixin):
         else:
             if state == DagRunState.QUEUED:
                 self.queued_at = timezone.utcnow()
-
-    if not TYPE_CHECKING:
-        # FIXME: sqlalchemy2
-        @declared_attr
-        def state(self):
-            return synonym("_state", descriptor=property(self.get_state, self.set_state))
-
-    state: Mapped[str | None]
 
     @provide_session
     def refresh_from_db(self, session: Session = NEW_SESSION) -> None:
@@ -1661,22 +1698,19 @@ class DagRunNote(Base):
     """For storage of arbitrary notes concerning the dagrun instance."""
 
     __tablename__ = "dag_run_note"
-
-    user_id: Mapped[int | None] = Hint.col | Column(
-        Integer,
-        ForeignKey("ab_user.id", name="dag_run_note_user_fkey"),
-        nullable=True,
-    )
-    dag_run_id: Mapped[int] = Hint.col | Column(Integer, primary_key=True, nullable=False)
-    content: Mapped[str | None] = Hint.col | Column(String(1000).with_variant(Text(1000), "mysql"))
-    created_at: Mapped[datetime] = Hint.col | Column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    updated_at: Mapped[datetime] = Hint.col | Column(
-        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
-    )
-
-    dag_run: Mapped[DagRun] = Hint.rel | relationship("DagRun", back_populates="dag_run_note")
-
-    __table_args__ = (
+    _table_args_ = lambda: (
+        Column(
+            "user_id",
+            Integer(),
+            ForeignKey("ab_user.id", name="dag_run_note_user_fkey"),
+            nullable=True,
+        ),
+        dag_run_id := Column("dag_run_id", Integer(), primary_key=True, nullable=False),
+        Column("content", String(1000).with_variant(Text(1000), "mysql")),
+        Column("created_at", UtcDateTime(), default=timezone.utcnow, nullable=False),
+        Column(
+            "updated_at", UtcDateTime(), default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
+        ),
         PrimaryKeyConstraint("dag_run_id", name="dag_run_note_pkey"),
         ForeignKeyConstraint(
             (dag_run_id,),
@@ -1685,13 +1719,26 @@ class DagRunNote(Base):
             ondelete="CASCADE",
         ),
     )
+    _mapper_args_ = lambda: {"properties": {"dag_run": relationship("DagRun", back_populates="dag_run_note")}}
+
+    user_id: Mapped[int | None]
+    dag_run_id: Mapped[int]
+    content: Mapped[str | None]
+    created_at: Mapped[datetime]
+    updated_at: Mapped[datetime]
+
+    # relationship
+    dag_run: Mapped[DagRun]
 
     def __init__(self, content, user_id=None):
         self.content = content
         self.user_id = user_id
 
     def __repr__(self):
-        prefix = f"<{self.__class__.__name__}: {self.dag_id}.{self.dagrun_id} {self.run_id}"
-        if self.map_index != -1:
-            prefix += f" map_index={self.map_index}"
+        dag_run = self.dag_run
+        prefix = f"<{self.__class__.__name__}: {dag_run.dag_id}.{dag_run.id} {dag_run.run_id}"
+
+        map_index = getattr(self, "map_index", -1)
+        if map_index != -1:
+            prefix += f" map_index={map_index}"
         return prefix + ">"

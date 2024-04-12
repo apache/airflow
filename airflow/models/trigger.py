@@ -25,7 +25,7 @@ from sqlalchemy.orm import joinedload, relationship
 from sqlalchemy.sql.functions import coalesce
 
 from airflow.api_internal.internal_api_call import internal_api_call
-from airflow.models.base import Base, Hint
+from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.retries import run_with_db_retries
@@ -62,23 +62,38 @@ class Trigger(Base):
     """
 
     __tablename__ = "trigger"
-
-    id: Mapped[int] = Hint.col | Column(Integer, primary_key=True)
-    classpath: Mapped[str] = Hint.col | Column(String(1000), nullable=False)
-    encrypted_kwargs: Mapped[str] = Hint.col | Column("kwargs", Text, nullable=False)
-    created_date: Mapped[datetime.datetime] = Hint.col | Column(UtcDateTime, nullable=False)
-    triggerer_id: Mapped[int | None] = Hint.col | Column(Integer, nullable=True)
-
-    triggerer_job: Mapped[Job | None] = Hint.rel | relationship(
-        "Job",
-        primaryjoin="Job.id == Trigger.triggerer_id",
-        foreign_keys=triggerer_id,
-        uselist=False,
+    _table_args_ = lambda: (
+        Column("id", Integer(), primary_key=True),
+        Column("classpath", String(1000), nullable=False),
+        Column("kwargs", Text(), nullable=False),
+        Column("created_date", UtcDateTime(), nullable=False),
+        Column("triggerer_id", Integer(), nullable=True),
     )
+    _mapper_args_ = lambda table: {
+        "exclude_properties": ["kwargs"],
+        "properties": {
+            "encrypted_kwargs": table.c.kwargs,
+            "triggerer_job": relationship(
+                "Job",
+                primaryjoin="Job.id == Trigger.triggerer_id",
+                foreign_keys=table.c.triggerer_id,
+                uselist=False,
+            ),
+            "task_instance": relationship(
+                "TaskInstance", back_populates="trigger", lazy="joined", uselist=False
+            ),
+        },
+    }
 
-    task_instance: Mapped[TaskInstance | None] = Hint.rel | relationship(
-        "TaskInstance", back_populates="trigger", lazy="joined", uselist=False
-    )
+    id: Mapped[int]
+    classpath: Mapped[str]
+    encrypted_kwargs: Mapped[str]
+    created_date: Mapped[datetime.datetime]
+    triggerer_id: Mapped[int | None]
+
+    # relationship
+    triggerer_job: Mapped[Job | None]
+    task_instance: Mapped[TaskInstance | None]
 
     def __init__(
         self,

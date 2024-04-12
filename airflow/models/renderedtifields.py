@@ -38,7 +38,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Mapped, relationship
 
 from airflow.configuration import conf
-from airflow.models.base import Hint, StringID, TaskInstanceDependencies
+from airflow.models.base import StringID, TaskInstanceDependencies
 from airflow.serialization.helpers import serialize_template_field
 from airflow.settings import json
 from airflow.utils.retries import retry_db_transaction
@@ -72,17 +72,13 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
     """Save Rendered Template Fields."""
 
     __tablename__ = "rendered_task_instance_fields"
-
-    dag_id: Mapped[str] = Hint.col | Column(StringID(), primary_key=True)
-    task_id: Mapped[str] = Hint.col | Column(StringID(), primary_key=True)
-    run_id: Mapped[str] = Hint.col | Column(StringID(), primary_key=True)
-    map_index: Mapped[str] = Hint.col | Column(Integer, primary_key=True, server_default=text("-1"))
-    rendered_fields: Mapped[Any] = Hint.col | Column(
-        sqlalchemy_jsonfield.JSONField(json=json), nullable=False
-    )
-    k8s_pod_yaml: Mapped[Any] = Hint.col | Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
-
-    __table_args__ = (
+    _table_args_ = lambda: (
+        dag_id := Column("dag_id", StringID(), primary_key=True),
+        task_id := Column("task_id", StringID(), primary_key=True),
+        run_id := Column("run_id", StringID(), primary_key=True),
+        map_index := Column("map_index", Integer(), primary_key=True, server_default=text("-1")),
+        Column("redered_fields", sqlalchemy_jsonfield.JSONField(json=json), nullable=False),
+        Column("k8s_pod_yaml", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
         PrimaryKeyConstraint(
             "dag_id",
             "task_id",
@@ -102,23 +98,38 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
             ondelete="CASCADE",
         ),
     )
-    task_instance: Mapped[TaskInstance | None] = Hint.rel | relationship(
-        "TaskInstance",
-        lazy="joined",
-        back_populates="rendered_task_instance_fields",
-    )
+    _mapper_args_ = lambda: {
+        "properties": {
+            "task_instance": relationship(
+                "TaskInstance",
+                lazy="joined",
+                back_populates="rendered_task_instance_fields",
+            ),
+            # We don't need a DB level FK here, as we already have that to TI (which has one to DR) but by defining
+            # the relationship we can more easily find the execution date for these rows
+            "dag_run": relationship(
+                "DagRun",
+                primaryjoin="""and_(
+                    RenderedTaskInstanceFields.dag_id == foreign(DagRun.dag_id),
+                    RenderedTaskInstanceFields.run_id == foreign(DagRun.run_id),
+                )""",
+                viewonly=True,
+            ),
+        },
+    }
 
-    # We don't need a DB level FK here, as we already have that to TI (which has one to DR) but by defining
-    # the relationship we can more easily find the execution date for these rows
-    dag_run: Mapped[DagRun | None] = Hint.rel | relationship(
-        "DagRun",
-        primaryjoin="""and_(
-            RenderedTaskInstanceFields.dag_id == foreign(DagRun.dag_id),
-            RenderedTaskInstanceFields.run_id == foreign(DagRun.run_id),
-        )""",
-        viewonly=True,
-    )
+    dag_id: Mapped[str]
+    task_id: Mapped[str]
+    run_id: Mapped[str]
+    map_index: Mapped[str]
+    rendered_fields: Mapped[Any]
+    k8s_pod_yaml: Mapped[Any]
 
+    # relationship
+    task_instance: Mapped[TaskInstance | None]
+    dag_run: Mapped[DagRun | None]
+
+    # association_proxy
     execution_date: Mapped[datetime | None] = association_proxy("dag_run", "execution_date")
 
     def __init__(self, ti: TaskInstance, render_templates=True, rendered_fields=None):

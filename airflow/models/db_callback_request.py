@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, Integer, String
 
-from airflow.models.base import Base, Hint
+from airflow.models.base import Base
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 
@@ -38,13 +38,21 @@ class DbCallbackRequest(Base):
     """Used to handle callbacks through database."""
 
     __tablename__ = "callback_request"
+    _table_args_ = lambda: (
+        Column("id", Integer(), nullable=False, primary_key=True),
+        Column("created_at", UtcDateTime(), default=timezone.utcnow, nullable=False),
+        Column("priority_weight", Integer(), nullable=False),
+        Column("callback_data", ExtendedJSON(), nullable=False),
+        Column("callback_type", String(20), nullable=False),
+        Column("processor_subdir", String(2000), nullable=True),
+    )
 
-    id: Mapped[int] = Hint.col | Column(Integer(), nullable=False, primary_key=True)
-    created_at: Mapped[datetime] = Hint.col | Column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    priority_weight: Mapped[int] = Hint.col | Column(Integer(), nullable=False)
-    callback_data: Mapped[str] = Hint.col | Column(ExtendedJSON, nullable=False)
-    callback_type: Mapped[str] = Hint.col | Column(String(20), nullable=False)
-    processor_subdir: Mapped[str | None] = Hint.col | Column(String(2000), nullable=True)
+    id: Mapped[int]
+    created_at: Mapped[datetime]
+    priority_weight: Mapped[int]
+    callback_data: Mapped[str]
+    callback_type: Mapped[str]
+    processor_subdir: Mapped[str | None]
 
     def __init__(self, priority_weight: int, callback: CallbackRequest):
         self.created_at = timezone.utcnow()

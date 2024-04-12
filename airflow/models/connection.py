@@ -30,7 +30,7 @@ from sqlalchemy.orm import declared_attr, reconstructor, synonym
 
 from airflow.configuration import ensure_secrets_loaded
 from airflow.exceptions import AirflowException, AirflowNotFoundException, RemovedInAirflow3Warning
-from airflow.models.base import ID_LEN, Base, Hint
+from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
 from airflow.secrets.cache import SecretCache
 from airflow.utils.helpers import prune_dict
@@ -129,21 +129,40 @@ class Connection(Base, LoggingMixin):
     EXTRA_KEY = "__extra__"
 
     __tablename__ = "connection"
-
-    id: Mapped[int] = Hint.col | Column(Integer(), primary_key=True)
-    conn_id: Mapped[str] = Hint.col | Column(String(ID_LEN), unique=True, nullable=False)
-    conn_type: Mapped[str] = Hint.col | Column(String(500), nullable=False)
-    description: Mapped[str | None] = Hint.col | Column(
-        Text().with_variant(Text(5000), "mysql").with_variant(String(5000), "sqlite")
+    _table_args_ = lambda: (
+        Column("id", Integer(), primary_key=True),
+        Column("conn_id", String(ID_LEN), unique=True, nullable=False),
+        Column("conn_type", String(500), nullable=False),
+        Column("description", Text().with_variant(Text(5000), "mysql").with_variant(String(5000), "sqlite")),
+        Column("host", String(500)),
+        Column("schema", String(500)),
+        Column("login", Text()),
+        Column("password", Text()),
+        Column("port", Integer()),
+        Column("is_encrypted", Boolean(), unique=False, default=False),
+        Column("is_extra_encrypted", Boolean(), unique=False, default=False),
+        Column("extra", Text()),
     )
-    host: Mapped[str | None] = Hint.col | Column(String(500))
-    schema: Mapped[str | None] = Hint.col | Column(String(500))
-    login: Mapped[str | None] = Hint.col | Column(Text())
-    _password: Mapped[str | None] = Hint.col | Column("password", Text())
-    port: Mapped[int | None] = Hint.col | Column(Integer())
-    is_encrypted: Mapped[bool | None] = Hint.col | Column(Boolean, unique=False, default=False)
-    is_extra_encrypted: Mapped[bool | None] = Hint.col | Column(Boolean, unique=False, default=False)
-    _extra: Mapped[str | None] = Hint.col | Column("extra", Text())
+    _mapper_args_ = lambda table: {
+        "exclude_properties": ["password", "extra"],
+        "properties": {
+            "_password": table.c.password,
+            "_extra": table.c.extra,
+        },
+    }
+
+    id: Mapped[int]
+    conn_id: Mapped[str]
+    conn_type: Mapped[str]
+    description: Mapped[str | None]
+    host: Mapped[str | None]
+    schema: Mapped[str | None]
+    login: Mapped[str | None]
+    _password: Mapped[str | None]
+    port: Mapped[int | None]
+    is_encrypted: Mapped[bool | None]
+    is_extra_encrypted: Mapped[bool | None]
+    _extra: Mapped[str | None]
 
     def __init__(
         self,

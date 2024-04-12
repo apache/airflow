@@ -27,7 +27,7 @@ from sqlalchemy.orm import declared_attr, reconstructor, synonym
 
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import ensure_secrets_loaded
-from airflow.models.base import ID_LEN, Base, Hint
+from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
 from airflow.secrets.cache import SecretCache
 from airflow.secrets.metastore import MetastoreBackend
@@ -47,13 +47,25 @@ class Variable(Base, LoggingMixin):
     """A generic way to store and retrieve arbitrary content or settings as a simple key/value store."""
 
     __tablename__ = "variable"
-    __NO_DEFAULT_SENTINEL = object()
+    _table_args_ = lambda: (
+        Column("id", Integer, primary_key=True),
+        Column("key", String(ID_LEN), unique=True),
+        Column("val", Text().with_variant(MEDIUMTEXT, "mysql")),
+        Column("description", Text),
+        Column("is_encrypted", Boolean, unique=False, default=False),
+    )
+    _mapper_args_ = lambda table: {
+        "exclude_properties": ["val"],
+        "properties": {"_val": table.c.val},
+    }
 
-    id: Mapped[int] = Hint.col | Column(Integer, primary_key=True)
-    key: Mapped[str | None] = Hint.col | Column(String(ID_LEN), unique=True)
-    _val: Mapped[str | None] = Hint.col | Column("val", Text().with_variant(MEDIUMTEXT, "mysql"))
-    description: Mapped[str | None] = Hint.col | Column(Text)
-    is_encrypted: Mapped[bool | None] = Hint.col | Column(Boolean, unique=False, default=False)
+    id: Mapped[int]
+    key: Mapped[str | None]
+    _val: Mapped[str | None]
+    description: Mapped[str | None]
+    is_encrypted: Mapped[bool | None]
+
+    __NO_DEFAULT_SENTINEL = object()
 
     def __init__(self, key=None, val=None, description=None):
         super().__init__()

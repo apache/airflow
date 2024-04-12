@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Column, ForeignKeyConstraint, String, Text, delete, false, select
 
 from airflow.api_internal.internal_api_call import internal_api_call
-from airflow.models.base import Base, Hint, StringID
+from airflow.models.base import Base, StringID
 from airflow.utils import timezone
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -44,13 +44,12 @@ class DagWarning(Base):
     when parsing DAG and displayed on the Webserver in a flash message.
     """
 
-    dag_id: Mapped[str] = Hint.col | Column(StringID(), primary_key=True)
-    warning_type: Mapped[str] = Hint.col | Column(String(50), primary_key=True)
-    message: Mapped[str] = Hint.col | Column(Text, nullable=False)
-    timestamp: Mapped[datetime] = Hint.col | Column(UtcDateTime, nullable=False, default=timezone.utcnow)
-
     __tablename__ = "dag_warning"
-    __table_args__ = (
+    _table_args_ = lambda: (
+        Column("dag_id", StringID(), primary_key=True),
+        Column("warning_type", String(50), primary_key=True),
+        Column("message", Text(), nullable=False),
+        Column("timestamp", UtcDateTime(), nullable=False, default=timezone.utcnow),
         ForeignKeyConstraint(
             ("dag_id",),
             ["dag.dag_id"],
@@ -58,6 +57,11 @@ class DagWarning(Base):
             ondelete="CASCADE",
         ),
     )
+
+    dag_id: Mapped[str]
+    warning_type: Mapped[str]
+    message: Mapped[str]
+    timestamp: Mapped[datetime]
 
     def __init__(self, dag_id: str, error_type: str, message: str, **kwargs):
         super().__init__(**kwargs)

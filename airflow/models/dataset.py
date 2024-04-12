@@ -36,7 +36,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 
 from airflow.datasets import Dataset
-from airflow.models.base import Base, Hint, StringID
+from airflow.models.base import Base, StringID
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -58,40 +58,48 @@ class DatasetModel(Base):
     :param extra: JSON field for arbitrary extra info
     """
 
-    id: Mapped[int] = Hint.col | Column(Integer, primary_key=True, autoincrement=True)
-    uri: Mapped[str] = Hint.col | Column(
-        String(length=3000).with_variant(
-            String(
-                length=3000,
-                # latin1 allows for more indexed length in mysql
-                # and this field should only be ascii chars
-                collation="latin1_general_cs",
-            ),
-            "mysql",
-        ),
-        nullable=False,
-    )
-    extra: Mapped[Any] = Hint.col | Column(
-        sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}
-    )
-    created_at: Mapped[datetime] = Hint.col | Column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    updated_at: Mapped[datetime] = Hint.col | Column(
-        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
-    )
-    is_orphaned: Mapped[bool] = Hint.col | Column(Boolean, default=False, nullable=False, server_default="0")
-
-    consuming_dags: Mapped[list[DagScheduleDatasetReference]] = Hint.rel | relationship(
-        "DagScheduleDatasetReference", back_populates="dataset"
-    )
-    producing_tasks: Mapped[list[TaskOutletDatasetReference]] = Hint.rel | relationship(
-        "TaskOutletDatasetReference", back_populates="dataset"
-    )
-
     __tablename__ = "dataset"
-    __table_args__ = (
+    _table_args_ = lambda: (
+        Column("id", Integer(), primary_key=True, autoincrement=True),
+        uri := Column(
+            "uri",
+            String(length=3000).with_variant(
+                String(
+                    length=3000,
+                    # latin1 allows for more indexed length in mysql
+                    # and this field should only be ascii chars
+                    collation="latin1_general_cs",
+                ),
+                "mysql",
+            ),
+            nullable=False,
+        ),
+        Column("extra", sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}),
+        Column("created_at", UtcDateTime(), default=timezone.utcnow, nullable=False),
+        Column(
+            "updated_at", UtcDateTime(), default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
+        ),
+        Column("is_orphaned", Boolean(), default=False, nullable=False, server_default="0"),
         Index("idx_uri_unique", uri, unique=True),
         {"sqlite_autoincrement": True},  # ensures PK values not reused
     )
+    _mapper_args_ = lambda: {
+        "properties": {
+            "consuming_dags": relationship("DagScheduleDatasetReference", back_populates="dataset"),
+            "producing_tasks": relationship("TaskOutletDatasetReference", back_populates="dataset"),
+        }
+    }
+
+    id: Mapped[int]
+    uri: Mapped[str]
+    extra: Mapped[Any]
+    created_at: Mapped[datetime]
+    updated_at: Mapped[datetime]
+    is_orphaned: Mapped[bool]
+
+    # relationship
+    consuming_dags: Mapped[list[DagScheduleDatasetReference]]
+    producing_tasks: Mapped[list[TaskOutletDatasetReference]]
 
     @classmethod
     def from_public(cls, obj: Dataset) -> DatasetModel:
@@ -123,27 +131,14 @@ class DatasetModel(Base):
 class DagScheduleDatasetReference(Base):
     """References from a DAG to a dataset of which it is a consumer."""
 
-    dataset_id: Mapped[int] = Hint.col | Column(Integer, primary_key=True, nullable=False)
-    dag_id: Mapped[str] = Hint.col | Column(StringID(), primary_key=True, nullable=False)
-    created_at: Mapped[datetime] = Hint.col | Column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    updated_at: Mapped[datetime] = Hint.col | Column(
-        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
-    )
-
-    dataset: Mapped[DatasetModel | None] = Hint.rel | relationship(
-        "DatasetModel", back_populates="consuming_dags"
-    )
-    queue_records: Mapped[list[DatasetDagRunQueue]] = Hint.rel | relationship(
-        "DatasetDagRunQueue",
-        primaryjoin="""and_(
-            DagScheduleDatasetReference.dataset_id == foreign(DatasetDagRunQueue.dataset_id),
-            DagScheduleDatasetReference.dag_id == foreign(DatasetDagRunQueue.target_dag_id),
-        )""",
-        cascade="all, delete, delete-orphan",
-    )
-
     __tablename__ = "dag_schedule_dataset_reference"
-    __table_args__ = (
+    _table_args_ = lambda: (
+        dataset_id := Column("dataset_id", Integer(), primary_key=True, nullable=False),
+        dag_id := Column("dag_id", StringID(), primary_key=True, nullable=False),
+        Column("created_at", UtcDateTime(), default=timezone.utcnow, nullable=False),
+        Column(
+            "updated_at", UtcDateTime(), default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
+        ),
         PrimaryKeyConstraint(dataset_id, dag_id, name="dsdr_pkey"),
         ForeignKeyConstraint(
             (dataset_id,),
@@ -158,6 +153,28 @@ class DagScheduleDatasetReference(Base):
             ondelete="CASCADE",
         ),
     )
+    _mapper_args_ = lambda: {
+        "properties": {
+            "dataset": relationship("DatasetModel", back_populates="consuming_dags"),
+            "queue_records": relationship(
+                "DatasetDagRunQueue",
+                primaryjoin="""and_(
+                    DagScheduleDatasetReference.dataset_id == foreign(DatasetDagRunQueue.dataset_id),
+                    DagScheduleDatasetReference.dag_id == foreign(DatasetDagRunQueue.target_dag_id),
+                )""",
+                cascade="all, delete, delete-orphan",
+            ),
+        }
+    }
+
+    dataset_id: Mapped[int]
+    dag_id: Mapped[str]
+    created_at: Mapped[datetime]
+    updated_at: Mapped[datetime]
+
+    # relationship
+    dataset: Mapped[DatasetModel | None]
+    queue_records: Mapped[list[DatasetDagRunQueue]]
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
@@ -178,18 +195,15 @@ class DagScheduleDatasetReference(Base):
 class TaskOutletDatasetReference(Base):
     """References from a task to a dataset that it updates / produces."""
 
-    dataset_id: Mapped[int] = Hint.col | Column(Integer, primary_key=True, nullable=False)
-    dag_id: Mapped[str] = Hint.col | Column(StringID(), primary_key=True, nullable=False)
-    task_id: Mapped[str] = Hint.col | Column(StringID(), primary_key=True, nullable=False)
-    created_at: Mapped[datetime] = Hint.col | Column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    updated_at: Mapped[datetime] = Hint.col | Column(
-        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
-    )
-
-    dataset: Mapped[DatasetModel] = Hint.rel | relationship("DatasetModel", back_populates="producing_tasks")
-
     __tablename__ = "task_outlet_dataset_reference"
-    __table_args__ = (
+    _table_args_ = lambda: (
+        dataset_id := Column("dataset_id", Integer(), primary_key=True, nullable=False),
+        dag_id := Column("dag_id", StringID(), primary_key=True, nullable=False),
+        task_id := Column("task_id", StringID(), primary_key=True, nullable=False),
+        Column("created_at", UtcDateTime(), default=timezone.utcnow, nullable=False),
+        Column(
+            "updated_at", UtcDateTime(), default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
+        ),
         ForeignKeyConstraint(
             (dataset_id,),
             ["dataset.id"],
@@ -204,6 +218,18 @@ class TaskOutletDatasetReference(Base):
             ondelete="CASCADE",
         ),
     )
+    _mapper_args_ = lambda: {
+        "properties": {"dataset": relationship("DatasetModel", back_populates="producing_tasks")}
+    }
+
+    dataset_id: Mapped[int]
+    dag_id: Mapped[str]
+    task_id: Mapped[str]
+    created_at: Mapped[datetime]
+    updated_at: Mapped[datetime]
+
+    # relationship
+    dataset: Mapped[DatasetModel]
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
@@ -228,12 +254,11 @@ class TaskOutletDatasetReference(Base):
 class DatasetDagRunQueue(Base):
     """Model for storing dataset events that need processing."""
 
-    dataset_id: Mapped[int] = Hint.col | Column(Integer, primary_key=True, nullable=False)
-    target_dag_id: Mapped[str] = Hint.col | Column(StringID(), primary_key=True, nullable=False)
-    created_at: Mapped[datetime] = Hint.col | Column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    dataset: Mapped[DatasetModel] = Hint.rel | relationship("DatasetModel", viewonly=True)
     __tablename__ = "dataset_dag_run_queue"
-    __table_args__ = (
+    _table_args_ = lambda: (
+        dataset_id := Column("dataset_id", Integer(), primary_key=True, nullable=False),
+        target_dag_id := Column("target_dag_id", StringID(), primary_key=True, nullable=False),
+        Column("created_at", UtcDateTime(), default=timezone.utcnow, nullable=False),
         PrimaryKeyConstraint(dataset_id, target_dag_id, name="datasetdagrunqueue_pkey"),
         ForeignKeyConstraint(
             (dataset_id,),
@@ -248,6 +273,14 @@ class DatasetDagRunQueue(Base):
             ondelete="CASCADE",
         ),
     )
+    _mapper_args_ = lambda: {"properties": {"dataset": relationship("DatasetModel", viewonly=True)}}
+
+    dataset_id: Mapped[int]
+    target_dag_id: Mapped[str]
+    created_at: Mapped[datetime]
+
+    # relationship
+    dataset: Mapped[DatasetModel]
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
@@ -291,60 +324,72 @@ class DatasetEvent(Base):
     if the foreign key object is.
     """
 
-    id: Mapped[int] = Hint.col | Column(Integer, primary_key=True, autoincrement=True)
-    dataset_id: Mapped[int] = Hint.col | Column(Integer, nullable=False)
-    extra: Mapped[Any] = Hint.col | Column(
-        sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}
-    )
-    source_task_id: Mapped[str | None] = Hint.col | Column(StringID(), nullable=True)
-    source_dag_id: Mapped[str | None] = Hint.col | Column(StringID(), nullable=True)
-    source_run_id: Mapped[str | None] = Hint.col | Column(StringID(), nullable=True)
-    source_map_index: Mapped[int | None] = Hint.col | Column(
-        Integer, nullable=True, server_default=text("-1")
-    )
-    timestamp: Mapped[datetime] = Hint.col | Column(UtcDateTime, default=timezone.utcnow, nullable=False)
-
     __tablename__ = "dataset_event"
-    __table_args__ = (
+    _table_args_ = lambda: (
+        Column("id", Integer(), primary_key=True, autoincrement=True),
+        dataset_id := Column("dataset_id", Integer(), nullable=False),
+        Column("extra", sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}),
+        Column("source_task_id", StringID(), nullable=True),
+        Column("source_dag_id", StringID(), nullable=True),
+        Column("source_run_id", StringID(), nullable=True),
+        Column("source_map_index", Integer(), nullable=True, server_default=text("-1")),
+        timestamp := Column("timestamp", UtcDateTime(), default=timezone.utcnow, nullable=False),
         Index("idx_dataset_id_timestamp", dataset_id, timestamp),
         {"sqlite_autoincrement": True},  # ensures PK values not reused
     )
+    _mapper_args_ = lambda: {
+        "properties": {
+            "created_dagruns": relationship(
+                "DagRun",
+                secondary=association_table,
+                backref="consumed_dataset_events",
+            ),
+            "source_task_instance": relationship(
+                "TaskInstance",
+                primaryjoin="""and_(
+                    DatasetEvent.source_dag_id == foreign(TaskInstance.dag_id),
+                    DatasetEvent.source_run_id == foreign(TaskInstance.run_id),
+                    DatasetEvent.source_task_id == foreign(TaskInstance.task_id),
+                    DatasetEvent.source_map_index == foreign(TaskInstance.map_index),
+                )""",
+                viewonly=True,
+                lazy="select",
+                uselist=False,
+            ),
+            "source_dag_run": relationship(
+                "DagRun",
+                primaryjoin="""and_(
+                    DatasetEvent.source_dag_id == foreign(DagRun.dag_id),
+                    DatasetEvent.source_run_id == foreign(DagRun.run_id),
+                )""",
+                viewonly=True,
+                lazy="select",
+                uselist=False,
+            ),
+            "dataset": relationship(
+                DatasetModel,
+                primaryjoin="DatasetEvent.dataset_id == foreign(DatasetModel.id)",
+                viewonly=True,
+                lazy="select",
+                uselist=False,
+            ),
+        }
+    }
 
-    created_dagruns: Mapped[list[DagRun]] = Hint.rel | relationship(
-        "DagRun",
-        secondary=association_table,
-        backref="consumed_dataset_events",
-    )
+    id: Mapped[int]
+    dataset_id: Mapped[int]
+    extra: Mapped[Any]
+    source_task_id: Mapped[str | None]
+    source_dag_id: Mapped[str | None]
+    source_run_id: Mapped[str | None]
+    source_map_index: Mapped[int | None]
+    timestamp: Mapped[datetime]
 
-    source_task_instance: Mapped[TaskInstance] = Hint.rel | relationship(
-        "TaskInstance",
-        primaryjoin="""and_(
-            DatasetEvent.source_dag_id == foreign(TaskInstance.dag_id),
-            DatasetEvent.source_run_id == foreign(TaskInstance.run_id),
-            DatasetEvent.source_task_id == foreign(TaskInstance.task_id),
-            DatasetEvent.source_map_index == foreign(TaskInstance.map_index),
-        )""",
-        viewonly=True,
-        lazy="select",
-        uselist=False,
-    )
-    source_dag_run: Mapped[DagRun] = Hint.rel | relationship(
-        "DagRun",
-        primaryjoin="""and_(
-            DatasetEvent.source_dag_id == foreign(DagRun.dag_id),
-            DatasetEvent.source_run_id == foreign(DagRun.run_id),
-        )""",
-        viewonly=True,
-        lazy="select",
-        uselist=False,
-    )
-    dataset: Mapped[DatasetModel | None] = Hint.rel | relationship(
-        DatasetModel,
-        primaryjoin="DatasetEvent.dataset_id == foreign(DatasetModel.id)",
-        viewonly=True,
-        lazy="select",
-        uselist=False,
-    )
+    # relationship
+    created_dagruns: Mapped[list[DagRun]]
+    source_task_instance: Mapped[TaskInstance]
+    source_dag_run: Mapped[DagRun]
+    dataset: Mapped[DatasetModel | None]
 
     @property
     def uri(self) -> str | None:

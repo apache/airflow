@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any, Collection
 
 from sqlalchemy import CheckConstraint, Column, ForeignKeyConstraint, Integer, String
 
-from airflow.models.base import COLLATION_ARGS, ID_LEN, Hint, TaskInstanceDependencies
+from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.utils.sqlalchemy import ExtendedJSON
 
 if TYPE_CHECKING:
@@ -54,17 +54,14 @@ class TaskMap(TaskInstanceDependencies):
     """
 
     __tablename__ = "task_map"
-
-    # Link to upstream TaskInstance creating this dynamic mapping information.
-    dag_id: Mapped[str] = Hint.col | Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    task_id: Mapped[str] = Hint.col | Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    run_id: Mapped[str] = Hint.col | Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    map_index: Mapped[int] = Hint.col | Column(Integer, primary_key=True)
-
-    length: Mapped[int] = Hint.col | Column(Integer, nullable=False)
-    keys: Mapped[Any] = Hint.col | Column(ExtendedJSON, nullable=True)
-
-    __table_args__ = (
+    _table_args_ = lambda: (
+        # Link to upstream TaskInstance creating this dynamic mapping information.
+        dag_id := Column("dag_id", String(ID_LEN, **COLLATION_ARGS), primary_key=True),
+        task_id := Column("task_id", String(ID_LEN, **COLLATION_ARGS), primary_key=True),
+        run_id := Column("run_id", String(ID_LEN, **COLLATION_ARGS), primary_key=True),
+        map_index := Column("map_index", Integer(), primary_key=True),
+        length := Column("length", Integer(), nullable=False),
+        Column("keys", ExtendedJSON(), nullable=True),
         CheckConstraint(length >= 0, name="task_map_length_not_negative"),
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],
@@ -79,6 +76,13 @@ class TaskMap(TaskInstanceDependencies):
             onupdate="CASCADE",
         ),
     )
+
+    dag_id: Mapped[str]
+    task_id: Mapped[str]
+    run_id: Mapped[str]
+    map_index: Mapped[int]
+    length: Mapped[int]
+    keys: Mapped[Any]
 
     def __init__(
         self,

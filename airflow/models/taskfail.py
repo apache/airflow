@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, text
 from sqlalchemy.orm import relationship
 
-from airflow.models.base import Hint, StringID, TaskInstanceDependencies
+from airflow.models.base import StringID, TaskInstanceDependencies
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
@@ -40,17 +40,15 @@ class TaskFail(TaskInstanceDependencies):
     """TaskFail tracks the failed run durations of each task instance."""
 
     __tablename__ = "task_fail"
-
-    id: Mapped[int] = Hint.col | Column(Integer, primary_key=True)
-    task_id: Mapped[str] = Hint.col | Column(StringID(), nullable=False)
-    dag_id: Mapped[str] = Hint.col | Column(StringID(), nullable=False)
-    run_id: Mapped[str] = Hint.col | Column(StringID(), nullable=False)
-    map_index: Mapped[int] = Hint.col | Column(Integer, nullable=False, server_default=text("-1"))
-    start_date: Mapped[datetime | None] = Hint.col | Column(UtcDateTime)
-    end_date: Mapped[datetime | None] = Hint.col | Column(UtcDateTime)
-    duration: Mapped[int | None] = Hint.col | Column(Integer)
-
-    __table_args__ = (
+    _table_args_ = lambda: (
+        Column("id", Integer, primary_key=True),
+        task_id := Column("task_id", StringID(), nullable=False),
+        dag_id := Column("dag_id", StringID(), nullable=False),
+        run_id := Column("run_id", StringID(), nullable=False),
+        map_index := Column("map_index", Integer(), nullable=False, server_default=text("-1")),
+        Column("start_date", UtcDateTime()),
+        Column("end_date", UtcDateTime()),
+        Column("duration", Integer()),
         Index("idx_task_fail_task_instance", dag_id, task_id, run_id, map_index),
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],
@@ -64,17 +62,32 @@ class TaskFail(TaskInstanceDependencies):
             ondelete="CASCADE",
         ),
     )
+    _mapper_args_ = lambda: {
+        "properties": {
+            # We don't need a DB level FK here, as we already have that to TI (which has one to DR) but by defining
+            # the relationship we can more easily find the execution date for these rows
+            "dag_run": relationship(
+                "DagRun",
+                primaryjoin="""and_(
+                    TaskFail.dag_id == foreign(DagRun.dag_id),
+                    TaskFail.run_id == foreign(DagRun.run_id),
+                )""",
+                viewonly=True,
+            )
+        }
+    }
 
-    # We don't need a DB level FK here, as we already have that to TI (which has one to DR) but by defining
-    # the relationship we can more easily find the execution date for these rows
-    dag_run: Mapped[DagRun | None] = Hint.rel | relationship(
-        "DagRun",
-        primaryjoin="""and_(
-            TaskFail.dag_id == foreign(DagRun.dag_id),
-            TaskFail.run_id == foreign(DagRun.run_id),
-        )""",
-        viewonly=True,
-    )
+    id: Mapped[int]
+    task_id: Mapped[str]
+    dag_id: Mapped[str]
+    run_id: Mapped[str]
+    map_index: Mapped[int]
+    start_date: Mapped[datetime | None]
+    end_date: Mapped[datetime | None]
+    duration: Mapped[int | None]
+
+    # relationship
+    dag_run: Mapped[DagRun | None]
 
     def __init__(self, ti: TaskInstance):
         self.dag_id = ti.dag_id
