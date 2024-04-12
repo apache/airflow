@@ -21,7 +21,7 @@ import json
 from typing import Any, Iterable
 
 import apprise
-from apprise import AppriseConfig, NotifyFormat, NotifyType, common
+from apprise import AppriseConfig, NotifyFormat, NotifyType
 
 from airflow.hooks.base import BaseHook
 
@@ -71,7 +71,7 @@ class AppriseHook(BaseHook):
         title: str | None = None,
         notify_type: NotifyType = NotifyType.INFO,
         body_format: NotifyFormat = NotifyFormat.TEXT,
-        tag: str | Iterable[str] = common.MATCH_ALL_TAG,
+        tag: str | Iterable[str] = 'all',
         attach: str | Iterable[str] | None = None,
         interpret_escapes: bool | None = None,
         config: AppriseConfig | None = None,
