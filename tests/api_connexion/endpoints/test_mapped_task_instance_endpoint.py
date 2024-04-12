@@ -345,6 +345,8 @@ class TestGetMappedTaskInstances(TestMappedTaskInstanceEndpoint):
 
     @provide_session
     def test_mapped_task_instances_state_order(self, one_task_with_many_mapped_tis, session):
+        session.commit()
+        session.close()
         response = self.client.get(
             "/api/v1/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped"
             "?order_by=-state",
