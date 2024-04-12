@@ -165,6 +165,7 @@ class TestBigQueryInsertJobTrigger:
         classpath, kwargs = insert_job_trigger.serialize()
         assert classpath == "airflow.providers.google.cloud.triggers.bigquery.BigQueryInsertJobTrigger"
         assert kwargs == {
+            "cancel_on_kill": True,
             "conn_id": TEST_CONN_ID,
             "job_id": TEST_JOB_ID,
             "project_id": TEST_GCP_PROJECT_ID,
