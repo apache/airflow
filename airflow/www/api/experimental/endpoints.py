@@ -135,7 +135,9 @@ def trigger_dag(dag_id):
         log.info("User %s created %s", g.user, dr)
 
     response = jsonify(
-        message=f"Created {dr}", execution_date=dr.execution_date.isoformat(), run_id=dr.run_id
+        message=f"Created {dr}",
+        execution_date="" if dr is None else dr.execution_date.isoformat(),
+        run_id="" if dr is None else dr.run_id,
     )
     return response
 
@@ -230,9 +232,9 @@ def dag_paused(dag_id, paused):
     """(Un)pause a dag."""
     is_paused = bool(paused == "true")
 
-    models.DagModel.get_dagmodel(dag_id).set_is_paused(
-        is_paused=is_paused,
-    )
+    dag_model = models.DagModel.get_dagmodel(dag_id)
+    if dag_model:
+        dag_model.set_is_paused(is_paused=is_paused)
 
     return jsonify({"response": "ok"})
 
@@ -241,7 +243,8 @@ def dag_paused(dag_id, paused):
 @requires_authentication
 def dag_is_paused(dag_id):
     """Get paused state of a dag."""
-    is_paused = models.DagModel.get_dagmodel(dag_id).is_paused
+    dag_model = models.DagModel.get_dagmodel(dag_id)
+    is_paused = dag_model is not None and dag_model.is_paused
 
     return jsonify({"is_paused": is_paused})
 
@@ -334,7 +337,7 @@ def latest_dag_runs():
                 {
                     "dag_id": dagrun.dag_id,
                     "execution_date": dagrun.execution_date.isoformat(),
-                    "start_date": ((dagrun.start_date or "") and dagrun.start_date.isoformat()),
+                    "start_date": "" if dagrun.start_date is None else dagrun.start_date.isoformat(),
                     "dag_run_url": url_for(
                         "Airflow.graph", dag_id=dagrun.dag_id, execution_date=dagrun.execution_date
                     ),

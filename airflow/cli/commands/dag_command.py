@@ -27,7 +27,7 @@ import signal
 import subprocess
 import sys
 import warnings
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import delete, select
 
@@ -525,15 +525,16 @@ def dag_report(args) -> None:
 @suppress_logs_and_warning
 @providers_configuration_loaded
 @provide_session
-def dag_list_jobs(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> None:
+def dag_list_jobs(args: Any, dag: DAG | None = None, session: Session = NEW_SESSION) -> None:
     """List latest n jobs."""
     queries = []
+    dag_or_dagmodel: DAG | DagModel | None
     if dag:
         args.dag_id = dag.dag_id
     if args.dag_id:
-        dag = DagModel.get_dagmodel(args.dag_id, session=session)
+        dag_or_dagmodel = DagModel.get_dagmodel(args.dag_id, session=session)
 
-        if not dag:
+        if not dag_or_dagmodel:
             raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
         queries.append(Job.dag_id == args.dag_id)
 
@@ -558,12 +559,13 @@ def dag_list_jobs(args, dag: DAG | None = None, session: Session = NEW_SESSION) 
 @provide_session
 def dag_list_dag_runs(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> None:
     """List dag runs for a given DAG."""
+    dag_or_dagmodel: DAG | DagModel | None
     if dag:
         args.dag_id = dag.dag_id
     else:
-        dag = DagModel.get_dagmodel(args.dag_id, session=session)
+        dag_or_dagmodel = DagModel.get_dagmodel(args.dag_id, session=session)
 
-        if not dag:
+        if not dag_or_dagmodel:
             raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
 
     state = args.state.lower() if args.state else None

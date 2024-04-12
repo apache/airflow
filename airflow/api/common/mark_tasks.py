@@ -19,7 +19,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Collection, Iterable, Iterator, NamedTuple
+from typing import TYPE_CHECKING, Any, Collection, Iterable, Iterator, NamedTuple
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import lazyload
@@ -90,7 +90,7 @@ def set_state(
     downstream: bool = False,
     future: bool = False,
     past: bool = False,
-    state: TaskInstanceState = TaskInstanceState.SUCCESS,
+    state: TaskInstanceState | str = TaskInstanceState.SUCCESS,
     commit: bool = False,
     session: SASession = NEW_SESSION,
 ) -> list[TaskInstance]:
@@ -143,6 +143,9 @@ def set_state(
 
     confirmed_infos = list(_iter_existing_dag_run_infos(dag, dag_run_ids, session=session))
     confirmed_dates = [info.logical_date for info in confirmed_infos]
+
+    if isinstance(state, str):
+        state = TaskInstanceState(state)
 
     sub_dag_run_ids = list(
         _iter_subdag_run_ids(dag, session, DagRunState(state), task_ids, commit, confirmed_infos),
@@ -310,6 +313,8 @@ def get_execution_dates(
     else:
         start_date = execution_date
     start_date = execution_date if not past else start_date
+
+    dates: list[Any]
     if not dag.timetable.can_be_scheduled:
         # If the DAG never schedules, need to look at existing DagRun if the user wants future or
         # past runs.

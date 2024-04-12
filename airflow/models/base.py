@@ -51,8 +51,8 @@ def _get_schema():
     return SQL_ALCHEMY_SCHEMA
 
 
-metadata = MetaData(schema=_get_schema(), naming_convention=naming_convention)
-mapper_registry = registry(metadata=metadata)
+metadata: MetaData = MetaData(schema=_get_schema(), naming_convention=naming_convention)
+mapper_registry: registry = registry(metadata=metadata)
 _sentinel = object()
 
 
@@ -137,7 +137,8 @@ def _resolve_table_args(table_class: type[Base]) -> tuple[Any, ...]:
     if not issubclass(table_class, Base):
         raise TypeError("not sqlalchemy table class")
 
-    table_args: Callable[[], tuple[Any, ...]] | tuple[Any, ...] | None
+    table_args: Any
+    # Callable[[], tuple[Any, ...]] | tuple[Any, ...] | None
     table_args_queue: deque[Any] = deque()
     table_args_mapping: dict[str, Any] = {}
 
@@ -177,10 +178,11 @@ def _resolve_table_arg_elements(element: Any, registries: tuple[set[str], set[st
     elif isinstance(element, Constraint):
         registry = registries[2]
     else:
-        raise NotImplementedError
+        error_msg = f"invalid table arg type: {type(element).__name__}"
+        raise TypeError(error_msg)
 
     if not element.name:
-        raise NotImplementedError
+        raise ValueError("table arg needs name")
 
     if element.name in registry:
         return None
@@ -192,7 +194,8 @@ def _resolve_mapper_args(mapper_class: type[Base]) -> dict[str, Any]:
     if not issubclass(mapper_class, Base):
         raise TypeError("not sqlalchemy mapper class")
 
-    mapper_args: Callable[[], Mapping[str, Any]] | Mapping[str, Any] | None
+    mapper_args: Any
+    # Callable[[], Mapping[str, Any]] | Mapping[str, Any] | None
     mapper_args_mapping: dict[str, Any] = {}
 
     for mapper_upper_class in mapper_class.mro():

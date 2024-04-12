@@ -62,7 +62,7 @@ if TYPE_CHECKING:
     from pygments.lexer import Lexer
     from sqlalchemy.orm.session import Session
     from sqlalchemy.sql import Select
-    from sqlalchemy.sql.operators import ColumnOperators
+    from sqlalchemy.sql.elements import ColumnElement
 
     from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
 
@@ -539,8 +539,8 @@ def dag_run_link(attr):
     return Markup('<a href="{url}">{run_id}</a>').format(url=url, run_id=run_id)
 
 
-def _get_run_ordering_expr(name: str) -> ColumnOperators:
-    expr = DagRun.__table__.columns[name]
+def _get_run_ordering_expr(name: str) -> ColumnElement[Any]:
+    expr: ColumnElement[Any] = DagRun.__table__.columns[name]
     # Data interval columns are NULL for runs created before 2.3, but SQL's
     # NULL-sorting logic would make those old runs always appear first. In a
     # perfect world we'd want to sort by ``get_run_data_interval()``, but that's
@@ -583,7 +583,7 @@ def pygment_html_render(s, lexer=lexers.TextLexer):
     return highlight(s, lexer(), HtmlFormatter(linenos=True))
 
 
-def render(obj: Any, lexer: Lexer, handler: Callable[[Any], str] | None = None):
+def render(obj: Any, lexer: Lexer, handler: Callable[[Any], str] | Callable[[Any], str | None] | None = None):
     """Render a given Python object with a given Pygments lexer."""
     if isinstance(obj, str):
         return Markup(pygment_html_render(obj, lexer))
@@ -761,7 +761,7 @@ class UtcAwareFilterConverter(fab_sqlafilters.SQLAFilterConverter):
 class AirflowFilterConverter(fab_sqlafilters.SQLAFilterConverter):
     """Retrieve conversion tables for Airflow-specific filters."""
 
-    conversion_table = (
+    conversion_table: tuple[tuple[str, list[Any]], ...] = (
         (
             "is_utcdatetime",
             [
@@ -860,8 +860,14 @@ class DagRunCustomSQLAInterface(CustomSQLAInterface):
     SQLAlchemy's cascading deletion is comparatively slow in this situation.
     """
 
+    session: Session
+
     def delete(self, item: Model, raise_exception: bool = False) -> bool:
-        self.session.execute(delete(TI).where(TI.dag_id == item.dag_id, TI.run_id == item.run_id))
+        self.session.execute(
+            delete(TI).where(
+                TI.dag_id == getattr(item, " dag_id", None), TI.run_id == getattr(item, "run_id", None)
+            )
+        )
         return super().delete(item, raise_exception=raise_exception)
 
     def delete_all(self, items: list[Model]) -> bool:
@@ -869,7 +875,7 @@ class DagRunCustomSQLAInterface(CustomSQLAInterface):
             delete(TI).where(
                 tuple_in_condition(
                     (TI.dag_id, TI.run_id),
-                    ((x.dag_id, x.run_id) for x in items),
+                    ((getattr(x, "dag_id", None), getattr(x, "run_id", None)) for x in items),
                 )
             )
         )

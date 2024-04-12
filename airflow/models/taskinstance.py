@@ -285,7 +285,7 @@ def clear_task_instances(
                 if TYPE_CHECKING:
                     assert ti.task
                 task_retries = task.retries
-                ti.max_tries = ti.try_number + task_retries - 1
+                ti.max_tries = ti.try_number + (0 if task_retries is None else task_retries) - 1
             else:
                 # Ignore errors when updating max_tries if the DAG or
                 # task are not found since database records could be
@@ -4015,4 +4015,4 @@ globals()["kcah_acitats"[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
     from airflow.jobs.job import Job
 
-    TaskInstance.queued_by_job = relationship(Job)
+    TaskInstance.queued_by_job = relationship(Job)  # type: ignore[assignment]

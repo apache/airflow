@@ -54,7 +54,7 @@ class Client(api_client.Client):
                 "start_date": dag_run.start_date,
                 "state": dag_run.state,
             }
-        return dag_run
+        return None
 
     def delete_dag(self, dag_id):
         count = delete_dag.delete_dag(dag_id)

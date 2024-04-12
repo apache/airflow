@@ -109,7 +109,7 @@ def _get_dag_run(
     session: Session | None = ...,
 ) -> tuple[DagRun | DagRunPydantic, bool]: ...
 @overload
-def _get_dag_run(
+def _get_dag_run(  # type: ignore[overload-overlap]
     *,
     dag: DAG,
     create_if_necessary: Literal["memory"],
@@ -117,7 +117,7 @@ def _get_dag_run(
     session: Session | None = ...,
 ) -> tuple[DagRun | DagRunPydantic, bool]: ...
 @overload
-def _get_dag_run(
+def _get_dag_run(  # type: ignore[overload-overlap]
     *,
     dag: DAG,
     create_if_necessary: Literal["db"],
@@ -125,7 +125,7 @@ def _get_dag_run(
     session: Session | None = ...,
 ) -> tuple[DagRun | DagRunPydantic, bool]: ...
 @overload
-def _get_dag_run(
+def _get_dag_run(  # type: ignore[overload-overlap]
     *,
     dag: DAG,
     create_if_necessary: CreateIfNecessary,
@@ -133,7 +133,7 @@ def _get_dag_run(
     session: Session | None = ...,
 ) -> tuple[DagRun | DagRunPydantic, bool]: ...
 @overload
-def _get_dag_run(
+def _get_dag_run(  # type: ignore[overload-overlap]
     *,
     dag: DAG,
     create_if_necessary: Any,

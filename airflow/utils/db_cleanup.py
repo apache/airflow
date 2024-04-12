@@ -48,8 +48,8 @@ from airflow.utils.session import NEW_SESSION, provide_session
 if TYPE_CHECKING:
     from pendulum import DateTime
     from sqlalchemy.orm import Query, Session
+    from sqlalchemy.sql import TableClause
 
-    from airflow.models import Base
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +80,7 @@ class _TableConfig:
 
     def __post_init__(self):
         self.recency_column = column(self.recency_column_name)
-        self.orm_model: Base = table(
+        self.orm_model: TableClause = table(
             self.table_name, *[column(x) for x in self.extra_columns or []], self.recency_column
         )
 

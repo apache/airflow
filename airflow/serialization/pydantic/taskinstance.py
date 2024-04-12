@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Iterable, Optional
+from typing import TYPE_CHECKING, Any, Iterable, Optional, cast
 
 from typing_extensions import Annotated
 
@@ -42,6 +42,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models.dagrun import DagRun
+    from airflow.serialization.pydantic.dataset import DatasetEventPydantic
     from airflow.utils.context import Context
     from airflow.utils.pydantic import ValidationInfo
     from airflow.utils.state import DagRunState
@@ -187,7 +188,29 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
 
         :return: Pydantic serialized version of DagRun
         """
-        return TaskInstance._get_dagrun(dag_id=self.dag_id, run_id=self.run_id, session=session)
+        dag_run = TaskInstance._get_dagrun(dag_id=self.dag_id, run_id=self.run_id, session=session)
+        return DagRunPydantic(
+            id=dag_run.id,
+            dag_id=dag_run.dag_id,
+            queued_at=dag_run.queued_at,
+            execution_date=dag_run.execution_date,
+            start_date=dag_run.start_date,
+            end_date=dag_run.end_date,
+            state=dag_run.state or "",
+            run_id=dag_run.run_id,
+            creating_job_id=dag_run.creating_job_id,
+            external_trigger=True if dag_run.external_trigger is None else dag_run.external_trigger,
+            run_type=dag_run.run_type,
+            conf=dag_run.conf,
+            data_interval_start=dag_run.data_interval_start,
+            data_interval_end=dag_run.data_interval_end,
+            last_scheduling_decision=dag_run.last_scheduling_decision,
+            dag_hash=dag_run.dag_hash,
+            updated_at=dag_run.updated_at,
+            dag=dag_run.dag,
+            consumed_dataset_events=cast("list[DatasetEventPydantic]", dag_run.consumed_dataset_events),
+            log_template_id=dag_run.log_template_id,
+        )
 
     def _execute_task(self, context, task_orig):
         """

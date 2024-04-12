@@ -129,7 +129,7 @@ class DAGDetailSchema(DAGSchema):
         return []
 
     @staticmethod
-    def get_owners(obj: DAG):
+    def get_owners(obj: DAG):  # type: ignore[override]
         """Convert owners attribute to DAG representation."""
         if not getattr(obj, "owner", None):
             return []

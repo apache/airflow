@@ -361,21 +361,23 @@ class _ExpandInputRef(NamedTuple):
         return create_expand_input(self.key, value)
 
 
-_orm_to_model = {
+_orm_to_model: dict[Any, Any] = {
     Job: JobPydantic,
     TaskInstance: TaskInstancePydantic,
     DagRun: DagRunPydantic,
     DagModel: DagModelPydantic,
     LogTemplate: LogTemplatePydantic,
 }
-_type_to_class = {
+_type_to_class: dict[DAT, list[Any]] = {
     DAT.BASE_JOB: [JobPydantic, Job],
     DAT.TASK_INSTANCE: [TaskInstancePydantic, TaskInstance],
     DAT.DAG_RUN: [DagRunPydantic, DagRun],
     DAT.DAG_MODEL: [DagModelPydantic, DagModel],
     DAT.LOG_TEMPLATE: [LogTemplatePydantic, LogTemplate],
 }
-_class_to_type = {cls_: type_ for type_, classes in _type_to_class.items() for cls_ in classes}
+_class_to_type: dict[Any, DAT] = {
+    cls_: type_ for type_, classes in _type_to_class.items() for cls_ in classes
+}
 
 
 class BaseSerialization:

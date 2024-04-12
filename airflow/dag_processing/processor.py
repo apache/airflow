@@ -412,7 +412,7 @@ class DagFileProcessor(LoggingMixin):
         self.dag_ids = dag_ids
         self._log = log
         self._dag_directory = dag_directory
-        self.dag_warnings: set[tuple[str, str]] = set()
+        self.dag_warnings: set[DagWarning] = set()
 
     @classmethod
     @internal_api_call

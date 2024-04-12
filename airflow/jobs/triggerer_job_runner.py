@@ -295,12 +295,14 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
 
     @classmethod
     @provide_session
-    def is_needed(cls, session) -> bool:
+    def is_needed(cls, session: Session | None = None) -> bool:
         """
         Test if the triggerer job needs to be run (i.e., if there are triggers in the trigger table).
 
         This is used for the warning boxes in the UI.
         """
+        # provide_session
+        session = cast("Session", session)
         return session.execute(select(func.count(Trigger.id))).scalar_one() > 0
 
     def on_kill(self):

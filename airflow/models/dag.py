@@ -262,7 +262,7 @@ def get_last_dagrun(dag_id, session, include_externally_triggered=False):
 
 
 def get_dataset_triggered_next_run_info(
-    dag_ids: list[str], *, session: Session
+    dag_ids: Container[str], *, session: Session
 ) -> dict[str, dict[str, int | str]]:
     """
     Get next run info for a list of dag_ids.
@@ -1153,8 +1153,8 @@ class DAG(LoggingMixin):
 
     def iter_dagrun_infos_between(
         self,
-        earliest: pendulum.DateTime | None,
-        latest: pendulum.DateTime,
+        earliest: pendulum.DateTime | datetime | None,
+        latest: pendulum.DateTime | datetime,
         *,
         align: bool = True,
     ) -> Iterable[DagRunInfo]:
@@ -1637,7 +1637,7 @@ class DAG(LoggingMixin):
         execution_date: datetime | None = None,
         run_id: str | None = None,
         session: Session | None = NEW_SESSION,
-    ) -> DagRun | DagRunPydantic:
+    ) -> DagRun:
         """
         Return the dag run for a given execution date or run_id if it exists, otherwise none.
 
@@ -1664,7 +1664,7 @@ class DAG(LoggingMixin):
         execution_date: datetime | None = None,
         run_id: str | None = None,
         session: Session = NEW_SESSION,
-    ) -> DagRun | DagRunPydantic:
+    ) -> DagRun:
         return DAG.fetch_dagrun(
             dag_id=self.dag_id, execution_date=execution_date, run_id=run_id, session=session
         )
@@ -2328,6 +2328,66 @@ class DAG(LoggingMixin):
             query = query.where(DagRun.execution_date <= end_date)
         session.execute(query.values(state=state).execution_options(synchronize_session="fetch"))
 
+    @overload
+    def clear(  # type: ignore[overload-overlap]
+        self,
+        task_ids: Collection[str | tuple[str, int]] | None = ...,
+        start_date: datetime | None = ...,
+        end_date: datetime | None = ...,
+        only_failed: bool = ...,
+        only_running: bool = ...,
+        confirm_prompt: bool = ...,
+        include_subdags: bool = ...,
+        include_parentdag: bool = ...,
+        dag_run_state: DagRunState = ...,
+        dry_run: Literal[True] = ...,
+        session: Session = ...,
+        get_tis: bool = ...,
+        recursion_depth: int = ...,
+        max_recursion_depth: int | None = ...,
+        dag_bag: DagBag | None = ...,
+        exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = ...,
+    ) -> list[TaskInstance]: ...
+    @overload
+    def clear(  # type: ignore[overload-overlap]
+        self,
+        task_ids: Collection[str | tuple[str, int]] | None = ...,
+        start_date: datetime | None = ...,
+        end_date: datetime | None = ...,
+        only_failed: bool = ...,
+        only_running: bool = ...,
+        confirm_prompt: bool = ...,
+        include_subdags: bool = ...,
+        include_parentdag: bool = ...,
+        dag_run_state: DagRunState = ...,
+        dry_run: Literal[False] = ...,
+        session: Session = ...,
+        get_tis: bool = ...,
+        recursion_depth: int = ...,
+        max_recursion_depth: int | None = ...,
+        dag_bag: DagBag | None = ...,
+        exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = ...,
+    ) -> int: ...
+    @overload
+    def clear(  # type: ignore[overload-overlap]
+        self,
+        task_ids: Collection[str | tuple[str, int]] | None = ...,
+        start_date: datetime | None = ...,
+        end_date: datetime | None = ...,
+        only_failed: bool = ...,
+        only_running: bool = ...,
+        confirm_prompt: bool = ...,
+        include_subdags: bool = ...,
+        include_parentdag: bool = ...,
+        dag_run_state: DagRunState = ...,
+        dry_run: bool = ...,
+        session: Session = ...,
+        get_tis: bool = ...,
+        recursion_depth: int = ...,
+        max_recursion_depth: int | None = ...,
+        dag_bag: DagBag | None = ...,
+        exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = ...,
+    ) -> int | list[TaskInstance]: ...
     @provide_session
     def clear(
         self,
@@ -2347,7 +2407,7 @@ class DAG(LoggingMixin):
         max_recursion_depth: int | None = None,
         dag_bag: DagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
-    ) -> int | Iterable[TaskInstance]:
+    ) -> int | list[TaskInstance]:
         """
         Clear a set of task instances associated with the current dag for a specified date range.
 
@@ -3272,15 +3332,16 @@ class DAG(LoggingMixin):
                 for d in dataset_outlets:
                     outlet_references[(task.dag_id, task.task_id)].add(d.uri)
                     outlet_datasets[DatasetModel.from_public(d)] = None
-        all_datasets = outlet_datasets
+        all_datasets: dict[DatasetModel, None] = outlet_datasets
         all_datasets.update(input_datasets)
 
         # store datasets
         stored_datasets: dict[str, DatasetModel] = {}
         new_datasets: list[DatasetModel] = []
-        for dataset in all_datasets:
+        loop_dataset: DatasetModel
+        for loop_dataset in all_datasets:
             stored_dataset = session.scalar(
-                select(DatasetModel).where(DatasetModel.uri == dataset.uri).limit(1)
+                select(DatasetModel).where(DatasetModel.uri == loop_dataset.uri).limit(1)
             )
             if stored_dataset:
                 # Some datasets may have been previously unreferenced, and therefore orphaned by the
@@ -3289,7 +3350,7 @@ class DAG(LoggingMixin):
                 stored_dataset.is_orphaned = expression.false()
                 stored_datasets[stored_dataset.uri] = stored_dataset
             else:
-                new_datasets.append(dataset)
+                new_datasets.append(loop_dataset)
         dataset_manager.create_datasets(dataset_models=new_datasets, session=session)
         stored_datasets.update({dataset.uri: dataset for dataset in new_datasets})
 
@@ -3819,7 +3880,9 @@ class DagModel(Base):
 
     @staticmethod
     @provide_session
-    def get_dagmodel(dag_id: str, session: Session = NEW_SESSION) -> DagModel | None:
+    def get_dagmodel(dag_id: str, session: Session | None = NEW_SESSION) -> DagModel | None:
+        # provide_session
+        session = cast("Session", session)
         return session.get(
             DagModel,
             dag_id,
@@ -4204,7 +4267,7 @@ globals()["kcah_acitats"[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
     from airflow.models.serialized_dag import SerializedDagModel
 
-    DagModel.serialized_dag = relationship(SerializedDagModel)
+    DagModel.serialized_dag = relationship(SerializedDagModel)  # type: ignore[method-assign,assignment]
     """:sphinx-autoapi-skip:"""
 
 

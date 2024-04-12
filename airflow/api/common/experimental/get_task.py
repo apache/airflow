@@ -26,11 +26,11 @@ from deprecated import deprecated
 from airflow.api.common.experimental import check_and_get_dag
 
 if TYPE_CHECKING:
-    from airflow.models import TaskInstance
+    from airflow.models.operator import Operator
 
 
 @deprecated(reason="Use DAG().get_task", version="2.2.4")
-def get_task(dag_id: str, task_id: str) -> TaskInstance:
+def get_task(dag_id: str, task_id: str) -> Operator:
     """Return the task object identified by the given dag_id and task_id."""
     dag = check_and_get_dag(dag_id, task_id)
 

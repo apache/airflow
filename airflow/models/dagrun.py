@@ -28,8 +28,8 @@ from typing import (
     Iterable,
     Iterator,
     NamedTuple,
+    NoReturn,
     Sequence,
-    TypeVar,
     cast,
     overload,
 )
@@ -88,17 +88,16 @@ if TYPE_CHECKING:
     from sqlalchemy.engine.result import ScalarResult
     from sqlalchemy.orm import Mapped, Session
 
+    from airflow.jobs.job import Job
     from airflow.models.dag import DAG, DagModel
     from airflow.models.dataset import DatasetEvent
     from airflow.models.operator import Operator
     from airflow.models.serialized_dag import SerializedDagModel
     from airflow.serialization.pydantic.dag_run import DagRunPydantic
-    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
     from airflow.serialization.pydantic.tasklog import LogTemplatePydantic
     from airflow.typing_compat import Literal
     from airflow.utils.types import ArgNotSet
 
-    CreatedTaskObject = TypeVar("CreatedTaskObject", "dict[str, Any]", TI)
 
 RUN_ID_REGEX = r"^(?:manual|scheduled|dataset_triggered)__(?:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00)$"
 
@@ -248,10 +247,13 @@ class DagRun(Base, LoggingMixin):
     if TYPE_CHECKING:
         # airflow.models.dataset.DatasetEvent.created_dagruns
         @property
-        def consumed_dataset_events(self) -> Sequence[DatasetEvent]: ...
+        def consumed_dataset_events(self) -> list[DatasetEvent]: ...
         # airflow.models.serialized_dag.SerializedDagModel
         @property
         def serialized_dag(self) -> SerializedDagModel: ...
+        @property
+        # airflow.jobs.job.Job
+        def creating_job(self) -> Job: ...
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
@@ -696,7 +698,7 @@ class DagRun(Base, LoggingMixin):
         session: Session | None = NEW_SESSION,
         *,
         map_index: int = -1,
-    ) -> TI | TaskInstancePydantic | None:
+    ) -> TI | None:
         """
         Return the task instance specified by task_id for this dag run.
 
@@ -719,7 +721,7 @@ class DagRun(Base, LoggingMixin):
         task_id: str,
         session: Session | None = NEW_SESSION,
         map_index: int = -1,
-    ) -> TI | TaskInstancePydantic | None:
+    ) -> TI | None:
         """
         Return the task instance specified by task_id for this dag run.
 
@@ -1373,14 +1375,20 @@ class DagRun(Base, LoggingMixin):
         created_counts: dict[str, int],
         ti_mutation_hook: Callable,
         hook_is_noop: Literal[True, False],
-    ) -> Callable[[Operator, Iterable[int]], Iterator[dict[str, Any]] | Iterator[TI]]: ...
+    ) -> (
+        Callable[[Operator, Iterable[int]], Iterator[dict[str, Any]]]
+        | Callable[[Operator, Iterable[int]], Iterator[TI]]
+    ): ...
 
     def _get_task_creator(
         self,
         created_counts: dict[str, int],
         ti_mutation_hook: Callable,
         hook_is_noop: Literal[True, False],
-    ) -> Callable[[Operator, Iterable[int]], Iterator[dict[str, Any]] | Iterator[TI]]:
+    ) -> (
+        Callable[[Operator, Iterable[int]], Iterator[dict[str, Any]]]
+        | Callable[[Operator, Iterable[int]], Iterator[TI]]
+    ):
         """
         Get the task creator function.
 
@@ -1398,27 +1406,52 @@ class DagRun(Base, LoggingMixin):
                 for map_index in indexes:
                     yield TI.insert_mapping(self.run_id, task, map_index=map_index)
 
-            creator = create_ti_mapping
+            return create_ti_mapping
 
-        else:
+        def create_ti(task: Operator, indexes: Iterable[int]) -> Iterator[TI]:
+            for map_index in indexes:
+                ti = TI(task, run_id=self.run_id, map_index=map_index)
+                ti_mutation_hook(ti)
+                created_counts[ti.operator or ""] += 1
+                yield ti
 
-            def create_ti(task: Operator, indexes: Iterable[int]) -> Iterator[TI]:
-                for map_index in indexes:
-                    ti = TI(task, run_id=self.run_id, map_index=map_index)
-                    ti_mutation_hook(ti)
-                    created_counts[ti.operator or ""] += 1
-                    yield ti
+        return create_ti
 
-            creator = create_ti
-        return creator
+    @overload
+    def _create_tasks(
+        self,
+        tasks: Iterable[Operator],
+        task_creator: Callable[[Operator, Iterable[int]], Iterator[TI]],
+        *,
+        session: Session,
+    ) -> Iterator[TI]: ...
+
+    @overload
+    def _create_tasks(
+        self,
+        tasks: Iterable[Operator],
+        task_creator: Callable[[Operator, Iterable[int]], Iterator[dict[str, Any]]],
+        *,
+        session: Session,
+    ) -> Iterator[dict[str, Any]]: ...
+
+    @overload
+    def _create_tasks(
+        self,
+        tasks: Iterable[Operator],
+        task_creator: Callable[[Operator, Iterable[int]], Iterator[dict[str, Any]]]
+        | Callable[[Operator, Iterable[int]], Iterator[TI]],
+        *,
+        session: Session,
+    ) -> Iterator[dict[str, Any]] | Iterator[TI]: ...
 
     def _create_tasks(
         self,
         tasks: Iterable[Operator],
-        task_creator: Callable[[Operator, Iterable[int]], Iterator[CreatedTaskObject]],
+        task_creator: Callable[[Operator, Iterable[int]], Iterator[Any]],
         *,
         session: Session,
-    ) -> Iterator[CreatedTaskObject]:
+    ) -> Iterator[Any]:
         """
         Create missing tasks -- and expand any MappedOperator that _only_ have literals as input.
 
@@ -1440,6 +1473,46 @@ class DagRun(Base, LoggingMixin):
                     map_indexes = (-1,)
             yield from task_creator(task, map_indexes)
 
+    @overload
+    def _create_task_instances(
+        self,
+        dag_id: str,
+        tasks: Iterator[TI],
+        created_counts: dict[str, int],
+        hook_is_noop: Literal[True],
+        *,
+        session: Session,
+    ) -> NoReturn: ...
+    @overload
+    def _create_task_instances(
+        self,
+        dag_id: str,
+        tasks: Iterator[dict[str, Any]],
+        created_counts: dict[str, int],
+        hook_is_noop: Literal[True],
+        *,
+        session: Session,
+    ) -> None: ...
+    @overload
+    def _create_task_instances(
+        self,
+        dag_id: str,
+        tasks: Iterator[dict[str, Any]] | Iterator[TI],
+        created_counts: dict[str, int],
+        hook_is_noop: Literal[False],
+        *,
+        session: Session,
+    ) -> None: ...
+    @overload
+    def _create_task_instances(
+        self,
+        dag_id: str,
+        tasks: Iterator[dict[str, Any]] | Iterator[TI],
+        created_counts: dict[str, int],
+        hook_is_noop: bool,
+        *,
+        session: Session,
+    ) -> None: ...
     def _create_task_instances(
         self,
         dag_id: str,
@@ -1465,6 +1538,7 @@ class DagRun(Base, LoggingMixin):
         run_id = self.run_id
         try:
             if hook_is_noop:
+                tasks = cast("Iterator[dict[str, Any]]", tasks)
                 session.bulk_insert_mappings(TI, tuple(tasks))
             else:
                 session.bulk_save_objects(tuple(tasks))

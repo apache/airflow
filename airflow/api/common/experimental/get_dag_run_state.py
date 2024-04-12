@@ -38,7 +38,6 @@ def get_dag_run_state(dag_id: str, execution_date: datetime) -> dict[str, str]:
     :return: Dictionary storing state of the object
     """
     dag = check_and_get_dag(dag_id=dag_id)
-
     dagrun = check_and_get_dagrun(dag, execution_date)
 
-    return {"state": dagrun.get_state()}
+    return {"state": dagrun.get_state() or ""}

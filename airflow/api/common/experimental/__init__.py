@@ -28,9 +28,10 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from airflow.models import DagRun
+    from airflow.models.dag import DAG
 
 
-def check_and_get_dag(dag_id: str, task_id: str | None = None) -> DagModel:
+def check_and_get_dag(dag_id: str, task_id: str | None = None) -> DAG:
     """Check DAG existence and in case it is specified that Task exists."""
     dag_model = DagModel.get_current(dag_id)
     if dag_model is None:
@@ -47,7 +48,7 @@ def check_and_get_dag(dag_id: str, task_id: str | None = None) -> DagModel:
     return dag
 
 
-def check_and_get_dagrun(dag: DagModel, execution_date: datetime) -> DagRun:
+def check_and_get_dagrun(dag: DAG, execution_date: datetime) -> DagRun:
     """Get DagRun object and check that it exists."""
     dagrun = dag.get_dagrun(execution_date=execution_date)
     if not dagrun:
