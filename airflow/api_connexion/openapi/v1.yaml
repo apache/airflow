@@ -1367,6 +1367,10 @@ paths:
       responses:
         "204":
           description: Success.
+          content:
+            text/html:
+               schema:
+                 type: string
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -2020,7 +2024,7 @@ paths:
                 properties:
                   content:
                     type: string
-            plain/text:
+            text/plain:
               schema:
                 type: string
 
