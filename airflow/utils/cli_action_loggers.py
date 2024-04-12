@@ -171,9 +171,9 @@ def _default_action_log_internal(
         error_is_ok = e.args and any(x in e.args[0] for x in expected)
         if not error_is_ok:
             logger.warning("Failed to log action %s", e)
+        session.rollback()
     except Exception as e:
         logger.warning("Failed to log action %s", e)
-    finally:
         session.rollback()
 
 
