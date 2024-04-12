@@ -47,7 +47,6 @@ import FilterBar from "./nav/FilterBar";
 import LegendRow from "./nav/LegendRow";
 import useToggleGroups from "./useToggleGroups";
 import keyboardShortcutIdentifier from "./keyboardShortcutIdentifier";
-import { DagRunSelectionContext, RUN_ID } from "./useSelection";
 
 const detailsPanelKey = "hideDetailsPanel";
 const minPanelWidth = 300;
@@ -74,7 +73,7 @@ const headerHeight =
     10
   ) || 0;
 
-const MainInContext = () => {
+const Main = () => {
   const {
     data: { groups },
     isLoading,
@@ -316,17 +315,6 @@ const MainInContext = () => {
         keyboardShortcutIdentifier={keyboardShortcutIdentifier}
       />
     </Box>
-  );
-};
-
-const Main = () => {
-  const [searchParams] = useSearchParams();
-  const [firstRunIdSetByUrl] = useState(searchParams.get(RUN_ID));
-
-  return (
-    <DagRunSelectionContext.Provider value={firstRunIdSetByUrl}>
-      <MainInContext />
-    </DagRunSelectionContext.Provider>
   );
 };
 

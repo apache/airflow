@@ -33,9 +33,9 @@ import useFilters, {
   FILTER_UPSTREAM_PARAM,
   ROOT_PARAM,
 } from "src/dag/useFilters";
-import type { Task, DagRun, RunOrdering } from "src/types";
+import type { Task, DagRun, RunOrdering, API } from "src/types";
 import { camelCase } from "lodash";
-import useSelection, { RUN_ID } from "src/dag/useSelection";
+import useSelection from "src/dag/useSelection";
 
 const DAG_ID_PARAM = "dag_id";
 
@@ -80,9 +80,12 @@ const useGridData = () => {
       filterDownstream,
       filterUpstream,
     },
+    onBaseDateChange,
   } = useFilters();
-  const { firstRunIdSetByUrl } = useSelection();
-
+  const {
+    onSelect,
+    selected: { taskId, runId },
+  } = useSelection();
   const query = useQuery(
     [
       "gridData",
@@ -93,7 +96,7 @@ const useGridData = () => {
       root,
       filterUpstream,
       filterDownstream,
-      firstRunIdSetByUrl,
+      runId,
     ],
     async () => {
       const params = {
@@ -105,11 +108,28 @@ const useGridData = () => {
         [NUM_RUNS_PARAM]: numRuns,
         [RUN_TYPE_PARAM]: runType,
         [RUN_STATE_PARAM]: runState,
-        [RUN_ID]: firstRunIdSetByUrl || "",
       };
       const response = await axios.get<AxiosResponse, GridData>(gridDataUrl, {
         params,
       });
+      if (runId && !response.dagRuns.find((dr) => dr.runId === runId)) {
+        const dagRunUrl = getMetaValue("dag_run_url")
+          .replace("__DAG_ID__", dagId)
+          .replace("__DAG_RUN_ID__", runId);
+
+        // If the run id cannot be found in the response, try fetching it to see if its real and then adjust the base date filter
+        try {
+          const selectedRun = await axios.get<AxiosResponse, API.DAGRun>(
+            dagRunUrl
+          );
+          if (selectedRun?.executionDate) {
+            onBaseDateChange(selectedRun.executionDate);
+          }
+          // otherwise the run_id isn't valid and we should unselect it
+        } catch (e) {
+          onSelect({ taskId });
+        }
+      }
       // turn off auto refresh if there are no active runs
       if (!areActiveRuns(response.dagRuns)) stopRefresh();
       return response;
