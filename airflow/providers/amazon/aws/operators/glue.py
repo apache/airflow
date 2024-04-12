@@ -143,7 +143,10 @@ class GlueJobOperator(BaseOperator):
             s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
             script_name = os.path.basename(self.script_location)
             s3_hook.load_file(
-                self.script_location, self.s3_artifacts_prefix + script_name, bucket_name=self.s3_bucket
+                self.script_location,
+                self.s3_artifacts_prefix + script_name,
+                bucket_name=self.s3_bucket,
+                replace=True,
             )
             s3_script_location = f"s3://{self.s3_bucket}/{self.s3_artifacts_prefix}{script_name}"
         else:
