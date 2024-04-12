@@ -296,7 +296,7 @@ def _apply_range_filter(query: Select, key: ClauseElement, value_range: tuple[T,
 @provide_session
 def get_task_instances(
     *,
-    limit: int,
+    limit: int | None = None,
     dag_id: str | None = None,
     dag_run_id: str | None = None,
     execution_date_gte: str | None = None,

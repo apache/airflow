@@ -64,7 +64,7 @@ def get_event_logs(
     included_events: str | None = None,
     before: str | None = None,
     after: str | None = None,
-    limit: int,
+    limit: int | None = None,
     offset: int | None = None,
     order_by: str = "event_log_id",
     session: Session = NEW_SESSION,

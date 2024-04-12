@@ -82,7 +82,7 @@ def get_dataset(*, uri: str, session: Session = NEW_SESSION) -> APIResponse:
 @provide_session
 def get_datasets(
     *,
-    limit: int,
+    limit: int | None = None,
     offset: int = 0,
     uri_pattern: str | None = None,
     dag_ids: str | None = None,
@@ -113,11 +113,11 @@ def get_datasets(
 
 
 @security.requires_access_dataset("GET")
-@provide_session
 @format_parameters({"limit": check_limit})
+@provide_session
 def get_dataset_events(
     *,
-    limit: int,
+    limit: int | None = None,
     offset: int = 0,
     order_by: str = "timestamp",
     dataset_id: int | None = None,

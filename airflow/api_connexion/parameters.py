@@ -41,7 +41,7 @@ def validate_istimezone(value: datetime) -> None:
         raise BadRequest("Invalid datetime format", detail="Naive datetime is disallowed")
 
 
-def format_datetime(value: str) -> datetime:
+def format_datetime(value: str | None) -> datetime | None:
     """
     Format datetime objects.
 
@@ -50,6 +50,8 @@ def format_datetime(value: str) -> datetime:
 
     This should only be used within connection views because it raises 400
     """
+    if value is None:
+        return None
     value = value.strip()
     if value[-1] != "Z":
         value = value.replace(" ", "+")
@@ -59,7 +61,7 @@ def format_datetime(value: str) -> datetime:
         raise BadRequest("Incorrect datetime argument", detail=str(err))
 
 
-def check_limit(value: int) -> int:
+def check_limit(value: int | None) -> int:
     """
     Check the limit does not exceed configured value.
 
@@ -68,7 +70,8 @@ def check_limit(value: int) -> int:
     """
     max_val = conf.getint("api", "maximum_page_limit")  # user configured max page limit
     fallback = conf.getint("api", "fallback_page_limit")
-
+    if value is None:
+        return fallback
     if value > max_val:
         log.warning(
             "The limit param value %s passed in API exceeds the configured maximum page limit %s",
@@ -99,8 +102,9 @@ def format_parameters(params_formatters: dict[str, Callable[[Any], Any]]) -> Cal
         @wraps(func)
         def wrapped_function(*args, **kwargs):
             for key, formatter in params_formatters.items():
-                if key in kwargs:
-                    kwargs[key] = formatter(kwargs[key])
+                value = formatter(kwargs.get(key))
+                if value:
+                    kwargs[key] = value
             return func(*args, **kwargs)
 
         return cast(T, wrapped_function)
