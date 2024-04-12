@@ -77,7 +77,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
         task_id := Column("task_id", StringID(), primary_key=True),
         run_id := Column("run_id", StringID(), primary_key=True),
         map_index := Column("map_index", Integer(), primary_key=True, server_default=text("-1")),
-        Column("redered_fields", sqlalchemy_jsonfield.JSONField(json=json), nullable=False),
+        Column("rendered_fields", sqlalchemy_jsonfield.JSONField(json=json), nullable=False),
         Column("k8s_pod_yaml", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
         PrimaryKeyConstraint(
             "dag_id",
