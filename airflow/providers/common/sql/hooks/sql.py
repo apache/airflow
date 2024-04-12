@@ -594,7 +594,7 @@ class DbApiHook(BaseHook):
                             conn.commit()
                             self.log.info("Loaded %s rows into %s so far", i, table)
                     conn.commit()
-        self.log.info("Done loading. Loaded a total of %s rows into %s", len(rows), table)
+        self.log.info("Done loading. Loaded a total of %s rows into %s", len(list(rows)), table)
 
     @classmethod
     def _serialize_cells(cls, row, conn=None):
