@@ -177,9 +177,6 @@
 - tests/models/test_dagbag.py::TestDagBag::test_load_subdags
 - tests/models/test_dagbag.py::TestDagBag::test_skip_cycle_dags
 - tests/models/test_mappedoperator.py::test_expand_mapped_task_instance_with_named_index
-- tests/models/test_pool.py::TestPool::test_default_pool_open_slots
-- tests/models/test_pool.py::TestPool::test_infinite_slots
-- tests/models/test_pool.py::TestPool::test_open_slots_including_deferred
 - tests/models/test_skipmixin.py::TestSkipMixin::test_mapped_tasks_skip_all_except
 - tests/models/test_skipmixin.py::TestSkipMixin::test_raise_exception_on_not_accepted_branch_task_ids_type
 - tests/models/test_skipmixin.py::TestSkipMixin::test_raise_exception_on_not_accepted_iterable_branch_task_ids_type
