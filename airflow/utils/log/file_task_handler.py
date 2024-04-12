@@ -145,7 +145,8 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance | TaskInstancePydantic, sessio
 
     Will raise exception if no TI is found in the database.
     """
-    from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstance import TaskInstance, _get_private_try_number
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
     if isinstance(ti, TaskInstance):
         return ti
@@ -159,11 +160,13 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance | TaskInstancePydantic, sessio
         )
         .one_or_none()
     )
-    if isinstance(val, TaskInstance):
-        val._try_number = ti.try_number
-        return val
-    else:
+    if not val:
         raise AirflowException(f"Could not find TaskInstance for {ti}")
+    if isinstance(ti, TaskInstancePydantic):
+        val.try_number = _get_private_try_number(task_instance=ti)
+    else:  # TaskInstanceKey
+        val.try_number = ti.try_number
+    return val
 
 
 class FileTaskHandler(logging.Handler):
