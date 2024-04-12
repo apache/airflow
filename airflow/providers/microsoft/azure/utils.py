@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import warnings
 from functools import partial, wraps
+from urllib.parse import urlparse, urlunparse
 
 from azure.core.pipeline import PipelineContext, PipelineRequest
 from azure.core.pipeline.policies import BearerTokenCredentialPolicy
@@ -171,3 +172,36 @@ class AzureIdentityCredentialAdapter(BasicTokenAuthentication):
     def signed_session(self, azure_session=None):
         self.set_token()
         return super().signed_session(azure_session)
+
+
+def parse_blob_account_url(host: str | None, login: str | None) -> str:
+    account_url = host if host else f"https://{login}.blob.core.windows.net/"
+
+    parsed_url = urlparse(account_url)
+
+    # if there's no netloc then user provided the DNS name without the https:// prefix.
+    if parsed_url.scheme == "":
+        account_url = "https://" + account_url
+        parsed_url = urlparse(account_url)
+
+    netloc = parsed_url.netloc
+    if "." not in netloc:
+        # if there's no netloc and no dots in the path, then user only
+        # provided the Active Directory ID, not the full URL or DNS name
+        netloc = f"{login}.blob.core.windows.net/"
+
+    # Now enforce 3 to 23 character limit on account name
+    # https://learn.microsoft.com/en-us/azure/storage/common/storage-account-overview#storage-account-name
+    host_components = netloc.split(".")
+    host_components[0] = host_components[0][:24]
+    netloc = ".".join(host_components)
+
+    url_components = [
+        parsed_url.scheme,
+        netloc,
+        parsed_url.path,
+        parsed_url.params,
+        parsed_url.query,
+        parsed_url.fragment,
+    ]
+    return urlunparse(url_components)
