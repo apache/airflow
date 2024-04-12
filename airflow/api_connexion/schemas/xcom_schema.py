@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import NamedTuple
+from typing import Iterable, NamedTuple
 
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
@@ -49,7 +49,7 @@ class XComSchema(XComCollectionItemSchema):
 class XComCollection(NamedTuple):
     """List of XComs with meta."""
 
-    xcom_entries: list[XCom]
+    xcom_entries: Iterable[XCom]
     total_entries: int
 
 
