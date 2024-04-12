@@ -17,13 +17,12 @@
 from __future__ import annotations
 
 import asyncio
-from contextlib import closing, contextmanager
+from contextlib import contextmanager
 from copy import deepcopy
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Iterable
 from unittest.mock import patch
 
-import pytest
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 
 from airflow.exceptions import TaskDeferred
@@ -92,39 +91,33 @@ class Base:
         return events
 
     def run_trigger(self, trigger: BaseTrigger) -> list[TriggerEvent]:
-        return self.run_async(self._run_tigger(trigger))
-
-    def run_async(self, future: Any) -> Any:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-        with closing(loop):
-            return loop.run_until_complete(future)
+        return asyncio.run(self._run_tigger(trigger))
 
     def execute_operator(self, operator: Operator) -> tuple[Any, Any]:
         task_instance = MockedTaskInstance(task=operator, run_id="run_id", state=TaskInstanceState.RUNNING)
         context = {"ti": task_instance}
+        return asyncio.run(self.deferrable_operator(context, operator))
+
+    async def deferrable_operator(self, context, operator):
         result = None
         triggered_events = []
+        try:
+            result = operator.execute(context=context)
+        except TaskDeferred as deferred:
+            task = deferred
 
-        with pytest.raises(TaskDeferred) as deferred:
-            operator.execute(context=context)
+            while task:
+                events = await self._run_tigger(task.trigger)
 
-        task = deferred.value
+                if not events:
+                    break
 
-        while task:
-            events = self.run_trigger(task.trigger)
+                triggered_events.extend(deepcopy(events))
 
-            if not events:
-                break
-
-            triggered_events.extend(deepcopy(events))
-
-            try:
-                method = getattr(operator, deferred.value.method_name)
-                result = method(context=context, event=next(iter(events)).payload)
-                task = None
-            except TaskDeferred as exception:
-                task = exception
-
+                try:
+                    method = getattr(operator, task.method_name)
+                    result = method(context=context, event=next(iter(events)).payload)
+                    task = None
+                except TaskDeferred as exception:
+                    task = exception
         return result, triggered_events

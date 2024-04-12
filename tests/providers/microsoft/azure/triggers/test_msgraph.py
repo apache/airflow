@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import json
 import locale
 from base64 import b64decode, b64encode
@@ -126,12 +127,12 @@ class TestMSGraphTrigger(Base):
             }
 
 
-class TestResponseHandler(Base):
+class TestResponseHandler:
     def test_handle_response_async(self):
         users = load_json("resources", "users.json")
         response = mock_json_response(200, users)
 
-        actual = self.run_async(
+        actual = asyncio.run(
             CallableResponseHandler(lambda response, error_map: response.json()).handle_response_async(
                 response, None
             )
