@@ -1198,7 +1198,7 @@ def clear_lru_cache():
 @pytest.fixture(autouse=True)
 def refuse_to_run_test_from_wrongly_named_files(request: pytest.FixtureRequest):
     filepath = request.node.path
-    is_system_test: bool = "tests/system/" in os.fspath(filepath.parent)
+    is_system_test: bool = "tests/system/" in os.fspath(filepath)
     test_name = request.node.name
     if request.node.cls:
         test_name = f"{request.node.cls.__name__}.{test_name}"

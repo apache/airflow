@@ -51,7 +51,14 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     rootdir = config.rootpath
     for item in items:
         rel_path = item.path.relative_to(rootdir)
+
+        # Provider system tests
         match = re.match(".+/system/providers/([^/]+)", str(rel_path))
         if match:
             provider = match.group(1)
             item.add_marker(pytest.mark.system(provider))
+
+        # Core system tests
+        match = re.match(".+/system/[^/]+", str(rel_path))
+        if match:
+            item.add_marker(pytest.mark.system("core"))

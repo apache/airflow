@@ -175,6 +175,8 @@ jobs:
             breeze testing tests --test-type "All-Quarantined" || true
           elif [[ "${{ inputs.test-scope }}" == "ARM collection" ]]; then
             breeze testing tests --collect-only --remove-arm-packages
+          elif [[ "${{ inputs.test-scope }}" == "System" ]]; then
+            breeze testing tests tests/system/example_empty.py --system core
           else
             echo "Unknown test scope: ${{ inputs.test-scope }}"
             exit 1
