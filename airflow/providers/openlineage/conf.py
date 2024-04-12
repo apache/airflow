@@ -87,6 +87,19 @@ def custom_extractors() -> set[str]:
 
 
 @cache
+def custom_facet_functions() -> set[str]:
+    """[openlineage] custom_facet_functions."""
+    option = conf.get(_CONFIG_SECTION, "custom_facet_functions", fallback="")
+    if not option:
+        option = os.getenv("OPENLINEAGE_CUSTOM_FACET_FUNCTIONS", "")
+    return set(
+        custom_facet_function.strip()
+        for custom_facet_function in option.split(";")
+        if custom_facet_function.strip()
+    )
+
+
+@cache
 def namespace() -> str:
     """[openlineage] namespace."""
     option = conf.get(_CONFIG_SECTION, "namespace", fallback="")

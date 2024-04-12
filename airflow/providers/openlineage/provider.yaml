@@ -105,6 +105,15 @@ config:
         example: full.path.to.ExtractorClass;full.path.to.AnotherExtractorClass
         default: ~
         version_added: ~
+      custom_facet_functions:
+        description: |
+          Register functions that return custom facets to append to the run facet. This config takes a
+          string of semicolon delimited full import paths to the functions. The functions should accept
+          a TaskInstance input argument and should return a dictionary.
+        type: string
+        example: full.path.to.custom_facet_function;full.path.to.another_custom_facet_function
+        default: ''
+        version_added: ~
       config_path:
         description: |
           Specify the path to the YAML configuration file.

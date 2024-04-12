@@ -79,11 +79,20 @@ def get_job_name(task: TaskInstance) -> str:
 
 
 def get_custom_facets(task_instance: TaskInstance | None = None) -> dict[str, Any]:
+    from airflow.providers.openlineage.extractors.manager import try_import_from_string
+
     custom_facets = {}
     # check for -1 comes from SmartSensor compatibility with dynamic task mapping
     # this comes from Airflow code
     if hasattr(task_instance, "map_index") and getattr(task_instance, "map_index") != -1:
         custom_facets["airflow_mappedTask"] = AirflowMappedTaskRunFacet.from_task_instance(task_instance)
+
+    # Append custom run facets by executing the custom_facet_functions.
+    for custom_facet_func in conf.custom_facet_functions():
+        func: type[function] = try_import_from_string(custom_facet_func)
+        facet = func(task_instance) if func else None
+        if facet and isinstance(facet, dict):
+            custom_facets.update(facet)
     return custom_facets
 
 
