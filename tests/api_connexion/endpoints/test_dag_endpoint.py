@@ -317,6 +317,24 @@ class TestGetDag(TestDagEndpoint):
         )
         assert response.status_code == 400, f"Current code: {response.status_code}"
 
+    @pytest.mark.parametrize(
+        "set_auto_role_public, expected_status_code",
+        (("Public", 403), ("Admin", 200)),
+        indirect=["set_auto_role_public"],
+    )
+    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, session):
+        dag_model = DagModel(
+            dag_id="TEST_DAG_1",
+            fileloc="/tmp/dag_1.py",
+            schedule_interval=None,
+            is_paused=False,
+        )
+        session.add(dag_model)
+        session.commit()
+
+        response = self.client.get("/api/v1/dags/TEST_DAG_1")
+        assert response.status_code == expected_status_code
+
 
 class TestGetDagDetails(TestDagEndpoint):
     def test_should_respond_200(self, url_safe_serializer):
@@ -727,6 +745,18 @@ class TestGetDagDetails(TestDagEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400, f"Current code: {response.status_code}"
+
+    @pytest.mark.parametrize(
+        "set_auto_role_public, expected_status_code",
+        (("Public", 403), ("Admin", 200)),
+        indirect=["set_auto_role_public"],
+    )
+    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, url_safe_serializer):
+        self._create_dag_model_for_details_endpoint(self.dag_id)
+        url_safe_serializer.dumps("/tmp/dag.py")
+        response = self.client.get(f"/api/v1/dags/{self.dag_id}/details")
+
+        assert response.status_code == expected_status_code
 
 
 class TestGetDags(TestDagEndpoint):
@@ -1259,6 +1289,22 @@ class TestGetDags(TestDagEndpoint):
 
         assert response.status_code == 400, f"Current code: {response.status_code}"
 
+    @pytest.mark.parametrize(
+        "set_auto_role_public, expected_status_code",
+        (("Public", 403), ("Admin", 200)),
+        indirect=["set_auto_role_public"],
+    )
+    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, session):
+        self._create_dag_models(2)
+        self._create_deactivated_dag()
+
+        dags_query = session.query(DagModel).filter(~DagModel.is_subdag)
+        assert len(dags_query.all()) == 3
+
+        response = self.client.get("api/v1/dags")
+
+        assert response.status_code == expected_status_code
+
 
 class TestPatchDag(TestDagEndpoint):
     def test_should_respond_200_on_patch_is_paused(self, url_safe_serializer, session):
@@ -1484,6 +1530,24 @@ class TestPatchDag(TestDagEndpoint):
         )
 
         assert response.status_code == 403
+
+    @pytest.mark.parametrize(
+        "set_auto_role_public, expected_status_code",
+        (("Public", 403), ("Admin", 200)),
+        indirect=["set_auto_role_public"],
+    )
+    def test_with_auth_role_public_set(
+        self, set_auto_role_public, expected_status_code, url_safe_serializer, session
+    ):
+        url_safe_serializer.dumps("/tmp/dag_1.py")
+        dag_model = self._create_dag_model()
+        payload = {"is_paused": False}
+        response = self.client.patch(
+            f"/api/v1/dags/{dag_model.dag_id}",
+            json=payload,
+        )
+
+        assert response.status_code == expected_status_code
 
 
 class TestPatchDags(TestDagEndpoint):
@@ -2291,6 +2355,29 @@ class TestPatchDags(TestDagEndpoint):
         )
         assert response.status_code == 400
 
+    @pytest.mark.parametrize(
+        "set_auto_role_public, expected_status_code",
+        (("Public", 403), ("Admin", 200)),
+        indirect=["set_auto_role_public"],
+    )
+    def test_with_auth_role_public_set(
+        self, set_auto_role_public, expected_status_code, session, url_safe_serializer
+    ):
+        url_safe_serializer.dumps("/tmp/dag_1.py")
+        url_safe_serializer.dumps("/tmp/dag_2.py")
+        self._create_dag_models(2)
+        self._create_deactivated_dag()
+
+        dags_query = session.query(DagModel).filter(~DagModel.is_subdag)
+        assert len(dags_query.all()) == 3
+
+        response = self.client.patch(
+            "/api/v1/dags?dag_id_pattern=~",
+            json={"is_paused": False},
+        )
+
+        assert response.status_code == expected_status_code
+
 
 class TestDeleteDagEndpoint(TestDagEndpoint):
     def test_that_dag_can_be_deleted(self, session):
@@ -2342,3 +2429,15 @@ class TestDeleteDagEndpoint(TestDagEndpoint):
             environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403
+
+    @pytest.mark.parametrize(
+        "set_auto_role_public, expected_status_code",
+        (("Public", 403), ("Admin", 204)),
+        indirect=["set_auto_role_public"],
+    )
+    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code):
+        self._create_dag_models(1)
+
+        response = self.client.delete("/api/v1/dags/TEST_DAG_1")
+
+        assert response.status_code == expected_status_code
