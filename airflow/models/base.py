@@ -208,3 +208,6 @@ def _resolve_mapper_args(mapper_class: type[Base]) -> dict[str, Any]:
         mapper_args_mapping.update(mapper_args)
 
     return mapper_args_mapping
+
+def _validate_mapper_properties(mapper_class: type[Base]) -> None:
+    mapper_class.__annotations__.keys()

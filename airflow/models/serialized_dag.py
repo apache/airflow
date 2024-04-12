@@ -76,7 +76,7 @@ class SerializedDagModel(Base):
     __tablename__ = "serialized_dag"
     _table_args_ = lambda: (
         Column("dag_id", String(ID_LEN), primary_key=True),
-        Column("filelog", String(2000), nullable=False),
+        Column("fileloc", String(2000), nullable=False),
         # The max length of fileloc exceeds the limit of indexing.
         fileloc_hash := Column("fileloc_hash", BigInteger(), nullable=False),
         Column("data", sqlalchemy_jsonfield.JSONField(json=json), key="_data", nullable=True),
@@ -87,7 +87,6 @@ class SerializedDagModel(Base):
         Index("idx_fileloc_hash", fileloc_hash, unique=False),
     )
     _mapper_args_ = lambda: {
-        "exclude_properties": ["_data_compressed"],
         "properties": {
             "dag_runs": relationship(
                 DagRun,
