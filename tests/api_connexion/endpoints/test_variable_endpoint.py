@@ -84,21 +84,19 @@ class TestVariableEndpoint:
 
 
 class TestDeleteVariable(TestVariableEndpoint):
-    ## TODO fix this test
-    # This test end up infinite loop(?) Cannot go to the next testing.
-    # def test_should_delete_variable(self, session):
-    #     Variable.set("delete_var1", 1)
-    #     # make sure variable is added
-    #     response = self.client.get("/api/v1/variables/delete_var1", headers={"REMOTE_USER": "test"})
-    #     assert response.status_code == 200
+    def test_should_delete_variable(self, session):
+        Variable.set("delete_var1", 1)
+        # make sure variable is added
+        response = self.client.get("/api/v1/variables/delete_var1", headers={"REMOTE_USER": "test"})
+        assert response.status_code == 200
 
-    #     response = self.client.delete("/api/v1/variables/delete_var1", headers={"REMOTE_USER": "test"})
-    #     assert response.status_code == 204
+        response = self.client.delete("/api/v1/variables/delete_var1", headers={"REMOTE_USER": "test"})
+        assert response.status_code == 204
 
-    #     # make sure variable is deleted
-    #     response = self.client.get("/api/v1/variables/delete_var1", headers={"REMOTE_USER": "test"})
-    #     assert response.status_code == 404
-    #     _check_last_log(session, dag_id=None, event="variable.delete", execution_date=None)
+        # make sure variable is deleted
+        response = self.client.get("/api/v1/variables/delete_var1", headers={"REMOTE_USER": "test"})
+        assert response.status_code == 404
+        _check_last_log(session, dag_id=None, event="api.variable.delete", execution_date=None)
 
     def test_should_respond_404_if_key_does_not_exist(self):
         response = self.client.delete(
@@ -272,7 +270,7 @@ class TestPatchVariable(TestVariableEndpoint):
         )
         assert response.status_code == 200
         assert response.json() == {"key": "var1", "value": "foo", "description": "after_update"}
-        _check_last_log(session, dag_id=None, event="variable.edit", execution_date=None)
+        _check_last_log(session, dag_id=None, event="api.variable.edit", execution_date=None)
 
     def test_should_reject_invalid_update(self):
         response = self.client.patch(
