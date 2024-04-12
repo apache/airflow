@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+from unittest import mock
 from unittest.mock import MagicMock, call, patch
 
 import apprise
@@ -92,7 +93,19 @@ class TestAppriseHook:
                 ]
             )
 
-    def test_notify(self):
+    @mock.patch(
+        "airflow.providers.apprise.hooks.apprise.AppriseHook.get_connection",
+        return_value=Connection(
+            conn_id="apprise",
+            extra={
+                "config": [
+                    {"path": "http://some_path_that_dont_exist/", "tag": "p0"},
+                    {"path": "http://some_other_path_that_dont_exist/", "tag": "p1"},
+                ]
+            },
+        ),
+    )
+    def test_notify(self, connection):
         apprise_obj = apprise.Apprise()
         apprise_obj.notify = MagicMock()
         apprise_obj.add = MagicMock()
