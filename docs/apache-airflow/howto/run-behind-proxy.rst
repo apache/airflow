@@ -62,7 +62,6 @@ Your reverse proxy (ex: nginx) should be configured as follow:
           server_name lab.mycompany.com;
 
           location /myorg/flower/ {
-              rewrite ^/myorg/flower/(.*)$ /$1 break;  # remove prefix from http header
               proxy_pass http://localhost:5555;
               proxy_set_header Host $http_host;
               proxy_redirect off;
