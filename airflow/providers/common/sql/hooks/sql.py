@@ -221,7 +221,7 @@ class DbApiHook(BaseHook):
         """
         qualname = f"{self.__class__.__module__}.{self.__class__.__qualname__}"
         if qualname != "airflow.providers.common.sql.hooks.sql.DbApiHook":
-            msg = f"{qualname!r} not implements/supports built SQLAlchemy URI."
+            msg = f"{qualname!r} does not implement/support built SQLAlchemy URL."
         else:
             msg = "`sqlalchemy_url` property should be implemented in the provider subclass."
         raise NotImplementedError(msg)
