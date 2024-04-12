@@ -53,12 +53,12 @@ def test_session_inaccessible_after_logout(user_client):
     # logs out
     resp = user_client.get("/logout/")
     assert resp.status_code == 200
-    assert resp.url.raw_path == b"/login/?next=http%3A%2F%2Ftestserver%2Fhome"
+    assert resp.url.raw_path == b"/login/?next=http://testserver/home"
 
     # Try to access /home with the session cookie from earlier call
     user_client.get("/home", cookies={"session": session_cookie.value})
     assert resp.status_code == 200
-    assert resp.url.raw_path == b"/login/?next=http%3A%2F%2Ftestserver%2Fhome"
+    assert resp.url.raw_path == b"/login/?next=http://testserver/home"
 
 
 def test_invalid_session_backend_option():
