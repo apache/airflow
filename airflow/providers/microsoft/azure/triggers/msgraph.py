@@ -135,7 +135,6 @@ class MSGraphTrigger(BaseTrigger):
     """
 
     DEFAULT_HEADERS = {"Accept": "application/json;q=1"}
-    cached_connections: dict[str:RequestAdapter] = {}
     template_fields: Sequence[str] = (
         "url",
         "response_type",
@@ -215,14 +214,7 @@ class MSGraphTrigger(BaseTrigger):
         )
 
     def get_conn(self) -> RequestAdapter:
-        connection = self.cached_connections.get(self.conn_id)
-        if not connection:
-            self.log.info("No cached connection found for '%s'", self.conn_id)
-            connection = self.hook.get_conn()
-            self.cached_connections[self.conn_id] = connection
-        else:
-            self.log.info("Cached connection found for '%s'", self.conn_id)
-        return connection
+        return self.hook.get_conn()
 
     @property
     def conn_id(self) -> str:
