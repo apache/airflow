@@ -4169,7 +4169,11 @@ export interface operations {
     };
     responses: {
       /** Success. */
-      204: never;
+      204: {
+        content: {
+          "text/html": string;
+        };
+      };
       400: components["responses"]["BadRequest"];
       401: components["responses"]["Unauthenticated"];
       403: components["responses"]["PermissionDenied"];
