@@ -48,6 +48,22 @@ Below is an example of using this operator to get a Sharepoint site pages.
     :start-after: [START howto_operator_graph_site_pages]
     :end-before: [END howto_operator_graph_site_pages]
 
+Below is an example of using this operator to get PowerBI workspaces.
+
+.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_powerbi.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_operator_powerbi_workspaces]
+    :end-before: [END howto_operator_powerbi_workspaces]
+
+Below is an example of using this operator to get PowerBI workspaces info.
+
+.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_powerbi.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_operator_powerbi_workspaces_info]
+    :end-before: [END howto_operator_powerbi_workspaces_info]
+
 
 Reference
 ---------
@@ -55,3 +71,4 @@ Reference
 For further information, look at:
 
 * `Use the Microsoft Graph API <https://learn.microsoft.com/en-us/graph/use-the-api/>`__
+* `Using the Power BI REST APIs <https://learn.microsoft.com/en-us/rest/api/power-bi/>`__
