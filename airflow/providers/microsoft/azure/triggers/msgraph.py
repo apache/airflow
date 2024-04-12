@@ -142,7 +142,7 @@ class MSGraphTrigger(BaseTrigger):
         "url_template",
         "query_parameters",
         "headers",
-        "content",
+        "data",
         "conn_id",
     )
 

@@ -78,7 +78,16 @@ class MSGraphAsyncOperator(BaseOperator):
         Bytes will be base64 encoded into a string, so it can be stored as an XCom.
     """
 
-    template_fields: Sequence[str] = ("url", "conn_id")
+    template_fields: Sequence[str] = (
+        "url",
+        "response_type",
+        "path_parameters",
+        "url_template",
+        "query_parameters",
+        "headers",
+        "data",
+        "conn_id",
+    )
 
     def __init__(
         self,

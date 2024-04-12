@@ -126,6 +126,12 @@ class TestMSGraphTrigger(Base):
                 "serializer": "airflow.providers.microsoft.azure.triggers.msgraph.ResponseSerializer",
             }
 
+    def test_template_fields(self):
+        trigger = MSGraphTrigger("users/delta", response_type="bytes", conn_id="msgraph_api")
+
+        for template_field in MSGraphTrigger.template_fields:
+            getattr(trigger, template_field)
+
 
 class TestResponseHandler:
     def test_handle_response_async(self):

@@ -39,3 +39,13 @@ class TestMSGraphSensor(Base):
 
             assert isinstance(actual, str)
             assert actual == "0a1b1bf3-37de-48f7-9863-ed4cda97a9ef"
+
+    def test_template_fields(self):
+        sensor = MSGraphSensor(
+            task_id="check_workspaces_status",
+            conn_id="powerbi",
+            url="myorg/admin/workspaces/scanStatus/{scanId}",
+        )
+
+        for template_field in MSGraphSensor.template_fields:
+            getattr(sensor, template_field)

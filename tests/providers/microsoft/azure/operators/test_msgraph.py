@@ -117,3 +117,13 @@ class TestMSGraphAsyncOperator(Base):
             assert events[0].payload["status"] == "success"
             assert events[0].payload["type"] == "builtins.bytes"
             assert events[0].payload["response"] == base64_encoded_content
+
+    def test_template_fields(self):
+        operator = MSGraphAsyncOperator(
+            task_id="drive_item_content",
+            conn_id="msgraph_api",
+            url="users/delta",
+        )
+
+        for template_field in MSGraphAsyncOperator.template_fields:
+            getattr(operator, template_field)
