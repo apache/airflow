@@ -216,11 +216,13 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
     @provide_session
     @retry_db_transaction
-    def write(self, session: Session = NEW_SESSION):
+    def write(self, session: Session | None = None):
         """Write instance to database.
 
         :param session: SqlAlchemy Session
         """
+        # provide_session
+        session = cast("Session", session)
         session.merge(self)
 
     @classmethod

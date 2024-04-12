@@ -33,7 +33,7 @@ from airflow.secrets.cache import SecretCache
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import provide_session
 
 if TYPE_CHECKING:
     from cryptography.fernet import MultiFernet
@@ -176,7 +176,7 @@ class Variable(Base, LoggingMixin):
         value: Any,
         description: str | None = None,
         serialize_json: bool = False,
-        session: Session = NEW_SESSION,
+        session: Session | None = None,
     ) -> None:
         """Set a value for an Airflow Variable with a given Key.
 
@@ -187,6 +187,8 @@ class Variable(Base, LoggingMixin):
         :param description: Description of the Variable
         :param serialize_json: Serialize the value to a JSON string
         """
+        # provide_session
+        session = cast("Session", session)
         # check if the secret exists in the custom secrets' backend.
         Variable.check_for_write_conflict(key)
         if serialize_json:
@@ -209,7 +211,7 @@ class Variable(Base, LoggingMixin):
         key: str,
         value: Any,
         serialize_json: bool = False,
-        session: Session = NEW_SESSION,
+        session: Session | None = None,
     ) -> None:
         """Update a given Airflow Variable with the Provided value.
 
@@ -217,6 +219,8 @@ class Variable(Base, LoggingMixin):
         :param value: Value to set for the Variable
         :param serialize_json: Serialize the value to a JSON string
         """
+        # provide_session
+        session = cast("Session", session)
         Variable.check_for_write_conflict(key)
 
         if Variable.get_variable_from_secrets(key=key) is None:
@@ -230,11 +234,13 @@ class Variable(Base, LoggingMixin):
     @staticmethod
     @provide_session
     @internal_api_call
-    def delete(key: str, session: Session = NEW_SESSION) -> int:
+    def delete(key: str, session: Session | None = None) -> int:
         """Delete an Airflow Variable for a given key.
 
         :param key: Variable Keys
         """
+        # provide_session
+        session = cast("Session", session)
         fetch = cast("CursorResult", session.execute(delete(Variable).where(Variable.key == key)))
         rows = fetch.rowcount
         SecretCache.invalidate_variable(key)

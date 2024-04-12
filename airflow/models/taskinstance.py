@@ -1312,9 +1312,11 @@ def _get_previous_ti(
 
 @internal_api_call
 @provide_session
-def _update_rtif(ti, rendered_fields, session: Session = NEW_SESSION):
+def _update_rtif(ti, rendered_fields, session: Session | None = None):
     from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
+    # provide_session
+    session = cast("Session", session)
     rtif = RenderedTaskInstanceFields(ti=ti, render_templates=False, rendered_fields=rendered_fields)
     RenderedTaskInstanceFields.write(rtif, session=session)
     RenderedTaskInstanceFields.delete_old_records(ti.task_id, ti.dag_id, session=session)
@@ -2071,7 +2073,7 @@ class TaskInstance(Base, LoggingMixin):
     def get_previous_dagrun(
         self,
         state: DagRunState | None = None,
-        session: Session = NEW_SESSION,
+        session: Session | None = None,
     ) -> DagRun | None:
         """
         Return the DagRun that ran before this task instance's DagRun.
