@@ -350,7 +350,6 @@ def generate_args_for_pytest(
             # p - passed
             # P - passed with output
             #
-            "-rfEX",
         ]
     )
     if skip_db_tests:
