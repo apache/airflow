@@ -1421,7 +1421,7 @@
 <g id="edge45" class="edge">
 <title>task_instance&#45;&#45;xcom</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1198.1,-703.32C1228.72,-680.46 1260.55,-657.41 1290.36,-636.54"/>
-<text text-anchor="start" x="1259.36" y="-625.34" font-family="Times,serif" font-size="14.00">0..N</text>
+<text text-anchor="start" x="1280.36" y="-625.34" font-family="Times,serif" font-size="14.00">1</text>
 <text text-anchor="start" x="1198.1" y="-692.12" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- task_instance&#45;&#45;xcom -->
@@ -1442,7 +1442,7 @@
 <g id="edge48" class="edge">
 <title>task_instance&#45;&#45;xcom</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1198.1,-743.24C1228.83,-721.34 1260.77,-697.86 1290.67,-675.16"/>
-<text text-anchor="start" x="1290.67" y="-678.96" font-family="Times,serif" font-size="14.00">1</text>
+<text text-anchor="start" x="1290.67" y="-678.96" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="1198.1" y="-747.04" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- ab_permission -->
