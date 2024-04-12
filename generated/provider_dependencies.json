@@ -611,13 +611,11 @@
   },
   "hashicorp": {
     "deps": [
-      "apache-airflow-providers-amazon>=8.0.0",
       "apache-airflow>=2.6.0",
       "hvac>=1.1.0"
     ],
     "devel-deps": [],
     "cross-providers-deps": [
-      "amazon",
       "google"
     ],
     "excluded-python-versions": [],

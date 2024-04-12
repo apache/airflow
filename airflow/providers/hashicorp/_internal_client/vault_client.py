@@ -26,7 +26,6 @@ from requests import Response, Session
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 
-from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 DEFAULT_KUBERNETES_JWT_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
@@ -75,7 +74,7 @@ class _VaultClient(LoggingMixin):
     :param key_id: Key ID for Authentication (for ``aws_iam`` and ''azure`` auth_type).
     :param secret_id: Secret ID for Authentication (for ``approle``, ``aws_iam`` and ``azure`` auth_types).
     :param role_id: Role ID for Authentication (for ``approle``, ``aws_iam`` auth_types).
-    :param aws_conn_id: AWS connection id (for ``aws_iam`` auth_type)
+    :param arn_role: AWS arn role (for ``aws_iam`` auth_type)
     :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type).
     :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, default:
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``).
@@ -105,7 +104,7 @@ class _VaultClient(LoggingMixin):
         password: str | None = None,
         key_id: str | None = None,
         secret_id: str | None = None,
-        aws_conn_id: str | None = None,
+        arn_role: str | None = None,
         role_id: str | None = None,
         kubernetes_role: str | None = None,
         kubernetes_jwt_path: str | None = "/var/run/secrets/kubernetes.io/serviceaccount/token",
@@ -164,7 +163,7 @@ class _VaultClient(LoggingMixin):
         self.key_id = key_id
         self.secret_id = secret_id
         self.role_id = role_id
-        self.aws_conn_id = aws_conn_id
+        self.arn_role = arn_role
         self.kubernetes_role = kubernetes_role
         self.kubernetes_jwt_path = kubernetes_jwt_path
         self.gcp_key_path = gcp_key_path
@@ -329,14 +328,15 @@ class _VaultClient(LoggingMixin):
                 role=self.role_id,
                 mount_point=self.auth_mount_point,
             )
-        elif self.aws_conn_id:
-            hook: AwsGenericHook = AwsGenericHook(aws_conn_id=self.aws_conn_id)
-            credential = hook.get_credentials()
+        elif self.arn_role:
+            import boto3
+
+            sts_client = boto3.client("sts")
+            temporary_credentials = sts_client.assume_role(RoleArn=self.arn_role, RoleSessionName="airflow")
             _client.auth.aws.iam_login(
-                access_key=credential.access_key,
-                secret_key=credential.secret_key,
-                session_token=credential.token,
-                region=hook.region_name,
+                access_key=temporary_credentials["Credentials"]["AccessKeyId"],
+                secret_key=temporary_credentials["Credentials"]["SecretAccessKey"],
+                session_token=temporary_credentials["Credentials"]["SessionToken"],
                 mount_point=self.auth_mount_point,
             )
 
