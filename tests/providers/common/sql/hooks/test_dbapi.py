@@ -21,6 +21,7 @@ import json
 from unittest import mock
 
 import pytest
+from pyodbc import Cursor
 
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
@@ -39,7 +40,7 @@ class TestDbApiHook:
     def setup_method(self, **kwargs):
         self.cur = mock.MagicMock(
             rowcount=0,
-            spec=["description", "rowcount", "execute", "executemany", "fetchall", "fetchone", "close"],
+            spec=Cursor,
         )
         self.conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur
