@@ -85,7 +85,7 @@ class TestRpcApiEndpoint:
     @pytest.mark.parametrize(
         "input_params, method_result, result_cmp_func, method_params",
         [
-            ({}, None, lambda got, _: got == b"", {}),
+            ({}, None, lambda got, _: got == "", {}),
             ({}, "test_me", equals, {}),
             (
                 BaseSerialization.serialize({"dag_id": 15, "task_id": "fake-task"}),
