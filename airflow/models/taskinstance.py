@@ -2641,16 +2641,6 @@ class TaskInstance(Base, LoggingMixin):
                     session=session,
                 )
 
-    def _render_map_index(self, context, jinja_env=None):
-        # DAG authors define map_index_template at the task level
-        if jinja_env is not None and (template := context.get("map_index_template")) is not None:
-            rendered_map_index = jinja_env.from_string(template).render(context)
-            log.info("Map index rendered as %s", rendered_map_index)
-        else:
-            rendered_map_index = None
-
-        return rendered_map_index
-
     def _execute_task_with_callbacks(self, context: Context, test_mode: bool = False, *, session: Session):
         """Prepare Task for Execution."""
         if TYPE_CHECKING:
@@ -2723,18 +2713,25 @@ class TaskInstance(Base, LoggingMixin):
                 previous_state=TaskInstanceState.QUEUED, task_instance=self, session=session
             )
 
-            try:
-                # Execute the task
-                with set_current_context(context):
+            def _render_map_index(context: Context, *, jinja_env: jinja2.Environment | None) -> str | None:
+                """Render named map index if the DAG author defined map_index_template at the task level."""
+                if jinja_env is None or (template := context.get("map_index_template")) is None:
+                    return None
+                rendered_map_index = jinja_env.from_string(template).render(context)
+                log.info("Map index rendered as %s", rendered_map_index)
+                return rendered_map_index
+
+            # Execute the task.
+            with set_current_context(context):
+                try:
                     result = self._execute_task(context, task_orig)
-            except Exception:
-                # If the task failed, swallow rendering error so it doesn't mask the main error.
-                with contextlib.suppress(jinja2.TemplateSyntaxError, jinja2.UndefinedError):
-                    self.rendered_map_index = self._render_map_index(context, jinja_env=jinja_env)
-                raise
-            else:
-                # If the task succeeded, render normally to let rendering error bubble up.
-                self.rendered_map_index = self._render_map_index(context, jinja_env=jinja_env)
+                except Exception:
+                    # If the task failed, swallow rendering error so it doesn't mask the main error.
+                    with contextlib.suppress(jinja2.TemplateSyntaxError, jinja2.UndefinedError):
+                        self.rendered_map_index = _render_map_index(context, jinja_env=jinja_env)
+                    raise
+                else:  # If the task succeeded, render normally to let rendering error bubble up.
+                    self.rendered_map_index = _render_map_index(context, jinja_env=jinja_env)
 
             # Run post_execute callback
             self.task.post_execute(context=context, result=result)
