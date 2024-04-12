@@ -186,30 +186,34 @@ class TestColumnCheckOperator:
         ]
 
     def test_max_less_than_fails_check(self, monkeypatch):
-        with pytest.raises(AirflowException):
-            records = [
-                ("X", "null_check", 1),
-                ("X", "distinct_check", 10),
-                ("X", "unique_check", 10),
-                ("X", "min", 1),
-                ("X", "max", 21),
-            ]
-            operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
+        records = [
+            ("X", "null_check", 1),
+            ("X", "distinct_check", 10),
+            ("X", "unique_check", 10),
+            ("X", "min", 1),
+            ("X", "max", 21),
+        ]
+        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
+        with pytest.raises(AirflowException, match="Test failed") as err_ctx:
             operator.execute(context=MagicMock())
-            assert operator.column_mapping["X"]["max"]["success"] is False
+        assert "Check: max" in str(err_ctx.value)
+        assert "{'less_than': 20, 'greater_than': 10, 'result': 21, 'success': False}" in str(err_ctx.value)
+        assert operator.column_mapping["X"]["max"]["success"] is False
 
     def test_max_greater_than_fails_check(self, monkeypatch):
-        with pytest.raises(AirflowException):
-            records = [
-                ("X", "null_check", 1),
-                ("X", "distinct_check", 10),
-                ("X", "unique_check", 10),
-                ("X", "min", 1),
-                ("X", "max", 9),
-            ]
-            operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
+        records = [
+            ("X", "null_check", 1),
+            ("X", "distinct_check", 10),
+            ("X", "unique_check", 10),
+            ("X", "min", 1),
+            ("X", "max", 9),
+        ]
+        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
+        with pytest.raises(AirflowException, match="Test failed") as err_ctx:
             operator.execute(context=MagicMock())
-            assert operator.column_mapping["X"]["max"]["success"] is False
+        assert "Check: max" in str(err_ctx.value)
+        assert "{'less_than': 20, 'greater_than': 10, 'result': 9, 'success': False}" in str(err_ctx.value)
+        assert operator.column_mapping["X"]["max"]["success"] is False
 
     def test_pass_all_checks_inexact_check(self, monkeypatch):
         records = [
@@ -621,6 +625,19 @@ class TestSQLCheckOperatorDbHook:
             assert self._operator._hook.conn_type == "gcpbigquery"
             assert self._operator._hook.use_legacy_sql
             assert self._operator._hook.location == "us-east1"
+
+    def test_sql_operator_hook_params_templated(self):
+        with mock.patch(
+            "airflow.providers.common.sql.operators.sql.BaseHook.get_connection",
+            return_value=Connection(conn_id="sql_default", conn_type="postgres"),
+        ) as mock_get_conn:
+            mock_get_conn.return_value = Connection(conn_id="snowflake_default", conn_type="snowflake")
+            self._operator.hook_params = {"session_parameters": {"query_tag": "{{ ds }}"}}
+            logical_date = "2024-04-02"
+            self._operator.render_template_fields({"ds": logical_date})
+
+            assert self._operator._hook.conn_type == "snowflake"
+            assert self._operator._hook.session_parameters == {"query_tag": logical_date}
 
 
 class TestCheckOperator:

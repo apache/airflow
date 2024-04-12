@@ -210,6 +210,8 @@ spec:
           env:
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.dagProcessor.logGroomerSidecar.retentionDays }}"
+            - name: AIRFLOW_HOME
+              value: "{{ .Values.airflowHome }}"
           {{- end }}
           volumeMounts:
             - name: logs
@@ -225,7 +227,7 @@ spec:
             {{- end }}
           {{- end }}
         {{- if .Values.dagProcessor.extraContainers }}
-          {{- toYaml .Values.dagProcessor.extraContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.dagProcessor.extraContainers) . | nindent 8 }}
         {{- end }}
       volumes:
         - name: config

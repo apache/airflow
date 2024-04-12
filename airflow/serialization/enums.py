@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Enums for DAG serialization."""
+
 from __future__ import annotations
 
 from enum import Enum, unique
@@ -50,6 +51,8 @@ class DagAttributeTypes(str, Enum):
     PARAM = "param"
     XCOM_REF = "xcomref"
     DATASET = "dataset"
+    DATASET_ANY = "dataset_any"
+    DATASET_ALL = "dataset_all"
     SIMPLE_TASK_INSTANCE = "simple_task_instance"
     BASE_JOB = "Job"
     TASK_INSTANCE = "task_instance"
@@ -58,4 +61,5 @@ class DagAttributeTypes(str, Enum):
     DATA_SET = "data_set"
     LOG_TEMPLATE = "log_template"
     CONNECTION = "connection"
+    TASK_CONTEXT = "task_context"
     ARG_NOT_SET = "arg_not_set"

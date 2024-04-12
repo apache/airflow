@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, Callable
 from flask import Response
 
 from airflow.jobs.job import Job, most_recent_job
+from airflow.models.taskinstance import _get_template_context, _update_rtif
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils.session import create_session
 
@@ -36,6 +37,7 @@ log = logging.getLogger(__name__)
 
 @functools.lru_cache
 def _initialize_map() -> dict[str, Callable]:
+    from airflow.cli.commands.task_command import _get_ti_db_access
     from airflow.dag_processing.manager import DagFileProcessorManager
     from airflow.dag_processing.processor import DagFileProcessor
     from airflow.models import Trigger, Variable, XCom
@@ -45,8 +47,12 @@ def _initialize_map() -> dict[str, Callable]:
     from airflow.models.serialized_dag import SerializedDagModel
     from airflow.models.taskinstance import TaskInstance
     from airflow.secrets.metastore import MetastoreBackend
+    from airflow.utils.log.file_task_handler import FileTaskHandler
 
     functions: list[Callable] = [
+        _get_template_context,
+        _update_rtif,
+        _get_ti_db_access,
         DagFileProcessor.update_import_errors,
         DagFileProcessor.manage_slas,
         DagFileProcessorManager.deactivate_stale_dags,
@@ -55,6 +61,7 @@ def _initialize_map() -> dict[str, Callable]:
         DagModel.get_current,
         DagFileProcessorManager.clear_nonexistent_import_errors,
         DagWarning.purge_inactive_dag_warnings,
+        FileTaskHandler._render_filename_db_access,
         Job._add_to_db,
         Job._fetch_from_db,
         Job._kill,
@@ -80,9 +87,12 @@ def _initialize_map() -> dict[str, Callable]:
         SerializedDagModel.get_serialized_dag,
         TaskInstance._check_and_change_state_before_execution,
         TaskInstance.get_task_instance,
+        TaskInstance._get_dagrun,
+        TaskInstance._set_state,
         TaskInstance.fetch_handle_failure_context,
         TaskInstance.save_to_db,
         TaskInstance._schedule_downstream_tasks,
+        TaskInstance._clear_xcom_data,
         Trigger.from_object,
         Trigger.bulk_fetch,
         Trigger.clean_unused,
@@ -112,7 +122,7 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     params = {}
     try:
         if body.get("params"):
-            params_json = json.loads(str(body.get("params")))
+            params_json = body.get("params")
             params = BaseSerialization.deserialize(params_json, use_pydantic_models=True)
     except Exception as e:
         log.error("Error when deserializing parameters for method: %s.", method_name)

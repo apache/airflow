@@ -17,9 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import logging
 import re
 import sys
+import warnings
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -35,6 +38,18 @@ from airflow.providers_manager import (
     ProviderInfo,
     ProvidersManager,
 )
+
+AIRFLOW_SOURCES_ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_cleanup_providers_manager(cleanup_providers_manager):
+    """Check the cleanup provider manager functionality."""
+    provider_manager = ProvidersManager()
+    assert isinstance(provider_manager.hooks, LazyDictWithCache)
+    hooks = provider_manager.hooks
+    ProvidersManager()._cleanup()
+    assert not len(hooks)
+    assert ProvidersManager().hooks is hooks
 
 
 class TestProviderManager:
@@ -69,7 +84,7 @@ class TestProviderManager:
         assert warning_records
 
     def test_hooks_deprecation_warnings_not_generated(self):
-        with pytest.warns(expected_warning=None) as warning_records:
+        with warnings.catch_warnings(record=True) as warning_records:
             providers_manager = ProvidersManager()
             providers_manager._provider_dict["apache-airflow-providers-sftp"] = ProviderInfo(
                 version="0.0.1",
@@ -85,7 +100,7 @@ class TestProviderManager:
                 package_or_source="package",
             )
             providers_manager._discover_hooks()
-        assert [] == [w.message for w in warning_records.list if "hook-class-names" in str(w.message)]
+        assert [] == [w.message for w in warning_records if "hook-class-names" in str(w.message)]
 
     def test_warning_logs_generated(self):
         providers_manager = ProvidersManager()
@@ -183,7 +198,7 @@ class TestProviderManager:
         )
 
     def test_hooks(self):
-        with pytest.warns(expected_warning=None) as warning_records:
+        with warnings.catch_warnings(record=True) as warning_records:
             with self._caplog.at_level(logging.WARNING):
                 provider_manager = ProvidersManager()
                 connections_list = list(provider_manager.hooks.keys())
@@ -193,21 +208,36 @@ class TestProviderManager:
                 print(record.message, file=sys.stderr)
                 print(record.exc_info, file=sys.stderr)
             raise AssertionError("There are warnings generated during hook imports. Please fix them")
-        assert [] == [w.message for w in warning_records.list if "hook-class-names" in str(w.message)]
+        assert [] == [w.message for w in warning_records if "hook-class-names" in str(w.message)]
 
     @pytest.mark.execution_timeout(150)
     def test_hook_values(self):
-        with pytest.warns(expected_warning=None) as warning_records:
+        provider_dependencies = json.loads(
+            (AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json").read_text()
+        )
+        python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
+        excluded_providers: list[str] = []
+        for provider_name, provider_info in provider_dependencies.items():
+            if python_version in provider_info.get("excluded-python-versions", []):
+                excluded_providers.append(f"apache-airflow-providers-{provider_name.replace('.', '-')}")
+        with warnings.catch_warnings(record=True) as warning_records:
             with self._caplog.at_level(logging.WARNING):
                 provider_manager = ProvidersManager()
                 connections_list = list(provider_manager.hooks.values())
                 assert len(connections_list) > 60
         if len(self._caplog.records) != 0:
+            real_warning_count = 0
             for record in self._caplog.records:
-                print(record.message, file=sys.stderr)
-                print(record.exc_info, file=sys.stderr)
-            raise AssertionError("There are warnings generated during hook imports. Please fix them")
-        assert [] == [w.message for w in warning_records.list if "hook-class-names" in str(w.message)]
+                # When there is error importing provider that is excluded the provider name is in the message
+                if any(excluded_provider in record.message for excluded_provider in excluded_providers):
+                    continue
+                else:
+                    print(record.message, file=sys.stderr)
+                    print(record.exc_info, file=sys.stderr)
+                    real_warning_count += 1
+            if real_warning_count:
+                raise AssertionError("There are warnings generated during hook imports. Please fix them")
+        assert [] == [w.message for w in warning_records if "hook-class-names" in str(w.message)]
 
     def test_connection_form_widgets(self):
         provider_manager = ProvidersManager()
@@ -248,7 +278,7 @@ class TestProviderManager:
             widgets["extra__test__my_param"] = widget_field
             widgets["my_param"] = dummy_field
         else:
-            raise Exception("unexpected")
+            raise ValueError("unexpected")
 
         provider_manager._add_widgets(
             package_name="abc",
@@ -436,9 +466,70 @@ def test_lazy_cache_dict_resolving(value, expected_outputs):
 
 def test_lazy_cache_dict_raises_error():
     def raise_method():
-        raise Exception("test")
+        raise RuntimeError("test")
 
     lazy_cache_dict = LazyDictWithCache()
     lazy_cache_dict["key"] = raise_method
-    with pytest.raises(Exception, match="test"):
+    with pytest.raises(RuntimeError, match="test"):
         _ = lazy_cache_dict["key"]
+
+
+def test_lazy_cache_dict_del_item():
+    lazy_cache_dict = LazyDictWithCache()
+
+    def answer():
+        return 42
+
+    lazy_cache_dict["spam"] = answer
+    assert "spam" in lazy_cache_dict._raw_dict
+    assert "spam" not in lazy_cache_dict._resolved  # Not resoled yet
+    assert lazy_cache_dict["spam"] == 42
+    assert "spam" in lazy_cache_dict._resolved
+    del lazy_cache_dict["spam"]
+    assert "spam" not in lazy_cache_dict._raw_dict
+    assert "spam" not in lazy_cache_dict._resolved
+
+    lazy_cache_dict["foo"] = answer
+    assert lazy_cache_dict["foo"] == 42
+    assert "foo" in lazy_cache_dict._resolved
+    # Emulate some mess in data, e.g. value from `_raw_dict` deleted but not from `_resolved`
+    del lazy_cache_dict._raw_dict["foo"]
+    assert "foo" in lazy_cache_dict._resolved
+    with pytest.raises(KeyError):
+        # Error expected here, but we still expect to remove also record into `resolved`
+        del lazy_cache_dict["foo"]
+    assert "foo" not in lazy_cache_dict._resolved
+
+    lazy_cache_dict["baz"] = answer
+    # Key in `_resolved` not created yet
+    assert "baz" in lazy_cache_dict._raw_dict
+    assert "baz" not in lazy_cache_dict._resolved
+    del lazy_cache_dict._raw_dict["baz"]
+    assert "baz" not in lazy_cache_dict._raw_dict
+    assert "baz" not in lazy_cache_dict._resolved
+
+
+def test_lazy_cache_dict_clear():
+    def answer():
+        return 42
+
+    lazy_cache_dict = LazyDictWithCache()
+    assert len(lazy_cache_dict) == 0
+    lazy_cache_dict["spam"] = answer
+    lazy_cache_dict["foo"] = answer
+    lazy_cache_dict["baz"] = answer
+
+    assert len(lazy_cache_dict) == 3
+    assert len(lazy_cache_dict._raw_dict) == 3
+    assert not lazy_cache_dict._resolved
+    assert lazy_cache_dict["spam"] == 42
+    assert len(lazy_cache_dict._resolved) == 1
+    # Emulate some mess in data, contain some data into the `_resolved`
+    lazy_cache_dict._resolved.add("biz")
+    assert len(lazy_cache_dict) == 3
+    assert len(lazy_cache_dict._resolved) == 2
+    # And finally cleanup everything
+    lazy_cache_dict.clear()
+    assert len(lazy_cache_dict) == 0
+    assert not lazy_cache_dict._raw_dict
+    assert not lazy_cache_dict._resolved

@@ -18,10 +18,12 @@
 from __future__ import annotations
 
 import datetime as dt
+from importlib import metadata
 from typing import TYPE_CHECKING, overload
 
 import pendulum
 from dateutil.relativedelta import relativedelta
+from packaging import version
 from pendulum.datetime import DateTime
 
 if TYPE_CHECKING:
@@ -29,7 +31,7 @@ if TYPE_CHECKING:
 
     from airflow.typing_compat import Literal
 
-_PENDULUM3 = pendulum.__version__.startswith("3")
+_PENDULUM3 = version.parse(metadata.version("pendulum")).major == 3
 # UTC Timezone as a tzinfo instance. Actual value depends on pendulum version:
 # - Timezone("UTC") in pendulum 3
 # - FixedTimezone(0, "UTC") in pendulum 2
@@ -77,13 +79,11 @@ def utc_epoch() -> dt.datetime:
 
 
 @overload
-def convert_to_utc(value: None) -> None:
-    ...
+def convert_to_utc(value: None) -> None: ...
 
 
 @overload
-def convert_to_utc(value: dt.datetime) -> DateTime:
-    ...
+def convert_to_utc(value: dt.datetime) -> DateTime: ...
 
 
 def convert_to_utc(value: dt.datetime | None) -> DateTime | None:
@@ -104,18 +104,15 @@ def convert_to_utc(value: dt.datetime | None) -> DateTime | None:
 
 
 @overload
-def make_aware(value: None, timezone: dt.tzinfo | None = None) -> None:
-    ...
+def make_aware(value: None, timezone: dt.tzinfo | None = None) -> None: ...
 
 
 @overload
-def make_aware(value: DateTime, timezone: dt.tzinfo | None = None) -> DateTime:
-    ...
+def make_aware(value: DateTime, timezone: dt.tzinfo | None = None) -> DateTime: ...
 
 
 @overload
-def make_aware(value: dt.datetime, timezone: dt.tzinfo | None = None) -> dt.datetime:
-    ...
+def make_aware(value: dt.datetime, timezone: dt.tzinfo | None = None) -> dt.datetime: ...
 
 
 def make_aware(value: dt.datetime | None, timezone: dt.tzinfo | None = None) -> dt.datetime | None:
@@ -208,18 +205,15 @@ def parse(string: str, timezone=None, *, strict=False) -> DateTime:
 
 
 @overload
-def coerce_datetime(v: None, tz: dt.tzinfo | None = None) -> None:
-    ...
+def coerce_datetime(v: None, tz: dt.tzinfo | None = None) -> None: ...
 
 
 @overload
-def coerce_datetime(v: DateTime, tz: dt.tzinfo | None = None) -> DateTime:
-    ...
+def coerce_datetime(v: DateTime, tz: dt.tzinfo | None = None) -> DateTime: ...
 
 
 @overload
-def coerce_datetime(v: dt.datetime, tz: dt.tzinfo | None = None) -> DateTime:
-    ...
+def coerce_datetime(v: dt.datetime, tz: dt.tzinfo | None = None) -> DateTime: ...
 
 
 def coerce_datetime(v: dt.datetime | None, tz: dt.tzinfo | None = None) -> DateTime | None:

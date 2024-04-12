@@ -34,8 +34,10 @@ from airflow.providers.apache.hive.transfers.s3_to_hive import S3ToHiveOperator
 
 boto3 = pytest.importorskip("boto3")
 moto = pytest.importorskip("moto")
+logger = logging.getLogger(__name__)
 
 
+@pytest.mark.db_test
 class TestS3ToHiveTransfer:
     @pytest.fixture(autouse=True)
     def setup_attrs(self):
@@ -207,7 +209,7 @@ class TestS3ToHiveTransfer:
         for ext, has_header in itertools.product([".txt", ".gz", ".bz2", ".GZ"], [True, False]):
             self.kwargs["headers"] = has_header
             self.kwargs["check_headers"] = has_header
-            logging.info("Testing %s format %s header", ext, "with" if has_header else "without")
+            logger.info("Testing %s format %s header", ext, "with" if has_header else "without")
             self.kwargs["input_compressed"] = ext.lower() != ".txt"
             self.kwargs["s3_key"] = "s3://bucket/" + self.s3_key + ext
             ip_fn = self._get_fn(ext, self.kwargs["headers"])

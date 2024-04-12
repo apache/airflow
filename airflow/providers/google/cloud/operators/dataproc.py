@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Dataproc operators."""
+
 from __future__ import annotations
 
 import inspect
@@ -835,7 +836,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
             except AirflowException as ae_inner:
                 # We could get any number of failures here, including cluster not found and we
                 # can just ignore to ensure we surface the original cluster create failure
-                self.log.error(ae_inner, exc_info=True)
+                self.log.exception(ae_inner)
             finally:
                 raise ae
 
@@ -1429,13 +1430,13 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
         if self.job_template:
             job = self.job_template.build()
             return job["job"]
-        raise Exception("Create a job template before")
+        raise AirflowException("Create a job template before")
 
     def execute(self, context: Context):
         if self.job_template:
             self.job = self.job_template.build()
             if self.job is None:
-                raise Exception("The job should be set here.")
+                raise AirflowException("The job should be set here.")
             self.dataproc_job_id = self.job["job"]["reference"]["job_id"]
             self.log.info("Submitting %s job %s", self.job_type, self.dataproc_job_id)
             job_object = self.hook.submit_job(

@@ -25,6 +25,35 @@
 Changelog
 ---------
 
+1.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add hook_params to template_fields for BaseSQLOperator-related Operators (#38724)``
+* ``Make 'placeholder' of DbApiHook configurable in UI (#38528)``
+
+Misc
+~~~~
+
+* ``Undeprecating 'DBApiHookForTests._make_common_data_structure' (#38573)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update yanked versions in providers changelogs (#38262)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``fix: try002 for provider common sql (#38800)``
+
+1.11.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make 'executemany' keyword arguments only in 'DbApiHook.insert_rows' (#37840)``
+* ``Limit 'pandas' to '<2.2' (#37748)``
+
 1.11.0
 ......
 
@@ -232,8 +261,10 @@ Misc
 
 * ``Bring back min-airflow-version for preinstalled providers (#31469)``
 
-1.5.0
-.....
+1.5.0 (YANKED)
+..............
+
+.. warning:: This release has been **yanked** with a reason: ``This version might cause unconstrained installation of old airflow version lead to Runtime Error.``
 
 .. note::
   This release of provider is only available for Airflow 2.4+ as explained in the
@@ -337,8 +368,10 @@ Bug Fixes
    appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare for follow-up release for November providers (#27774)``
 
-1.3.0
-.....
+1.3.0 (YANKED)
+..............
+
+.. warning:: This release has been **yanked** with a reason: ``Breaks Google 8.4.0 provider for SQLExecute``
 
 .. note::
   This release of provider is only available for Airflow 2.3+ as explained in the

@@ -20,7 +20,7 @@ import datetime
 from traceback import format_exception
 from typing import TYPE_CHECKING, Any, Iterable
 
-from sqlalchemy import Column, Integer, String, delete, func, or_, select, update
+from sqlalchemy import Column, Integer, String, Text, delete, func, or_, select, update
 from sqlalchemy.orm import joinedload, relationship
 from sqlalchemy.sql.functions import coalesce
 
@@ -30,15 +30,14 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime, with_row_locks
+from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+    from sqlalchemy.sql import Select
 
     from airflow.triggers.base import BaseTrigger
-
-ENCRYPTED_KWARGS_PREFIX = "encrypted__"
 
 
 class Trigger(Base):
@@ -64,7 +63,7 @@ class Trigger(Base):
 
     id = Column(Integer, primary_key=True)
     classpath = Column(String(1000), nullable=False)
-    kwargs = Column(ExtendedJSON, nullable=False)
+    encrypted_kwargs = Column("kwargs", Text, nullable=False)
     created_date = Column(UtcDateTime, nullable=False)
     triggerer_id = Column(Integer, nullable=True)
 
@@ -85,24 +84,54 @@ class Trigger(Base):
     ) -> None:
         super().__init__()
         self.classpath = classpath
-        self.kwargs = kwargs
+        self.encrypted_kwargs = self._encrypt_kwargs(kwargs)
         self.created_date = created_date or timezone.utcnow()
+
+    @property
+    def kwargs(self) -> dict[str, Any]:
+        """Return the decrypted kwargs of the trigger."""
+        return self._decrypt_kwargs(self.encrypted_kwargs)
+
+    @kwargs.setter
+    def kwargs(self, kwargs: dict[str, Any]) -> None:
+        """Set the encrypted kwargs of the trigger."""
+        self.encrypted_kwargs = self._encrypt_kwargs(kwargs)
+
+    @staticmethod
+    def _encrypt_kwargs(kwargs: dict[str, Any]) -> str:
+        """Encrypt the kwargs of the trigger."""
+        import json
+
+        from airflow.models.crypto import get_fernet
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        serialized_kwargs = BaseSerialization.serialize(kwargs)
+        return get_fernet().encrypt(json.dumps(serialized_kwargs).encode("utf-8")).decode("utf-8")
+
+    @staticmethod
+    def _decrypt_kwargs(encrypted_kwargs: str) -> dict[str, Any]:
+        """Decrypt the kwargs of the trigger."""
+        import json
+
+        from airflow.models.crypto import get_fernet
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        decrypted_kwargs = json.loads(get_fernet().decrypt(encrypted_kwargs.encode("utf-8")).decode("utf-8"))
+
+        return BaseSerialization.deserialize(decrypted_kwargs)
+
+    def rotate_fernet_key(self):
+        """Encrypts data with a new key. See: :ref:`security/fernet`."""
+        from airflow.models.crypto import get_fernet
+
+        self.encrypted_kwargs = get_fernet().rotate(self.encrypted_kwargs.encode("utf-8")).decode("utf-8")
 
     @classmethod
     @internal_api_call
     def from_object(cls, trigger: BaseTrigger) -> Trigger:
         """Alternative constructor that creates a trigger row based directly off of a Trigger object."""
-        from airflow.models.crypto import get_fernet
-
         classpath, kwargs = trigger.serialize()
-        secure_kwargs = {}
-        fernet = get_fernet()
-        for k, v in kwargs.items():
-            if k.startswith(ENCRYPTED_KWARGS_PREFIX):
-                secure_kwargs[k] = fernet.encrypt(v.encode("utf-8")).decode("utf-8")
-            else:
-                secure_kwargs[k] = v
-        return cls(classpath=classpath, kwargs=secure_kwargs)
+        return cls(classpath=classpath, kwargs=kwargs)
 
     @classmethod
     @internal_api_call
@@ -141,14 +170,16 @@ class Trigger(Base):
                     .values(trigger_id=None)
                 )
 
-        # Get all triggers that have no task instances depending on them...
-        ids = session.scalars(
+        # Get all triggers that have no task instances depending on them and delete them
+        ids = (
             select(cls.id)
             .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=True)
             .group_by(cls.id)
             .having(func.count(TaskInstance.trigger_id) == 0)
-        ).all()
-        # ...and delete them (we can't do this in one query due to MySQL)
+        )
+        if session.bind.dialect.name == "mysql":
+            # MySQL doesn't support DELETE with JOIN, so we need to do it in two steps
+            ids = session.scalars(ids).all()
         session.execute(
             delete(Trigger).where(Trigger.id.in_(ids)).execution_options(synchronize_session=False)
         )
@@ -233,13 +264,11 @@ class Trigger(Base):
         if capacity <= 0:
             return
 
-        alive_triggerer_ids = session.scalars(
-            select(Job.id).where(
-                Job.end_date.is_(None),
-                Job.latest_heartbeat > timezone.utcnow() - datetime.timedelta(seconds=health_check_threshold),
-                Job.job_type == "TriggererJob",
-            )
-        ).all()
+        alive_triggerer_ids = select(Job.id).where(
+            Job.end_date.is_(None),
+            Job.latest_heartbeat > timezone.utcnow() - datetime.timedelta(seconds=health_check_threshold),
+            Job.job_type == "TriggererJob",
+        )
 
         # Find triggers who do NOT have an alive triggerer_id, and then assign
         # up to `capacity` of those to us.
@@ -257,7 +286,13 @@ class Trigger(Base):
         session.commit()
 
     @classmethod
-    def get_sorted_triggers(cls, capacity, alive_triggerer_ids, session):
+    def get_sorted_triggers(cls, capacity: int, alive_triggerer_ids: list[int] | Select, session: Session):
+        """Get sorted triggers based on capacity and alive triggerer ids.
+
+        :param capacity: The capacity of the triggerer.
+        :param alive_triggerer_ids: The alive triggerer ids as a list or a select query.
+        :param session: The database session.
+        """
         query = with_row_locks(
             select(cls.id)
             .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=False)

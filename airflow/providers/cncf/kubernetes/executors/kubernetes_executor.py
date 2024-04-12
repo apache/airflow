@@ -19,8 +19,9 @@ KubernetesExecutor.
 
 .. seealso::
     For more information on how the KubernetesExecutor works, take a look at the guide:
-    :ref:`executor:KubernetesExecutor`
+    :doc:`/kubernetes_executor`
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -431,10 +432,9 @@ class KubernetesExecutor(BaseExecutor):
                     self.kube_scheduler.run_next(task)
                     self.task_publish_retries.pop(key, None)
                 except PodReconciliationError as e:
-                    self.log.error(
+                    self.log.exception(
                         "Pod reconciliation failed, likely due to kubernetes library upgrade. "
                         "Try clearing the task to re-run.",
-                        exc_info=True,
                     )
                     self.fail(task[0], e)
                 except ApiException as e:

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains AWS CloudFormation create/delete stack operators."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
@@ -96,7 +97,7 @@ class CloudFormationDeleteStackOperator(AwsBaseOperator[CloudFormationHook]):
         *,
         stack_name: str,
         cloudformation_parameters: dict | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)

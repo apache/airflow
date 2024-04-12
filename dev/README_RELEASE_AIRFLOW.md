@@ -44,6 +44,7 @@
   - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
   - [Verify production images](#verify-production-images)
   - [Publish documentation](#publish-documentation)
+  - [Wait and make sure documentation is published on the website before proceeding](#wait-and-make-sure-documentation-is-published-on-the-website-before-proceeding)
   - [Notify developers of release](#notify-developers-of-release)
   - [Send announcements about security issues fixed in the release](#send-announcements-about-security-issues-fixed-in-the-release)
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
@@ -256,14 +257,16 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     git reset --hard origin/v${VERSION_BRANCH}-test
     ```
 
-- Set your version in `airflow/__init__.py`, `airflow/api_connexion/openapi/v1.yaml` and `docs/` (without the RC tag).
-- Add supported Airflow version to `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job.
-- Replace the version in `README.md` and verify that installation instructions work fine.
+- Set your version in `airflow/__init__.py`, `airflow/api_connexion/openapi/v1.yaml` (without the RC tag).
+- Run `git commit` without a message to update versions in `docs`.
+- Add supported Airflow version to `./scripts/ci/pre_commit/supported_versions.py` and let pre-commit do the job again.
+- Replace the versions in `README.md` about installation and verify that installation instructions work fine.
 - Add entry for default python version to `BASE_PROVIDERS_COMPATIBILITY_CHECKS` in `src/airflow_breeze/global_constants.py`
   with the new Airflow version, and empty exclusion for providers. This list should be updated later when providers
   with minimum version for the next version of Airflow will be added in the future.
 - Check `Apache Airflow is tested with` (stable version) in `README.md` has the same tested versions as in the tip of
   the stable branch in `dev/breeze/src/airflow_breeze/global_constants.py`
+- Commit the above changes with the message `Update version to ${VERSION_WITHOUT_RC}`.
 - Build the release notes:
 
   Preview with:
@@ -284,7 +287,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
   ./dev/airflow-github changelog v2-3-stable v2-3-test
   ```
 
-- Commit the version change.
+- Commit the release note change.
 
 - PR from the 'test' branch to the 'stable' branch
 
@@ -308,8 +311,21 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     git checkout main
     git pull # Ensure that the script is up-to-date
     breeze release-management start-rc-process --version ${VERSION} --previous-version <PREVIOUS_VERSION>
-    # Create issue for testing the RC
-    ./dev/prepare_release_issue.py generate-issue-content --previous-release <PREVIOUS_VERSION> --current-release ${VERSION}
+   ```
+
+- Create issue in github for testing the release using this subject:
+
+  ```shell script
+  cat <<EOF
+  Status of testing of Apache Airflow {VERSION}
+  EOF
+  ```
+
+- Generate the body of the issue using the below command:
+
+  ```shell script
+    breeze release-management generate-issue-content-core --previous-release <PREVIOUS_VERSION>
+    --current-release ${VERSION}
     ```
 
 ## Prepare production Docker Image RC
@@ -458,24 +474,27 @@ VERSION=X.Y.Zrc1
 git checkout ${VERSION}
 export AIRFLOW_REPO_ROOT=$(pwd)
 rm -rf dist/*
-breeze release-management prepare-airflow-tarball --version ${VERSION}
 breeze release-management prepare-airflow-package --package-format both
+breeze release-management prepare-airflow-tarball --version ${VERSION}
 ```
 
-The last - build step - by default will use Dockerized build and building of Python client packages
+The `prepare-airflow-package` by default will use Dockerized approach and building of the packages
 will be done in a docker container.  However, if you have  `hatch` installed locally you can use
 `--use-local-hatch` flag and it will build and use  docker image that has `hatch` installed.
 
 ```bash
 breeze release-management prepare-airflow-package --package-format both --use-local-hatch
+breeze release-management prepare-airflow-tarball --version ${VERSION}
 ```
 
-This is generally faster and requires less resources/network bandwidth.
-
-The tarball command should produce reproducible `-source.tar.gz` tarball of sources.
+This is generally faster and requires less resources/network bandwidth. Note that you have to
+do it before preparing the tarball as preparing packages cleans up dist folder from
+apache-airflow artifacts as it uses hatch's `-c` build flag.
 
 The `prepare-airflow-package` command (no matter if docker or local hatch is used) should produce the
 reproducible `.whl`, `.tar.gz` packages in the dist folder.
+
+The tarball command should produce reproducible `-source.tar.gz` tarball of sources.
 
 Change to the directory where you have the packages from svn:
 
@@ -486,7 +505,7 @@ cd ..
 svn update --set-depth=infinity asf-dist/dev/airflow
 
 # Then compare the packages
-cd asf-dist/dev/airflow/X.Y.Zrc1
+cd asf-dist/dev/airflow/${VERSION}
 for i in ${AIRFLOW_REPO_ROOT}/dist/*
 do
   echo "Checking if $(basename $i) is the same as $i"
@@ -819,7 +838,7 @@ the older branches, you should set the "skip" field to true.
 ## Verify production images
 
 ```shell script
-for PYTHON in 3.8 3.9 3.10 3.11
+for PYTHON in 3.8 3.9 3.10 3.11 3.12
 do
     docker pull apache/airflow:${VERSION}-python${PYTHON}
     breeze prod-image verify --image-name apache/airflow:${VERSION}-python${PYTHON}
@@ -869,6 +888,11 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
     git push
     # and finally open a PR
     ```
+
+## Wait and make sure documentation is published on the website before proceeding
+
+This is important as it takes time for the documentation to be published. You should exercise some patient
+here before proceeding with the next steps.
 
 
 ## Notify developers of release
@@ -1006,7 +1030,7 @@ EOF
 
 This includes:
 
-- Modify `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job.
+- Modify `./scripts/ci/pre_commit/supported_versions.py` and let pre-commit do the job.
 - For major/minor release, update version in `airflow/__init__.py`, `docs/docker-stack/` and `airflow/api_connexion/openapi/v1.yaml` to the next likely minor version release.
 - Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes.
 - Updating `Dockerfile` with the new version.

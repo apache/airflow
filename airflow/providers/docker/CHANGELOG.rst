@@ -27,6 +27,57 @@
 Changelog
 ---------
 
+3.10.0
+......
+
+.. note::
+  The standard ``DOCKER_HOST`` environment variable now overrides the default value
+  of the ``docker_url`` parameter when set. If ``DOCKER_HOST`` is set but you want to
+  use the previous default value, then you must explicitly set
+  ``docker_url="unix://var/run/docker.sock"`` in the ``DockerOperator`` constructor
+  or ``@task.docker`` decorator.
+
+Features
+~~~~~~~~
+
+* ``Improve 'DockerOperator' to support multiple Docker hosts (#38466)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix deprecated 'DockerOperator' operator arguments in 'MappedOperator' (#38379)``
+
+Misc
+~~~~
+
+* ``Remove redundant compatibility usage of importlib_metadata (#38368)``
+* ``DockerOperator: use DOCKER_HOST as default for docker_url (#38387)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``docs: add timeout description to DockerOperator. (#38710)``
+   * ``Fix TRY002 for docker swarm operator (#38768)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+
+3.9.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix construct 'docker.TLSConfig' for 'docker>=7' (#37481)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add comment about versions updated by release manager (#37488)``
+   * ``Prepare docs 1st wave of Providers February 2024 (#37326)``
+   * ``Add docs for RC2 wave of providers for 2nd round of Jan 2024 (#37019)``
+   * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+   * ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+   * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+
 3.9.1
 .....
 

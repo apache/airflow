@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from contextlib import contextmanager
 from typing import Any, Generator, NamedTuple
 
@@ -25,6 +26,7 @@ import jinja2
 import pytest
 
 from airflow import settings
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models import DagBag
 from airflow.www.app import create_app
 from tests.test_utils.api_connexion_utils import delete_user
@@ -36,15 +38,19 @@ from tests.test_utils.www import client_with_login, client_without_login, client
 @pytest.fixture(autouse=True, scope="module")
 def session():
     settings.configure_orm()
-    yield settings.Session
+    return settings.Session
 
 
 @pytest.fixture(autouse=True, scope="module")
 def examples_dag_bag(session):
-    DagBag(include_examples=True).sync_to_db()
-    dag_bag = DagBag(include_examples=True, read_dags_from_db=True)
-    session.commit()
-    yield dag_bag
+    with warnings.catch_warnings():
+        # Some dags use deprecated operators, e.g SubDagOperator
+        # if it is not imported, then it might have side effects for the other tests
+        warnings.simplefilter("ignore", category=RemovedInAirflow3Warning)
+        DagBag(include_examples=True).sync_to_db()
+        dag_bag = DagBag(include_examples=True, read_dags_from_db=True)
+        session.commit()
+    return dag_bag
 
 
 @pytest.fixture(scope="module")
@@ -110,27 +116,27 @@ def app(examples_dag_bag):
         delete_user(app, user_dict["username"])
 
 
-@pytest.fixture()
+@pytest.fixture
 def admin_client(app):
     return client_with_login(app, username="test_admin", password="test_admin")
 
 
-@pytest.fixture()
+@pytest.fixture
 def viewer_client(app):
     return client_with_login(app, username="test_viewer", password="test_viewer")
 
 
-@pytest.fixture()
+@pytest.fixture
 def user_client(app):
     return client_with_login(app, username="test_user", password="test_user")
 
 
-@pytest.fixture()
+@pytest.fixture
 def anonymous_client(app):
     return client_without_login(app)
 
 
-@pytest.fixture()
+@pytest.fixture
 def anonymous_client_as_admin(app):
     return client_without_login_as_admin(app)
 

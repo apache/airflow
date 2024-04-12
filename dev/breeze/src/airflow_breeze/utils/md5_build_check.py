@@ -17,6 +17,7 @@
 """
 Utilities to check - with MD5 - whether files have been modified since the last successful build.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -113,7 +114,7 @@ def calculate_md5_checksum_for_files(
                     ]
                 )
             # Regenerate provider_dependencies.json
-            run_command(
+            result = run_command(
                 [
                     sys.executable,
                     os.fspath(
@@ -121,11 +122,14 @@ def calculate_md5_checksum_for_files(
                         / "scripts"
                         / "ci"
                         / "pre_commit"
-                        / "pre_commit_update_providers_dependencies.py"
+                        / "update_providers_dependencies.py"
                     ),
                 ],
                 cwd=AIRFLOW_SOURCES_ROOT,
+                check=False,
             )
+            if result.returncode != 0:
+                sys.exit(result.returncode)
     for file in FILES_FOR_REBUILD_CHECK:
         is_modified = check_md5_sum_for_file(file, md5sum_cache_dir, update)
         if is_modified:

@@ -157,7 +157,7 @@ def update_sbom_information(
     from airflow_breeze.utils.github import get_active_airflow_versions
 
     if airflow_version is None:
-        airflow_versions = get_active_airflow_versions()
+        airflow_versions, _ = get_active_airflow_versions()
     else:
         airflow_versions = [airflow_version]
     if python is None:

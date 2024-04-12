@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud Pubsub triggers."""
+
 from __future__ import annotations
 
 import asyncio
@@ -101,9 +102,8 @@ class PubsubPullTrigger(BaseTrigger):
                 if pulled_messages:
                     if self.ack_messages:
                         await self.message_acknowledgement(pulled_messages)
-                        yield TriggerEvent({"status": "success", "message": pulled_messages})
-                    else:
-                        yield TriggerEvent({"status": "success", "message": pulled_messages})
+                    yield TriggerEvent({"status": "success", "message": pulled_messages})
+                    return
                 else:
                     pulled_messages = await self.hook.pull(
                         project_id=self.project_id,

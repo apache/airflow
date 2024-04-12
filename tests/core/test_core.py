@@ -71,11 +71,18 @@ class TestCore:
             op.dry_run()
 
     def test_timeout(self, dag_maker):
+        def sleep_and_catch_other_exceptions():
+            try:
+                sleep(5)
+                # Catching Exception should NOT catch AirflowTaskTimeout
+            except Exception:
+                pass
+
         with dag_maker():
             op = PythonOperator(
                 task_id="test_timeout",
                 execution_timeout=timedelta(seconds=1),
-                python_callable=lambda: sleep(5),
+                python_callable=sleep_and_catch_other_exceptions,
             )
         dag_maker.create_dagrun()
         with pytest.raises(AirflowTaskTimeout):
@@ -129,14 +136,14 @@ class TestCore:
 
         with dag_maker(schedule=timedelta(weeks=1)):
             task = EmptyOperator(task_id="test_externally_triggered_dag_context")
-        dag_maker.create_dagrun(
+        dr = dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             execution_date=execution_date,
             external_trigger=True,
         )
         task.run(start_date=execution_date, end_date=execution_date)
 
-        ti = TI(task=task, execution_date=execution_date)
+        ti = TI(task=task, run_id=dr.run_id)
         context = ti.get_template_context()
 
         # next_ds should be the execution date for manually triggered runs
@@ -162,14 +169,14 @@ class TestCore:
                 params={"key_2": "value_2_new", "key_3": "value_3"},
             )
             task2 = EmptyOperator(task_id="task2")
-        dag_maker.create_dagrun(
+        dr = dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             external_trigger=True,
         )
         task1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         task2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        ti1 = TI(task=task1, execution_date=DEFAULT_DATE)
-        ti2 = TI(task=task2, execution_date=DEFAULT_DATE)
+        ti1 = TI(task=task1, run_id=dr.run_id)
+        ti2 = TI(task=task2, run_id=dr.run_id)
         context1 = ti1.get_template_context()
         context2 = ti2.get_template_context()
 

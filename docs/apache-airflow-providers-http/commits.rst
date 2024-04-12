@@ -35,14 +35,42 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.10.1
+......
+
+Latest change: 2024-03-31
+
+=================================================================================================  ===========  =====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =====================================================================================
+`6d4746f899 <https://github.com/apache/airflow/commit/6d4746f8998617653ae839f187a7e74ed8c83471>`_  2024-03-31   ``Consolidate HttpOperator http request between sync and async mode (#37293)``
+`eead6c2479 <https://github.com/apache/airflow/commit/eead6c2479b5f1f08d7bfede83a7900e3913dfae>`_  2024-03-22   ``fix(http): add return statement to yield within a while loop in triggers (#38392)``
+`b5b972a106 <https://github.com/apache/airflow/commit/b5b972a1068e19b09d48ec4d7663dd1d996d594f>`_  2024-03-18   ``Update yanked versions in providers changelogs (#38262)``
+=================================================================================================  ===========  =====================================================================================
+
+4.10.0
+......
+
+Latest change: 2024-03-04
+
+=================================================================================================  ===========  =======================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================================
+`83316b8158 <https://github.com/apache/airflow/commit/83316b81584c9e516a8142778fc509f19d95cc3e>`_  2024-03-04   ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+`9c980f7a5c <https://github.com/apache/airflow/commit/9c980f7a5c549334dc88f44a6637e87e7892791d>`_  2024-02-27   ``Return back removed public HttpHook's method (#37738)``
+`9207f9ba0f <https://github.com/apache/airflow/commit/9207f9ba0f2e0b25d4319a66df1ca5d70bb8b6b5>`_  2024-02-26   ``Change the URL building in HttpHookAsync to match the behavior of HttpHook (#37696)``
+`5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
+=================================================================================================  ===========  =======================================================================================
+
 4.9.1
 .....
 
-Latest change: 2024-02-11
+Latest change: 2024-02-12
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`bfb054e9e8 <https://github.com/apache/airflow/commit/bfb054e9e867b8b9a6a449e43bfba97f645e025e>`_  2024-02-12   ``Prepare docs 1st wave of Providers February 2024 (#37326)``
 `78294c24e2 <https://github.com/apache/airflow/commit/78294c24e2a522815459b5ba9f67b9d2f8143990>`_  2024-02-11   ``Get rid of pytest-httpx as dependency (#37334)``
 `bb414f0122 <https://github.com/apache/airflow/commit/bb414f012246aa9874e7c5e84388a1487bbd5bd3>`_  2024-02-10   ``Added D401 support to http, smtp and sftp provider (#37303)``
 `90e2b12d6b <https://github.com/apache/airflow/commit/90e2b12d6b99d2f7db43e45f5e8b97d3b8a43b36>`_  2024-02-08   ``Upgrade mypy to 1.8.0 (#36428)``

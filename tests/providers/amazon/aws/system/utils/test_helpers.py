@@ -18,6 +18,7 @@
 This module contains the unit tests for the helper methods included in the Amazon System Tests found at
 tests/system/providers/amazon/aws/utils/__init__.py
 """
+
 from __future__ import annotations
 
 import os
@@ -87,7 +88,7 @@ class TestAmazonSystemTestHelpers:
         with pytest.raises(ValueError) as raised_exception:
             utils.fetch_variable(ANY_STR)
 
-            assert NO_VALUE_MSG.format(key=ANY_STR) in str(raised_exception.value)
+        assert NO_VALUE_MSG.format(key=ANY_STR) in str(raised_exception.value)
 
     ENV_ID_TEST_CASES = [
         # Happy Cases
@@ -124,7 +125,7 @@ class TestAmazonSystemTestHelpers:
             with pytest.raises(ValueError) as raised_exception:
                 _validate_env_id(env_id)
 
-                assert INVALID_ENV_ID_MSG in str(raised_exception.value)
+            assert INVALID_ENV_ID_MSG in str(raised_exception.value)
 
     def test_set_env_id_generates_if_required(self):
         # No environment variable nor SSM value has been found

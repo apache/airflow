@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Test for Package Index Hook."""
+
 from __future__ import annotations
 
 import pytest
@@ -86,7 +87,7 @@ def test_get_connection_url(mock_get_connection: str | None):
         connection_url = hook_instance.get_connection_url()
         assert connection_url == expected_result
     else:
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError, match="Please provide an index URL."):
             hook_instance.get_connection_url()
 
 
@@ -110,7 +111,7 @@ def test_test_connection(monkeypatch: pytest.MonkeyPatch, mock_get_connection: s
         result = hook_instance.test_connection()
         assert result[0] == (success == 0)
     else:
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError, match="Please provide an index URL"):
             hook_instance.test_connection()
 
 

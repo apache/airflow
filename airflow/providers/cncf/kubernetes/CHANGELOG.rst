@@ -27,6 +27,63 @@
 Changelog
 ---------
 
+8.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``KPO Add follow log in termination step (#38081)``
+* ``Add GKECreateCustomResourceOperator and GKEDeleteCustomResourceOperator operators (#37616)``
+* ``Implement deferrable mode for KubernetesJobOperator (#38251)``
+* ``Create KubernetesPatchJobOperator operator (#38146)``
+* ``Implement delete_on_status parameter for KubernetesDeleteJobOperator (#38458)``
+* ``Implement deferrable mode for GKEStartJobOperator (#38454)``
+* ``Use startup_check_interval_seconds instead of poll_interval to check pod while startup (#38075)``
+* ``Implement wait_until_job_complete parameter for KubernetesJobOperator (#37998)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use SIGINT signal number instead of signal name (#37905)``
+* ``Fix spark operator log retrieval from driver (#38106)``
+* ``Fix dynamic allocation specs handling for custom launcher (#38223)``
+* ``Fix case if 'SparkKubernetesOperator.application_file' is templated file (#38035)``
+* ``fix: reduce irrelevant error logs for pod events. (#37944)``
+
+Misc
+~~~~
+
+* ``Add GKEListJobsOperator and GKEDescribeJobOperator (#37598)``
+* ``removed usage of deprecated function  for naming the pod in provider k8s pod.py (#38638)``
+* ``Create DeleteKubernetesJobOperator and GKEDeleteJobOperator operators (#37793)``
+* ``Refactor GKE hooks (#38404)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``fix: try002 for provider cncf kubernetes (#38799)``
+   * ``Update yanked versions in providers changelogs (#38262)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+
+8.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Immediately fail the task in case of worker pod having a fatal container state (#37670)``
+* ``Skip pod cleanup in case of pod creation failed (#37671)``
+
+Misc
+~~~~
+
+* ``Avoid non-recommended usage of logging (#37792)``
+* ``Migrate executor docs to respective providers (#37728)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Avoid to use too broad 'noqa' (#37862)``
+
 8.0.0
 .....
 
@@ -932,6 +989,8 @@ Bug Fixes
 3.1.2 (YANKED)
 ..............
 
+.. warning:: This release has been **yanked** with a reason: ``Installing on Airflow 2.1, 2.2 allows to install unsupported kubernetes library > 11.0.0``
+
 Bug Fixes
 ~~~~~~~~~
 
@@ -946,6 +1005,8 @@ Misc
 3.1.1 (YANKED)
 ..............
 
+.. warning:: This release has been **yanked** with a reason: ``Installing on Airflow 2.1, 2.2 allows to install unsupported kubernetes library > 11.0.0``
+
 Misc
 ~~~~~
 
@@ -953,6 +1014,8 @@ Misc
 
 3.1.0 (YANKED)
 ..............
+
+.. warning:: This release has been **yanked** with a reason: ``Installing on Airflow 2.1, 2.2 allows to install unsupported kubernetes library > 11.0.0``
 
 Features
 ~~~~~~~~
@@ -974,6 +1037,8 @@ Misc
 3.0.2 (YANKED)
 ..............
 
+.. warning:: This release has been **yanked** with a reason: ``Installing on Airflow 2.1, 2.2 allows to install unsupported kubernetes library > 11.0.0``
+
 Bug Fixes
 ~~~~~~~~~
 
@@ -990,6 +1055,7 @@ Bug Fixes
 3.0.1 (YANKED)
 ..............
 
+.. warning:: This release has been **yanked** with a reason: ``Installing on Airflow 2.1, 2.2 allows to install unsupported kubernetes library > 11.0.0``
 
 Misc
 ~~~~

@@ -26,6 +26,63 @@
 Changelog
 ---------
 
+1.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add lineage_job_namespace and lineage_job_name OpenLineage macros (#38829)``
+* ``openlineage: add 'opt-in' option (#37725)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Remove redundant operator information from facets (#38264)``
+* ``fix: disabled_for_operators now stops whole event emission (#38033)``
+* ``fix: Add fallbacks when retrieving Airflow configuration to avoid errors being raised (#37994)``
+* ``fix: Fix parent id macro and remove unused utils (#37877)``
+
+Misc
+~~~~
+
+* ``Avoid use of 'assert' outside of the tests (#37718)``
+* ``Add default for 'task' on TaskInstance / fix attrs on TaskInstancePydantic (#37854)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Brings back mypy-checks (#38597)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``Resolve G004: Logging statement uses f-string (#37873)``
+   * ``fix: try002 for provider openlineage (#38806)``
+
+1.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Add OpenLineage metrics for event_size and extraction time (#37797)``
+* ``feat: Add OpenLineage support for File and User Airflow's lineage entities (#37744)``
+* ``[OpenLineage] Add support for JobTypeJobFacet properties. (#37255)``
+* ``chore: Update comments and logging in OpenLineage ExtractorManager (#37622)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Check if operator is disabled in DefaultExtractor.extract_on_complete (#37392)``
+
+Misc
+~~~~
+
+* ``docs: Update whole OpenLineage Provider docs. (#37620)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``tests: Add OpenLineage test cases for File to Dataset conversion (#37791)``
+   * ``Add comment about versions updated by release manager (#37488)``
+   * ``Follow D401 style in openlineage, slack, and tableau providers (#37312)``
+
 1.5.0
 .....
 

@@ -25,9 +25,17 @@ interface Props {
   parsedLogs: string;
   wrap: boolean;
   tryNumber: number;
+  unfoldedGroups: Array<string>;
+  setUnfoldedLogGroup: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
-const LogBlock = ({ parsedLogs, wrap, tryNumber }: Props) => {
+const LogBlock = ({
+  parsedLogs,
+  wrap,
+  tryNumber,
+  unfoldedGroups,
+  setUnfoldedLogGroup,
+}: Props) => {
   const [autoScroll, setAutoScroll] = useState(true);
 
   const logBoxRef = useRef<HTMLPreElement>(null);
@@ -59,14 +67,53 @@ const LogBlock = ({ parsedLogs, wrap, tryNumber }: Props) => {
     }
   };
 
+  const onClick = (e: React.MouseEvent<HTMLElement>) => {
+    const target = e.target as HTMLElement;
+    const unfoldIdSuffix = "_unfold";
+    const foldIdSuffix = "_fold";
+    if (target.id?.endsWith(unfoldIdSuffix)) {
+      const gId = target.id.substring(
+        0,
+        target.id.length - unfoldIdSuffix.length
+      );
+      // remember the folding state if logs re-loaded
+      unfoldedGroups.push(gId);
+      setUnfoldedLogGroup(unfoldedGroups);
+      // now do the folding
+      target.style.display = "none";
+      if (target.nextElementSibling) {
+        (target.nextElementSibling as HTMLElement).style.display = "inline";
+      }
+    } else if (target.id?.endsWith(foldIdSuffix)) {
+      const gId = target.id.substring(
+        0,
+        target.id.length - foldIdSuffix.length
+      );
+      // remember the folding state if logs re-loaded
+      if (unfoldedGroups.indexOf(gId) >= 0) {
+        unfoldedGroups.splice(unfoldedGroups.indexOf(gId), 1);
+      }
+      setUnfoldedLogGroup(unfoldedGroups);
+      // now do the folding
+      if (target.parentElement) {
+        target.parentElement.style.display = "none";
+        if (target.parentElement.previousSibling) {
+          (target.parentElement.previousSibling as HTMLElement).style.display =
+            "inline";
+        }
+      }
+    }
+    return false;
+  };
+
   return (
     <Code
       ref={logBoxRef}
       onScroll={onScroll}
+      onClick={onClick}
       maxHeight={`calc(100% - ${offsetTop}px)`}
       overflowY="auto"
       p={3}
-      pb={0}
       display="block"
       whiteSpace={wrap ? "pre-wrap" : "pre"}
       border="1px solid"

@@ -39,8 +39,6 @@ from airflow.auth.managers.utils.fab import (
 from airflow.exceptions import AirflowException
 from airflow.models import Connection, DagRun, Pool, TaskInstance, Variable
 from airflow.security.permissions import (
-    ACTION_CAN_ACCESS_MENU,
-    ACTION_CAN_READ,
     RESOURCE_ADMIN_MENU,
     RESOURCE_AUDIT_LOG,
     RESOURCE_BROWSE_MENU,
@@ -82,7 +80,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.auth.managers.models.base_user import BaseUser
-    from airflow.providers.fab.auth_manager.models import Action, Resource
 
 
 class AirflowSecurityManagerV2(LoggingMixin):
@@ -202,8 +199,8 @@ class AirflowSecurityManagerV2(LoggingMixin):
             if not resource_pk:
                 return None
             composite_pk = json.loads(resource_pk)
-            ti = session.scalar(
-                select(DagRun)
+            dag_id = session.scalar(
+                select(TaskInstance.dag_id)
                 .where(
                     TaskInstance.dag_id == composite_pk[0],
                     TaskInstance.task_id == composite_pk[1],
@@ -212,9 +209,9 @@ class AirflowSecurityManagerV2(LoggingMixin):
                 )
                 .limit(1)
             )
-            if not ti:
+            if not dag_id:
                 raise AirflowException("Task instance not found")
-            return ti.dag_id
+            return dag_id
 
         def get_pool_name(resource_pk):
             if not resource_pk:
@@ -337,11 +334,11 @@ class AirflowSecurityManagerV2(LoggingMixin):
             # least one dropdown child
             return self._is_authorized_category_menu(fab_resource_name)
         else:
-            # This means the page the user is trying to access is specific to the auth manager used
-            # Example: the user list view in FabAuthManager
+            # The user is trying to access a page specific to the auth manager
+            # (e.g. the user list view in FabAuthManager) or a page defined in a plugin
             return lambda action, resource_pk, user: get_auth_manager().is_authorized_custom_view(
-                fab_action_name=ACTION_CAN_READ if action == ACTION_CAN_ACCESS_MENU else action,
-                fab_resource_name=fab_resource_name,
+                method=get_method_from_fab_action_map()[action],
+                resource_name=fab_resource_name,
                 user=user,
             )
 
@@ -351,17 +348,6 @@ class AirflowSecurityManagerV2(LoggingMixin):
             self._get_auth_manager_is_authorized_method(fab_resource_name=item)(action, resource_pk, user)
             for item in items
         )
-
-    """
-    The following methods are specific to FAB auth manager. They still need to be "present" in the main
-    security manager class, but they do nothing.
-    """
-
-    def get_action(self, name: str) -> Action:
-        raise NotImplementedError("Only available if FAB auth manager is used")
-
-    def get_resource(self, name: str) -> Resource:
-        raise NotImplementedError("Only available if FAB auth manager is used")
 
     def add_permissions_view(self, base_action_names, resource_name):
         pass

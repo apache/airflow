@@ -19,8 +19,9 @@
 
 .. seealso::
     For more information on how the CeleryExecutor works, take a look at the guide:
-    :ref:`executor:CeleryExecutor`
+    :doc:`/celery_executor`
 """
+
 from __future__ import annotations
 
 import logging
@@ -29,10 +30,12 @@ import operator
 import time
 from collections import Counter
 from concurrent.futures import ProcessPoolExecutor
+from importlib.metadata import version as importlib_version
 from multiprocessing import cpu_count
 from typing import TYPE_CHECKING, Any, Optional, Sequence, Tuple
 
 from celery import states as celery_states
+from packaging.version import Version
 
 try:
     from airflow.cli.cli_config import (
@@ -177,11 +180,19 @@ ARG_WITHOUT_GOSSIP = Arg(
     action="store_true",
 )
 
+AIRFLOW_VERSION = Version(importlib_version("apache-airflow"))
+
+CELERY_CLI_COMMAND_PATH = (
+    "airflow.providers.celery.cli.celery_command"
+    if AIRFLOW_VERSION >= Version("2.8.0")
+    else "airflow.cli.commands.celery_command"
+)
+
 CELERY_COMMANDS = (
     ActionCommand(
         name="worker",
         help="Start a Celery worker node",
-        func=lazy_load_command("airflow.cli.commands.celery_command.worker"),
+        func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.worker"),
         args=(
             ARG_QUEUES,
             ARG_CONCURRENCY,
@@ -202,7 +213,7 @@ CELERY_COMMANDS = (
     ActionCommand(
         name="flower",
         help="Start a Celery Flower",
-        func=lazy_load_command("airflow.cli.commands.celery_command.flower"),
+        func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.flower"),
         args=(
             ARG_FLOWER_HOSTNAME,
             ARG_FLOWER_PORT,
@@ -221,7 +232,7 @@ CELERY_COMMANDS = (
     ActionCommand(
         name="stop",
         help="Stop the Celery worker gracefully",
-        func=lazy_load_command("airflow.cli.commands.celery_command.stop_worker"),
+        func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.stop_worker"),
         args=(ARG_PID, ARG_VERBOSE),
     ),
 )
@@ -300,7 +311,7 @@ class CeleryExecutor(BaseExecutor):
             self.queued_tasks.pop(key)
             self.task_publish_retries.pop(key, None)
             if isinstance(result, ExceptionWithTraceback):
-                self.log.error(CELERY_SEND_ERR_MSG_HEADER + ": %s\n%s\n", result.exception, result.traceback)
+                self.log.error("%s: %s\n%s\n", CELERY_SEND_ERR_MSG_HEADER, result.exception, result.traceback)
                 self.event_buffer[key] = (TaskInstanceState.FAILED, None)
             elif result is not None:
                 result.backend = cached_celery_backend

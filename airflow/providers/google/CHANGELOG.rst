@@ -27,6 +27,104 @@
 Changelog
 ---------
 
+10.17.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Add 'impersonation_scopes' to BigQuery (#38169)``
+* ``Add the deferrable mode to RunPipelineJobOperator (#37969)``
+* ``Add GKECreateCustomResourceOperator and GKEDeleteCustomResourceOperator operators (#37616)``
+* ``Add VertexAI Language Model and Multimodal Model Operators for Google Cloud Generative AI use (#37721)``
+* ``Add GKEListJobsOperator and GKEDescribeJobOperator (#37598)``
+* ``Create GKEStartKueueJobOperator operator (#37477)``
+* ``Create DeleteKubernetesJobOperator and GKEDeleteJobOperator operators (#37793)``
+* ``Update GCS hook to get crc32c hash for CMEK-protected objects (#38191)``
+* ``Set job labels for traceability in BigQuery jobs (#37736)``
+* ``Deferrable mode for CreateBatchPredictionJobOperator (#37818)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix BigQuery connection and add docs (#38430)``
+* ``fix(google,log): Avoid log name overriding (#38071)``
+* ``Fix credentials error for S3ToGCSOperator trigger (#37518)``
+* ``Fix 'parent_model' parameter in GCP Vertex AI AutoML and Custom Job operators (#38417)``
+* ``fix(google): add return statement to yield within a while loop in triggers (#38394)``
+* ``Fix cursor unique name surpasses Postgres identifier limit in 'PostgresToGCSOperator' (#38040)``
+* ``Fix gcs Anonymous user issue because none token (#38102)``
+* ``Fix BigQueryTablePartitionExistenceTrigger partition query (#37655)``
+
+Misc
+~~~~
+
+* ``Add google-cloud-bigquery as explicit google-provider dependency (#38753)``
+* ``Avoid to use 'functools.lru_cache' in class methods in 'google' provider (#38652)``
+* ``Refactor GKE hooks (#38404)``
+* ``Remove unused loop variable from airflow package (#38308)``
+* ``templated fields logic checks for cloud_storage_transfer_service (#37519)``
+* ``Rename mlengine's operators' fields' names to comply with templated fields validation (#38053)``
+* ``Rename Vertex AI AutoML operators fields' names to comply with templated fields validation (#38049)``
+* ``Rename 'DeleteCustomTrainingJobOperator''s fields' names to comply with templated fields validation (#38048)``
+* ``Restore delegate_to for Google Transfer Operators retrieving from Google Cloud. (#37925)``
+* ``Refactor CreateHyperparameterTuningJobOperator (#37938)``
+* ``Upgrade google-ads version (#37787)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``fix: try002 for provider google (#38803)``
+   * ``Revert "Delete deprecated AutoML operators and deprecate AutoML hook and links (#38418)" (#38633)``
+   * ``Implement deferrable mode for GKEStartJobOperator (#38454)``
+   * ``Delete deprecated AutoML operators and deprecate AutoML hook and links (#38418)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``Resolve G004: Logging statement uses f-string (#37873)``
+
+10.16.0
+.......
+
+Features
+~~~~~~~~
+
+* ``'CloudRunExecuteJobOperator': Add project_id to hook.get_job calls (#37201)``
+* ``Add developer token as authentication method to GoogleAdsHook (#37417)``
+* ``Add GKEStartKueueInsideClusterOperator (#37072)``
+* ``Add optional 'location' parameter to the BigQueryInsertJobTrigger (#37282)``
+* ``feat(GKEPodAsyncHook): use async credentials token implementation (#37486)``
+* ``Create GKEStartJobOperator and KubernetesJobOperator (#36847)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix invalid deprecation of 'DataFusionPipelineLinkHelper' (#37755)``
+* ``fix templated field assignment 'google/cloud/operators/compute.py' (#37659)``
+* ``fix bq_to_mysql init checks (#37653)``
+* ``Fix Async GCSObjectsWithPrefixExistenceSensor xcom push (#37634)``
+* ``Fix GCSSynchronizeBucketsOperator timeout error (#37237)``
+* ``fix: Signature of insert_rows incompatible with supertype DbApiHook (#37391)``
+* ``Use offset-naive datetime in _CredentialsToken (#37539)``
+* ``Use wait_for_operation in DataprocInstantiateInlineWorkflowTemplateOperator (#37145)``
+
+Misc
+~~~~
+
+* ``Fix typo on DataflowStartFlexTemplateOperator documentation (#37595)``
+* ``Make 'executemany' keyword arguments only in 'DbApiHook.insert_rows' (#37840)``
+* ``Unify 'aws_conn_id' type to always be 'str | None' (#37768)``
+* ``Limit 'pandas' to '<2.2' (#37748)``
+* ``Remove broken deprecated fallback into the Google provider operators (#37740)``
+* ``Implement AIP-60 Dataset URI formats (#37005)``
+* ``resolve template fields init checks for 'bigquery' (#37586)``
+* ``Update docs for the DataprocCreateBatchOperator (#37562)``
+* ``Replace usage of 'datetime.utcnow' and 'datetime.utcfromtimestamp' in providers (#37138)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add comment about versions updated by release manager (#37488)``
+   * ``Add D401 fixes (#37348)``
+   * ``Avoid to use too broad 'noqa' (#37862)``
+   * ``Avoid non-recommended usage of logging (#37792)``
+
 10.15.0
 .......
 

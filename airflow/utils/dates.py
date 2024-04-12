@@ -79,9 +79,9 @@ def date_range(
         return []
     if end_date:
         if start_date > end_date:
-            raise Exception("Wait. start_date needs to be before end_date")
+            raise ValueError("Wait. start_date needs to be before end_date")
         if num:
-            raise Exception("Wait. Either specify end_date OR num")
+            raise ValueError("Wait. Either specify end_date OR num")
     if not end_date and not num:
         end_date = timezone.utcnow()
 
@@ -99,7 +99,7 @@ def date_range(
     elif isinstance(delta, relativedelta):
         abs_delta = abs(delta)
     else:
-        raise Exception("Wait. delta must be either datetime.timedelta or cron expression as str")
+        raise TypeError("Wait. delta must be either datetime.timedelta or cron expression as str")
 
     dates = []
     if end_date:

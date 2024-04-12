@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Amazon EKS operators."""
+
 from __future__ import annotations
 
 import logging
@@ -73,7 +74,7 @@ FARGATE_FULL_NAME = "AWS Fargate profiles"
 def _create_compute(
     compute: str | None,
     cluster_name: str,
-    aws_conn_id: str,
+    aws_conn_id: str | None,
     region: str | None,
     waiter_delay: int,
     waiter_max_attempts: int,
@@ -231,7 +232,7 @@ class EksCreateClusterOperator(BaseOperator):
         fargate_selectors: list | None = None,
         create_fargate_profile_kwargs: dict | None = None,
         wait_for_completion: bool = False,
-        aws_conn_id: str = DEFAULT_CONN_ID,
+        aws_conn_id: str | None = DEFAULT_CONN_ID,
         region: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         waiter_delay: int = 30,
@@ -246,7 +247,9 @@ class EksCreateClusterOperator(BaseOperator):
         self.nodegroup_role_arn = nodegroup_role_arn
         self.fargate_pod_execution_role_arn = fargate_pod_execution_role_arn
         self.create_fargate_profile_kwargs = create_fargate_profile_kwargs or {}
-        self.wait_for_completion = False if deferrable else wait_for_completion
+        if deferrable:
+            wait_for_completion = False
+        self.wait_for_completion = wait_for_completion
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.aws_conn_id = aws_conn_id
@@ -481,7 +484,7 @@ class EksCreateNodegroupOperator(BaseOperator):
         nodegroup_name: str = DEFAULT_NODEGROUP_NAME,
         create_nodegroup_kwargs: dict | None = None,
         wait_for_completion: bool = False,
-        aws_conn_id: str = DEFAULT_CONN_ID,
+        aws_conn_id: str | None = DEFAULT_CONN_ID,
         region: str | None = None,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 80,
@@ -494,7 +497,9 @@ class EksCreateNodegroupOperator(BaseOperator):
         self.nodegroup_role_arn = nodegroup_role_arn
         self.nodegroup_name = nodegroup_name
         self.create_nodegroup_kwargs = create_nodegroup_kwargs or {}
-        self.wait_for_completion = False if deferrable else wait_for_completion
+        if deferrable:
+            wait_for_completion = False
+        self.wait_for_completion = wait_for_completion
         self.aws_conn_id = aws_conn_id
         self.region = region
         self.waiter_delay = waiter_delay
@@ -604,7 +609,7 @@ class EksCreateFargateProfileOperator(BaseOperator):
         fargate_profile_name: str = DEFAULT_FARGATE_PROFILE_NAME,
         create_fargate_profile_kwargs: dict | None = None,
         wait_for_completion: bool = False,
-        aws_conn_id: str = DEFAULT_CONN_ID,
+        aws_conn_id: str | None = DEFAULT_CONN_ID,
         region: str | None = None,
         waiter_delay: int = 10,
         waiter_max_attempts: int = 60,
@@ -616,7 +621,9 @@ class EksCreateFargateProfileOperator(BaseOperator):
         self.pod_execution_role_arn = pod_execution_role_arn
         self.fargate_profile_name = fargate_profile_name
         self.create_fargate_profile_kwargs = create_fargate_profile_kwargs or {}
-        self.wait_for_completion = False if deferrable else wait_for_completion
+        if deferrable:
+            wait_for_completion = False
+        self.wait_for_completion = wait_for_completion
         self.aws_conn_id = aws_conn_id
         self.region = region
         self.waiter_delay = waiter_delay
@@ -706,7 +713,7 @@ class EksDeleteClusterOperator(BaseOperator):
         cluster_name: str,
         force_delete_compute: bool = False,
         wait_for_completion: bool = False,
-        aws_conn_id: str = DEFAULT_CONN_ID,
+        aws_conn_id: str | None = DEFAULT_CONN_ID,
         region: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         waiter_delay: int = 30,
@@ -715,7 +722,9 @@ class EksDeleteClusterOperator(BaseOperator):
     ) -> None:
         self.cluster_name = cluster_name
         self.force_delete_compute = force_delete_compute
-        self.wait_for_completion = False if deferrable else wait_for_completion
+        if deferrable:
+            wait_for_completion = False
+        self.wait_for_completion = wait_for_completion
         self.aws_conn_id = aws_conn_id
         self.region = region
         self.deferrable = deferrable
@@ -835,7 +844,7 @@ class EksDeleteNodegroupOperator(BaseOperator):
         cluster_name: str,
         nodegroup_name: str,
         wait_for_completion: bool = False,
-        aws_conn_id: str = DEFAULT_CONN_ID,
+        aws_conn_id: str | None = DEFAULT_CONN_ID,
         region: str | None = None,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 40,
@@ -925,7 +934,7 @@ class EksDeleteFargateProfileOperator(BaseOperator):
         cluster_name: str,
         fargate_profile_name: str,
         wait_for_completion: bool = False,
-        aws_conn_id: str = DEFAULT_CONN_ID,
+        aws_conn_id: str | None = DEFAULT_CONN_ID,
         region: str | None = None,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 60,
@@ -1037,7 +1046,7 @@ class EksPodOperator(KubernetesPodOperator):
         pod_context: str | None = None,
         pod_name: str | None = None,
         pod_username: str | None = None,
-        aws_conn_id: str = DEFAULT_CONN_ID,
+        aws_conn_id: str | None = DEFAULT_CONN_ID,
         region: str | None = None,
         on_finish_action: str | None = None,
         is_delete_operator_pod: bool | None = None,

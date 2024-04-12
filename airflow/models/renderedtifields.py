@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Save Rendered Template Fields."""
+
 from __future__ import annotations
 
 import os
@@ -46,7 +47,21 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import FromClause
 
+    from airflow.models import Operator
     from airflow.models.taskinstance import TaskInstance, TaskInstancePydantic
+
+
+def get_serialized_template_fields(task: Operator):
+    """
+    Get and serialize the template fields for a task.
+
+    Used in preparing to store them in RTIF table.
+
+    :param task: Operator instance with rendered template fields
+
+    :meta private:
+    """
+    return {field: serialize_template_field(getattr(task, field), field) for field in task.template_fields}
 
 
 class RenderedTaskInstanceFields(TaskInstanceDependencies):
@@ -100,7 +115,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
     execution_date = association_proxy("dag_run", "execution_date")
 
-    def __init__(self, ti: TaskInstance, render_templates=True):
+    def __init__(self, ti: TaskInstance, render_templates=True, rendered_fields=None):
         self.dag_id = ti.dag_id
         self.task_id = ti.task_id
         self.run_id = ti.run_id
@@ -108,6 +123,10 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
         self.ti = ti
         if render_templates:
             ti.render_templates()
+
+        if TYPE_CHECKING:
+            assert ti.task
+
         self.task = ti.task
         if os.environ.get("AIRFLOW_IS_K8S_EXECUTOR_POD", None):
             # we can safely import it here from provider. In Airflow 2.7.0+ you need to have new version
@@ -115,9 +134,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
             from airflow.providers.cncf.kubernetes.template_rendering import render_k8s_pod_yaml
 
             self.k8s_pod_yaml = render_k8s_pod_yaml(ti)
-        self.rendered_fields = {
-            field: serialize_template_field(getattr(self.task, field)) for field in self.task.template_fields
-        }
+        self.rendered_fields = rendered_fields or get_serialized_template_fields(task=ti.task)
 
         self._redact()
 

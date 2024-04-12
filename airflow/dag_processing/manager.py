@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Processes DAGs."""
+
 from __future__ import annotations
 
 import enum
@@ -849,7 +850,7 @@ class DagFileProcessorManager(LoggingMixin):
             rows.append((file_path, processor_pid, runtime, num_dags, num_errors, last_runtime, last_run))
 
         # Sort by longest last runtime. (Can't sort None values in python3)
-        rows.sort(key=lambda x: x[3] or 0.0)
+        rows.sort(key=lambda x: x[5] or 0.0, reverse=True)
 
         formatted_rows = []
         for file_path, pid, runtime, num_dags, num_errors, last_runtime, last_run in rows:
@@ -1176,7 +1177,7 @@ class DagFileProcessorManager(LoggingMixin):
         ]
 
         if self.log.isEnabledFor(logging.DEBUG):
-            for file_path, processor in self._processors.items():
+            for processor in self._processors.values():
                 self.log.debug(
                     "File path %s is still being processed (started: %s)",
                     processor.file_path,

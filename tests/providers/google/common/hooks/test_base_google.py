@@ -90,10 +90,9 @@ class TestQuotaRetry:
         assert 5 == custom_fn.counter
 
     def test_raise_exception_on_non_quota_exception(self):
+        message = "POST https://translation.googleapis.com/language/translate/v2: Daily Limit Exceeded"
+        errors = [mock.MagicMock(details=mock.PropertyMock(return_value="dailyLimitExceeded"))]
         with pytest.raises(Forbidden, match="Daily Limit Exceeded"):
-            message = "POST https://translation.googleapis.com/language/translate/v2: Daily Limit Exceeded"
-            errors = [mock.MagicMock(details=mock.PropertyMock(return_value="dailyLimitExceeded"))]
-
             _retryable_test_with_temporary_quota_retry(
                 NoForbiddenAfterCount(5, message=message, errors=errors)
             )
@@ -248,9 +247,9 @@ class TestProvideGcpCredentialFile:
 
         @hook.GoogleBaseHook.provide_gcp_credential_file
         def assert_gcp_credential_file_in_env(_):
-            raise Exception()
+            raise RuntimeError("Some exception occurred")
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="Some exception occurred"):
             assert_gcp_credential_file_in_env(self.instance)
 
         assert os.environ[CREDENTIALS] == ENV_VALUE
@@ -274,9 +273,9 @@ class TestProvideGcpCredentialFile:
 
         @hook.GoogleBaseHook.provide_gcp_credential_file
         def assert_gcp_credential_file_in_env(_):
-            raise Exception()
+            raise RuntimeError("Some exception occurred")
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="Some exception occurred"):
             assert_gcp_credential_file_in_env(self.instance)
 
         assert CREDENTIALS not in os.environ
@@ -326,9 +325,9 @@ class TestProvideGcpCredentialFileAsContext:
         key_path = "/test/key-path"
         self.instance.extras = {"key_path": key_path}
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="Some exception occurred"):
             with self.instance.provide_gcp_credential_file_as_context():
-                raise Exception()
+                raise RuntimeError("Some exception occurred")
 
         assert os.environ[CREDENTIALS] == ENV_VALUE
 
@@ -347,9 +346,9 @@ class TestProvideGcpCredentialFileAsContext:
         key_path = "/test/key-path"
         self.instance.extras = {"key_path": key_path}
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="Some exception occurred"):
             with self.instance.provide_gcp_credential_file_as_context():
-                raise Exception()
+                raise RuntimeError("Some exception occurred")
 
         assert CREDENTIALS not in os.environ
 

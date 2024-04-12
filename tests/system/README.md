@@ -71,7 +71,7 @@ pytest --system google tests/system/providers/google/cloud/bigquery/example_bigq
 You can specify several `--system` flags if you want to execute tests for several providers:
 
 ```commandline
-pytest --system google --system aws tests/system
+pytest --system google --system amazon tests/system
 ```
 
 ### Running via Airflow CLI

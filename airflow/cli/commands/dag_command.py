@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Dag sub-commands."""
+
 from __future__ import annotations
 
 import ast
@@ -42,7 +43,9 @@ from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import cli as cli_utils, timezone
 from airflow.utils.cli import get_dag, get_dags, process_subdir, sigint_handler, suppress_logs_and_warning
+from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
+from airflow.utils.helpers import ask_yesno
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
@@ -130,19 +133,25 @@ def dag_backfill(args, dag: list[DAG] | DAG | None = None) -> None:
     """Create backfill job or dry run for a DAG or list of DAGs using regex."""
     logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
     signal.signal(signal.SIGTERM, sigint_handler)
-    warnings.warn(
-        "--ignore-first-depends-on-past is deprecated as the value is always set to True",
-        category=RemovedInAirflow3Warning,
-    )
+    if args.ignore_first_depends_on_past:
+        warnings.warn(
+            "--ignore-first-depends-on-past is deprecated as the value is always set to True",
+            category=RemovedInAirflow3Warning,
+        )
+    args.ignore_first_depends_on_past = True
 
-    if args.ignore_first_depends_on_past is False:
-        args.ignore_first_depends_on_past = True
+    if not args.treat_dag_id_as_regex and args.treat_dag_as_regex:
+        warnings.warn(
+            "--treat-dag-as-regex is deprecated, use --treat-dag-id-as-regex instead",
+            category=RemovedInAirflow3Warning,
+        )
+        args.treat_dag_id_as_regex = args.treat_dag_as_regex
 
     if not args.start_date and not args.end_date:
         raise AirflowException("Provide a start_date and/or end_date")
 
     if not dag:
-        dags = get_dags(args.subdir, dag_id=args.dag_id, use_regex=args.treat_dag_as_regex)
+        dags = get_dags(args.subdir, dag_id=args.dag_id, use_regex=args.treat_dag_id_as_regex)
     elif isinstance(dag, list):
         dags = dag
     else:
@@ -212,14 +221,42 @@ def dag_unpause(args) -> None:
 @providers_configuration_loaded
 def set_is_paused(is_paused: bool, args) -> None:
     """Set is_paused for DAG by a given dag_id."""
-    dag = DagModel.get_dagmodel(args.dag_id)
+    should_apply = True
+    dags = [
+        dag
+        for dag in get_dags(args.subdir, dag_id=args.dag_id, use_regex=args.treat_dag_id_as_regex)
+        if is_paused != dag.get_is_paused()
+    ]
 
-    if not dag:
-        raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
+    if not dags:
+        print(f"No {'un' if is_paused else ''}paused DAGs were found")
+        return
 
-    dag.set_is_paused(is_paused=is_paused)
+    if not args.yes and args.treat_dag_id_as_regex:
+        dags_ids = [dag.dag_id for dag in dags]
+        question = (
+            f"You are about to {'un' if not is_paused else ''}pause {len(dags_ids)} DAGs:\n"
+            f"{','.join(dags_ids)}"
+            f"\n\nAre you sure? [y/n]"
+        )
+        should_apply = ask_yesno(question)
 
-    print(f"Dag: {args.dag_id}, paused: {is_paused}")
+    if should_apply:
+        dags_models = [DagModel.get_dagmodel(dag.dag_id) for dag in dags]
+        for dag_model in dags_models:
+            if dag_model is not None:
+                dag_model.set_is_paused(is_paused=is_paused)
+
+        AirflowConsole().print_as(
+            data=[
+                {"dag_id": dag.dag_id, "is_paused": dag.get_is_paused()}
+                for dag in dags_models
+                if dag is not None
+            ],
+            output=args.output,
+        )
+    else:
+        print("Operation cancelled by user")
 
 
 @providers_configuration_loaded
@@ -289,6 +326,7 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
     """Return a dagbag dag details dict."""
     return {
         "dag_id": dag.dag_id,
+        "dag_display_name": dag.dag_display_name,
         "root_dag_id": dag.parent_dag.dag_id if dag.parent_dag else None,
         "is_paused": dag.get_is_paused(),
         "is_active": dag.get_is_active(),
@@ -308,6 +346,7 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "tags": dag.tags,
         "max_active_tasks": dag.max_active_tasks,
         "max_active_runs": dag.max_active_runs,
+        "max_consecutive_failed_dag_runs": dag.max_consecutive_failed_dag_runs,
         "has_task_concurrency_limits": any(
             t.max_active_tis_per_dag is not None or t.max_active_tis_per_dagrun is not None for t in dag.tasks
         ),
@@ -564,7 +603,8 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
         except ValueError as e:
             raise SystemExit(f"Configuration {args.conf!r} is not valid JSON. Error: {e}")
     execution_date = args.execution_date or timezone.utcnow()
-    dag = dag or get_dag(subdir=args.subdir, dag_id=args.dag_id)
+    with _airflow_parsing_context_manager(dag_id=args.dag_id):
+        dag = dag or get_dag(subdir=args.subdir, dag_id=args.dag_id)
     dr: DagRun = dag.test(execution_date=execution_date, run_conf=run_conf, session=session)
     show_dagrun = args.show_dagrun
     imgcat = args.imgcat_dagrun

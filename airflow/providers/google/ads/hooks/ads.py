@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Ad hook."""
+
 from __future__ import annotations
 
 from functools import cached_property
@@ -31,9 +32,9 @@ from airflow.hooks.base import BaseHook
 from airflow.providers.google.common.hooks.base_google import get_field
 
 if TYPE_CHECKING:
-    from google.ads.googleads.v15.services.services.customer_service import CustomerServiceClient
-    from google.ads.googleads.v15.services.services.google_ads_service import GoogleAdsServiceClient
-    from google.ads.googleads.v15.services.types.google_ads_service import GoogleAdsRow
+    from google.ads.googleads.v16.services.services.customer_service import CustomerServiceClient
+    from google.ads.googleads.v16.services.services.google_ads_service import GoogleAdsServiceClient
+    from google.ads.googleads.v16.services.types.google_ads_service import GoogleAdsRow
     from google.api_core.page_iterator import GRPCIterator
 
 
@@ -99,7 +100,7 @@ class GoogleAdsHook(BaseHook):
     :param api_version: The Google Ads API version to use.
     """
 
-    default_api_version = "v15"
+    default_api_version = "v16"
 
     def __init__(
         self,

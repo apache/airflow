@@ -62,6 +62,8 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--github-repository",
                 "--builder",
+                "--use-uv",
+                "--uv-http-timeout",
             ],
         },
         {
@@ -125,6 +127,8 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--image-tag",
                 "--github-repository",
                 "--builder",
+                "--use-uv",
+                "--uv-http-timeout",
             ],
         },
         {
@@ -238,6 +242,8 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--image-tag",
                 "--github-repository",
                 "--builder",
+                "--use-uv",
+                "--uv-http-timeout",
             ],
         },
         {
@@ -297,6 +303,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--include-removed-providers",
                 "--github-repository",
                 "--builder",
+                "--package-list",
             ],
         },
     ],

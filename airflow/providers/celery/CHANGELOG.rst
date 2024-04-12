@@ -27,6 +27,45 @@
 Changelog
 ---------
 
+3.6.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Ensure __exit__ is called in decorator context managers (#38383)``
+* ``Don't dispose sqlalchemy engine when using internal api (#38562)``
+* ``Use celery worker CLI from Airflow package for Airflow < 2.8.0 (#38879)``
+
+Misc
+~~~~
+
+* ``Allow to use 'redis'>=5 (#38385)``
+* ``Reraise of AirflowOptionalProviderFeatureException should be direct (#38555)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump ruff to 0.3.3 (#38240)``
+
+3.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove pid arg from celery option to fix duplicate pid issue, Move celery command to provider package (#36794)``
+* ``Change AirflowTaskTimeout to inherit BaseException (#35653)``
+
+Misc
+~~~~
+
+* ``Migrate executor docs to respective providers (#37728)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Resolve G003: "Logging statement uses +" (#37848)``
+   * ``Add comment about versions updated by release manager (#37488)``
+
 3.6.0
 .....
 

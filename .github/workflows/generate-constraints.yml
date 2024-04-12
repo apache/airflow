@@ -1,0 +1,132 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: Generate constraints
+on:  # yamllint disable-line rule:truthy
+  workflow_call:
+    inputs:
+      runs-on-as-json-public:
+        description: "The array of labels (in json form) determining public runners."
+        required: true
+        type: string
+      python-versions-list-as-string:
+        description: "Stringified array of all Python versions to test - separated by spaces."
+        required: true
+        type: string
+      generate-no-providers-constraints:
+        description: "Whether to generate constraints without providers (true/false)"
+        required: true
+        type: string
+      image-tag:
+        description: "Tag to set for the image"
+        required: true
+        type: string
+      chicken-egg-providers:
+        description: "Space-separated list of providers that should be installed from context files"
+        required: true
+        type: string
+      debug-resources:
+        description: "Whether to run in debug mode (true/false)"
+        required: true
+        type: string
+jobs:
+  generate-constraints:
+    permissions:
+      contents: read
+    timeout-minutes: 70
+    name: Generate constraints ${{ inputs.python-versions-list-as-string }}
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    env:
+      DEBUG_RESOURCES: ${{ inputs.debug-resources }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      INCLUDE_SUCCESS_OUTPUTS: "true"
+      IMAGE_TAG: ${{ inputs.image-tag }}
+      PYTHON_VERSIONS: ${{ inputs.python-versions-list-as-string }}
+      VERBOSE: "true"
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: Login to ghcr.io
+        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: "\
+            Pull CI images \
+            ${{ inputs.python-versions-list-as-string }}:\
+            ${{ inputs.image-tag }}"
+        run: breeze ci-image pull --run-in-parallel --tag-as-latest
+      - name: "
+            Verify CI images \
+            ${{ inputs.python-versions-list-as-string }}:\
+            ${{ inputs.image-tag }}"
+        run: breeze ci-image verify --run-in-parallel
+      - name: "Source constraints"
+        shell: bash
+        run: >
+          breeze release-management generate-constraints --run-in-parallel
+          --airflow-constraints-mode constraints-source-providers --answer yes
+      - name: "No providers constraints"
+        shell: bash
+        timeout-minutes: 25
+        run: >
+          breeze release-management generate-constraints --run-in-parallel
+          --airflow-constraints-mode constraints-no-providers --answer yes
+        # The no providers constraints are only needed when we want to update constraints (in canary builds)
+        # They slow down the start of PROD image builds so we want to only run them when needed.
+        if: inputs.generate-no-providers-constraints == 'true'
+      - name: "Prepare chicken-eggs provider packages"
+        # In case of provider packages which use latest dev0 version of providers, we should prepare them
+        # from the source code, not from the PyPI because they have apache-airflow>=X.Y.Z dependency
+        # And when we prepare them from sources they will have apache-airflow>=X.Y.Z.dev0
+        shell: bash
+        run: >
+          breeze release-management prepare-provider-packages --include-not-ready-providers
+          --package-format wheel --version-suffix-for-pypi dev0
+          ${{ inputs.chicken-egg-providers }}
+        if: inputs.chicken-egg-providers != ''
+      - name: "PyPI constraints"
+        shell: bash
+        timeout-minutes: 25
+        run: >
+          breeze release-management generate-constraints --run-in-parallel
+          --airflow-constraints-mode constraints --answer yes
+          --chicken-egg-providers "${{ inputs.chicken-egg-providers }}"
+      - name: "Dependency upgrade summary"
+        shell: bash
+        run: |
+          for PYTHON_VERSION in ${{ env.PYTHON_VERSIONS }}; do
+            echo "Summarizing Python $PYTHON_VERSION"
+            cat "files/constraints-${PYTHON_VERSION}"/*.md >> $GITHUB_STEP_SUMMARY || true
+          done
+      - name: "Upload constraint artifacts"
+        uses: actions/upload-artifact@v4
+        with:
+          name: constraints
+          path: ./files/constraints-*/constraints-*.txt
+          retention-days: 7
+          if-no-files-found: error

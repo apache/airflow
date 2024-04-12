@@ -69,10 +69,10 @@ def _render_template(template_name, **kwargs):
 
 def _docs_path(filepath: str):
     if not filepath.startswith("/docs/"):
-        raise Exception(f"The path must starts with '/docs/'. Current value: {filepath}")
+        raise RuntimeError(f"The path must starts with '/docs/'. Current value: {filepath}")
 
     if not filepath.endswith(".rst"):
-        raise Exception(f"The path must ends with '.rst'. Current value: {filepath}")
+        raise RuntimeError(f"The path must ends with '.rst'. Current value: {filepath}")
 
     if filepath.startswith("/docs/apache-airflow-providers-"):
         _, _, provider, rest = filepath.split("/", maxsplit=3)
@@ -513,6 +513,17 @@ class DeprecationsDirective(BaseJinjaReferenceDirective):
         )
 
 
+class DatasetSchemeDirective(BaseJinjaReferenceDirective):
+    """Generate list of Dataset URI schemes"""
+
+    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
+        return _common_render_list_content(
+            header_separator=header_separator,
+            resource_type="dataset-uris",
+            template="dataset-uri-schemes.rst.jinja2",
+        )
+
+
 def setup(app):
     """Setup plugin"""
     app.add_directive("operators-hooks-ref", OperatorsHooksReferenceDirective)
@@ -527,6 +538,7 @@ def setup(app):
     app.add_directive("airflow-executors", ExecutorsDirective)
     app.add_directive("airflow-deferrable-operators", DeferrableOperatorDirective)
     app.add_directive("airflow-deprecations", DeprecationsDirective)
+    app.add_directive("airflow-dataset-schemes", DatasetSchemeDirective)
 
     return {"parallel_read_safe": True, "parallel_write_safe": True}
 

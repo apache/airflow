@@ -31,7 +31,7 @@ List of the DAGs in your environment, and a set of shortcuts to useful pages.
 You can see exactly how many tasks succeeded, failed, or are currently
 running at a glance. To hide completed tasks set ``show_recent_stats_for_completed_runs = False``
 
-In order to filter DAGs (e.g by team), you can add tags in each DAG.
+In order to filter DAGs (e.g. by team), you can add tags in each DAG.
 The filter is saved in a cookie and can be reset by the reset button.
 For example:
 
@@ -43,6 +43,20 @@ For example:
 ------------
 
 .. image:: img/dags.png
+
+------------
+
+
+.. _ui:cluster-activity-view:
+
+Cluster Activity View
+.....................
+
+Native Airflow dashboard page into the UI to collect several useful metrics for monitoring your Airflow cluster.
+
+------------
+
+.. image:: img/cluster_activity.png
 
 ------------
 
@@ -86,9 +100,14 @@ Or selecting a Task Instance by clicking on a status box:
 
 .. image:: img/grid_instance_details.png
 
-Manual runs are indicated by a play icon (just like the Trigger DAG button):
+Or selecting a Task across all runs by click on the task_id:
 
-.. image:: img/task_manual_vs_scheduled.png
+.. image:: img/grid_task_details.png
+
+Manual runs are indicated by a play icon (just like the Trigger DAG button).
+Dataset triggered runs are indicated by a database icon:
+
+.. image:: img/run_types.png
 
 Task groups are indicated by a caret and can be opened or closed:
 
@@ -118,7 +137,7 @@ dependencies and their current status for a specific run.
 Calendar View
 .............
 
-The calendar view gives you an overview of your entire DAG's history over months, or even years.
+The calendar view gives you an overview of your entire DAG's history over months or even years.
 Letting you quickly see trends of the overall success/failure rate of runs over time.
 
 ------------
@@ -131,7 +150,7 @@ Variable View
 .............
 
 The variable view allows you to list, create, edit or delete the key-value pair
-of a variable used during jobs. Value of a variable will be hidden if the key contains
+of a variable used during jobs. The value of a variable will be hidden if the key contains
 any words in ('password', 'secret', 'passwd', 'authorization', 'api_key', 'apikey', 'access_token')
 by default, but can be configured to show in cleartext. See :ref:`security:mask-sensitive-values`.
 
@@ -176,7 +195,7 @@ Landing Times
 .............
 
 The landing time for a task instance is the delta between the dag run's data interval end
-(typically this means, when the dag "should" run) and the task instance completion time.
+(typically this means when the dag "should" run) and the dag run completion time.
 
 ------------
 
@@ -204,3 +223,15 @@ The form display is based on the DAG Parameters as described in :doc:`core-conce
 ------------
 
 .. image:: img/trigger-dag-tutorial-form.png
+
+Audit Log
+.............
+
+See all events related to a DAG. Filter events by changing the Task and DAG Run
+selection and by including/excluding different event names.
+
+------------
+
+.. image:: img/audit_log.png
+
+------------

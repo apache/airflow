@@ -97,7 +97,7 @@ def test_check_active_user(app, user_client):
     user.active = False
     resp = user_client.get("/home")
     assert resp.status_code == 302
-    assert "/logout" in resp.headers.get("Location")
+    assert "/login/?next=http%3A%2F%2Flocalhost%2Fhome" in resp.headers.get("Location")
 
 
 def test_check_deactivated_user_redirected_to_login(app, user_client):

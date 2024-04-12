@@ -41,6 +41,7 @@ from sqlalchemy import (
     delete,
     text,
 )
+from sqlalchemy.dialects.mysql import LONGBLOB
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Query, reconstructor, relationship
 from sqlalchemy.orm.exc import NoResultFound
@@ -89,7 +90,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
     run_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
 
-    value = Column(LargeBinary)
+    value = Column(LargeBinary().with_variant(LONGBLOB, "mysql"))
     timestamp = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     __table_args__ = (

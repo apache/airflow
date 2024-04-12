@@ -24,6 +24,7 @@ Hooks for Google Analytics (GA4) Admin service.
     ListAccountsPager
     ListGoogleAdsLinksPager
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence

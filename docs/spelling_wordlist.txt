@@ -1,6 +1,7 @@
 aarch
 abc
 accessor
+AccessSecretVersionResponse
 accountmaking
 aci
 Ack
@@ -524,6 +525,7 @@ dttm
 dtypes
 du
 duckdb
+dunder
 durations
 dylib
 Dynamodb
@@ -858,6 +860,7 @@ JobComplete
 JobExists
 jobflow
 jobId
+JobList
 jobName
 JobRunning
 JobSpec
@@ -944,6 +947,7 @@ linter
 linux
 ListGenerator
 ListInfoTypesResponse
+ListSecretsPager
 Liveness
 liveness
 livy
@@ -959,6 +963,7 @@ logformat
 loglevel
 Logstash
 logstash
+longblob
 Lowin
 lshift
 lxml
@@ -980,6 +985,8 @@ MarketingTeam
 MarkupSafe
 Masternode
 masterType
+Matomo
+matomo
 Maxime
 mb
 md
@@ -1402,10 +1409,13 @@ sdk
 sdks
 searchpath
 SearchResultGenerator
+secretmanager
 SecretManagerClient
+SecretManagerServiceClient
 secretRef
 secretRefs
 SecretsManagerBackend
+SecretVersion
 securable
 securecookie
 securestring
@@ -1492,7 +1502,10 @@ sshHook
 sshtunnel
 SSHTunnelForwarder
 ssl
+sslcert
+sslkey
 sslmode
+sslrootcert
 ssm
 Stackdriver
 stackdriver
@@ -1740,6 +1753,7 @@ utilise
 Utils
 utils
 uuid
+V1JobList
 validator
 vals
 vCPU

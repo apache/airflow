@@ -36,6 +36,7 @@ from airflow_breeze.global_constants import (
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     CELERY_BROKER_URLS_MAP,
     DEFAULT_CELERY_BROKER,
+    DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
     FLOWER_HOST_PORT,
     MOUNT_ALL,
@@ -192,7 +193,9 @@ class ShellParams:
     upgrade_boto: bool = False
     use_airflow_version: str | None = None
     use_packages_from_dist: bool = False
+    use_uv: bool = False
     use_xdist: bool = False
+    uv_http_timeout: int = DEFAULT_UV_HTTP_TIMEOUT
     verbose: bool = False
     verbose_commands: bool = False
     version_suffix_for_pypi: str = ""
@@ -531,6 +534,7 @@ class ShellParams:
         _set_var(_env, "PYDANTIC", self.pydantic)
         _set_var(_env, "USE_AIRFLOW_VERSION", self.use_airflow_version, "")
         _set_var(_env, "USE_PACKAGES_FROM_DIST", self.use_packages_from_dist)
+        _set_var(_env, "USE_UV", self.use_uv)
         _set_var(_env, "USE_XDIST", self.use_xdist)
         _set_var(_env, "VERBOSE", get_verbose())
         _set_var(_env, "VERBOSE_COMMANDS", self.verbose_commands)

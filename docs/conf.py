@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Configuration of Airflow Docs"""
+
 from __future__ import annotations
 
 # Airflow documentation build configuration file, created by
@@ -71,7 +72,7 @@ elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
             if provider_yaml["package-name"] == PACKAGE_NAME
         )
     except StopIteration:
-        raise Exception(f"Could not find provider.yaml file for package: {PACKAGE_NAME}")
+        raise RuntimeError(f"Could not find provider.yaml file for package: {PACKAGE_NAME}")
     PACKAGE_DIR = pathlib.Path(CURRENT_PROVIDER["package-dir"])
     PACKAGE_VERSION = CURRENT_PROVIDER["versions"][0]
     SYSTEM_TESTS_DIR = CURRENT_PROVIDER["system-tests-dir"]
@@ -350,7 +351,7 @@ if PACKAGE_NAME.startswith("apache-airflow-providers"):
     manual_substitutions_in_generated_html = ["example-dags.html", "operators.html", "index.html"]
 if PACKAGE_NAME == "docker-stack":
     # Substitute in links
-    manual_substitutions_in_generated_html = ["build.html"]
+    manual_substitutions_in_generated_html = ["build.html", "index.html"]
 
 html_css_files = ["custom.css"]
 
@@ -381,7 +382,7 @@ html_theme_options["navbar_links"] = [
     {"href": "/community/", "text": "Community"},
     {"href": "/meetups/", "text": "Meetups"},
     {"href": "/docs/", "text": "Documentation"},
-    {"href": "/use-cases/", "text": "Use-cases"},
+    {"href": "/use-cases/", "text": "Use Cases"},
     {"href": "/announcements/", "text": "Announcements"},
     {"href": "/blog/", "text": "Blog"},
     {"href": "/ecosystem/", "text": "Ecosystem"},

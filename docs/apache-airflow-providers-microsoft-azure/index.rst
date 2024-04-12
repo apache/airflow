@@ -76,26 +76,26 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-microsoft-azure
+apache-airflow-providers-microsoft-azure package
 ------------------------------------------------------
 
 `Microsoft Azure <https://azure.microsoft.com/>`__
 
 
-Release: 9.0.0
+Release: 10.0.0
 
 Provider package
 ----------------
 
-This is a provider package for ``microsoft.azure`` provider. All classes for this provider package
-are in ``airflow.providers.microsoft.azure`` python package.
+This package is for the ``microsoft.azure`` provider.
+All classes for this package are included in the ``airflow.providers.microsoft.azure`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-microsoft-azure``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-microsoft-azure``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -108,7 +108,7 @@ PIP package                       Version required
 ``apache-airflow``                ``>=2.6.0``
 ``adlfs``                         ``>=2023.10.0``
 ``azure-batch``                   ``>=8.0.0``
-``azure-cosmos``                  ``>=4.0.0``
+``azure-cosmos``                  ``>=4.6.0``
 ``azure-mgmt-cosmosdb``
 ``azure-datalake-store``          ``>=0.0.45``
 ``azure-identity``                ``>=1.3.1``
@@ -118,7 +118,7 @@ PIP package                       Version required
 ``azure-storage-blob``            ``>=12.14.0``
 ``azure-mgmt-storage``            ``>=16.0.0``
 ``azure-storage-file-share``
-``azure-servicebus``              ``>=7.6.1``
+``azure-servicebus``              ``>=7.12.1``
 ``azure-synapse-spark``
 ``azure-synapse-artifacts``       ``>=0.17.0``
 ``adal``                          ``>=1.2.7``
@@ -156,5 +156,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-microsoft-azure 9.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-9.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-9.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-9.0.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-microsoft-azure 9.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-9.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-9.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-9.0.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-microsoft-azure 10.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-10.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-10.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-10.0.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-microsoft-azure 10.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-10.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-10.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-10.0.0-py3-none-any.whl.sha512>`__)

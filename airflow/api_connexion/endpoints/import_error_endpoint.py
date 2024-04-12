@@ -84,21 +84,19 @@ def get_import_errors(
 ) -> APIResponse:
     """Get all import errors."""
     to_replace = {"import_error_id": "id"}
-    allowed_filter_attrs = ["import_error_id", "timestamp", "filename"]
+    allowed_sort_attrs = ["import_error_id", "timestamp", "filename"]
     count_query = select(func.count(ImportErrorModel.id))
     query = select(ImportErrorModel)
-    query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
+    query = apply_sorting(query, order_by, to_replace, allowed_sort_attrs)
 
     can_read_all_dags = get_auth_manager().is_authorized_dag(method="GET")
 
     if not can_read_all_dags:
         # if the user doesn't have access to all DAGs, only display errors from visible DAGs
         readable_dag_ids = security.get_readable_dags()
-        dagfiles_subq = (
-            select(DagModel.fileloc).distinct().where(DagModel.dag_id.in_(readable_dag_ids)).subquery()
-        )
-        query = query.where(ImportErrorModel.filename.in_(dagfiles_subq))
-        count_query = count_query.where(ImportErrorModel.filename.in_(dagfiles_subq))
+        dagfiles_stmt = select(DagModel.fileloc).distinct().where(DagModel.dag_id.in_(readable_dag_ids))
+        query = query.where(ImportErrorModel.filename.in_(dagfiles_stmt))
+        count_query = count_query.where(ImportErrorModel.filename.in_(dagfiles_stmt))
 
     total_entries = session.scalars(count_query).one()
     import_errors = session.scalars(query.offset(offset).limit(limit)).all()

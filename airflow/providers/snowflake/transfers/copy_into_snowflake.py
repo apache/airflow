@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Abstract operator that child classes implement ``COPY INTO <TABLE> SQL in Snowflake``."""
+
 from __future__ import annotations
 
 from typing import Any, Sequence
@@ -254,8 +255,8 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
         run_facets = {}
         if extraction_error_files:
             self.log.debug(
-                f"Unable to extract Dataset namespace and name "
-                f"for the following files: `{extraction_error_files}`."
+                "Unable to extract Dataset namespace and name for the following files: `%s`.",
+                extraction_error_files,
             )
             run_facets["extractionError"] = ExtractionErrorRunFacet(
                 totalTasks=len(query_results),

@@ -38,6 +38,13 @@ if TYPE_CHECKING:
     from airflow.models import Connection
 
 
+def _url_from_endpoint(base_url: str | None, endpoint: str | None) -> str:
+    """Combine base url with endpoint."""
+    if base_url and not base_url.endswith("/") and endpoint and not endpoint.startswith("/"):
+        return f"{base_url}/{endpoint}"
+    return (base_url or "") + (endpoint or "")
+
+
 class HttpHook(BaseHook):
     """Interact with HTTP servers.
 
@@ -158,7 +165,7 @@ class HttpHook(BaseHook):
 
         session = self.get_conn(headers)
 
-        url = self.url_from_endpoint(endpoint)
+        url = _url_from_endpoint(self.base_url, endpoint)
 
         if self.tcp_keep_alive:
             keep_alive_adapter = TCPKeepAliveAdapter(
@@ -263,9 +270,7 @@ class HttpHook(BaseHook):
 
     def url_from_endpoint(self, endpoint: str | None) -> str:
         """Combine base url with endpoint."""
-        if self.base_url and not self.base_url.endswith("/") and endpoint and not endpoint.startswith("/"):
-            return self.base_url + "/" + endpoint
-        return (self.base_url or "") + (endpoint or "")
+        return _url_from_endpoint(base_url=self.base_url, endpoint=endpoint)
 
     def test_connection(self):
         """Test HTTP Connection."""
@@ -313,6 +318,7 @@ class HttpAsyncHook(BaseHook):
         self,
         endpoint: str | None = None,
         data: dict[str, Any] | str | None = None,
+        json: dict[str, Any] | str | None = None,
         headers: dict[str, Any] | None = None,
         extra_options: dict[str, Any] | None = None,
     ) -> ClientResponse:
@@ -320,6 +326,7 @@ class HttpAsyncHook(BaseHook):
 
         :param endpoint: Endpoint to be called, i.e. ``resource/v1/query?``.
         :param data: Payload to be uploaded or request parameters.
+        :param json: Payload to be uploaded as JSON.
         :param headers: Additional headers to be passed through as a dict.
         :param extra_options: Additional kwargs to pass when creating a request.
             For example, ``run(json=obj)`` is passed as
@@ -357,9 +364,7 @@ class HttpAsyncHook(BaseHook):
         if headers:
             _headers.update(headers)
 
-        base_url = (self.base_url or "").rstrip("/")
-        endpoint = (endpoint or "").lstrip("/")
-        url = f"{base_url}/{endpoint}"
+        url = _url_from_endpoint(self.base_url, endpoint)
 
         async with aiohttp.ClientSession() as session:
             if self.method == "GET":
@@ -382,8 +387,9 @@ class HttpAsyncHook(BaseHook):
             for attempt in range(1, 1 + self.retry_limit):
                 response = await request_func(
                     url,
-                    json=data if self.method in ("POST", "PUT", "PATCH") else None,
                     params=data if self.method == "GET" else None,
+                    data=data if self.method in ("POST", "PUT", "PATCH") else None,
+                    json=json,
                     headers=_headers,
                     auth=auth,
                     **extra_options,

@@ -18,6 +18,7 @@
 # Note: Any AirflowException raised is expected to cause the TaskInstance
 #       to be marked in an ERROR state
 """Exceptions used by Airflow."""
+
 from __future__ import annotations
 
 import warnings
@@ -79,8 +80,15 @@ class InvalidStatsNameException(AirflowException):
     """Raise when name of the stats is invalid."""
 
 
-class AirflowTaskTimeout(AirflowException):
+# Important to inherit BaseException instead of AirflowException->Exception, since this Exception is used
+# to explicitly interrupt ongoing task. Code that does normal error-handling should not treat
+# such interrupt as an error that can be handled normally. (Compare with KeyboardInterrupt)
+class AirflowTaskTimeout(BaseException):
     """Raise when the task execution times-out."""
+
+
+class AirflowTaskTerminated(BaseException):
+    """Raise when the task execution is terminated."""
 
 
 class AirflowWebServerTimeout(AirflowException):
@@ -97,6 +105,16 @@ class AirflowFailException(AirflowException):
 
 class AirflowOptionalProviderFeatureException(AirflowException):
     """Raise by providers when imports are missing for optional provider features."""
+
+
+class AirflowInternalRuntimeError(BaseException):
+    """
+    Airflow Internal runtime error.
+
+    Indicates that something really terrible happens during the Airflow execution.
+
+    :meta private:
+    """
 
 
 class XComNotFound(AirflowException):

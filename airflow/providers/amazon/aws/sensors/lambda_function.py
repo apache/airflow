@@ -43,6 +43,10 @@ class LambdaFunctionStateSensor(AwsBaseSensor[LambdaHook]):
     :param qualifier: Specify a version or alias to get details about a published version of the function.
     :param target_states: The Lambda states desired.
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     """
 
     FAILURE_STATES = ("Failed",)

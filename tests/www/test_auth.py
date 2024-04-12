@@ -108,17 +108,17 @@ class TestHasAccessNoDetails:
         assert result.status_code == 302
 
 
-@pytest.fixture()
+@pytest.fixture
 def get_connection():
     return [Connection("conn_1"), Connection("conn_2")]
 
 
-@pytest.fixture()
+@pytest.fixture
 def get_pool():
     return [Pool(pool="pool_1"), Pool(pool="pool_2")]
 
 
-@pytest.fixture()
+@pytest.fixture
 def get_variable():
     return [Variable("var_1"), Variable("var_2")]
 

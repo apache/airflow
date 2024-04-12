@@ -25,6 +25,7 @@ from unittest.mock import patch
 
 import pendulum
 import pytest
+from sqlalchemy import select
 
 from airflow.decorators import setup, task, task_group, teardown
 from airflow.exceptions import AirflowSkipException
@@ -609,6 +610,77 @@ def test_expand_kwargs_mapped_task_instance(dag_maker, session, num_existing_tis
     assert indices == expected
 
 
+def _create_mapped_with_name_template_classic(*, task_id, map_names, template):
+    class HasMapName(BaseOperator):
+        def __init__(self, *, map_name: str, **kwargs):
+            super().__init__(**kwargs)
+            self.map_name = map_name
+
+        def execute(self, context):
+            context["map_name"] = self.map_name
+
+    return HasMapName.partial(task_id=task_id, map_index_template=template).expand(
+        map_name=map_names,
+    )
+
+
+def _create_mapped_with_name_template_taskflow(*, task_id, map_names, template):
+    from airflow.operators.python import get_current_context
+
+    @task(task_id=task_id, map_index_template=template)
+    def task1(map_name):
+        context = get_current_context()
+        context["map_name"] = map_name
+
+    return task1.expand(map_name=map_names)
+
+
+@pytest.mark.parametrize(
+    "template, expected_rendered_names",
+    [
+        pytest.param(None, [None, None], id="unset"),
+        pytest.param("", ["", ""], id="constant"),
+        pytest.param("{{ ti.task_id }}-{{ ti.map_index }}", ["task1-0", "task1-1"], id="builtin"),
+        pytest.param("{{ ti.task_id }}-{{ map_name }}", ["task1-a", "task1-b"], id="custom"),
+    ],
+)
+@pytest.mark.parametrize(
+    "create_mapped_task",
+    [
+        pytest.param(_create_mapped_with_name_template_classic, id="classic"),
+        pytest.param(_create_mapped_with_name_template_taskflow, id="taskflow"),
+    ],
+)
+def test_expand_mapped_task_instance_with_named_index(
+    dag_maker,
+    session,
+    create_mapped_task,
+    template,
+    expected_rendered_names,
+) -> None:
+    """Test that the correct number of downstream tasks are generated when mapping with an XComArg"""
+    with dag_maker("test-dag", session=session, start_date=DEFAULT_DATE):
+        create_mapped_task(task_id="task1", map_names=["a", "b"], template=template)
+
+    dr = dag_maker.create_dagrun()
+    tis = dr.get_task_instances()
+    for ti in tis:
+        ti.run()
+    session.flush()
+
+    indices = session.scalars(
+        select(TaskInstance.rendered_map_index)
+        .where(
+            TaskInstance.dag_id == "test-dag",
+            TaskInstance.task_id == "task1",
+            TaskInstance.run_id == dr.run_id,
+        )
+        .order_by(TaskInstance.map_index)
+    ).all()
+
+    assert indices == expected_rendered_names
+
+
 @pytest.mark.parametrize(
     "map_index, expected",
     [
@@ -815,7 +887,6 @@ class TestMappedSetupTeardown:
                 t = my_teardown.expand(op_args=my_setup.output)
                 with t.as_teardown(setups=my_setup):
                     my_work(my_setup.output)
-            return dag
 
         dr = dag.test()
         states = self.get_states(dr)
@@ -1586,8 +1657,7 @@ class TestMappedSetupTeardown:
                 return n * 2
 
             @task
-            def last(n):
-                ...
+            def last(n): ...
 
             @task_group
             def group(n: int) -> None:
@@ -1614,8 +1684,7 @@ class TestMappedSetupTeardown:
                 return n * 2
 
             @task
-            def last(n):
-                ...
+            def last(n): ...
 
             @task_group
             def group(n: int) -> None:

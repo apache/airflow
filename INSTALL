@@ -1,6 +1,7 @@
-# INSTALL / BUILD instructions for Apache Airflow
+INSTALL / BUILD instructions for Apache Airflow
 
-##  Basic installation of Airflow from sources and development environment setup
+Basic installation of Airflow from sources and development environment setup
+============================================================================
 
 This is a generic installation method that requires minimum starndard tools to develop airflow and
 test it in local virtual environment (using standard CPyhon installation and `pip`).
@@ -11,7 +12,7 @@ systems/prerequisites are known to work:
 Linux (Debian Bookworm):
 
     sudo apt install -y --no-install-recommends apt-transport-https apt-utils ca-certificates \
-    curl dumb-init freetds-bin gosu krb5-user libgeos-dev \
+    curl dumb-init freetds-bin krb5-user libgeos-dev \
     ldap-utils libsasl2-2 libsasl2-modules libxmlsec1 locales libffi8 libldap-2.5-0 libssl3 netcat-openbsd \
     lsb-release openssh-client python3-selinux rsync sasl2-bin sqlite3 sudo unixodbc
 
@@ -23,7 +24,18 @@ MacOS (Mojave/Catalina) you might need to to install XCode command line tools an
 
     brew install sqlite mysql postgresql
 
-## Downloading and installing Airflow from sources
+The `pip` is one of the build packaging front-ends that might be used to install Airflow. It's the one
+that we recommend (see below) for reproducible installation of specific versions of Airflow.
+
+As of version 2.8 Airflow follows PEP 517/518 and uses `pyproject.toml` file to define build dependencies
+and build process and it requires relatively modern versions of packaging tools to get airflow built from
+local sources or sdist packages, as PEP 517 compliant build hooks are used to determine dynamic build
+dependencies. In case of `pip` it means that at least version 22.1.0 is needed (released at the beginning of
+2022) to build or install Airflow from sources. This does not affect the ability of installing Airflow from
+released wheel packages.
+
+Downloading and installing Airflow from sources
+-----------------------------------------------
 
 While you can get Airflow sources in various ways (including cloning https://github.com/apache/airflow/), the
 canonical way to download it is to fetch the tarball published at https://downloads.apache.org where you can
@@ -95,7 +107,8 @@ Airflow project contains some pre-defined virtualenv definitions in ``pyproject.
 easily used by hatch to create your local venvs. This is not necessary for you to develop and test
 Airflow, but it is a convenient way to manage your local Python versions and virtualenvs.
 
-## Installing Hatch
+Installing Hatch
+----------------
 
 You can install hat using various other ways (including Gui installers).
 
@@ -128,19 +141,21 @@ You can see the list of available envs with:
 
 This is what it shows currently:
 
-┏━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ Name        ┃ Type    ┃ Features ┃ Description                                                   ┃
-┡━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ default     │ virtual │ devel    │ Default environment with Python 3.8 for maximum compatibility │
-├─────────────┼─────────┼──────────┼───────────────────────────────────────────────────────────────┤
-│ airflow-38  │ virtual │          │ Environment with Python 3.8. No devel installed.              │
-├─────────────┼─────────┼──────────┼───────────────────────────────────────────────────────────────┤
-│ airflow-39  │ virtual │          │ Environment with Python 3.9. No devel installed.              │
-├─────────────┼─────────┼──────────┼───────────────────────────────────────────────────────────────┤
-│ airflow-310 │ virtual │          │ Environment with Python 3.10. No devel installed.             │
-├─────────────┼─────────┼──────────┼───────────────────────────────────────────────────────────────┤
-│ airflow-311 │ virtual │          │ Environment with Python 3.11. No devel installed              │
-└─────────────┴─────────┴──────────┴───────────────────────────────────────────────────────────────┘
+┏━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Name        ┃ Type    ┃ Description                                                   ┃
+┡━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ default     │ virtual │ Default environment with Python 3.8 for maximum compatibility │
+├─────────────┼─────────┼───────────────────────────────────────────────────────────────┤
+│ airflow-38  │ virtual │ Environment with Python 3.8. No devel installed.              │
+├─────────────┼─────────┼───────────────────────────────────────────────────────────────┤
+│ airflow-39  │ virtual │ Environment with Python 3.9. No devel installed.              │
+├─────────────┼─────────┼───────────────────────────────────────────────────────────────┤
+│ airflow-310 │ virtual │ Environment with Python 3.10. No devel installed.             │
+├─────────────┼─────────┼───────────────────────────────────────────────────────────────┤
+│ airflow-311 │ virtual │ Environment with Python 3.11. No devel installed              │
+├─────────────┼─────────┼───────────────────────────────────────────────────────────────┤
+│ airflow-312 │ virtual │ Environment with Python 3.11. No devel installed              │
+└─────────────┴─────────┴───────────────────────────────────────────────────────────────┘
 
 The default env (if you have not used one explicitly) is `default` and it is a Python 3.8
 virtualenv for maximum compatibility with `devel` extra installed - this devel extra contains the minimum set
@@ -229,7 +244,8 @@ and install to latest supported ones by pure airflow core.
 pip install -e ".[devel]" \
   --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-no-providers-3.8.txt"
 
-## All airflow extras
+Airflow extras
+==============
 
 Airflow has a number of extras that you can install to get additional dependencies. They sometimes install
 providers, sometimes enable other features where packages are not installed by default.
@@ -239,35 +255,68 @@ https://airflow.apache.org/docs/apache-airflow/stable/extra-packages-ref.html
 
 The list of available extras is below.
 
-Regular extras that are available for users in the Airflow package.
+Core extras
+-----------
 
-# START REGULAR EXTRAS HERE
+Those extras are available as regular core airflow extras - they install optional features of Airflow.
 
-aiobotocore, airbyte, alibaba, all, all-core, all-dbs, amazon, apache-atlas, apache-beam, apache-
-cassandra, apache-drill, apache-druid, apache-flink, apache-hdfs, apache-hive, apache-impala,
-apache-kafka, apache-kylin, apache-livy, apache-pig, apache-pinot, apache-spark, apache-webhdfs,
-apprise, arangodb, asana, async, atlas, atlassian-jira, aws, azure, cassandra, celery, cgroups,
-cloudant, cncf-kubernetes, cohere, common-io, common-sql, crypto, databricks, datadog, dbt-cloud,
-deprecated-api, dingding, discord, docker, druid, elasticsearch, exasol, fab, facebook, ftp, gcp,
-gcp_api, github, github-enterprise, google, google-auth, graphviz, grpc, hashicorp, hdfs, hive,
-http, imap, influxdb, jdbc, jenkins, kerberos, kubernetes, ldap, leveldb, microsoft-azure,
-microsoft-mssql, microsoft-psrp, microsoft-winrm, mongo, mssql, mysql, neo4j, odbc, openai,
-openfaas, openlineage, opensearch, opsgenie, oracle, otel, pagerduty, pandas, papermill, password,
-pgvector, pinecone, pinot, postgres, presto, pydantic, qdrant, rabbitmq, redis, s3, s3fs,
-salesforce, samba, saml, segment, sendgrid, sentry, sftp, singularity, slack, smtp, snowflake,
-spark, sqlite, ssh, statsd, tableau, tabular, telegram, teradata, trino, vertica, virtualenv,
-weaviate, webhdfs, winrm, yandex, zendesk
+# START CORE EXTRAS HERE
 
-# END REGULAR EXTRAS HERE
+aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, deprecated-api, github-enterprise,
+google-auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, pydantic, rabbitmq, s3fs,
+saml, sentry, statsd, uv, virtualenv
 
-Devel extras - used to install development-related tools. Only available during editable install.
+# END CORE EXTRAS HERE
+
+Provider extras
+---------------
+
+Those extras are available as regular Airflow extras, they install provider packages in standard builds
+or dependencies that are necessary to enable the feature in editable build.
+
+# START PROVIDER EXTRAS HERE
+
+airbyte, alibaba, amazon, apache.beam, apache.cassandra, apache.drill, apache.druid, apache.flink,
+apache.hdfs, apache.hive, apache.impala, apache.kafka, apache.kylin, apache.livy, apache.pig,
+apache.pinot, apache.spark, apprise, arangodb, asana, atlassian.jira, celery, cloudant,
+cncf.kubernetes, cohere, common.io, common.sql, databricks, datadog, dbt.cloud, dingding, discord,
+docker, elasticsearch, exasol, fab, facebook, ftp, github, google, grpc, hashicorp, http, imap,
+influxdb, jdbc, jenkins, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo,
+mysql, neo4j, odbc, openai, openfaas, openlineage, opensearch, opsgenie, oracle, pagerduty,
+papermill, pgvector, pinecone, postgres, presto, qdrant, redis, salesforce, samba, segment,
+sendgrid, sftp, singularity, slack, smtp, snowflake, sqlite, ssh, tableau, tabular, telegram,
+teradata, trino, vertica, weaviate, yandex, zendesk
+
+# END PROVIDER EXTRAS HERE
+
+Devel extras
+------------
+
+The `devel` extras are not available in the released packages. They are only available when you install
+Airflow from sources in `editable` installation - i.e. one that you are usually using to contribute to
+Airflow. They provide tools such as `pytest` and `mypy` for general purpose development and testing.
 
 # START DEVEL EXTRAS HERE
 
-devel, devel-all, devel-all-dbs, devel-ci, devel-debuggers, devel-devscripts, devel-duckdb, devel-
-hadoop, devel-mypy, devel-sentry, devel-static-checks, devel-tests
+devel, devel-all-dbs, devel-ci, devel-debuggers, devel-devscripts, devel-duckdb, devel-hadoop,
+devel-mypy, devel-sentry, devel-static-checks, devel-tests
 
 # END DEVEL EXTRAS HERE
+
+Bundle extras
+-------------
+
+Those extras are bundles dynamically generated from other extras.
+
+# START BUNDLE EXTRAS HERE
+
+all, all-core, all-dbs, devel-all, devel-ci
+
+# END BUNDLE EXTRAS HERE
+
+
+Doc extras
+----------
 
 Doc extras - used to install dependencies that are needed to build documentation. Only available during
 editable install.
@@ -278,7 +327,20 @@ doc, doc-gen
 
 # END DOC EXTRAS HERE
 
-## Compiling front end assets
+Deprecated extras
+-----------------
+
+The `deprecated` extras are deprecated extras from Airflow 1 that will be removed in future versions.
+
+# START DEPRECATED EXTRAS HERE
+
+atlas, aws, azure, cassandra, crypto, druid, gcp, gcp-api, hdfs, hive, kubernetes, mssql, pinot, s3,
+spark, webhdfs, winrm
+
+# END DEPRECATED EXTRAS HERE
+
+Compiling front end assets
+--------------------------
 
 Sometimes you can see that front-end assets are missing and website looks broken. This is because
 you need to compile front-end assets. This is done automatically when you create a virtualenv

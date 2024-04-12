@@ -281,7 +281,7 @@ class ComputeEngineSSHHook(SSHHook):
                 if retry == self.max_retries:
                     raise AirflowException("Maximum retries exceeded. Aborting operation.")
                 delay = random.randint(0, max_delay)
-                self.log.info(f"Failed establish SSH connection, waiting {delay} seconds to retry...")
+                self.log.info("Failed establish SSH connection, waiting %s seconds to retry...", delay)
                 time.sleep(delay)
         if not sshclient:
             raise AirflowException("Unable to establish SSH connection.")
@@ -334,7 +334,7 @@ class ComputeEngineSSHHook(SSHHook):
         )
 
     def _authorize_os_login(self, pubkey):
-        username = self._oslogin_hook._get_credentials_email()
+        username = self._oslogin_hook._get_credentials_email
         self.log.info("Importing SSH public key using OSLogin: user=%s", username)
         expiration = int((time.time() + self.expire_time) * 1000000)
         ssh_public_key = {"key": pubkey, "expiration_time_usec": expiration}

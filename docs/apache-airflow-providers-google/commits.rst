@@ -42,14 +42,98 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.17.0
+.......
+
+Latest change: 2024-04-09
+
+=================================================================================================  ===========  ================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================================================
+`42c3eaf23a <https://github.com/apache/airflow/commit/42c3eaf23a1cb76ae9f07b027b09948aabfcbf02>`_  2024-04-09   ``Fix BigQuery connection and add docs (#38430)``
+`ca501eff4d <https://github.com/apache/airflow/commit/ca501eff4d552e0183a3323b6e8fe4b06ebf3e72>`_  2024-04-09   ``fix: try002 for provider google (#38803)``
+`5c8510a1f1 <https://github.com/apache/airflow/commit/5c8510a1f11fc4891872297a72b1bcf863daa27a>`_  2024-04-05   ``Add google-cloud-bigquery as explicit google-provider dependency (#38753)``
+`091d5e6267 <https://github.com/apache/airflow/commit/091d5e62678de943adfce1b8a8cd94dccbbfa98b>`_  2024-04-03   ``fix(google,log): Avoid log name overriding (#38071)``
+`c4439713cf <https://github.com/apache/airflow/commit/c4439713cf6485acac1b7bbdc38aec524be3efab>`_  2024-04-02   ``Revert "Delete deprecated AutoML operators and deprecate AutoML hook and links (#38418)" (#38633)``
+`d3dc88f084 <https://github.com/apache/airflow/commit/d3dc88f0844bcb377a9e52312e1a99b5ca6e617e>`_  2024-04-01   ``Avoid to use 'functools.lru_cache' in class methods in 'google' provider (#38652)``
+`13e9a0d0d5 <https://github.com/apache/airflow/commit/13e9a0d0d562238afe03830a33dd52cf5cea5d12>`_  2024-04-01   ``Fix credentials error for S3ToGCSOperator trigger (#37518)``
+`0f513472a7 <https://github.com/apache/airflow/commit/0f513472a72c04757a3fd16d4805b9048253a05c>`_  2024-03-30   ``Add 'impersonation_scopes' to BigQuery (#38169)``
+`afb686c95e <https://github.com/apache/airflow/commit/afb686c95ef276ac8d9d473b74303fd1551d00fd>`_  2024-03-26   ``Implement deferrable mode for GKEStartJobOperator (#38454)``
+`067fedbb99 <https://github.com/apache/airflow/commit/067fedbb998e855f536bceccceb03cf33ce4fae9>`_  2024-03-26   ``Add the deferrable mode to RunPipelineJobOperator (#37969)``
+`32ed83bd0e <https://github.com/apache/airflow/commit/32ed83bd0ef4694668bf74f3afbfaa0f5afa2768>`_  2024-03-25   ``Refactor GKE hooks (#38404)``
+`4a4eee113f <https://github.com/apache/airflow/commit/4a4eee113f35f941f8deed3c53b814b67116c6b2>`_  2024-03-24   ``Delete deprecated AutoML operators and deprecate AutoML hook and links (#38418)``
+`3ac0aaf748 <https://github.com/apache/airflow/commit/3ac0aaf748faf8d1697282c5b1a11c7c8bdb4032>`_  2024-03-24   ``Fix 'parent_model' parameter in GCP Vertex AI AutoML and Custom Job operators (#38417)``
+`da4f6f077c <https://github.com/apache/airflow/commit/da4f6f077c99e66bef2713309cd03b6ac398dcdc>`_  2024-03-22   ``fix(google): add return statement to yield within a while loop in triggers (#38394)``
+`8e7b1add43 <https://github.com/apache/airflow/commit/8e7b1add435164112b80b9319ec0b2f2df94fa12>`_  2024-03-20   ``Remove unused loop variable from airflow package (#38308)``
+`e0feb7b80b <https://github.com/apache/airflow/commit/e0feb7b80b31ee6fce88cea28ae329b73b70c343>`_  2024-03-20   ``Fix cursor unique name surpasses Postgres identifier limit in 'PostgresToGCSOperator' (#38040)``
+`29ac05f496 <https://github.com/apache/airflow/commit/29ac05f4969f54815c82d6af9211798aa53c45c3>`_  2024-03-18   ``Create DeleteKubernetesJobOperator and GKEDeleteJobOperator operators (#37793)``
+`0a74928894 <https://github.com/apache/airflow/commit/0a74928894fb57b0160208262ccacad12da23fc7>`_  2024-03-18   ``Bump ruff to 0.3.3 (#38240)``
+`80e60d7303 <https://github.com/apache/airflow/commit/80e60d73033765b203d9175ca80a75c15010554d>`_  2024-03-18   ``Create GKEStartKueueJobOperator operator (#37477)``
+`0acd6b27af <https://github.com/apache/airflow/commit/0acd6b27af6469e3b35143247388cf0aab3dea5a>`_  2024-03-16   ``templated fields logic checks for cloud_storage_transfer_service (#37519)``
+`17ce4ac219 <https://github.com/apache/airflow/commit/17ce4ac219846138d1005d20cffa72bea291b25f>`_  2024-03-16   ``Update GCS hook to get crc32c hash for CMEK-protected objects (#38191)``
+`3e2bfb8b3e <https://github.com/apache/airflow/commit/3e2bfb8b3ee80ddc18b00e461de53390dcc5a8b3>`_  2024-03-15   ``Set job labels for traceability in BigQuery jobs (#37736)``
+`cbb0cad49c <https://github.com/apache/airflow/commit/cbb0cad49c10400e8e1b56703f6af220ee01a32c>`_  2024-03-15   ``Rename mlengine's operators' fields' names to comply with templated fields validation (#38053)``
+`9442435b87 <https://github.com/apache/airflow/commit/9442435b87973e48c6e726d970ab1c8de0dd8265>`_  2024-03-15   ``Rename Vertex AI AutoML operators fields' names to comply with templated fields validation (#38049)``
+`83060e16e1 <https://github.com/apache/airflow/commit/83060e16e1f63914b8ca0db135572acf0ba74e52>`_  2024-03-15   ``Rename 'DeleteCustomTrainingJobOperator''s fields' names to comply with templated fields validation (#38048)``
+`0e2f2bc0ff <https://github.com/apache/airflow/commit/0e2f2bc0ffb1c132bb93c1b0abbede6fdf0bad52>`_  2024-03-14   ``Fix gcs Anonymous user issue because none token (#38102)``
+`8f773a62c1 <https://github.com/apache/airflow/commit/8f773a62c1760b32cc2464343353a28cbfe9211f>`_  2024-03-08   ``Add GKECreateCustomResourceOperator and GKEDeleteCustomResourceOperator operators (#37616)``
+`e256badea9 <https://github.com/apache/airflow/commit/e256badea9bd3f7d1ec016a34d7eb154752bda48>`_  2024-03-08   ``Restore delegate_to for Google Transfer Operators retrieving from Google Cloud. (#37925)``
+`46666af9ec <https://github.com/apache/airflow/commit/46666af9ecc0f183d7bf0845a646f24fbd91c697>`_  2024-03-07   ``Refactor CreateHyperparameterTuningJobOperator (#37938)``
+`1e6140ba25 <https://github.com/apache/airflow/commit/1e6140ba250a9a99b5f1b7d73aa689e89d4152ec>`_  2024-03-06   ``Add VertexAI Language Model and Multimodal Model Operators for Google Cloud Generative AI use (#37721)``
+`ca11b7af23 <https://github.com/apache/airflow/commit/ca11b7af239c90f6d7c00ed5116fdd08fda1a5ab>`_  2024-03-06   ``Fix BigQueryTablePartitionExistenceTrigger partition query (#37655)``
+`3f52790d42 <https://github.com/apache/airflow/commit/3f52790d425cd51386715c240d9a38a20756de2a>`_  2024-03-06   ``Resolve G004: Logging statement uses f-string (#37873)``
+`ec220a8679 <https://github.com/apache/airflow/commit/ec220a8679495e621ef92bdd8fee585ab3dd172b>`_  2024-03-06   ``Deferrable mode for CreateBatchPredictionJobOperator (#37818)``
+`ca72f0fd89 <https://github.com/apache/airflow/commit/ca72f0fd89ec05c98045e4b6bcefcf933784cf7d>`_  2024-03-06   ``Add GKEListJobsOperator and GKEDescribeJobOperator (#37598)``
+`0c09338556 <https://github.com/apache/airflow/commit/0c093385563e8edce65e84db3e27e22ad478bdf1>`_  2024-03-06   ``Upgrade google-ads version (#37787)``
+=================================================================================================  ===========  ================================================================================================================
+
+10.16.0
+.......
+
+Latest change: 2024-03-04
+
+=================================================================================================  ===========  ============================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ============================================================================================
+`83316b8158 <https://github.com/apache/airflow/commit/83316b81584c9e516a8142778fc509f19d95cc3e>`_  2024-03-04   ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+`30f7b2abe6 <https://github.com/apache/airflow/commit/30f7b2abe6991fe6e565f17f7d0701e80ecba0d3>`_  2024-03-04   ``Avoid to use too broad 'noqa' (#37862)``
+`2ab60812a0 <https://github.com/apache/airflow/commit/2ab60812a040cb8b760acaf396f625d0d719e4be>`_  2024-03-01   ``Make 'executemany' keyword arguments only in 'DbApiHook.insert_rows' (#37840)``
+`77341ef6a1 <https://github.com/apache/airflow/commit/77341ef6a1e4ffa3f8d3275eade325c89f2c95f2>`_  2024-02-29   ``Avoid non-recommended usage of logging (#37792)``
+`2bc103698f <https://github.com/apache/airflow/commit/2bc103698fad1b7c0bebed0d5cbdda0ec7ea83c3>`_  2024-02-28   ``Unify 'aws_conn_id' type to always be 'str | None' (#37768)``
+`f001576a94 <https://github.com/apache/airflow/commit/f001576a94bd7e03753ebe37aa663a9f1865ccf5>`_  2024-02-28   ``Fix invalid deprecation of 'DataFusionPipelineLinkHelper' (#37755)``
+`9e4bdc9e45 <https://github.com/apache/airflow/commit/9e4bdc9e457c275eb2cead5d80c2f79c3b9a0085>`_  2024-02-27   ``Limit 'pandas' to '<2.2' (#37748)``
+`8e42a2e019 <https://github.com/apache/airflow/commit/8e42a2e019dc89d95ed6dce8dff75e18abf6e97a>`_  2024-02-27   ``Remove broken deprecated fallback into the Google provider operators (#37740)``
+`b52b227c04 <https://github.com/apache/airflow/commit/b52b227c048674117e11d720dfd01c4eeacea854>`_  2024-02-26   ``Implement AIP-60 Dataset URI formats (#37005)``
+`046fb49420 <https://github.com/apache/airflow/commit/046fb49420c0da1d47f308a43d01644a0854b630>`_  2024-02-25   ``fix templated field assignment 'google/cloud/operators/compute.py' (#37659)``
+`8c05e59922 <https://github.com/apache/airflow/commit/8c05e59922946ee06bc014d578676581b33dba2c>`_  2024-02-23   ``fix bq_to_mysql init checks (#37653)``
+`ca4c559865 <https://github.com/apache/airflow/commit/ca4c55986534a553baea80a7bb5b834f7fdf0ddd>`_  2024-02-23   ``Fix Async GCSObjectsWithPrefixExistenceSensor xcom push (#37634)``
+`810fb5f2a8 <https://github.com/apache/airflow/commit/810fb5f2a8dbf624048d5f1a12398114c5fc7953>`_  2024-02-22   ``feat(GKEPodAsyncHook): use async credentials token implementation (#37486)``
+`5fc866aebe <https://github.com/apache/airflow/commit/5fc866aebe84caed43562eda1a5743ac60393a05>`_  2024-02-22   ``'CloudRunExecuteJobOperator': Add project_id to hook.get_job calls (#37201)``
+`2cb96a8e85 <https://github.com/apache/airflow/commit/2cb96a8e85a328e383561a80b8b5d1fa5c0bef4d>`_  2024-02-21   ``resolve template fields init checks for 'bigquery' (#37586)``
+`52d2032887 <https://github.com/apache/airflow/commit/52d20328872b68f0f80986006726f16a6dc56c45>`_  2024-02-21   ``Fix typo on DataflowStartFlexTemplateOperator documentation (#37595)``
+`68fc80e42e <https://github.com/apache/airflow/commit/68fc80e42e1cb6666dcea3de379505ee19cf685d>`_  2024-02-20   ``Update docs for the DataprocCreateBatchOperator (#37562)``
+`011cd3debb <https://github.com/apache/airflow/commit/011cd3debb4bb166908277c764d65eaf5985c7af>`_  2024-02-20   ``Use offset-naive datetime in _CredentialsToken (#37539)``
+`5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
+`123b656151 <https://github.com/apache/airflow/commit/123b656151be6605712951c672a703d5b7abfc72>`_  2024-02-16   ``Fix GCSSynchronizeBucketsOperator timeout error (#37237)``
+`42f8d048d2 <https://github.com/apache/airflow/commit/42f8d048d2dccfcf59a44e00e9b1e8a3e63090a0>`_  2024-02-16   ``Replace usage of 'datetime.utcnow' and 'datetime.utcfromtimestamp' in providers (#37138)``
+`32ba99b6c2 <https://github.com/apache/airflow/commit/32ba99b6c27b1e9ec7ebfffceeecb650f6f3d4d7>`_  2024-02-15   ``Create GKEStartJobOperator and KubernetesJobOperator (#36847)``
+`107b3e2621 <https://github.com/apache/airflow/commit/107b3e2621977e681080af08555bf2b8464d2df1>`_  2024-02-15   ``Add developer token as authentication method to GoogleAdsHook (#37417)``
+`df132b2dd6 <https://github.com/apache/airflow/commit/df132b2dd6fcb9022e1ff5f28841bec7a120853b>`_  2024-02-15   ``Add GKEStartKueueInsideClusterOperator (#37072)``
+`270282f4cd <https://github.com/apache/airflow/commit/270282f4cd6eb808873cfbd15d4c35226646d48e>`_  2024-02-13   ``fix (#37391)``
+`2d0d78b20a <https://github.com/apache/airflow/commit/2d0d78b20a1582e02251d2ff1c4a24827c194ee7>`_  2024-02-12   ``Add D401 fixes (#37348)``
+`d43c804f2b <https://github.com/apache/airflow/commit/d43c804f2bda3bc518682c9b2af94ea30475c879>`_  2024-02-12   ``Add optional 'location' parameter to the BigQueryInsertJobTrigger (#37282)``
+`028fbdfed3 <https://github.com/apache/airflow/commit/028fbdfed3a3c6e7e268ac6ee1ba35156dabf206>`_  2024-02-12   ``Use wait_for_operation in DataprocInstantiateInlineWorkflowTemplateOperator (#37145)``
+=================================================================================================  ===========  ============================================================================================
+
 10.15.0
 .......
 
-Latest change: 2024-02-11
+Latest change: 2024-02-12
 
 =================================================================================================  ===========  ==========================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================================================
+`bfb054e9e8 <https://github.com/apache/airflow/commit/bfb054e9e867b8b9a6a449e43bfba97f645e025e>`_  2024-02-12   ``Prepare docs 1st wave of Providers February 2024 (#37326)``
 `9c4a9d7947 <https://github.com/apache/airflow/commit/9c4a9d7947879a3bfab85ef32b8afcfa77fdd871>`_  2024-02-11   ``D401 lint fixes for all hooks in google provider (#37296)``
 `e31aa4e1ea <https://github.com/apache/airflow/commit/e31aa4e1eaecefbdf19197e63e0719cb29e312af>`_  2024-02-10   ``fix(providers/google): fix how GKEPodAsyncHook.service_file_as_context is used (#37306)``
 `0a8e771fb7 <https://github.com/apache/airflow/commit/0a8e771fb7e201bf4ee89444e7d50ddb6c00d372>`_  2024-02-10   ``D401 lint fixes for google provider (#37304)``

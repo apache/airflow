@@ -19,14 +19,17 @@
 
 import React, { useCallback, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Flex, Box } from "@chakra-ui/react";
+import { Flex, Box, Spinner } from "@chakra-ui/react";
+
 import { useOffsetTop } from "src/utils";
+import { useDatasetDependencies } from "src/api";
 
 import DatasetsList from "./List";
 import DatasetDetails from "./Details";
 import Graph from "./Graph";
 
-const DATASET_URI = "uri";
+const DATASET_URI_PARAM = "uri";
+const DAG_ID_PARAM = "dag_id";
 const minPanelWidth = 300;
 
 const Datasets = () => {
@@ -40,15 +43,13 @@ const Datasets = () => {
 
   const resizeRef = useRef<HTMLDivElement>(null);
 
-  const onBack = () => {
-    searchParams.delete(DATASET_URI);
-    setSearchParams(searchParams);
-  };
+  const selectedUri = decodeURIComponent(
+    searchParams.get(DATASET_URI_PARAM) || ""
+  );
+  const selectedDagId = searchParams.get(DAG_ID_PARAM);
 
-  const onSelect = (datasetUri: string) => {
-    searchParams.set(DATASET_URI, encodeURIComponent(datasetUri));
-    setSearchParams(searchParams);
-  };
+  // We need to load in the raw dependencies in order to generate the list of dagIds
+  const { data: datasetDependencies, isLoading } = useDatasetDependencies();
 
   const resize = useCallback(
     (e: MouseEvent) => {
@@ -85,7 +86,21 @@ const Datasets = () => {
     return () => {};
   }, [resize]);
 
-  const datasetUri = decodeURIComponent(searchParams.get(DATASET_URI) || "");
+  const selectedNodeId = selectedUri || selectedDagId;
+
+  const onSelectNode = (id: string, type: string) => {
+    if (type === "dag") {
+      if (id === selectedDagId) searchParams.delete(DAG_ID_PARAM);
+      else searchParams.set(DAG_ID_PARAM, id);
+      searchParams.delete(DATASET_URI_PARAM);
+    }
+    if (type === "dataset") {
+      if (id === selectedUri) searchParams.delete(DATASET_URI_PARAM);
+      else searchParams.set(DATASET_URI_PARAM, id);
+      searchParams.delete(DAG_ID_PARAM);
+    }
+    setSearchParams(searchParams);
+  };
 
   return (
     <Flex
@@ -95,15 +110,23 @@ const Datasets = () => {
     >
       <Box
         minWidth={minPanelWidth}
+        width={500}
         height={height}
         overflowY="auto"
         ref={listRef}
         mr={3}
       >
-        {datasetUri ? (
-          <DatasetDetails uri={datasetUri} onBack={onBack} />
+        {selectedUri ? (
+          <DatasetDetails
+            uri={selectedUri}
+            onBack={() => onSelectNode(selectedUri, "dataset")}
+          />
         ) : (
-          <DatasetsList onSelect={onSelect} />
+          <DatasetsList
+            datasetDependencies={datasetDependencies}
+            selectedDagId={selectedDagId || undefined}
+            onSelectNode={onSelectNode}
+          />
         )}
       </Box>
       <Box
@@ -120,8 +143,10 @@ const Datasets = () => {
         height={height}
         borderColor="gray.200"
         borderWidth={1}
+        position="relative"
       >
-        <Graph selectedUri={datasetUri} onSelect={onSelect} />
+        {isLoading && <Spinner position="absolute" top="50%" left="50%" />}
+        <Graph selectedNodeId={selectedNodeId} onSelectNode={onSelectNode} />
       </Box>
     </Flex>
   );

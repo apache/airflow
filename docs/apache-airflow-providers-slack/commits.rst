@@ -38,14 +38,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.6.2
+.....
+
+Latest change: 2024-03-22
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`0aee6813db <https://github.com/apache/airflow/commit/0aee6813db30f72c4e09610c6212f50ff2250cac>`_  2024-03-22   ``Fix set deprecated slack operators arguments in 'MappedOperator' (#38345)``
+`d8381ed250 <https://github.com/apache/airflow/commit/d8381ed2508a6129142e5717b800bb4bad7a6a30>`_  2024-03-18   ``Update SqlToSlackApiFileOperator with new param to check empty output (#38079)``
+`0a74928894 <https://github.com/apache/airflow/commit/0a74928894fb57b0160208262ccacad12da23fc7>`_  2024-03-18   ``Bump ruff to 0.3.3 (#38240)``
+`83316b8158 <https://github.com/apache/airflow/commit/83316b81584c9e516a8142778fc509f19d95cc3e>`_  2024-03-04   ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+`30f7b2abe6 <https://github.com/apache/airflow/commit/30f7b2abe6991fe6e565f17f7d0701e80ecba0d3>`_  2024-03-04   ``Avoid to use too broad 'noqa' (#37862)``
+`5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
+=================================================================================================  ===========  ==================================================================================
+
 8.6.1
 .....
 
-Latest change: 2024-02-10
+Latest change: 2024-02-12
 
 =================================================================================================  ===========  =============================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================================================================
+`bfb054e9e8 <https://github.com/apache/airflow/commit/bfb054e9e867b8b9a6a449e43bfba97f645e025e>`_  2024-02-12   ``Prepare docs 1st wave of Providers February 2024 (#37326)``
 `326f9789cd <https://github.com/apache/airflow/commit/326f9789cd0b255956be0b547f0463da44e6439f>`_  2024-02-10   ``Follow D401 style in openlineage, slack, and tableau providers (#37312)``
 `9a4164d8cc <https://github.com/apache/airflow/commit/9a4164d8ccbf730d7152674dded44a4411c43cf5>`_  2024-01-31   ``Remove the remaining references to use the token bypassing the Connection in the Slack provider. (#37112)``
 `dec2662190 <https://github.com/apache/airflow/commit/dec2662190dd4480d0c631da733e19d2ec9a479d>`_  2024-01-30   ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``

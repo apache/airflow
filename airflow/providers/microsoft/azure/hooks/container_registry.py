@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Azure Container Registry."""
+
 from __future__ import annotations
 
 from functools import cached_property

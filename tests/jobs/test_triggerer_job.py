@@ -24,6 +24,7 @@ import time
 from threading import Thread
 from unittest.mock import MagicMock, patch
 
+import aiofiles
 import pendulum
 import pytest
 
@@ -58,8 +59,8 @@ class TimeDeltaTrigger_(TimeDeltaTrigger):
         self.delta = delta
 
     async def run(self):
-        with open(self.filename, "a") as f:
-            f.write("hi\n")
+        async with aiofiles.open(self.filename, mode="a") as f:
+            await f.write("hi\n")
         async for event in super().run():
             yield event
 
@@ -213,8 +214,8 @@ def test_capacity_decode():
         4 / 2,  # Resolves to a float, in addition to being just plain weird
     ]
     for input_str in variants:
+        job = Job()
         with pytest.raises(ValueError):
-            job = Job()
             TriggererJobRunner(job=job, capacity=input_str)
 
 
@@ -266,7 +267,7 @@ def test_trigger_lifecycle(session):
 class TestTriggerRunner:
     @pytest.mark.asyncio
     @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.set_individual_trigger_logging")
-    async def test_run_trigger_canceled(self, session) -> None:
+    async def test_run_inline_trigger_canceled(self, session) -> None:
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {1: {"task": MagicMock(), "name": "mock_name", "events": 0}}
         mock_trigger = MagicMock()
@@ -278,7 +279,7 @@ class TestTriggerRunner:
 
     @pytest.mark.asyncio
     @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.set_individual_trigger_logging")
-    async def test_run_trigger_timeout(self, session, caplog) -> None:
+    async def test_run_inline_trigger_timeout(self, session, caplog) -> None:
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {1: {"task": MagicMock(), "name": "mock_name", "events": 0}}
         mock_trigger = MagicMock()

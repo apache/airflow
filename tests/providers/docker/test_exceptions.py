@@ -46,7 +46,7 @@ EXPECTED_SKIP_MESSAGE = f"Docker container returned exit code {[SKIP_ON_EXIT_COD
     ],
 )
 class TestDockerContainerExceptions:
-    @pytest.fixture(autouse=True, scope="function")
+    @pytest.fixture(autouse=True)
     def setup_patchers(self, docker_api_client_patcher):
         self.client_mock = mock.MagicMock(spec=APIClient)
         self.client_mock.wait.return_value = {"StatusCode": 0}

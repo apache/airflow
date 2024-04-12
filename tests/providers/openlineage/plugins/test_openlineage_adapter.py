@@ -38,11 +38,41 @@ from openlineage.client.facet import (
 )
 from openlineage.client.run import Dataset, Job, Run, RunEvent, RunState
 
+from airflow.providers.openlineage.conf import (
+    config_path,
+    custom_extractors,
+    disabled_operators,
+    is_disabled,
+    is_source_enabled,
+    namespace,
+    transport,
+)
 from airflow.providers.openlineage.extractors import OperatorLineage
-from airflow.providers.openlineage.plugins.adapter import _DAG_NAMESPACE, _PRODUCER, OpenLineageAdapter
+from airflow.providers.openlineage.plugins.adapter import _PRODUCER, OpenLineageAdapter
 from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
+
+
+@pytest.fixture(autouse=True)
+def clear_cache():
+    config_path.cache_clear()
+    is_source_enabled.cache_clear()
+    disabled_operators.cache_clear()
+    custom_extractors.cache_clear()
+    namespace.cache_clear()
+    transport.cache_clear()
+    is_disabled.cache_clear()
+    try:
+        yield
+    finally:
+        config_path.cache_clear()
+        is_source_enabled.cache_clear()
+        disabled_operators.cache_clear()
+        custom_extractors.cache_clear()
+        namespace.cache_clear()
+        transport.cache_clear()
+        is_disabled.cache_clear()
 
 
 @patch.dict(
@@ -75,7 +105,7 @@ def test_create_client_from_config_with_options():
     }
 )
 def test_fails_to_create_client_without_type():
-    with pytest.raises(Exception):
+    with pytest.raises(KeyError):
         OpenLineageAdapter().get_or_create_openlineage_client()
 
 
@@ -114,6 +144,9 @@ def test_create_client_overrides_env_vars():
 
         assert client.transport.kind == "http"
         assert client.transport.url == "http://localhost:5050"
+
+    transport.cache_clear()
+    config_path.cache_clear()
 
     with conf_vars({("openlineage", "transport"): '{"type": "console"}'}):
         client = OpenLineageAdapter().get_or_create_openlineage_client()
@@ -162,7 +195,7 @@ def test_emit_start_event(mock_stats_incr, mock_stats_timer):
                     },
                 ),
                 job=Job(
-                    namespace=_DAG_NAMESPACE,
+                    namespace=namespace(),
                     name="job",
                     facets={
                         "documentation": DocumentationJobFacet(description="description"),
@@ -228,18 +261,18 @@ def test_emit_start_event_with_additional_information(mock_stats_incr, mock_stat
                         ),
                         "parent": ParentRunFacet(
                             run={"runId": "parent_run_id"},
-                            job={"namespace": _DAG_NAMESPACE, "name": "parent_job_name"},
+                            job={"namespace": namespace(), "name": "parent_job_name"},
                         ),
                         "parentRun": ParentRunFacet(
                             run={"runId": "parent_run_id"},
-                            job={"namespace": _DAG_NAMESPACE, "name": "parent_job_name"},
+                            job={"namespace": namespace(), "name": "parent_job_name"},
                         ),
                         "externalQuery1": ExternalQueryRunFacet(externalQueryId="123", source="source"),
                         "externalQuery2": ExternalQueryRunFacet(externalQueryId="999", source="source"),
                     },
                 ),
                 job=Job(
-                    namespace=_DAG_NAMESPACE,
+                    namespace=namespace(),
                     name="job",
                     facets={
                         "documentation": DocumentationJobFacet(description="description"),
@@ -294,7 +327,7 @@ def test_emit_complete_event(mock_stats_incr, mock_stats_timer):
                 eventTime=event_time,
                 run=Run(runId=run_id, facets={}),
                 job=Job(
-                    namespace=_DAG_NAMESPACE,
+                    namespace=namespace(),
                     name="job",
                     facets={
                         "jobType": JobTypeJobFacet(
@@ -346,11 +379,11 @@ def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_s
                     facets={
                         "parent": ParentRunFacet(
                             run={"runId": "parent_run_id"},
-                            job={"namespace": _DAG_NAMESPACE, "name": "parent_job_name"},
+                            job={"namespace": namespace(), "name": "parent_job_name"},
                         ),
                         "parentRun": ParentRunFacet(
                             run={"runId": "parent_run_id"},
-                            job={"namespace": _DAG_NAMESPACE, "name": "parent_job_name"},
+                            job={"namespace": namespace(), "name": "parent_job_name"},
                         ),
                         "externalQuery": ExternalQueryRunFacet(externalQueryId="123", source="source"),
                     },
@@ -404,7 +437,7 @@ def test_emit_failed_event(mock_stats_incr, mock_stats_timer):
                 eventTime=event_time,
                 run=Run(runId=run_id, facets={}),
                 job=Job(
-                    namespace=_DAG_NAMESPACE,
+                    namespace=namespace(),
                     name="job",
                     facets={
                         "jobType": JobTypeJobFacet(
@@ -456,11 +489,11 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
                     facets={
                         "parent": ParentRunFacet(
                             run={"runId": "parent_run_id"},
-                            job={"namespace": _DAG_NAMESPACE, "name": "parent_job_name"},
+                            job={"namespace": namespace(), "name": "parent_job_name"},
                         ),
                         "parentRun": ParentRunFacet(
                             run={"runId": "parent_run_id"},
-                            job={"namespace": _DAG_NAMESPACE, "name": "parent_job_name"},
+                            job={"namespace": namespace(), "name": "parent_job_name"},
                         ),
                         "externalQuery": ExternalQueryRunFacet(externalQueryId="123", source="source"),
                     },
@@ -529,7 +562,7 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, uuid):
                     },
                 ),
                 job=Job(
-                    namespace=_DAG_NAMESPACE,
+                    namespace=namespace(),
                     name="dag_id",
                     facets={
                         "jobType": JobTypeJobFacet(
@@ -579,7 +612,7 @@ def test_emit_dag_complete_event(mock_stats_incr, mock_stats_timer, uuid):
                 eventTime=event_time.isoformat(),
                 run=Run(runId=random_uuid, facets={}),
                 job=Job(
-                    namespace=_DAG_NAMESPACE,
+                    namespace=namespace(),
                     name="dag_id",
                     facets={
                         "jobType": JobTypeJobFacet(
@@ -636,7 +669,7 @@ def test_emit_dag_failed_event(mock_stats_incr, mock_stats_timer, uuid):
                     },
                 ),
                 job=Job(
-                    namespace=_DAG_NAMESPACE,
+                    namespace=namespace(),
                     name="dag_id",
                     facets={
                         "jobType": JobTypeJobFacet(
@@ -688,7 +721,7 @@ def test_build_dag_run_id_different_inputs_give_different_results():
 def test_build_dag_run_id_uses_correct_methods_underneath():
     dag_id = "test_dag"
     dag_run_id = "run_1"
-    expected = str(uuid.uuid3(uuid.NAMESPACE_URL, f"{_DAG_NAMESPACE}.{dag_id}.{dag_run_id}"))
+    expected = str(uuid.uuid3(uuid.NAMESPACE_URL, f"{namespace()}.{dag_id}.{dag_run_id}"))
     actual = OpenLineageAdapter.build_dag_run_id(dag_id, dag_run_id)
     assert actual == expected
 
@@ -710,7 +743,123 @@ def test_build_task_instance_run_id_uses_correct_methods_underneath():
     execution_date = "2023-01-01"
     try_number = 1
     expected = str(
-        uuid.uuid3(uuid.NAMESPACE_URL, f"{_DAG_NAMESPACE}.{dag_id}.{task_id}.{execution_date}.{try_number}")
+        uuid.uuid3(uuid.NAMESPACE_URL, f"{namespace()}.{dag_id}.{task_id}.{execution_date}.{try_number}")
     )
     actual = OpenLineageAdapter.build_task_instance_run_id(dag_id, task_id, execution_date, try_number)
     assert actual == expected
+
+
+def test_configuration_precedence_when_creating_ol_client():
+    _section_name = "openlineage"
+    current_folder = pathlib.Path(__file__).parent.resolve()
+    yaml_config = str((current_folder / "openlineage_configs" / "http.yaml").resolve())
+
+    # First, check config_path in Airflow configuration (airflow.cfg or env variable)
+    with patch.dict(
+        os.environ,
+        {
+            "OPENLINEAGE_URL": "http://wrong.com",
+            "OPENLINEAGE_API_KEY": "wrong_api_key",
+            "OPENLINEAGE_CONFIG": "some/config.yml",
+        },
+        clear=True,
+    ):
+        with conf_vars(
+            {
+                (_section_name, "transport"): '{"type": "kafka", "topic": "test", "config": {"acks": "all"}}',
+                (_section_name, "config_path"): yaml_config,
+            },
+        ):
+            client = OpenLineageAdapter().get_or_create_openlineage_client()
+            assert client.transport.kind == "http"
+            assert client.transport.config.url == "http://localhost:5050"
+            assert client.transport.config.endpoint == "api/v1/lineage"
+            assert client.transport.config.auth.api_key == "random_token"
+
+    config_path.cache_clear()
+    transport.cache_clear()
+
+    # Second, check transport in Airflow configuration (airflow.cfg or env variable)
+    with patch.dict(
+        os.environ,
+        {
+            "OPENLINEAGE_URL": "http://wrong.com",
+            "OPENLINEAGE_API_KEY": "wrong_api_key",
+            "OPENLINEAGE_CONFIG": "some/config.yml",
+        },
+        clear=True,
+    ):
+        with conf_vars(
+            {
+                (_section_name, "transport"): '{"type": "kafka", "topic": "test", "config": {"acks": "all"}}',
+                (_section_name, "config_path"): "",
+            },
+        ):
+            client = OpenLineageAdapter().get_or_create_openlineage_client()
+            assert client.transport.kind == "kafka"
+            assert client.transport.kafka_config.topic == "test"
+            assert client.transport.kafka_config.config == {"acks": "all"}
+
+    config_path.cache_clear()
+    transport.cache_clear()
+
+    # Third, check legacy OPENLINEAGE_CONFIG env variable
+    with patch.dict(
+        os.environ,
+        {
+            "OPENLINEAGE_URL": "http://wrong.com",
+            "OPENLINEAGE_API_KEY": "wrong_api_key",
+            "OPENLINEAGE_CONFIG": yaml_config,
+        },
+        clear=True,
+    ):
+        with conf_vars(
+            {
+                (_section_name, "transport"): "",
+                (_section_name, "config_path"): "",
+            },
+        ):
+            client = OpenLineageAdapter().get_or_create_openlineage_client()
+            assert client.transport.kind == "http"
+            assert client.transport.config.url == "http://localhost:5050"
+            assert client.transport.config.endpoint == "api/v1/lineage"
+            assert client.transport.config.auth.api_key == "random_token"
+
+    config_path.cache_clear()
+    transport.cache_clear()
+
+    # Fourth, check legacy OPENLINEAGE_URL env variable
+    with patch.dict(
+        os.environ,
+        {
+            "OPENLINEAGE_URL": "http://test.com",
+            "OPENLINEAGE_API_KEY": "test_api_key",
+            "OPENLINEAGE_CONFIG": "",
+        },
+        clear=True,
+    ):
+        with conf_vars(
+            {
+                (_section_name, "transport"): "",
+                (_section_name, "config_path"): "",
+            },
+        ):
+            client = OpenLineageAdapter().get_or_create_openlineage_client()
+            assert client.transport.kind == "http"
+            assert client.transport.config.url == "http://test.com"
+            assert client.transport.config.endpoint == "api/v1/lineage"
+            assert client.transport.config.auth.api_key == "test_api_key"
+
+    config_path.cache_clear()
+    transport.cache_clear()
+
+    # If all else fails, use console transport
+    with patch.dict(os.environ, {}, clear=True):
+        with conf_vars(
+            {
+                (_section_name, "transport"): "",
+                (_section_name, "config_path"): "",
+            },
+        ):
+            client = OpenLineageAdapter().get_or_create_openlineage_client()
+            assert client.transport.kind == "console"

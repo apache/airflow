@@ -24,6 +24,7 @@ The example DAG below assumes Airflow Connection with connection id `teradata_de
 It creates sample my_users table at source and destination, sets up sample data at source and then
 runs transfer operator to copy data to corresponding table on destination server.
 """
+
 from __future__ import annotations
 
 import datetime

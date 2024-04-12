@@ -61,6 +61,8 @@ from airflow_breeze.commands.common_options import (
     option_standalone_dag_processor,
     option_upgrade_boto,
     option_use_airflow_version,
+    option_use_uv,
+    option_uv_http_timeout,
     option_verbose,
 )
 from airflow_breeze.commands.common_package_installation_options import (
@@ -282,6 +284,8 @@ option_warn_image_upgrade_needed = click.option(
 @option_upgrade_boto
 @option_use_airflow_version
 @option_use_packages_from_dist
+@option_use_uv
+@option_uv_http_timeout
 @option_verbose
 def shell(
     airflow_constraints_location: str,
@@ -331,6 +335,8 @@ def shell(
     upgrade_boto: bool,
     use_airflow_version: str | None,
     use_packages_from_dist: bool,
+    use_uv: bool,
+    uv_http_timeout: int,
     verbose_commands: bool,
     warn_image_upgrade_needed: bool,
 ):
@@ -382,6 +388,7 @@ def shell(
         pydantic=pydantic,
         python=python,
         quiet=quiet,
+        restart=restart,
         run_db_tests_only=run_db_tests_only,
         skip_db_tests=skip_db_tests,
         skip_image_upgrade_check=skip_image_upgrade_check,
@@ -391,8 +398,9 @@ def shell(
         upgrade_boto=upgrade_boto,
         use_airflow_version=use_airflow_version,
         use_packages_from_dist=use_packages_from_dist,
+        use_uv=use_uv,
+        uv_http_timeout=uv_http_timeout,
         verbose_commands=verbose_commands,
-        restart=restart,
         warn_image_upgrade_needed=warn_image_upgrade_needed,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
@@ -476,6 +484,8 @@ option_executor_start_airflow = click.option(
 @option_python
 @option_restart
 @option_standalone_dag_processor
+@option_use_uv
+@option_uv_http_timeout
 @option_use_airflow_version
 @option_use_packages_from_dist
 @option_verbose
@@ -519,6 +529,8 @@ def start_airflow(
     standalone_dag_processor: bool,
     use_airflow_version: str | None,
     use_packages_from_dist: bool,
+    use_uv: bool,
+    uv_http_timeout: int,
 ):
     """
     Enter breeze environment and starts all Airflow components in the tmux session.
@@ -576,6 +588,8 @@ def start_airflow(
         start_airflow=True,
         use_airflow_version=use_airflow_version,
         use_packages_from_dist=use_packages_from_dist,
+        use_uv=use_uv,
+        uv_http_timeout=uv_http_timeout,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     result = enter_shell(shell_params=shell_params)
@@ -609,6 +623,14 @@ def start_airflow(
     type=str,
     multiple=True,
 )
+@click.option(
+    "--package-list",
+    envvar="PACKAGE_LIST",
+    type=str,
+    help="Optional, contains comma-seperated list of package ids that are processed for documentation "
+    "building, and document publishing. It is an easier alternative to adding individual packages as"
+    " arguments to every command. This overrides the packages passed as arguments.",
+)
 @click.option("-s", "--spellcheck-only", help="Only run spell checking.", is_flag=True)
 @option_verbose
 @option_answer
@@ -622,6 +644,7 @@ def build_docs(
     include_removed_providers: bool,
     one_pass_only: bool,
     package_filter: tuple[str, ...],
+    package_list: str,
     spellcheck_only: bool,
     doc_packages: tuple[str, ...],
 ):
@@ -641,6 +664,17 @@ def build_docs(
             for directory in docs_dir.rglob(dir_name):
                 get_console().print(f"[info]Removing {directory}")
                 shutil.rmtree(directory, ignore_errors=True)
+    docs_list_as_tuple: tuple[str, ...] = ()
+    if package_list and len(package_list):
+        get_console().print(f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list}")
+        # Override doc_packages with values from PACKAGE_LIST
+        docs_list_as_tuple = tuple(package_list.split(","))
+    if doc_packages and docs_list_as_tuple:
+        get_console().print(
+            f"[warning]Both package arguments and --package-list / PACKAGE_LIST passed. "
+            f"Overriding to {docs_list_as_tuple}"
+        )
+    doc_packages = docs_list_as_tuple or doc_packages
     doc_builder = DocBuildParams(
         package_filter=package_filter,
         docs_only=docs_only,

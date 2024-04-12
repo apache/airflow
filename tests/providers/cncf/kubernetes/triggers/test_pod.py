@@ -27,7 +27,6 @@ from unittest.mock import MagicMock
 import pytest
 from kubernetes.client import models as k8s
 from pendulum import DateTime
-from pytest import param
 
 from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
@@ -106,6 +105,7 @@ class TestKubernetesPodTrigger:
             "in_cluster": IN_CLUSTER,
             "get_logs": GET_LOGS,
             "startup_timeout": STARTUP_TIMEOUT_SECS,
+            "startup_check_interval": 5,
             "trigger_start_time": TRIGGER_START_TIME,
             "on_finish_action": ON_FINISH_ACTION,
             "should_delete_pod": ON_FINISH_ACTION == "delete_pod",
@@ -188,6 +188,7 @@ class TestKubernetesPodTrigger:
                 "namespace": "default",
                 "name": "test-pod-name",
                 "message": "Container state failed",
+                "last_log_time": None,
             }
         )
         actual_event = await trigger.run().asend(None)
@@ -239,7 +240,7 @@ class TestKubernetesPodTrigger:
     @pytest.mark.parametrize(
         "logging_interval, exp_event",
         [
-            param(
+            pytest.param(
                 0,
                 {
                     "status": "running",

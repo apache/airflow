@@ -23,6 +23,7 @@ This module contains Azure Data Explorer hook.
     KustoResponseDataSetV
     kusto
 """
+
 from __future__ import annotations
 
 import warnings

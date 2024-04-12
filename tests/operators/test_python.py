@@ -37,7 +37,6 @@ from unittest.mock import MagicMock
 import pytest
 from slugify import slugify
 
-from airflow import PY311
 from airflow.decorators import task_group
 from airflow.exceptions import AirflowException, DeserializingResultError, RemovedInAirflow3Warning
 from airflow.models.baseoperator import BaseOperator
@@ -52,6 +51,8 @@ from airflow.operators.python import (
     PythonOperator,
     PythonVirtualenvOperator,
     ShortCircuitOperator,
+    _parse_version_info,
+    _PythonVersionInfo,
     get_current_context,
 )
 from airflow.utils import timezone
@@ -75,6 +76,7 @@ DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 TEMPLATE_SEARCHPATH = os.path.join(AIRFLOW_MAIN_FOLDER, "tests", "config_templates")
 LOGGER_NAME = "airflow.task.operators"
 DEFAULT_PYTHON_VERSION = f"{sys.version_info[0]}.{sys.version_info[1]}"
+PY311 = sys.version_info >= (3, 11)
 
 
 class BasePythonTest:
@@ -224,7 +226,7 @@ class TestPythonOperator(BasePythonTest):
 
     def test_python_operator_shallow_copy_attr(self):
         def not_callable(x):
-            assert False, "Should not be triggered"
+            raise RuntimeError("Should not be triggered")
 
         original_task = PythonOperator(
             python_callable=not_callable,
@@ -748,25 +750,24 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
 
     def test_fail(self):
         def f():
-            raise Exception
+            raise RuntimeError
 
         with pytest.raises(CalledProcessError):
             self.run_as_task(f)
 
     def test_fail_with_message(self):
         def f():
-            raise Exception("Custom error message")
+            raise RuntimeError("Custom error message")
 
-        with pytest.raises(AirflowException) as e:
+        with pytest.raises(AirflowException, match="Custom error message"):
             self.run_as_task(f)
-            assert "Custom error message" in str(e)
 
     def test_string_args(self):
         def f():
             global virtualenv_string_args
             print(virtualenv_string_args)
             if virtualenv_string_args[0] != virtualenv_string_args[2]:
-                raise Exception
+                raise RuntimeError
 
         self.run_as_task(f, string_args=[1, 2, 1])
 
@@ -775,7 +776,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             if a == 0 and b == 1 and c and not d:
                 return True
             else:
-                raise Exception
+                raise RuntimeError
 
         self.run_as_task(f, op_args=[0, 1], op_kwargs={"c": True})
 
@@ -794,8 +795,9 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         assert task.execute_callable() is False
 
     def test_lambda(self):
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError) as info:
             PythonVirtualenvOperator(python_callable=lambda x: 4, task_id=self.task_id)
+        assert str(info.value) == "PythonVirtualenvOperator only supports functions for python_callable arg"
 
     def test_nonimported_as_arg(self):
         def f(_):
@@ -833,6 +835,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             "ti",
             "var",  # Accessor for Variable; var->json and var->value.
             "conn",  # Accessor for Connection.
+            "dataset_events",  # Accessor for DatasetEvent.
         ]
 
         ti = create_task_instance(dag_id=self.dag_id, task_id=self.task_id, schedule=None)
@@ -913,11 +916,11 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
     def test_virtualenv_not_installed(self, importlib_mock, which_mock):
         which_mock.return_value = None
         importlib_mock.util.find_spec.return_value = None
+
+        def f():
+            pass
+
         with pytest.raises(AirflowException, match="requires virtualenv"):
-
-            def f():
-                pass
-
             self.run_as_task(f)
 
     def test_add_dill(self):
@@ -941,7 +944,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
                 import funcsigs  # noqa: F401
             except ImportError:
                 return True
-            raise Exception
+            raise RuntimeError
 
         self.run_as_task(f, system_site_packages=False, requirements=["dill"])
 
@@ -956,7 +959,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             import funcsigs
 
             if funcsigs.__version__ != "0.4":
-                raise Exception
+                raise RuntimeError
 
         self.run_as_task(f, requirements=["funcsigs==0.4"])
 
@@ -972,7 +975,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             import funcsigs
 
             if funcsigs.__version__ != "0.4":
-                raise Exception
+                raise RuntimeError
 
         self.run_as_task(f, requirements=["funcsigs==0.4"], do_not_use_caching=True)
 
@@ -1039,7 +1042,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
                 {}.iteritems()
             except AttributeError:
                 return
-            raise Exception
+            raise RuntimeError
 
         self.run_as_task(f, python_version="3", use_dill=False, requirements=["dill"])
 
@@ -1275,7 +1278,7 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             if a == 0 and b == 1 and c and not d:
                 return True
             else:
-                raise Exception
+                raise RuntimeError
 
         with pytest.raises(AirflowException, match="but got 'bool'"):
             self.run_as_task(f, op_args=[0, 1], op_kwargs={"c": True})
@@ -1687,3 +1690,61 @@ class TestShortCircuitWithTeardown:
                 assert isinstance(actual_skipped, Generator)
             assert set(actual_skipped) == {op3}
             assert actual_kwargs["execution_date"] == dagrun.logical_date
+
+
+@pytest.mark.parametrize(
+    "text_input, expected_tuple",
+    [
+        pytest.param("   2.7.18.final.0  ", (2, 7, 18, "final", 0), id="py27"),
+        pytest.param("3.10.13.final.0\n", (3, 10, 13, "final", 0), id="py310"),
+        pytest.param("\n3.13.0.alpha.3", (3, 13, 0, "alpha", 3), id="py313-alpha"),
+    ],
+)
+def test_parse_version_info(text_input, expected_tuple):
+    assert _parse_version_info(text_input) == expected_tuple
+
+
+@pytest.mark.parametrize(
+    "text_input",
+    [
+        pytest.param("   2.7.18.final.0.3  ", id="more-than-5-parts"),
+        pytest.param("3.10.13\n", id="less-than-5-parts"),
+        pytest.param("Apache Airflow 3.0.0", id="garbage-input"),
+    ],
+)
+def test_parse_version_invalid_parts(text_input):
+    with pytest.raises(ValueError, match="expected 5 components separated by '\.'"):
+        _parse_version_info(text_input)
+
+
+@pytest.mark.parametrize(
+    "text_input",
+    [
+        pytest.param("2EOL.7.18.final.0", id="major-non-int"),
+        pytest.param("3.XXX.13.final.3", id="minor-non-int"),
+        pytest.param("3.13.0a.alpha.3", id="micro-non-int"),
+        pytest.param("3.8.18.alpha.beta", id="serial-non-int"),
+    ],
+)
+def test_parse_version_invalid_parts_types(text_input):
+    with pytest.raises(ValueError, match="Unable to convert parts.*parsed from.*to"):
+        _parse_version_info(text_input)
+
+
+def test_python_version_info_fail_subprocess(mocker):
+    mocked_subprocess = mocker.patch("subprocess.check_output")
+    mocked_subprocess.side_effect = RuntimeError("some error")
+
+    with pytest.raises(ValueError, match="Error while executing command.*some error"):
+        _PythonVersionInfo.from_executable("/dev/null")
+    mocked_subprocess.assert_called_once()
+
+
+def test_python_version_info(mocker):
+    result = _PythonVersionInfo.from_executable(sys.executable)
+    assert result.major == sys.version_info.major
+    assert result.minor == sys.version_info.minor
+    assert result.micro == sys.version_info.micro
+    assert result.releaselevel == sys.version_info.releaselevel
+    assert result.serial == sys.version_info.serial
+    assert list(result) == list(sys.version_info)

@@ -16,10 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google BigQuery operators."""
+
 from __future__ import annotations
 
 import enum
 import json
+import re
 import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Iterable, Sequence, SupportsAbs
@@ -63,6 +65,8 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 BIGQUERY_JOB_DETAILS_LINK_FMT = "https://console.cloud.google.com/bigquery?j={job_id}"
+
+LABEL_REGEX = re.compile(r"^[a-z][\w-]{0,63}$")
 
 
 class BigQueryUIColors(enum.Enum):
@@ -272,7 +276,6 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
     ) -> None:
         super().__init__(sql=sql, **kwargs)
         self.gcp_conn_id = gcp_conn_id
-        self.sql = sql
         self.use_legacy_sql = use_legacy_sql
         self.location = location
         self.impersonation_chain = impersonation_chain
@@ -798,9 +801,6 @@ class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
         **kwargs,
     ) -> None:
         super().__init__(table=table, checks=checks, partition_clause=partition_clause, **kwargs)
-        self.table = table
-        self.checks = checks
-        self.partition_clause = partition_clause
         self.gcp_conn_id = gcp_conn_id
         self.use_legacy_sql = use_legacy_sql
         self.location = location
@@ -964,7 +964,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         self.dataset_id = dataset_id
         self.table_id = table_id
         self.job_project_id = job_project_id
-        self.max_results = int(max_results)
+        self.max_results = max_results
         self.selected_fields = selected_fields
         self.gcp_conn_id = gcp_conn_id
         self.location = location
@@ -1000,7 +1000,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
             query += "*"
         query += (
             f" from `{self.table_project_id or hook.project_id}.{self.dataset_id}"
-            f".{self.table_id}` limit {self.max_results}"
+            f".{self.table_id}` limit {int(self.max_results)}"
         )
         return query
 
@@ -1027,7 +1027,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
                 self.table_project_id or hook.project_id,
                 self.dataset_id,
                 self.table_id,
-                self.max_results,
+                int(self.max_results),
             )
             if not self.selected_fields:
                 schema: dict[str, list] = hook.get_schema(
@@ -1041,7 +1041,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
             rows = hook.list_rows(
                 dataset_id=self.dataset_id,
                 table_id=self.table_id,
-                max_results=self.max_results,
+                max_results=int(self.max_results),
                 selected_fields=self.selected_fields,
                 location=self.location,
                 project_id=self.table_project_id or hook.project_id,
@@ -1217,6 +1217,8 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
         location: str | None = None,
         encryption_configuration: dict | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        impersonation_scopes: str | Sequence[str] | None = None,
+        job_id: str | list[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1242,7 +1244,8 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
         self.encryption_configuration = encryption_configuration
         self.hook: BigQueryHook | None = None
         self.impersonation_chain = impersonation_chain
-        self.job_id: str | list[str] | None = None
+        self.impersonation_scopes = impersonation_scopes
+        self.job_id = job_id
 
     def execute(self, context: Context):
         if self.hook is None:
@@ -1252,6 +1255,7 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
                 use_legacy_sql=self.use_legacy_sql,
                 location=self.location,
                 impersonation_chain=self.impersonation_chain,
+                impersonation_scopes=self.impersonation_scopes,
             )
         if isinstance(self.sql, str):
             self.job_id = self.hook.run_query(
@@ -1478,7 +1482,7 @@ class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
         self.gcs_schema_object = gcs_schema_object
         self.gcp_conn_id = gcp_conn_id
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
-        self.time_partitioning = {} if time_partitioning is None else time_partitioning
+        self.time_partitioning = time_partitioning or {}
         self.labels = labels
         self.view = view
         self.materialized_view = materialized_view
@@ -1693,6 +1697,13 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
 
         super().__init__(**kwargs)
 
+        self.table_resource = table_resource
+        self.bucket = bucket or ""
+        self.source_objects = source_objects or []
+        self.schema_object = schema_object or None
+        self.gcs_schema_bucket = gcs_schema_bucket or ""
+        self.destination_project_dataset_table = destination_project_dataset_table or ""
+
         # BQ config
         kwargs_passed = any(
             [
@@ -1750,12 +1761,7 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             self.field_delimiter = field_delimiter
             self.table_resource = None
         else:
-            self.table_resource = table_resource
-            self.bucket = ""
-            self.source_objects = []
-            self.schema_object = None
-            self.gcs_schema_bucket = ""
-            self.destination_project_dataset_table = ""
+            pass
 
         if table_resource and kwargs_passed:
             raise ValueError("You provided both `table_resource` and exclusive keywords arguments.")
@@ -2769,11 +2775,25 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
             with open(self.configuration) as file:
                 self.configuration = json.loads(file.read())
 
+    def _add_job_labels(self) -> None:
+        dag_label = self.dag_id.lower()
+        task_label = self.task_id.lower()
+
+        if LABEL_REGEX.match(dag_label) and LABEL_REGEX.match(task_label):
+            automatic_labels = {"airflow-dag": dag_label, "airflow-task": task_label}
+            if isinstance(self.configuration.get("labels"), dict):
+                self.configuration["labels"].update(automatic_labels)
+            elif "labels" not in self.configuration:
+                self.configuration["labels"] = automatic_labels
+
     def _submit_job(
         self,
         hook: BigQueryHook,
         job_id: str,
     ) -> BigQueryJob:
+        # Annotate the job with dag and task id labels
+        self._add_job_labels()
+
         # Submit a new job without waiting for it to complete.
         return hook.insert_job(
             configuration=self.configuration,

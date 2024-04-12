@@ -113,14 +113,17 @@ class SFTPTrigger(BaseTrigger):
                                 "message": f"Sensed {len(files_sensed)} files: {files_sensed}",
                             }
                         )
+                        return
                 else:
                     mod_time = await hook.get_mod_time(self.path)
                     if _newer_than:
                         mod_time_utc = convert_to_utc(datetime.strptime(mod_time, "%Y%m%d%H%M%S"))
                         if _newer_than <= mod_time_utc:
                             yield TriggerEvent({"status": "success", "message": f"Sensed file: {self.path}"})
+                            return
                     else:
                         yield TriggerEvent({"status": "success", "message": f"Sensed file: {self.path}"})
+                        return
                 await asyncio.sleep(self.poke_interval)
             except AirflowException:
                 await asyncio.sleep(self.poke_interval)
@@ -131,7 +134,7 @@ class SFTPTrigger(BaseTrigger):
                 # Break loop to avoid infinite retries on terminal failure
                 break
 
-        yield TriggerEvent({"status": "error", "message": exc})
+        yield TriggerEvent({"status": "error", "message": str(exc)})
 
     def _get_async_hook(self) -> SFTPHookAsync:
         return SFTPHookAsync(sftp_conn_id=self.sftp_conn_id)

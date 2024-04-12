@@ -18,6 +18,7 @@
 """
 This file should only contain constants used for the EKS tests.
 """
+
 from __future__ import annotations
 
 import re

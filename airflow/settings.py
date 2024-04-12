@@ -23,6 +23,7 @@ import json
 import logging
 import os
 import sys
+import traceback
 import warnings
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -32,11 +33,12 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
 from airflow import policies
-from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F401
-from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # noqa: F401
+from airflow.exceptions import AirflowInternalRuntimeError, RemovedInAirflow3Warning
 from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
+from airflow.utils.sqlalchemy import is_sqlalchemy_v1
 from airflow.utils.state import State
 from airflow.utils.timezone import local_timezone, parse_timezone, utc
 
@@ -206,15 +208,43 @@ def configure_vars():
 
 
 class SkipDBTestsSession:
-    """This fake session is used to skip DB tests when `_AIRFLOW_SKIP_DB_TESTS` is set."""
+    """
+    This fake session is used to skip DB tests when `_AIRFLOW_SKIP_DB_TESTS` is set.
+
+    :meta private:
+    """
 
     def __init__(self):
-        raise RuntimeError(
+        raise AirflowInternalRuntimeError(
             "Your test accessed the DB but `_AIRFLOW_SKIP_DB_TESTS` is set.\n"
             "Either make sure your test does not use database or mark the test with `@pytest.mark.db_test`\n"
             "See https://github.com/apache/airflow/blob/main/contributing-docs/testing/unit_tests.rst#"
             "best-practices-for-db-tests on how "
             "to deal with it and consult examples."
+        )
+
+    def remove(*args, **kwargs):
+        pass
+
+
+class TracebackSession:
+    """
+    Session that throws error when you try to use it.
+
+    Also stores stack at instantiation call site.
+
+    :meta private:
+    """
+
+    def __init__(self):
+        self.traceback = traceback.extract_stack()
+
+    def __getattr__(self, item):
+        raise RuntimeError(
+            "TracebackSession object was used but internal API is enabled. "
+            "You'll need to ensure you are making only RPC calls with this object. "
+            "The stack list below will show where the TracebackSession object was created."
+            + "\n".join(traceback.format_list(self.traceback))
         )
 
     def remove(*args, **kwargs):
@@ -241,7 +271,13 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
 
     global Session
     global engine
-    if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
+    from airflow.api_internal.internal_api_call import InternalApiConfig
+
+    if InternalApiConfig.get_use_internal_api():
+        Session = TracebackSession
+        engine = None
+        return
+    elif os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
         # Skip DB initialization in unit tests, if DB tests are skipped
         Session = SkipDBTestsSession
         engine = None
@@ -272,8 +308,8 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
 
 DEFAULT_ENGINE_ARGS = {
     "postgresql": {
-        "executemany_mode": "values",
-        "executemany_values_page_size": 10000,
+        "executemany_mode": "values_plus_batch",
+        "executemany_values_page_size" if is_sqlalchemy_v1() else "insertmanyvalues_page_size": 10000,
         "executemany_batch_page_size": 2000,
     },
 }
@@ -348,9 +384,11 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
     if SQL_ALCHEMY_CONN.startswith("mysql"):
         engine_args["isolation_level"] = "READ COMMITTED"
 
-    # Allow the user to specify an encoding for their DB otherwise default
-    # to utf-8 so jobs & users with non-latin1 characters can still use us.
-    engine_args["encoding"] = conf.get("database", "SQL_ENGINE_ENCODING", fallback="utf-8")
+    if is_sqlalchemy_v1():
+        # Allow the user to specify an encoding for their DB otherwise default
+        # to utf-8 so jobs & users with non-latin1 characters can still use us.
+        # This parameter was removed in SQLAlchemy 2.x.
+        engine_args["encoding"] = conf.get("database", "SQL_ENGINE_ENCODING", fallback="utf-8")
 
     return engine_args
 
@@ -463,7 +501,7 @@ def get_session_lifetime_config():
         session_lifetime_days = 30
         session_lifetime_minutes = minutes_per_day * session_lifetime_days
 
-    logging.debug("User session lifetime is set to %s minutes.", session_lifetime_minutes)
+    log.debug("User session lifetime is set to %s minutes.", session_lifetime_minutes)
 
     return int(session_lifetime_minutes)
 
@@ -617,19 +655,6 @@ DASHBOARD_UIALERTS: list[UIAlert] = []
 AIRFLOW_MOVED_TABLE_PREFIX = "_airflow_moved"
 
 DAEMON_UMASK: str = conf.get("core", "daemon_umask", fallback="0o077")
-
-SMTP_DEFAULT_TEMPLATED_SUBJECT = """
-{% if ti is defined %}
-DAG {{ ti.dag_id }} - Task {{ ti.task_id }} - Run ID {{ ti.run_id }} in State {{ ti.state }}
-{% elif slas is defined %}
-SLA Missed for DAG {{ dag.dag_id }} - Task {{ slas[0].task_id }}
-{% endif %}
-"""
-
-SMTP_DEFAULT_TEMPLATED_HTML_CONTENT_PATH = os.path.join(
-    os.path.dirname(__file__), "providers", "smtp", "notifications", "templates", "email.html"
-)
-
 
 # AIP-44: internal_api (experimental)
 # This feature is not complete yet, so we disable it by default.

@@ -147,8 +147,16 @@ class DatasetEventCollectionSchema(Schema):
     total_entries = fields.Int()
 
 
+class CreateDatasetEventSchema(Schema):
+    """Create Dataset Event Schema."""
+
+    dataset_uri = fields.String()
+    extra = JsonObjectField()
+
+
 dataset_event_schema = DatasetEventSchema()
 dataset_event_collection_schema = DatasetEventCollectionSchema()
+create_dataset_event_schema = CreateDatasetEventSchema()
 
 
 class QueuedEvent(NamedTuple):

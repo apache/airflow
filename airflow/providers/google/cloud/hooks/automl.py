@@ -22,6 +22,7 @@ This module contains a Google AutoML hook.
 
     PredictResponse
 """
+
 from __future__ import annotations
 
 from functools import cached_property

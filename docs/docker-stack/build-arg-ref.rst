@@ -45,7 +45,14 @@ Those are the most common arguments that you use when you want to build a custom
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_USER_HOME_DIR``                | ``/home/airflow``                        | Home directory of the Airflow user.         |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
-| ``AIRFLOW_PIP_VERSION``                  | ``24.0``                                 |  PIP version used.                          |
+| ``AIRFLOW_PIP_VERSION``                  | ``<LATEST_AVAILABLE_IN_PYPI>``           |  PIP version used.                          |
++------------------------------------------+------------------------------------------+---------------------------------------------+
+| ``AIRFLOW_UV_VERSION``                   | ``<LATEST_AVAILABLE_IN_PYPI>``           |  UV version used.                           |
++------------------------------------------+------------------------------------------+---------------------------------------------+
+| ``AIRFLOW_USE_UV``                       | ``false``                                |  Whether to use UV to build the image.      |
+|                                          |                                          |  This is an experimental feature.           |
++------------------------------------------+------------------------------------------+---------------------------------------------+
+| ``UV_HTTP_TIMEOUT``                      | ``300``                                  |  Timeout in seconds for UV pull requests.   |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``ADDITIONAL_PIP_INSTALL_FLAGS``         |                                          | additional ``pip`` flags passed to the      |
 |                                          |                                          | installation commands (except when          |
@@ -88,6 +95,7 @@ List of default extras in the production Dockerfile:
 * common-io
 * docker
 * elasticsearch
+* fab
 * ftp
 * google
 * google-auth
@@ -109,6 +117,7 @@ List of default extras in the production Dockerfile:
 * snowflake
 * ssh
 * statsd
+* uv
 * virtualenv
 
 .. END OF EXTRAS LIST UPDATED BY PRE COMMIT
@@ -122,66 +131,66 @@ the final image (RUNTIME) might not contain all the dependencies that are needed
 allowing to produce much more optimized images. See :ref:`Building optimized images<image-build-optimized>`.
 for examples of using those arguments.
 
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| Build argument                           | Default value                            | Description                              |
-+==========================================+==========================================+==========================================+
-| ``UPGRADE_TO_NEWER_DEPENDENCIES``        | ``false``                                | If set to a value different than "false" |
-|                                          |                                          | the dependencies are upgraded to newer   |
-|                                          |                                          | versions. In CI it is set to build id    |
-|                                          |                                          | to make sure subsequent builds are not   |
-|                                          |                                          | reusing cached images with same value.   |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``ADDITIONAL_PYTHON_DEPS``               |                                          | Optional python packages to extend       |
-|                                          |                                          | the image with some extra dependencies.  |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``DEV_APT_COMMAND``                      |                                          | Dev apt command executed before dev deps |
-|                                          |                                          | are installed in the Build image.        |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``ADDITIONAL_DEV_APT_COMMAND``           |                                          | Additional Dev apt command executed      |
-|                                          |                                          | before dev dep are installed             |
-|                                          |                                          | in the Build image. Should start with    |
-|                                          |                                          | ``&&``.                                  |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``DEV_APT_DEPS``                         | Empty - install default dependencies     | Dev APT dependencies installed           |
-|                                          | (see ``install_os_dependencies.sh``)     | in the Build image.                      |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``ADDITIONAL_DEV_APT_DEPS``              |                                          | Additional apt dev dependencies          |
-|                                          |                                          | installed in the Build image.            |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``ADDITIONAL_DEV_APT_ENV``               |                                          | Additional env variables defined         |
-|                                          |                                          | when installing dev deps.                |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``RUNTIME_APT_COMMAND``                  |                                          | Runtime apt command executed before deps |
-|                                          |                                          | are installed in the ``main`` stage.     |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``ADDITIONAL_RUNTIME_APT_COMMAND``       |                                          | Additional Runtime apt command executed  |
-|                                          |                                          | before runtime dep are installed         |
-|                                          |                                          | in the ``main`` stage. Should start with |
-|                                          |                                          | ``&&``.                                  |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``RUNTIME_APT_DEPS``                     | Empty - install default dependencies     | Runtime APT dependencies installed       |
-|                                          | (see ``install_os_dependencies.sh``)     | in the Main image.                       |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``ADDITIONAL_RUNTIME_APT_DEPS``          |                                          | Additional apt runtime dependencies      |
-|                                          |                                          | installed in the Main image.             |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``ADDITIONAL_RUNTIME_APT_ENV``           |                                          | Additional env variables defined         |
-|                                          |                                          | when installing runtime deps.            |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``INSTALL_MYSQL_CLIENT``                 | ``true``                                 | Whether MySQL client should be installed |
-|                                          |                                          | The mysql extra is removed from extras   |
-|                                          |                                          | if the client is not installed.          |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``INSTALL_MYSQL_CLIENT_TYPE``            | ``mariadb``                              | Type of MySQL client library. This       |
-|                                          |                                          | can be ``mariadb`` or ``mysql``          |
-|                                          |                                          | Regardless of the parameter, ``mariadb`` |
-|                                          |                                          | will always be used on ARM.              |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``INSTALL_MSSQL_CLIENT``                 | ``true``                                 | Whether MsSQL client should be installed |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``INSTALL_POSTGRES_CLIENT``              | ``true``                                 | Whether Postgres client should be        |
-|                                          |                                          | installed                                |
-+------------------------------------------+------------------------------------------+------------------------------------------+
++------------------------------------+------------------------------------------+------------------------------------------+
+| Build argument                     | Default value                            | Description                              |
++====================================+==========================================+==========================================+
+| ``UPGRADE_INVALIDATION_STRING``    |                                          | If set to a random, non-empty value      |
+|                                    |                                          | the dependencies are upgraded to newer   |
+|                                    |                                          | versions. In CI it is set to build id    |
+|                                    |                                          | to make sure subsequent builds are not   |
+|                                    |                                          | reusing cached images with same value.   |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``ADDITIONAL_PYTHON_DEPS``         |                                          | Optional python packages to extend       |
+|                                    |                                          | the image with some extra dependencies.  |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``DEV_APT_COMMAND``                |                                          | Dev apt command executed before dev deps |
+|                                    |                                          | are installed in the Build image.        |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``ADDITIONAL_DEV_APT_COMMAND``     |                                          | Additional Dev apt command executed      |
+|                                    |                                          | before dev dep are installed             |
+|                                    |                                          | in the Build image. Should start with    |
+|                                    |                                          | ``&&``.                                  |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``DEV_APT_DEPS``                   | Empty - install default dependencies     | Dev APT dependencies installed           |
+|                                    | (see ``install_os_dependencies.sh``)     | in the Build image.                      |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``ADDITIONAL_DEV_APT_DEPS``        |                                          | Additional apt dev dependencies          |
+|                                    |                                          | installed in the Build image.            |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``ADDITIONAL_DEV_APT_ENV``         |                                          | Additional env variables defined         |
+|                                    |                                          | when installing dev deps.                |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``RUNTIME_APT_COMMAND``            |                                          | Runtime apt command executed before deps |
+|                                    |                                          | are installed in the ``main`` stage.     |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``ADDITIONAL_RUNTIME_APT_COMMAND`` |                                          | Additional Runtime apt command executed  |
+|                                    |                                          | before runtime dep are installed         |
+|                                    |                                          | in the ``main`` stage. Should start with |
+|                                    |                                          | ``&&``.                                  |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``RUNTIME_APT_DEPS``               | Empty - install default dependencies     | Runtime APT dependencies installed       |
+|                                    | (see ``install_os_dependencies.sh``)     | in the Main image.                       |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``ADDITIONAL_RUNTIME_APT_DEPS``    |                                          | Additional apt runtime dependencies      |
+|                                    |                                          | installed in the Main image.             |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``ADDITIONAL_RUNTIME_APT_ENV``     |                                          | Additional env variables defined         |
+|                                    |                                          | when installing runtime deps.            |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``INSTALL_MYSQL_CLIENT``           | ``true``                                 | Whether MySQL client should be installed |
+|                                    |                                          | The mysql extra is removed from extras   |
+|                                    |                                          | if the client is not installed.          |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``INSTALL_MYSQL_CLIENT_TYPE``      | ``mariadb``                              | Type of MySQL client library. This       |
+|                                    |                                          | can be ``mariadb`` or ``mysql``          |
+|                                    |                                          | Regardless of the parameter, ``mariadb`` |
+|                                    |                                          | will always be used on ARM.              |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``INSTALL_MSSQL_CLIENT``           | ``true``                                 | Whether MsSQL client should be installed |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``INSTALL_POSTGRES_CLIENT``        | ``true``                                 | Whether Postgres client should be        |
+|                                    |                                          | installed                                |
++------------------------------------+------------------------------------------+------------------------------------------+
 
 Installing Airflow using different methods
 ..........................................

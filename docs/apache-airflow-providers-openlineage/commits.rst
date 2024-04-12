@@ -35,14 +35,57 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.7.0
+.....
+
+Latest change: 2024-04-08
+
+=================================================================================================  ===========  ==================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================================
+`093ab7e755 <https://github.com/apache/airflow/commit/093ab7e7556bad9202e83e9fd6d968c50a5f7cb8>`_  2024-04-08   ``Add lineage_job_namespace and lineage_job_name OpenLineage macros (#38829)``
+`7d9737154c <https://github.com/apache/airflow/commit/7d9737154c53fe96fd925a95d670eec36a24c6e3>`_  2024-04-07   ``fix: try002 for provider openlineage (#38806)``
+`ecd69955f9 <https://github.com/apache/airflow/commit/ecd69955f9e2f2a771bbd665b05cc17e19553bb3>`_  2024-04-04   ``fix: Remove redundant operator information from facets (#38264)``
+`a2f5307fd0 <https://github.com/apache/airflow/commit/a2f5307fd0ec54b34b8c753a53024a2629a56fd8>`_  2024-03-29   ``Brings back mypy-checks (#38597)``
+`714a933479 <https://github.com/apache/airflow/commit/714a933479f9dc1c3ef5916e43292efc182a0857>`_  2024-03-26   ``openlineage: add 'opt-in' option (#37725)``
+`9c4e333f5b <https://github.com/apache/airflow/commit/9c4e333f5b7cc6f950f6791500ecd4bad41ba2f9>`_  2024-03-25   ``fix: disabled_for_operators now stops whole event emission (#38033)``
+`c6bc052980 <https://github.com/apache/airflow/commit/c6bc0529805be98cffbf336070abee32b93ca39a>`_  2024-03-19   ``Add default for 'task' on TaskInstance / fix attrs on TaskInstancePydantic (#37854)``
+`0a74928894 <https://github.com/apache/airflow/commit/0a74928894fb57b0160208262ccacad12da23fc7>`_  2024-03-18   ``Bump ruff to 0.3.3 (#38240)``
+`c0b849ad2b <https://github.com/apache/airflow/commit/c0b849ad2b3f7015f7cb2a45aefd1fa3828bda31>`_  2024-03-11   ``Avoid use of 'assert' outside of the tests (#37718)``
+`ea5238a81b <https://github.com/apache/airflow/commit/ea5238a81bc6621a8d45676fcc758a0b1af20b4d>`_  2024-03-08   ``fix: Add fallbacks when retrieving Airflow configuration to avoid errors being raised (#37994)``
+`3f52790d42 <https://github.com/apache/airflow/commit/3f52790d425cd51386715c240d9a38a20756de2a>`_  2024-03-06   ``Resolve G004: Logging statement uses f-string (#37873)``
+`2852976ea6 <https://github.com/apache/airflow/commit/2852976ea6321b152ebc631d30d5526703bc6590>`_  2024-03-05   ``fix: Fix parent id macro and remove unused utils (#37877)``
+=================================================================================================  ===========  ==================================================================================================
+
+1.6.0
+.....
+
+Latest change: 2024-03-04
+
+=================================================================================================  ===========  =======================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================================
+`83316b8158 <https://github.com/apache/airflow/commit/83316b81584c9e516a8142778fc509f19d95cc3e>`_  2024-03-04   ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+`9848954e78 <https://github.com/apache/airflow/commit/9848954e789b46c483f5c912fd2cdd5c3bc3cbd6>`_  2024-03-01   ``feat: Add OpenLineage metrics for event_size and extraction time (#37797)``
+`e358bb2253 <https://github.com/apache/airflow/commit/e358bb2253509dcb3631db7ddffad7dc557ca97e>`_  2024-02-29   ``tests: Add OpenLineage test cases for File to Dataset conversion (#37791)``
+`4938ac04b6 <https://github.com/apache/airflow/commit/4938ac04b606ab00d70c3b887e08f76a2b3ea857>`_  2024-02-29   ``feat: Add OpenLineage support for File and User Airflow's lineage entities (#37744)``
+`fb6511212e <https://github.com/apache/airflow/commit/fb6511212e6b5d552b69fdd05cb8c9501cc1ab18>`_  2024-02-28   ``docs: Update whole OpenLineage Provider docs. (#37620)``
+`5289140a03 <https://github.com/apache/airflow/commit/5289140a038e87ce3ecdb2b4abbc8a10d5039964>`_  2024-02-22   ``chore: Update comments and logging in OpenLineage ExtractorManager (#37622)``
+`1851a71278 <https://github.com/apache/airflow/commit/1851a712787533e0645ccc3bc025913fe3db6017>`_  2024-02-19   ``[OpenLineage] Add support for JobTypeJobFacet properties. (#37255)``
+`5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
+`61f0adf0c7 <https://github.com/apache/airflow/commit/61f0adf0c7c2f93ade27686571992e3ef2a65e35>`_  2024-02-14   ``fix: Check if operator is disabled in DefaultExtractor.extract_on_complete (#37392)``
+`326f9789cd <https://github.com/apache/airflow/commit/326f9789cd0b255956be0b547f0463da44e6439f>`_  2024-02-10   ``Follow D401 style in openlineage, slack, and tableau providers (#37312)``
+=================================================================================================  ===========  =======================================================================================
+
 1.5.0
 .....
 
-Latest change: 2024-01-22
+Latest change: 2024-01-26
 
 =================================================================================================  ===========  ===================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================
+`cead3da4a6 <https://github.com/apache/airflow/commit/cead3da4a6f483fa626b81efd27a24dcb5a36ab0>`_  2024-01-26   ``Add docs for RC2 wave of providers for 2nd round of Jan 2024 (#37019)``
 `2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 `95a83102e8 <https://github.com/apache/airflow/commit/95a83102e8753c2f8caf5b0d5c847f4c7f254f67>`_  2024-01-09   ``feat: Add dag_id when generating OpenLineage run_id for task instance. (#36659)``
 =================================================================================================  ===========  ===================================================================================

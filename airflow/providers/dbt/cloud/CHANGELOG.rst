@@ -28,6 +28,27 @@
 Changelog
 ---------
 
+3.7.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: disabled_for_operators now stops whole event emission (#38033)``
+* ``fix(dbt): add return statement to yield within a while loop in triggers (#38395)``
+
+3.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat(providers/dbt): add reuse_existing_run for allowing DbtCloudRunJobOperator to reuse existing run (#37474)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add comment about versions updated by release manager (#37488)``
+
 3.6.1
 .....
 
