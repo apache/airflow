@@ -30,6 +30,7 @@ from tests.providers.microsoft.conftest import load_file, load_json, mock_json_r
 
 
 class TestMSGraphAsyncOperator(Base):
+    @pytest.mark.db_test
     def test_execute(self):
         users = load_json("resources", "users.json")
         next_users = load_json("resources", "next_users.json")
@@ -57,6 +58,7 @@ class TestMSGraphAsyncOperator(Base):
             assert events[1].payload["type"] == "builtins.dict"
             assert events[1].payload["response"] == json.dumps(next_users)
 
+    @pytest.mark.db_test
     def test_execute_when_do_xcom_push_is_false(self):
         users = load_json("resources", "users.json")
         users.pop("@odata.nextLink")
@@ -79,6 +81,7 @@ class TestMSGraphAsyncOperator(Base):
             assert events[0].payload["type"] == "builtins.dict"
             assert events[0].payload["response"] == json.dumps(users)
 
+    @pytest.mark.db_test
     def test_execute_when_an_exception_occurs(self):
         with self.patch_hook_and_request_adapter(AirflowException()):
             operator = MSGraphAsyncOperator(
@@ -91,6 +94,7 @@ class TestMSGraphAsyncOperator(Base):
             with pytest.raises(AirflowException):
                 self.execute_operator(operator)
 
+    @pytest.mark.db_test
     def test_execute_when_response_is_bytes(self):
         content = load_file("resources", "dummy.pdf", mode="rb", encoding=None)
         base64_encoded_content = b64encode(content).decode(locale.getpreferredencoding())
