@@ -103,7 +103,7 @@ def test_import_variables_no_file(admin_client):
     check_content_in_response("Missing file or syntax error.", resp)
 
 
-def test_import_variables_failed(session, admin_client):
+def test_import_variables_failed(session, admin_flask_client):
     content = '{"str_key": "str_value"}'
 
     with mock.patch("airflow.models.Variable.set") as set_mock:
@@ -112,32 +112,32 @@ def test_import_variables_failed(session, admin_client):
 
         bytes_content = BytesIO(bytes(content, encoding="utf-8"))
 
-        resp = admin_client.post(
+        resp = admin_flask_client.post(
             "/variable/varimport", data={"file": (bytes_content, "test.json")}, follow_redirects=True
         )
         check_content_in_response("1 variable(s) failed to be updated.", resp)
 
 
-def test_import_variables_success(session, admin_client):
+def test_import_variables_success(session, admin_flask_client):
     assert session.query(Variable).count() == 0
 
     content = '{"str_key": "str_value", "int_key": 60, "list_key": [1, 2], "dict_key": {"k_a": 2, "k_b": 3}}'
     bytes_content = BytesIO(bytes(content, encoding="utf-8"))
 
-    resp = admin_client.post(
+    resp = admin_flask_client.post(
         "/variable/varimport", data={"file": (bytes_content, "test.json")}, follow_redirects=True
     )
     check_content_in_response("4 variable(s) successfully updated.", resp)
     _check_last_log(session, dag_id=None, event="variables.varimport", execution_date=None)
 
 
-def test_import_variables_override_existing_variables_if_set(session, admin_client, caplog):
+def test_import_variables_override_existing_variables_if_set(session, admin_flask_client, caplog):
     assert session.query(Variable).count() == 0
     Variable.set("str_key", "str_value")
     content = '{"str_key": "str_value", "int_key": 60}'  # str_key already exists
     bytes_content = BytesIO(bytes(content, encoding="utf-8"))
 
-    resp = admin_client.post(
+    resp = admin_flask_client.post(
         "/variable/varimport",
         data={"file": (bytes_content, "test.json"), "action_if_exist": "overwrite"},
         follow_redirects=True,
@@ -146,13 +146,13 @@ def test_import_variables_override_existing_variables_if_set(session, admin_clie
     _check_last_log(session, dag_id=None, event="variables.varimport", execution_date=None)
 
 
-def test_import_variables_skips_update_if_set(session, admin_client, caplog):
+def test_import_variables_skips_update_if_set(session, admin_flask_client, caplog):
     assert session.query(Variable).count() == 0
     Variable.set("str_key", "str_value")
     content = '{"str_key": "str_value", "int_key": 60}'  # str_key already exists
     bytes_content = BytesIO(bytes(content, encoding="utf-8"))
 
-    resp = admin_client.post(
+    resp = admin_flask_client.post(
         "/variable/varimport",
         data={"file": (bytes_content, "test.json"), "action_if_exists": "skip"},
         follow_redirects=True,
@@ -166,13 +166,13 @@ def test_import_variables_skips_update_if_set(session, admin_client, caplog):
     assert "Variable: str_key already exists, skipping." in caplog.text
 
 
-def test_import_variables_fails_if_action_if_exists_is_fail(session, admin_client, caplog):
+def test_import_variables_fails_if_action_if_exists_is_fail(session, admin_flask_client, caplog):
     assert session.query(Variable).count() == 0
     Variable.set("str_key", "str_value")
     content = '{"str_key": "str_value", "int_key": 60}'  # str_key already exists
     bytes_content = BytesIO(bytes(content, encoding="utf-8"))
 
-    admin_client.post(
+    admin_flask_client.post(
         "/variable/varimport",
         data={"file": (bytes_content, "test.json"), "action_if_exists": "fail"},
         follow_redirects=True,
@@ -244,7 +244,7 @@ def test_action_export(admin_client, variable):
     assert resp.status_code == 200
     assert resp.headers["Content-Type"] == "application/json; charset=utf-8"
     assert resp.headers["Content-Disposition"] == "attachment; filename=variables.json"
-    assert resp.json == {"test_key": "text_val"}
+    assert resp.json() == {"test_key": "text_val"}
 
 
 def test_action_muldelete(session, admin_client, variable):
