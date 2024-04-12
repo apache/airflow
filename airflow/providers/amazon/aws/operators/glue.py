@@ -108,7 +108,6 @@ class GlueJobOperator(BaseOperator):
         verbose: bool = False,
         replace_script_file: bool = False,
         update_config: bool = False,
-
         job_poll_interval: int | float = 6,
         stop_job_run_on_kill: bool = False,
         **kwargs,
