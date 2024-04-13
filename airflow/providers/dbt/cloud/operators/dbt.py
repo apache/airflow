@@ -130,7 +130,7 @@ class DbtCloudRunJobOperator(BaseOperator):
             self.trigger_reason = (
                 f"Triggered via Apache Airflow by task {self.task_id!r} in the {self.dag.dag_id} DAG."
             )
-        self._validate_trigger_reason()
+        self._validate_and_truncate_trigger_reason()
 
         non_terminal_runs = None
         if self.reuse_existing_run:
@@ -252,9 +252,13 @@ class DbtCloudRunJobOperator(BaseOperator):
             return generate_openlineage_events_from_dbt_cloud_run(operator=self, task_instance=task_instance)
         return OperatorLineage()
 
-    def _validate_trigger_reason(self) -> None:
-        """Verify that the trigger reason does not exceed maximum length for the 'cause' parameter of dbt."""
-        if len(self.trigger_reason) > DBT_CAUSE_MAX_LENGTH:
+    def _validate_and_truncate_trigger_reason(self) -> None:
+        """
+        Verify that the trigger reason does not exceed maximum length for the 'cause' parameter of dbt.
+
+        If the trigger reason exceeds the maximum length, truncate.
+        """
+        if self.trigger_reason is not None and len(self.trigger_reason) > DBT_CAUSE_MAX_LENGTH:
             self.trigger_reason = self.trigger_reason[:DBT_CAUSE_MAX_LENGTH]
             warnings.warn(
                 f"Trigger reason `{self.trigger_reason}` exceeds dbt's cause length limit of "
