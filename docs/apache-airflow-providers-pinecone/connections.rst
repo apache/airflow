@@ -33,13 +33,13 @@ Configuring the Connection
 Host (optional)
     Host URL to connect to a specific Pinecone index.
 
-Pinecone Environment (required)
+Pinecone Environment (optional)
     Specify your Pinecone environment for pod based indexes.
 
 Pinecone API key (required)
     Specify your Pinecone API Key to connect.
 
-Project ID (required)
+Project ID (optional)
     Project ID corresponding to your API Key.
 
 Pinecone Region (optional)
