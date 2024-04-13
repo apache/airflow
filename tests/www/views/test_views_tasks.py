@@ -859,8 +859,8 @@ def test_task_instance_clear(session, request, client_fixture, should_succeed):
 def test_task_instance_clear_deferred(session, admin_client, create_task_instance):
     """Ensures clearing a task instance in deferred state increments _try_number for next execution."""
     task_instance = create_task_instance(
-        dag_id="example_bash_operator",
-        task_id="run_this_last",
+        dag_id="example_bash_decorator",
+        task_id="runme_0",
         execution_date=timezone.utcnow(),
         state=State.DEFERRED,
     )
