@@ -26,7 +26,7 @@ Changelog
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-.. note::
+.. warning::
    This release of provider has breaking changes from previous versions. Changes are based on
    the migration guide from pinecone - <https://canyon-quilt-082.notion.site/Pinecone-Python-SDK-v3-0-0-Migration-Guide-056d3897d7634bf7be399676a4757c7b>
 
