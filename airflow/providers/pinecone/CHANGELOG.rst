@@ -46,6 +46,7 @@ Breaking changes
    * ``PineconeHook.query_vector``
    * ``PineconeHook.describe_index_stats``
 * ``PineconeHook.create_index`` is updated to accept a ``ServerlessSpec`` or ``PodSpec`` instead of directly accpeting index related configurations
+* To initialize ``PineconeHook`` object,ß API Key needs to be passed as an argument to the constructor or be updated in the connection.
 
 1.1.2
 .....
