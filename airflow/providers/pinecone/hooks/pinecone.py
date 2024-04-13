@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import itertools
+import os
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
@@ -50,11 +51,11 @@ class PineconeHook(BaseHook):
         """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
-        from wtforms import StringField
+        from wtforms import BooleanField, StringField
 
         return {
             "region": StringField(lazy_gettext("Pinecone Region"), widget=BS3TextFieldWidget(), default=None),
-            "log_level": StringField(lazy_gettext("Log Level"), widget=BS3TextFieldWidget(), default=None),
+            "debug_curl": BooleanField(lazy_gettext("PINECONE_DEBUG_CURL"), default=False),
             "project_id": StringField(
                 lazy_gettext("Project ID"),
                 widget=BS3TextFieldWidget(),
@@ -119,11 +120,10 @@ class PineconeHook(BaseHook):
         pinecone_host = self.conn.host
         extras = self.conn.extra_dejson
         pinecone_project_id = extras.get("project_id")
-        log_level = extras.get("log_level", None)
-
-        return Pinecone(
-            api_key=self.api_key, host=pinecone_host, project_id=pinecone_project_id, log_level=log_level
-        )
+        enable_curl_debug = extras.get("debug_curl")
+        if enable_curl_debug:
+            os.environ["PINECONE_DEBUG_CURL"] = "true"
+        return Pinecone(api_key=self.api_key, host=pinecone_host, project_id=pinecone_project_id)
 
     def get_conn(self) -> Pinecone:
         return self.get_connection(self.conn_id)
