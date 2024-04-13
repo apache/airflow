@@ -60,6 +60,7 @@ if TYPE_CHECKING:
     from flask_appbuilder.models.sqla import Model
     from pendulum.datetime import DateTime
     from pygments.lexer import Lexer
+    from sqlalchemy.engine.row import Row
     from sqlalchemy.orm.session import Session
     from sqlalchemy.sql import Select
     from sqlalchemy.sql.elements import ColumnElement
@@ -76,7 +77,7 @@ def datetime_to_string(value: datetime | None) -> str | None:
     return value.isoformat()
 
 
-def get_mapped_instances(task_instance, session):
+def get_mapped_instances(task_instance: TaskInstance, session: Session):
     return session.scalars(
         select(TaskInstance)
         .where(
@@ -98,8 +99,13 @@ def get_instance_with_map(task_instance, session):
     return get_mapped_summary(task_instance, mapped_instances)
 
 
-def get_try_count(try_number: int, state: State | str):
-    if state in (TaskInstanceState.DEFERRED, TaskInstanceState.UP_FOR_RESCHEDULE):
+def get_try_count(task_instance: TI | Row) -> int:
+    if isinstance(task_instance, TI):
+        try_number = task_instance._try_number
+    else:
+        try_number = task_instance.try_number
+
+    if task_instance.state in (TaskInstanceState.DEFERRED, TaskInstanceState.UP_FOR_RESCHEDULE):
         return try_number + 1
     return try_number
 
@@ -121,7 +127,7 @@ priority: list[None | TaskInstanceState] = [
 ]
 
 
-def get_mapped_summary(parent_instance, task_instances):
+def get_mapped_summary(parent_instance: TI, task_instances: Sequence[TI]):
     mapped_states = [ti.state for ti in task_instances]
 
     group_state = None
@@ -149,7 +155,7 @@ def get_mapped_summary(parent_instance, task_instances):
         "start_date": group_start_date,
         "end_date": group_end_date,
         "mapped_states": mapped_states,
-        "try_number": get_try_count(parent_instance._try_number, parent_instance.state),
+        "try_number": get_try_count(parent_instance),
         "execution_date": parent_instance.execution_date,
     }
 

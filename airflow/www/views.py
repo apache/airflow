@@ -316,7 +316,7 @@ def dag_to_grid(dag: DAG, dag_runs: Sequence[DagRun], session: Session) -> dict[
             TaskInstance.task_id,
             TaskInstance.run_id,
             TaskInstance.state,
-            TaskInstance._try_number,
+            TaskInstance.try_number,
             func.min(TaskInstanceNote.content).label("note"),
             func.count(func.coalesce(TaskInstance.state, sqla.literal("no_status"))).label("state_count"),
             func.min(TaskInstance.queued_dttm).label("queued_dttm"),
@@ -328,7 +328,7 @@ def dag_to_grid(dag: DAG, dag_runs: Sequence[DagRun], session: Session) -> dict[
             TaskInstance.dag_id == dag.dag_id,
             TaskInstance.run_id.in_([dag_run.run_id for dag_run in dag_runs]),
         )
-        .group_by(TaskInstance.task_id, TaskInstance.run_id, TaskInstance.state, TaskInstance._try_number)
+        .group_by(TaskInstance.task_id, TaskInstance.run_id, TaskInstance.state, TaskInstance.try_number)
         .order_by(TaskInstance.task_id, TaskInstance.run_id)
     )
 
@@ -411,9 +411,7 @@ def dag_to_grid(dag: DAG, dag_runs: Sequence[DagRun], session: Session) -> dict[
                         "queued_dttm": task_instance.queued_dttm,
                         "start_date": task_instance.start_date,
                         "end_date": task_instance.end_date,
-                        "try_number": wwwutils.get_try_count(
-                            task_instance._try_number or 0, str(task_instance.state)
-                        ),
+                        "try_number": wwwutils.get_try_count(task_instance),
                         "note": task_instance.note,
                     }
                     for task_instance in grouped_tis[item.task_id]
@@ -1649,7 +1647,7 @@ class Airflow(AirflowBaseView):
 
         num_logs = 0
         if ti is not None:
-            num_logs = wwwutils.get_try_count(ti._try_number or 0, str(ti.state))
+            num_logs = wwwutils.get_try_count(ti)
         logs = [""] * num_logs
         root = request.args.get("root", "")
         return self.render_template(

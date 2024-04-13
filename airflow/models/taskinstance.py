@@ -943,8 +943,8 @@ def _get_try_number(*, task_instance: TaskInstance) -> int:
     :meta private:
     """
     if task_instance.state == TaskInstanceState.RUNNING:
-        return task_instance._try_number or 0
-    return (task_instance._try_number or 0) + 1
+        return task_instance._try_number
+    return task_instance._try_number + 1
 
 
 def _get_private_try_number(*, task_instance: TaskInstance | TaskInstancePydantic):
@@ -1485,7 +1485,7 @@ class TaskInstance(Base, LoggingMixin):
     note: Mapped[str | None] = association_proxy("task_instance_note", "content", creator=_creator_note)
 
     # key
-    _try_number: int | None
+    _try_number: int  # has default 0.
     _task_display_property_value: str | None
 
     task_display_name: Mapped[str]
@@ -1663,11 +1663,11 @@ class TaskInstance(Base, LoggingMixin):
         Using `try_number` throws off the counts for non-running tasks.
         Also useful in error logging contexts to get the try number for the last try that was attempted.
         """
-        return self._try_number or 0
+        return self._try_number
 
     @property
     def next_try_number(self) -> int:
-        return (self._try_number or 0) + 1
+        return self._try_number + 1
 
     @property
     def operator_name(self) -> str | None:
@@ -2455,8 +2455,6 @@ class TaskInstance(Base, LoggingMixin):
             cls.logger().info(
                 "Starting attempt %s of %s", ti.try_number, (-1 if ti.max_tries is None else ti.max_tries) + 1
             )
-        if not ti._try_number:
-            ti._try_number = 0
         ti._try_number += 1
 
         if not test_mode:
@@ -2848,7 +2846,6 @@ class TaskInstance(Base, LoggingMixin):
 
         if TYPE_CHECKING:
             assert self.task
-            assert self._try_number is not None
             assert self.start_date is not None
 
         # First, make the trigger entry
@@ -2963,7 +2960,6 @@ class TaskInstance(Base, LoggingMixin):
 
         if TYPE_CHECKING:
             assert self.task
-            assert self._try_number is not None
 
         self.end_date = timezone.utcnow()
         self.set_duration()
@@ -2983,7 +2979,7 @@ class TaskInstance(Base, LoggingMixin):
             TaskReschedule(
                 self.task,
                 self.run_id,
-                self._try_number or 0,
+                self._try_number,
                 actual_start_date,
                 self.end_date,
                 reschedule_exception.reschedule_date,
@@ -3108,7 +3104,7 @@ class TaskInstance(Base, LoggingMixin):
                     #  e.g. we could make refresh_from_db return a TI and replace ti with that
                     raise RuntimeError("Expected TaskInstance here. Further AIP-44 work required.")
                 # We increase the try_number to fail the task if it fails to start after sometime
-                ti.try_number += 1
+                ti._try_number += 1
             ti.state = State.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")
             callbacks = task.on_retry_callback if task else None
