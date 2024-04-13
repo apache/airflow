@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.pinecone.hooks.pinecone import PineconeHook
+from airflow.utils.context import Context
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -81,3 +82,103 @@ class PineconeIngestOperator(BaseOperator):
         )
 
         self.log.info("Successfully ingested data into Pinecone index %s.", self.index_name)
+
+
+class CreatePodIndexOperator(BaseOperator):
+    """Create a pod based index in Pinecone."""
+
+    def __init__(
+        self,
+        *,
+        conn_id: str = PineconeHook.default_conn_name,
+        index_name: str,
+        dimension: int,
+        api_key: str | None = None,
+        environment: str | None = None,
+        replicas: int | None = None,
+        shards: int | None = None,
+        pods: int | None = None,
+        pod_type: str | None = None,
+        metadata_config: dict | None = None,
+        source_collection: str | None = None,
+        metric: str | None = None,
+        timeout: int | None = None,
+        **kwargs: Any,
+    ):
+        super().__init__(**kwargs)
+        self.conn_id = conn_id
+        self.index_name = index_name
+        self.api_key = api_key
+        self.dimension = dimension
+        self.environment = environment
+        self.replicas = replicas
+        self.shards = shards
+        self.pods = pods
+        self.pod_type = pod_type
+        self.metadata_config = metadata_config
+        self.source_collection = source_collection
+        self.metric = metric
+        self.timeout = timeout
+
+    @cached_property
+    def hook(self) -> PineconeHook:
+        return PineconeHook(conn_id=self.conn_id, environment=self.environment, api_key=self.api_key)
+
+    def execute(self, context: Context) -> None:
+        pod_spec_obj = self.hook.get_pod_spec_obj(
+            replicas=self.replicas,
+            shards=self.shards,
+            pods=self.pods,
+            pod_type=self.pod_type,
+            metadata_config=self.metadata_config,
+            source_collection=self.source_collection,
+            environment=self.environment,
+        )
+        self.hook.create_index(
+            index_name=self.index_name,
+            dimension=self.dimension,
+            spec=pod_spec_obj,
+            metric=self.metric,
+            timeout=self.timeout,
+        )
+
+
+class CreateServerlessIndexOperator(BaseOperator):
+    """Create a serverless index in Pinecone."""
+
+    def __init__(
+        self,
+        *,
+        conn_id: str = PineconeHook.default_conn_name,
+        index_name: str,
+        dimension: int,
+        cloud: str,
+        api_key: str | None = None,
+        region: str | None = None,
+        metric: str | None = None,
+        timeout: int | None = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.conn_id = conn_id
+        self.index_name = index_name
+        self.dimension = dimension
+        self.api_key = api_key
+        self.cloud = cloud
+        self.region = region
+        self.metric = metric
+        self.timeout = timeout
+
+    @cached_property
+    def hook(self) -> PineconeHook:
+        return PineconeHook(conn_id=self.conn_id, region=self.region, api_key=self.api_key)
+
+    def execute(self, context: Context) -> None:
+        serverless_spec_obj = self.hook.get_serverless_spec_obj(cloud=self.cloud, region=self.region)
+        self.hook.create_index(
+            index_name=self.index_name,
+            dimension=self.dimension,
+            spec=serverless_spec_obj,
+            metric=self.metric,
+            timeout=self.timeout,
+        )

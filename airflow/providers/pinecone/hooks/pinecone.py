@@ -53,6 +53,7 @@ class PineconeHook(BaseHook):
         from wtforms import StringField
 
         return {
+            "region": StringField(lazy_gettext("Pinecone Region"), widget=BS3TextFieldWidget(), default=None),
             "log_level": StringField(lazy_gettext("Log Level"), widget=BS3TextFieldWidget(), default=None),
             "project_id": StringField(
                 lazy_gettext("Project ID"),
@@ -67,7 +68,7 @@ class PineconeHook(BaseHook):
             "hidden_fields": ["port", "schema"],
             "relabeling": {
                 "login": "Pinecone Environment",
-                "host": "Pinecone Region",
+                "host": "Pinecone Host",
                 "password": "Pinecone API key",
             },
         }
@@ -107,7 +108,7 @@ class PineconeHook(BaseHook):
     def region(self):
         if self._region:
             return self._region
-        region = self.conn.host
+        region = self.conn.extra_dejson.get("region")
         if not region:
             raise LookupError("Pinecone region not found in connection")
         return region
