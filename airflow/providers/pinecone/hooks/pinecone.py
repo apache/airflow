@@ -32,6 +32,8 @@ if TYPE_CHECKING:
     from pinecone.core.client.model.sparse_values import SparseValues
     from pinecone.core.client.models import DescribeIndexStatsResponse, QueryResponse, UpsertResponse
 
+    from airflow.models.connection import Connection
+
 
 class PineconeHook(BaseHook):
     """
@@ -88,7 +90,7 @@ class PineconeHook(BaseHook):
         self.conn = self.get_conn()
 
     @property
-    def api_key(self):
+    def api_key(self) -> str:
         if self._api_key:
             return self._api_key
         key = self.conn.password
@@ -97,7 +99,7 @@ class PineconeHook(BaseHook):
         return key
 
     @cached_property
-    def environment(self):
+    def environment(self) -> str:
         if self._environment:
             return self._environment
         env = self.conn.login
@@ -106,7 +108,7 @@ class PineconeHook(BaseHook):
         return env
 
     @cached_property
-    def region(self):
+    def region(self) -> str:
         if self._region:
             return self._region
         region = self.conn.extra_dejson.get("region")
@@ -115,7 +117,7 @@ class PineconeHook(BaseHook):
         return region
 
     @cached_property
-    def pc(self):
+    def pc(self) -> Pinecone:
         """Pinecone object to interact with Pinecone."""
         pinecone_host = self.conn.host
         extras = self.conn.extra_dejson
@@ -125,7 +127,7 @@ class PineconeHook(BaseHook):
             os.environ["PINECONE_DEBUG_CURL"] = "true"
         return Pinecone(api_key=self.api_key, host=pinecone_host, project_id=pinecone_project_id)
 
-    def get_conn(self) -> Pinecone:
+    def get_conn(self) -> Connection:
         return self.get_connection(self.conn_id)
 
     def test_connection(self) -> tuple[bool, str]:
@@ -184,7 +186,7 @@ class PineconeHook(BaseHook):
         metadata_config: dict | None = None,
         source_collection: str | None = None,
         environment: str | None = None,
-    ):
+    ) -> PodSpec:
         return PodSpec(
             environment=environment or self.environment,
             replicas=replicas,
@@ -195,7 +197,7 @@ class PineconeHook(BaseHook):
             source_collection=source_collection,
         )
 
-    def get_serverless_spec_obj(self, cloud, region: str | None = None):
+    def get_serverless_spec_obj(self, cloud, region: str | None = None) -> ServerlessSpec:
         return ServerlessSpec(cloud=cloud, region=region or self.region)
 
     def create_index(
