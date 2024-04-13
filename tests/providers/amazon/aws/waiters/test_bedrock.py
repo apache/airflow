@@ -24,12 +24,16 @@ import botocore
 import pytest
 
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockHook
-from airflow.providers.amazon.aws.sensors.bedrock import BedrockCustomizeModelCompletedSensor
+from airflow.providers.amazon.aws.sensors.bedrock import (
+    BedrockCustomizeModelCompletedSensor,
+    BedrockProvisionModelThroughputCompletedSensor,
+)
 
 
 class TestBedrockCustomWaiters:
     def test_service_waiters(self):
         assert "model_customization_job_complete" in BedrockHook().list_waiters()
+        assert "provisioned_model_throughput_complete" in BedrockHook().list_waiters()
 
 
 class TestBedrockCustomWaitersBase:
@@ -44,8 +48,8 @@ class TestModelCustomizationJobCompleteWaiter(TestBedrockCustomWaitersBase):
 
     @pytest.fixture
     def mock_get_job(self):
-        with mock.patch.object(self.client, "get_model_customization_job") as m:
-            yield m
+        with mock.patch.object(self.client, "get_model_customization_job") as mock_getter:
+            yield mock_getter
 
     @pytest.mark.parametrize("state", BedrockCustomizeModelCompletedSensor.SUCCESS_STATES)
     def test_model_customization_job_complete(self, state, mock_get_job):
@@ -63,6 +67,37 @@ class TestModelCustomizationJobCompleteWaiter(TestBedrockCustomWaitersBase):
     def test_model_customization_job_wait(self, mock_get_job):
         wait = {"status": "InProgress"}
         success = {"status": "Completed"}
+        mock_get_job.side_effect = [wait, wait, success]
+
+        BedrockHook().get_waiter(self.WAITER_NAME).wait(
+            jobIdentifier="job_id", WaiterConfig={"Delay": 0.01, "MaxAttempts": 3}
+        )
+
+
+class TestProvisionedModelThroughputCompleteWaiter(TestBedrockCustomWaitersBase):
+    WAITER_NAME = "provisioned_model_throughput_complete"
+
+    @pytest.fixture
+    def mock_get_job(self):
+        with mock.patch.object(self.client, "get_provisioned_model_throughput") as mock_getter:
+            yield mock_getter
+
+    @pytest.mark.parametrize("state", BedrockProvisionModelThroughputCompletedSensor.SUCCESS_STATES)
+    def test_model_customization_job_complete(self, state, mock_get_job):
+        mock_get_job.return_value = {"status": state}
+
+        BedrockHook().get_waiter(self.WAITER_NAME).wait(jobIdentifier="job_id")
+
+    @pytest.mark.parametrize("state", BedrockProvisionModelThroughputCompletedSensor.FAILURE_STATES)
+    def test_model_customization_job_failed(self, state, mock_get_job):
+        mock_get_job.return_value = {"status": state}
+
+        with pytest.raises(botocore.exceptions.WaiterError):
+            BedrockHook().get_waiter(self.WAITER_NAME).wait(jobIdentifier="job_id")
+
+    def test_model_customization_job_wait(self, mock_get_job):
+        wait = {"status": "Creating"}
+        success = {"status": "InService"}
         mock_get_job.side_effect = [wait, wait, success]
 
         BedrockHook().get_waiter(self.WAITER_NAME).wait(

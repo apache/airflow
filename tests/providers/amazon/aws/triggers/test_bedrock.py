@@ -22,7 +22,10 @@ from unittest.mock import AsyncMock
 import pytest
 
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockHook
-from airflow.providers.amazon.aws.triggers.bedrock import BedrockCustomizeModelCompletedTrigger
+from airflow.providers.amazon.aws.triggers.bedrock import (
+    BedrockCustomizeModelCompletedTrigger,
+    BedrockProvisionModelThroughputCompletedTrigger,
+)
 from airflow.triggers.base import TriggerEvent
 
 BASE_TRIGGER_CLASSPATH = "airflow.providers.amazon.aws.triggers.bedrock."
@@ -50,4 +53,35 @@ class TestBedrockCustomizeModelCompletedTrigger:
         response = await generator.asend(None)
 
         assert response == TriggerEvent({"status": "success", "job_name": self.JOB_NAME})
+        assert mock_get_waiter().wait.call_count == 1
+
+
+class TestBedrockProvisionModelThroughputCompletedTrigger:
+    PROVISIONED_MODEL_ID = "provisioned_model_id"
+
+    def test_serialization(self):
+        """Assert that arguments and classpath are correctly serialized."""
+        trigger = BedrockProvisionModelThroughputCompletedTrigger(
+            provisioned_model_id=self.PROVISIONED_MODEL_ID
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == BASE_TRIGGER_CLASSPATH + "BedrockProvisionModelThroughputCompletedTrigger"
+        assert kwargs.get("provisioned_model_id") == self.PROVISIONED_MODEL_ID
+
+    @pytest.mark.asyncio
+    @mock.patch.object(BedrockHook, "get_waiter")
+    @mock.patch.object(BedrockHook, "async_conn")
+    async def test_run_success(self, mock_async_conn, mock_get_waiter):
+        mock_async_conn.__aenter__.return_value = mock.MagicMock()
+        mock_get_waiter().wait = AsyncMock()
+        trigger = BedrockProvisionModelThroughputCompletedTrigger(
+            provisioned_model_id=self.PROVISIONED_MODEL_ID
+        )
+
+        generator = trigger.run()
+        response = await generator.asend(None)
+
+        assert response == TriggerEvent(
+            {"status": "success", "provisioned_model_id": self.PROVISIONED_MODEL_ID}
+        )
         assert mock_get_waiter().wait.call_count == 1

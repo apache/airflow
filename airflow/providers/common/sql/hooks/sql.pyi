@@ -57,6 +57,7 @@ class DbApiHook(BaseHook):
     conn_name_attr: str
     default_conn_name: str
     supports_autocommit: bool
+    supports_executemany: bool
     connector: ConnectorProtocol | None
     log_sql: Incomplete
     descriptions: Incomplete

@@ -20,12 +20,15 @@ import json
 from datetime import datetime
 from os import environ
 
+import boto3
+
 from airflow.decorators import task, task_group
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockHook
 from airflow.providers.amazon.aws.operators.bedrock import (
+    BedrockCreateProvisionedModelThroughputOperator,
     BedrockCustomizeModelOperator,
     BedrockInvokeModelOperator,
 )
@@ -34,7 +37,10 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateObjectOperator,
     S3DeleteBucketOperator,
 )
-from airflow.providers.amazon.aws.sensors.bedrock import BedrockCustomizeModelCompletedSensor
+from airflow.providers.amazon.aws.sensors.bedrock import (
+    BedrockCustomizeModelCompletedSensor,
+    BedrockProvisionModelThroughputCompletedSensor,
+)
 from airflow.utils.edgemodifier import Label
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
@@ -50,9 +56,11 @@ DAG_ID = "example_bedrock"
 # the code snippets for docs, and we can manually run the full tests.
 SKIP_LONG_TASKS = environ.get("SKIP_LONG_SYSTEM_TEST_TASKS", default=True)
 
-LLAMA_MODEL_ID = "meta.llama2-13b-chat-v1"
+LLAMA_SHORT_MODEL_ID = "meta.llama2-13b-chat-v1"
+TITAN_MODEL_ID = "amazon.titan-text-express-v1:0:8k"
+TITAN_SHORT_MODEL_ID = TITAN_MODEL_ID.split(":")[0]
+
 PROMPT = "What color is an orange?"
-TITAN_MODEL_ID = "amazon.titan-text-express-v1"
 TRAIN_DATA = {"prompt": "what is AWS", "completion": "it's Amazon Web Services"}
 HYPERPARAMETERS = {
     "epochCount": "1",
@@ -70,7 +78,7 @@ def customize_model_workflow():
         job_name=custom_model_job_name,
         custom_model_name=custom_model_name,
         role_arn=test_context[ROLE_ARN_KEY],
-        base_model_id=f"arn:aws:bedrock:us-east-1::foundation-model/{TITAN_MODEL_ID}",
+        base_model_id=f"{model_arn_prefix}{TITAN_SHORT_MODEL_ID}",
         hyperparameters=HYPERPARAMETERS,
         training_data_uri=training_data_uri,
         output_data_uri=f"s3://{bucket_name}/myOutputData",
@@ -99,6 +107,11 @@ def customize_model_workflow():
     chain(run_or_skip, customize_model, await_custom_model_job, delete_custom_model(), end_workflow)
 
 
+@task
+def delete_provision_throughput(provisioned_model_id: str):
+    BedrockHook().conn.delete_provisioned_model_throughput(provisionedModelId=provisioned_model_id)
+
+
 with DAG(
     dag_id=DAG_ID,
     schedule="@once",
@@ -113,6 +126,8 @@ with DAG(
     training_data_uri = f"s3://{bucket_name}/{input_data_s3_key}"
     custom_model_name = f"CustomModel{env_id}"
     custom_model_job_name = f"CustomizeModelJob{env_id}"
+    provisioned_model_name = f"ProvisionedModel{env_id}"
+    model_arn_prefix = f"arn:aws:bedrock:{boto3.session.Session().region_name}::foundation-model/"
 
     create_bucket = S3CreateBucketOperator(
         task_id="create_bucket",
@@ -129,7 +144,7 @@ with DAG(
     # [START howto_operator_invoke_llama_model]
     invoke_llama_model = BedrockInvokeModelOperator(
         task_id="invoke_llama",
-        model_id=LLAMA_MODEL_ID,
+        model_id=LLAMA_SHORT_MODEL_ID,
         input_data={"prompt": PROMPT},
     )
     # [END howto_operator_invoke_llama_model]
@@ -137,10 +152,27 @@ with DAG(
     # [START howto_operator_invoke_titan_model]
     invoke_titan_model = BedrockInvokeModelOperator(
         task_id="invoke_titan",
-        model_id=TITAN_MODEL_ID,
+        model_id=TITAN_SHORT_MODEL_ID,
         input_data={"inputText": PROMPT},
     )
     # [END howto_operator_invoke_titan_model]
+
+    # [START howto_operator_provision_throughput]
+    provision_throughput = BedrockCreateProvisionedModelThroughputOperator(
+        task_id="provision_throughput",
+        model_units=1,
+        provisioned_model_name=provisioned_model_name,
+        model_id=f"{model_arn_prefix}{TITAN_MODEL_ID}",
+    )
+    # [END howto_operator_provision_throughput]
+    provision_throughput.wait_for_completion = False
+
+    # [START howto_sensor_provision_throughput]
+    await_provision_throughput = BedrockProvisionModelThroughputCompletedSensor(
+        task_id="await_provision_throughput",
+        model_id=provision_throughput.output,
+    )
+    # [END howto_sensor_provision_throughput]
 
     delete_bucket = S3DeleteBucketOperator(
         task_id="delete_bucket",
@@ -157,7 +189,10 @@ with DAG(
         # TEST BODY
         [invoke_llama_model, invoke_titan_model],
         customize_model_workflow(),
+        provision_throughput,
+        await_provision_throughput,
         # TEST TEARDOWN
+        delete_provision_throughput(provision_throughput.output),
         delete_bucket,
     )
 

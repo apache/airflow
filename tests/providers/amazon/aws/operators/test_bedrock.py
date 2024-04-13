@@ -27,6 +27,7 @@ from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockHook, BedrockRuntimeHook
 from airflow.providers.amazon.aws.operators.bedrock import (
+    BedrockCreateProvisionedModelThroughputOperator,
     BedrockCustomizeModelOperator,
     BedrockInvokeModelOperator,
 )
@@ -170,3 +171,49 @@ class TestBedrockCustomizeModelOperator:
         mock_conn.create_model_customization_job.call_count == expected_call_count
         bedrock_hook.get_waiter.assert_not_called()
         self.operator.defer.assert_not_called()
+
+
+class TestBedrockCreateProvisionedModelThroughputOperator:
+    MODEL_ARN = "testProvisionedModelArn"
+
+    @pytest.fixture
+    def mock_conn(self) -> Generator[BaseAwsConnection, None, None]:
+        with mock.patch.object(BedrockHook, "conn") as _conn:
+            _conn.create_provisioned_model_throughput.return_value = {"provisionedModelArn": self.MODEL_ARN}
+            yield _conn
+
+    @pytest.fixture
+    def bedrock_hook(self) -> Generator[BedrockHook, None, None]:
+        with mock_aws():
+            hook = BedrockHook(aws_conn_id="aws_default")
+            yield hook
+
+    def setup_method(self):
+        self.operator = BedrockCreateProvisionedModelThroughputOperator(
+            task_id="provision_throughput",
+            model_units=1,
+            provisioned_model_name="testProvisionedModelName",
+            model_id="test_model_arn",
+        )
+        self.operator.defer = mock.MagicMock()
+
+    @pytest.mark.parametrize(
+        "wait_for_completion, deferrable",
+        [
+            pytest.param(False, False, id="no_wait"),
+            pytest.param(True, False, id="wait"),
+            pytest.param(False, True, id="defer"),
+        ],
+    )
+    @mock.patch.object(BedrockHook, "get_waiter")
+    def test_provisioned_model_wait_combinations(
+        self, _, wait_for_completion, deferrable, mock_conn, bedrock_hook
+    ):
+        self.operator.wait_for_completion = wait_for_completion
+        self.operator.deferrable = deferrable
+
+        response = self.operator.execute({})
+
+        assert response == self.MODEL_ARN
+        assert bedrock_hook.get_waiter.call_count == wait_for_completion
+        assert self.operator.defer.call_count == deferrable
