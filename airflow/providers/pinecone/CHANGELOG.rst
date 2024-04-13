@@ -48,7 +48,7 @@ Breaking changes
    + ``PineconeHook.describe_index_stats``
 
 * ``PineconeHook.create_index`` is updated to accept a ``ServerlessSpec`` or ``PodSpec`` instead of directly accepting index related configurations
-* To initialize ``PineconeHook`` object,API Key needs to be passed as an argument to the constructor or be updated in the connection.
+* To initialize ``PineconeHook`` object, API key needs to be passed via argument or the connection.
 
 1.1.2
 .....
