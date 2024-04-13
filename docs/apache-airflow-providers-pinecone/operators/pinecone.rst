@@ -38,3 +38,13 @@ An example using the operator in this way:
     :dedent: 4
     :start-after: [START howto_operator_pinecone_ingest]
     :end-before: [END howto_operator_pinecone_ingest]
+
+
+CreatePodIndexOperator
+======================
+
+Use the :class:`~airflow.providers.pinecone.operators.pinecone.CreatePodIndexOperator` to
+interact with Pinecone APIs to create Pod based Index.
+
+Using the Operator
+^^^^^^^^^^^^^^^^^^
