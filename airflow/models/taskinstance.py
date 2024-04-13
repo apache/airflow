@@ -273,6 +273,12 @@ def clear_task_instances(
                 ti.state = TaskInstanceState.RESTARTING
                 job_ids.append(ti.job_id)
         else:
+            # When the task is deferred the try_number is decremented so that the same try
+            # number is used when the task resumes execution to process the  event. But in case of
+            # clearing the try number should be incremented so that the next run doesn't reuse the same try_number
+            if ti.state == TaskInstanceState.DEFERRED:
+                ti._try_number += 1
+
             ti_dag = dag if dag and dag.dag_id == ti.dag_id else dag_bag.get_dag(ti.dag_id, session=session)
             task_id = ti.task_id
             if ti_dag and ti_dag.has_task(task_id):

@@ -856,6 +856,42 @@ def test_task_instance_clear(session, request, client_fixture, should_succeed):
     assert state == (State.NONE if should_succeed else initial_state)
 
 
+def test_task_instance_clear_deferred(session, admin_client, create_task_instance):
+    """Ensures clearing a task instance in deferred state increments _try_number for next execution."""
+    task_instance = create_task_instance(
+        dag_id="example_bash_operator",
+        task_id="run_this_last",
+        execution_date=timezone.utcnow(),
+        state=State.DEFERRED,
+    )
+    task_id = task_instance.task_id
+    run_id = task_instance.run_id
+    old_try_number = task_instance._try_number
+
+    data = {
+        "dag_id": task_instance.dag_id,
+        "dag_run_id": task_instance.dag_run.run_id,
+        "execution_date": DEFAULT_DATE,
+        "task_id": task_instance.task_id,
+        "upstream": "false",
+        "downstream": "false",
+        "future": "true",
+        "past": "true",
+        "only_failed": "false",
+        "confirmed": "true",
+    }
+
+    resp = admin_client.post("clear", data=data, follow_redirects=True)
+    assert resp.status_code == 200
+
+    try_number = (
+        session.query(TaskInstance._try_number)
+        .filter(TaskInstance.task_id == task_id, TaskInstance.run_id == run_id)
+        .scalar()
+    )
+    assert try_number == old_try_number + 1
+
+
 def test_task_instance_clear_downstream(session, admin_client, dag_maker):
     """Ensures clearing a task instance clears its downstream dependencies exclusively"""
     with dag_maker(
