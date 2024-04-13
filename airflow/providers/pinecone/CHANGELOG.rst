@@ -32,7 +32,7 @@ Breaking changes
 
 * ``log_level`` field is removed from the Connections as it is not used by the provider anymore.
 * ``PineconeHook.get_conn`` now returns ``Connection`` object instead of ``PineconeConnection`` object. Use ``pc`` property to access the Pinecone client.
-*  Following ``PineconeHook`` methods are no longer static methods:
+*  Following ``PineconeHook`` methods are converted from static methods to instance methods. Hence, Initialization is required to use these now:
    * ``PineconeHook.list_indexes``
    * ``PineconeHook.upsert``
    * ``PineconeHook.create_index``
