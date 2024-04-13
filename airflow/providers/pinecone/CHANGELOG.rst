@@ -30,19 +30,6 @@ Breaking changes
    This release of provider has breaking changes from previous versions. Changes are based on
    the migration guide from pinecone - <https://canyon-quilt-082.notion.site/Pinecone-Python-SDK-v3-0-0-Migration-Guide-056d3897d7634bf7be399676a4757c7b>
 
-* PineconeHook's ``create_index`` method now requies to pass a Specification object for creation of Pod or Serverless based index.
-
-Features
-~~~~~~~~
-
-* supports pod based index creation using ``CreatePodIndexOperator`` Operator
-* Supports Serverless index creation using ``CreateServerlessIndexOperator`` Operator
-* Supports PINECONE_DEBUG_CURL environment variable via Connection to enable curl debugging
-
-Misc
-~~~~
-* Support ``pinecone-client`` version >=3.0.0
-
 1.1.2
 .....
 
