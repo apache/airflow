@@ -667,7 +667,7 @@ class DatabricksHook(BaseDatabricksHook):
         try:
             response = self._do_api_call(("PATCH", f"api/2.0/permissions/jobs/{job_id}"), json)
         except Exception as e:
-            print("Could not update permission ", e)
+            self.log.error("Could not update permission %s", e)
         return response
 
     def test_connection(self) -> tuple[bool, str]:
