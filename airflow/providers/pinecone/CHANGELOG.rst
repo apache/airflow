@@ -33,18 +33,20 @@ Breaking changes
 * ``log_level`` field is removed from the Connections as it is not used by the provider anymore.
 * ``PineconeHook.get_conn`` now returns ``Connection`` object instead of ``PineconeConnection`` object. Use ``pc`` property to access the Pinecone client.
 *  Following ``PineconeHook`` methods are converted from static methods to instance methods. Hence, Initialization is required to use these now:
-   * ``PineconeHook.list_indexes``
-   * ``PineconeHook.upsert``
-   * ``PineconeHook.create_index``
-   * ``PineconeHook.describe_index``
-   * ``PineconeHook.delete_index``
-   * ``PineconeHook.configure_index``
-   * ``PineconeHook.create_collection``
-   * ``PineconeHook.delete_collection``
-   * ``PineconeHook.describe_collection``
-   * ``PineconeHook.list_collections``
-   * ``PineconeHook.query_vector``
-   * ``PineconeHook.describe_index_stats``
+
+   + ``PineconeHook.list_indexes``
+   + ``PineconeHook.upsert``
+   + ``PineconeHook.create_index``
+   + ``PineconeHook.describe_index``
+   + ``PineconeHook.delete_index``
+   + ``PineconeHook.configure_index``
+   + ``PineconeHook.create_collection``
+   + ``PineconeHook.delete_collection``
+   + ``PineconeHook.describe_collection``
+   + ``PineconeHook.list_collections``
+   + ``PineconeHook.query_vector``
+   + ``PineconeHook.describe_index_stats``
+
 * ``PineconeHook.create_index`` is updated to accept a ``ServerlessSpec`` or ``PodSpec`` instead of directly accepting index related configurations
 * To initialize ``PineconeHook`` object,API Key needs to be passed as an argument to the constructor or be updated in the connection.
 
