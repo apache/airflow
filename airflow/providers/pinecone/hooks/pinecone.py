@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import itertools
+from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from pinecone import Pinecone, PodSpec, ServerlessSpec
@@ -64,37 +65,78 @@ class PineconeHook(BaseHook):
         """Return custom field behaviour."""
         return {
             "hidden_fields": ["port", "schema"],
-            "relabeling": {"password": "Pinecone API key"},
+            "relabeling": {
+                "login": "Pinecone Environment",
+                "host": "Pinecone Region",
+                "password": "Pinecone API key",
+            },
         }
 
-    def __init__(self, conn_id: str = default_conn_name) -> None:
+    def __init__(
+        self,
+        conn_id: str = default_conn_name,
+        environment: str | None = None,
+        region: str | None = None,
+        api_key: str | None = None,
+    ) -> None:
         self.conn_id = conn_id
+        self._environment = environment
+        self._region = region
+        self._api_key = api_key
         self.conn = self.get_conn()
 
-    def get_conn(self) -> Pinecone:
-        pinecone_connection = self.get_connection(self.conn_id)
-        api_key = pinecone_connection.password
-        pinecone_host = pinecone_connection.host
-        extras = pinecone_connection.extra_dejson
+    @property
+    def api_key(self):
+        if self._api_key:
+            return self._api_key
+        key = self.conn.password
+        if not key:
+            raise LookupError("Pinecone API Key not found in connection")
+        return key
+
+    @cached_property
+    def environment(self):
+        if self._environment:
+            return self._environment
+        env = self.conn.login
+        if not env:
+            raise LookupError("Pinecone environment not found in connection")
+        return env
+
+    @cached_property
+    def region(self):
+        if self._region:
+            return self._region
+        region = self.conn.host
+        if not region:
+            raise LookupError("Pinecone region not found in connection")
+        return region
+
+    @cached_property
+    def pc(self):
+        """Pinecone object to interact with Pinecone."""
+        pinecone_host = self.conn.host
+        extras = self.conn.extra_dejson
         pinecone_project_id = extras.get("project_id")
         log_level = extras.get("log_level", None)
+
         return Pinecone(
-            api_key=api_key,
-            host=pinecone_host,
-            project_name=pinecone_project_id,
-            log_level=log_level,
+            api_key=self.api_key, host=pinecone_host, project_id=pinecone_project_id, log_level=log_level
         )
+
+    def get_conn(self) -> Pinecone:
+        return self.get_connection(self.conn_id)
 
     def test_connection(self) -> tuple[bool, str]:
         try:
-            self.conn.list_indexes()
+            self.pc.list_indexes()
             return True, "Connection established"
         except Exception as e:
             return False, str(e)
 
     def list_indexes(self) -> Any:
         """Retrieve a list of all indexes in your project."""
-        return self.conn.list_indexes()
+        return self.pc.list_indexes()
 
     def upsert(
         self,
@@ -123,7 +165,7 @@ class PineconeHook(BaseHook):
         :param show_progress: Whether to show a progress bar using tqdm. Applied only
             if batch_size is provided.
         """
-        index = self.conn.Index(index_name)
+        index = self.pc.Index(index_name)
         return index.upsert(
             vectors=vectors,
             namespace=namespace,
@@ -132,10 +174,18 @@ class PineconeHook(BaseHook):
             **kwargs,
         )
 
-    @staticmethod
-    def get_pod_spec_obj(environment, replicas, shards, pods, pod_type, metadata_config, source_collection):
+    def get_pod_spec_obj(
+        self,
+        replicas,
+        shards,
+        pods,
+        pod_type,
+        metadata_config,
+        source_collection,
+        environment: str | None = None,
+    ):
         return PodSpec(
-            environment=environment,
+            environment=environment or self.environment,
             replicas=replicas,
             shards=shards,
             pods=pods,
@@ -144,9 +194,8 @@ class PineconeHook(BaseHook):
             source_collection=source_collection,
         )
 
-    @staticmethod
-    def get_serverless_spec_obj(cloud, region):
-        return ServerlessSpec(cloud=cloud, region=region)
+    def get_serverless_spec_obj(self, cloud, region: str | None = None):
+        return ServerlessSpec(cloud=cloud, region=region or self.region)
 
     def create_index(
         self,
@@ -156,7 +205,7 @@ class PineconeHook(BaseHook):
         metric: str | None = "cosine",
         timeout: int | None = None,
     ) -> None:
-        self.conn.create_index(
+        self.pc.create_index(
             name=index_name,
             dimension=dimension,
             spec=spec,
@@ -170,7 +219,7 @@ class PineconeHook(BaseHook):
 
         :param index_name: The name of the index to describe.
         """
-        return self.conn.describe_index(name=index_name)
+        return self.pc.describe_index(name=index_name)
 
     def delete_index(self, index_name: str, timeout: int | None = None) -> None:
         """
@@ -179,7 +228,7 @@ class PineconeHook(BaseHook):
         :param index_name: the name of the index.
         :param timeout: Timeout for wait until index gets ready.
         """
-        self.conn.delete_index(name=index_name, timeout=timeout)
+        self.pc.delete_index(name=index_name, timeout=timeout)
 
     def configure_index(
         self, index_name: str, replicas: int | None = None, pod_type: str | None = ""
@@ -191,7 +240,7 @@ class PineconeHook(BaseHook):
         :param replicas: The new number of replicas.
         :param pod_type: the new pod_type for the index.
         """
-        self.conn.configure_index(name=index_name, replicas=replicas, pod_type=pod_type)
+        self.pc.configure_index(name=index_name, replicas=replicas, pod_type=pod_type)
 
     @staticmethod
     def create_collection(self, collection_name: str, index_name: str) -> None:
@@ -201,7 +250,7 @@ class PineconeHook(BaseHook):
         :param collection_name: The name of the collection to create.
         :param index_name: The name of the source index.
         """
-        self.conn.create_collection(name=collection_name, source=index_name)
+        self.pc.create_collection(name=collection_name, source=index_name)
 
     def delete_collection(self, collection_name: str) -> None:
         """
@@ -209,7 +258,7 @@ class PineconeHook(BaseHook):
 
         :param collection_name: The name of the collection to delete.
         """
-        self.conn.delete_collection(collection_name)
+        self.pc.delete_collection(collection_name)
 
     def describe_collection(self, collection_name: str) -> Any:
         """
@@ -217,11 +266,11 @@ class PineconeHook(BaseHook):
 
         :param collection_name: The name of the collection to describe.
         """
-        return self.conn.describe_collection(collection_name)
+        return self.pc.describe_collection(collection_name)
 
     def list_collections(self) -> Any:
         """Retrieve a list of all collections in the current project."""
-        return self.conn.list_collections()
+        return self.pc.list_collections()
 
     def query_vector(
         self,
@@ -252,7 +301,7 @@ class PineconeHook(BaseHook):
         :param sparse_vector: sparse values of the query vector. Expected to be either a SparseValues object or a dict
          of the form: {'indices': List[int], 'values': List[float]}, where the lists each have the same length.
         """
-        index = self.conn.Index(index_name)
+        index = self.pc.Index(index_name)
         return index.query(
             vector=vector,
             id=query_id,
@@ -290,7 +339,7 @@ class PineconeHook(BaseHook):
         :param pool_threads: Number of threads for parallel upserting. If async_req is True, this must be provided.
         """
         responses = []
-        with self.conn.Index(index_name, pool_threads=pool_threads) as index:
+        with self.pc.Index(index_name, pool_threads=pool_threads) as index:
             if async_req and pool_threads:
                 async_results = [index.upsert(vectors=chunk, async_req=True) for chunk in self._chunks(data)]
                 responses = [async_result.get() for async_result in async_results]
@@ -317,5 +366,5 @@ class PineconeHook(BaseHook):
         :param stats_filter: If this parameter is present, the operation only returns statistics for vectors that
          satisfy the filter. See https://www.pinecone.io/docs/metadata-filtering/
         """
-        index = self.conn.Index(index_name)
+        index = self.pc.Index(index_name)
         return index.describe_index_stats(filter=stats_filter, **kwargs)
