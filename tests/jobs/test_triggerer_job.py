@@ -354,94 +354,41 @@ def test_trigger_create_race_condition_38599(session, tmp_path):
 
     session.commit()
 
-    class TriggerRunnerWithCreateCount_(TriggerRunner):
-        async def create_triggers(self):
-            num_triggers_to_create = len(self.to_create)
-            await super().create_triggers()
-            self.trigger_creation_count = getattr(self, "trigger_creation_count", 0) + num_triggers_to_create
-
-    class TriggerRunnerWithUpdateDelay_(TriggerRunnerWithCreateCount_):
-        """TriggerRunner with a 5 second delay added at the beginning of update_triggers
-        to increase the window that the race condition may occur.
-        """
-
-        def update_triggers(self, requested_trigger_ids: set[int]):
-            # Delay calling update_triggers to increase the window of opportunity
-            time.sleep(1)
-            super().update_triggers(requested_trigger_ids)
-            self.requested_trigger_count = getattr(self, "requested_trigger_count", 0) + len(
-                requested_trigger_ids
-            )
-
-    class TriggererJobRunner_(TriggererJobRunner):
-        """TriggererJobRunner whose handle_events blocks until there is an event."""
-
-        def load_triggers(self):
-            super().load_triggers()
-            self.load_triggers_count = getattr(self, "load_triggers_count", 0) + 1
-
-        def handle_events(self):
-            # Wait for event during the first loop
-            while not self.trigger_runner.events and getattr(self, "handle_events_count", 0) == 0:
-                time.sleep(0.1)
-            super().handle_events()
-            self.handle_events_count = getattr(self, "handle_events_count", 0) + 1
-            # Prevent Trigger.clean_unused() from deleting the trigger
-            time.sleep(1)
-
-    # Start first TriggererJobRunner immediately.
-    # This TriggererJobRunner will immediately load the trigger and start running it.
-    # Once the trigger is finished, it will, however, stall after the first loop in handle_events,
-    # preventing the trigger from being cleaned up. This simulates what may happen during high load.
-    job_runner1 = TriggererJobRunner_(job1)
-    job_runner1.trigger_runner = TriggerRunnerWithCreateCount_()
-    thread1 = Thread(target=job_runner1._execute)
-    thread1.start()
-
-    # Simulate a missed heartbeat by job_runner1 by setting it to an hour ago
-    # This enables the second TriggererJobRunner to pick up the trigger.
-    for _ in range(10):
-        time.sleep(0.1)
-        if getattr(job_runner1, "load_triggers_count", 0) >= 1:
-            job1.latest_heartbeat = timezone.utcnow() - datetime.timedelta(hours=1)
-            session.commit()
-            break
-
-    # Start second TriggererJobRunner.
-    # This TriggererJobRunner will pick up the trigger and try to run it,
-    # but the job_runner1.handle_events already unlinked the trigger from the task instance,
-    # so trigger.task_instance is None.
+    job_runner1 = TriggererJobRunner(job1)
     job_runner2 = TriggererJobRunner(job2)
-    job_runner2.trigger_runner = TriggerRunnerWithUpdateDelay_()
-    thread2 = Thread(target=job_runner2._execute)
-    thread2.start()
 
-    try:
-        for _ in range(20):
-            time.sleep(0.1)
-            assert thread1.is_alive(), "job_runner1 is not alive"
-            assert thread2.is_alive(), "job_runner2 is not alive"
-    finally:
-        job_runner1.trigger_runner.stop = True
-        job_runner1.trigger_runner.join(10)
-        thread1.join()
+    # Assign and run the trigger on the first TriggererJobRunner
+    # Instead of running job_runner1._execute, we will run the individual methods
+    # to control the timing of the execution.
+    job_runner1.load_triggers()
+    assert len(job_runner1.trigger_runner.to_create) == 1
+    # Before calling job_runner1.handle_events, run the trigger synchronously
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(job_runner1.trigger_runner.create_triggers())
+    assert len(job_runner1.trigger_runner.triggers) == 1
+    trigger_task_key = list(job_runner1.trigger_runner.triggers.keys())[0]
+    trigger_task_info = job_runner1.trigger_runner.triggers[trigger_task_key]
+    loop.run_until_complete(trigger_task_info["task"])
+    assert trigger_task_info["task"].done()
 
-        job_runner2.trigger_runner.stop = True
-        job_runner2.trigger_runner.join(10)
-        thread2.join()
+    # In a real execution environment, a missed heartbeat would cause the trigger to be picked up
+    # by another TriggererJobRunner.
+    # In this test, however, this is not necessary because we are controlling the execution
+    # of the TriggererJobRunner.
+    # job1.latest_heartbeat = timezone.utcnow() - datetime.timedelta(hours=1)
+    # session.commit()
 
-    # Requirements for the potential race condition
-    # * job_runner1 must have created the trigger
-    # * job_runner2 must have requested the trigger
-    assert job_runner1.trigger_runner.trigger_creation_count == 1
-    assert job_runner2.trigger_runner.requested_trigger_count == 1
-    # But job_runner2 must have skipped creating the trigger because
-    # it's task instance was already unlinked from the trigger
-    assert job_runner2.trigger_runner.trigger_creation_count == 0
+    # This calls Trigger.submit_event, which will unlink the trigger from the task instance
+    job_runner1.handle_events()
+
+    # Simulate the second TriggererJobRunner picking up the trigger
+    job_runner2.trigger_runner.update_triggers({trigger_orm.id})
+    # The race condition happens here.
+    # AttributeError: 'NoneType' object has no attribute 'dag_id'
+    loop.run_until_complete(job_runner2.trigger_runner.create_triggers())
 
     instances = path.read_text().splitlines()
     assert instances == ["hi"]
-
 
 def test_trigger_create_race_condition_18392(session, tmp_path):
     """
