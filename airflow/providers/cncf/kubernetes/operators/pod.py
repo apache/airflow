@@ -82,6 +82,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
+from airflow.utils.log.secrets_masker import mask_secret, redact
 from airflow.version import version as airflow_version
 
 if TYPE_CHECKING:
@@ -334,6 +335,8 @@ class KubernetesPodOperator(BaseOperator):
         self.env_vars = env_vars
         if pod_runtime_info_envs:
             self.env_vars.extend([convert_pod_runtime_info_env(p) for p in pod_runtime_info_envs])
+        mask_secret(self.env_vars)
+        self.env_vars = redact(self.env_vars)
         self.env_from = env_from or []
         if configmaps:
             self.env_from.extend([convert_configmap(c) for c in configmaps])
