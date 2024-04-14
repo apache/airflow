@@ -442,7 +442,7 @@ class TestDatabricksCreateJobsOperator:
                 "max_concurrent_runs": MAX_CONCURRENT_RUNS,
                 "git_source": GIT_SOURCE,
                 "access_control_list": ACCESS_CONTROL_LIST,
-                "parameters": []
+                "parameters": [],
             }
         )
         db_mock_class.assert_called_once_with(
@@ -493,7 +493,7 @@ class TestDatabricksCreateJobsOperator:
                 "max_concurrent_runs": MAX_CONCURRENT_RUNS,
                 "git_source": GIT_SOURCE,
                 "access_control_list": ACCESS_CONTROL_LIST,
-                "parameters": []
+                "parameters": [],
             }
         )
         db_mock_class.assert_called_once_with(
@@ -593,7 +593,7 @@ class TestDatabricksCreateJobsOperator:
             "max_concurrent_runs": MAX_CONCURRENT_RUNS,
             "git_source": GIT_SOURCE,
             "access_control_list": ACCESS_CONTROL_LIST,
-            "parameters": JOB_PARAMS
+            "parameters": JOB_PARAMS,
         }
         op = DatabricksCreateJobsOperator(task_id=TASK_ID, json=json)
         db_mock = db_mock_class.return_value
@@ -614,7 +614,7 @@ class TestDatabricksCreateJobsOperator:
                 "max_concurrent_runs": MAX_CONCURRENT_RUNS,
                 "git_source": GIT_SOURCE,
                 "access_control_list": ACCESS_CONTROL_LIST,
-                "parameters": JOB_PARAMS
+                "parameters": JOB_PARAMS,
             }
         )
 
