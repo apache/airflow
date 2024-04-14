@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-04-13T11:23:42.316074
+# This constraints file was automatically generated on 2024-04-14T08:51:48.622933
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -47,7 +47,7 @@ Sphinx==5.3.0
 WTForms==3.1.2
 Werkzeug==2.2.3
 adal==1.2.7
-adlfs==2024.2.0
+adlfs==2024.4.0
 aiobotocore==2.12.3
 aiofiles==23.2.1
 aiohttp==3.9.4
@@ -74,7 +74,7 @@ anyascii==0.3.2
 anyio==4.3.0
 apache-beam==2.55.1
 apispec==6.6.0
-apprise==1.7.5
+apprise==1.7.6
 argcomplete==3.2.3
 asana==3.2.2
 asgiref==3.8.1
@@ -402,7 +402,7 @@ pexpect==4.9.0
 pgvector==0.2.5
 pinecone-client==2.2.4
 pinotdb==5.1.6
-pipdeptree==2.18.0
+pipdeptree==2.18.1
 pipx==1.5.0
 pkginfo==1.10.0
 platformdirs==4.2.0
@@ -502,7 +502,7 @@ ruff==0.3.3
 s3fs==2023.12.2
 s3transfer==0.10.1
 sarif-om==1.0.4
-scramp==1.4.4
+scramp==1.4.5
 scrapbook==0.5.0
 semver==3.0.2
 sendgrid==6.11.0
@@ -544,7 +544,7 @@ sqlalchemy-bigquery==1.10.0
 sqlalchemy-redshift==0.8.14
 sqlalchemy-spanner==1.6.2
 sqlalchemy_drill==1.1.4
-sqlparse==0.4.4
+sqlparse==0.5.0
 sshtunnel==0.4.0
 stack-data==0.6.3
 starkbank-ecdsa==2.2.0
