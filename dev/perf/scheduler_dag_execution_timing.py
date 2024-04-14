@@ -79,8 +79,7 @@ class ShortCircuitExecutorMixin:
         if not run:
             import airflow.models
 
-            # odd `list()` is to work across Airflow versions.
-            run = list(airflow.models.DagRun.find(dag_id=dag_id, execution_date=execution_date))[0]
+            run = airflow.models.DagRun.find(dag_id=dag_id, execution_date=execution_date)[0]
             self.dags_to_watch[dag_id].runs[execution_date] = run
 
         if run and all(t.state == TaskInstanceState.SUCCESS for t in run.get_task_instances()):
