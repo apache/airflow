@@ -3565,6 +3565,17 @@ class ConfigurationView(AirflowBaseView):
             )
 
 
+class SwaggerView(AirflowBaseView):
+    """Swagger API documentation."""
+
+    default_view = "swagger"
+
+    @expose("/swagger")
+    def swagger(self):
+        """Swagger UI."""
+        return redirect("/api/v1/ui")
+
+
 class RedocView(AirflowBaseView):
     """Redoc Open API documentation."""
 

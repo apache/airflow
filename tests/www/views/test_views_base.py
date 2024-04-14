@@ -57,7 +57,7 @@ def test_doc_urls(admin_client, monkeypatch):
     resp = admin_client.get("/", follow_redirects=True)
 
     check_content_in_response("!!DOCS_URL!!", resp)
-    check_content_in_response("/api/v1/ui", resp)
+    check_content_in_response("/swagger", resp)
 
 
 @pytest.fixture
