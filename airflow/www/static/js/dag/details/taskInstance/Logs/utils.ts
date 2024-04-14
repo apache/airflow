@@ -41,9 +41,11 @@ export const logLevelColorMapping = {
 
 const errorKeywords = getMetaValue("color_log_error_keywords")
   .split(",")
+  .filter((keyword) => keyword.length > 0)
   .map((keyword) => keyword.toLowerCase());
 const warningKeywords = getMetaValue("color_log_warning_keywords")
   .split(",")
+  .filter((keyword) => keyword.length > 0)
   .map((keyword) => keyword.toLowerCase());
 
 export const parseLogs = (
