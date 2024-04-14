@@ -144,6 +144,7 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
         error_id = uuid4()
         log.exception("Error executing method '%s'; error_id=%s.", method_name, error_id)
         return Response(
-            response=f"Error executing method '{method_name}'; error_id={error_id}",
+            response=f"Error executing method '{method_name}'. "
+            f"The server side traceback may be identified with error_id={error_id}",
             status=500,
         )
