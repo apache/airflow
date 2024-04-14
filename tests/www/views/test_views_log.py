@@ -43,7 +43,7 @@ from airflow.www.app import create_app
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
-from tests.test_utils.www import client_with_login
+from tests.test_utils.www import client_with_login, flask_client_with_login
 
 pytestmark = pytest.mark.db_test
 
@@ -199,6 +199,11 @@ def create_expected_log_file(log_path, tis):
     # We delete created log files manually to make sure tests do not reuse logs created by other tests
     for sub_path in log_path.iterdir():
         shutil.rmtree(sub_path)
+
+
+@pytest.fixture
+def flask_log_admin_client(log_app):
+    return flask_client_with_login(log_app, username="test", password="test")
 
 
 @pytest.fixture
@@ -556,7 +561,7 @@ class _ExternalHandler(ExternalLoggingMixin):
     new_callable=unittest.mock.PropertyMock,
     return_value=_ExternalHandler(),
 )
-def test_redirect_to_external_log_with_external_log_handler(_, log_admin_client):
+def test_redirect_to_external_log_with_external_log_handler(_, flask_log_admin_client):
     url_template = "redirect_to_external_log?dag_id={}&task_id={}&execution_date={}&try_number={}"
     try_number = 1
     url = url_template.format(
@@ -565,6 +570,6 @@ def test_redirect_to_external_log_with_external_log_handler(_, log_admin_client)
         urllib.parse.quote_plus(DEFAULT_DATE.isoformat()),
         try_number,
     )
-    response = log_admin_client.get(url)
+    response = flask_log_admin_client.get(url)
     assert 302 == response.status_code
     assert _ExternalHandler.EXTERNAL_URL == response.headers["Location"]
