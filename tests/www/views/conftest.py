@@ -128,6 +128,11 @@ def admin_client(app):
 
 
 @pytest.fixture
+def flask_admin_client(app):
+    return flask_client_with_login(app, username="test_admin", password="test_admin")
+
+
+@pytest.fixture
 def viewer_client(app):
     return client_with_login(app, username="test_viewer", password="test_viewer")
 
