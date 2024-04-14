@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import inspect
 import json
+import warnings
 from datetime import datetime, timedelta
 from importlib import import_module
 
@@ -311,28 +312,31 @@ sample_objects = {
 )
 def test_serialize_deserialize_pydantic(input, pydantic_class, encoded_type, cmp_func):
     """If use_pydantic_models=True the objects should be serialized to Pydantic objects."""
-    pytest.importorskip("pydantic", minversion="2.0.0")
+    pydantic = pytest.importorskip("pydantic", minversion="2.0.0")
 
     from airflow.serialization.serialized_objects import BaseSerialization
 
-    serialized = BaseSerialization.serialize(input, use_pydantic_models=True)  # does not raise
-    # Verify the result is JSON-serializable
-    json.dumps(serialized)  # does not raise
-    assert serialized["__type"] == encoded_type
-    assert serialized["__var"] is not None
-    deserialized = BaseSerialization.deserialize(serialized, use_pydantic_models=True)
-    assert isinstance(deserialized, pydantic_class)
-    assert cmp_func(input, deserialized)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", category=pydantic.warnings.PydanticDeprecationWarning)
 
-    # verify that when we round trip a pydantic model we get the same thing
-    reserialized = BaseSerialization.serialize(deserialized, use_pydantic_models=True)
-    dereserialized = BaseSerialization.deserialize(reserialized, use_pydantic_models=True)
-    assert isinstance(dereserialized, pydantic_class)
-    assert dereserialized == deserialized
+        serialized = BaseSerialization.serialize(input, use_pydantic_models=True)  # does not raise
+        # Verify the result is JSON-serializable
+        json.dumps(serialized)  # does not raise
+        assert serialized["__type"] == encoded_type
+        assert serialized["__var"] is not None
+        deserialized = BaseSerialization.deserialize(serialized, use_pydantic_models=True)
+        assert isinstance(deserialized, pydantic_class)
+        assert cmp_func(input, deserialized)
 
-    # Verify recursive behavior
-    obj = [[input]]
-    BaseSerialization.serialize(obj, use_pydantic_models=True)  # does not raise
+        # verify that when we round trip a pydantic model we get the same thing
+        reserialized = BaseSerialization.serialize(deserialized, use_pydantic_models=True)
+        dereserialized = BaseSerialization.deserialize(reserialized, use_pydantic_models=True)
+        assert isinstance(dereserialized, pydantic_class)
+        assert dereserialized == deserialized
+
+        # Verify recursive behavior
+        obj = [[input]]
+        BaseSerialization.serialize(obj, use_pydantic_models=True)  # does not raise
 
 
 def test_all_pydantic_models_round_trip():
