@@ -24,8 +24,14 @@ from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
-from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
-from airflow.providers.microsoft.azure.operators.adls import ADLSListOperator
+
+try:
+    from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
+    from airflow.providers.microsoft.azure.operators.adls import ADLSListOperator
+except ModuleNotFoundError as e:
+    from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+    raise AirflowOptionalProviderFeatureException(e)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

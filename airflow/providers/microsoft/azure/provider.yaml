@@ -76,7 +76,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.6.0
+  - apache-airflow>=2.7.0
   - adlfs>=2023.10.0
   - azure-batch>=8.0.0
   - azure-cosmos>=4.6.0
@@ -98,6 +98,7 @@ dependencies:
   - azure-mgmt-datafactory>=2.0.0
   - azure-mgmt-containerregistry>=8.0.0
   - azure-mgmt-containerinstance>=9.0.0
+  - msgraph-core>=1.0.0
 
 devel-dependencies:
   - pywinrm
@@ -164,6 +165,12 @@ integrations:
     external-doc-url: https://azure.microsoft.com/en-us/products/storage/data-lake-storage/
     logo: /integration-logos/azure/Data Lake Storage.svg
     tags: [azure]
+  - integration-name: Microsoft Graph API
+    external-doc-url: https://learn.microsoft.com/en-us/graph/use-the-api/
+    logo: /integration-logos/azure/Microsoft-Graph-API.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-microsoft-azure/operators/msgraph.rst
+    tags: [azure]
 
 operators:
   - integration-name: Microsoft Azure Data Lake Storage
@@ -193,6 +200,9 @@ operators:
   - integration-name: Microsoft Azure Synapse
     python-modules:
       - airflow.providers.microsoft.azure.operators.synapse
+  - integration-name: Microsoft Graph API
+    python-modules:
+      - airflow.providers.microsoft.azure.operators.msgraph
 
 sensors:
   - integration-name: Microsoft Azure Cosmos DB
@@ -204,6 +214,9 @@ sensors:
   - integration-name: Microsoft Azure Data Factory
     python-modules:
       - airflow.providers.microsoft.azure.sensors.data_factory
+  - integration-name: Microsoft Graph API
+    python-modules:
+      - airflow.providers.microsoft.azure.sensors.msgraph
 
 filesystems:
   - airflow.providers.microsoft.azure.fs.adls
@@ -247,6 +260,9 @@ hooks:
   - integration-name: Microsoft Azure Synapse
     python-modules:
       - airflow.providers.microsoft.azure.hooks.synapse
+  - integration-name: Microsoft Graph API
+    python-modules:
+      - airflow.providers.microsoft.azure.hooks.msgraph
 
 triggers:
   - integration-name: Microsoft Azure Data Factory
@@ -255,6 +271,9 @@ triggers:
   - integration-name: Microsoft Azure Blob Storage
     python-modules:
       - airflow.providers.microsoft.azure.triggers.wasb
+  - integration-name: Microsoft Graph API
+    python-modules:
+      - airflow.providers.microsoft.azure.triggers.msgraph
 
 transfers:
   - source-integration-name: Local
