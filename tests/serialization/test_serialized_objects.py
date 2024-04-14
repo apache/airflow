@@ -416,9 +416,9 @@ def test_serialized_mapped_operator_unmap(dag_maker):
 def test_ser_of_dataset_event_accessor():
     # todo: (Airflow 3.0) we should force reserialization on upgrade
     d = DatasetEventAccessors()
-    d["hi"].extra = "blah1"
-    d["bye"].extra = "blah2"
+    d["hi"].extra = "blah1"  # todo: this should maybe be forbidden?  i.e. can extra be any json or just dict?
+    d["yo"].extra = {"this": "that", "the": "other"}
     ser = BaseSerialization.serialize(var=d)
     deser = BaseSerialization.deserialize(ser)
     assert deser["hi"].extra == "blah1"
-    assert deser["bye"].extra == "blah2"
+    assert d["yo"].extra == {"this": "that", "the": "other"}
