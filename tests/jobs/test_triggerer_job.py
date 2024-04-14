@@ -390,6 +390,7 @@ def test_trigger_create_race_condition_38599(session, tmp_path):
     instances = path.read_text().splitlines()
     assert instances == ["hi"]
 
+
 def test_trigger_create_race_condition_18392(session, tmp_path):
     """
     This verifies the resolution of race condition documented in github issue #18392.
