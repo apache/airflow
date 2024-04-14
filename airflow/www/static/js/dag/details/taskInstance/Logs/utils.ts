@@ -20,6 +20,7 @@
 /* global moment */
 
 import { AnsiUp } from "ansi_up";
+import { getMetaValue, addColorKeyword } from "src/utils";
 import { defaultFormatWithTZ } from "src/datetime_utils";
 
 export enum LogLevel {
@@ -37,6 +38,13 @@ export const logLevelColorMapping = {
   [LogLevel.ERROR]: "red.200",
   [LogLevel.CRITICAL]: "red.400",
 };
+
+const errorKeywords = getMetaValue("color_log_error_keywords")
+  .split(",")
+  .map((keyword) => keyword.toLowerCase());
+const warningKeywords = getMetaValue("color_log_warning_keywords")
+  .split(",")
+  .map((keyword) => keyword.toLowerCase());
 
 export const parseLogs = (
   data: string | undefined,
@@ -112,6 +120,7 @@ export const parseLogs = (
         line.includes(fileSourceFilter)
       )
     ) {
+      parsedLine = addColorKeyword(parsedLine, errorKeywords, warningKeywords);
       // for lines with color convert to nice HTML
       const coloredLine = ansiUp.ansi_to_html(parsedLine);
 
