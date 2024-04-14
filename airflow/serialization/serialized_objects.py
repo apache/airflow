@@ -535,9 +535,15 @@ class BaseSerialization:
             json_pod = PodGenerator.serialize_pod(var)
             return cls._encode(json_pod, type_=DAT.POD)
         elif isinstance(var, DatasetEventAccessors):
-            return cls._encode(cls.serialize(var._dict), type_=DAT.DATASET_EVENT_ACCESSORS)  # type: ignore[attr-defined]
+            return cls._encode(
+                cls.serialize(var._dict, strict=strict, use_pydantic_models=use_pydantic_models),  # type: ignore[attr-defined]
+                type_=DAT.DATASET_EVENT_ACCESSORS,
+            )
         elif isinstance(var, DatasetEventAccessor):
-            return cls._encode(cls.serialize(var.extra), type_=DAT.DATASET_EVENT_ACCESSOR)
+            return cls._encode(
+                cls.serialize(var.extra, strict=strict, use_pydantic_models=use_pydantic_models),
+                type_=DAT.DATASET_EVENT_ACCESSOR,
+            )
         elif isinstance(var, DAG):
             return cls._encode(SerializedDAG.serialize_dag(var), type_=DAT.DAG)
         elif isinstance(var, Resources):
