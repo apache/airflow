@@ -22,7 +22,7 @@ import pytest
 from airflow.www.app import create_app
 from tests.test_utils.config import conf_vars
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
-from tests.test_utils.www import client_with_login
+from tests.test_utils.www import client_with_login, flask_client_with_login
 
 pytestmark = pytest.mark.db_test
 
@@ -52,27 +52,20 @@ def app_with_rate_limit_one(examples_dag_bag):
 
 
 def test_rate_limit_one(app_with_rate_limit_one):
-    client_with_login(
-        app_with_rate_limit_one,
-        expected_path=b"/login/?next=/home",
-        username="test_admin",
-        password="test_admin",
+    flask_client_with_login(
+        app_with_rate_limit_one, expected_response_code=302, username="test_admin", password="test_admin"
     )
-    client_with_login(
-        app_with_rate_limit_one,
-        expected_path=b"/login/",
-        username="test_admin",
-        password="test_admin",
-    )
-    client_with_login(
-        app_with_rate_limit_one,
-        expected_path=b"/login/",
-        username="test_admin",
-        password="test_admin",
-    )
+    from starlette.exceptions import HTTPException
+
+    with pytest.raises(HTTPException) as ex:
+        flask_client_with_login(app_with_rate_limit_one, username="test_admin", password="test_admin")
+    assert ex.value.status_code == 429
+    with pytest.raises(HTTPException) as ex:
+        flask_client_with_login(app_with_rate_limit_one, username="test_admin", password="test_admin")
+    assert ex.value.status_code == 429
 
 
 def test_rate_limit_disabled(app):
-    client_with_login(app, username="test_admin", password="test_admin")
-    client_with_login(app, username="test_admin", password="test_admin")
-    client_with_login(app, username="test_admin", password="test_admin")
+    client_with_login(app, expected_response_code=302, username="test_admin", password="test_admin")
+    client_with_login(app, expected_response_code=302, username="test_admin", password="test_admin")
+    client_with_login(app, expected_response_code=302, username="test_admin", password="test_admin")
