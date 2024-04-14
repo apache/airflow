@@ -122,7 +122,7 @@ class PostgresHook(DbApiHook):
             username=conn.login,
             password=conn.password,
             host=conn.host,
-            port=conn.port,
+            port=conn.port or 5432,
             database=self.database or conn.schema,
         )
 
