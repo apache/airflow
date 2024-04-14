@@ -15,10 +15,13 @@
     specific language governing permissions and limitations
     under the License.
 
+Operators
+---------
+
 .. _howto/operator:PineconeIngestOperator:
 
-PineconeIngestOperator
-======================
+Ingest data into a pinecone index
+=================================
 
 Use the :class:`~airflow.providers.pinecone.operators.pinecone.PineconeIngestOperator` to
 interact with Pinecone APIs to ingest vectors.
@@ -39,9 +42,10 @@ An example using the operator in this way:
     :start-after: [START howto_operator_pinecone_ingest]
     :end-before: [END howto_operator_pinecone_ingest]
 
+.. _howto/operator:CreatePodIndexOperator:
 
-CreatePodIndexOperator
-======================
+Create a Pod based Index
+========================
 
 Use the :class:`~airflow.providers.pinecone.operators.pinecone.CreatePodIndexOperator` to
 interact with Pinecone APIs to create a Pod based Index.
@@ -49,13 +53,36 @@ interact with Pinecone APIs to create a Pod based Index.
 Using the Operator
 ^^^^^^^^^^^^^^^^^^
 
-The CreatePodIndexOperator requires the index details as well as the pod configuration details. ``api_key``, ``environment`` can be
+The ``CreatePodIndexOperator`` requires the index details as well as the pod configuration details. ``api_key``, ``environment`` can be
 passed via arguments to the operator or via the connection.
 
 An example using the operator in this way:
 
-.. exampleinclude:: /../../tests/system/providers/pinecone/example_dag_pod_index.py
+.. exampleinclude:: /../../tests/system/providers/pinecone/example_create_pod_index.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_pod_index]
     :end-before: [END howto_operator_create_pod_index]
+
+
+.. _howto/operator:CreateServerlessIndexOperator:
+
+Create a Serverless Index
+=========================
+
+Use the :class:`~airflow.providers.pinecone.operators.pinecone.CreateServerlessIndexOperator` to
+interact with Pinecone APIs to create a Pod based Index.
+
+Using the Operator
+^^^^^^^^^^^^^^^^^^
+
+The ``CreateServerlessIndexOperator``  requires the index details as well as the Serverless configuration details. ``api_key``, ``environment`` can be
+passed via arguments to the operator or via the connection.
+
+An example using the operator in this way:
+
+.. exampleinclude:: /../../tests/system/providers/pinecone/example_create_serverless_index.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_create_serverless_index]
+    :end-before: [END howto_operator_create_serverless_index]
