@@ -650,7 +650,6 @@ class DagRun(Base, LoggingMixin):
         )
 
     @staticmethod
-    @internal_api_call
     @provide_session
     def fetch_task_instance(
         dag_id: str,

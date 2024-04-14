@@ -25,7 +25,7 @@ import requests
 
 K8S_DEFINITIONS = (
     "https://raw.githubusercontent.com/yannh/kubernetes-json-schema"
-    "/master/v1.22.0-standalone-strict/_definitions.json"
+    "/master/v1.29.0-standalone-strict/_definitions.json"
 )
 VALUES_SCHEMA_FILE = "chart/values.schema.json"
 

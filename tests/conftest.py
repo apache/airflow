@@ -1145,6 +1145,17 @@ def reset_logging_config():
     logging.config.dictConfig(logging_config)
 
 
+@pytest.fixture(scope="session", autouse=True)
+def suppress_info_logs_for_dag_and_fab():
+    import logging
+
+    dag_logger = logging.getLogger("airflow.models.dag")
+    dag_logger.setLevel(logging.WARNING)
+
+    fab_logger = logging.getLogger("airflow.providers.fab.auth_manager.security_manager.override")
+    fab_logger.setLevel(logging.WARNING)
+
+
 @pytest.fixture(scope="module", autouse=True)
 def _clear_db(request):
     from tests.test_utils.db import clear_all

@@ -40,6 +40,7 @@ Bug Fixes
 
 * ``Fix remaining D401 checks (#37434)``
 * ``Update ACL during job reset (#38741)``
+* ``Remove extra slash from update permission endpoint (#38918)``
 
 Misc
 ~~~~
@@ -56,6 +57,7 @@ Misc
    * ``Exclude Python 3.12 for Databricks provider (#38070)``
    * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
    * ``update pre-commit (#37665)``
+   * ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
 
 6.2.0
 .....

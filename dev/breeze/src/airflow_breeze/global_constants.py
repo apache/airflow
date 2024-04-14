@@ -464,7 +464,9 @@ CHICKEN_EGG_PROVIDERS = " ".join([])
 
 
 def _exclusion(providers: Iterable[str]) -> str:
-    return " ".join([f"apache_airflow_providers_{provider.replace('.', '_')}*" for provider in providers])
+    return " ".join(
+        [f"apache_airflow_providers_{provider.replace('.', '_').replace('-','_')}*" for provider in providers]
+    )
 
 
 BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str]] = [
