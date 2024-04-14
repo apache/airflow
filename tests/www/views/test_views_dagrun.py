@@ -36,6 +36,32 @@ pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(scope="module")
+def flask_client_dr_without_dag_run_create(app):
+    create_user(
+        app.app,
+        username="all_dr_permissions_except_dag_run_create",
+        role_name="all_dr_permissions_except_dag_run_create",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
+        ],
+    )
+
+    yield flask_client_with_login(
+        app,
+        username="all_dr_permissions_except_dag_run_create",
+        password="all_dr_permissions_except_dag_run_create",
+    )
+
+    delete_user(app.app, username="all_dr_permissions_except_dag_run_create")  # type: ignore
+    delete_roles(app.app)
+
+
+@pytest.fixture(scope="module")
 def flask_client_dr_without_dag_edit(app):
     create_user(
         app.app,
@@ -59,32 +85,6 @@ def flask_client_dr_without_dag_edit(app):
     )
 
     delete_user(app.app, username="all_dr_permissions_except_dag_edit")  # type: ignore
-    delete_roles(app.app)
-
-
-@pytest.fixture(scope="module")
-def flask_client_dr_without_dag_run_create(app):
-    create_user(
-        app.app,
-        username="all_dr_permissions_except_dag_run_create",
-        role_name="all_dr_permissions_except_dag_run_create",
-        permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
-            (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
-        ],
-    )
-
-    yield flask_client_with_login(
-        app,
-        username="all_dr_permissions_except_dag_run_create",
-        password="all_dr_permissions_except_dag_run_create",
-    )
-
-    delete_user(app.app, username="all_dr_permissions_except_dag_run_create")  # type: ignore
     delete_roles(app.app)
 
 
