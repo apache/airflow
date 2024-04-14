@@ -1429,6 +1429,7 @@ segmentGranularity
 Sendgrid
 sendgrid
 sentimentMax
+ser
 serde
 serialise
 serializable

@@ -535,6 +535,8 @@ class BaseSerialization:
             json_pod = PodGenerator.serialize_pod(var)
             return cls._encode(json_pod, type_=DAT.POD)
         elif isinstance(var, DatasetEventAccessors):
+            if TYPE_CHECKING:
+                assert hasattr(var, "_dict")
             return cls._encode(cls.serialize(var._dict), type_=DAT.DATASET_EVENT_ACCESSORS)
         elif isinstance(var, DatasetEventAccessor):
             return cls._encode(var.extra, type_=DAT.DATASET_EVENT_ACCESSOR)
@@ -667,7 +669,7 @@ class BaseSerialization:
                 d[k] = cls.deserialize(v, use_pydantic_models=True)
             d["task"] = d["task_instance"].task  # todo: add `_encode` of Operator so we don't need this
             return Context(**d)
-        if type_ == DAT.DICT:
+        elif type_ == DAT.DICT:
             return {k: cls.deserialize(v, use_pydantic_models) for k, v in var.items()}
         elif type_ == DAT.DATASET_EVENT_ACCESSORS:
             d = DatasetEventAccessors()
