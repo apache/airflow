@@ -441,6 +441,7 @@ class TestDatabricksCreateJobsOperator:
                 "max_concurrent_runs": MAX_CONCURRENT_RUNS,
                 "git_source": GIT_SOURCE,
                 "access_control_list": ACCESS_CONTROL_LIST,
+                "parameters": []
             }
         )
         db_mock_class.assert_called_once_with(
@@ -491,6 +492,7 @@ class TestDatabricksCreateJobsOperator:
                 "max_concurrent_runs": MAX_CONCURRENT_RUNS,
                 "git_source": GIT_SOURCE,
                 "access_control_list": ACCESS_CONTROL_LIST,
+                "parameters": []
             }
         )
         db_mock_class.assert_called_once_with(
