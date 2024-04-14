@@ -115,7 +115,7 @@ class PostgresHook(DbApiHook):
         self.database = value
 
     @property
-    def sa_uri(self) -> URL:
+    def sqlalchemy_url(self) -> URL:
         conn = self.get_connection(getattr(self, self.conn_name_attr))
         return URL.create(
             drivername="postgresql",
@@ -205,7 +205,7 @@ class PostgresHook(DbApiHook):
 
         :return: the extracted URI in Sqlalchemy URI format.
         """
-        return self.sa_uri.render_as_string(hide_password=False)
+        return self.sqlalchemy_url.render_as_string(hide_password=False)
 
     def bulk_load(self, table: str, tmp_file: str) -> None:
         """Load a tab-delimited file into a database table."""

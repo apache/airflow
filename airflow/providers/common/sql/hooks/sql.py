@@ -182,10 +182,6 @@ class DbApiHook(BaseHook):
         )
 
     @property
-    def sa_uri(self) -> URL:
-        raise NotImplementedError
-
-    @property
     def placeholder(self):
         conn = self.get_connection(getattr(self, self.conn_name_attr))
         placeholder = conn.extra_dejson.get("placeholder")
