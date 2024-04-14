@@ -85,7 +85,27 @@ class PineconeIngestOperator(BaseOperator):
 
 
 class CreatePodIndexOperator(BaseOperator):
-    """Create a pod based index in Pinecone."""
+    """
+    Create a pod based index in Pinecone.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CreatePodIndexOperator`
+
+    :param conn_id: The connection id to use when connecting to Pinecone.
+    :param index_name: Name of the Pinecone index.
+    :param dimension: The dimension of the vectors to be indexed.
+    :param api_key: The API key to use when connecting to Pinecone.
+    :param environment: The environment to use when creating the index.
+    :param replicas: The number of replicas to use.
+    :param shards: The number of shards to use.
+    :param pods: The number of pods to use.
+    :param pod_type: The type of pod to use.
+    :param metadata_config: The metadata configuration to use.
+    :param source_collection: The source collection to use.
+    :param metric: The metric to use.
+    :param timeout: The timeout to use.
+    """
 
     def __init__(
         self,
@@ -144,7 +164,22 @@ class CreatePodIndexOperator(BaseOperator):
 
 
 class CreateServerlessIndexOperator(BaseOperator):
-    """Create a serverless index in Pinecone."""
+    """
+    Create a serverless index in Pinecone.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CreateServerlessIndexOperator`
+
+    :param conn_id: The connection id to use when connecting to Pinecone.
+    :param index_name: Name of the Pinecone index.
+    :param dimension: The dimension of the vectors to be indexed.
+    :param cloud: The cloud to use when creating the index.
+    :param api_key: The API key to use when connecting to Pinecone.
+    :param region: The region to use when creating the index.
+    :param metric: The metric to use.
+    :param timeout: The timeout to use.
+    """
 
     def __init__(
         self,
