@@ -89,8 +89,6 @@ if skip_db_tests:
     # Make sure sqlalchemy will not be usable for pure unit tests even if initialized
     os.environ["AIRFLOW__CORE__SQL_ALCHEMY_CONN"] = "bad_schema:///"
     os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = "bad_schema:///"
-    # Force database isolation mode for pure unit tests
-    os.environ["AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION"] = "True"
     os.environ["_IN_UNIT_TESTS"] = "true"
     # Set it here to pass the flag to python-xdist spawned processes
     os.environ["_AIRFLOW_SKIP_DB_TESTS"] = "true"
@@ -1145,6 +1143,17 @@ def reset_logging_config():
 
     logging_config = import_string(settings.LOGGING_CLASS_PATH)
     logging.config.dictConfig(logging_config)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def suppress_info_logs_for_dag_and_fab():
+    import logging
+
+    dag_logger = logging.getLogger("airflow.models.dag")
+    dag_logger.setLevel(logging.WARNING)
+
+    fab_logger = logging.getLogger("airflow.providers.fab.auth_manager.security_manager.override")
+    fab_logger.setLevel(logging.WARNING)
 
 
 @pytest.fixture(scope="module", autouse=True)

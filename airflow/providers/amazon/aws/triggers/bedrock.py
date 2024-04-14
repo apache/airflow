@@ -59,3 +59,39 @@ class BedrockCustomizeModelCompletedTrigger(AwsBaseWaiterTrigger):
 
     def hook(self) -> AwsGenericHook:
         return BedrockHook(aws_conn_id=self.aws_conn_id)
+
+
+class BedrockProvisionModelThroughputCompletedTrigger(AwsBaseWaiterTrigger):
+    """
+    Trigger when a provisioned throughput job is complete.
+
+    :param provisioned_model_id: The ARN or name of the provisioned throughput.
+    :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 120)
+    :param waiter_max_attempts: The maximum number of attempts to be made. (default: 75)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    """
+
+    def __init__(
+        self,
+        *,
+        provisioned_model_id: str,
+        waiter_delay: int = 120,
+        waiter_max_attempts: int = 75,
+        aws_conn_id: str | None = None,
+    ) -> None:
+        super().__init__(
+            serialized_fields={"provisioned_model_id": provisioned_model_id},
+            waiter_name="provisioned_model_throughput_complete",
+            waiter_args={"provisionedModelId": provisioned_model_id},
+            failure_message="Bedrock provisioned throughput job failed.",
+            status_message="Status of Bedrock provisioned throughput job is",
+            status_queries=["status"],
+            return_key="provisioned_model_id",
+            return_value=provisioned_model_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return BedrockHook(aws_conn_id=self.aws_conn_id)

@@ -86,6 +86,28 @@ or the :class:`~airflow.providers.amazon.aws.triggers.BedrockCustomizeModelCompl
     :start-after: [START howto_operator_customize_model]
     :end-before: [END howto_operator_customize_model]
 
+.. _howto/operator:BedrockCreateProvisionedModelThroughputOperator:
+
+Provision Throughput for an existing Amazon Bedrock Model
+=========================================================
+
+To create a provisioned throughput with dedicated capacity for a foundation
+model or a fine-tuned model, you can use
+:class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockCreateProvisionedModelThroughputOperator`.
+
+Provision throughput jobs are asynchronous. To monitor the state of the job, you can use the
+"provisioned_model_throughput_complete" Waiter, the
+:class:`~airflow.providers.amazon.aws.sensors.bedrock.BedrockProvisionModelThroughputCompletedSensor` Sensor,
+or the :class:`~airflow.providers.amazon.aws.triggers.BedrockProvisionModelThroughputCompletedSensorTrigger`
+Trigger.
+
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_provision_throughput]
+    :end-before: [END howto_operator_provision_throughput]
+
 
 Sensors
 -------
@@ -103,6 +125,21 @@ To wait on the state of an Amazon Bedrock customize model job until it reaches a
     :dedent: 4
     :start-after: [START howto_sensor_customize_model]
     :end-before: [END howto_sensor_customize_model]
+
+.. _howto/sensor:BedrockProvisionModelThroughputCompletedSensor:
+
+Wait for an Amazon Bedrock provision model throughput job
+=========================================================
+
+To wait on the state of an Amazon Bedrock provision model throughput job until it reaches a
+terminal state you can use
+:class:`~airflow.providers.amazon.aws.sensors.bedrock.BedrockProvisionModelThroughputCompletedSensor`
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_provision_throughput]
+    :end-before: [END howto_sensor_provision_throughput]
 
 Reference
 ---------

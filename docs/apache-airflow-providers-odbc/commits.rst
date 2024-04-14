@@ -35,14 +35,30 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.5.0
+.....
+
+Latest change: 2024-04-06
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`0b1308ce45 <https://github.com/apache/airflow/commit/0b1308ce455ed9a6c0263ae63aa0166fed278453>`_  2024-04-06   ``Make 'placeholder' of DbApiHook configurable in UI (#38528)``
+`0a74928894 <https://github.com/apache/airflow/commit/0a74928894fb57b0160208262ccacad12da23fc7>`_  2024-03-18   ``Bump ruff to 0.3.3 (#38240)``
+`83316b8158 <https://github.com/apache/airflow/commit/83316b81584c9e516a8142778fc509f19d95cc3e>`_  2024-03-04   ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+`5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
+`08036e5df5 <https://github.com/apache/airflow/commit/08036e5df5ae3ec9f600219361f86a1a3e8e9d19>`_  2024-02-08   ``D401 Support in Providers (simple) (#37258)``
+=================================================================================================  ===========  ==================================================================
+
 4.4.1
 .....
 
-Latest change: 2024-01-23
+Latest change: 2024-01-26
 
 =================================================================================================  ===========  =====================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =====================================================================================================
+`cead3da4a6 <https://github.com/apache/airflow/commit/cead3da4a6f483fa626b81efd27a24dcb5a36ab0>`_  2024-01-26   ``Add docs for RC2 wave of providers for 2nd round of Jan 2024 (#37019)``
 `c0f7601391 <https://github.com/apache/airflow/commit/c0f76013917ee57b3cc2cebcf08e4421143eefc7>`_  2024-01-23   ``Rename columns to valid namedtuple attributes + ensure Row.fields are retrieved as tuple (#36949)``
 `2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 `ed08999e22 <https://github.com/apache/airflow/commit/ed08999e2204f4d8871dbd0448b9897a8dcc0c3b>`_  2024-01-10   ``Fix ODBC Hook sql select return empty table (#36709)``

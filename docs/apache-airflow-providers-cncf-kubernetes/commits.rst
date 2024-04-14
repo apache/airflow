@@ -35,6 +35,36 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.1.0
+.....
+
+Latest change: 2024-04-09
+
+=================================================================================================  ===========  ===================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================================
+`78f84b9147 <https://github.com/apache/airflow/commit/78f84b914733648d4a9230d1804df0052115906b>`_  2024-04-09   ``fix: try002 for provider cncf kubernetes (#38799)``
+`a19a9cb523 <https://github.com/apache/airflow/commit/a19a9cb52388118e5fc735a25cc42229576482ad>`_  2024-04-05   ``removed usage of deprecated function  for naming the pod in provider k8s pod.py (#38638)``
+`ab5aabe50b <https://github.com/apache/airflow/commit/ab5aabe50b1023a7db0d256751eadd033091af63>`_  2024-04-02   ``Implement delete_on_status parameter for KubernetesDeleteJobOperator (#38458)``
+`ec6091d498 <https://github.com/apache/airflow/commit/ec6091d498ff63935fd70958a043eb1f0c8e6b6c>`_  2024-03-31   ``Fix spark operator log retrieval from driver (#38106)``
+`afb686c95e <https://github.com/apache/airflow/commit/afb686c95ef276ac8d9d473b74303fd1551d00fd>`_  2024-03-26   ``Implement deferrable mode for GKEStartJobOperator (#38454)``
+`a3f7ddd465 <https://github.com/apache/airflow/commit/a3f7ddd46582d3c988700c86ccf9af3b8169bd30>`_  2024-03-26   ``KPO Add follow log in termination step (#38081)``
+`32ed83bd0e <https://github.com/apache/airflow/commit/32ed83bd0ef4694668bf74f3afbfaa0f5afa2768>`_  2024-03-25   ``Refactor GKE hooks (#38404)``
+`fc868f4be2 <https://github.com/apache/airflow/commit/fc868f4be28682265def79621e6c72862375801e>`_  2024-03-22   ``Implement deferrable mode for KubernetesJobOperator (#38251)``
+`1a9b71a129 <https://github.com/apache/airflow/commit/1a9b71a1298da76fc254f670e1032fa12131901a>`_  2024-03-21   ``Create KubernetesPatchJobOperator operator (#38146)``
+`29ac05f496 <https://github.com/apache/airflow/commit/29ac05f4969f54815c82d6af9211798aa53c45c3>`_  2024-03-18   ``Create DeleteKubernetesJobOperator and GKEDeleteJobOperator operators (#37793)``
+`b5b972a106 <https://github.com/apache/airflow/commit/b5b972a1068e19b09d48ec4d7663dd1d996d594f>`_  2024-03-18   ``Update yanked versions in providers changelogs (#38262)``
+`d4350a6bed <https://github.com/apache/airflow/commit/d4350a6bedd110b6306e0f9d6af1a30c20cf6a1b>`_  2024-03-18   ``Fix dynamic allocation specs handling for custom launcher (#38223)``
+`0a74928894 <https://github.com/apache/airflow/commit/0a74928894fb57b0160208262ccacad12da23fc7>`_  2024-03-18   ``Bump ruff to 0.3.3 (#38240)``
+`f3982aa2a4 <https://github.com/apache/airflow/commit/f3982aa2a4464acc6b5a5fe757aa3d2660c5197d>`_  2024-03-18   ``Use startup_check_interval_seconds instead of poll_interval to check pod while startup (#38075)``
+`c32d41d94d <https://github.com/apache/airflow/commit/c32d41d94d428b8f70274a298158b97fac285045>`_  2024-03-18   ``Implement wait_until_job_complete parameter for KubernetesJobOperator (#37998)``
+`1d3010c4ab <https://github.com/apache/airflow/commit/1d3010c4ab738b4fc8e31e2ef0fb880dcf06bec6>`_  2024-03-12   ``Fix case if 'SparkKubernetesOperator.application_file' is templated file (#38035)``
+`8f773a62c1 <https://github.com/apache/airflow/commit/8f773a62c1760b32cc2464343353a28cbfe9211f>`_  2024-03-08   ``Add GKECreateCustomResourceOperator and GKEDeleteCustomResourceOperator operators (#37616)``
+`a7b7928a2a <https://github.com/apache/airflow/commit/a7b7928a2a9ff22f3629f8ee421f627ab3a3c3f3>`_  2024-03-07   ``fix: reduce irrelevant error logs for pod events. (#37944)``
+`8e6f78a735 <https://github.com/apache/airflow/commit/8e6f78a7353109da3a969f58654ca25f5053506b>`_  2024-03-06   ``Use SIGINT signal number instead of signal name (#37905)``
+`ca72f0fd89 <https://github.com/apache/airflow/commit/ca72f0fd89ec05c98045e4b6bcefcf933784cf7d>`_  2024-03-06   ``Add GKEListJobsOperator and GKEDescribeJobOperator (#37598)``
+=================================================================================================  ===========  ===================================================================================================
+
 8.0.1
 .....
 
@@ -43,6 +73,7 @@ Latest change: 2024-03-04
 =================================================================================================  ===========  ===========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================================
+`83316b8158 <https://github.com/apache/airflow/commit/83316b81584c9e516a8142778fc509f19d95cc3e>`_  2024-03-04   ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
 `30f7b2abe6 <https://github.com/apache/airflow/commit/30f7b2abe6991fe6e565f17f7d0701e80ecba0d3>`_  2024-03-04   ``Avoid to use too broad 'noqa' (#37862)``
 `d470674912 <https://github.com/apache/airflow/commit/d4706749128c4ec16890541f97c6e607e8eeb86a>`_  2024-03-01   ``Immediately fail the task in case of worker pod having a fatal container state (#37670)``
 `77341ef6a1 <https://github.com/apache/airflow/commit/77341ef6a1e4ffa3f8d3275eade325c89f2c95f2>`_  2024-02-29   ``Avoid non-recommended usage of logging (#37792)``

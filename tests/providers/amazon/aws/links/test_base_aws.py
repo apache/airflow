@@ -203,7 +203,7 @@ class BaseAwsLinksTestCase:
         """Test: Operator links should exist for serialized DAG."""
         self.create_op_and_ti(self.link_class, dag_id="test_link_serialize", task_id=self.task_id)
         serialized_dag = self.dag_maker.get_serialized_data()
-        operator_extra_link = serialized_dag["dag"]["tasks"][0]["_operator_extra_links"]
+        operator_extra_link = serialized_dag["dag"]["tasks"][0]["__var"]["_operator_extra_links"]
         error_message = "Operator links should exist for serialized DAG"
         assert operator_extra_link == [{self.full_qualname: {}}], error_message
 

@@ -335,7 +335,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ["ruff==0.3.5"]
+        additional_dependencies: ["ruff==0.3.6"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
       - id: ruff-format
         name: Run 'ruff format' for extremely fast Python formatting
@@ -345,7 +345,7 @@ repos:
         types_or: [python, pyi]
         args: []
         require_serial: true
-        additional_dependencies: ["ruff==0.3.5"]
+        additional_dependencies: ["ruff==0.3.6"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^airflow/contrib/
       - id: replace-bad-characters
         name: Replace bad characters
@@ -596,6 +596,7 @@ repos:
           ^airflow/www/static/css/bootstrap-theme.css$|
           ^airflow/www/static/js/types/api-generated.ts$|
           ^airflow/www/templates/appbuilder/flash.html$|
+          ^chart/values.schema.json$|
           ^.*/.*_vendor/|
           ^dev/|
           ^docs/README.rst$|

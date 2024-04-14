@@ -56,7 +56,7 @@ class LivyOperator(BaseOperator):
     :param proxy_user: user to impersonate when running the job. (templated)
     :param livy_conn_id: reference to a pre-defined Livy Connection.
     :param livy_conn_auth_type: The auth type for the Livy Connection.
-    :param polling_interval: time in seconds between polling for job completion. Don't poll for values >=0
+    :param polling_interval: time in seconds between polling for job completion. Don't poll for values <= 0
     :param extra_options: A dictionary of options, where key is string and value
         depends on the option that's being modified.
     :param extra_headers: A dictionary of headers passed to the HTTP request to livy.

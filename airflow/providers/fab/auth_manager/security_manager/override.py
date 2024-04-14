@@ -2212,7 +2212,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             log.debug("User info from Azure: %s", me)
             # https://learn.microsoft.com/en-us/azure/active-directory/develop/id-token-claims-reference#payload-claims
             return {
-                "email": me.get("upn", me["email"]),
+                "email": me["email"] if "email" in me else me["upn"],
                 "first_name": me.get("given_name", ""),
                 "last_name": me.get("family_name", ""),
                 "username": me["oid"],

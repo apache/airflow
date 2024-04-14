@@ -27,6 +27,32 @@
 Changelog
 ---------
 
+3.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add ssl context for verification of certs in FTPS hook (#38266)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update yanked versions in providers changelogs (#38262)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``Resolve G004: Logging statement uses f-string (#37873)``
+   * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+   * ``Prepare docs 1st wave of Providers February 2024 (#37326)``
+   * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+   * ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+   * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+   * ``Prepare 2nd wave of providers in December (#36373)``
+   * ``Add docs for RC2 wave of providers for 2nd round of Jan 2024 (#37019)``
+   * ``Add documentation for 3rd wave of providers in Deember (#36464)``
+   * ``Add code snippet formatting in docstrings via Ruff (#36262)``
+
 3.7.0
 .....
 

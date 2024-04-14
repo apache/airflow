@@ -109,7 +109,9 @@ images:
     pullPolicy: IfNotPresent
   redis:
     repository: redis
-    tag: 7-bookworm
+    # Redis is limited to 7.2-bookworm due to licencing change
+    # https://redis.io/blog/redis-adopts-dual-source-available-licensing/
+    tag: 7.2-bookworm
     pullPolicy: IfNotPresent
   pgbouncer:
     repository: apache/airflow

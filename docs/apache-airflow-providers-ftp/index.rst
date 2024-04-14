@@ -78,7 +78,7 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-ftp
+apache-airflow-providers-ftp package
 ------------------------------------------------------
 
 `File Transfer Protocol (FTP) <https://tools.ietf.org/html/rfc114>`__
@@ -89,15 +89,15 @@ Release: 3.8.0
 Provider package
 ----------------
 
-This is a provider package for ``ftp`` provider. All classes for this provider package
-are in ``airflow.providers.ftp`` python package.
+This package is for the ``ftp`` provider.
+All classes for this package are included in the ``airflow.providers.ftp`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-ftp``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-ftp``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------

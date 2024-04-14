@@ -1284,7 +1284,7 @@ class TestDataflowJob:
             num_retries=20,
             multiple_jobs=True,
         )
-        with pytest.raises(Exception, match=exception_regex):
+        with pytest.raises(AirflowException, match=exception_regex):
             dataflow_job.wait_for_done()
 
     def test_dataflow_job_wait_for_multiple_jobs_and_streaming_jobs(self):
@@ -1517,7 +1517,7 @@ class TestDataflowJob:
             num_retries=20,
             multiple_jobs=True,
         )
-        with pytest.raises(Exception, match=exception_regex):
+        with pytest.raises(AirflowException, match=exception_regex):
             dataflow_job._check_dataflow_job_state(job)
 
     @pytest.mark.parametrize(
@@ -1558,7 +1558,7 @@ class TestDataflowJob:
             multiple_jobs=False,
             expected_terminal_state=expected_terminal_state,
         )
-        with pytest.raises(Exception, match=match):
+        with pytest.raises(AirflowException, match=match):
             dataflow_job._check_dataflow_job_state(job)
 
     def test_dataflow_job_cancel_job(self):

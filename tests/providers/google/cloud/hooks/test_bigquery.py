@@ -77,6 +77,11 @@ def test_delegate_to_runtime_error():
 
 @pytest.mark.db_test
 class TestBigQueryHookMethods(_BigQueryBaseTestClass):
+    def test_credentials_path_derprecation(self):
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            credentials_path = self.hook.credentials_path
+            assert credentials_path == "bigquery_hook_credentials.json"
+
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryConnection")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook._authorize")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.build")
@@ -155,7 +160,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     def test_invalid_schema_update_options(self, mock_get_service):
         with pytest.raises(
-            Exception,
+            ValueError,
             match=(
                 r"\['THIS IS NOT VALID'\] contains invalid schema update options. "
                 r"Please only use one or more of the following options: "
@@ -172,7 +177,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     def test_invalid_schema_update_and_write_disposition(self, mock_get_service):
         with pytest.raises(
-            Exception,
+            ValueError,
             match="schema_update_options is only allowed if"
             " write_disposition is 'WRITE_APPEND' or 'WRITE_TRUNCATE'.",
         ):
@@ -846,7 +851,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     def test_invalid_source_format(self, mock_get_service):
         with pytest.raises(
-            Exception,
+            ValueError,
             match=r"JSON is not a valid source format. Please use one of the following types: \['CSV', "
             r"'NEWLINE_DELIMITED_JSON', 'AVRO', 'GOOGLE_SHEETS', 'DATASTORE_BACKUP', 'PARQUET'\]",
         ):
@@ -959,7 +964,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
 
 class TestBigQueryTableSplitter:
     def test_internal_need_default_project(self):
-        with pytest.raises(Exception, match="INTERNAL: No default project is specified"):
+        with pytest.raises(ValueError, match="INTERNAL: No default project is specified"):
             split_tablename("dataset.table", None)
 
     @pytest.mark.parametrize(
@@ -1008,7 +1013,7 @@ class TestBigQueryTableSplitter:
     )
     def test_invalid_syntax(self, table_input, var_name, exception_message):
         default_project_id = "project"
-        with pytest.raises(Exception, match=exception_message.format(table_input)):
+        with pytest.raises(ValueError, match=exception_message.format(table_input)):
             split_tablename(table_input, default_project_id, var_name)
 
 

@@ -35,6 +35,8 @@ TEST_DATA_STORAGE_BLOB_PREFIX = TEST_DATA_STORAGE_BLOB_NAME[:10]
 TEST_WASB_CONN_ID = "wasb_default"
 POKE_INTERVAL = 5.0
 
+pytestmark = pytest.mark.db_test
+
 
 class TestWasbBlobSensorTrigger:
     TRIGGER = WasbBlobSensorTrigger(
@@ -78,7 +80,6 @@ class TestWasbBlobSensorTrigger:
         assert task.done() is False
         asyncio.get_event_loop().stop()
 
-    @pytest.mark.db_test
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbAsyncHook.check_for_blob_async")
     async def test_success(self, mock_check_for_blob):
@@ -115,7 +116,6 @@ class TestWasbBlobSensorTrigger:
             assert message in caplog.text
         asyncio.get_event_loop().stop()
 
-    @pytest.mark.db_test
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbAsyncHook.check_for_blob_async")
     async def test_trigger_exception(self, mock_check_for_blob):
@@ -170,7 +170,6 @@ class TestWasbPrefixSensorTrigger:
         assert task.done() is False
         asyncio.get_event_loop().stop()
 
-    @pytest.mark.db_test
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbAsyncHook.check_for_prefix_async")
     async def test_success(self, mock_check_for_prefix):
@@ -208,7 +207,6 @@ class TestWasbPrefixSensorTrigger:
             mock_log_info.assert_called_once_with(message)
         asyncio.get_event_loop().stop()
 
-    @pytest.mark.db_test
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbAsyncHook.check_for_prefix_async")
     async def test_trigger_exception(self, mock_check_for_prefix):

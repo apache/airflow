@@ -30,7 +30,7 @@ requires = [
     "pluggy==1.4.0",
     "smmap==5.0.1",
     "tomli==2.0.1; python_version < '3.11'",
-    "trove-classifiers==2024.3.25",
+    "trove-classifiers==2024.4.10",
 ]
 build-backend = "hatchling.build"
 
@@ -59,6 +59,7 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: System :: Monitoring",
 ]
 
@@ -287,8 +288,10 @@ extend-select = [
     "S101", # Checks use `assert` outside the test cases, test cases should be added into the exclusions
     "B004", # Checks for use of hasattr(x, "__call__") and replaces it with callable(x)
     "B006", # Checks for uses of mutable objects as function argument defaults.
+    "B017", # Checks for pytest.raises context managers that catch Exception or BaseException.
     "B019", # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
     "TRY002", # Prohibit use of `raise Exception`, use specific exceptions instead.
+    "RUF006", # Checks for asyncio dangling task
 ]
 ignore = [
     "D203",
@@ -378,18 +381,6 @@ combine-as-imports = true
 "tests/providers/qdrant/operators/test_qdrant.py" = ["E402"]
 "tests/providers/snowflake/operators/test_snowflake_sql.py" = ["E402"]
 
-# All the providers modules which do not follow TRY002 yet
-# cncf.kubernetes
-"airflow/providers/cncf/kubernetes/operators/pod.py" = ["TRY002"]
-# google
-"airflow/providers/google/cloud/hooks/bigquery.py" = ["TRY002"]
-"airflow/providers/google/cloud/hooks/dataflow.py" = ["TRY002"]
-"airflow/providers/google/cloud/hooks/dataproc.py" = ["TRY002"]
-"airflow/providers/google/cloud/operators/dataproc.py" = ["TRY002"]
-"airflow/providers/google/leveldb/hooks/leveldb.py" = ["TRY002"]
-# imap
-"airflow/providers/imap/hooks/imap.py" = ["TRY002"]
-
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.
 ban-relative-imports = "all"
@@ -475,6 +466,10 @@ norecursedirs = [
 log_level = "INFO"
 filterwarnings = [
     "error::pytest.PytestCollectionWarning",
+    "error::pytest.PytestReturnNotNoneWarning",
+    # Avoid building cartesian product which might impact performance
+    "error:SELECT statement has a cartesian product between FROM:sqlalchemy.exc.SAWarning:airflow",
+    'error:Coercing Subquery object into a select\(\) for use in IN\(\):sqlalchemy.exc.SAWarning:airflow',
     "ignore::DeprecationWarning:flask_appbuilder.filemanager",
     "ignore::DeprecationWarning:flask_appbuilder.widgets",
     # FAB do not support SQLAclhemy 2

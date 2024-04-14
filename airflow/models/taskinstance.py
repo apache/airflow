@@ -539,7 +539,7 @@ def _refresh_from_db(
         task_instance.end_date = ti.end_date
         task_instance.duration = ti.duration
         task_instance.state = ti.state
-        task_instance.try_number = ti._try_number  # private attr to get value unaltered by accessor
+        task_instance.try_number = _get_private_try_number(task_instance=ti)
         task_instance.max_tries = ti.max_tries
         task_instance.hostname = ti.hostname
         task_instance.unixname = ti.unixname
@@ -776,7 +776,6 @@ def _get_template_context(
         nonlocal dag_run
         if dag_run not in session:
             dag_run = session.merge(dag_run, load=False)
-
         dataset_events = dag_run.consumed_dataset_events
         triggering_events: dict[str, list[DatasetEvent | DatasetEventPydantic]] = defaultdict(list)
         for event in dataset_events:
@@ -926,7 +925,7 @@ def _handle_failure(
         TaskInstance.save_to_db(failure_context["ti"], session)
 
 
-def _get_try_number(*, task_instance: TaskInstance | TaskInstancePydantic):
+def _get_try_number(*, task_instance: TaskInstance):
     """
     Return the try number that a task number will be when it is actually run.
 
@@ -944,6 +943,23 @@ def _get_try_number(*, task_instance: TaskInstance | TaskInstancePydantic):
     return task_instance._try_number + 1
 
 
+def _get_private_try_number(*, task_instance: TaskInstance | TaskInstancePydantic):
+    """
+    Opposite of _get_try_number.
+
+    Given the value returned by try_number, return the value of _try_number that
+    should produce the same result.
+    This is needed for setting _try_number on TaskInstance from the value on PydanticTaskInstance, which has no private attrs.
+
+    :param task_instance: the task instance
+
+    :meta private:
+    """
+    if task_instance.state == TaskInstanceState.RUNNING:
+        return task_instance.try_number
+    return task_instance.try_number - 1
+
+
 def _set_try_number(*, task_instance: TaskInstance | TaskInstancePydantic, value: int) -> None:
     """
     Set a task try number.
@@ -953,7 +969,7 @@ def _set_try_number(*, task_instance: TaskInstance | TaskInstancePydantic, value
 
     :meta private:
     """
-    task_instance._try_number = value
+    task_instance._try_number = value  # type: ignore[union-attr]
 
 
 def _refresh_from_task(
@@ -1414,6 +1430,7 @@ class TaskInstance(Base, LoggingMixin):
         cascade="all, delete, delete-orphan",
     )
     note = association_proxy("task_instance_note", "content", creator=_creator_note)
+
     task: Operator | None = None
     test_mode: bool = False
     is_trigger_log_context: bool = False
@@ -2935,7 +2952,7 @@ class TaskInstance(Base, LoggingMixin):
     ):
         """Handle Failure for the TaskInstance."""
         get_listener_manager().hook.on_task_instance_failed(
-            previous_state=TaskInstanceState.RUNNING, task_instance=ti, session=session
+            previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error, session=session
         )
 
         if error:
@@ -3000,6 +3017,12 @@ class TaskInstance(Base, LoggingMixin):
                 _stop_remaining_tasks(task_instance=ti, session=session)
         else:
             if ti.state == TaskInstanceState.QUEUED:
+                from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
+
+                if isinstance(ti, TaskInstancePydantic):
+                    # todo: (AIP-44) we should probably "coalesce" `ti` to TaskInstance before here
+                    #  e.g. we could make refresh_from_db return a TI and replace ti with that
+                    raise RuntimeError("Expected TaskInstance here. Further AIP-44 work required.")
                 # We increase the try_number to fail the task if it fails to start after sometime
                 ti._try_number += 1
             ti.state = State.UP_FOR_RETRY
@@ -3493,6 +3516,7 @@ class TaskInstance(Base, LoggingMixin):
                     run_id=ti.run_id,
                 ),
                 session=session,
+                nowait=True,
             ).one()
 
             task = ti.task
@@ -3539,7 +3563,7 @@ class TaskInstance(Base, LoggingMixin):
 
         except OperationalError as e:
             # Any kind of DB error here is _non fatal_ as this block is just an optimisation.
-            cls.logger().info(
+            cls.logger().debug(
                 "Skipping mini scheduling run due to exception: %s",
                 e.statement,
                 exc_info=True,

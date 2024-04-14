@@ -539,9 +539,9 @@ class BaseSerialization:
         elif isinstance(var, Resources):
             return var.to_dict()
         elif isinstance(var, MappedOperator):
-            return SerializedBaseOperator.serialize_mapped_operator(var)
+            return cls._encode(SerializedBaseOperator.serialize_mapped_operator(var), type_=DAT.OP)
         elif isinstance(var, BaseOperator):
-            return SerializedBaseOperator.serialize_operator(var)
+            return cls._encode(SerializedBaseOperator.serialize_operator(var), type_=DAT.OP)
         elif isinstance(var, cls._datetime_types):
             return cls._encode(var.timestamp(), type_=DAT.DATETIME)
         elif isinstance(var, datetime.timedelta):
@@ -1476,9 +1476,15 @@ class SerializedDAG(DAG, BaseSerialization):
                 v = set(v)
             elif k == "tasks":
                 SerializedBaseOperator._load_operator_extra_links = cls._load_operator_extra_links
-
-                v = {task["task_id"]: SerializedBaseOperator.deserialize_operator(task) for task in v}
+                tasks = {}
+                for obj in v:
+                    if obj.get(Encoding.TYPE) == DAT.OP:
+                        deser = SerializedBaseOperator.deserialize_operator(obj[Encoding.VAR])
+                        tasks[deser.task_id] = deser
+                    else:  # todo: remove in Airflow 3.0 (backcompat for pre-2.10)
+                        tasks[obj["task_id"]] = SerializedBaseOperator.deserialize_operator(obj)
                 k = "task_dict"
+                v = tasks
             elif k == "timezone":
                 v = cls._deserialize_timezone(v)
             elif k == "dagrun_timeout":
