@@ -47,7 +47,12 @@ from airflow.www.views import TaskInstanceModelView
 from tests.test_utils.api_connexion_utils import create_user, delete_roles, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs, clear_db_xcom
-from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
+from tests.test_utils.www import (
+    check_content_in_response,
+    check_content_not_in_response,
+    client_with_login,
+    flask_client_with_login,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -121,7 +126,7 @@ def init_dagruns(app, reset_dagruns):
 
 
 @pytest.fixture(scope="module")
-def client_ti_without_dag_edit(app):
+def flask_client_ti_without_dag_edit(app):
     create_user(
         app.app,
         username="all_ti_permissions_except_dag_edit",
@@ -138,7 +143,7 @@ def client_ti_without_dag_edit(app):
         ],
     )
 
-    yield client_with_login(
+    yield flask_client_with_login(
         app,
         username="all_ti_permissions_except_dag_edit",
         password="all_ti_permissions_except_dag_edit",
@@ -771,7 +776,7 @@ def _get_appbuilder_pk_string(model_view_cls, instance) -> str:
     return model_view_cls._serialize_pk_if_composite(model_view_cls, pk_value)
 
 
-def test_task_instance_delete(session, admin_client, create_task_instance):
+def test_task_instance_delete(session, flask_admin_client, create_task_instance):
     task_instance_to_delete = create_task_instance(
         task_id="test_task_instance_delete",
         execution_date=timezone.utcnow(),
@@ -781,11 +786,13 @@ def test_task_instance_delete(session, admin_client, create_task_instance):
     task_id = task_instance_to_delete.task_id
 
     assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
-    admin_client.post(f"/taskinstance/delete/{composite_key}", follow_redirects=True)
+    flask_admin_client.post(f"/taskinstance/delete/{composite_key}", follow_redirects=True)
     assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 0
 
 
-def test_task_instance_delete_permission_denied(session, client_ti_without_dag_edit, create_task_instance):
+def test_task_instance_delete_permission_denied(
+    session, flask_client_ti_without_dag_edit, create_task_instance
+):
     task_instance_to_delete = create_task_instance(
         task_id="test_task_instance_delete_permission_denied",
         execution_date=timezone.utcnow(),
@@ -798,7 +805,9 @@ def test_task_instance_delete_permission_denied(session, client_ti_without_dag_e
     task_id = task_instance_to_delete.task_id
 
     assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
-    resp = client_ti_without_dag_edit.post(f"/taskinstance/delete/{composite_key}", follow_redirects=True)
+    resp = flask_client_ti_without_dag_edit.post(
+        f"/taskinstance/delete/{composite_key}", follow_redirects=True
+    )
     check_content_in_response("Access is Denied", resp)
     assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
 
@@ -1013,7 +1022,7 @@ def test_action_muldelete_task_instance(session, admin_client, task_search_tuple
     assert session.query(TaskReschedule).count() == 0
 
 
-def test_graph_view_doesnt_fail_on_recursion_error(app, dag_maker, admin_client):
+def test_graph_view_doesnt_fail_on_recursion_error(app, dag_maker, flask_admin_client):
     """Test that the graph view doesn't fail on a recursion error."""
     from airflow.models.baseoperator import chain
 
@@ -1029,7 +1038,7 @@ def test_graph_view_doesnt_fail_on_recursion_error(app, dag_maker, admin_client)
     with unittest.mock.patch.object(app.app, "dag_bag") as mocked_dag_bag:
         mocked_dag_bag.get_dag.return_value = dag
         url = f"/dags/{dag.dag_id}/graph"
-        resp = admin_client.get(url, follow_redirects=True)
+        resp = flask_admin_client.get(url, follow_redirects=True)
         assert resp.status_code == 200
 
 
