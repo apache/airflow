@@ -40,7 +40,7 @@ errors: list[str] = []
 added = False
 
 if __name__ == "__main__":
-    for dirname, sub_dirs, files in os.walk(ROOT_DIR / "tests"):
+    for dirname, sub_dirs, _ in os.walk(ROOT_DIR / "tests"):
         dir = Path(dirname)
         sub_dirs[:] = [subdir for subdir in sub_dirs if subdir not in {"__pycache__", "test_logs"}]
         for sub_dir in sub_dirs:

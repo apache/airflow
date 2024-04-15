@@ -1429,6 +1429,7 @@ segmentGranularity
 Sendgrid
 sendgrid
 sentimentMax
+ser
 serde
 serialise
 serializable
@@ -1444,6 +1445,7 @@ setted
 sftp
 SFTPClient
 sharded
+Sharepoint
 shellcheck
 shellcmd
 shm

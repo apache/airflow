@@ -51,6 +51,7 @@ from airflow.serialization.pydantic.tasklog import LogTemplatePydantic
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.settings import _ENABLE_AIP_44
 from airflow.utils import timezone
+from airflow.utils.context import DatasetEventAccessors
 from airflow.utils.operator_resources import Resources
 from airflow.utils.pydantic import BaseModel
 from airflow.utils.state import DagRunState, State
@@ -350,7 +351,7 @@ def test_all_pydantic_models_round_trip():
             continue
         relpath = str(p.relative_to(REPO_ROOT).stem)
         mod = import_module(f"airflow.serialization.pydantic.{relpath}")
-        for name, obj in inspect.getmembers(mod):
+        for _, obj in inspect.getmembers(mod):
             if inspect.isclass(obj) and issubclass(obj, BaseModel):
                 if obj == BaseModel:
                     continue
@@ -410,3 +411,14 @@ def test_serialized_mapped_operator_unmap(dag_maker):
 
     serialized_unmapped_task = serialized_task2.unmap(None)
     assert serialized_unmapped_task.dag is serialized_dag
+
+
+def test_ser_of_dataset_event_accessor():
+    # todo: (Airflow 3.0) we should force reserialization on upgrade
+    d = DatasetEventAccessors()
+    d["hi"].extra = "blah1"  # todo: this should maybe be forbidden?  i.e. can extra be any json or just dict?
+    d["yo"].extra = {"this": "that", "the": "other"}
+    ser = BaseSerialization.serialize(var=d)
+    deser = BaseSerialization.deserialize(ser)
+    assert deser["hi"].extra == "blah1"
+    assert d["yo"].extra == {"this": "that", "the": "other"}

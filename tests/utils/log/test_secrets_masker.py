@@ -339,7 +339,7 @@ class TestSecretsMasker:
         assert "TypeError" not in caplog.text
 
     def test_masking_quoted_strings_in_connection(self, logger, caplog):
-        secrets_masker = [fltr for fltr in logger.filters if isinstance(fltr, SecretsMasker)][0]
+        secrets_masker = next(fltr for fltr in logger.filters if isinstance(fltr, SecretsMasker))
         with patch("airflow.utils.log.secrets_masker._secrets_masker", return_value=secrets_masker):
             test_conn_attributes = dict(
                 conn_type="scheme",

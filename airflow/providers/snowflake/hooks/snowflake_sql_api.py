@@ -283,11 +283,12 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         elif status_code == 422:
             return {"status": "error", "message": resp["message"]}
         elif status_code == 200:
-            statement_handles = []
-            if "statementHandles" in resp and resp["statementHandles"]:
-                statement_handles = resp["statementHandles"]
-            elif "statementHandle" in resp and resp["statementHandle"]:
-                statement_handles.append(resp["statementHandle"])
+            if resp_statement_handles := resp.get("statementHandles"):
+                statement_handles = resp_statement_handles
+            elif resp_statement_handle := resp.get("statementHandle"):
+                statement_handles = [resp_statement_handle]
+            else:
+                statement_handles = []
             return {
                 "status": "success",
                 "message": resp["message"],

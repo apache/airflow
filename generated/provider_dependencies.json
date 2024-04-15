@@ -680,7 +680,7 @@
     "deps": [
       "adal>=1.2.7",
       "adlfs>=2023.10.0",
-      "apache-airflow>=2.6.0",
+      "apache-airflow>=2.7.0",
       "azure-batch>=8.0.0",
       "azure-cosmos>=4.6.0",
       "azure-datalake-store>=0.0.45",
@@ -699,7 +699,8 @@
       "azure-storage-file-datalake>=12.9.1",
       "azure-storage-file-share",
       "azure-synapse-artifacts>=0.17.0",
-      "azure-synapse-spark"
+      "azure-synapse-spark",
+      "msgraph-core>=1.0.0"
     ],
     "devel-deps": [
       "pywinrm"

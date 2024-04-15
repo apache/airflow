@@ -370,7 +370,7 @@ class TestTaskInstance:
             assert ti.state == State.QUEUED
             dep_patch.return_value = TIDepStatus("mock_" + class_name, True, "mock")
 
-        for dep_patch, method_patch in patch_dict.values():
+        for dep_patch, _ in patch_dict.values():
             dep_patch.stop()
 
     def test_mark_non_runnable_task_as_success(self, create_task_instance):

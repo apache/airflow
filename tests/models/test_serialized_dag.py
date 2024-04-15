@@ -213,7 +213,7 @@ class TestSerializedDagModel:
         excessive dag parsing.
         """
         first_dag_hash = None
-        for r in range(10):
+        for _ in range(10):
             with DAG(
                 dag_id="example",
                 start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
