@@ -453,6 +453,7 @@ Building this dependency is shown in the code below:
         """
         order_data_file = "/tmp/order_data.csv"
         order_data_df = pd.read_csv(order_data_file)
+        return order_data_df
 
 
     file_task = FileSensor(task_id="check_file", filepath="/tmp/order_data.csv")
