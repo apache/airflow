@@ -198,6 +198,7 @@ If release name contains chart name it will be used as a full name.
   image: {{ template "git_sync_image" . }}
   imagePullPolicy: {{ .Values.images.gitSync.pullPolicy }}
   securityContext: {{- include "localContainerSecurityContext" .Values.dags.gitSync | nindent 4 }}
+  envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 2 }}
   env:
     {{- if or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey }}
     - name: GIT_SSH_KEY_FILE
