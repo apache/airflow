@@ -20,7 +20,9 @@ from unittest import mock
 from unittest.mock import AsyncMock
 
 import pytest
+from botocore.exceptions import WaiterError
 
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.triggers.neptune import (
     NeptuneClusterAvailableTrigger,
     NeptuneClusterInstancesAvailableTrigger,
@@ -110,3 +112,18 @@ class TestNeptuneClusterInstancesAvailableTrigger:
 
         assert resp == TriggerEvent({"status": "success", "db_cluster_id": CLUSTER_ID})
         assert mock_get_waiter().wait.call_count == 1
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.hooks.neptune.NeptuneHook.async_conn")
+    async def test_run_fail(self, mock_async_conn):
+        a_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = a_mock
+        wait_mock = AsyncMock()
+        wait_mock.side_effect = WaiterError("name", "reason", {"test": [{"lastStatus": "my_status"}]})
+        a_mock.get_waiter().wait = wait_mock
+        trigger = NeptuneClusterInstancesAvailableTrigger(
+            db_cluster_id=CLUSTER_ID, waiter_delay=1, waiter_max_attempts=2
+        )
+
+        with pytest.raises(AirflowException):
+            await trigger.run().asend(None)
