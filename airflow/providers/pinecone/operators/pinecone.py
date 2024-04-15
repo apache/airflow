@@ -95,7 +95,6 @@ class CreatePodIndexOperator(BaseOperator):
     :param conn_id: The connection id to use when connecting to Pinecone.
     :param index_name: Name of the Pinecone index.
     :param dimension: The dimension of the vectors to be indexed.
-    :param api_key: The API key to use when connecting to Pinecone.
     :param environment: The environment to use when creating the index.
     :param replicas: The number of replicas to use.
     :param shards: The number of shards to use.
@@ -113,7 +112,6 @@ class CreatePodIndexOperator(BaseOperator):
         conn_id: str = PineconeHook.default_conn_name,
         index_name: str,
         dimension: int,
-        api_key: str | None = None,
         environment: str | None = None,
         replicas: int | None = None,
         shards: int | None = None,
@@ -128,7 +126,6 @@ class CreatePodIndexOperator(BaseOperator):
         super().__init__(**kwargs)
         self.conn_id = conn_id
         self.index_name = index_name
-        self.api_key = api_key
         self.dimension = dimension
         self.environment = environment
         self.replicas = replicas
@@ -142,7 +139,7 @@ class CreatePodIndexOperator(BaseOperator):
 
     @cached_property
     def hook(self) -> PineconeHook:
-        return PineconeHook(conn_id=self.conn_id, environment=self.environment, api_key=self.api_key)
+        return PineconeHook(conn_id=self.conn_id, environment=self.environment)
 
     def execute(self, context: Context) -> None:
         pod_spec_obj = self.hook.get_pod_spec_obj(
@@ -175,7 +172,6 @@ class CreateServerlessIndexOperator(BaseOperator):
     :param index_name: Name of the Pinecone index.
     :param dimension: The dimension of the vectors to be indexed.
     :param cloud: The cloud to use when creating the index.
-    :param api_key: The API key to use when connecting to Pinecone.
     :param region: The region to use when creating the index.
     :param metric: The metric to use.
     :param timeout: The timeout to use.
@@ -188,7 +184,6 @@ class CreateServerlessIndexOperator(BaseOperator):
         index_name: str,
         dimension: int,
         cloud: str,
-        api_key: str | None = None,
         region: str | None = None,
         metric: str | None = None,
         timeout: int | None = None,
@@ -198,7 +193,6 @@ class CreateServerlessIndexOperator(BaseOperator):
         self.conn_id = conn_id
         self.index_name = index_name
         self.dimension = dimension
-        self.api_key = api_key
         self.cloud = cloud
         self.region = region
         self.metric = metric
@@ -206,7 +200,7 @@ class CreateServerlessIndexOperator(BaseOperator):
 
     @cached_property
     def hook(self) -> PineconeHook:
-        return PineconeHook(conn_id=self.conn_id, region=self.region, api_key=self.api_key)
+        return PineconeHook(conn_id=self.conn_id, region=self.region)
 
     def execute(self, context: Context) -> None:
         serverless_spec_obj = self.hook.get_serverless_spec_obj(cloud=self.cloud, region=self.region)

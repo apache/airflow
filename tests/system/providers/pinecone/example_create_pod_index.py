@@ -37,7 +37,6 @@ with DAG(
         task_id="pinecone_create_pod_index",
         index_name=index_name,
         dimension=3,
-        api_key="test",
         replicas=1,
         shards=1,
         pods=1,

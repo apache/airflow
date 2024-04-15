@@ -77,22 +77,15 @@ class PineconeHook(BaseHook):
         }
 
     def __init__(
-        self,
-        conn_id: str = default_conn_name,
-        environment: str | None = None,
-        region: str | None = None,
-        api_key: str | None = None,
+        self, conn_id: str = default_conn_name, environment: str | None = None, region: str | None = None
     ) -> None:
         self.conn_id = conn_id
         self._environment = environment
         self._region = region
-        self._api_key = api_key
         self.conn = self.get_conn()
 
     @property
     def api_key(self) -> str:
-        if self._api_key:
-            return self._api_key
         key = self.conn.password
         if not key:
             raise LookupError("Pinecone API Key not found in connection")

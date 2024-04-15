@@ -38,7 +38,6 @@ with DAG(
         index_name=index_name,
         dimension=128,
         cloud="aws",
-        api_key="test",
         region="us-west-2",
         metric="cosine",
     )
