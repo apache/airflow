@@ -281,6 +281,19 @@ class TestLivyOperator:
         assert task.hook.extra_options == extra_options
 
     @patch("airflow.providers.apache.livy.operators.livy.LivyHook.delete_batch")
+    def test_when_kill_is_called_right_after_construction_it_should_not_raise_attribute_error(
+        self, mock_delete_batch
+    ):
+        task = LivyOperator(
+            livy_conn_id="livyunittest",
+            file="sparkapp",
+            dag=self.dag,
+            task_id="livy_example",
+        )
+        task.kill()
+        mock_delete_batch.assert_not_called()
+
+    @patch("airflow.providers.apache.livy.operators.livy.LivyHook.delete_batch")
     @patch("airflow.providers.apache.livy.operators.livy.LivyHook.post_batch", return_value=BATCH_ID)
     @patch("airflow.providers.apache.livy.operators.livy.LivyHook.get_batch", return_value=GET_BATCH)
     @patch(
@@ -378,6 +391,30 @@ class TestLivyOperator:
                     "response": "mock error",
                 },
             )
+        self.mock_context["ti"].xcom_push.assert_not_called()
+
+    @patch("airflow.providers.apache.livy.operators.livy.LivyHook.post_batch", return_value=BATCH_ID)
+    @patch("airflow.providers.apache.livy.operators.livy.LivyHook.delete_batch")
+    def test_execute_complete_timeout(self, mock_delete, mock_post):
+        task = LivyOperator(
+            livy_conn_id="livyunittest",
+            file="sparkapp",
+            dag=self.dag,
+            task_id="livy_example",
+            polling_interval=1,
+            deferrable=True,
+        )
+        with pytest.raises(AirflowException):
+            task.execute_complete(
+                context=self.mock_context,
+                event={
+                    "status": "timeout",
+                    "log_lines": ["mock log"],
+                    "batch_id": BATCH_ID,
+                    "response": "mock timeout",
+                },
+            )
+        mock_delete.assert_called_once_with(BATCH_ID)
         self.mock_context["ti"].xcom_push.assert_not_called()
 
 

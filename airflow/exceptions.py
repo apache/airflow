@@ -107,6 +107,16 @@ class AirflowOptionalProviderFeatureException(AirflowException):
     """Raise by providers when imports are missing for optional provider features."""
 
 
+class AirflowInternalRuntimeError(BaseException):
+    """
+    Airflow Internal runtime error.
+
+    Indicates that something really terrible happens during the Airflow execution.
+
+    :meta private:
+    """
+
+
 class XComNotFound(AirflowException):
     """Raise when an XCom reference is being resolved against a non-existent XCom."""
 

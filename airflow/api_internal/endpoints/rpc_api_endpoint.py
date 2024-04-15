@@ -37,6 +37,7 @@ log = logging.getLogger(__name__)
 
 @functools.lru_cache
 def _initialize_map() -> dict[str, Callable]:
+    from airflow.cli.commands.task_command import _get_ti_db_access
     from airflow.dag_processing.manager import DagFileProcessorManager
     from airflow.dag_processing.processor import DagFileProcessor
     from airflow.models import Trigger, Variable, XCom
@@ -46,10 +47,13 @@ def _initialize_map() -> dict[str, Callable]:
     from airflow.models.serialized_dag import SerializedDagModel
     from airflow.models.taskinstance import TaskInstance
     from airflow.secrets.metastore import MetastoreBackend
+    from airflow.utils.cli_action_loggers import _default_action_log_internal
     from airflow.utils.log.file_task_handler import FileTaskHandler
 
     functions: list[Callable] = [
+        _default_action_log_internal,
         _get_template_context,
+        _get_ti_db_access,
         _update_rtif,
         DagFileProcessor.update_import_errors,
         DagFileProcessor.manage_slas,

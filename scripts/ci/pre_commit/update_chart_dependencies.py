@@ -36,7 +36,7 @@ def get_latest_prometheus_statsd_exporter_version() -> str:
     for version in quay_data["tags"]:
         if version["name"].startswith("v"):
             return version["name"]
-    raise Exception("ERROR! No version found")
+    raise RuntimeError("ERROR! No version found")
 
 
 if __name__ == "__main__":
@@ -64,7 +64,7 @@ if __name__ == "__main__":
                 next_line = f"    tag: {latest_prometheus_statsd_exporter_version}"
                 replace = False
             else:
-                raise Exception(
+                raise ValueError(
                     f"ERROR! The next line after repository: should be tag: - "
                     f"index {index} in {VALUES_YAML_FILE}"
                 )

@@ -46,6 +46,7 @@ from airflow.exceptions import (
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     POD_NAME_MAX_LENGTH,
     add_pod_suffix,
+    add_unique_suffix,
     rand_str,
 )
 from airflow.providers.cncf.kubernetes.pod_generator_deprecated import (
@@ -397,7 +398,7 @@ class PodGenerator:
                 UserWarning,
                 stacklevel=2,
             )
-            pod_id = add_pod_suffix(pod_name=pod_id, max_len=POD_NAME_MAX_LENGTH)
+            pod_id = add_unique_suffix(name=pod_id, max_len=POD_NAME_MAX_LENGTH)
         try:
             image = pod_override_object.spec.containers[0].image  # type: ignore
             if not image:

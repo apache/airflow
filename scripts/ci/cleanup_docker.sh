@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 function cleanup_docker {
-    docker system prune --all --force --volumes
+    docker system prune --all --force --volumes || true
 }
 
 cleanup_docker

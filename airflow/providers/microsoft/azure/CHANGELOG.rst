@@ -30,11 +30,39 @@ Changelog
 10.0.0
 ......
 
+.. warning::
+   * We bumped the minimum version of azure-cosmos to 4.6.0, and providing a partition key is now required to create, get or delete a container and to get a document.
+
 Breaking changes
 ~~~~~~~~~~~~~~~~
+
 .. warning::
    * ``azure_synapse_pipeline`` connection type has been changed to ``azure_synapse``.
    * The usage of ``default_conn_name=azure_synapse_connection`` is deprecated and will be removed in future. The new default connection name for ``AzureSynapsePipelineHook`` is: ``default_conn_name=azure_synapse_default``.
+
+* ``Feature/refactor azure synapse pipeline class (#38723)``
+
+Features
+~~~~~~~~
+
+* ``Add 'ADLSCreateObjectOperator' (#37821)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(microsoft/azure): add return statement to yield within a while loop in triggers (#38393)``
+* ``fix cosmos hook static checks by making providing partition_key mandatory (#38199)``
+
+Misc
+~~~~
+
+* ``refactor: Refactored __new__ magic method of BaseOperatorMeta to avoid bad mixing classic and decorated operators (#37937)``
+* ``update to latest service bus (#38384)``
+* ``Limit azure-cosmos (#38175)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``fix: try002 for provider microsoft azure (#38805)``
+   * ``Bump ruff to 0.3.3 (#38240)``
 
 9.0.1
 .....

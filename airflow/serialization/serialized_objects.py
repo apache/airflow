@@ -539,9 +539,9 @@ class BaseSerialization:
         elif isinstance(var, Resources):
             return var.to_dict()
         elif isinstance(var, MappedOperator):
-            return SerializedBaseOperator.serialize_mapped_operator(var)
+            return cls._encode(SerializedBaseOperator.serialize_mapped_operator(var), type_=DAT.OP)
         elif isinstance(var, BaseOperator):
-            return SerializedBaseOperator.serialize_operator(var)
+            return cls._encode(SerializedBaseOperator.serialize_operator(var), type_=DAT.OP)
         elif isinstance(var, cls._datetime_types):
             return cls._encode(var.timestamp(), type_=DAT.DATETIME)
         elif isinstance(var, datetime.timedelta):
@@ -702,17 +702,17 @@ class BaseSerialization:
             return Connection(**var)
         elif use_pydantic_models and _ENABLE_AIP_44:
             if type_ == DAT.BASE_JOB:
-                return JobPydantic.parse_obj(var)
+                return JobPydantic.model_validate(var)
             elif type_ == DAT.TASK_INSTANCE:
-                return TaskInstancePydantic.parse_obj(var)
+                return TaskInstancePydantic.model_validate(var)
             elif type_ == DAT.DAG_RUN:
-                return DagRunPydantic.parse_obj(var)
+                return DagRunPydantic.model_validate(var)
             elif type_ == DAT.DAG_MODEL:
-                return DagModelPydantic.parse_obj(var)
+                return DagModelPydantic.model_validate(var)
             elif type_ == DAT.DATA_SET:
-                return DatasetPydantic.parse_obj(var)
+                return DatasetPydantic.model_validate(var)
             elif type_ == DAT.LOG_TEMPLATE:
-                return LogTemplatePydantic.parse_obj(var)
+                return LogTemplatePydantic.model_validate(var)
         elif type_ == DAT.ARG_NOT_SET:
             return NOTSET
         else:
@@ -1476,9 +1476,15 @@ class SerializedDAG(DAG, BaseSerialization):
                 v = set(v)
             elif k == "tasks":
                 SerializedBaseOperator._load_operator_extra_links = cls._load_operator_extra_links
-
-                v = {task["task_id"]: SerializedBaseOperator.deserialize_operator(task) for task in v}
+                tasks = {}
+                for obj in v:
+                    if obj.get(Encoding.TYPE) == DAT.OP:
+                        deser = SerializedBaseOperator.deserialize_operator(obj[Encoding.VAR])
+                        tasks[deser.task_id] = deser
+                    else:  # todo: remove in Airflow 3.0 (backcompat for pre-2.10)
+                        tasks[obj["task_id"]] = SerializedBaseOperator.deserialize_operator(obj)
                 k = "task_dict"
+                v = tasks
             elif k == "timezone":
                 v = cls._deserialize_timezone(v)
             elif k == "dagrun_timeout":

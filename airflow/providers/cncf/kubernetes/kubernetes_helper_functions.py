@@ -104,7 +104,7 @@ def create_unique_id(
         name += task_id
     base_name = slugify(name, lowercase=True)[:max_length].strip(".-")
     if unique:
-        return add_pod_suffix(pod_name=base_name, rand_len=8, max_len=max_length)
+        return add_unique_suffix(name=base_name, rand_len=8, max_len=max_length)
     else:
         return base_name
 

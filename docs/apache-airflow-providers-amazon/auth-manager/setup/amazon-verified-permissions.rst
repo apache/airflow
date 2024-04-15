@@ -97,7 +97,7 @@ Manually
 Please follow the instructions below to update the Amazon Verified Permissions policy store schema to its latest version.
 
 1. Open the `Amazon Verified Permissions console <https://console.aws.amazon.com/verifiedpermissions>`_.
-2. Choose the policy store used by Airflow (by default, its description is ``Airflow``).
+2. Choose the policy store used by Airflow (by default its description is ``Airflow``).
 3. In the navigation pane on the left, choose **Schema**.
 4. Choose **Edit schema** and then choose **JSON mode**.
 5. Enter the content of `the latest schema version <https://github.com/apache/airflow/blob/main/airflow/providers/amazon/aws/auth_manager/avp/schema.json>`_

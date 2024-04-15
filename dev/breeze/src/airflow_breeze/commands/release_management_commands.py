@@ -1143,7 +1143,7 @@ def _get_all_providers_in_dist(
     for file in DIST_DIR.glob(f"{filename_prefix}*.tar.gz"):
         matched = filename_pattern.match(file.name)
         if not matched:
-            raise Exception(f"Cannot parse provider package name from {file.name}")
+            raise SystemExit(f"Cannot parse provider package name from {file.name}")
         provider_package_id = matched.group(1).replace("_", ".")
         yield provider_package_id
 
@@ -1168,7 +1168,7 @@ def get_all_providers_in_dist(package_format: str, install_selected_providers: s
             )
         )
     else:
-        raise Exception(f"Unknown package format {package_format}")
+        raise SystemExit(f"Unknown package format {package_format}")
     if install_selected_providers:
         filter_list = install_selected_providers.split(",")
         return [provider for provider in all_found_providers if provider in filter_list]
@@ -1293,11 +1293,12 @@ def install_provider_packages(
                     if dependency not in chunk:
                         chunk.append(dependency)
         if len(list_of_all_providers) != total_num_providers:
-            raise Exception(
+            msg = (
                 f"Total providers {total_num_providers} is different "
                 f"than {len(list_of_all_providers)} (just to be sure"
                 f" no rounding errors crippled in)"
             )
+            raise RuntimeError(msg)
         parallelism = min(parallelism, len(provider_chunks))
         with ci_group(f"Installing providers in {parallelism} chunks"):
             all_params = [f"Chunk {n}" for n in range(parallelism)]

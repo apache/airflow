@@ -175,7 +175,9 @@ class TestEmrHook:
             if sys.version_info >= (3, 12):
                 # Botocore generates deprecation warning on Python 3.12 connected with utcnow use
                 warnings.filterwarnings("ignore", message=r".*datetime.utcnow.*", category=DeprecationWarning)
-            cluster = hook.create_job_flow({"Name": "test_cluster", "ReleaseLabel": "", "AmiVersion": "3.2"})
+            cluster = hook.create_job_flow(
+                {"Name": "test_cluster", "ReleaseLabel": "", "AmiVersion": "3.2", "Instances": {}}
+            )
         cluster = client.describe_cluster(ClusterId=cluster["JobFlowId"])["Cluster"]
 
         # The AmiVersion comes back as {Requested,Running}AmiVersion fields.
@@ -192,6 +194,7 @@ class TestEmrHook:
         hook.create_job_flow(job_flow_overrides)
         mock_run_job_flow.assert_called_once_with(**job_flow_overrides)
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_conn")
     def test_missing_emr_conn_id(self, mock_boto3_client):
         """Test not exists ``emr_conn_id``."""

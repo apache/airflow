@@ -52,9 +52,9 @@ from airflow.models.taskinstance import _CURRENT_CONTEXT
 from airflow.models.variable import Variable
 from airflow.operators.branch import BranchMixIn
 from airflow.utils import hashlib_wrapper
-from airflow.utils.context import context_copy_partial, context_merge
+from airflow.utils.context import context_copy_partial, context_get_dataset_events, context_merge
 from airflow.utils.file import get_unique_dag_module_name
-from airflow.utils.operator_helpers import KeywordParameters
+from airflow.utils.operator_helpers import ExecutionCallableRunner, KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
 
@@ -231,6 +231,7 @@ class PythonOperator(BaseOperator):
     def execute(self, context: Context) -> Any:
         context_merge(context, self.op_kwargs, templates_dict=self.templates_dict)
         self.op_kwargs = self.determine_kwargs(context)
+        self._dataset_events = context_get_dataset_events(context)
 
         return_value = self.execute_callable()
         if self.show_return_value_in_logs:
@@ -249,7 +250,8 @@ class PythonOperator(BaseOperator):
 
         :return: the return value of the call.
         """
-        return self.python_callable(*self.op_args, **self.op_kwargs)
+        runner = ExecutionCallableRunner(self.python_callable, self._dataset_events, logger=self.log)
+        return runner.run(*self.op_args, **self.op_kwargs)
 
 
 class BranchPythonOperator(PythonOperator, BranchMixIn):
@@ -406,7 +408,9 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             or isinstance(python_callable, types.LambdaType)
             and python_callable.__name__ == "<lambda>"
         ):
-            raise AirflowException("PythonVirtualenvOperator only supports functions for python_callable arg")
+            raise ValueError(f"{type(self).__name__} only supports functions for python_callable arg")
+        if inspect.isgeneratorfunction(python_callable):
+            raise ValueError(f"{type(self).__name__} does not support using 'yield' in python_callable")
         super().__init__(
             python_callable=python_callable,
             op_args=op_args,

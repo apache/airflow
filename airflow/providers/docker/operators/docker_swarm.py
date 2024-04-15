@@ -147,7 +147,7 @@ class DockerSwarmOperator(DockerOperator):
             mode=self.mode,
         )
         if self.service is None:
-            raise Exception("Service should be set here")
+            raise RuntimeError("Service should be set here")
         self.log.info("Service started: %s", self.service)
 
         # wait for the service to start the task
@@ -169,12 +169,12 @@ class DockerSwarmOperator(DockerOperator):
             raise AirflowException(f"Service did not complete: {self.service!r}")
         elif self.auto_remove == "success":
             if not self.service:
-                raise Exception("The 'service' should be initialized before!")
+                raise RuntimeError("The 'service' should be initialized before!")
             self.cli.remove_service(self.service["ID"])
 
     def _service_status(self) -> str | None:
         if not self.service:
-            raise Exception("The 'service' should be initialized before!")
+            raise RuntimeError("The 'service' should be initialized before!")
         return self.cli.tasks(filters={"service": self.service["ID"]})[0]["Status"]["State"]
 
     def _has_service_terminated(self) -> bool:
@@ -183,7 +183,7 @@ class DockerSwarmOperator(DockerOperator):
 
     def _stream_logs_to_output(self) -> None:
         if not self.service:
-            raise Exception("The 'service' should be initialized before!")
+            raise RuntimeError("The 'service' should be initialized before!")
         last_line_logged, last_timestamp = "", 0
 
         def stream_new_logs(last_line_logged, since=0):

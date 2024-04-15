@@ -1,3 +1,0 @@
-Add REST API actions to Audit Log events
-
-The Audit Log ``event`` name for REST API events will be prepended with ``api.`` or ``ui.``, depending on if it came from the Airflow UI or externally.

@@ -35,14 +35,34 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.0.0
+......
+
+Latest change: 2024-04-10
+
+=================================================================================================  ===========  ==============================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================================================================
+`768e1169b1 <https://github.com/apache/airflow/commit/768e1169b1946fe536c02ee968a95594d43ebba2>`_  2024-04-10   ``fix cosmos hook static checks by making providing partition_key mandatory (#38199)``
+`b687f59008 <https://github.com/apache/airflow/commit/b687f590086b8cb6f72dc75e547e4dc070d75a1e>`_  2024-04-08   ``fix: try002 for provider microsoft azure (#38805)``
+`901c3a6504 <https://github.com/apache/airflow/commit/901c3a650462cd9e31efe3b5b1a04c7cd1a93596>`_  2024-04-04   ``Feature/refactor azure synapse pipeline class (#38723)``
+`694826d1bd <https://github.com/apache/airflow/commit/694826d1bd0a1593e676deed862519fac73266a4>`_  2024-03-24   ``refactor: Refactored __new__ magic method of BaseOperatorMeta to avoid bad mixing classic and decorated operators (#37937)``
+`ac50669c82 <https://github.com/apache/airflow/commit/ac50669c8254ee1b62c91c47806c71d4819a2e10>`_  2024-03-23   ``update to latest service bus (#38384)``
+`51c94e12eb <https://github.com/apache/airflow/commit/51c94e12eb42f542135eaec52d0bb2dce18b01a5>`_  2024-03-22   ``fix(microsoft/azure): add return statement to yield within a while loop in triggers (#38393)``
+`0a74928894 <https://github.com/apache/airflow/commit/0a74928894fb57b0160208262ccacad12da23fc7>`_  2024-03-18   ``Bump ruff to 0.3.3 (#38240)``
+`60b95c75cd <https://github.com/apache/airflow/commit/60b95c75cddb2492b52e4f0fdbca5b08c0adc627>`_  2024-03-15   ``Add 'ADLSCreateObjectOperator' (#37821)``
+`832571c6f3 <https://github.com/apache/airflow/commit/832571c6f3de2bd69ab11b13877ae20f6cddf1d6>`_  2024-03-15   ``Limit azure-cosmos (#38175)``
+=================================================================================================  ===========  ==============================================================================================================================
+
 9.0.1
 .....
 
-Latest change: 2024-03-01
+Latest change: 2024-03-04
 
 =================================================================================================  ===========  =====================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =====================================================================================================
+`83316b8158 <https://github.com/apache/airflow/commit/83316b81584c9e516a8142778fc509f19d95cc3e>`_  2024-03-04   ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
 `87a249a02f <https://github.com/apache/airflow/commit/87a249a02f3665746d05b7a309c288bfda2d4cc2>`_  2024-03-01   ``fix: Pass proxies config when using ClientSecretCredential in AzureDataLakeStorageV2Hook (#37103)``
 `5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
 `9d91bb435d <https://github.com/apache/airflow/commit/9d91bb435d7d67f77162dc694a8329f090c4f95f>`_  2024-02-12   ``D401 Support in Microsoft providers (#37327)``

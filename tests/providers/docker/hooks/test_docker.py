@@ -290,3 +290,12 @@ def test_construct_tls_config(assert_hostname, ssl_version):
             mock_tls_config.assert_called_once_with(
                 **expected_call_args, assert_hostname=assert_hostname, ssl_version=ssl_version
             )
+
+
+@pytest.mark.parametrize(
+    "base_url", [["tcp://foo.bar.spam.egg", "unix:///foo/bar/spam.egg", "unix:///var/run/docker.sock"]]
+)
+def test_connect_to_valid_host(base_url):
+    """Test connect to valid host from a given list of hosts."""
+    hook = DockerHook(base_url=base_url, docker_conn_id=None)
+    assert hook.api_client.base_url == "http+docker://localhost"

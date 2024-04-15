@@ -1430,13 +1430,13 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
         if self.job_template:
             job = self.job_template.build()
             return job["job"]
-        raise Exception("Create a job template before")
+        raise AirflowException("Create a job template before")
 
     def execute(self, context: Context):
         if self.job_template:
             self.job = self.job_template.build()
             if self.job is None:
-                raise Exception("The job should be set here.")
+                raise AirflowException("The job should be set here.")
             self.dataproc_job_id = self.job["job"]["reference"]["job_id"]
             self.log.info("Submitting %s job %s", self.job_type, self.dataproc_job_id)
             job_object = self.hook.submit_job(

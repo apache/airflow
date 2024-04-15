@@ -150,7 +150,9 @@ class AirbyteJobSensor(BaseSensorOperator):
             elif state == hook.CANCELLED:
                 raise AirflowException(f"Job was cancelled:\n{job}")
             else:
-                raise Exception(f"Encountered unexpected state `{state}` for job_id `{self.airbyte_job_id}")
+                raise AirflowException(
+                    f"Encountered unexpected state `{state}` for job_id `{self.airbyte_job_id}"
+                )
 
     def execute_complete(self, context: Context, event: Any = None) -> None:
         """

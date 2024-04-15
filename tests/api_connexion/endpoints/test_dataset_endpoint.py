@@ -620,6 +620,7 @@ class TestPostDatasetEvents(TestDatasetEndpoint):
             expected_extra=event_payload,
         )
 
+    @pytest.mark.enable_redact
     def test_should_mask_sensitive_extra_logs(self, session):
         self._create_dataset(session)
         event_payload = {"dataset_uri": "s3://bucket/key", "extra": {"password": "bar"}}

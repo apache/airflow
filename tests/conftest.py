@@ -89,8 +89,6 @@ if skip_db_tests:
     # Make sure sqlalchemy will not be usable for pure unit tests even if initialized
     os.environ["AIRFLOW__CORE__SQL_ALCHEMY_CONN"] = "bad_schema:///"
     os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = "bad_schema:///"
-    # Force database isolation mode for pure unit tests
-    os.environ["AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION"] = "True"
     os.environ["_IN_UNIT_TESTS"] = "true"
     # Set it here to pass the flag to python-xdist spawned processes
     os.environ["_AIRFLOW_SKIP_DB_TESTS"] = "true"
@@ -309,12 +307,24 @@ def initial_db_init():
     from flask import Flask
 
     from airflow.configuration import conf
+    from airflow.exceptions import RemovedInAirflow3Warning
     from airflow.utils import db
     from airflow.www.extensions.init_appbuilder import init_appbuilder
     from airflow.www.extensions.init_auth_manager import get_auth_manager
 
+    ignore_warnings = {
+        RemovedInAirflow3Warning: [
+            # SubDagOperator warnings
+            "This class is deprecated. Please use `airflow.utils.task_group.TaskGroup`."
+        ]
+    }
+
     db.resetdb()
-    db.bootstrap_dagbag()
+    with warnings.catch_warnings():
+        for warning_category, messages in ignore_warnings.items():
+            for message in messages:
+                warnings.filterwarnings("ignore", message=re.escape(message), category=warning_category)
+        db.bootstrap_dagbag()
     # minimal app to add roles
     flask_app = Flask(__name__)
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
@@ -402,6 +412,7 @@ def pytest_configure(config: pytest.Config) -> None:
         "markers",
         "external_python_operator: external python operator tests are 'long', we should run them separately",
     )
+    config.addinivalue_line("markers", "enable_redact: do not mock redact secret masker")
 
     os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
     configure_warning_output(config)
@@ -1134,6 +1145,17 @@ def reset_logging_config():
     logging.config.dictConfig(logging_config)
 
 
+@pytest.fixture(scope="session", autouse=True)
+def suppress_info_logs_for_dag_and_fab():
+    import logging
+
+    dag_logger = logging.getLogger("airflow.models.dag")
+    dag_logger.setLevel(logging.WARNING)
+
+    fab_logger = logging.getLogger("airflow.providers.fab.auth_manager.security_manager.override")
+    fab_logger.setLevel(logging.WARNING)
+
+
 @pytest.fixture(scope="module", autouse=True)
 def _clear_db(request):
     from tests.test_utils.db import clear_all
@@ -1232,6 +1254,25 @@ def cleanup_providers_manager():
         yield
     finally:
         ProvidersManager()._cleanup()
+
+
+@pytest.fixture(autouse=True)
+def _disable_redact(request: pytest.FixtureRequest, mocker):
+    """Disable redacted text in tests, except specific."""
+    from airflow import settings
+
+    if next(request.node.iter_markers("enable_redact"), None):
+        with pytest.MonkeyPatch.context() as mp_ctx:
+            mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", True)
+            yield
+        return
+
+    mocked_redact = mocker.patch("airflow.utils.log.secrets_masker.SecretsMasker.redact")
+    mocked_redact.side_effect = lambda item, name=None, max_depth=None: item
+    with pytest.MonkeyPatch.context() as mp_ctx:
+        mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", False)
+        yield
+    return
 
 
 # The code below is a modified version of capture-warning code from

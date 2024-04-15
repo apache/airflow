@@ -29,9 +29,10 @@ description: |
     - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 state: ready
-source-date-epoch: 1709555588
+source-date-epoch: 1712665855
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 10.17.0
   - 10.16.0
   - 10.15.0
   - 10.14.0
@@ -109,6 +110,7 @@ dependencies:
   - google-auth-httplib2>=0.0.1
   - google-cloud-aiplatform>=1.42.1
   - google-cloud-automl>=2.12.0
+  - google-cloud-bigquery>=3.0.1
   - google-cloud-bigquery-datatransfer>=3.13.0
   - google-cloud-bigtable>=2.17.0
   - google-cloud-build>=3.22.0

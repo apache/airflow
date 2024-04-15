@@ -76,6 +76,7 @@ metadata:
 HOOK_CLASS = "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook"
 
 
+@pytest.mark.db_test
 @patch("airflow.utils.context.Context")
 class TestKubernetesXResourceOperator:
     @pytest.fixture(autouse=True)

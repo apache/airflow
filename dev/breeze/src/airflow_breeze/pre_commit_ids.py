@@ -134,6 +134,7 @@ PRE_COMMIT_LIST = [
     "update-installers",
     "update-local-yml-file",
     "update-migration-references",
+    "update-openapi-spec-tags-to-be-sorted",
     "update-providers-dependencies",
     "update-reproducible-source-date-epoch",
     "update-spelling-wordlist-to-be-sorted",

@@ -62,8 +62,8 @@ from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode, Kubernete
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     POD_NAME_MAX_LENGTH,
-    add_pod_suffix,
-    create_pod_id,
+    add_unique_suffix,
+    create_unique_id,
 )
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
@@ -910,7 +910,7 @@ class KubernetesPodOperator(BaseOperator):
         self.log.info("Output of curl command to kill istio: %s", output_str)
         resp.close()
         if self.KILL_ISTIO_PROXY_SUCCESS_MSG not in output_str:
-            raise Exception("Error while deleting istio-proxy sidecar: %s", output_str)
+            raise AirflowException("Error while deleting istio-proxy sidecar: %s", output_str)
 
     def process_pod_deletion(self, pod: k8s.V1Pod, *, reraise=True):
         with _optionally_suppress(reraise=reraise):
@@ -1049,12 +1049,12 @@ class KubernetesPodOperator(BaseOperator):
         pod = PodGenerator.reconcile_pods(pod_template, pod)
 
         if not pod.metadata.name:
-            pod.metadata.name = create_pod_id(
+            pod.metadata.name = create_unique_id(
                 task_id=self.task_id, unique=self.random_name_suffix, max_length=POD_NAME_MAX_LENGTH
             )
         elif self.random_name_suffix:
             # user has supplied pod name, we're just adding suffix
-            pod.metadata.name = add_pod_suffix(pod_name=pod.metadata.name)
+            pod.metadata.name = add_unique_suffix(name=pod.metadata.name)
 
         if not pod.metadata.namespace:
             hook_namespace = self.hook.get_namespace()

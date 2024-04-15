@@ -56,7 +56,7 @@ def get_operator_class(task: BaseOperator) -> type:
     return task.__class__
 
 
-def get_job_name(task):
+def get_job_name(task: TaskInstance) -> str:
     return f"{task.dag_id}.{task.task_id}"
 
 
@@ -144,7 +144,7 @@ class InfoJsonEncodable(dict):
 
     def _include_fields(self):
         if self.includes and self.excludes:
-            raise Exception("Don't use both includes and excludes.")
+            raise ValueError("Don't use both includes and excludes.")
         if self.includes:
             for field in self.includes:
                 if field not in self._fields and hasattr(self.obj, field):

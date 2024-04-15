@@ -515,7 +515,7 @@ class AwsEcsExecutor(BaseExecutor):
                 task_descriptions = self.__describe_tasks(task_arns).get("tasks", [])
 
                 for task in task_descriptions:
-                    ti = [ti for ti in tis if ti.external_executor_id == task.task_arn][0]
+                    ti = next(ti for ti in tis if ti.external_executor_id == task.task_arn)
                     self.active_workers.add_task(
                         task,
                         ti.key,

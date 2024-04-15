@@ -23,11 +23,8 @@ import re
 import socket
 import subprocess
 import time
-import warnings
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TYPE_CHECKING, Any, Iterable, Mapping
-
-from airflow.exceptions import AirflowProviderDeprecationWarning
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -126,7 +123,7 @@ class HiveCliHook(BaseHook):
         from wtforms import BooleanField, StringField
 
         return {
-            "use_beeline": BooleanField(lazy_gettext("Use Beeline"), default=False),
+            "use_beeline": BooleanField(lazy_gettext("Use Beeline"), default=True),
             "proxy_user": StringField(lazy_gettext("Proxy User"), widget=BS3TextFieldWidget(), default=""),
             "principal": StringField(
                 lazy_gettext("Principal"), widget=BS3TextFieldWidget(), default="hive/_HOST@EXAMPLE.COM"
@@ -199,22 +196,26 @@ class HiveCliHook(BaseHook):
     def _validate_beeline_parameters(self, conn):
         if self.high_availability:
             if ";" in conn.schema:
-                raise Exception(
+                raise ValueError(
                     f"The schema used in beeline command ({conn.schema}) should not contain ';' character)"
                 )
             return
         elif ":" in conn.host or "/" in conn.host or ";" in conn.host:
-            raise Exception(
+            raise ValueError(
                 f"The host used in beeline command ({conn.host}) should not contain ':/;' characters)"
             )
         try:
             int_port = int(conn.port)
             if not 0 < int_port <= 65535:
-                raise Exception(f"The port used in beeline command ({conn.port}) should be in range 0-65535)")
+                raise ValueError(
+                    f"The port used in beeline command ({conn.port}) should be in range 0-65535)"
+                )
         except (ValueError, TypeError) as e:
-            raise Exception(f"The port used in beeline command ({conn.port}) should be a valid integer: {e})")
+            raise ValueError(
+                f"The port used in beeline command ({conn.port}) should be a valid integer: {e})"
+            )
         if ";" in conn.schema:
-            raise Exception(
+            raise ValueError(
                 f"The schema used in beeline command ({conn.schema}) should not contain ';' character)"
             )
 
@@ -557,15 +558,6 @@ class HiveMetastoreHook(BaseHook):
         if not host:
             raise AirflowException("Failed to locate the valid server.")
 
-        if "authMechanism" in conn.extra_dejson:
-            warnings.warn(
-                "The 'authMechanism' option is deprecated. Please use 'auth_mechanism'.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            conn.extra_dejson["auth_mechanism"] = conn.extra_dejson["authMechanism"]
-            del conn.extra_dejson["authMechanism"]
-
         auth_mechanism = conn.extra_dejson.get("auth_mechanism", "NOSASL")
 
         if conf.get("core", "security") == "kerberos":
@@ -867,15 +859,6 @@ class HiveServer2Hook(DbApiHook):
         password: str | None = None
 
         db = self.get_connection(self.hiveserver2_conn_id)  # type: ignore
-
-        if "authMechanism" in db.extra_dejson:
-            warnings.warn(
-                "The 'authMechanism' option is deprecated. Please use 'auth_mechanism'.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            db.extra_dejson["auth_mechanism"] = db.extra_dejson["authMechanism"]
-            del db.extra_dejson["authMechanism"]
 
         auth_mechanism = db.extra_dejson.get("auth_mechanism", "NONE")
         if auth_mechanism == "NONE" and db.login is None:

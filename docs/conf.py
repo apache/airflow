@@ -72,7 +72,7 @@ elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
             if provider_yaml["package-name"] == PACKAGE_NAME
         )
     except StopIteration:
-        raise Exception(f"Could not find provider.yaml file for package: {PACKAGE_NAME}")
+        raise RuntimeError(f"Could not find provider.yaml file for package: {PACKAGE_NAME}")
     PACKAGE_DIR = pathlib.Path(CURRENT_PROVIDER["package-dir"])
     PACKAGE_VERSION = CURRENT_PROVIDER["versions"][0]
     SYSTEM_TESTS_DIR = CURRENT_PROVIDER["system-tests-dir"]
@@ -382,7 +382,7 @@ html_theme_options["navbar_links"] = [
     {"href": "/community/", "text": "Community"},
     {"href": "/meetups/", "text": "Meetups"},
     {"href": "/docs/", "text": "Documentation"},
-    {"href": "/use-cases/", "text": "Use-cases"},
+    {"href": "/use-cases/", "text": "Use Cases"},
     {"href": "/announcements/", "text": "Announcements"},
     {"href": "/blog/", "text": "Blog"},
     {"href": "/ecosystem/", "text": "Ecosystem"},
