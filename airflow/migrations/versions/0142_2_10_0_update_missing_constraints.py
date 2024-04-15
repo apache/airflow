@@ -64,7 +64,7 @@ def downgrade():
 
     with op.batch_alter_table('dag', schema=None) as batch_op:
         batch_op.alter_column('max_consecutive_failed_dag_runs',
-               existing_type=sa.INTEGER(),
+               existing_type=sa.Integer(),
                nullable=True)
 
     with op.batch_alter_table('connection', schema=None) as batch_op:
