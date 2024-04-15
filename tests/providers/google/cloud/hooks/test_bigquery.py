@@ -2191,6 +2191,55 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
         assert resp == response
 
     @pytest.mark.asyncio
+    @pytest.mark.db_test
+    @mock.patch("google.auth.default")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Job")
+    async def test_cancel_job_success(self, mock_job, mock_auth_default):
+        mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
+        mock_credentials.token = "ACCESS_TOKEN"
+        mock_auth_default.return_value = (mock_credentials, PROJECT_ID)
+        job_id = "test_job_id"
+        project_id = "test_project"
+        location = "US"
+
+        mock_job_instance = AsyncMock()
+        mock_job_instance.cancel.return_value = None
+        mock_job.return_value = mock_job_instance
+
+        await self.hook.cancel_job(job_id=job_id, project_id=project_id, location=location)
+
+        mock_job_instance.cancel.assert_called_once()
+
+    @pytest.mark.asyncio
+    @pytest.mark.db_test
+    @mock.patch("google.auth.default")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Job")
+    async def test_cancel_job_failure(self, mock_job, mock_auth_default):
+        """
+        Test that BigQueryAsyncHook handles exceptions during job cancellation correctly.
+        """
+        mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
+        mock_credentials.token = "ACCESS_TOKEN"
+        mock_auth_default.return_value = (mock_credentials, PROJECT_ID)
+
+        mock_job_instance = AsyncMock()
+        mock_job_instance.cancel.side_effect = Exception("Cancellation failed")
+        mock_job.return_value = mock_job_instance
+
+        hook = BigQueryAsyncHook()
+
+        job_id = "test_job_id"
+        project_id = "test_project"
+        location = "US"
+
+        with pytest.raises(Exception) as excinfo:
+            await hook.cancel_job(job_id=job_id, project_id=project_id, location=location)
+
+        assert "Cancellation failed" in str(excinfo.value), "Exception message not passed correctly"
+
+        mock_job_instance.cancel.assert_called_once()
+
+    @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.ClientSession")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
     async def test_create_job_for_partition_get_with_table(self, mock_job_instance, mock_client_session):
