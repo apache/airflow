@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from unittest import mock
 
 import pytest
@@ -49,7 +50,7 @@ class TestDbApiHook:
 
         class DbApiHookMock(DbApiHook):
             conn_name_attr = "test_conn_id"
-            log = mock.MagicMock()
+            log = mock.MagicMock(spec=logging.Logger)
 
             @classmethod
             def get_connection(cls, conn_id: str) -> Connection:
@@ -61,6 +62,7 @@ class TestDbApiHook:
         self.db_hook = DbApiHookMock(**kwargs)
         self.db_hook_no_log_sql = DbApiHookMock(log_sql=False)
         self.db_hook_schema_override = DbApiHookMock(schema="schema-override")
+        self.db_hook.supports_executemany = False
 
     def test_get_records(self):
         statement = "SQL"
@@ -189,6 +191,41 @@ class TestDbApiHook:
         assert self.conn.commit.call_count == 2
 
         sql = f"UPSERT {table}  VALUES (%s) WITH PRIMARY KEY"
+        self.cur.executemany.assert_any_call(sql, rows)
+
+    def test_insert_rows_as_generator(self):
+        table = "table"
+        rows = [("What's",), ("up",), ("world",)]
+
+        self.db_hook.insert_rows(table, iter(rows))
+
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
+        assert self.conn.commit.call_count == 2
+
+        sql = f"INSERT INTO {table}  VALUES (%s)"
+
+        self.db_hook.log.debug.assert_called_with("Generated sql: %s", sql)
+        self.db_hook.log.info.assert_called_with("Done loading. Loaded a total of %s rows into %s", 3, table)
+
+        for row in rows:
+            self.cur.execute.assert_any_call(sql, row)
+
+    def test_insert_rows_as_generator_supports_executemany(self):
+        table = "table"
+        rows = [("What's",), ("up",), ("world",)]
+
+        self.db_hook.supports_executemany = True
+        self.db_hook.insert_rows(table, iter(rows))
+
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
+        assert self.conn.commit.call_count == 2
+
+        sql = f"INSERT INTO {table}  VALUES (%s)"
+
+        self.db_hook.log.debug.assert_called_with("Generated sql: %s", sql)
+        self.db_hook.log.info.assert_called_with("Done loading. Loaded a total of %s rows into %s", 3, table)
         self.cur.executemany.assert_any_call(sql, rows)
 
     def test_get_uri_schema_not_none(self):

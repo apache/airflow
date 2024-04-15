@@ -163,7 +163,6 @@ class TestProjectStructure:
             "tests/providers/google/common/links/test_storage.py",
             "tests/providers/google/common/test_consts.py",
             "tests/providers/google/test_go_module_utils.py",
-            "tests/providers/microsoft/azure/fs/test_adls.py",
             "tests/providers/microsoft/azure/operators/test_adls.py",
             "tests/providers/microsoft/azure/transfers/test_azure_blob_to_gcs.py",
             "tests/providers/mongo/sensors/test_mongo.py",

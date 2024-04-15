@@ -85,7 +85,6 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     duration: Optional[float]
     state: Optional[str]
     try_number: int
-    _try_number: int
     max_tries: int
     hostname: str
     unixname: str

@@ -318,7 +318,7 @@ class DatabricksCreateJobsOperator(BaseOperator):
         self._hook.reset_job(str(job_id), self.json)
         if (access_control_list := self.json.get("access_control_list")) is not None:
             acl_json = {"access_control_list": access_control_list}
-            self._hook.update_job_permission(normalise_json_content(acl_json))
+            self._hook.update_job_permission(job_id, normalise_json_content(acl_json))
 
         return job_id
 

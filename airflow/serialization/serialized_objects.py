@@ -702,17 +702,17 @@ class BaseSerialization:
             return Connection(**var)
         elif use_pydantic_models and _ENABLE_AIP_44:
             if type_ == DAT.BASE_JOB:
-                return JobPydantic.parse_obj(var)
+                return JobPydantic.model_validate(var)
             elif type_ == DAT.TASK_INSTANCE:
-                return TaskInstancePydantic.parse_obj(var)
+                return TaskInstancePydantic.model_validate(var)
             elif type_ == DAT.DAG_RUN:
-                return DagRunPydantic.parse_obj(var)
+                return DagRunPydantic.model_validate(var)
             elif type_ == DAT.DAG_MODEL:
-                return DagModelPydantic.parse_obj(var)
+                return DagModelPydantic.model_validate(var)
             elif type_ == DAT.DATA_SET:
-                return DatasetPydantic.parse_obj(var)
+                return DatasetPydantic.model_validate(var)
             elif type_ == DAT.LOG_TEMPLATE:
-                return LogTemplatePydantic.parse_obj(var)
+                return LogTemplatePydantic.model_validate(var)
         elif type_ == DAT.ARG_NOT_SET:
             return NOTSET
         else:

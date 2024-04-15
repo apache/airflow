@@ -79,6 +79,7 @@ class MultiResourceUserMixin:
         pk = self._deserialize_pk_if_composite(pk)
         widgets = self._show(pk)
         widgets["show"].template_args["actions"].pop("userinfoedit", None)
+        widgets["show"].template_args["actions"].pop("resetmypassword", None)
         return self.render_template(
             self.show_template,
             pk=pk,
