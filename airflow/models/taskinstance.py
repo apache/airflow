@@ -278,7 +278,7 @@ def clear_task_instances(
             task_id = ti.task_id
             if ti_dag and ti_dag.has_task(task_id):
                 task = ti_dag.get_task(task_id)
-                ti.refresh_from_task(task)
+                ti.refresh_from_task(task, refresh_executor=True)
                 if TYPE_CHECKING:
                     assert ti.task
                 task_retries = task.retries
@@ -973,7 +973,11 @@ def _set_try_number(*, task_instance: TaskInstance | TaskInstancePydantic, value
 
 
 def _refresh_from_task(
-    *, task_instance: TaskInstance | TaskInstancePydantic, task: Operator, pool_override: str | None = None
+    *,
+    task_instance: TaskInstance | TaskInstancePydantic,
+    task: Operator,
+    pool_override: str | None = None,
+    refresh_executor: bool = False,
 ) -> None:
     """
     Copy common attributes from the given task.
@@ -981,6 +985,7 @@ def _refresh_from_task(
     :param task_instance: the task instance
     :param task: The task object to copy from
     :param pool_override: Use the pool_override instead of task's pool
+    :param refresh_executor: whether or not to refresh the TI executor from the task
 
     :meta private:
     """
@@ -996,7 +1001,8 @@ def _refresh_from_task(
     task_instance.run_as_user = task.run_as_user
     # Do not set max_tries to task.retries here because max_tries is a cumulative
     # value that needs to be stored in the db.
-    task_instance.executor = task.executor
+    if refresh_executor:
+        task_instance.executor = task.executor
     task_instance.executor_config = task.executor_config
     task_instance.operator = task.task_type
     task_instance.custom_operator_name = getattr(task, "custom_operator_name", None)
@@ -1885,14 +1891,19 @@ class TaskInstance(Base, LoggingMixin):
         """
         _refresh_from_db(task_instance=self, session=session, lock_for_update=lock_for_update)
 
-    def refresh_from_task(self, task: Operator, pool_override: str | None = None) -> None:
+    def refresh_from_task(
+        self, task: Operator, pool_override: str | None = None, refresh_executor: bool = False
+    ) -> None:
         """
         Copy common attributes from the given task.
 
         :param task: The task object to copy from
         :param pool_override: Use the pool_override instead of task's pool
+        :param refresh_executor: whether or not to refresh the TI executor from the task
         """
-        _refresh_from_task(task_instance=self, task=task, pool_override=pool_override)
+        _refresh_from_task(
+            task_instance=self, task=task, pool_override=pool_override, refresh_executor=refresh_executor
+        )
 
     @staticmethod
     @internal_api_call

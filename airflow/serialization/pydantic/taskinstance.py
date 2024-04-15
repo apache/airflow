@@ -285,16 +285,21 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
             force_fail=force_fail,
         )
 
-    def refresh_from_task(self, task: Operator, pool_override: str | None = None) -> None:
+    def refresh_from_task(
+        self, task: Operator, pool_override: str | None = None, refresh_executor: bool = False
+    ) -> None:
         """
         Copy common attributes from the given task.
 
         :param task: The task object to copy from
         :param pool_override: Use the pool_override instead of task's pool
+        :param refresh_executor: whether or not to refresh the TI executor from the task
         """
         from airflow.models.taskinstance import _refresh_from_task
 
-        _refresh_from_task(task_instance=self, task=task, pool_override=pool_override)
+        _refresh_from_task(
+            task_instance=self, task=task, pool_override=pool_override, refresh_executor=refresh_executor
+        )
 
     def get_previous_dagrun(
         self,
