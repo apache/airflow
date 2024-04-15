@@ -2731,17 +2731,28 @@ class TaskInstance(Base, LoggingMixin):
                 previous_state=TaskInstanceState.QUEUED, task_instance=self, session=session
             )
 
-            # Execute the task
+            def _render_map_index(context: Context, *, jinja_env: jinja2.Environment | None) -> str | None:
+                """Render named map index if the DAG author defined map_index_template at the task level."""
+                if jinja_env is None or (template := context.get("map_index_template")) is None:
+                    return None
+                rendered_map_index = jinja_env.from_string(template).render(context)
+                log.debug("Map index rendered as %s", rendered_map_index)
+                return rendered_map_index
+
+            # Execute the task.
             with set_current_context(context):
-                result = self._execute_task(context, task_orig)
+                try:
+                    result = self._execute_task(context, task_orig)
+                except Exception:
+                    # If the task failed, swallow rendering error so it doesn't mask the main error.
+                    with contextlib.suppress(jinja2.TemplateSyntaxError, jinja2.UndefinedError):
+                        self.rendered_map_index = _render_map_index(context, jinja_env=jinja_env)
+                    raise
+                else:  # If the task succeeded, render normally to let rendering error bubble up.
+                    self.rendered_map_index = _render_map_index(context, jinja_env=jinja_env)
 
             # Run post_execute callback
             self.task.post_execute(context=context, result=result)
-
-            # DAG authors define map_index_template at the task level
-            if jinja_env is not None and (template := context.get("map_index_template")) is not None:
-                rendered_map_index = self.rendered_map_index = jinja_env.from_string(template).render(context)
-                self.log.info("Map index rendered as %s", rendered_map_index)
 
         Stats.incr(f"operator_successes_{self.task.task_type}", tags=self.stats_tags)
         # Same metric with tagging
