@@ -82,8 +82,6 @@ class TestProjectStructure:
             "tests/providers/amazon/aws/triggers/test_step_function.py",
             "tests/providers/amazon/aws/utils/test_rds.py",
             "tests/providers/amazon/aws/utils/test_sagemaker.py",
-            "tests/providers/amazon/aws/utils/test_sqs.py",
-            "tests/providers/amazon/aws/utils/test_tags.py",
             "tests/providers/amazon/aws/waiters/test_base_waiter.py",
             "tests/providers/apache/cassandra/hooks/test_cassandra.py",
             "tests/providers/apache/drill/operators/test_drill.py",
