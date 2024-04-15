@@ -351,7 +351,7 @@ def test_all_pydantic_models_round_trip():
             continue
         relpath = str(p.relative_to(REPO_ROOT).stem)
         mod = import_module(f"airflow.serialization.pydantic.{relpath}")
-        for name, obj in inspect.getmembers(mod):
+        for _, obj in inspect.getmembers(mod):
             if inspect.isclass(obj) and issubclass(obj, BaseModel):
                 if obj == BaseModel:
                     continue

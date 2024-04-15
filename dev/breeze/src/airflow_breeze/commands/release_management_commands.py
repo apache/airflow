@@ -1478,7 +1478,7 @@ def run_publish_docs_in_parallel(
             ]
 
             # Iterate over the results and collect success and skipped entries
-            for index, result in enumerate(results):
+            for result in results:
                 return_code, message = result.get()
                 if return_code == 0:
                     success_entries.append(message)
