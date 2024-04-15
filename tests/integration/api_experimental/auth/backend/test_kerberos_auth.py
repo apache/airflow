@@ -60,7 +60,7 @@ class TestApiKerberos:
         self.connexion_app = app_for_kerberos
 
     def test_trigger_dag(self):
-        with self.connexion_app.test_client() as client:
+        with self.connexion_app.app.test_client() as client:
             url_template = "/api/experimental/dags/{}/dag_runs"
             response = client.post(
                 url_template.format("example_bash_operator"),
@@ -96,7 +96,7 @@ class TestApiKerberos:
             assert 200 == response2.status_code
 
     def test_unauthorized(self):
-        with self.connexion_app.test_client() as client:
+        with self.connexion_app.app.test_client() as client:
             url_template = "/api/experimental/dags/{}/dag_runs"
             response = client.post(
                 url_template.format("example_bash_operator"),
