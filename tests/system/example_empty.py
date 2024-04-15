@@ -16,27 +16,33 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.amazon.aws.auth_manager.constants import (
-    CONF_AVP_POLICY_STORE_ID_KEY,
-    CONF_CONN_ID_KEY,
-    CONF_REGION_NAME_KEY,
-    CONF_SAML_METADATA_URL_KEY,
-    CONF_SECTION_NAME,
-)
+from datetime import datetime
+
+from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
+from airflow.operators.empty import EmptyOperator
+
+DAG_ID = "example_empty"
+
+with DAG(
+    dag_id=DAG_ID,
+    schedule="@once",
+    start_date=datetime(2021, 1, 1),
+    tags=["example"],
+    catchup=False,
+) as dag:
+    task = EmptyOperator(task_id="task")
+
+    chain(task)
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
 
 
-class TestAwsAuthManagerConstants:
-    def test_conf_section_name(self):
-        assert CONF_SECTION_NAME == "aws_auth_manager"
+from tests.system.utils import get_test_run  # noqa: E402
 
-    def test_conf_conn_id_key(self):
-        assert CONF_CONN_ID_KEY == "conn_id"
-
-    def test_conf_region_name_key(self):
-        assert CONF_REGION_NAME_KEY == "region_name"
-
-    def test_conf_saml_metadata_url_key(self):
-        assert CONF_SAML_METADATA_URL_KEY == "saml_metadata_url"
-
-    def test_conf_avp_policy_store_id_key(self):
-        assert CONF_AVP_POLICY_STORE_ID_KEY == "avp_policy_store_id"
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

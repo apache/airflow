@@ -14,29 +14,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from airflow.providers.amazon.aws.auth_manager.constants import (
-    CONF_AVP_POLICY_STORE_ID_KEY,
-    CONF_CONN_ID_KEY,
-    CONF_REGION_NAME_KEY,
-    CONF_SAML_METADATA_URL_KEY,
-    CONF_SECTION_NAME,
-)
+from airflow.providers.amazon.aws.triggers.batch import BatchJobTrigger
 
 
-class TestAwsAuthManagerConstants:
-    def test_conf_section_name(self):
-        assert CONF_SECTION_NAME == "aws_auth_manager"
+class TestBatchJobTrigger:
+    def test_serialization(self):
+        job_id = "test_job_id"
+        aws_conn_id = "aws_default"
+        region_name = "us-west-2"
 
-    def test_conf_conn_id_key(self):
-        assert CONF_CONN_ID_KEY == "conn_id"
+        trigger = BatchJobTrigger(
+            job_id=job_id,
+            aws_conn_id=aws_conn_id,
+            region_name=region_name,
+        )
 
-    def test_conf_region_name_key(self):
-        assert CONF_REGION_NAME_KEY == "region_name"
-
-    def test_conf_saml_metadata_url_key(self):
-        assert CONF_SAML_METADATA_URL_KEY == "saml_metadata_url"
-
-    def test_conf_avp_policy_store_id_key(self):
-        assert CONF_AVP_POLICY_STORE_ID_KEY == "avp_policy_store_id"
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.amazon.aws.triggers.batch.BatchJobTrigger"
+        assert kwargs == {
+            "job_id": "test_job_id",
+            "waiter_delay": 5,
+            "waiter_max_attempts": 720,
+            "aws_conn_id": "aws_default",
+            "region_name": "us-west-2",
+        }

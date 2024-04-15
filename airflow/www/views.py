@@ -632,7 +632,7 @@ def not_found(error):
     return (
         render_template(
             "airflow/error.html",
-            hostname=get_hostname() if conf.getboolean("webserver", "EXPOSE_HOSTNAME") else "redact",
+            hostname=get_hostname() if conf.getboolean("webserver", "EXPOSE_HOSTNAME") else "",
             status_code=404,
             error_message="Page cannot be found.",
         ),
@@ -645,7 +645,7 @@ def method_not_allowed(error):
     return (
         render_template(
             "airflow/error.html",
-            hostname=get_hostname() if conf.getboolean("webserver", "EXPOSE_HOSTNAME") else "redact",
+            hostname=get_hostname() if conf.getboolean("webserver", "EXPOSE_HOSTNAME") else "",
             status_code=405,
             error_message="Received an invalid request.",
         ),
@@ -659,11 +659,11 @@ def show_traceback(error):
     return (
         render_template(
             "airflow/traceback.html",
-            python_version=sys.version.split(" ")[0] if is_logged_in else "redact",
-            airflow_version=version if is_logged_in else "redact",
+            python_version=sys.version.split(" ")[0] if is_logged_in else "redacted",
+            airflow_version=version if is_logged_in else "redacted",
             hostname=get_hostname()
             if conf.getboolean("webserver", "EXPOSE_HOSTNAME") and is_logged_in
-            else "redact",
+            else "redacted",
             info=traceback.format_exc()
             if conf.getboolean("webserver", "EXPOSE_STACKTRACE") and is_logged_in
             else "Error! Please contact server admin.",

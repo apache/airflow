@@ -970,7 +970,7 @@
     "deps": [
       "apache-airflow>=2.6.0",
       "pandas>=1.2.5,<2.2",
-      "simple-salesforce>=1.0.0"
+      "simple-salesforce>=1.0.0,<1.12.6"
     ],
     "devel-deps": [],
     "cross-providers-deps": [],

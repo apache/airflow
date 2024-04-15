@@ -791,7 +791,8 @@ class KubernetesPodOperator(BaseOperator):
             )
             for raw_line in logs:
                 line = raw_line.decode("utf-8", errors="backslashreplace").rstrip("\n")
-                self.log.info("Container logs: %s", line)
+                if line:
+                    self.log.info("Container logs: %s", line)
         except HTTPError as e:
             self.log.warning(
                 "Reading of logs interrupted with error %r; will retry. "

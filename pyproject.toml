@@ -461,8 +461,13 @@ banned-module-level-imports = ["numpy", "pandas"]
 "logging.fatal".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
 "logging.critical".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
 "logging.log".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
-# Some specific cases
-"unittest.TestCase".msg = "Use pytest compatible classes"
+# unittest related restrictions
+"unittest.TestCase".msg = "Use pytest compatible classes: https://docs.pytest.org/en/stable/getting-started.html#group-multiple-tests-in-a-class"
+"unittest.skip".msg = "Use `pytest.mark.skip` instead: https://docs.pytest.org/en/stable/reference/reference.html#marks"
+"unittest.skipIf".msg = "Use `pytest.mark.skipif` instead: https://docs.pytest.org/en/stable/reference/reference.html#marks"
+"unittest.skipUnless".msg = "Use `pytest.mark.skipif` instead: https://docs.pytest.org/en/stable/reference/reference.html#marks"
+"unittest.expectedFailure".msg = "Use `pytest.mark.xfail` instead: https://docs.pytest.org/en/stable/reference/reference.html#marks"
+
 
 [tool.ruff.lint.flake8-type-checking]
 exempt-modules = ["typing", "typing_extensions"]
@@ -489,6 +494,7 @@ addopts = [
 norecursedirs = [
     ".eggs",
     "airflow",
+    "tests/_internals",
     "tests/dags_with_system_exit",
     "tests/test_utils",
     "tests/dags_corrupted",
