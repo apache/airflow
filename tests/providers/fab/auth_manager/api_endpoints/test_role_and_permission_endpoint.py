@@ -373,7 +373,7 @@ class TestDeleteRole(TestRoleEndpoint):
         indirect=["set_auto_role_public"],
     )
     def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code):
-        role = create_role(self.app, "mytestrole")
+        role = create_role(self.flask_app, "mytestrole")
         response = self.client.delete(f"/auth/fab/v1/roles/{role.name}")
         assert response.status_code == expected_status_code
 
@@ -559,7 +559,7 @@ class TestPatchRole(TestRoleEndpoint):
         indirect=["set_auto_role_public"],
     )
     def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code):
-        role = create_role(self.app, "mytestrole")
+        role = create_role(self.flask_app, "mytestrole")
         response = self.client.patch(
             f"/auth/fab/v1/roles/{role.name}",
             json={"name": "mytest"},
