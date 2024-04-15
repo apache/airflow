@@ -1444,6 +1444,7 @@ setted
 sftp
 SFTPClient
 sharded
+Sharepoint
 shellcheck
 shellcmd
 shm

@@ -538,7 +538,7 @@ class TestDatabricksCreateJobsOperator:
             caller="DatabricksCreateJobsOperator",
         )
 
-        db_mock.update_job_permission.assert_called_once_with(expected)
+        db_mock.update_job_permission.assert_called_once_with(JOB_ID, expected)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_exec_update_job_permission_with_empty_acl(self, db_mock_class):

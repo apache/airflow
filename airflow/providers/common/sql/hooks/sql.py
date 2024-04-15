@@ -49,6 +49,7 @@ from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
     from pandas import DataFrame
+    from sqlalchemy.engine import URL
 
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
@@ -208,6 +209,22 @@ class DbApiHook(BaseHook):
         conn = self.get_connection(getattr(self, self.conn_name_attr))
         conn.schema = self.__schema or conn.schema
         return conn.get_uri()
+
+    @property
+    def sqlalchemy_url(self) -> URL:
+        """
+        Return a Sqlalchemy.engine.URL object from the connection.
+
+        Needs to be implemented in the provider subclass to return the sqlalchemy.engine.URL object.
+
+        :return: the extracted sqlalchemy.engine.URL object.
+        """
+        qualname = f"{self.__class__.__module__}.{self.__class__.__qualname__}"
+        if qualname != "airflow.providers.common.sql.hooks.sql.DbApiHook":
+            msg = f"{qualname!r} does not implement/support built SQLAlchemy URL."
+        else:
+            msg = "`sqlalchemy_url` property should be implemented in the provider subclass."
+        raise NotImplementedError(msg)
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
         """
@@ -568,6 +585,7 @@ class DbApiHook(BaseHook):
                 stacklevel=2,
             )
 
+        nb_rows = 0
         with self._create_autocommit_connection() as conn:
             conn.commit()
             with closing(conn.cursor()) as cur:
@@ -584,6 +602,7 @@ class DbApiHook(BaseHook):
                         cur.executemany(sql, values)
                         conn.commit()
                         self.log.info("Loaded %s rows into %s so far", len(chunked_rows), table)
+                        nb_rows += len(chunked_rows)
                 else:
                     for i, row in enumerate(rows, 1):
                         values = self._serialize_cells(row, conn)
@@ -593,8 +612,9 @@ class DbApiHook(BaseHook):
                         if commit_every and i % commit_every == 0:
                             conn.commit()
                             self.log.info("Loaded %s rows into %s so far", i, table)
+                        nb_rows += 1
                     conn.commit()
-        self.log.info("Done loading. Loaded a total of %s rows into %s", len(rows), table)
+        self.log.info("Done loading. Loaded a total of %s rows into %s", nb_rows, table)
 
     @classmethod
     def _serialize_cells(cls, row, conn=None):
