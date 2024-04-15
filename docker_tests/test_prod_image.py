@@ -175,6 +175,12 @@ class TestPythonPackages:
     def test_check_dependencies_imports(self, package_name, import_names, default_docker_image):
         run_python_in_docker(f"import {','.join(import_names)}", image=default_docker_image)
 
+    def test_there_is_no_opt_airflow_airflow_folder(self, default_docker_image):
+        output = run_bash_in_docker(
+            "find /opt/airflow/airflow/ 2>/dev/null | wc -l", image=default_docker_image
+        )
+        assert output == "0"
+
 
 class TestExecuteAsRoot:
     def test_execute_airflow_as_root(self, default_docker_image):
