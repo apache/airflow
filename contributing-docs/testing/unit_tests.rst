@@ -1143,10 +1143,10 @@ for prevent to run on unsupported platform.
 Warnings capture system
 .......................
 
-By default all warnings which captured during tests run saved into the ``tests/warnings.txt``.
+By default, all warnings captured during the test runs are saved into the ``tests/warnings.txt``.
 
-If required you could change the path by providing ``--warning-output-path`` in pytest CLI arguments
-or by set environment variable ``CAPTURE_WARNINGS_OUTPUT``.
+If required, you could change the path by providing ``--warning-output-path`` as pytest CLI arguments
+or by setting the environment variable ``CAPTURE_WARNINGS_OUTPUT``.
 
 .. code-block:: console
 
@@ -1160,9 +1160,9 @@ or by set environment variable ``CAPTURE_WARNINGS_OUTPUT``.
 
     ================================= short test summary info =================================
 
-You might also disable capture system by provide ``--disable-capture-warnings`` in pytest CLI arguments
-or by by set `global warnings filter <https://docs.python.org/3/library/warnings.html#the-warnings-filter>`__
-to **ignore**, e.g. by set ``PYTHONWARNINGS`` environment variable to ``ignore``.
+You might also disable capture warnings by providing ``--disable-capture-warnings`` as pytest CLI arguments
+or by setting `global warnings filter <https://docs.python.org/3/library/warnings.html#the-warnings-filter>`__
+to **ignore**, e.g. set ``PYTHONWARNINGS`` environment variable to ``ignore``.
 
 .. code-block:: bash
 
