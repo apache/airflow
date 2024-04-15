@@ -245,7 +245,7 @@ If release name contains chart name it will be used as a full name.
           name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
           key: GITSYNC_PASSWORD
     {{- end }}
-    {{ if .Values.dags.gitSync.proxySettingsSecret }}
+    {{- if .Values.dags.gitSync.proxySettingsSecret }}
     - name: HTTPS_PROXY
       valueFrom:
         secretKeyRef:
