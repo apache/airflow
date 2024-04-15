@@ -19,9 +19,9 @@
 Manage Airflow environment with AWS auth manager
 ================================================
 
-When the AWS auth manager is used, all users and their permissions are no longer managed by
-Airflow itself but by AWS through two different services: AWS IAM Identity Center (users) and Amazon Verified
-Permissions (permissions).
+When the AWS auth manager is used, all users and their permissions are no longer managed by the Flask auth manager,
+which is default in Airflow, but by AWS-based authorization integration through two different services:
+AWS IAM Identity Center (users) and Amazon Verified Permissions (permissions).
 
 Manage users through AWS IAM Identity Center
 ============================================
@@ -55,7 +55,7 @@ Assign users and groups to the Airflow environment
 --------------------------------------------------
 
 .. note::
-  All users and groups defined in AWS IAM Identity Center do not have automatically access to the Airflow environment.
+  All users and groups defined in AWS IAM Identity Center do not have automatic access to the Airflow environment.
   You need to manually assign which user can access to Airflow.
 
 To assign users and groups to Airflow, please follow the steps below.
@@ -102,7 +102,7 @@ In cedar language, a policy is composed of three elements:
 * **Action**. What operation does the principal want to perform?
 * **Resource**. What does the principal want to perform the action on?
 
-Each of these three elements can have limited values in the context of the Airflow environment.
+Each of these three elements allow only a specific set of values in the context of the Airflow environment.
 You can see the list of principals, actions and resources in the policy store schema by following the steps below.
 
 1. Open the `Amazon Verified Permissions console <https://console.aws.amazon.com/verifiedpermissions>`_.
@@ -113,8 +113,7 @@ Example of policies
 -------------------
 
 Here are some example of policies you can define in Amazon Verified Permissions.
-You can use them as-is if they fit exactly your use case.
-You can also modify and/or combine them to create your owned tailor made policies.
+You can modify and/or combine them to create your owned tailor made policies.
 
 Give all permissions to specific user
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
