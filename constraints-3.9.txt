@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-04-14T08:58:36.179267
+# This constraints file was automatically generated on 2024-04-15T09:27:08.571238
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -86,7 +86,7 @@ alibabacloud_openapi_util==0.2.2
 alibabacloud_tea_openapi==0.3.8
 alibabacloud_tea_util==0.3.11
 alibabacloud_tea_xml==0.0.2
-aliyun-python-sdk-core==2.15.0
+aliyun-python-sdk-core==2.15.1
 aliyun-python-sdk-kms==2.16.2
 amqp==5.2.0
 analytics-python==1.2.9
@@ -185,7 +185,7 @@ apache-airflow-providers-zendesk==4.6.0
 apache-beam==2.55.1
 apispec==6.6.0
 apprise==1.7.6
-argcomplete==3.2.3
+argcomplete==3.3.0
 asana==3.2.2
 asgiref==3.8.1
 asn1crypto==1.5.1
@@ -447,6 +447,9 @@ matplotlib-inline==0.1.6
 mdit-py-plugins==0.4.0
 mdurl==0.1.2
 methodtools==0.4.7
+microsoft-kiota-abstractions==1.3.2
+microsoft-kiota-authentication-azure==1.0.0
+microsoft-kiota-http==1.3.1
 mmhash3==3.0.1
 mongomock==4.1.2
 more-itertools==10.2.0
@@ -454,6 +457,7 @@ moto==5.0.5
 mpmath==1.3.0
 msal-extensions==1.1.0
 msal==1.28.0
+msgraph-core==1.0.0
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
@@ -586,7 +590,7 @@ python-telegram-bot==20.2
 python3-saml==1.16.0
 pytz==2024.1
 pywinrm==0.4.3
-pyzmq==25.1.2
+pyzmq==26.0.0
 qdrant-client==1.8.2
 reactivex==4.0.4
 readme_renderer==43.0
@@ -661,6 +665,7 @@ sshtunnel==0.4.0
 stack-data==0.6.3
 starkbank-ecdsa==2.2.0
 statsd==4.0.1
+std-uritemplate==0.0.56
 strictyaml==1.7.3
 sympy==1.12
 tableauserverclient==0.25
@@ -700,7 +705,7 @@ types-python-slugify==8.0.2.20240310
 types-pytz==2024.1.0.20240203
 types-redis==4.6.0.20240409
 types-requests==2.31.0.6
-types-setuptools==69.2.0.20240317
+types-setuptools==69.5.0.20240415
 types-tabulate==0.9.0.20240106
 types-termcolor==1.1.6.2
 types-toml==0.10.8.20240310
