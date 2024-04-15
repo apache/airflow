@@ -233,7 +233,7 @@ class TestDb:
         if skip_init:
             mock_init.assert_not_called()
         else:
-            mock_init.assert_called_once_with(session=session_mock)
+            mock_init.assert_called_once_with(session=session_mock, use_migration_files=False)
 
     def test_alembic_configuration(self):
         with mock.patch.dict(
