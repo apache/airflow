@@ -2621,7 +2621,6 @@ dags:
     #
     # credentialsSecret: git-credentials
     #
-    # proxySettingsSecret: proxy-settings
     #
     # If you are using an ssh clone url, you can load
     # the ssh private key to a k8s secret like the one below

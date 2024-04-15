@@ -246,23 +246,6 @@ If release name contains chart name it will be used as a full name.
           name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
           key: GITSYNC_PASSWORD
     {{- end }}
-    {{ if .Values.dags.gitSync.proxySettingsSecret }}
-    - name: HTTPS_PROXY
-      valueFrom:
-        secretKeyRef:
-          name: {{ .Values.dags.gitSync.proxySettingsSecret | quote }}
-          key: HTTPS_PROXY
-    - name: HTTP_PROXY
-      valueFrom:
-        secretKeyRef:
-          name: {{ .Values.dags.gitSync.proxySettingsSecret | quote }}
-          key: HTTP_PROXY
-    - name: NO_PROXY
-      valueFrom:
-        secretKeyRef:
-          name: {{ .Values.dags.gitSync.proxySettingsSecret | quote }}
-          key: NO_PROXY
-    {{- end }}
     - name: GIT_SYNC_REV
       value: {{ .Values.dags.gitSync.rev | quote }}
     - name: GITSYNC_REF
