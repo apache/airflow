@@ -118,9 +118,7 @@ class TestEventLogEndpoint:
     )
     def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, log_model):
         event_log_id = log_model.id
-        response = self.client.get(
-            f"/api/v1/eventLogs/{event_log_id}", environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.get(f"/api/v1/eventLogs/{event_log_id}", headers={"REMOTE_USER": "test"})
 
         response = self.client.get("/api/v1/eventLogs")
 

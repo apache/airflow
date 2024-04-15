@@ -176,7 +176,6 @@ class TestGetDagWarningEndpoint(TestBaseDagWarning):
     )
     def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code):
         response = self.client.get(
-            "/api/v1/dagWarnings",
-            query_string={"dag_id": "dag1", "warning_type": "non-existent pool"},
+            "/api/v1/dagWarnings?dag_id=dag1&warning_type=non-existent+pool",
         )
         assert response.status_code == expected_status_code
