@@ -113,7 +113,7 @@ config:
         type: string
         example: full.path.to.custom_facet_function;full.path.to.another_custom_facet_function
         default: ''
-        version_added: ~
+        version_added: 1.8.0
       config_path:
         description: |
           Specify the path to the YAML configuration file.
