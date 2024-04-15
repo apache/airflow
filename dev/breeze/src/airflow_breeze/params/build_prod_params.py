@@ -143,6 +143,19 @@ class BuildProdParams(CommonBuildParams):
             )
             self.airflow_constraints_location = constraints_location
             extra_build_flags.extend(self.args_for_remote_install)
+        elif self.install_packages_from_context:
+            extra_build_flags.extend(
+                [
+                    "--build-arg",
+                    "AIRFLOW_SOURCES_FROM=/empty",
+                    "--build-arg",
+                    "AIRFLOW_SOURCES_TO=/empty",
+                    "--build-arg",
+                    f"AIRFLOW_INSTALLATION_METHOD={self.installation_method}",
+                    "--build-arg",
+                    f"AIRFLOW_CONSTRAINTS_REFERENCE={self.airflow_constraints_reference}",
+                ],
+            )
         else:
             extra_build_flags.extend(
                 [
