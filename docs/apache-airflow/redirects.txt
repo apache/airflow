@@ -19,8 +19,8 @@
 
 administration-and-deployment/security/index.rst security/index.rst
 administration-and-deployment/security/kerberos.rst security/kerberos.rst
-administration-and-deployment/security/access-control.rst ../../apache-airflow-providers-fab/stable/auth-manager/access-control.rst
-administration-and-deployment/security/access-control/index.rst ../../apache-airflow-providers-fab/stable/auth-manager/access-control.rst
+administration-and-deployment/security/access-control.rst ../apache-airflow-providers-fab/stable/auth-manager/access-control.rst
+administration-and-deployment/security/access-control/index.rst ../apache-airflow-providers-fab/stable/auth-manager/access-control.rst
 administration-and-deployment/security/api.rst security/api.rst
 administration-and-deployment/security/audit_logs.rst security/audit_logs.rst
 administration-and-deployment/security/flower.rst security/flower.rst
