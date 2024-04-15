@@ -50,6 +50,7 @@ def _initialize_map() -> dict[str, Callable]:
     from airflow.models.taskinstance import (
         TaskInstance,
         _add_log,
+        _defer_task,
         _get_template_context,
         _handle_failure,
         _update_rtif,
@@ -60,6 +61,7 @@ def _initialize_map() -> dict[str, Callable]:
 
     functions: list[Callable] = [
         _default_action_log_internal,
+        _defer_task,
         _get_template_context,
         _get_ti_db_access,
         _update_rtif,

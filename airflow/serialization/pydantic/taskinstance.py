@@ -24,7 +24,7 @@ from typing_extensions import Annotated
 from airflow.exceptions import AirflowRescheduleException, TaskDeferred
 from airflow.models import Operator
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.taskinstance import TaskInstance, TaskReturnCode, _run_raw_task
+from airflow.models.taskinstance import TaskInstance, TaskReturnCode, _defer_task, _run_raw_task
 from airflow.serialization.pydantic.dag import DagModelPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -474,12 +474,10 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     def _register_dataset_changes(self, *, events, session: Session | None = None) -> None:
         TaskInstance._register_dataset_changes(self=self, events=events, session=session)  # type: ignore[arg-type]
 
-    def defer_task(self, session: Session, defer: TaskDeferred):
-        """Defer task.
-
-        todo: AIP-44
-        """
-        return NotImplementedError
+    def defer_task(self, exception: TaskDeferred, session: Session | None = None):
+        """Defer task."""
+        updated_ti = _defer_task(ti=self, exception=exception, session=session)
+        _set_ti_attrs(self, updated_ti)
 
     def _handle_reschedule(
         self,
