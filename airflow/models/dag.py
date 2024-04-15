@@ -582,8 +582,7 @@ class DAG(LoggingMixin):
         if start_date and start_date.tzinfo:
             tzinfo = None if start_date.tzinfo else settings.TIMEZONE
             tz = pendulum.instance(start_date, tz=tzinfo).timezone
-        elif "start_date" in self.default_args and self.default_args["start_date"]:
-            date = self.default_args["start_date"]
+        elif date := self.default_args.get("start_date"):
             if not isinstance(date, datetime):
                 date = timezone.parse(date)
                 self.default_args["start_date"] = date
@@ -594,11 +593,8 @@ class DAG(LoggingMixin):
         self.timezone: Timezone | FixedTimezone = tz or settings.TIMEZONE
 
         # Apply the timezone we settled on to end_date if it wasn't supplied
-        if "end_date" in self.default_args and self.default_args["end_date"]:
-            if isinstance(self.default_args["end_date"], str):
-                self.default_args["end_date"] = timezone.parse(
-                    self.default_args["end_date"], timezone=self.timezone
-                )
+        if isinstance(_end_date := self.default_args.get("end_date"), str):
+            self.default_args["end_date"] = timezone.parse(_end_date, timezone=self.timezone)
 
         self.start_date = timezone.convert_to_utc(start_date)
         self.end_date = timezone.convert_to_utc(end_date)
@@ -3094,16 +3090,6 @@ class DAG(LoggingMixin):
         )
         return cls.bulk_write_to_db(dags=dags, session=session)
 
-    def simplify_dataset_expression(self, dataset_expression) -> dict | None:
-        """Simplifies a nested dataset expression into a 'any' or 'all' format with URIs."""
-        if dataset_expression is None:
-            return None
-        if dataset_expression.get("__type") == "dataset":
-            return dataset_expression["__var"]["uri"]
-
-        new_key = "any" if dataset_expression["__type"] == "dataset_any" else "all"
-        return {new_key: [self.simplify_dataset_expression(item) for item in dataset_expression["__var"]]}
-
     @classmethod
     @provide_session
     def bulk_write_to_db(
@@ -3122,8 +3108,6 @@ class DAG(LoggingMixin):
         """
         if not dags:
             return
-
-        from airflow.serialization.serialized_objects import BaseSerialization  # Avoid circular import.
 
         log.info("Sync %s DAGs", len(dags))
         dag_by_ids = {dag.dag_id: dag for dag in dags}
@@ -3191,9 +3175,10 @@ class DAG(LoggingMixin):
             )
             orm_dag.schedule_interval = dag.schedule_interval
             orm_dag.timetable_description = dag.timetable.description
-            orm_dag.dataset_expression = dag.simplify_dataset_expression(
-                BaseSerialization.serialize(dag.dataset_triggers)
-            )
+            if (dataset_triggers := dag.dataset_triggers) is None:
+                orm_dag.dataset_expression = None
+            else:
+                orm_dag.dataset_expression = dataset_triggers.as_expression()
 
             orm_dag.processor_subdir = processor_subdir
 

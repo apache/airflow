@@ -35,14 +35,33 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.9.1
+.....
+
+Latest change: 2024-04-10
+
+=================================================================================================  ===========  =====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =====================================================================================
+`d703a224d1 <https://github.com/apache/airflow/commit/d703a224d1f27d6b6eb62f0dd24d085e99f5631c>`_  2024-04-10   ``Close open connections for deferrable SFTPSensor (#38881)``
+`17eaf8eae3 <https://github.com/apache/airflow/commit/17eaf8eae30e6e2d4fac1b582495a052b5871415>`_  2024-04-03   ``Resolve 'PT012' in 'SFTP' provider tests (#38518)``
+`5bf60bcf56 <https://github.com/apache/airflow/commit/5bf60bcf56fb7f2f4ac453216ed487b31cff3b9f>`_  2024-03-22   ``fix(sftp): add return statement to yield within a while loop in triggers (#38391)``
+`b5b972a106 <https://github.com/apache/airflow/commit/b5b972a1068e19b09d48ec4d7663dd1d996d594f>`_  2024-03-18   ``Update yanked versions in providers changelogs (#38262)``
+`0a74928894 <https://github.com/apache/airflow/commit/0a74928894fb57b0160208262ccacad12da23fc7>`_  2024-03-18   ``Bump ruff to 0.3.3 (#38240)``
+`3f52790d42 <https://github.com/apache/airflow/commit/3f52790d425cd51386715c240d9a38a20756de2a>`_  2024-03-06   ``Resolve G004: Logging statement uses f-string (#37873)``
+`83316b8158 <https://github.com/apache/airflow/commit/83316b81584c9e516a8142778fc509f19d95cc3e>`_  2024-03-04   ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+`5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
+=================================================================================================  ===========  =====================================================================================
+
 4.9.0
 .....
 
-Latest change: 2024-02-10
+Latest change: 2024-02-12
 
 =================================================================================================  ===========  ============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ============================================================================
+`bfb054e9e8 <https://github.com/apache/airflow/commit/bfb054e9e867b8b9a6a449e43bfba97f645e025e>`_  2024-02-12   ``Prepare docs 1st wave of Providers February 2024 (#37326)``
 `bb414f0122 <https://github.com/apache/airflow/commit/bb414f012246aa9874e7c5e84388a1487bbd5bd3>`_  2024-02-10   ``Added D401 support to http, smtp and sftp provider (#37303)``
 `f24a03709e <https://github.com/apache/airflow/commit/f24a03709eecbda87ed794cee567806e51c3a21f>`_  2024-02-04   ``Add deferrable param in SFTPSensor (#37117)``
 `cead3da4a6 <https://github.com/apache/airflow/commit/cead3da4a6f483fa626b81efd27a24dcb5a36ab0>`_  2024-01-26   ``Add docs for RC2 wave of providers for 2nd round of Jan 2024 (#37019)``

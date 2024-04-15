@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timedelta, timezone
 from typing import Any, AsyncIterator
 
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyAsyncHook
@@ -54,6 +55,7 @@ class LivyTrigger(BaseTrigger):
         extra_options: dict[str, Any] | None = None,
         extra_headers: dict[str, Any] | None = None,
         livy_hook_async: LivyAsyncHook | None = None,
+        execution_timeout: timedelta | None = None,
     ):
         super().__init__()
         self._batch_id = batch_id
@@ -63,6 +65,7 @@ class LivyTrigger(BaseTrigger):
         self._extra_options = extra_options
         self._extra_headers = extra_headers
         self._livy_hook_async = livy_hook_async
+        self._execution_timeout = execution_timeout
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize LivyTrigger arguments and classpath."""
@@ -76,6 +79,7 @@ class LivyTrigger(BaseTrigger):
                 "extra_options": self._extra_options,
                 "extra_headers": self._extra_headers,
                 "livy_hook_async": self._livy_hook_async,
+                "execution_timeout": self._execution_timeout,
             },
         )
 
@@ -113,16 +117,37 @@ class LivyTrigger(BaseTrigger):
 
         :param batch_id: id of the batch session to monitor.
         """
+        if self._execution_timeout is not None:
+            timeout_datetime = datetime.now(timezone.utc) + self._execution_timeout
+        else:
+            timeout_datetime = None
+        batch_execution_timed_out = False
         hook = self._get_async_hook()
         state = await hook.get_batch_state(batch_id)
         self.log.info("Batch with id %s is in state: %s", batch_id, state["batch_state"].value)
         while state["batch_state"] not in hook.TERMINAL_STATES:
             self.log.info("Batch with id %s is in state: %s", batch_id, state["batch_state"].value)
+            batch_execution_timed_out = (
+                timeout_datetime is not None and datetime.now(timezone.utc) > timeout_datetime
+            )
+            if batch_execution_timed_out:
+                break
             self.log.info("Sleeping for %s seconds", self._polling_interval)
             await asyncio.sleep(self._polling_interval)
             state = await hook.get_batch_state(batch_id)
-        self.log.info("Batch with id %s terminated with state: %s", batch_id, state["batch_state"].value)
         log_lines = await hook.dump_batch_logs(batch_id)
+        if batch_execution_timed_out:
+            self.log.info(
+                "Batch with id %s did not terminate, but it reached execution timeout.",
+                batch_id,
+            )
+            return {
+                "status": "timeout",
+                "batch_id": batch_id,
+                "response": f"Batch {batch_id} timed out",
+                "log_lines": log_lines,
+            }
+        self.log.info("Batch with id %s terminated with state: %s", batch_id, state["batch_state"].value)
         if state["batch_state"] != BatchState.SUCCESS:
             return {
                 "status": "error",

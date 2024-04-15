@@ -30,7 +30,7 @@ requires = [
     "pluggy==1.4.0",
     "smmap==5.0.1",
     "tomli==2.0.1; python_version < '3.11'",
-    "trove-classifiers==2024.3.25",
+    "trove-classifiers==2024.4.10",
 ]
 build-backend = "hatchling.build"
 
@@ -59,6 +59,7 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: System :: Monitoring",
 ]
 
@@ -71,7 +72,7 @@ dynamic = ["version", "optional-dependencies", "dependencies"]
 # !!! SEE COMMENTS BELOW TO FIND WHERE DEPENDENCIES ARE MAINTAINED                     !!!!!!!!!
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #
-# !!!!!! Those provuders are defined in `hatch_build.py` and should be maintained there  !!!!!!!
+# !!!!!! Those providers are defined in `hatch_build.py` and should be maintained there  !!!!!!!
 #
 # Those extras are available as regular core airflow extras - they install optional features of Airflow.
 #
@@ -270,6 +271,9 @@ extend-select = [
     "PT", # flake8-pytest-style rules
     "TID25", # flake8-tidy-imports rules
     # Per rule enables
+    "RUF006", # Checks for asyncio dangling task
+    "RUF015", # Checks for unnecessary iterable allocation for first element
+    "RUF019", # Checks for unnecessary key check
     "RUF100", # Unused noqa (auto-fixable)
     # We ignore more pydocstyle than we enable, so be more selective at what we enable
     "D101",
@@ -287,7 +291,10 @@ extend-select = [
     "S101", # Checks use `assert` outside the test cases, test cases should be added into the exclusions
     "B004", # Checks for use of hasattr(x, "__call__") and replaces it with callable(x)
     "B006", # Checks for uses of mutable objects as function argument defaults.
+    "B007", # Checks for unused variables in the loop
+    "B017", # Checks for pytest.raises context managers that catch Exception or BaseException.
     "B019", # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
+    "B028", # No explicit stacklevel keyword argument found
     "TRY002", # Prohibit use of `raise Exception`, use specific exceptions instead.
 ]
 ignore = [
@@ -319,7 +326,7 @@ required-imports = ["from __future__ import annotations"]
 combine-as-imports = true
 
 [tool.ruff.lint.per-file-ignores]
-"airflow/__init__.py" = ["F401"]
+"airflow/__init__.py" = ["F401", "B028"]
 "airflow/models/__init__.py" = ["F401", "TCH004"]
 "airflow/models/sqla_models.py" = ["F401"]
 
@@ -378,37 +385,34 @@ combine-as-imports = true
 "tests/providers/qdrant/operators/test_qdrant.py" = ["E402"]
 "tests/providers/snowflake/operators/test_snowflake_sql.py" = ["E402"]
 
-# All the providers modules which do not follow TRY002 yet
-# airbyte
-"airflow/providers/airbyte/hooks/airbyte.py" = ["TRY002"]
-"airflow/providers/airbyte/operators/airbyte.py" = ["TRY002"]
-"airflow/providers/airbyte/sensors/airbyte.py" = ["TRY002"]
-# alibaba
-"airflow/providers/alibaba/cloud/hooks/oss.py" = ["TRY002"]
-# amazon
-"airflow/providers/amazon/aws/operators/athena.py" = ["TRY002"]
-"airflow/providers/amazon/aws/operators/emr.py" = ["TRY002"]
-# apache.cassandra
-"airflow/providers/apache/cassandra/hooks/cassandra.py" = ["TRY002"]
-# cncf.kubernetes
-"airflow/providers/cncf/kubernetes/operators/pod.py" = ["TRY002"]
-# common.sql
-"airflow/providers/common/sql/hooks/sql.py" = ["TRY002"]
-# fab
-"airflow/providers/fab/auth_manager/fab_auth_manager.py" = ["TRY002"]
-"airflow/providers/fab/auth_manager/security_manager/override.py" = ["TRY002"]
-# google
-"airflow/providers/google/cloud/hooks/bigquery.py" = ["TRY002"]
-"airflow/providers/google/cloud/hooks/dataflow.py" = ["TRY002"]
-"airflow/providers/google/cloud/hooks/dataproc.py" = ["TRY002"]
-"airflow/providers/google/cloud/operators/dataproc.py" = ["TRY002"]
-"airflow/providers/google/leveldb/hooks/leveldb.py" = ["TRY002"]
-# imap
-"airflow/providers/imap/hooks/imap.py" = ["TRY002"]
-# microsoft.azure
-"airflow/providers/microsoft/azure/operators/synapse.py" = ["TRY002"]
-# openlineage
-"airflow/providers/openlineage/utils/utils.py" = ["TRY002"]
+# All the modules which do not follow B028 yet: https://docs.astral.sh/ruff/rules/no-explicit-stacklevel/
+"airflow/api_connexion/endpoints/forward_to_fab_endpoint.py" = ["B028"]
+"airflow/cli/commands/connection_command.py" = ["B028"]
+"airflow/cli/commands/dag_command.py" = ["B028"]
+"airflow/cli/commands/db_command.py" = ["B028"]
+"airflow/configuration.py" = ["B028"]
+"airflow/decorators/task_group.py" = ["B028"]
+"airflow/jobs/scheduler_job_runner.py" = ["B028"]
+"airflow/jobs/triggerer_job_runner.py" = ["B028"]
+"airflow/kubernetes/pre_7_4_0_compatibility/pod_generator.py" = ["B028"]
+"airflow/logging_config.py" = ["B028"]
+"airflow/metrics/otel_logger.py" = ["B028"]
+"airflow/metrics/validators.py" = ["B028"]
+"airflow/models/baseoperator.py" = ["B028"]
+"airflow/models/connection.py" = ["B028"]
+"airflow/models/mappedoperator.py" = ["B028"]
+"airflow/models/param.py" = ["B028"]
+"airflow/models/xcom.py" = ["B028"]
+"airflow/providers_manager.py" = ["B028"]
+"airflow/serialization/serialized_objects.py" = ["B028"]
+"airflow/settings.py" = ["B028"]
+"airflow/utils/context.py" = ["B028"]
+"airflow/utils/dot_renderer.py" = ["B028"]
+"airflow/www/app.py" = ["B028"]
+"airflow/www/extensions/init_views.py" = ["B028"]
+"airflow/providers/jdbc/hooks/jdbc.py" = ["B028"]
+"airflow/providers/microsoft/azure/hooks/synapse.py" = ["B028"]
+"helm_tests/airflow_aux/test_basic_helm_chart.py" = ["B028"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.
@@ -495,6 +499,11 @@ norecursedirs = [
 log_level = "INFO"
 filterwarnings = [
     "error::pytest.PytestCollectionWarning",
+    "error::pytest.PytestReturnNotNoneWarning",
+    # Avoid building cartesian product which might impact performance
+    "error:SELECT statement has a cartesian product between FROM:sqlalchemy.exc.SAWarning:airflow",
+    'error:Coercing Subquery object into a select\(\) for use in IN\(\):sqlalchemy.exc.SAWarning:airflow',
+    'error:Class.*will not make use of SQL compilation caching',
     "ignore::DeprecationWarning:flask_appbuilder.filemanager",
     "ignore::DeprecationWarning:flask_appbuilder.widgets",
     # FAB do not support SQLAclhemy 2

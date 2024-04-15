@@ -795,8 +795,9 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         assert task.execute_callable() is False
 
     def test_lambda(self):
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError) as info:
             PythonVirtualenvOperator(python_callable=lambda x: 4, task_id=self.task_id)
+        assert str(info.value) == "PythonVirtualenvOperator only supports functions for python_callable arg"
 
     def test_nonimported_as_arg(self):
         def f(_):

@@ -27,6 +27,44 @@
 Changelog
 ---------
 
+8.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``KPO Add follow log in termination step (#38081)``
+* ``Add GKECreateCustomResourceOperator and GKEDeleteCustomResourceOperator operators (#37616)``
+* ``Implement deferrable mode for KubernetesJobOperator (#38251)``
+* ``Create KubernetesPatchJobOperator operator (#38146)``
+* ``Implement delete_on_status parameter for KubernetesDeleteJobOperator (#38458)``
+* ``Implement deferrable mode for GKEStartJobOperator (#38454)``
+* ``Use startup_check_interval_seconds instead of poll_interval to check pod while startup (#38075)``
+* ``Implement wait_until_job_complete parameter for KubernetesJobOperator (#37998)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use SIGINT signal number instead of signal name (#37905)``
+* ``Fix spark operator log retrieval from driver (#38106)``
+* ``Fix dynamic allocation specs handling for custom launcher (#38223)``
+* ``Fix case if 'SparkKubernetesOperator.application_file' is templated file (#38035)``
+* ``fix: reduce irrelevant error logs for pod events. (#37944)``
+
+Misc
+~~~~
+
+* ``Add GKEListJobsOperator and GKEDescribeJobOperator (#37598)``
+* ``removed usage of deprecated function  for naming the pod in provider k8s pod.py (#38638)``
+* ``Create DeleteKubernetesJobOperator and GKEDeleteJobOperator operators (#37793)``
+* ``Refactor GKE hooks (#38404)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``fix: try002 for provider cncf kubernetes (#38799)``
+   * ``Update yanked versions in providers changelogs (#38262)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+
 8.0.1
 .....
 

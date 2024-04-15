@@ -27,12 +27,37 @@
 Changelog
 ---------
 
+3.10.0
+......
+
 .. note::
   The standard ``DOCKER_HOST`` environment variable now overrides the default value
   of the ``docker_url`` parameter when set. If ``DOCKER_HOST`` is set but you want to
   use the previous default value, then you must explicitly set
   ``docker_url="unix://var/run/docker.sock"`` in the ``DockerOperator`` constructor
   or ``@task.docker`` decorator.
+
+Features
+~~~~~~~~
+
+* ``Improve 'DockerOperator' to support multiple Docker hosts (#38466)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix deprecated 'DockerOperator' operator arguments in 'MappedOperator' (#38379)``
+
+Misc
+~~~~
+
+* ``Remove redundant compatibility usage of importlib_metadata (#38368)``
+* ``DockerOperator: use DOCKER_HOST as default for docker_url (#38387)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``docs: add timeout description to DockerOperator. (#38710)``
+   * ``Fix TRY002 for docker swarm operator (#38768)``
+   * ``Bump ruff to 0.3.3 (#38240)``
 
 3.9.2
 .....

@@ -81,6 +81,8 @@ def beam_options_to_args(options: dict) -> list[str]:
     for attr, value in options.items():
         if value is None or (isinstance(value, bool) and value):
             args.append(f"--{attr}")
+        elif isinstance(value, bool) and not value:
+            continue
         elif isinstance(value, list):
             args.extend([f"--{attr}={v}" for v in value])
         else:

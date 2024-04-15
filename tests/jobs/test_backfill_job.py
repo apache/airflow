@@ -1742,7 +1742,7 @@ class TestBackfillJob:
         # create taskinstances and set states
         dr1_tis = []
         dr2_tis = []
-        for i, (task, state) in enumerate(zip(tasks, states)):
+        for task, state in zip(tasks, states):
             ti1 = TI(task, dr1.execution_date)
             ti2 = TI(task, dr2.execution_date)
             ti1.refresh_from_db()

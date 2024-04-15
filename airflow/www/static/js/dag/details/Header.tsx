@@ -51,17 +51,14 @@ const Header = ({ mapIndex }: Props) => {
   } = useSelection();
 
   const dagRun = dagRuns.find((r) => r.runId === runId);
-
   const group = getTask({ taskId, task: groups });
 
-  // If runId and/or taskId can't be found remove the selection
+  // If taskId can't be found remove the selection
   useEffect(() => {
-    if (runId && !dagRun && taskId && !group) {
-      clearSelection();
-    } else if (runId && !dagRun) {
-      onSelect({ taskId });
+    if (taskId && !group) {
+      onSelect({ runId });
     }
-  }, [dagRun, taskId, group, runId, onSelect, clearSelection]);
+  }, [taskId, group, onSelect, runId]);
 
   let runLabel;
   if (dagRun && runId) {

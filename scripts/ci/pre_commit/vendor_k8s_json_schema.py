@@ -25,7 +25,7 @@ import requests
 
 K8S_DEFINITIONS = (
     "https://raw.githubusercontent.com/yannh/kubernetes-json-schema"
-    "/master/v1.22.0-standalone-strict/_definitions.json"
+    "/master/v1.29.0-standalone-strict/_definitions.json"
 )
 VALUES_SCHEMA_FILE = "chart/values.schema.json"
 
@@ -63,7 +63,7 @@ defs = get_remote_schema(K8S_DEFINITIONS)
 refs = set(find_refs(schema["properties"]))
 
 # now we look for refs in refs
-for step in range(15):
+for _ in range(15):
     starting_refs = refs
     for ref in refs:
         ref_id = ref.split("/")[-1]

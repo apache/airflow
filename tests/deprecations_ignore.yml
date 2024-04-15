@@ -70,8 +70,6 @@
 
 
 # Core
-- tests/core/test_core.py::TestCore::test_dag_params_and_task_params
-- tests/core/test_core.py::TestCore::test_externally_triggered_dagrun
 - tests/core/test_impersonation_tests.py::TestImpersonation::test_impersonation_subdag
 - tests/core/test_stats.py::TestCustomStatsName::test_does_not_send_stats_using_statsd_when_the_name_is_not_valid
 - tests/core/test_stats.py::TestCustomStatsName::test_does_send_stats_using_statsd_when_the_name_is_valid
@@ -94,19 +92,6 @@
 - tests/jobs/test_backfill_job.py::TestBackfillJob::test_subdag_clear_parentdag_downstream_clear
 - tests/jobs/test_backfill_job.py::TestBackfillJob::test_update_counters
 - tests/jobs/test_backfill_job.py::TestBackfillJob::test_backfilling_dags
-- tests/jobs/test_local_task_job.py::TestLocalTaskJob::test_dagrun_timeout_logged_in_task_logs
-- tests/jobs/test_local_task_job.py::TestLocalTaskJob::test_failure_callback_called_by_airflow_run_raw_process
-- tests/jobs/test_local_task_job.py::TestLocalTaskJob::test_fast_follow
-- tests/jobs/test_local_task_job.py::TestLocalTaskJob::test_heartbeat_failed_fast
-- tests/jobs/test_local_task_job.py::TestLocalTaskJob::test_local_task_return_code_metric
-- tests/jobs/test_local_task_job.py::TestLocalTaskJob::test_localtaskjob_double_trigger
-- tests/jobs/test_local_task_job.py::TestLocalTaskJob::test_localtaskjob_maintain_heart_rate
-- tests/jobs/test_local_task_job.py::TestLocalTaskJob::test_mark_failure_on_failure_callback
-- tests/jobs/test_local_task_job.py::TestLocalTaskJob::test_mark_success_no_kill
-- tests/jobs/test_local_task_job.py::TestLocalTaskJob::test_mark_success_on_success_callback
-- tests/jobs/test_local_task_job.py::TestLocalTaskJob::test_mini_scheduler_works_with_wait_for_upstream
-- tests/jobs/test_local_task_job.py::TestLocalTaskJob::test_process_os_signal_calls_on_failure_callback
-- tests/jobs/test_local_task_job.py::TestSigtermOnRunner::test_process_sigterm_works_with_retries
 - tests/jobs/test_scheduler_job.py::TestSchedulerJob::test_adopt_or_reset_orphaned_tasks
 - tests/jobs/test_scheduler_job.py::TestSchedulerJob::test_bulk_write_to_db_external_trigger_dont_skip_scheduled_run
 - tests/jobs/test_scheduler_job.py::TestSchedulerJob::test_dagrun_deadlock_ignore_depends_on_past
@@ -179,10 +164,6 @@
 - tests/models/test_dagbag.py::TestDagBag::test_load_subdags
 - tests/models/test_dagbag.py::TestDagBag::test_skip_cycle_dags
 - tests/models/test_mappedoperator.py::test_expand_mapped_task_instance_with_named_index
-- tests/models/test_pool.py::TestPool::test_default_pool_open_slots
-- tests/models/test_pool.py::TestPool::test_infinite_slots
-- tests/models/test_pool.py::TestPool::test_open_slots
-- tests/models/test_pool.py::TestPool::test_open_slots_including_deferred
 - tests/models/test_skipmixin.py::TestSkipMixin::test_mapped_tasks_skip_all_except
 - tests/models/test_skipmixin.py::TestSkipMixin::test_raise_exception_on_not_accepted_branch_task_ids_type
 - tests/models/test_skipmixin.py::TestSkipMixin::test_raise_exception_on_not_accepted_iterable_branch_task_ids_type
@@ -648,8 +629,6 @@
 - tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::test_resolve_application_file_real_file_not_exists
 - tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::test_resolve_application_file_template_file
 - tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::test_resolve_application_file_template_non_dictionary
-- tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::test_spark_kubernetes_operator
-- tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::test_spark_kubernetes_operator_hook
 - tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::test_template_body_templating
 - tests/providers/cncf/kubernetes/test_kubernetes_helper_functions.py::TestCreatePodId::test_create_pod_id
 - tests/providers/cncf/kubernetes/test_kubernetes_helper_functions.py::TestCreatePodId::test_create_pod_id_dag_and_task
@@ -663,6 +642,8 @@
 - tests/providers/cncf/kubernetes/test_pod_generator.py::TestPodGenerator::test_pod_name_confirm_to_max_length
 - tests/providers/cncf/kubernetes/test_pod_generator.py::TestPodGenerator::test_pod_name_is_valid
 - tests/providers/cncf/kubernetes/test_template_rendering.py::test_render_k8s_pod_yaml
+- tests/providers/common/sql/hooks/test_dbapi.py::TestDbApiHook::test_insert_rows_executemany
+- tests/providers/common/sql/hooks/test_dbapi.py::TestDbApiHook::test_insert_rows_replace_executemany_hana_dialect
 - tests/providers/common/sql/hooks/test_dbapi.py::TestDbApiHook::test_instance_check_works_for_legacy_db_api_hook
 - tests/providers/common/sql/operators/test_sql.py::TestSQLCheckOperatorDbHook::test_get_hook
 - tests/providers/common/sql/operators/test_sql.py::TestSqlBranch::test_branch_false_with_dag_run
@@ -1063,6 +1044,10 @@
 - tests/providers/ssh/hooks/test_ssh.py::TestSSHHook::test_tunnel_without_password
 - tests/providers/tableau/hooks/test_tableau.py::TestTableauHook::test_get_conn_auth_via_token_and_site_in_init
 - tests/providers/tableau/hooks/test_tableau.py::TestTableauHook::test_get_conn_ssl_default
+- tests/providers/teradata/hooks/test_teradata.py::TestTeradataHook::test_bulk_insert_rows_with_fields
+- tests/providers/teradata/hooks/test_teradata.py::TestTeradataHook::test_bulk_insert_rows_with_commit_every
+- tests/providers/teradata/hooks/test_teradata.py::TestTeradataHook::test_bulk_insert_rows_without_fields
+- tests/providers/teradata/hooks/test_teradata.py::TestTeradataHook::test_bulk_insert_rows_no_rows
 - tests/providers/trino/operators/test_trino.py::test_execute_openlineage_events
 - tests/providers/vertica/operators/test_vertica.py::TestVerticaOperator::test_execute
 - tests/providers/weaviate/operators/test_weaviate.py::TestWeaviateIngestOperator::test_constructor

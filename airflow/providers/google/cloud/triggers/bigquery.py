@@ -57,6 +57,7 @@ class BigQueryInsertJobTrigger(BaseTrigger):
         table_id: str | None = None,
         poll_interval: float = 4.0,
         impersonation_chain: str | Sequence[str] | None = None,
+        cancel_on_kill: bool = True,
     ):
         super().__init__()
         self.log.info("Using the connection  %s .", conn_id)
@@ -69,6 +70,7 @@ class BigQueryInsertJobTrigger(BaseTrigger):
         self.table_id = table_id
         self.poll_interval = poll_interval
         self.impersonation_chain = impersonation_chain
+        self.cancel_on_kill = cancel_on_kill
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize BigQueryInsertJobTrigger arguments and classpath."""
@@ -83,6 +85,7 @@ class BigQueryInsertJobTrigger(BaseTrigger):
                 "table_id": self.table_id,
                 "poll_interval": self.poll_interval,
                 "impersonation_chain": self.impersonation_chain,
+                "cancel_on_kill": self.cancel_on_kill,
             },
         )
 
@@ -113,6 +116,14 @@ class BigQueryInsertJobTrigger(BaseTrigger):
                         self.poll_interval,
                     )
                     await asyncio.sleep(self.poll_interval)
+        except asyncio.CancelledError:
+            self.log.info("Task was killed.")
+            if self.job_id and self.cancel_on_kill:
+                await hook.cancel_job(  # type: ignore[union-attr]
+                    job_id=self.job_id, project_id=self.project_id, location=self.location
+                )
+            else:
+                self.log.info("Skipping to cancel job: %s:%s.%s", self.project_id, self.location, self.job_id)
         except Exception as e:
             self.log.exception("Exception occurred while checking for query completion")
             yield TriggerEvent({"status": "error", "message": str(e)})

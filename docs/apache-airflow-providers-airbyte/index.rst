@@ -70,26 +70,26 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-airbyte
+apache-airflow-providers-airbyte package
 ------------------------------------------------------
 
 `Airbyte <https://airbyte.com/>`__
 
 
-Release: 3.6.0
+Release: 3.7.0
 
 Provider package
 ----------------
 
-This is a provider package for ``airbyte`` provider. All classes for this provider package
-are in ``airflow.providers.airbyte`` python package.
+This package is for the ``airbyte`` provider.
+All classes for this package are included in the ``airflow.providers.airbyte`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-airbyte``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-airbyte``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -128,5 +128,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-airbyte 3.6.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-airbyte-3.6.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-airbyte-3.6.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-airbyte-3.6.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-airbyte 3.6.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_airbyte-3.6.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_airbyte-3.6.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_airbyte-3.6.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-airbyte 3.7.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-airbyte-3.7.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-airbyte-3.7.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-airbyte-3.7.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-airbyte 3.7.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_airbyte-3.7.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_airbyte-3.7.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_airbyte-3.7.0-py3-none-any.whl.sha512>`__)
