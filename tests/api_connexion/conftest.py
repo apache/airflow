@@ -42,8 +42,10 @@ def minimal_app_for_api():
     )
     def factory():
         with conf_vars({("api", "auth_backends"): "tests.test_utils.remote_user_api_auth_backend"}):
-            _app = app.create_app(testing=True, config={"WTF_CSRF_ENABLED": False})  # type:ignore
-            _app.config["AUTH_ROLE_PUBLIC"] = None
+            _app = app.create_app(
+                testing=True,
+                config={"WTF_CSRF_ENABLED": False, "AUTH_ROLE_PUBLIC": None},
+            )  # type:ignore
             init_mock_cors_middleware(_app, allow_origins=["http://apache.org", "http://example.com"])
             return _app
 
