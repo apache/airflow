@@ -386,7 +386,6 @@ class TestCliTasks:
         assert "foo=bar" in output
         assert "AIRFLOW_TEST_MODE=True" in output
 
-    @pytest.mark.asyncio
     @mock.patch("airflow.triggers.file.os.path.getmtime", return_value=0)
     @mock.patch("airflow.triggers.file.glob", return_value=["/tmp/test"])
     @mock.patch("airflow.triggers.file.os.path.isfile", return_value=True)
