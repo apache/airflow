@@ -8481,6 +8481,14 @@
                             ],
                             "default": null
                         },
+                        "proxySettingsSecret": {
+                            "description": "The name of the Secret containing the proxy settings (HTTPS_PROXY, HTTP_PROXY, and NO_PROXY) when the repository is behind a proxy.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
                         "sshKeySecret": {
                             "description": "Name of a Secret containing the repo `sshKeySecret`.",
                             "type": [
