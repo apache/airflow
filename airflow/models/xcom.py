@@ -29,7 +29,6 @@ from functools import cached_property, wraps
 from typing import TYPE_CHECKING, Any, Generator, Iterable, cast, overload
 
 import attr
-from deprecated import deprecated
 from sqlalchemy import (
     Column,
     ForeignKeyConstraint,
@@ -370,7 +369,6 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
     @staticmethod
     @provide_session
     @internal_api_call
-    @deprecated
     def get_one(
         execution_date: datetime.datetime | None = None,
         key: str | None = None,
