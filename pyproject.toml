@@ -271,6 +271,9 @@ extend-select = [
     "PT", # flake8-pytest-style rules
     "TID25", # flake8-tidy-imports rules
     # Per rule enables
+    "RUF006", # Checks for asyncio dangling task
+    "RUF015", # Checks for unnecessary iterable allocation for first element
+    "RUF019", # Checks for unnecessary key check
     "RUF100", # Unused noqa (auto-fixable)
     # We ignore more pydocstyle than we enable, so be more selective at what we enable
     "D101",
@@ -292,8 +295,6 @@ extend-select = [
     "B019", # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
     "B028", # No explicit stacklevel keyword argument found
     "TRY002", # Prohibit use of `raise Exception`, use specific exceptions instead.
-    "RUF006", # Checks for asyncio dangling task
-    "RUF015", # Checks for unnecessary iterable allocation for first element
 ]
 ignore = [
     "D203",

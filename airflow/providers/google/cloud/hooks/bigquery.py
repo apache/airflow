@@ -2849,11 +2849,10 @@ class BigQueryCursor(BigQueryBaseCursor):
                 return None
 
             query_results = self._get_query_result()
-            if "rows" in query_results and query_results["rows"]:
+            if rows := query_results.get("rows"):
                 self.page_token = query_results.get("pageToken")
                 fields = query_results["schema"]["fields"]
                 col_types = [field["type"] for field in fields]
-                rows = query_results["rows"]
 
                 for dict_row in rows:
                     typed_row = [bq_cast(vs["v"], col_types[idx]) for idx, vs in enumerate(dict_row["f"])]
@@ -3396,8 +3395,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
         :param as_dict: if True returns the result as a list of dictionaries, otherwise as list of lists.
         """
         buffer: list[Any] = []
-        if "rows" in query_results and query_results["rows"]:
-            rows = query_results["rows"]
+        if rows := query_results.get("rows"):
             fields = query_results["schema"]["fields"]
             fields_names = [field["name"] for field in fields]
             col_types = [field["type"] for field in fields]
