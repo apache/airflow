@@ -2621,8 +2621,7 @@ dags:
     #
     # credentialsSecret: git-credentials
     #
-    # Name of the secret containing proxy settings for git-sync.
-    # The secret must include keys for HTTPS_PROXY, HTTP_PROXY, and NO_PROXY.
+    # name of the secret containing proxy settings for git-sync: HTTPS_PROXY, HTTP_PROXY, NO_PROXY
     # proxySettingsSecret: proxy-settings
     #
     # If you are using an ssh clone url, you can load
