@@ -2191,6 +2191,7 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
         assert resp == response
 
     @pytest.mark.asyncio
+    @pytest.mark.db_test
     @mock.patch("google.auth.default")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Job")
     async def test_cancel_job_success(self, mock_job, mock_auth_default):

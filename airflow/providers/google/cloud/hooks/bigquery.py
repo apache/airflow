@@ -3398,7 +3398,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
         """
         async with ClientSession() as session:
             token = await self.get_token(session=session)
-            job = Job(job_id=job_id, project=project_id, location=location, token=token, session=session)  # type: ignore
+            job = Job(job_id=job_id, project=project_id, location=location, token=token, session=session)  # type: ignore[arg-type]
 
             self.log.info(
                 "Attempting to cancel BigQuery job: %s in project: %s, location: %s",
