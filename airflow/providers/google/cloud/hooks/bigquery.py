@@ -3390,7 +3390,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
 
     async def cancel_job(self, job_id: str, project_id: str | None, location: str | None) -> None:
         """
-        Asynchronously cancel a BigQuery job.
+        Cancel a BigQuery job.
 
         :param job_id: ID of the job to cancel.
         :param project_id: Google Cloud Project where the job was running.
