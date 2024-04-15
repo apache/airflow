@@ -40,7 +40,9 @@ def minimal_app_for_api():
     )
     def factory():
         with conf_vars({("api", "auth_backends"): "tests.test_utils.remote_user_api_auth_backend"}):
-            return app.create_app(testing=True, config={"WTF_CSRF_ENABLED": False})  # type:ignore
+            _app = app.create_app(testing=True, config={"WTF_CSRF_ENABLED": False})  # type:ignore
+            _app.config["AUTH_ROLE_PUBLIC"] = None
+            return _app
 
     return factory()
 
@@ -67,3 +69,14 @@ def dagbag():
         )
         DagBag(include_examples=True, read_dags_from_db=False).sync_to_db()
     return DagBag(include_examples=True, read_dags_from_db=True)
+
+
+@pytest.fixture
+def set_auto_role_public(request):
+    app = request.getfixturevalue("minimal_app_for_api")
+    auto_role_public = app.config["AUTH_ROLE_PUBLIC"]
+    app.config["AUTH_ROLE_PUBLIC"] = request.param
+
+    yield
+
+    app.config["AUTH_ROLE_PUBLIC"] = auto_role_public
