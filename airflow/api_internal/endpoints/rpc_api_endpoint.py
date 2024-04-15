@@ -21,6 +21,7 @@ import functools
 import json
 import logging
 from typing import TYPE_CHECKING, Any, Callable
+from uuid import uuid4
 
 from flask import Response
 
@@ -139,7 +140,11 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
             output_json = BaseSerialization.serialize(output, use_pydantic_models=True)
             response = json.dumps(output_json) if output_json is not None else None
             return Response(response=response, headers={"Content-Type": "application/json"})
-    except Exception as e:
-        log.error("Error executing method: %s.", method_name)
-        log.exception(e)
-        return Response(response=f"Error executing method: {method_name}.", status=500)
+    except Exception:
+        error_id = uuid4()
+        log.exception("Error executing method '%s'; error_id=%s.", method_name, error_id)
+        return Response(
+            response=f"Error executing method '{method_name}'. "
+            f"The server side traceback may be identified with error_id={error_id}",
+            status=500,
+        )
