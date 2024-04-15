@@ -369,8 +369,7 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
                 tmp_gcs_file = exit_stack.enter_context(gcs_hook.provide_file(object_url=self.py_file))
                 self.py_file = tmp_gcs_file.name
             if self.snake_case_pipeline_options.get("requirements_file", "").startswith("gs://"):
-                if 'gcs_hook' not in locals():
-                    gcs_hook = GCSHook(gcp_conn_id=self.gcp_conn_id)    
+                gcs_hook = GCSHook(gcp_conn_id=self.gcp_conn_id)    
                 tmp_req_file = exit_stack.enter_context(
                     gcs_hook.provide_file(object_url=self.snake_case_pipeline_options["requirements_file"])
                 )
