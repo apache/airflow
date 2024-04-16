@@ -1541,13 +1541,15 @@ class DagRun(Base, LoggingMixin):
             ):
                 dummy_ti_ids.append((ti.task_id, ti.map_index))
             elif (
-                ti.task.start_trigger
+                ti.task.starts_execution_from_triggerer
                 and not ti.task.on_execute_callback
                 and not ti.task.on_success_callback
                 and not ti.task.outlets
             ):
                 if not (ti.task.start_trigger and ti.task.next_method):
-                    raise AirflowException("When start_trigger it not None, next_method is required.")
+                    raise AirflowException(
+                        "When setting starts_execution_from_triggerer=True, start_trigger and next_method are required."
+                    )
 
                 trigger_cls_name, trigger_kwargs = ti.task.start_trigger
                 trigger_cls = import_string(trigger_cls_name)

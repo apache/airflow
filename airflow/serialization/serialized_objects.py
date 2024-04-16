@@ -1023,6 +1023,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         # Used to determine if an Operator is inherited from EmptyOperator
         serialize_op["_is_empty"] = op.inherits_from_empty_operator
+        serialize_op["starts_execution_from_triggerer"] = op.starts_execution_from_triggerer
         serialize_op["start_trigger"] = op.start_trigger.serialize() if op.start_trigger else None
         serialize_op["next_method"] = op.next_method
 
@@ -1205,6 +1206,11 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         # Used to determine if an Operator is inherited from EmptyOperator
         setattr(op, "_is_empty", bool(encoded_op.get("_is_empty", False)))
+        setattr(
+            op,
+            "starts_execution_from_triggerer",
+            bool(encoded_op.get("starts_execution_from_triggerer", False)),
+        )
         setattr(op, "start_trigger", encoded_op.get("start_trigger", None))
         setattr(op, "next_method", encoded_op.get("next_method", None))
 
@@ -1268,6 +1274,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 end_date=None,
                 disallow_kwargs_override=encoded_op["_disallow_kwargs_override"],
                 expand_input_attr=encoded_op["_expand_input_attr"],
+                starts_execution_from_triggerer=encoded_op["starts_execution_from_triggerer"],
                 start_trigger=encoded_op["start_trigger"],
                 next_method=encoded_op["next_method"],
             )

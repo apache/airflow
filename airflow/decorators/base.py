@@ -471,6 +471,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         partial_kwargs.setdefault("executor_config", {})
         partial_kwargs.setdefault("op_args", [])
         partial_kwargs.setdefault("op_kwargs", {})
+        partial_kwargs.setdefault("starts_execution_from_triggerer", False)
         partial_kwargs.setdefault("start_trigger", None)
         partial_kwargs.setdefault("next_method", None)
 
@@ -511,6 +512,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             # task's expand() contribute to the op_kwargs operator argument, not
             # the operator arguments themselves, and should expand against it.
             expand_input_attr="op_kwargs_expand_input",
+            starts_execution_from_triggerer=False,
             start_trigger=None,
             next_method=None,
         )
