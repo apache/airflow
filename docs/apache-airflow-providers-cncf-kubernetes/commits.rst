@@ -35,14 +35,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.1.1
+.....
+
+Latest change: 2024-04-15
+
+=================================================================================================  ===========  =========================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================
+`43919c2fa6 <https://github.com/apache/airflow/commit/43919c2fa6cbffd65239cb7fa3db2abb0545a260>`_  2024-04-15   ``Avoid logging empty line KPO (#38247)``
+=================================================================================================  ===========  =========================================
+
 8.1.0
 .....
 
-Latest change: 2024-04-09
+Latest change: 2024-04-10
 
 =================================================================================================  ===========  ===================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================================
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
 `78f84b9147 <https://github.com/apache/airflow/commit/78f84b914733648d4a9230d1804df0052115906b>`_  2024-04-09   ``fix: try002 for provider cncf kubernetes (#38799)``
 `a19a9cb523 <https://github.com/apache/airflow/commit/a19a9cb52388118e5fc735a25cc42229576482ad>`_  2024-04-05   ``removed usage of deprecated function  for naming the pod in provider k8s pod.py (#38638)``
 `ab5aabe50b <https://github.com/apache/airflow/commit/ab5aabe50b1023a7db0d256751eadd033091af63>`_  2024-04-02   ``Implement delete_on_status parameter for KubernetesDeleteJobOperator (#38458)``
