@@ -278,7 +278,7 @@ def partial(
     logger_name: str | None | ArgNotSet = NOTSET,
     allow_nested_operators: bool = True,
     starts_execution_from_triggerer: bool = False,
-    trigger: Trigger | None = None,
+    trigger: Trigger = None,
     next_method: str | None = None,
     **kwargs,
 ) -> OperatorPartial:
@@ -1085,9 +1085,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if SetupTeardownContext.active:
             SetupTeardownContext.update_context_map(self)
 
-        self.starts_execution_from_triggerer = starts_execution_from_triggerer
-        self.trigger = trigger
-        self.next_method = next_method
+        self._starts_execution_from_triggerer = starts_execution_from_triggerer
+        self._trigger = trigger
+        self._next_method = next_method
 
     def __eq__(self, other):
         if type(self) is type(other):
@@ -1707,6 +1707,21 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         # needs to cope when `self` is a Serialized instance of a EmptyOperator or one
         # of its subclasses (which don't inherit from anything but BaseOperator).
         return getattr(self, "_is_empty", False)
+
+    @property
+    def starts_execution_from_triggerer(self):
+        """Used to determine if an Operator should start execution from triggerer."""
+        return getattr(self, "_starts_execution_from_triggerer", False)
+
+    @property
+    def trigger(self):
+        """Trigger when deferring task."""
+        return getattr(self, "_trigger", None)
+
+    @property
+    def next_method(self):
+        """Method to execute after finish deferring."""
+        return getattr(self, "_next_method", None)
 
     def defer(
         self,
