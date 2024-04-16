@@ -35,6 +35,7 @@ from airflow.api_connexion.schemas.dag_schema import (
     DAGSchema,
     dag_schema,
     dags_collection_schema,
+    DAGDetailSchemaWithTasksInfo,
 )
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models.dag import DagModel, DagTag
@@ -83,7 +84,10 @@ def get_dag_details(
         if not key.startswith("_") and not hasattr(dag_model, key):
             setattr(dag_model, key, value)
     try:
-        dag_detail_schema = DAGDetailSchema(only=fields) if fields else DAGDetailSchema()
+        if not include_tasks:
+            dag_detail_schema = DAGDetailSchema(only=fields) if fields else DAGDetailSchema()
+        else:
+            dag_detail_schema = DAGDetailSchemaWithTasksInfo(only=fields) if fields else DAGDetailSchemaWithTasksInfo()
     except ValueError as e:
         raise BadRequest("DAGDetailSchema init error", detail=str(e))
     return dag_detail_schema.dump(dag_model)
