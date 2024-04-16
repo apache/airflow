@@ -45,9 +45,9 @@ def handle_waitable_exception(
     """
     code = err
 
-    if code == "InvalidDBInstanceState":
+    if code in ("InvalidDBInstanceStateFault", "InvalidDBInstanceState"):
         if operator.deferrable:
-            operator.log.info("Deferring for instances to become available: %s", operator.cluster_id)
+            operator.log.info("Deferring until instances become available: %s", operator.cluster_id)
             operator.defer(
                 trigger=NeptuneClusterInstancesAvailableTrigger(
                     aws_conn_id=operator.aws_conn_id,
@@ -61,9 +61,9 @@ def handle_waitable_exception(
         else:
             operator.log.info("Need to wait for instances to become available: %s", operator.cluster_id)
             operator.hook.wait_for_cluster_instance_availability(cluster_id=operator.cluster_id)
-    if code == "InvalidClusterState":
+    if code in ["InvalidClusterState", "InvalidDBClusterStateFault"]:
         if operator.deferrable:
-            operator.log.info("Deferring for cluster to become available: %s", operator.cluster_id)
+            operator.log.info("Deferring until cluster becomes available: %s", operator.cluster_id)
             operator.defer(
                 trigger=NeptuneClusterAvailableTrigger(
                     aws_conn_id=operator.aws_conn_id,
@@ -158,7 +158,7 @@ class NeptuneStartDbClusterOperator(AwsBaseOperator[NeptuneHook]):
             code = ex.response["Error"]["Code"]
             self.log.warning("Received client error when attempting to start the cluster: %s", code)
 
-            if code in ["InvalidDBInstanceState", "InvalidClusterState"]:
+            if code in ["InvalidDBInstanceState", "InvalidClusterState", "InvalidDBClusterStateFault"]:
                 handle_waitable_exception(operator=self, err=code)
 
             else:
@@ -284,7 +284,9 @@ class NeptuneStopDbClusterOperator(AwsBaseOperator[NeptuneHook]):
             # these can be handled by a waiter
             if code in [
                 "InvalidDBInstanceState",
+                "InvalidDBInstanceStateFault",
                 "InvalidClusterState",
+                "InvalidDBClusterStateFault",
             ]:
                 handle_waitable_exception(self, code)
             else:
