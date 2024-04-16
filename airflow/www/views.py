@@ -4547,9 +4547,11 @@ class VariableModelView(AirflowModelView):
         for var in items:
             try:
                 val = decoder.decode(var.val)
+                description = decoder.decode(var.description)
             except Exception:
                 val = var.val
-            var_dict[var.key] = val
+                description = var.description
+            var_dict[var.key] = {"val": val, "description":description}
 
         response = make_response(json.dumps(var_dict, sort_keys=True, indent=4))
         response.headers["Content-Disposition"] = "attachment; filename=variables.json"
@@ -4589,7 +4591,10 @@ class VariableModelView(AirflowModelView):
                     skipped.add(k)
                     continue
                 try:
-                    models.Variable.set(k, v, serialize_json=not isinstance(v, str))
+                    if isinstance(v,dict) and "description" in v and "val" in v:
+                        models.Variable.set(k, v["val"], description=v["description"], serialize_json=not isinstance(v["val"], str))
+                    else:
+                        models.Variable.set(k, v, serialize_json=not isinstance(v, str))
                 except Exception as exc:
                     logger.info("Variable import failed: %r", exc)
                     fail_count += 1
