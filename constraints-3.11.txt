@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-04-16T10:06:13.814422
+# This constraints file was automatically generated on 2024-04-16T21:03:42.756085
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -71,7 +71,7 @@ adal==1.2.7
 adlfs==2024.4.1
 aiobotocore==2.12.3
 aiofiles==23.2.1
-aiohttp==3.9.4
+aiohttp==3.9.5
 aioitertools==0.11.0
 aioresponses==0.7.6
 aiosignal==1.3.1
@@ -223,7 +223,7 @@ azure-storage-file-share==12.15.0
 azure-synapse-artifacts==0.18.0
 azure-synapse-spark==0.7.0
 backoff==2.2.1
-backports.tarfile==1.0.0
+backports.tarfile==1.1.0
 bcrypt==4.1.2
 beautifulsoup4==4.12.3
 billiard==4.2.0
@@ -311,7 +311,7 @@ gitdb==4.0.11
 google-ads==23.1.0
 google-analytics-admin==0.22.7
 google-api-core==2.18.0
-google-api-python-client==2.125.0
+google-api-python-client==2.126.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.0
 google-auth==2.29.0
@@ -338,7 +338,7 @@ google-cloud-kms==2.21.3
 google-cloud-language==2.13.3
 google-cloud-logging==3.10.0
 google-cloud-memcache==1.9.3
-google-cloud-monitoring==2.19.4
+google-cloud-monitoring==2.20.0
 google-cloud-orchestration-airflow==1.12.1
 google-cloud-os-login==2.14.3
 google-cloud-pubsub==2.21.1
@@ -478,7 +478,7 @@ nodeenv==1.8.0
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.19.0
+openai==1.20.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.12.0
@@ -595,7 +595,7 @@ readme_renderer==43.0
 redis==5.0.3
 redshift-connector==2.1.1
 referencing==0.31.1
-regex==2023.12.25
+regex==2024.4.16
 requests-file==2.0.0
 requests-kerberos==0.14.0
 requests-mock==1.12.1
