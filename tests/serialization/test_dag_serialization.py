@@ -195,6 +195,8 @@ serialized_simple_dag_ground_truth = {
                     "doc_md": "### Task Tutorial Documentation",
                     "_log_config_logger_name": "airflow.task.operators",
                     "weight_rule": "downstream",
+                    "_next_method": None,
+                    "_start_trigger": None,
                 },
             },
             {
@@ -222,6 +224,8 @@ serialized_simple_dag_ground_truth = {
                     "on_failure_fail_dagrun": False,
                     "_log_config_logger_name": "airflow.task.operators",
                     "weight_rule": "downstream",
+                    "_next_method": None,
+                    "_start_trigger": None,
                 },
             },
         ],
@@ -1312,6 +1316,7 @@ class TestStringifiedDAGs:
             "wait_for_past_depends_before_skipping": False,
             "weight_rule": _DownstreamPriorityWeightStrategy(),
             "multiple_outputs": False,
+            "_start_trigger": None,
         }, """
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -2182,6 +2187,7 @@ def test_operator_expand_serde():
         "_is_mapped": True,
         "_task_module": "airflow.operators.bash",
         "_task_type": "BashOperator",
+        "_start_trigger": None,
         "downstream_task_ids": [],
         "expand_input": {
             "type": "dict-of-lists",
@@ -2205,6 +2211,7 @@ def test_operator_expand_serde():
         "ui_fgcolor": "#000",
         "_disallow_kwargs_override": False,
         "_expand_input_attr": "expand_input",
+        "_next_method": None,
     }
 
     op = BaseSerialization.deserialize(serialized)
@@ -2213,6 +2220,7 @@ def test_operator_expand_serde():
 
     assert op.operator_class == {
         "_task_type": "BashOperator",
+        "_start_trigger": None,
         "downstream_task_ids": [],
         "task_id": "a",
         "template_ext": [".sh", ".bash"],
@@ -2257,6 +2265,8 @@ def test_operator_expand_xcomarg_serde():
         "ui_fgcolor": "#000",
         "_disallow_kwargs_override": False,
         "_expand_input_attr": "expand_input",
+        "_next_method": None,
+        "_start_trigger": None,
     }
 
     op = BaseSerialization.deserialize(serialized)
@@ -2312,6 +2322,8 @@ def test_operator_expand_kwargs_literal_serde(strict):
         "ui_fgcolor": "#000",
         "_disallow_kwargs_override": strict,
         "_expand_input_attr": "expand_input",
+        "_next_method": None,
+        "_start_trigger": None,
     }
 
     op = BaseSerialization.deserialize(serialized)
@@ -2358,6 +2370,8 @@ def test_operator_expand_kwargs_xcomarg_serde(strict):
         "ui_fgcolor": "#000",
         "_disallow_kwargs_override": strict,
         "_expand_input_attr": "expand_input",
+        "_next_method": None,
+        "_start_trigger": None,
     }
 
     op = BaseSerialization.deserialize(serialized)
@@ -2474,6 +2488,8 @@ def test_taskflow_expand_serde():
         "template_fields_renderers": {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"},
         "_disallow_kwargs_override": False,
         "_expand_input_attr": "op_kwargs_expand_input",
+        "_next_method": None,
+        "_start_trigger": None,
     }
 
     deserialized = BaseSerialization.deserialize(serialized)
@@ -2538,6 +2554,8 @@ def test_taskflow_expand_kwargs_serde(strict):
         "_task_module": "airflow.decorators.python",
         "_task_type": "_PythonDecoratedOperator",
         "_operator_name": "@task",
+        "_next_method": None,
+        "_start_trigger": None,
         "downstream_task_ids": [],
         "partial_kwargs": {
             "is_setup": False,
@@ -2688,6 +2706,8 @@ def test_mapped_task_with_operator_extra_links_property():
         "_task_module": "tests.serialization.test_dag_serialization",
         "_is_empty": False,
         "_is_mapped": True,
+        "_next_method": None,
+        "_start_trigger": None,
     }
     deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag[Encoding.VAR])
     assert deserialized_dag.task_dict["task"].operator_extra_links == [AirflowLink2()]

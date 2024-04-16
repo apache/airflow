@@ -1282,6 +1282,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 end_date=None,
                 disallow_kwargs_override=encoded_op["_disallow_kwargs_override"],
                 expand_input_attr=encoded_op["_expand_input_attr"],
+                # start with trigger is not supported in dynamic task mapping
+                start_trigger=None,
+                next_method=None,
             )
         else:
             op = SerializedBaseOperator(task_id=encoded_op["task_id"])
