@@ -112,7 +112,7 @@ class TestSFTPSensor:
     def test_naive_datetime_in_pattern(self, sftp_hook_mock):
         sftp_hook_mock.return_value.get_mod_time.return_value = "19700101000000"
         sftp_sensor = SFTPSensor(
-            task_id="unit_test", path="/path/to/file/1970-01-01.txt", newer_than=" {{ datetime(2020, 1, 2) }}"
+            task_id="unit_test", path="/path/to/file/1970-01-01.txt", newer_than="2020-01-02 00:00:00+00:00"
         )
         context = {"ds": "1970-01-00"}
         output = sftp_sensor.poke(context)

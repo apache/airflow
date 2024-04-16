@@ -71,7 +71,7 @@ class SFTPSensor(BaseSensorOperator):
         self.file_pattern = file_pattern
         self.hook: SFTPHook | None = None
         self.sftp_conn_id = sftp_conn_id
-        self.newer_than: datetime | None = newer_than
+        self.newer_than: datetime | str | None = newer_than
         self.python_callable: Callable | None = python_callable
         self.op_args = op_args or []
         self.op_kwargs = op_kwargs or {}
