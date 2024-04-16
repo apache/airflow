@@ -34,6 +34,7 @@ Features
 
 * ``Add cancel_previous_run to DatabricksRunNowOperator (#38702)``
 * ``add repair_run support to DatabricksRunNowOperator in deferrable mode (#38619)``
+* ``Adds job_id as path param in update permission (#38962)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -58,6 +59,7 @@ Misc
    * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
    * ``update pre-commit (#37665)``
    * ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
+   * ``Prepare docs 1st wave (RC2) April 2024 (#38995)``
 
 6.2.0
 .....
