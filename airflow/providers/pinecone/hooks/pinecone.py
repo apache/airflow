@@ -180,6 +180,17 @@ class PineconeHook(BaseHook):
         source_collection: str | None = None,
         environment: str | None = None,
     ) -> PodSpec:
+        """
+        Get a PodSpec object.
+
+        :param replicas: The number of replicas.
+        :param shards: The number of shards.
+        :param pods: The number of pods.
+        :param pod_type: The type of pod.
+        :param metadata_config: The metadata configuration.
+        :param source_collection: The source collection.
+        :param environment: The environment to use when creating the index.
+        """
         return PodSpec(
             environment=environment or self.environment,
             replicas=replicas,
@@ -191,6 +202,12 @@ class PineconeHook(BaseHook):
         )
 
     def get_serverless_spec_obj(self, cloud, region: str | None = None) -> ServerlessSpec:
+        """
+        Get a ServerlessSpec object.
+
+        :param cloud: The cloud provider.
+        :param region: The region to use when creating the index.
+        """
         return ServerlessSpec(cloud=cloud, region=region or self.region)
 
     def create_index(
@@ -201,6 +218,15 @@ class PineconeHook(BaseHook):
         metric: str | None = "cosine",
         timeout: int | None = None,
     ) -> None:
+        """
+        Create a new index.
+
+        :param index_name: The name of the index.
+        :param dimension: The dimension of the vectors to be indexed.
+        :param spec: Pass a `ServerlessSpec` object to create a serverless index or a `PodSpec` object to create a pod index.
+        :param metric: The metric to use.
+        :param timeout: The timeout to use.
+        """
         self.pc.create_index(
             name=index_name,
             dimension=dimension,
