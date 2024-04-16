@@ -43,9 +43,9 @@ def upgrade():
         # SQLite does not support DROP CONSTRAINT
         return
     if conn.dialect.name == "mysql":
-        op.execute("ALTER TABLE connection DROP INDEX IF EXISTS unique_conn_id")
+        op.drop_index('unique_conn_id', table_name='connection', if_exists=True)
         # Dropping and recreating cause there's no IF NOT EXISTS
-        op.execute("ALTER TABLE connection DROP INDEX IF EXISTS connection_conn_id_uq")
+        op.drop_index('connection_conn_id_uq', table_name='connection', if_exists=True)
     else:
         op.execute("ALTER TABLE connection DROP CONSTRAINT IF EXISTS unique_conn_id")
         # Dropping and recreating cause there's no IF NOT EXISTS
@@ -64,11 +64,11 @@ def upgrade():
         batch_op.drop_constraint("task_reschedule_dr_fkey", type_="foreignkey")
 
     if conn.dialect.name == "mysql":
-        op.execute("ALTER TABLE dag_run DROP INDEX IF EXISTS dag_run_dag_id_execution_date_uq")
-        op.execute("ALTER TABLE dag_run DROP INDEX IF EXISTS dag_run_dag_id_run_id_uq")
+        op.drop_index('dag_run_dag_id_execution_date_uq', table_name='dag_run', if_exists=True)
+        op.drop_index('dag_run_dag_id_run_id_uq', table_name='dag_run', if_exists=True)
         # below we drop and recreate the constraints because there's no IF NOT EXISTS
-        op.execute("ALTER TABLE dag_run DROP INDEX IF EXISTS dag_run_dag_id_execution_date_key")
-        op.execute("ALTER TABLE dag_run DROP INDEX IF EXISTS dag_run_dag_id_run_id_key")
+        op.drop_index('dag_run_dag_id_execution_date_key', table_name='dag_run', if_exists=True)
+        op.drop_index('dag_run_dag_id_run_id_key', table_name='dag_run', if_exists=True)
     else:
         op.execute("ALTER TABLE dag_run DROP CONSTRAINT IF EXISTS dag_run_dag_id_execution_date_uq")
         op.execute("ALTER TABLE dag_run DROP CONSTRAINT IF EXISTS dag_run_dag_id_run_id_uq")
