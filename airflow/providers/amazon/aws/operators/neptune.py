@@ -78,7 +78,6 @@ def handle_waitable_exception(
             operator.log.info("Need to wait for cluster to become available: %s", operator.cluster_id)
             operator.hook.wait_for_cluster_availability(operator.cluster_id)
 
-    return
 
 
 class NeptuneStartDbClusterOperator(AwsBaseOperator[NeptuneHook]):
