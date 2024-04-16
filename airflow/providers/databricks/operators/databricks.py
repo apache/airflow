@@ -858,7 +858,7 @@ class DatabricksRunNowOperator(BaseOperator):
                 repair_json = {"run_id": self.run_id, "rerun_all_failed_tasks": True}
                 if latest_repair_id is not None:
                     repair_json["latest_repair_id"] = latest_repair_id
-                self.json["latest_srepair_id"] = self._hook.repair_run(repair_json)
+                self.json["latest_repair_id"] = self._hook.repair_run(repair_json)
                 _handle_deferrable_databricks_operator_execution(self, self._hook, self.log, context)
 
     def on_kill(self) -> None:
