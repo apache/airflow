@@ -24,30 +24,49 @@ Macros included in OpenLineage plugin get integrated to Airflow's main collectio
 
 They can be invoked as a Jinja template, e.g.
 
-Lineage run id
---------------
+Lineage job & run macros
+------------------------
+
+These macros:
+  * ``lineage_job_namespace()``
+  * ``lineage_job_name(task_instance)``
+  * ``lineage_run_id(task_instance)``
+
+allow injecting pieces of run information of a given Airflow task into the arguments sent to a remote processing job.
+For example, ``SparkSubmitOperator`` can be set up like this:
+
 .. code-block:: python
 
-        PythonOperator(
-            task_id="render_template",
-            python_callable=my_task_function,
-            op_args=[
-                "{{ macros.OpenLineageProviderPlugin.lineage_run_id(task_instance) }}"
-            ],  # lineage_run_id macro invoked
-            provide_context=False,
-            dag=dag,
-        )
+    SparkSubmitOperator(
+        task_id="my_task",
+        application="/script.py",
+        conf={
+            # separated components
+            "spark.openlineage.parentJobNamespace": "{{ macros.OpenLineagePlugin.lineage_job_namespace() }}",
+            "spark.openlineage.parentJobName": "{{ macros.OpenLineagePlugin.lineage_job_name(task_instance) }}",
+            "spark.openlineage.parentRunId": "{{ macros.OpenLineagePlugin.lineage_run_id(task_instance) }}",
+        },
+    )
 
 Lineage parent id
 -----------------
+
+Same information, but compacted to one string, can be passed using ``linage_parent_id(task_instance)`` macro:
+
 .. code-block:: python
 
-        PythonOperator(
-            task_id="render_template",
-            python_callable=my_task_function,
-            op_args=[
-                "{{ macros.OpenLineageProviderPlugin.lineage_parent_id(run_id, task_instance) }}"
-            ],  # lineage_parent_id macro invoked
-            provide_context=False,
-            dag=dag,
-        )
+    def my_task_function(templates_dict, **kwargs):
+        parent_job_namespace, parent_job_name, parent_run_id = templates_dict["parentRun"].split("/")
+        ...
+
+
+    PythonOperator(
+        task_id="render_template",
+        python_callable=my_task_function,
+        templates_dict={
+            # joined components as one string `<namespace>/<name>/<run_id>`
+            "parentRun": "{{ macros.OpenLineageProviderPlugin.lineage_parent_id(task_instance) }}",
+        },
+        provide_context=False,
+        dag=dag,
+    )

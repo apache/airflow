@@ -21,6 +21,7 @@ import functools
 import json
 import logging
 from typing import TYPE_CHECKING, Any, Callable
+from uuid import uuid4
 
 from flask import Response
 
@@ -37,6 +38,7 @@ log = logging.getLogger(__name__)
 
 @functools.lru_cache
 def _initialize_map() -> dict[str, Callable]:
+    from airflow.cli.commands.task_command import _get_ti_db_access
     from airflow.dag_processing.manager import DagFileProcessorManager
     from airflow.dag_processing.processor import DagFileProcessor
     from airflow.models import Trigger, Variable, XCom
@@ -46,10 +48,13 @@ def _initialize_map() -> dict[str, Callable]:
     from airflow.models.serialized_dag import SerializedDagModel
     from airflow.models.taskinstance import TaskInstance
     from airflow.secrets.metastore import MetastoreBackend
+    from airflow.utils.cli_action_loggers import _default_action_log_internal
     from airflow.utils.log.file_task_handler import FileTaskHandler
 
     functions: list[Callable] = [
+        _default_action_log_internal,
         _get_template_context,
+        _get_ti_db_access,
         _update_rtif,
         DagFileProcessor.update_import_errors,
         DagFileProcessor.manage_slas,
@@ -135,7 +140,11 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
             output_json = BaseSerialization.serialize(output, use_pydantic_models=True)
             response = json.dumps(output_json) if output_json is not None else None
             return Response(response=response, headers={"Content-Type": "application/json"})
-    except Exception as e:
-        log.error("Error executing method: %s.", method_name)
-        log.exception(e)
-        return Response(response=f"Error executing method: {method_name}.", status=500)
+    except Exception:
+        error_id = uuid4()
+        log.exception("Error executing method '%s'; error_id=%s.", method_name, error_id)
+        return Response(
+            response=f"Error executing method '{method_name}'. "
+            f"The server side traceback may be identified with error_id={error_id}",
+            status=500,
+        )

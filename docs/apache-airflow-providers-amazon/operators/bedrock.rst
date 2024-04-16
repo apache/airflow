@@ -65,6 +65,81 @@ To invoke an Amazon Titan model you would use:
 
 For details on the different formats, see `Inference parameters for foundation models <https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters.html>`__
 
+.. _howto/operator:BedrockCustomizeModelOperator:
+
+Customize an existing Amazon Bedrock Model
+==========================================
+
+To create a fine-tuning job to customize a base model, you can use
+:class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockCustomizeModelOperator`.
+
+Model-customization jobs are asynchronous and the completion time depends on the base model
+and the training/validation data size. To monitor the state of the job, you can use the
+"model_customization_job_complete" Waiter, the
+:class:`~airflow.providers.amazon.aws.sensors.bedrock.BedrockCustomizeModelCompletedSensor` Sensor,
+or the :class:`~airflow.providers.amazon.aws.triggers.BedrockCustomizeModelCompletedTrigger` Trigger.
+
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_customize_model]
+    :end-before: [END howto_operator_customize_model]
+
+.. _howto/operator:BedrockCreateProvisionedModelThroughputOperator:
+
+Provision Throughput for an existing Amazon Bedrock Model
+=========================================================
+
+To create a provisioned throughput with dedicated capacity for a foundation
+model or a fine-tuned model, you can use
+:class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockCreateProvisionedModelThroughputOperator`.
+
+Provision throughput jobs are asynchronous. To monitor the state of the job, you can use the
+"provisioned_model_throughput_complete" Waiter, the
+:class:`~airflow.providers.amazon.aws.sensors.bedrock.BedrockProvisionModelThroughputCompletedSensor` Sensor,
+or the :class:`~airflow.providers.amazon.aws.triggers.BedrockProvisionModelThroughputCompletedSensorTrigger`
+Trigger.
+
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_provision_throughput]
+    :end-before: [END howto_operator_provision_throughput]
+
+
+Sensors
+-------
+
+.. _howto/sensor:BedrockCustomizeModelCompletedSensor:
+
+Wait for an Amazon Bedrock customize model job
+==============================================
+
+To wait on the state of an Amazon Bedrock customize model job until it reaches a terminal state you can use
+:class:`~airflow.providers.amazon.aws.sensors.bedrock.BedrockCustomizeModelCompletedSensor`
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_customize_model]
+    :end-before: [END howto_sensor_customize_model]
+
+.. _howto/sensor:BedrockProvisionModelThroughputCompletedSensor:
+
+Wait for an Amazon Bedrock provision model throughput job
+=========================================================
+
+To wait on the state of an Amazon Bedrock provision model throughput job until it reaches a
+terminal state you can use
+:class:`~airflow.providers.amazon.aws.sensors.bedrock.BedrockProvisionModelThroughputCompletedSensor`
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_provision_throughput]
+    :end-before: [END howto_sensor_provision_throughput]
 
 Reference
 ---------

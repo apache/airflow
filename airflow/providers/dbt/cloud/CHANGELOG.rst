@@ -28,6 +28,15 @@
 Changelog
 ---------
 
+3.7.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: disabled_for_operators now stops whole event emission (#38033)``
+* ``fix(dbt): add return statement to yield within a while loop in triggers (#38395)``
+
 3.7.0
 .....
 

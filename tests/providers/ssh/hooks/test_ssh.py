@@ -951,7 +951,7 @@ class TestSSHHook:
         )
         session.add(conn)
         session.flush()
-        with pytest.raises(Exception):
+        with pytest.raises(AirflowException, match="Key must have BEGIN and END"):
             SSHHook(ssh_conn_id=conn.conn_id)
         session.delete(conn)
         session.commit()

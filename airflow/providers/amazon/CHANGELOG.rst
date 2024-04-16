@@ -26,6 +26,56 @@
 Changelog
 ---------
 
+8.20.0
+......
+
+Features
+~~~~~~~~
+
+* ``AWS Batch Executor (#37618)``
+* ``Add fallback 'region_name' value to AWS Executors (#38704)``
+* ``Introduce Amazon Bedrock service (#38602)``
+* ``Amazon Bedrock - Model Customization Jobs (#38693)``
+* ``ECS Executor - add support to adopt orphaned tasks. (#37786)``
+* ``Update AWS auth manager CLI command to not disable AVP schema validation (#38301)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Reduce 's3hook' memory usage (#37886)``
+* ``Add check in AWS auth manager to check if the Amazon Verified Permissions schema is up to date (#38333)``
+* ``fix: EmrServerlessStartJobOperator not serializing DAGs correctly when partial/expand is used. (#38022)``
+* ``fix(amazon): add return statement to yield within a while loop in triggers (#38396)``
+* ``Fix set deprecated amazon operators arguments in 'MappedOperator' (#38346)``
+* ``'ECSExecutor' API Retry bug fix (#38118)``
+* ``Fix 'region' argument in 'MappedOperator' based on 'AwsBaseOperator' / 'AwsBaseSensor' (#38178)``
+* ``Fix bug for ECS Executor where tasks were being skipped if one task failed. (#37979)``
+* ``Fix init checks for aws redshift to s3 operator (#37861)``
+
+Misc
+~~~~
+
+* ``Make the method 'BaseAuthManager.is_authorized_custom_view' abstract (#37915)``
+* ``Replace "Role" by "Group" in AWS auth manager (#38078)``
+* ``Avoid use of 'assert' outside of the tests (#37718)``
+* ``Use 'AwsLogsHook' when fetching Glue job logs (#38010)``
+* ``Implement 'filter_permitted_dag_ids' in AWS auth manager (#37666)``
+* ``AWS auth manager CLI: persist the policy store description when doing updates (#37946)``
+* ``Change f-string to formatting into the logging messages for Batch Executor (#37929)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update yanked versions in providers changelogs (#38262)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``Resolve G004: Logging statement uses f-string (#37873)``
+   * ``Add back system test for AWS auth manager (#38044)``
+   * ``Revert "Add system test to test the AWS auth manager (#37947)" (#38004)``
+   * ``Add system test to test the AWS auth manager (#37947)``
+   * ``fix: try002 for provider amazon (#38789)``
+   * ``Typo fix (#38783)``
+   * ``fix: COMMAND string should be raw to avoid SyntaxWarning: invalid escape sequence '\s' (#38734)``
+   * ``Revert "fix: COMMAND string should be raw to avoid SyntaxWarning: invalid escape sequence '\s' (#38734)" (#38864)``
+
 8.19.0
 ......
 

@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+8.6.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix set deprecated slack operators arguments in 'MappedOperator' (#38345)``
+* ``Update SqlToSlackApiFileOperator with new param to check empty output (#38079)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+   * ``Avoid to use too broad 'noqa' (#37862)``
+   * ``Add comment about versions updated by release manager (#37488)``
+
 8.6.1
 .....
 

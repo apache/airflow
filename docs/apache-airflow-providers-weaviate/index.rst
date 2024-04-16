@@ -79,7 +79,7 @@ apache-airflow-providers-weaviate package
 `Weaviate <https://weaviate.io/developers/weaviate>`__
 
 
-Release: 1.3.3
+Release: 1.3.4
 
 Provider package
 ----------------

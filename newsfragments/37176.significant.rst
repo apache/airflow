@@ -1,1 +1,0 @@
-To use the API delete methods of queuedEvent endpoints,  apache-airflow-providers-fab version 1.1.0 or higher is required. This version adds permission to delete a dataset.

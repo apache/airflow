@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import inspect
 import json
+import warnings
 from datetime import datetime, timedelta
 from importlib import import_module
 
@@ -50,6 +51,7 @@ from airflow.serialization.pydantic.tasklog import LogTemplatePydantic
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.settings import _ENABLE_AIP_44
 from airflow.utils import timezone
+from airflow.utils.context import DatasetEventAccessors
 from airflow.utils.operator_resources import Resources
 from airflow.utils.pydantic import BaseModel
 from airflow.utils.state import DagRunState, State
@@ -311,28 +313,31 @@ sample_objects = {
 )
 def test_serialize_deserialize_pydantic(input, pydantic_class, encoded_type, cmp_func):
     """If use_pydantic_models=True the objects should be serialized to Pydantic objects."""
-    pytest.importorskip("pydantic", minversion="2.0.0")
+    pydantic = pytest.importorskip("pydantic", minversion="2.0.0")
 
     from airflow.serialization.serialized_objects import BaseSerialization
 
-    serialized = BaseSerialization.serialize(input, use_pydantic_models=True)  # does not raise
-    # Verify the result is JSON-serializable
-    json.dumps(serialized)  # does not raise
-    assert serialized["__type"] == encoded_type
-    assert serialized["__var"] is not None
-    deserialized = BaseSerialization.deserialize(serialized, use_pydantic_models=True)
-    assert isinstance(deserialized, pydantic_class)
-    assert cmp_func(input, deserialized)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", category=pydantic.warnings.PydanticDeprecationWarning)
 
-    # verify that when we round trip a pydantic model we get the same thing
-    reserialized = BaseSerialization.serialize(deserialized, use_pydantic_models=True)
-    dereserialized = BaseSerialization.deserialize(reserialized, use_pydantic_models=True)
-    assert isinstance(dereserialized, pydantic_class)
-    assert dereserialized == deserialized
+        serialized = BaseSerialization.serialize(input, use_pydantic_models=True)  # does not raise
+        # Verify the result is JSON-serializable
+        json.dumps(serialized)  # does not raise
+        assert serialized["__type"] == encoded_type
+        assert serialized["__var"] is not None
+        deserialized = BaseSerialization.deserialize(serialized, use_pydantic_models=True)
+        assert isinstance(deserialized, pydantic_class)
+        assert cmp_func(input, deserialized)
 
-    # Verify recursive behavior
-    obj = [[input]]
-    BaseSerialization.serialize(obj, use_pydantic_models=True)  # does not raise
+        # verify that when we round trip a pydantic model we get the same thing
+        reserialized = BaseSerialization.serialize(deserialized, use_pydantic_models=True)
+        dereserialized = BaseSerialization.deserialize(reserialized, use_pydantic_models=True)
+        assert isinstance(dereserialized, pydantic_class)
+        assert dereserialized == deserialized
+
+        # Verify recursive behavior
+        obj = [[input]]
+        BaseSerialization.serialize(obj, use_pydantic_models=True)  # does not raise
 
 
 def test_all_pydantic_models_round_trip():
@@ -346,7 +351,7 @@ def test_all_pydantic_models_round_trip():
             continue
         relpath = str(p.relative_to(REPO_ROOT).stem)
         mod = import_module(f"airflow.serialization.pydantic.{relpath}")
-        for name, obj in inspect.getmembers(mod):
+        for _, obj in inspect.getmembers(mod):
             if inspect.isclass(obj) and issubclass(obj, BaseModel):
                 if obj == BaseModel:
                     continue
@@ -406,3 +411,14 @@ def test_serialized_mapped_operator_unmap(dag_maker):
 
     serialized_unmapped_task = serialized_task2.unmap(None)
     assert serialized_unmapped_task.dag is serialized_dag
+
+
+def test_ser_of_dataset_event_accessor():
+    # todo: (Airflow 3.0) we should force reserialization on upgrade
+    d = DatasetEventAccessors()
+    d["hi"].extra = "blah1"  # todo: this should maybe be forbidden?  i.e. can extra be any json or just dict?
+    d["yo"].extra = {"this": "that", "the": "other"}
+    ser = BaseSerialization.serialize(var=d)
+    deser = BaseSerialization.deserialize(ser)
+    assert deser["hi"].extra == "blah1"
+    assert d["yo"].extra == {"this": "that", "the": "other"}

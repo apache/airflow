@@ -582,8 +582,7 @@ class DAG(LoggingMixin):
         if start_date and start_date.tzinfo:
             tzinfo = None if start_date.tzinfo else settings.TIMEZONE
             tz = pendulum.instance(start_date, tz=tzinfo).timezone
-        elif "start_date" in self.default_args and self.default_args["start_date"]:
-            date = self.default_args["start_date"]
+        elif date := self.default_args.get("start_date"):
             if not isinstance(date, datetime):
                 date = timezone.parse(date)
                 self.default_args["start_date"] = date
@@ -594,11 +593,8 @@ class DAG(LoggingMixin):
         self.timezone: Timezone | FixedTimezone = tz or settings.TIMEZONE
 
         # Apply the timezone we settled on to end_date if it wasn't supplied
-        if "end_date" in self.default_args and self.default_args["end_date"]:
-            if isinstance(self.default_args["end_date"], str):
-                self.default_args["end_date"] = timezone.parse(
-                    self.default_args["end_date"], timezone=self.timezone
-                )
+        if isinstance(_end_date := self.default_args.get("end_date"), str):
+            self.default_args["end_date"] = timezone.parse(_end_date, timezone=self.timezone)
 
         self.start_date = timezone.convert_to_utc(start_date)
         self.end_date = timezone.convert_to_utc(end_date)

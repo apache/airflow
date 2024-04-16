@@ -21,7 +21,6 @@ import gzip as gz
 import inspect
 import os
 import re
-import unittest
 from datetime import datetime as std_datetime, timezone
 from unittest import mock, mock as async_mock
 from unittest.mock import MagicMock, Mock, patch
@@ -467,7 +466,6 @@ class TestAwsS3Hook:
 
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
     @pytest.mark.asyncio
-    @unittest.expectedFailure
     async def test_s3_key_hook_get_head_object_raise_exception_async(self, mock_client):
         """
         Test for 500 error if key not found and assert based on response.
