@@ -774,8 +774,8 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
         self.upload_continue_on_fail = upload_continue_on_fail
         self.upload_num_attempts = upload_num_attempts
 
-        self._source_object_names: list[str] = []
-        self._destination_object_names: list[str] = []
+        self._source_prefix_interp: str | None = None
+        self._destination_prefix_interp: str | None = None
 
     def execute(self, context: Context) -> list[str]:
         # Define intervals and prefixes.
@@ -803,11 +803,11 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
         timespan_start = timespan_start.in_timezone(timezone.utc)
         timespan_end = timespan_end.in_timezone(timezone.utc)
 
-        source_prefix_interp = GCSTimeSpanFileTransformOperator.interpolate_prefix(
+        self._source_prefix_interp = GCSTimeSpanFileTransformOperator.interpolate_prefix(
             self.source_prefix,
             timespan_start,
         )
-        destination_prefix_interp = GCSTimeSpanFileTransformOperator.interpolate_prefix(
+        self._destination_prefix_interp = GCSTimeSpanFileTransformOperator.interpolate_prefix(
             self.destination_prefix,
             timespan_start,
         )
@@ -828,9 +828,9 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
         )
 
         # Fetch list of files.
-        self._source_object_names = source_hook.list_by_timespan(
+        blobs_to_transform = source_hook.list_by_timespan(
             bucket_name=self.source_bucket,
-            prefix=source_prefix_interp,
+            prefix=self._source_prefix_interp,
             timespan_start=timespan_start,
             timespan_end=timespan_end,
         )
@@ -840,7 +840,7 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
             temp_output_dir_path = Path(temp_output_dir)
 
             # TODO: download in parallel.
-            for blob_to_transform in self._source_object_names:
+            for blob_to_transform in blobs_to_transform:
                 destination_file = temp_input_dir_path / blob_to_transform
                 destination_file.parent.mkdir(parents=True, exist_ok=True)
                 try:
@@ -877,6 +877,8 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
 
             self.log.info("Transformation succeeded. Output temporarily located at %s", temp_output_dir_path)
 
+            files_uploaded = []
+
             # TODO: upload in parallel.
             for upload_file in temp_output_dir_path.glob("**/*"):
                 if upload_file.is_dir():
@@ -884,8 +886,8 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
 
                 upload_file_name = str(upload_file.relative_to(temp_output_dir_path))
 
-                if self.destination_prefix is not None:
-                    upload_file_name = f"{destination_prefix_interp}/{upload_file_name}"
+                if self._destination_prefix_interp is not None:
+                    upload_file_name = f"{self._destination_prefix_interp.rstrip('/')}/{upload_file_name}"
 
                 self.log.info("Uploading file %s to %s", upload_file, upload_file_name)
 
@@ -897,35 +899,46 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
                         chunk_size=self.chunk_size,
                         num_max_attempts=self.upload_num_attempts,
                     )
-                    self._destination_object_names.append(str(upload_file_name))
+                    files_uploaded.append(str(upload_file_name))
                 except GoogleCloudError:
                     if not self.upload_continue_on_fail:
                         raise
 
-            return self._destination_object_names
+            return files_uploaded
 
     def get_openlineage_facets_on_complete(self, task_instance):
-        """Implement on_complete as execute() resolves object names."""
+        """Implement on_complete as execute() resolves object prefixes."""
         from openlineage.client.run import Dataset
 
         from airflow.providers.openlineage.extractors import OperatorLineage
 
-        input_datasets = [
-            Dataset(
-                namespace=f"gs://{self.source_bucket}",
-                name=object_name,
-            )
-            for object_name in self._source_object_names
-        ]
-        output_datasets = [
-            Dataset(
-                namespace=f"gs://{self.destination_bucket}",
-                name=object_name,
-            )
-            for object_name in self._destination_object_names
-        ]
+        def _parse_prefix(pref):
+            # Use parent if not a file (dot not in name) and not a dir (ends with slash)
+            if "." not in pref.split("/")[-1] and not pref.endswith("/"):
+                pref = Path(pref).parent.as_posix()
+            return "/" if pref in (".", "/", "") else pref.rstrip("/")
 
-        return OperatorLineage(inputs=input_datasets, outputs=output_datasets)
+        input_prefix, output_prefix = "/", "/"
+        if self._source_prefix_interp is not None:
+            input_prefix = _parse_prefix(self._source_prefix_interp)
+
+        if self._destination_prefix_interp is not None:
+            output_prefix = _parse_prefix(self._destination_prefix_interp)
+
+        return OperatorLineage(
+            inputs=[
+                Dataset(
+                    namespace=f"gs://{self.source_bucket}",
+                    name=input_prefix,
+                )
+            ],
+            outputs=[
+                Dataset(
+                    namespace=f"gs://{self.destination_bucket}",
+                    name=output_prefix,
+                )
+            ],
+        )
 
 
 class GCSDeleteBucketOperator(GoogleCloudBaseOperator):
