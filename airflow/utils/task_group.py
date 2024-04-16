@@ -683,11 +683,13 @@ def task_group_to_dict(task_item_or_group):
 
     if isinstance(task := task_item_or_group, AbstractOperator):
         setup_teardown_type = {}
-        is_mapped = isinstance(task, MappedOperator)
+        is_mapped = {}
         if task.is_setup is True:
             setup_teardown_type["setupTeardownType"] = "setup"
         elif task.is_teardown is True:
             setup_teardown_type["setupTeardownType"] = "teardown"
+        if isinstance(task, MappedOperator):
+            is_mapped["isMapped"] = True
         return {
             "id": task.task_id,
             "value": {
@@ -696,7 +698,7 @@ def task_group_to_dict(task_item_or_group):
                 "style": f"fill:{task.ui_color};",
                 "rx": 5,
                 "ry": 5,
-                "isMapped": is_mapped,
+                **is_mapped,
                 **setup_teardown_type,
             },
         }
