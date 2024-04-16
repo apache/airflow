@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timedelta
+from dateutil.parser import parse as parse_date
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from paramiko.sftp import SFTP_NO_SUCH_FILE
@@ -57,7 +58,7 @@ class SFTPSensor(BaseSensorOperator):
         *,
         path: str,
         file_pattern: str = "",
-        newer_than: datetime | None = None,
+        newer_than: datetime | str | None = None,
         sftp_conn_id: str = "sftp_default",
         python_callable: Callable | None = None,
         op_args: list | None = None,
@@ -105,6 +106,8 @@ class SFTPSensor(BaseSensorOperator):
                 continue
 
             if self.newer_than:
+                if isinstance(self.newer_than, str):
+                    self.newer_than = parse_date(self.newer_than)
                 _mod_time = convert_to_utc(datetime.strptime(mod_time, "%Y%m%d%H%M%S"))
                 _newer_than = convert_to_utc(self.newer_than)
                 if _newer_than <= _mod_time:
