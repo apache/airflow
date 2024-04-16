@@ -97,22 +97,14 @@ class TestSFTPSensor:
         sftp_hook_mock.return_value.get_mod_time.assert_called_once_with("/path/to/file/1970-01-01.txt")
         assert not output
 
+    @pytest.mark.parametrize(
+        "newer_than",  (datetime(2020, 1, 2), "2020-01-02 00:00:00+00:00")
+    )
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
-    def test_naive_datetime(self, sftp_hook_mock):
+    def test_naive_datetime(self, sftp_hook_mock, newer_than):
         sftp_hook_mock.return_value.get_mod_time.return_value = "19700101000000"
         sftp_sensor = SFTPSensor(
-            task_id="unit_test", path="/path/to/file/1970-01-01.txt", newer_than=datetime(2020, 1, 2)
-        )
-        context = {"ds": "1970-01-00"}
-        output = sftp_sensor.poke(context)
-        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with("/path/to/file/1970-01-01.txt")
-        assert not output
-
-    @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
-    def test_naive_datetime_in_pattern(self, sftp_hook_mock):
-        sftp_hook_mock.return_value.get_mod_time.return_value = "19700101000000"
-        sftp_sensor = SFTPSensor(
-            task_id="unit_test", path="/path/to/file/1970-01-01.txt", newer_than="2020-01-02 00:00:00+00:00"
+            task_id="unit_test", path="/path/to/file/1970-01-01.txt", newer_than=newer_than
         )
         context = {"ds": "1970-01-00"}
         output = sftp_sensor.poke(context)
