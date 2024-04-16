@@ -1937,6 +1937,14 @@ paths:
       tags: [DAG]
       parameters:
         - $ref: "#/components/parameters/ReturnFields"
+        - name: include_tasks
+          in: query
+          schema:
+            type: boolean
+            default: false
+          required: false
+          description: |
+            If set, return task_ids of DAG
       responses:
         "200":
           description: Success.
