@@ -415,6 +415,7 @@ def autoclean_admin_user(configured_app, autoclean_user_payload):
 
 class TestPostUser(TestUserEndpoint):
     def test_with_default_role(self, autoclean_username, autoclean_user_payload):
+        self.flask_app.config["AUTH_USER_REGISTRATION_ROLE"] = "Public"
         response = self.client.post(
             "/auth/fab/v1/users",
             json=autoclean_user_payload,
@@ -426,6 +427,7 @@ class TestPostUser(TestUserEndpoint):
         user = security_manager.find_user(autoclean_username)
         assert user is not None
         assert user.roles == [security_manager.find_role("Public")]
+        self.flask_app.config["AUTH_USER_REGISTRATION_ROLE"] = None
 
     def test_with_custom_roles(self, autoclean_username, autoclean_user_payload):
         response = self.client.post(
