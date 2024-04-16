@@ -55,9 +55,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.6.0
-  # simple-salesforce 1.12.6 breaks static checks, so we limit it to <1.12.6 for now
-  # https://github.com/apache/airflow/pull/39045
-  - simple-salesforce>=1.0.0,<1.12.6
+  - simple-salesforce>=1.0.0
   # In pandas 2.2 minimal version of the sqlalchemy is 2.0
   # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
   # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
