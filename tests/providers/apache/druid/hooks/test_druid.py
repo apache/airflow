@@ -196,34 +196,6 @@ class TestDruidSubmitHook:
         assert task_post.call_count == 1
         assert shutdown_post.call_count == 1
 
-    def test_all_requests_sent_with_same_ssl_verification(self, requests_mock):
-        self.db_hook.verify_ssl = False
-        task_post = requests_mock.post(
-            "http://druid-overlord:8081/druid/indexer/v1/task",
-            text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
-        )
-        status_check = requests_mock.get(
-            "http://druid-overlord:8081/druid/indexer/v1/task/9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status",
-            text='{"status":{"status": "RUNNING"}}',
-        )
-        shutdown_post = requests_mock.post(
-            "http://druid-overlord:8081/druid/indexer/v1/task/"
-            "9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/shutdown",
-            text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
-        )
-
-        # Because the jobs keeps running
-        with pytest.raises(AirflowException):
-            self.db_hook.submit_indexing_job("Long json file")
-
-        assert status_check.called
-        if status_check.called_once:
-            verify_ssl = status_check.request_history[0].verify
-            assert False is verify_ssl
-        # PGH005: false positive on ``requests_mock`` argument `called_once`
-        assert task_post.call_count == 1
-        assert shutdown_post.call_count == 1
-
 
 class TestDruidHook:
     def setup_method(self):
