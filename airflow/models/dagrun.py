@@ -1546,12 +1546,12 @@ class DagRun(Base, LoggingMixin):
                 and not ti.task.on_success_callback
                 and not ti.task.outlets
             ):
-                if not (ti.task.start_trigger and ti.task.next_method):
+                if not (ti.task.trigger and ti.task.next_method):
                     raise AirflowException(
-                        "When setting starts_execution_from_triggerer=True, start_trigger and next_method are required."
+                        "When setting starts_execution_from_triggerer=True, trigger and next_method are required."
                     )
 
-                trigger_cls_name, trigger_kwargs = ti.task.start_trigger
+                trigger_cls_name, trigger_kwargs = ti.task.trigger
                 trigger_cls = import_string(trigger_cls_name)
                 ti._try_number += 1
                 ti.defer_task(

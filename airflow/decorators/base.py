@@ -472,7 +472,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         partial_kwargs.setdefault("op_args", [])
         partial_kwargs.setdefault("op_kwargs", {})
         partial_kwargs.setdefault("starts_execution_from_triggerer", False)
-        partial_kwargs.setdefault("start_trigger", None)
+        partial_kwargs.setdefault("trigger", None)
         partial_kwargs.setdefault("next_method", None)
 
         # Mypy does not work well with a subclassed attrs class :(
@@ -513,7 +513,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             # the operator arguments themselves, and should expand against it.
             expand_input_attr="op_kwargs_expand_input",
             starts_execution_from_triggerer=False,
-            start_trigger=None,
+            trigger=None,
             next_method=None,
         )
         return XComArg(operator=operator)

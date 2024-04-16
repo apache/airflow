@@ -207,7 +207,7 @@ class OperatorPartial:
         start_date = partial_kwargs.pop("start_date")
         end_date = partial_kwargs.pop("end_date")
         starts_execution_from_triggerer = partial_kwargs.pop("starts_execution_from_triggerer")
-        start_trigger = partial_kwargs.pop("start_trigger")
+        trigger = partial_kwargs.pop("trigger")
         next_method = partial_kwargs.pop("next_method")
 
         try:
@@ -241,7 +241,7 @@ class OperatorPartial:
             # to BaseOperator.expand() contribute to operator arguments.
             expand_input_attr="expand_input",
             starts_execution_from_triggerer=starts_execution_from_triggerer,
-            start_trigger=start_trigger,
+            trigger=trigger,
             next_method=next_method,
         )
         return op
@@ -286,7 +286,7 @@ class MappedOperator(AbstractOperator):
     _task_type: str
     _operator_name: str
     starts_execution_from_triggerer: bool | None
-    start_trigger: Trigger | None
+    trigger: Trigger | None
     next_method: str | None
 
     dag: DAG | None
