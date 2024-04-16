@@ -79,9 +79,9 @@ if TYPE_CHECKING:
     )
     from airflow.models.operator import Operator
     from airflow.models.param import ParamsDict
-    from airflow.models.trigger import Trigger
     from airflow.models.xcom_arg import XComArg
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+    from airflow.triggers.base import BaseTrigger
     from airflow.utils.context import Context
     from airflow.utils.operator_resources import Resources
     from airflow.utils.task_group import TaskGroup
@@ -279,8 +279,7 @@ class MappedOperator(AbstractOperator):
     _task_module: str
     _task_type: str
     _operator_name: str
-    _starts_execution_from_triggerer: bool
-    _trigger: Trigger | None
+    _start_trigger: BaseTrigger | None
     _next_method: str | None
 
     dag: DAG | None
@@ -382,17 +381,12 @@ class MappedOperator(AbstractOperator):
         return self._is_empty
 
     @property
-    def starts_execution_from_triggerer(self) -> bool:
+    def start_trigger(self) -> BaseTrigger | None:
         """Implementing Operator."""
-        return self._starts_execution_from_triggerer
+        return self._start_trigger
 
     @property
-    def trigger(self) -> Trigger:
-        """Implementing Operator."""
-        return self._trigger
-
-    @property
-    def next_method(self) -> str:
+    def next_method(self) -> str | None:
         """Implementing Operator."""
         return self._next_method
 

@@ -83,7 +83,6 @@ from airflow.models.param import ParamsDict
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskmixin import DependencyMixin
-from airflow.models.trigger import Trigger
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.task.priority_strategy import PriorityWeightStrategy, validate_and_load_priority_weight_strategy
 from airflow.ti_deps.deps.mapped_task_upstream_dep import MappedTaskUpstreamDep
@@ -114,7 +113,6 @@ if TYPE_CHECKING:
     from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
-    from airflow.models.trigger import Trigger
     from airflow.models.xcom_arg import XComArg
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.triggers.base import BaseTrigger
@@ -277,9 +275,6 @@ def partial(
     task_display_name: str | None | ArgNotSet = NOTSET,
     logger_name: str | None | ArgNotSet = NOTSET,
     allow_nested_operators: bool = True,
-    starts_execution_from_triggerer: bool = False,
-    trigger: Trigger = None,
-    next_method: str | None = None,
     **kwargs,
 ) -> OperatorPartial:
     from airflow.models.dag import DagContext
@@ -349,8 +344,7 @@ def partial(
         "task_display_name": task_display_name,
         "logger_name": logger_name,
         "allow_nested_operators": allow_nested_operators,
-        "starts_execution_from_triggerer": starts_execution_from_triggerer,
-        "trigger": trigger,
+        "start_trigger": start_trigger,
         "next_method": next_method,
     }
 
@@ -882,9 +876,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         task_display_name: str | None = None,
         logger_name: str | None = None,
         allow_nested_operators: bool = True,
-        starts_execution_from_triggerer: bool = False,
-        trigger: Trigger | None = None,
-        next_method: str | None = None,
         **kwargs,
     ):
         from airflow.models.dag import DagContext
@@ -1085,9 +1076,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if SetupTeardownContext.active:
             SetupTeardownContext.update_context_map(self)
 
-        self._starts_execution_from_triggerer = starts_execution_from_triggerer
-        self._trigger = trigger
-        self._next_method = next_method
+        self._start_trigger: BaseTrigger | None = None
+        self._next_method: str | None = None
 
     def __eq__(self, other):
         if type(self) is type(other):
@@ -1709,17 +1699,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         return getattr(self, "_is_empty", False)
 
     @property
-    def starts_execution_from_triggerer(self):
-        """Used to determine if an Operator should start execution from triggerer."""
-        return getattr(self, "_starts_execution_from_triggerer", False)
-
-    @property
-    def trigger(self):
+    def start_trigger(self) -> BaseTrigger | None:
         """Trigger when deferring task."""
-        return getattr(self, "_trigger", None)
+        return getattr(self, "_start_trigger", None)
 
     @property
-    def next_method(self):
+    def next_method(self) -> str | None:
         """Method to execute after finish deferring."""
         return getattr(self, "_next_method", None)
 

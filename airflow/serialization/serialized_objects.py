@@ -1023,8 +1023,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         # Used to determine if an Operator is inherited from EmptyOperator
         serialize_op["_is_empty"] = op.inherits_from_empty_operator
-        serialize_op["_starts_execution_from_triggerer"] = op.starts_execution_from_triggerer
-        serialize_op["_trigger"] = op.trigger.serialize() if op.trigger else None
+        serialize_op["_start_trigger"] = op.start_trigger.serialize() if op.start_trigger else None
         serialize_op["_next_method"] = op.next_method
 
         if op.operator_extra_links:
@@ -1206,12 +1205,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         # Used to determine if an Operator is inherited from EmptyOperator
         setattr(op, "_is_empty", bool(encoded_op.get("_is_empty", False)))
-        setattr(
-            op,
-            "_starts_execution_from_triggerer",
-            bool(encoded_op.get("_starts_execution_from_triggerer", False)),
-        )
-        setattr(op, "_trigger", encoded_op.get("_trigger", None))
+        setattr(op, "_start_trigger", encoded_op.get("_start_trigger", None))
         setattr(op, "_next_method", encoded_op.get("_next_method", None))
 
     @staticmethod
