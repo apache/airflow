@@ -38,24 +38,25 @@ from airflow.providers.cncf.kubernetes.operators.custom_object_launcher import (
 @pytest.fixture
 def mock_launcher():
     launcher = CustomObjectLauncher(
-        name='test-spark-job',
-        namespace='default',
+        name="test-spark-job",
+        namespace="default",
         kube_client=MagicMock(),
         custom_obj_api=MagicMock(),
         template_body={
-            'spark': {
-                'spec': {
-                    'image': 'gcr.io/spark-operator/spark-py:v3.0.0',
-                    'driver': {},
-                    'executor': {},
+            "spark": {
+                "spec": {
+                    "image": "gcr.io/spark-operator/spark-py:v3.0.0",
+                    "driver": {},
+                    "executor": {},
                 },
-                'apiVersion': 'sparkoperator.k8s.io/v1beta2',
-                'kind': 'SparkApplication',
+                "apiVersion": "sparkoperator.k8s.io/v1beta2",
+                "kind": "SparkApplication",
             },
         },
     )
     launcher.pod_spec = V1Pod()
     return launcher
+
 
 class TestSparkJobSpec:
     @patch("airflow.providers.cncf.kubernetes.operators.custom_object_launcher.SparkJobSpec.update_resources")
@@ -181,14 +182,15 @@ class TestSparkResources:
         assert spark_resources.driver["gpu"]["quantity"] == 1
         assert spark_resources.executor["gpu"]["quantity"] == 2
 
+
 class TestCustomObjectLauncher:
     def get_pod_status(self, reason: str, message: str | None = None):
         return V1PodStatus(
             container_statuses=[
                 V1ContainerStatus(
-                    image='test',
-                    image_id='test',
-                    name='test',
+                    image="test",
+                    image_id="test",
+                    name="test",
                     ready=False,
                     restart_count=0,
                     state=V1ContainerState(
@@ -201,26 +203,18 @@ class TestCustomObjectLauncher:
             ]
         )
 
-    @patch(
-        'airflow.providers.cncf.kubernetes.operators.custom_object_launcher.PodManager'
-    )
+    @patch("airflow.providers.cncf.kubernetes.operators.custom_object_launcher.PodManager")
     def test_check_pod_start_failure_no_error(self, mock_pod_manager, mock_launcher):
-        mock_pod_manager.return_value.read_pod.return_value.status = self.get_pod_status(
-            'ContainerCreating'
-        )
+        mock_pod_manager.return_value.read_pod.return_value.status = self.get_pod_status("ContainerCreating")
         mock_launcher.check_pod_start_failure()
 
-        mock_pod_manager.return_value.read_pod.return_value.status = self.get_pod_status(
-            'PodInitializing'
-        )
+        mock_pod_manager.return_value.read_pod.return_value.status = self.get_pod_status("PodInitializing")
         mock_launcher.check_pod_start_failure()
 
-    @patch(
-        'airflow.providers.cncf.kubernetes.operators.custom_object_launcher.PodManager'
-    )
+    @patch("airflow.providers.cncf.kubernetes.operators.custom_object_launcher.PodManager")
     def test_check_pod_start_failure_with_error(self, mock_pod_manager, mock_launcher):
         mock_pod_manager.return_value.read_pod.return_value.status = self.get_pod_status(
-            'CrashLoopBackOff', 'Error message'
+            "CrashLoopBackOff", "Error message"
         )
         with pytest.raises(AirflowException):
             mock_launcher.check_pod_start_failure()
