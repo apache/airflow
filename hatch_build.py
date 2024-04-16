@@ -489,6 +489,10 @@ DEPENDENCIES = [
     "tabulate>=0.7.5",
     "tenacity>=6.2.0,!=8.2.0",
     "termcolor>=1.1.0",
+    # Backports stdlib typing modules, with experimental features and fixes
+    # 4.6.0 - Backported `typing.Literal` with fixes in versions prior 3.10.1 and 3.9.8
+    # 4.9.0 - Backported `warnings.deprecated` in versions prior 3.13 (PEP-702)
+    "typing-extensions>=4.9.0",
     # We should remove this dependency when Providers are limited to Airflow 2.7+
     # as we replaced the usage of unicodecsv with csv in Airflow 2.7
     # See https://github.com/apache/airflow/pull/31693

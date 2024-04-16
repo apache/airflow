@@ -667,6 +667,16 @@ class DagFileProcessor(LoggingMixin):
                 if message:
                     self.dag_warnings.add(DagWarning(subdag.dag_id, DagWarningType.NONEXISTENT_POOL, message))
 
+    def _check_deprecated_operators(self, *, dagbag: DagBag):
+        def check_deprecated(dag):
+            deprecated_ops = {task.task_id for task in dag.tasks if hasattr(task, "__deprecated__")}
+            if deprecated_ops:
+                return f"Dag '{dag.dag_id}' use deprecated operators in tasks: {sorted(deprecated_ops)!r}"
+
+        for dag in dagbag.dags.values():
+            if message := check_deprecated(dag):
+                self.dag_warnings.add(DagWarning(dag.dag_id, DagWarningType.DEPRECATED_OPERATOR, message))
+
     def update_dag_warnings(self, *, session: Session, dagbag: DagBag) -> None:
         """
         Update any import warnings to be displayed in the UI.
@@ -679,6 +689,7 @@ class DagFileProcessor(LoggingMixin):
         :param dagbag: DagBag containing DAGs with configuration warnings
         """
         self._validate_task_pools(dagbag=dagbag)
+        self._check_deprecated_operators(dagbag=dagbag)
 
         stored_warnings = set(session.query(DagWarning).filter(DagWarning.dag_id.in_(dagbag.dags)).all())
 

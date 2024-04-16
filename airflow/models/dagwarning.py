@@ -104,3 +104,4 @@ class DagWarningType(str, Enum):
     """
 
     NONEXISTENT_POOL = "non-existent pool"
+    DEPRECATED_OPERATOR = "deprecated-operator"

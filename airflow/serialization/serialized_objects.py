@@ -1028,6 +1028,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         if op.params:
             serialize_op["params"] = cls._serialize_params_dict(op.params)
 
+        if hasattr(op, "__deprecated__"):
+            serialize_op["__deprecated__"] = str(op.__deprecated__)
+
         return serialize_op
 
     @classmethod

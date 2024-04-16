@@ -41,6 +41,8 @@ def getattr_with_deprecation(
     :param name: attribute name
     :return:
     """
+    from airflow.compat.warnings import deprecated
+
     target_class_full_name = imports.get(name)
     if not target_class_full_name:
         raise AttributeError(f"The module `{module!r}` has no attribute `{name!r}`")
@@ -53,7 +55,7 @@ def getattr_with_deprecation(
     warnings.warn(message, DeprecationWarning, stacklevel=2)
     new_module, new_class_name = target_class_full_name.rsplit(".", 1)
     try:
-        return getattr(importlib.import_module(new_module), new_class_name)
+        obj = getattr(importlib.import_module(new_module), new_class_name)
     except ImportError as e:
         error_message = (
             f"Could not import `{new_module}.{new_class_name}` while trying to import `{module}.{name}`."
@@ -61,6 +63,15 @@ def getattr_with_deprecation(
         if extra_message:
             error_message += f" {extra_message}."
         raise ImportError(error_message) from e
+    else:
+        if isinstance(obj, type) and obj is not callable:
+            # Mark-only classes with ``warnings.deprecated`` by wrap it in subclass
+            # We can't directly assign decorator to the class,
+            # otherwise the original one also marks as deprecated.
+
+            obj = deprecated(message)(type(new_class_name, (obj,), {}))
+            obj.__module__ = new_module
+        return obj
 
 
 def add_deprecated_classes(

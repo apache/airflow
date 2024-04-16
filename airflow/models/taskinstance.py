@@ -2308,6 +2308,14 @@ class TaskInstance(Base, LoggingMixin):
         ti.hostname = hostname
         ti.pid = None
 
+        if hasattr(task, "__deprecated__"):  # PEP 702
+            cls.logger().warning(
+                "Operator `%s.%s` has deprecation mark: %r",
+                type(task).__module__,
+                type(task).__qualname__,
+                task.__deprecated__,
+            )
+
         if not ignore_all_deps and not ignore_ti_state and ti.state == TaskInstanceState.SUCCESS:
             Stats.incr("previously_succeeded", tags=ti.stats_tags)
 

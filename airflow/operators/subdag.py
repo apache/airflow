@@ -23,13 +23,13 @@ The module which provides a way to nest your DAGs and so your levels of complexi
 
 from __future__ import annotations
 
-import warnings
 from enum import Enum
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 
 from airflow.api.common.experimental.get_task_instance import get_task_instance
+from airflow.compat.warnings import deprecated
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskInstanceNotFound
 from airflow.models import DagRun
 from airflow.models.dag import DagContext
@@ -56,6 +56,10 @@ class SkippedStatePropagationOptions(Enum):
     ANY_LEAF = "any_leaf"
 
 
+@deprecated(
+    "This class is deprecated. Please use `airflow.utils.task_group.TaskGroup`.",
+    category=RemovedInAirflow3Warning,
+)
 class SubDagOperator(BaseSensorOperator):
     """
     This class is deprecated, please use :class:`airflow.utils.task_group.TaskGroup`.
@@ -96,12 +100,6 @@ class SubDagOperator(BaseSensorOperator):
 
         self._validate_dag(kwargs)
         self._validate_pool(session)
-
-        warnings.warn(
-            """This class is deprecated. Please use `airflow.utils.task_group.TaskGroup`.""",
-            RemovedInAirflow3Warning,
-            stacklevel=4,
-        )
 
     def _validate_dag(self, kwargs):
         dag = kwargs.get("dag") or DagContext.get_current_dag()
