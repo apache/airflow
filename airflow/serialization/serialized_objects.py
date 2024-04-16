@@ -1016,6 +1016,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     def _serialize_node(cls, op: BaseOperator | MappedOperator, include_deps: bool) -> dict[str, Any]:
         """Serialize operator into a JSON object."""
         serialize_op = cls.serialize_to_json(op, cls._decorated_fields)
+
         serialize_op["_task_type"] = getattr(op, "_task_type", type(op).__name__)
         serialize_op["_task_module"] = getattr(op, "_task_module", type(op).__module__)
         if op.operator_name != serialize_op["_task_type"]:
@@ -1023,6 +1024,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         # Used to determine if an Operator is inherited from EmptyOperator
         serialize_op["_is_empty"] = op.inherits_from_empty_operator
+
+        if bool(op.start_trigger) ^ bool(op.next_method):
+            raise AirflowException("_start_trigger and _next_method should be both set.")
+
         serialize_op["_start_trigger"] = op.start_trigger.serialize() if op.start_trigger else None
         serialize_op["_next_method"] = op.next_method
 
@@ -1205,7 +1210,16 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         # Used to determine if an Operator is inherited from EmptyOperator
         setattr(op, "_is_empty", bool(encoded_op.get("_is_empty", False)))
-        setattr(op, "_start_trigger", encoded_op.get("_start_trigger", None))
+
+        # start with trigger
+        serialized_start_trigger = encoded_op.get("_start_trigger")
+        if serialized_start_trigger:
+            trigger_cls_name, trigger_kwargs = serialized_start_trigger
+            trigger_cls = import_string(trigger_cls_name)
+            start_trigger = trigger_cls(**trigger_kwargs)
+            setattr(op, "_start_trigger", start_trigger)
+        else:
+            setattr(op, "_start_trigger", None)
         setattr(op, "_next_method", encoded_op.get("_next_method", None))
 
     @staticmethod

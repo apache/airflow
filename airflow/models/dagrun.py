@@ -65,7 +65,6 @@ from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
 from airflow.utils import timezone
 from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.module_loading import import_string
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, tuple_in_condition, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -1541,21 +1540,15 @@ class DagRun(Base, LoggingMixin):
             ):
                 dummy_ti_ids.append((ti.task_id, ti.map_index))
             elif (
-                ti.task.start_trigger
+                ti.task.start_trigger is not None
+                and ti.task.next_method is not None
                 and not ti.task.on_execute_callback
                 and not ti.task.on_success_callback
                 and not ti.task.outlets
             ):
-                if not (ti.task.start_trigger and ti.task.next_method):
-                    raise AirflowException("When setting start_trigger, next_method is required.")
-
-                trigger_cls_name, trigger_kwargs = ti.task.start_trigger
-                trigger_cls = import_string(trigger_cls_name)
                 ti._try_number += 1
                 ti.defer_task(
-                    defer=TaskDeferred(
-                        trigger=trigger_cls(**trigger_kwargs), method_name=ti.task.next_method
-                    ),
+                    defer=TaskDeferred(trigger=ti.task.start_trigger, method_name=ti.task.next_method),
                     session=session,
                 )
             else:

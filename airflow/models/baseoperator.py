@@ -344,8 +344,6 @@ def partial(
         "task_display_name": task_display_name,
         "logger_name": logger_name,
         "allow_nested_operators": allow_nested_operators,
-        "start_trigger": start_trigger,
-        "next_method": next_method,
     }
 
     # Inject DAG-level default args into args provided to this function.
@@ -1076,8 +1074,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if SetupTeardownContext.active:
             SetupTeardownContext.update_context_map(self)
 
-        self._start_trigger: BaseTrigger | None = None
-        self._next_method: str | None = None
+        self._start_trigger: BaseTrigger | None = getattr(self, "_start_trigger", None)
 
     def __eq__(self, other):
         if type(self) is type(other):
