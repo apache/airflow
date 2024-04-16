@@ -17,13 +17,16 @@
 
 from __future__ import annotations
 
-from typing import Any, AsyncIterator
+from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.glue_session import GlueSessionHook
-from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
+
+if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 
-class GlueSessionReadyTrigger(BaseTrigger):
+class GlueSessionReadyTrigger(AwsBaseWaiterTrigger):
     """
     Watches for a glue session, triggers when it is ready.
 
@@ -34,26 +37,27 @@ class GlueSessionReadyTrigger(BaseTrigger):
     def __init__(
         self,
         session_id: str,
+        waiter_delay: int,
+        waiter_max_attempts: int,
         aws_conn_id: str | None,
-        session_poll_interval: int | float,
+        region_name: str | None = None,
+        **kwargs,
     ):
-        super().__init__()
-        self.session_id = session_id
-        self.aws_conn_id = aws_conn_id
-        self.session_poll_interval = session_poll_interval
-
-    def serialize(self) -> tuple[str, dict[str, Any]]:
-        return (
-            # dynamically generate the fully qualified name of the class
-            self.__class__.__module__ + "." + self.__class__.__qualname__,
-            {
-                "session_id": self.session_id,
-                "aws_conn_id": self.aws_conn_id,
-                "session_poll_interval": self.session_poll_interval,
-            },
+        super().__init__(
+            serialized_fields={"session_id": session_id},
+            waiter_name="session_ready",
+            waiter_args={"Id": session_id},
+            failure_message="Failure while waiting for session to be ready",
+            status_message="Session is not ready yet",
+            status_queries=["Session.Status", "failures"],
+            return_key="id",
+            return_value=session_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+            region_name=region_name,
+            **kwargs,
         )
 
-    async def run(self) -> AsyncIterator[TriggerEvent]:
-        hook = GlueSessionHook(aws_conn_id=self.aws_conn_id, session_poll_interval=self.session_poll_interval)
-        await hook.async_session_readiness(self.session_id)
-        yield TriggerEvent({"status": "ready", "message": "Session ready", "value": self.session_id})
+    def hook(self) -> AwsGenericHook:
+        return GlueSessionHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)

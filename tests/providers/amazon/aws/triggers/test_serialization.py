@@ -46,6 +46,7 @@ from airflow.providers.amazon.aws.triggers.emr import (
 )
 from airflow.providers.amazon.aws.triggers.glue import GlueCatalogPartitionTrigger
 from airflow.providers.amazon.aws.triggers.glue_crawler import GlueCrawlerCompleteTrigger
+from airflow.providers.amazon.aws.triggers.glue_session import GlueSessionReadyTrigger
 from airflow.providers.amazon.aws.triggers.lambda_function import LambdaCreateFunctionCompleteTrigger
 from airflow.providers.amazon.aws.triggers.rds import (
     RdsDbAvailableTrigger,
@@ -268,6 +269,12 @@ class TestTriggersSerialization:
                 table_name="my_table",
                 expression="my_expression",
                 aws_conn_id="my_conn_id",
+            ),
+            GlueSessionReadyTrigger(
+                session_id="session_id",
+                aws_conn_id=AWS_CONN_ID,
+                waiter_delay=WAITER_DELAY,
+                waiter_max_attempts=MAX_ATTEMPTS,
             ),
             LambdaCreateFunctionCompleteTrigger(
                 function_name=TEST_FUNCTION_NAME,

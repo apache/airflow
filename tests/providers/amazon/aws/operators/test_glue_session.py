@@ -22,11 +22,12 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import TaskDeferred
-from airflow.providers.amazon.aws.hooks.glue_session import GlueSessionHook
+from airflow.providers.amazon.aws.hooks.glue_session import GlueSessionHook, GlueSessionStates
 from airflow.providers.amazon.aws.operators.glue_session import (
     GlueCreateSessionOperator,
-    GlueDeleteSessionOperator,
+    GlueSessionBaseOperator,
 )
+from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
@@ -34,6 +35,49 @@ if TYPE_CHECKING:
 TASK_ID = "test_glue_session_operator"
 DAG_ID = "test_dag_id"
 SESSION_ID = "test_session_id"
+ROLE_NAME = "my_test_role"
+ROLE_ARN = f"arn:aws:iam::123456789012:role/{ROLE_NAME}"
+WAITERS_TEST_CASES = [
+    pytest.param(None, None, id="default-values"),
+    pytest.param(3.14, None, id="set-delay-only"),
+    pytest.param(None, 42, id="set-max-attempts-only"),
+    pytest.param(2.71828, 9000, id="user-defined"),
+]
+
+
+class TestEcsBaseOperator:
+    """Test Base Glue Session Operator."""
+
+    @pytest.mark.parametrize("aws_conn_id", [None, NOTSET, "aws_test_conn"])
+    @pytest.mark.parametrize("region_name", [None, NOTSET, "ca-central-1"])
+    def test_initialise_operator(self, aws_conn_id, region_name):
+        """Test initialize operator."""
+        op_kw = {"aws_conn_id": aws_conn_id, "region_name": region_name}
+        op_kw = {k: v for k, v in op_kw.items() if v is not NOTSET}
+        op = GlueSessionBaseOperator(task_id="test_ecs_base", **op_kw)
+
+        assert op.aws_conn_id == (aws_conn_id if aws_conn_id is not NOTSET else "aws_default")
+        assert op.region_name == (region_name if region_name is not NOTSET else None)
+
+    @pytest.mark.parametrize("aws_conn_id", [None, NOTSET, "aws_test_conn"])
+    @pytest.mark.parametrize("region_name", [None, NOTSET, "ca-central-1"])
+    def test_initialise_operator_hook(self, aws_conn_id, region_name):
+        """Test initialize operator."""
+        op_kw = {"aws_conn_id": aws_conn_id, "region_name": region_name}
+        op_kw = {k: v for k, v in op_kw.items() if v is not NOTSET}
+        op = GlueSessionBaseOperator(task_id="test_ecs_base", **op_kw)
+
+        assert op.hook.aws_conn_id == (aws_conn_id if aws_conn_id is not NOTSET else "aws_default")
+        assert op.hook.region_name == (region_name if region_name is not NOTSET else None)
+
+        with mock.patch.object(GlueSessionBaseOperator, "hook", new_callable=mock.PropertyMock) as m:
+            mocked_hook = mock.MagicMock(name="MockHook")
+            mocked_client = mock.MagicMock(name="Mocklient")
+            mocked_hook.conn = mocked_client
+            m.return_value = mocked_hook
+
+            assert op.client == mocked_client
+            m.assert_called_once()
 
 
 class TestGlueCreateSessionOperator:
@@ -45,128 +89,168 @@ class TestGlueCreateSessionOperator:
             task_id=TASK_ID,
             create_session_kwargs="{{ dag.dag_id }}",
             iam_role_name="{{ dag.dag_id }}",
-            iam_role_arn="{{ dag.dag_id }}",
             session_id="{{ dag.dag_id }}",
         )
         rendered_template: GlueCreateSessionOperator = ti.render_templates()
 
         assert DAG_ID == rendered_template.create_session_kwargs
         assert DAG_ID == rendered_template.iam_role_name
-        assert DAG_ID == rendered_template.iam_role_arn
         assert DAG_ID == rendered_template.session_id
 
-    @mock.patch.object(GlueSessionHook, "get_session_state")
-    @mock.patch.object(GlueSessionHook, "initialize_session")
-    @mock.patch.object(GlueSessionHook, "get_conn")
+    @mock.patch.object(GlueSessionHook, "expand_role")
+    def test_init_iam_role_value_error(self, mock_expand_role):
+        mock_expand_role.return_value = ROLE_ARN
+
+        with pytest.raises(ValueError, match="Cannot set iam_role_arn and iam_role_name simultaneously"):
+            GlueCreateSessionOperator(
+                task_id=TASK_ID,
+                session_id="aws_test_glue_session",
+                session_desc="This is test case job from Airflow",
+                iam_role_name=ROLE_NAME,
+                iam_role_arn=ROLE_ARN,
+            )
+
+    @pytest.mark.parametrize(
+        "num_of_dpus, create_session_kwargs, expected_error",
+        [
+            [
+                20,
+                {"WorkerType": "G.2X", "NumberOfWorkers": 60},
+                "Cannot specify num_of_dpus with custom WorkerType",
+            ],
+            [
+                None,
+                {"NumberOfWorkers": 60},
+                "Need to specify custom WorkerType when specifying NumberOfWorkers",
+            ],
+            [
+                None,
+                {"WorkerType": "G.2X"},
+                "Need to specify NumberOfWorkers when specifying custom WorkerType",
+            ],
+        ],
+    )
+    @mock.patch.object(GlueSessionHook, "expand_role")
+    def test_init_worker_configuration_error(
+        self, mock_expand_role, num_of_dpus, create_session_kwargs, expected_error
+    ):
+        mock_expand_role.return_value = ROLE_ARN
+
+        with pytest.raises(ValueError, match=expected_error):
+            GlueCreateSessionOperator(
+                task_id=TASK_ID,
+                session_id="aws_test_glue_session",
+                session_desc="This is test case job from Airflow",
+                iam_role_name=ROLE_NAME,
+                region_name="us-east-2",
+                num_of_dpus=num_of_dpus,
+                create_session_kwargs=create_session_kwargs,
+            )
+
+    @mock.patch.object(GlueCreateSessionOperator, "_wait_for_task_ended")
+    @mock.patch.object(GlueSessionHook, "expand_role")
+    @mock.patch.object(GlueSessionHook, "conn")
     def test_execute_without_failure(
         self,
-        _,
-        mock_initialize_session,
-        mock_get_session_state,
+        mock_conn,
+        mock_expand_role,
+        mock_wait,
     ):
-        glue_session = GlueCreateSessionOperator(
+        mock_expand_role.return_value = ROLE_ARN
+
+        class SessionNotFoundException(Exception):
+            pass
+
+        mock_conn.exceptions.EntityNotFoundException = SessionNotFoundException
+        mock_conn.get_session.side_effect = SessionNotFoundException()
+
+        op = GlueCreateSessionOperator(
             task_id=TASK_ID,
             session_id=SESSION_ID,
             aws_conn_id="aws_default",
             region_name="us-west-2",
-            iam_role_name="my_test_role",
+            iam_role_name=ROLE_NAME,
         )
-        mock_get_session_state.return_value = "READY"
 
-        glue_session.execute(mock.MagicMock())
+        op.execute(mock.MagicMock())
 
-        mock_initialize_session.assert_called_once()
-        assert glue_session.session_id == SESSION_ID
+        mock_conn.create_session.assert_called_once()
+        mock_wait.assert_called_once()
 
-    @mock.patch.object(GlueSessionHook, "initialize_session")
-    @mock.patch.object(GlueSessionHook, "get_conn")
-    def test_role_arn_execute_deferrable(self, _, mock_initialize_session):
-        glue = GlueCreateSessionOperator(
+    @mock.patch.object(GlueCreateSessionOperator, "client")
+    def test_wait_end_tasks(self, mock_client):
+        op = GlueCreateSessionOperator(
             task_id=TASK_ID,
             session_id=SESSION_ID,
             aws_conn_id="aws_default",
             region_name="us-west-2",
-            iam_role_arn="test_role",
-            deferrable=True,
+            iam_role_name=ROLE_NAME,
         )
-        mock_initialize_session.return_value = {"SessionState": "PROVISIONING"}
 
-        with pytest.raises(TaskDeferred) as defer:
-            glue.execute(mock.MagicMock())
-
-        assert defer.value.trigger.session_id == SESSION_ID
-
-    @mock.patch.object(GlueSessionHook, "initialize_session")
-    @mock.patch.object(GlueSessionHook, "get_conn")
-    def test_execute_deferrable(self, _, mock_initialize_session):
-        glue = GlueCreateSessionOperator(
-            task_id=TASK_ID,
-            session_id=SESSION_ID,
-            aws_conn_id="aws_default",
-            region_name="us-west-2",
-            iam_role_name="my_test_role",
-            deferrable=True,
+        op._wait_for_task_ended()
+        mock_client.get_waiter.assert_called_once_with("session_ready")
+        mock_client.get_waiter.return_value.wait.assert_called_once_with(
+            Id=SESSION_ID, WaiterConfig={"Delay": 15, "MaxAttempts": 60}
         )
-        mock_initialize_session.return_value = {"SessionState": "PROVISIONING"}
-
-        with pytest.raises(TaskDeferred) as defer:
-            glue.execute(mock.MagicMock())
-
-        assert defer.value.trigger.session_id == SESSION_ID
-
-    @mock.patch.object(GlueSessionHook, "session_readiness")
-    @mock.patch.object(GlueSessionHook, "initialize_session")
-    @mock.patch.object(GlueSessionHook, "get_conn")
-    def test_execute_without_waiting_for_readiness(
-        self, mock_get_conn, mock_initialize_session, mock_session_readiness
-    ):
-        glue = GlueCreateSessionOperator(
-            task_id=TASK_ID,
-            session_id=SESSION_ID,
-            aws_conn_id="aws_default",
-            region_name="us-west-2",
-            iam_role_name="my_test_role",
-            wait_for_readiness=False,
-        )
-        mock_initialize_session.return_value = {"SessionState": "PROVISIONING"}
-
-        glue.execute(mock.MagicMock())
-
-        mock_initialize_session.assert_called_once_with()
-        mock_session_readiness.assert_not_called()
-        assert glue.session_id == SESSION_ID
 
     @mock.patch.object(GlueSessionHook, "conn")
-    @mock.patch.object(GlueSessionHook, "get_conn")
-    def test_killed_without_delete_session_on_kill(
-        self,
-        _,
-        mock_get_conn,
-    ):
-        glue_session = GlueCreateSessionOperator(
-            task_id=TASK_ID,
-            session_id=SESSION_ID,
-            aws_conn_id="aws_default",
-            region_name="us-west-2",
-            iam_role_name="my_test_role",
-        )
-        glue_session.on_kill()
-        mock_get_conn.delete_session.assert_not_called()
+    @mock.patch.object(GlueSessionHook, "expand_role")
+    def test_execute_deferrable(self, mock_expand_role, mock_conn):
+        mock_expand_role.return_value = ROLE_ARN
 
-    @mock.patch.object(GlueSessionHook, "conn")
-    @mock.patch.object(GlueSessionHook, "get_conn")
-    def test_killed_with_delete_session_on_kill(
-        self,
-        _,
-        mock_get_conn,
-    ):
-        glue_session = GlueCreateSessionOperator(
+        class SessionNotFoundException(Exception):
+            pass
+
+        mock_conn.exceptions.EntityNotFoundException = SessionNotFoundException
+        mock_conn.get_session.side_effect = SessionNotFoundException()
+        mock_conn.create_session.return_value = {
+            "Session": {"Status": GlueSessionStates.PROVISIONING, "Id": SESSION_ID}
+        }
+
+        op = GlueCreateSessionOperator(
             task_id=TASK_ID,
             session_id=SESSION_ID,
             aws_conn_id="aws_default",
-            iam_role_name="my_test_role",
             region_name="us-west-2",
-            delete_session_on_kill=True,
+            iam_role_name=ROLE_NAME,
+            deferrable=True,
+            waiter_delay=12,
+            waiter_max_attempts=34,
         )
-        glue_session.on_kill()
-        mock_get_conn.delete_session.assert_called_once()
+
+        with pytest.raises(TaskDeferred) as defer:
+            op.execute(mock.MagicMock())
+
+        assert defer.value.trigger.waiter_delay == 12
+        assert defer.value.trigger.attempts == 34
+
+    @mock.patch.object(GlueCreateSessionOperator, "_wait_for_task_ended")
+    @mock.patch.object(GlueSessionHook, "conn")
+    def test_execute_immediate_create(self, mock_conn, mock_wait):
+        """Test if cluster created during initial request."""
+        mock_conn.get_session.result = {"Session": {"Status": "READY"}}
+        op = GlueCreateSessionOperator(task_id="task", session_id=SESSION_ID, wait_for_readiness=True)
+
+        result = op.execute(mock.MagicMock())
+
+        mock_conn.get_session.assert_called_once_with(Id=SESSION_ID)
+        mock_wait.assert_not_called()
+        assert result == SESSION_ID
+
+    @mock.patch.object(GlueCreateSessionOperator, "_wait_for_task_ended")
+    @mock.patch.object(GlueSessionHook, "expand_role")
+    @mock.patch.object(GlueSessionHook, "conn")
+    def test_execute_without_waiter(self, mock_conn, mock_expand_role, mock_wait):
+        mock_expand_role.return_value = ROLE_ARN
+
+        class SessionNotFoundException(Exception):
+            pass
+
+        mock_conn.exceptions.EntityNotFoundException = SessionNotFoundException
+        mock_conn.get_session.side_effect = SessionNotFoundException()
+
+        op = GlueCreateSessionOperator(task_id="task", session_id=SESSION_ID, wait_for_readiness=False)
+
+        op.execute({})
+        mock_conn.create_session.assert_called_once()
+        mock_wait.assert_not_called()

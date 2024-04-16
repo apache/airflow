@@ -25,6 +25,37 @@
                     "state": "success"
                 }
             ]
+        },
+        "session_ready": {
+            "operation": "GetSession",
+            "delay": 5,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "Session.Status",
+                    "expected": "PROVISIONING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Session.Status",
+                    "expected": "FAILED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Session.Status",
+                    "expected": "TIMEOUT",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Session.Status",
+                    "expected": "READY",
+                    "state": "success"
+                }
+            ]
         }
     }
 }
