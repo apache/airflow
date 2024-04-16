@@ -42,6 +42,7 @@ Bug Fixes
 * ``Fix remaining D401 checks (#37434)``
 * ``Update ACL during job reset (#38741)``
 * ``Remove extra slash from update permission endpoint (#38918)``
+* ``DatabricksRunNowOperator: fix typo in latest_repair_id (#39050)``
 
 Misc
 ~~~~
