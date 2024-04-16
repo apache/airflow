@@ -163,6 +163,10 @@ class TestClearTasks:
             else:
                 assert ti0.executor == new_executor
 
+    @pytest.mark.parametrize(
+        "state",
+        [State.QUEUED, State.SCHEDULED, State.SUCCESS, State.NONE, State.RESTARTING, State.RUNNING],
+    )
     def test_clear_task_instances_executor_removed(self, dag_maker, state):
         """Test that the executor field is cleared if a task is refreshed"""
         original_executor = "foo_executor"
@@ -195,7 +199,12 @@ class TestClearTasks:
             qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
             clear_task_instances(qry, session)
 
-            assert ti0.executor is None
+            if state == State.RUNNING:
+                # TI state is not cleared if it is running, it is instead set to RESTARTING so that it will
+                # be retried.
+                assert ti0.executor == original_executor
+            else:
+                assert ti0.executor is None
 
     def test_clear_task_instances_next_method(self, dag_maker, session):
         with dag_maker(
