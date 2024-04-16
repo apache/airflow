@@ -38,11 +38,14 @@ For high-level changelog, see :doc:`package information including changelog <ind
 6.3.0
 .....
 
-Latest change: 2024-04-11
+Latest change: 2024-04-16
 
 =================================================================================================  ===========  ======================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================================
+`66df296a6e <https://github.com/apache/airflow/commit/66df296a6e54d42909231230a1c76f260dd15d0b>`_  2024-04-16   ``[FIX] typo in parameter (#39050)``
+`629545bea2 <https://github.com/apache/airflow/commit/629545bea2afa55dbda9b839734b4851d9da566e>`_  2024-04-14   ``Adds job_id as path param in update permission (#38962)``
+`f9dcc82fb6 <https://github.com/apache/airflow/commit/f9dcc82fb690777e0cb4951f5ae5a4bde1e15c54>`_  2024-04-13   ``Prepare docs 1st wave (RC2) April 2024 (#38995)``
 `4a669fb1a9 <https://github.com/apache/airflow/commit/4a669fb1a9891809932a7fdba202c6baa369d537>`_  2024-04-11   ``Remove extra slash from update permission endpoint (#38918)``
 `5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
 `6f21f7dc9b <https://github.com/apache/airflow/commit/6f21f7dc9b8e7d47480f59145d803b6907e3ec7d>`_  2024-04-10   ``Update ACL during job reset (#38741)``
