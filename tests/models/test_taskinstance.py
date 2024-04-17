@@ -3485,6 +3485,7 @@ class TestTaskInstance:
         from airflow.utils.task_instance_session import set_current_task_instance_session
 
         with dag_maker():
+
             @task(map_index_template="instance-map-index-{{ variable }}")
             def example(param: str):
                 context = get_current_context()
