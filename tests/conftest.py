@@ -908,6 +908,7 @@ def dag_maker(request):
             self.kwargs = kwargs
             self.session = session
             self.start_date = self.kwargs.get("start_date", None)
+            concurrency = self.kwargs.get("concurrency", None)
             default_args = kwargs.get("default_args", None)
             if default_args and not self.start_date:
                 if "start_date" in default_args:
@@ -918,6 +919,12 @@ def dag_maker(request):
                 else:
                     DEFAULT_DATE = timezone.datetime(2016, 1, 1)
                     self.start_date = DEFAULT_DATE
+
+            # Handle deprecated argument `concurrency` for DAG class
+            # If "concurrency" is defined, replace it with "max_active_tasks"
+            if concurrency:
+                self.kwargs["max_active_tasks"] = concurrency
+                self.kwargs.pop("concurrency")
             self.kwargs["start_date"] = self.start_date
             self.dag = DAG(dag_id, **self.kwargs)
             self.dag.fileloc = fileloc or request.module.__file__
