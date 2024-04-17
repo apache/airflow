@@ -73,7 +73,7 @@ def get_dag(
 @security.requires_access_dag("GET")
 @provide_session
 def get_dag_details(
-    *, dag_id: str, fields: Collection[str] | None = None, session: Session = NEW_SESSION
+    *, dag_id: str, fields: Collection[str] | None = None, include_tasks=False, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Get details of DAG."""
     dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
