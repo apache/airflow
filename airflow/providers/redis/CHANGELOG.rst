@@ -27,6 +27,25 @@
 Changelog
 ---------
 
+3.6.1
+.....
+
+Misc
+~~~~
+
+* ``Allow to use 'redis'>=5 (#38385)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+   * ``Add comment about versions updated by release manager (#37488)``
+   * ``D401 Support in Providers (simple) (#37258)``
+   * ``Add docs for RC2 wave of providers for 2nd round of Jan 2024 (#37019)``
+   * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+   * ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+
 3.6.0
 .....
 

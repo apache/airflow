@@ -24,7 +24,6 @@ import os
 import re
 import shutil
 import sys
-import unittest
 from argparse import ArgumentParser
 from contextlib import contextmanager, redirect_stdout
 from io import StringIO
@@ -386,7 +385,6 @@ class TestCliTasks:
         assert "foo=bar" in output
         assert "AIRFLOW_TEST_MODE=True" in output
 
-    @pytest.mark.asyncio
     @mock.patch("airflow.triggers.file.os.path.getmtime", return_value=0)
     @mock.patch("airflow.triggers.file.glob", return_value=["/tmp/test"])
     @mock.patch("airflow.triggers.file.os.path.isfile", return_value=True)
@@ -805,7 +803,7 @@ class TestLogsfromTaskRunCommand:
             # when not k8s executor pod, most output is redirected to logs
             assert len(lines) == 1
 
-    @unittest.skipIf(not hasattr(os, "fork"), "Forking not available")
+    @pytest.mark.skipif(not hasattr(os, "fork"), reason="Forking not available")
     def test_logging_with_run_task(self):
         with conf_vars({("core", "dags_folder"): self.dag_path}):
             task_command.task_run(self.parser.parse_args(self.task_args))
@@ -833,7 +831,7 @@ class TestLogsfromTaskRunCommand:
             f"task_id={self.task_id}, execution_date=20170101T000000" in logs
         )
 
-    @unittest.skipIf(not hasattr(os, "fork"), "Forking not available")
+    @pytest.mark.skipif(not hasattr(os, "fork"), reason="Forking not available")
     def test_run_task_with_pool(self):
         pool_name = "test_pool_run"
 

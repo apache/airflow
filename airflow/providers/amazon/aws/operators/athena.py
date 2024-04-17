@@ -165,12 +165,12 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
 
         if query_status in AthenaHook.FAILURE_STATES:
             error_message = self.hook.get_state_change_reason(self.query_execution_id)
-            raise Exception(
+            raise AirflowException(
                 f"Final state of Athena job is {query_status}, query_execution_id is "
                 f"{self.query_execution_id}. Error: {error_message}"
             )
         elif not query_status or query_status in AthenaHook.INTERMEDIATE_STATES:
-            raise Exception(
+            raise AirflowException(
                 f"Final state of Athena job is {query_status}. Max tries of poll status exceeded, "
                 f"query_execution_id is {self.query_execution_id}."
             )

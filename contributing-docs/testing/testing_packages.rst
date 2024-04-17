@@ -19,9 +19,8 @@ Manually building and testing release candidate packages
 ========================================================
 
 Breeze can be used to test new release candidates of packages - both Airflow and providers. You can easily
-turn the CI image of Breeze to install and start Airflow for both Airflow and provider packages - both,
-packages that are built from sources and packages that are downloaded from PyPI when they are released
-there as release candidates.
+configure the CI image of Breeze to install and start Airflow for both Airflow and provider packages, whether they
+are built from sources or downloaded from PyPI as release candidates.
 
 .. contents:: :local:
 
@@ -31,12 +30,14 @@ Prerequisites
 The way to test it is rather straightforward:
 
 1) Make sure that the packages - both ``airflow`` and ``providers`` are placed in the ``dist`` folder
-   of your Airflow source tree. You can either build them there or download from PyPI (see the next chapter)
+   of your Airflow source tree. You can either build them there or download from PyPI (see the next chapter).
 
-2) You can run ```breeze shell`` or ``breeze start-airflow`` commands with adding the following flags -
-   ``--mount-sources remove`` and ``--use-packages-from-dist``. The first one removes the ``airflow``
-   source tree from the container when starting it, the second one installs ``airflow`` and ``providers``
-   packages from the ``dist`` folder when entering breeze.
+2) You can run ``breeze shell`` or ``breeze start-airflow`` commands with adding the following flags -
+   ``--mount-sources remove``, ``--use-packages-from-dist``, and ``--use-airflow-version wheel/sdist``. The first one
+   removes the ``airflow`` source tree from the container when starting it, the second one installs ``airflow`` and
+   ``providers`` packages from the ``dist`` folder when entering breeze, and the third one specifies the package's
+   format (either ``wheel`` or ``sdist``). Omitting the latter will result in skipping the installation of the
+   package(s), and a consequent error when later importing them.
 
 Testing pre-release packages
 ----------------------------
@@ -84,10 +85,10 @@ eventually starts Airflow with the Celery Executor. It also loads example dags a
 .. code:: bash
 
     rm dist/*
-    pip download apache-airflow==2.7.0rc1 --dest dist --no-deps
-    pip download apache-airflow-providers-cncf-kubernetes==7.4.0rc1 --dest dist --no-deps
-    pip download apache-airflow-providers-cncf-kubernetes==3.3.0rc1 --dest dist --no-deps
-    breeze start-airflow --mount-sources remove --use-packages-from-dist --executor CeleryExecutor --load-default-connections --load-example-dags
+    pip download apache-airflow==2.9.0rc1 --dest dist --no-deps
+    pip download apache-airflow-providers-celery==3.6.2rc1 --dest dist --no-deps
+    pip download apache-airflow-providers-cncf-kubernetes==8.1.0rc1 --dest dist --no-deps
+    breeze start-airflow --mount-sources remove --use-packages-from-dist --use-airflow-version sdist --executor CeleryExecutor --backend postgres --load-default-connections --load-example-dags
 
 
 The following example downloads ``celery`` and ``kubernetes`` provider packages from PyPI, builds
@@ -98,25 +99,25 @@ It also loads example dags and default connections:
 
     rm dist/*
     breeze release-management prepare-airflow-package
-    pip download apache-airflow-providers-cncf-kubernetes==7.4.0rc1 --dest dist --no-deps
-    pip download apache-airflow-providers-cncf-kubernetes==3.3.0rc1 --dest dist --no-deps
-    breeze start-airflow --mount-sources remove --use-packages-from-dist --executor CeleryExecutor --load-default-connections --load-example-dags
+    pip download apache-airflow-providers-celery==3.6.2rc1 --dest dist --no-deps
+    pip download apache-airflow-providers-cncf-kubernetes==8.1.0rc1 --dest dist --no-deps
+    breeze start-airflow --mount-sources remove --use-packages-from-dist --use-airflow-version sdist --executor CeleryExecutor --backend postgres --load-default-connections --load-example-dags
 
-The following example builds ``celery``, ``kubernetes`` provider packages from PyPI, downloads 2.6.3 version
+The following example builds ``celery``, ``kubernetes`` provider packages from the main sources, downloads 2.9.0 version
 of ``apache-airflow`` package from PyPI and eventually starts Airflow using default executor
 for the backend chosen (no example dags, no default connections):
 
 .. code:: bash
 
     rm dist/*
-    pip download apache-airflow==2.6.3 --dest dist --no-deps
     breeze release-management prepare-provider-packages celery cncf.kubernetes
-    breeze start-airflow --mount-sources remove --use-packages-from-dist
+    pip download apache-airflow==2.9.0 --dest dist --no-deps
+    breeze start-airflow --mount-sources remove --use-packages-from-dist --use-airflow-version sdist
 
 You can mix and match packages from PyPI (final or pre-release candidates) with locally build packages. You
-can also choose which providers to install this way since the ``--remove-sources`` flag makes sure that Airflow
+can also choose which providers to install this way since the ``--mount-sources remove`` flag makes sure that Airflow
 installed does not contain all the providers - only those that you explicitly downloaded or built in the
-``dist`` folder. This way you can test all the combinations of Airflow + Providers you might need.
+``dist`` folder. This way you can test all the combinations of Airflow and Providers you might need.
 
 -----
 

@@ -316,6 +316,10 @@ class DatabricksCreateJobsOperator(BaseOperator):
         if job_id is None:
             return self._hook.create_job(self.json)
         self._hook.reset_job(str(job_id), self.json)
+        if (access_control_list := self.json.get("access_control_list")) is not None:
+            acl_json = {"access_control_list": access_control_list}
+            self._hook.update_job_permission(job_id, normalise_json_content(acl_json))
+
         return job_id
 
 
@@ -651,6 +655,7 @@ class DatabricksRunNowOperator(BaseOperator):
         - ``spark_submit_params``
         - ``idempotency_token``
         - ``repair_run``
+        - ``cancel_previous_runs``
 
     :param job_id: the job_id of the existing Databricks job.
         This field will be templated.
@@ -740,6 +745,7 @@ class DatabricksRunNowOperator(BaseOperator):
     :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
     :param deferrable: Run operator in the deferrable mode.
     :param repair_run: Repair the databricks run in case of failure.
+    :param cancel_previous_runs: Cancel all existing running jobs before submitting new one.
     """
 
     # Used in airflow.models.BaseOperator
@@ -771,6 +777,7 @@ class DatabricksRunNowOperator(BaseOperator):
         wait_for_termination: bool = True,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         repair_run: bool = False,
+        cancel_previous_runs: bool = False,
         **kwargs,
     ) -> None:
         """Create a new ``DatabricksRunNowOperator``."""
@@ -784,6 +791,7 @@ class DatabricksRunNowOperator(BaseOperator):
         self.wait_for_termination = wait_for_termination
         self.deferrable = deferrable
         self.repair_run = repair_run
+        self.cancel_previous_runs = cancel_previous_runs
 
         if job_id is not None:
             self.json["job_id"] = job_id
@@ -831,6 +839,9 @@ class DatabricksRunNowOperator(BaseOperator):
             self.json["job_id"] = job_id
             del self.json["job_name"]
 
+        if self.cancel_previous_runs and self.json["job_id"] is not None:
+            hook.cancel_all_runs(self.json["job_id"])
+
         self.run_id = hook.run_now(self.json)
         if self.deferrable:
             _handle_deferrable_databricks_operator_execution(self, hook, self.log, context)
@@ -847,7 +858,7 @@ class DatabricksRunNowOperator(BaseOperator):
                 repair_json = {"run_id": self.run_id, "rerun_all_failed_tasks": True}
                 if latest_repair_id is not None:
                     repair_json["latest_repair_id"] = latest_repair_id
-                self.json["latest_srepair_id"] = self._hook.repair_run(repair_json)
+                self.json["latest_repair_id"] = self._hook.repair_run(repair_json)
                 _handle_deferrable_databricks_operator_execution(self, self._hook, self.log, context)
 
     def on_kill(self) -> None:

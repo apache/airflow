@@ -648,7 +648,7 @@ def autodetect_docker_context():
         # On Windows, some contexts are used for WSL2. We don't want to use those.
         if context["DockerEndpoint"] == "npipe:////./pipe/dockerDesktopLinuxEngine":
             continue
-        get_console().print(f"[info]Using {preferred_context_name} as context.[/]")
+        get_console().print(f"[info]Using {preferred_context_name!r} as context.[/]")
         return preferred_context_name
     fallback_context = next(iter(known_contexts))
     get_console().print(
@@ -662,11 +662,9 @@ def get_and_use_docker_context(context: str):
     if context == "autodetect":
         context = autodetect_docker_context()
     run_command(["docker", "context", "create", context], check=False)
-    output = run_command(["docker", "context", "use", context], check=False)
-    if output.returncode != 0:
-        get_console().print(
-            f"[warning] Could no use the context {context}. Continuing with current context[/]"
-        )
+    output = run_command(["docker", "context", "use", context], check=False, stdout=DEVNULL, stderr=DEVNULL)
+    if output.returncode:
+        get_console().print(f"[warning]Could no use context {context!r}. Continuing with current context[/]")
     return context
 
 

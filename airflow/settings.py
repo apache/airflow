@@ -23,6 +23,7 @@ import json
 import logging
 import os
 import sys
+import traceback
 import warnings
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -207,7 +208,11 @@ def configure_vars():
 
 
 class SkipDBTestsSession:
-    """This fake session is used to skip DB tests when `_AIRFLOW_SKIP_DB_TESTS` is set."""
+    """
+    This fake session is used to skip DB tests when `_AIRFLOW_SKIP_DB_TESTS` is set.
+
+    :meta private:
+    """
 
     def __init__(self):
         raise AirflowInternalRuntimeError(
@@ -216,6 +221,30 @@ class SkipDBTestsSession:
             "See https://github.com/apache/airflow/blob/main/contributing-docs/testing/unit_tests.rst#"
             "best-practices-for-db-tests on how "
             "to deal with it and consult examples."
+        )
+
+    def remove(*args, **kwargs):
+        pass
+
+
+class TracebackSession:
+    """
+    Session that throws error when you try to use it.
+
+    Also stores stack at instantiation call site.
+
+    :meta private:
+    """
+
+    def __init__(self):
+        self.traceback = traceback.extract_stack()
+
+    def __getattr__(self, item):
+        raise RuntimeError(
+            "TracebackSession object was used but internal API is enabled. "
+            "You'll need to ensure you are making only RPC calls with this object. "
+            "The stack list below will show where the TracebackSession object was created."
+            + "\n".join(traceback.format_list(self.traceback))
         )
 
     def remove(*args, **kwargs):
@@ -242,7 +271,13 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
 
     global Session
     global engine
-    if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
+    from airflow.api_internal.internal_api_call import InternalApiConfig
+
+    if InternalApiConfig.get_use_internal_api():
+        Session = TracebackSession
+        engine = None
+        return
+    elif os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
         # Skip DB initialization in unit tests, if DB tests are skipped
         Session = SkipDBTestsSession
         engine = None

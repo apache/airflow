@@ -27,7 +27,7 @@ import packaging.version
 
 __all__ = ["__version__"]
 
-__version__ = "2.7.2"
+__version__ = "2.7.3"
 
 try:
     from airflow import __version__ as airflow_version

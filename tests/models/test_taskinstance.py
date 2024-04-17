@@ -29,7 +29,7 @@ import urllib
 from traceback import format_exception
 from typing import cast
 from unittest import mock
-from unittest.mock import call, mock_open, patch
+from unittest.mock import MagicMock, call, mock_open, patch
 from uuid import uuid4
 
 import pendulum
@@ -66,6 +66,8 @@ from airflow.models.taskinstance import (
     TaskInstance,
     TaskInstance as TI,
     TaskInstanceNote,
+    _get_private_try_number,
+    _get_try_number,
     _run_finished_callback,
 )
 from airflow.models.taskmap import TaskMap
@@ -368,7 +370,7 @@ class TestTaskInstance:
             assert ti.state == State.QUEUED
             dep_patch.return_value = TIDepStatus("mock_" + class_name, True, "mock")
 
-        for dep_patch, method_patch in patch_dict.values():
+        for dep_patch, _ in patch_dict.values():
             dep_patch.stop()
 
     def test_mark_non_runnable_task_as_success(self, create_task_instance):
@@ -2374,6 +2376,55 @@ class TestTaskInstance:
         assert event.source_task_id == "write"
         assert event.extra == {"one": 1}
 
+    def test_outlet_dataset_extra_yield(self, dag_maker, session):
+        from airflow.datasets import Dataset
+        from airflow.datasets.metadata import Metadata
+
+        with dag_maker(schedule=None, session=session) as dag:
+
+            @task(outlets=Dataset("test_outlet_dataset_extra_1"))
+            def write1():
+                result = "write_1 result"
+                yield Metadata("test_outlet_dataset_extra_1", {"foo": "bar"})
+                return result
+
+            write1()
+
+            def _write2_post_execute(context, result):
+                yield Metadata("test_outlet_dataset_extra_2", {"x": 1})
+
+            BashOperator(
+                task_id="write2",
+                bash_command=":",
+                outlets=Dataset("test_outlet_dataset_extra_2"),
+                post_execute=_write2_post_execute,
+            )
+
+        dr: DagRun = dag_maker.create_dagrun()
+        for ti in dr.get_task_instances(session=session):
+            ti.refresh_from_task(dag.get_task(ti.task_id))
+            ti.run(session=session)
+
+        xcom = session.scalars(
+            select(XCom).filter_by(dag_id=dr.dag_id, run_id=dr.run_id, task_id="write1", key="return_value")
+        ).one()
+        assert xcom.value == "write_1 result"
+
+        events = dict(iter(session.execute(select(DatasetEvent.source_task_id, DatasetEvent))))
+        assert set(events) == {"write1", "write2"}
+
+        assert events["write1"].source_dag_id == dr.dag_id
+        assert events["write1"].source_run_id == dr.run_id
+        assert events["write1"].source_task_id == "write1"
+        assert events["write1"].dataset.uri == "test_outlet_dataset_extra_1"
+        assert events["write1"].extra == {"foo": "bar"}
+
+        assert events["write2"].source_dag_id == dr.dag_id
+        assert events["write2"].source_run_id == dr.run_id
+        assert events["write2"].source_task_id == "write2"
+        assert events["write2"].dataset.uri == "test_outlet_dataset_extra_2"
+        assert events["write2"].extra == {"x": 1}
+
     def test_changing_of_dataset_when_ddrq_is_already_populated(self, dag_maker):
         """
         Test that when a task that produces dataset has ran, that changing the consumer
@@ -2833,6 +2884,11 @@ class TestTaskInstance:
         start_date = timezone.datetime(2016, 6, 1)
         clear_db_runs()
 
+        from airflow.listeners.listener import get_listener_manager
+
+        listener_callback_on_error = mock.MagicMock()
+        get_listener_manager().pm.hook.on_task_instance_failed = listener_callback_on_error
+
         mock_on_failure_1 = mock.MagicMock()
         mock_on_retry_1 = mock.MagicMock()
         dag, task1 = create_dummy_dag(
@@ -2852,11 +2908,18 @@ class TestTaskInstance:
             state=None,
             session=session,
         )
-
         ti1 = dr.get_task_instance(task1.task_id, session=session)
         ti1.task = task1
+
         ti1.state = State.FAILED
-        ti1.handle_failure("test failure handling")
+        error_message = "test failure handling"
+        ti1.handle_failure(error_message)
+
+        # check that the listener callback was called, and that it can access the error
+        listener_callback_on_error.assert_called_once()
+        callback_args = listener_callback_on_error.call_args.kwargs
+        assert "error" in callback_args
+        assert callback_args["error"] == error_message
 
         context_arg_1 = mock_on_failure_1.call_args.args[0]
         assert context_arg_1
@@ -4575,3 +4638,14 @@ def test__refresh_from_db_should_not_increment_try_number(dag_maker, session):
     assert ti.try_number == 1  # stays 1
     ti.refresh_from_db()
     assert ti.try_number == 1  # stays 1
+
+
+@pytest.mark.parametrize("state", list(TaskInstanceState))
+def test_get_private_try_number(state: str):
+    mock_ti = MagicMock()
+    mock_ti.state = state
+    private_try_number = 2
+    mock_ti._try_number = private_try_number
+    mock_ti.try_number = _get_try_number(task_instance=mock_ti)
+    delattr(mock_ti, "_try_number")
+    assert _get_private_try_number(task_instance=mock_ti) == private_try_number

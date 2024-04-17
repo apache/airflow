@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+2.6.1
+.....
+
+Misc
+~~~~
+
+* ``Avoid use of 'assert' outside of the tests (#37718)``
+
 2.6.0
 .....
 

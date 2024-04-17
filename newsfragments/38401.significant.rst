@@ -1,5 +1,0 @@
-Change xcom table column value type to longblob for MySQL backend.
-
-Xcom table column ``value`` type has changed from ``blob`` to ``longblob``. This will allow you to store relatively big data in Xcom but process can take a significant amount of time if you have a lot of large data stored in Xcom.
-
-To downgrade from revision: ``b4078ac230a1``, ensure that you don't have Xcom values larger than 65,535 bytes. Otherwise, you'll need to clean those rows or run ``airflow db clean xcom`` to clean the Xcom table.

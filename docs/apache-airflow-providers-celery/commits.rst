@@ -35,14 +35,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.6.2
+.....
+
+Latest change: 2024-04-09
+
+=================================================================================================  ===========  ===============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================================
+`3e30b3a025 <https://github.com/apache/airflow/commit/3e30b3a02584e13fa130255b25756eaf7dfe35d3>`_  2024-04-09   ``Use celery worker CLI from Airflow package for Airflow < 2.8.0 (#38879)``
+`179b963782 <https://github.com/apache/airflow/commit/179b96378251db258d564ba091deef2ab762d12d>`_  2024-03-27   ``Don't dispose sqlalchemy engine when using internal api (#38562)``
+`2ad923a001 <https://github.com/apache/airflow/commit/2ad923a001cbfc93bbf47cb2fa64fca202c44518>`_  2024-03-27   ``Rerais of AirflowOptionalProviderFeatureException should be direct (#38555)``
+`6296f7e224 <https://github.com/apache/airflow/commit/6296f7e224e0c7772e49f2f3b42a398482f2c986>`_  2024-03-22   ``Allow to use 'redis'>=5 (#38385)``
+`095c5fe313 <https://github.com/apache/airflow/commit/095c5fe3137e2cb6d45e8f3184bae149cb2850d1>`_  2024-03-21   ``Ensure __exit__ is called in decorator context managers (#38383)``
+`0a74928894 <https://github.com/apache/airflow/commit/0a74928894fb57b0160208262ccacad12da23fc7>`_  2024-03-18   ``Bump ruff to 0.3.3 (#38240)``
+=================================================================================================  ===========  ===============================================================================
+
 3.6.1
 .....
 
-Latest change: 2024-03-02
+Latest change: 2024-03-04
 
 =================================================================================================  ===========  ==================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================================================
+`83316b8158 <https://github.com/apache/airflow/commit/83316b81584c9e516a8142778fc509f19d95cc3e>`_  2024-03-04   ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
 `a7d13315e1 <https://github.com/apache/airflow/commit/a7d13315e11bcf76d02493b874ca5f0690ddd5e1>`_  2024-03-02   ``Resolve G003: "Logging statement uses +" (#37848)``
 `cd33c2a6a7 <https://github.com/apache/airflow/commit/cd33c2a6a73ca902daa234cf60dd0b7b9782bdc6>`_  2024-02-27   ``Migrate executor docs to respective providers (#37728)``
 `8d74ee8dcd <https://github.com/apache/airflow/commit/8d74ee8dcd1b3ad0291ef666835edcffb24265ae>`_  2024-02-25   ``Remove pid arg from celery option to fix duplicate pid issue, Move celery command to provider package (#36794)``

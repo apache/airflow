@@ -158,10 +158,10 @@ class DataProcJobBuilder:
 
         :param main_jar: URI for the main file.
         :param main_class: Name of the main class.
-        :raises: Exception
+        :raises: ValueError
         """
         if main_class is not None and main_jar is not None:
-            raise Exception("Set either main_jar or main_class")
+            raise ValueError("Set either main_jar or main_class")
         if main_jar:
             self.job["job"][self.job_type]["main_jar_file_uri"] = main_jar
         else:

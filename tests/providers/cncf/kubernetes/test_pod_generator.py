@@ -29,7 +29,7 @@ from airflow import __version__
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import PodReconciliationError
 from airflow.providers.cncf.kubernetes.pod_generator import (
-    PodDefaults,
+    PodDefaultsDeprecated,
     PodGenerator,
     datetime_to_label_safe_datestring,
     extend_object_field,
@@ -174,7 +174,7 @@ class TestPodGenerator:
         container_two = {
             "name": "airflow-xcom-sidecar",
             "image": "alpine",
-            "command": ["sh", "-c", PodDefaults.XCOM_CMD],
+            "command": ["sh", "-c", PodDefaultsDeprecated.XCOM_CMD],
             "volumeMounts": [{"name": "xcom", "mountPath": "/airflow/xcom"}],
             "resources": {"requests": {"cpu": "1m"}},
         }

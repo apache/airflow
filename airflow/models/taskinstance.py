@@ -111,6 +111,7 @@ from airflow.utils.context import (
     Context,
     DatasetEventAccessors,
     VariableAccessor,
+    context_get_dataset_events,
     context_merge,
 )
 from airflow.utils.email import send_email
@@ -118,7 +119,7 @@ from airflow.utils.helpers import prune_dict, render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import qualname
 from airflow.utils.net import get_hostname
-from airflow.utils.operator_helpers import context_to_airflow_vars
+from airflow.utils.operator_helpers import ExecutionCallableRunner, context_to_airflow_vars
 from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -432,12 +433,16 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
         if execute_callable.__name__ == "execute":
             execute_callable_kwargs[f"{task_to_execute.__class__.__name__}__sentinel"] = _sentinel
 
-    def _execute_callable(context, **execute_callable_kwargs):
+    def _execute_callable(context: Context, **execute_callable_kwargs):
         try:
             # Print a marker for log grouping of details before task execution
             log.info("::endgroup::")
 
-            return execute_callable(context=context, **execute_callable_kwargs)
+            return ExecutionCallableRunner(
+                execute_callable,
+                context_get_dataset_events(context),
+                logger=log,
+            ).run(context=context, **execute_callable_kwargs)
         except SystemExit as e:
             # Handle only successful cases here. Failure cases will be handled upper
             # in the exception chain.
@@ -534,7 +539,7 @@ def _refresh_from_db(
         task_instance.end_date = ti.end_date
         task_instance.duration = ti.duration
         task_instance.state = ti.state
-        task_instance.try_number = ti._try_number  # private attr to get value unaltered by accessor
+        task_instance.try_number = _get_private_try_number(task_instance=ti)
         task_instance.max_tries = ti.max_tries
         task_instance.hostname = ti.hostname
         task_instance.unixname = ti.unixname
@@ -771,7 +776,6 @@ def _get_template_context(
         nonlocal dag_run
         if dag_run not in session:
             dag_run = session.merge(dag_run, load=False)
-
         dataset_events = dag_run.consumed_dataset_events
         triggering_events: dict[str, list[DatasetEvent | DatasetEventPydantic]] = defaultdict(list)
         for event in dataset_events:
@@ -921,7 +925,7 @@ def _handle_failure(
         TaskInstance.save_to_db(failure_context["ti"], session)
 
 
-def _get_try_number(*, task_instance: TaskInstance | TaskInstancePydantic):
+def _get_try_number(*, task_instance: TaskInstance):
     """
     Return the try number that a task number will be when it is actually run.
 
@@ -939,6 +943,23 @@ def _get_try_number(*, task_instance: TaskInstance | TaskInstancePydantic):
     return task_instance._try_number + 1
 
 
+def _get_private_try_number(*, task_instance: TaskInstance | TaskInstancePydantic):
+    """
+    Opposite of _get_try_number.
+
+    Given the value returned by try_number, return the value of _try_number that
+    should produce the same result.
+    This is needed for setting _try_number on TaskInstance from the value on PydanticTaskInstance, which has no private attrs.
+
+    :param task_instance: the task instance
+
+    :meta private:
+    """
+    if task_instance.state == TaskInstanceState.RUNNING:
+        return task_instance.try_number
+    return task_instance.try_number - 1
+
+
 def _set_try_number(*, task_instance: TaskInstance | TaskInstancePydantic, value: int) -> None:
     """
     Set a task try number.
@@ -948,7 +969,7 @@ def _set_try_number(*, task_instance: TaskInstance | TaskInstancePydantic, value
 
     :meta private:
     """
-    task_instance._try_number = value
+    task_instance._try_number = value  # type: ignore[union-attr]
 
 
 def _refresh_from_task(
@@ -1409,6 +1430,7 @@ class TaskInstance(Base, LoggingMixin):
         cascade="all, delete, delete-orphan",
     )
     note = association_proxy("task_instance_note", "content", creator=_creator_note)
+
     task: Operator | None = None
     test_mode: bool = False
     is_trigger_log_context: bool = False
@@ -2678,6 +2700,10 @@ class TaskInstance(Base, LoggingMixin):
                     jinja_env = None
                 task_orig = self.render_templates(context=context, jinja_env=jinja_env)
 
+            # The task is never MappedOperator at this point.
+            if TYPE_CHECKING:
+                assert isinstance(self.task, BaseOperator)
+
             if not test_mode:
                 rendered_fields = get_serialized_template_fields(task=self.task)
                 _update_rtif(ti=self, rendered_fields=rendered_fields)
@@ -2695,8 +2721,7 @@ class TaskInstance(Base, LoggingMixin):
                 )
 
             # Run pre_execute callback
-            # Is never MappedOperator at this point
-            self.task.pre_execute(context=context)  # type: ignore[union-attr]
+            self.task.pre_execute(context=context)
 
             # Run on_execute callback
             self._run_execute_callback(context, self.task)
@@ -2706,25 +2731,35 @@ class TaskInstance(Base, LoggingMixin):
                 previous_state=TaskInstanceState.QUEUED, task_instance=self, session=session
             )
 
-            # Execute the task
+            def _render_map_index(context: Context, *, jinja_env: jinja2.Environment | None) -> str | None:
+                """Render named map index if the DAG author defined map_index_template at the task level."""
+                if jinja_env is None or (template := context.get("map_index_template")) is None:
+                    return None
+                rendered_map_index = jinja_env.from_string(template).render(context)
+                log.debug("Map index rendered as %s", rendered_map_index)
+                return rendered_map_index
+
+            # Execute the task.
             with set_current_context(context):
-                result = self._execute_task(context, task_orig)
+                try:
+                    result = self._execute_task(context, task_orig)
+                except Exception:
+                    # If the task failed, swallow rendering error so it doesn't mask the main error.
+                    with contextlib.suppress(jinja2.TemplateSyntaxError, jinja2.UndefinedError):
+                        self.rendered_map_index = _render_map_index(context, jinja_env=jinja_env)
+                    raise
+                else:  # If the task succeeded, render normally to let rendering error bubble up.
+                    self.rendered_map_index = _render_map_index(context, jinja_env=jinja_env)
 
             # Run post_execute callback
-            # Is never MappedOperator at this point
-            self.task.post_execute(context=context, result=result)  # type: ignore[union-attr]
-
-            # DAG authors define map_index_template at the task level
-            if jinja_env is not None and (template := context.get("map_index_template")) is not None:
-                rendered_map_index = self.rendered_map_index = jinja_env.from_string(template).render(context)
-                self.log.info("Map index rendered as %s", rendered_map_index)
+            self.task.post_execute(context=context, result=result)
 
         Stats.incr(f"operator_successes_{self.task.task_type}", tags=self.stats_tags)
         # Same metric with tagging
         Stats.incr("operator_successes", tags={**self.stats_tags, "task_type": self.task.task_type})
         Stats.incr("ti_successes", tags=self.stats_tags)
 
-    def _execute_task(self, context, task_orig):
+    def _execute_task(self, context: Context, task_orig: Operator):
         """
         Execute Task (optionally with a Timeout) and push Xcom results.
 
@@ -2775,16 +2810,15 @@ class TaskInstance(Base, LoggingMixin):
             else:
                 self.trigger_timeout = self.start_date + execution_timeout
 
-    def _run_execute_callback(self, context: Context, task: Operator) -> None:
+    def _run_execute_callback(self, context: Context, task: BaseOperator) -> None:
         """Functions that need to be run before a Task is executed."""
-        callbacks = task.on_execute_callback
-        if callbacks:
-            callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
-            for callback in callbacks:
-                try:
-                    callback(context)
-                except Exception:
-                    self.log.exception("Failed when executing execute callback")
+        if not (callbacks := task.on_execute_callback):
+            return
+        for callback in callbacks if isinstance(callbacks, list) else [callbacks]:
+            try:
+                callback(context)
+            except Exception:
+                self.log.exception("Failed when executing execute callback")
 
     @provide_session
     def run(
@@ -2929,7 +2963,7 @@ class TaskInstance(Base, LoggingMixin):
     ):
         """Handle Failure for the TaskInstance."""
         get_listener_manager().hook.on_task_instance_failed(
-            previous_state=TaskInstanceState.RUNNING, task_instance=ti, session=session
+            previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error, session=session
         )
 
         if error:
@@ -2994,6 +3028,12 @@ class TaskInstance(Base, LoggingMixin):
                 _stop_remaining_tasks(task_instance=ti, session=session)
         else:
             if ti.state == TaskInstanceState.QUEUED:
+                from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
+
+                if isinstance(ti, TaskInstancePydantic):
+                    # todo: (AIP-44) we should probably "coalesce" `ti` to TaskInstance before here
+                    #  e.g. we could make refresh_from_db return a TI and replace ti with that
+                    raise RuntimeError("Expected TaskInstance here. Further AIP-44 work required.")
                 # We increase the try_number to fail the task if it fails to start after sometime
                 ti._try_number += 1
             ti.state = State.UP_FOR_RETRY
@@ -3487,6 +3527,7 @@ class TaskInstance(Base, LoggingMixin):
                     run_id=ti.run_id,
                 ),
                 session=session,
+                nowait=True,
             ).one()
 
             task = ti.task
@@ -3533,7 +3574,7 @@ class TaskInstance(Base, LoggingMixin):
 
         except OperationalError as e:
             # Any kind of DB error here is _non fatal_ as this block is just an optimisation.
-            cls.logger().info(
+            cls.logger().debug(
                 "Skipping mini scheduling run due to exception: %s",
                 e.statement,
                 exc_info=True,

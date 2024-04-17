@@ -49,6 +49,8 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm.session import Session
 
+    from airflow.executors.base_executor import BaseExecutor
+
 
 def _resolve_dagrun_model():
     from airflow.models.dagrun import DagRun
@@ -117,12 +119,13 @@ class Job(Base, LoggingMixin):
     Only makes sense for SchedulerJob and BackfillJob instances.
     """
 
-    def __init__(self, executor=None, heartrate=None, **kwargs):
+    def __init__(self, executor: BaseExecutor | None = None, heartrate=None, **kwargs):
         # Save init parameters as DB fields
         self.heartbeat_failed = False
         self.hostname = get_hostname()
         if executor:
             self.executor = executor
+            self.executors = [executor]
         self.start_date = timezone.utcnow()
         self.latest_heartbeat = timezone.utcnow()
         self.previous_heartbeat = None

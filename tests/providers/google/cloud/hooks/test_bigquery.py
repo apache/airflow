@@ -77,6 +77,11 @@ def test_delegate_to_runtime_error():
 
 @pytest.mark.db_test
 class TestBigQueryHookMethods(_BigQueryBaseTestClass):
+    def test_credentials_path_derprecation(self):
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            credentials_path = self.hook.credentials_path
+            assert credentials_path == "bigquery_hook_credentials.json"
+
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryConnection")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook._authorize")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.build")
@@ -155,7 +160,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     def test_invalid_schema_update_options(self, mock_get_service):
         with pytest.raises(
-            Exception,
+            ValueError,
             match=(
                 r"\['THIS IS NOT VALID'\] contains invalid schema update options. "
                 r"Please only use one or more of the following options: "
@@ -172,7 +177,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     def test_invalid_schema_update_and_write_disposition(self, mock_get_service):
         with pytest.raises(
-            Exception,
+            ValueError,
             match="schema_update_options is only allowed if"
             " write_disposition is 'WRITE_APPEND' or 'WRITE_TRUNCATE'.",
         ):
@@ -846,7 +851,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     def test_invalid_source_format(self, mock_get_service):
         with pytest.raises(
-            Exception,
+            ValueError,
             match=r"JSON is not a valid source format. Please use one of the following types: \['CSV', "
             r"'NEWLINE_DELIMITED_JSON', 'AVRO', 'GOOGLE_SHEETS', 'DATASTORE_BACKUP', 'PARQUET'\]",
         ):
@@ -959,7 +964,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
 
 class TestBigQueryTableSplitter:
     def test_internal_need_default_project(self):
-        with pytest.raises(Exception, match="INTERNAL: No default project is specified"):
+        with pytest.raises(ValueError, match="INTERNAL: No default project is specified"):
             split_tablename("dataset.table", None)
 
     @pytest.mark.parametrize(
@@ -1008,7 +1013,7 @@ class TestBigQueryTableSplitter:
     )
     def test_invalid_syntax(self, table_input, var_name, exception_message):
         default_project_id = "project"
-        with pytest.raises(Exception, match=exception_message.format(table_input)):
+        with pytest.raises(ValueError, match=exception_message.format(table_input)):
             split_tablename(table_input, default_project_id, var_name)
 
 
@@ -1789,7 +1794,9 @@ class TestBigQueryHookLegacySql(_BigQueryBaseTestClass):
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.build")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
-    def test_hook_uses_legacy_sql_by_default(self, mock_insert, _):
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryCursor._get_query_result")
+    def test_hook_uses_legacy_sql_by_default(self, mock_get_query_result, mock_insert, _):
+        mock_get_query_result.return_value = {}
         self.hook.get_first("query")
         _, kwargs = mock_insert.call_args
         assert kwargs["configuration"]["query"]["useLegacySql"] is True
@@ -1800,9 +1807,11 @@ class TestBigQueryHookLegacySql(_BigQueryBaseTestClass):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.build")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryCursor._get_query_result")
     def test_legacy_sql_override_propagates_properly(
-        self, mock_insert, mock_build, mock_get_creds_and_proj_id
+        self, mock_get_query_result, mock_insert, mock_build, mock_get_creds_and_proj_id
     ):
+        mock_get_query_result.return_value = {}
         bq_hook = BigQueryHook(use_legacy_sql=False)
         bq_hook.get_first("query")
         _, kwargs = mock_insert.call_args
@@ -2180,6 +2189,55 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
         mock_job_instance.return_value.get_query_results.return_value = response
         resp = await hook.get_job_output(job_id=JOB_ID, project_id=PROJECT_ID)
         assert resp == response
+
+    @pytest.mark.asyncio
+    @pytest.mark.db_test
+    @mock.patch("google.auth.default")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Job")
+    async def test_cancel_job_success(self, mock_job, mock_auth_default):
+        mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
+        mock_credentials.token = "ACCESS_TOKEN"
+        mock_auth_default.return_value = (mock_credentials, PROJECT_ID)
+        job_id = "test_job_id"
+        project_id = "test_project"
+        location = "US"
+
+        mock_job_instance = AsyncMock()
+        mock_job_instance.cancel.return_value = None
+        mock_job.return_value = mock_job_instance
+
+        await self.hook.cancel_job(job_id=job_id, project_id=project_id, location=location)
+
+        mock_job_instance.cancel.assert_called_once()
+
+    @pytest.mark.asyncio
+    @pytest.mark.db_test
+    @mock.patch("google.auth.default")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Job")
+    async def test_cancel_job_failure(self, mock_job, mock_auth_default):
+        """
+        Test that BigQueryAsyncHook handles exceptions during job cancellation correctly.
+        """
+        mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
+        mock_credentials.token = "ACCESS_TOKEN"
+        mock_auth_default.return_value = (mock_credentials, PROJECT_ID)
+
+        mock_job_instance = AsyncMock()
+        mock_job_instance.cancel.side_effect = Exception("Cancellation failed")
+        mock_job.return_value = mock_job_instance
+
+        hook = BigQueryAsyncHook()
+
+        job_id = "test_job_id"
+        project_id = "test_project"
+        location = "US"
+
+        with pytest.raises(Exception) as excinfo:
+            await hook.cancel_job(job_id=job_id, project_id=project_id, location=location)
+
+        assert "Cancellation failed" in str(excinfo.value), "Exception message not passed correctly"
+
+        mock_job_instance.cancel.assert_called_once()
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.ClientSession")

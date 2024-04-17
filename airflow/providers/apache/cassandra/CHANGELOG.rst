@@ -26,6 +26,29 @@
 Changelog
 ---------
 
+3.4.2
+.....
+
+Misc
+~~~~
+
+* ``Re-enable cassandra for Python 3.12 after the driver got libev support (#38314)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``fix: try002 for provider apache cassandra (#38791)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``Exclude Cassandra for Python 3.12 (#38050)``
+   * ``Revert "Add Python 3.12 support (#36755)" (#38023)``
+   * ``Add Python 3.12 support (#36755)``
+   * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+   * ``Add comment about versions updated by release manager (#37488)``
+   * ``Prepare docs 1st wave of Providers February 2024 (#37326)``
+   * ``Add docs for RC2 wave of providers for 2nd round of Jan 2024 (#37019)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+   * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+
 3.4.1
 .....
 
