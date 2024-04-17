@@ -39,6 +39,7 @@ from airflow.cli.cli_config import ActionCommand, core_commands, lazy_load_comma
 from airflow.cli.utils import CliConflictError
 from airflow.configuration import AIRFLOW_HOME
 from airflow.executors import executor_loader
+from airflow.executors.executor_utils import ExecutorName
 from airflow.executors.local_executor import LocalExecutor
 from airflow.providers.amazon.aws.executors.ecs.ecs_executor import AwsEcsExecutor
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
@@ -185,8 +186,11 @@ class TestCli:
         )
         celery_executor_cli_commands_mock.return_value = [celery_executor_command]
         reload(executor_loader)
-        executor_loader.ExecutorLoader.import_all_executors = mock.Mock(
-            return_value=[(AwsEcsExecutor, ""), (CeleryExecutor, "")]
+        executor_loader.ExecutorLoader.get_executor_names = mock.Mock(
+            return_value=[
+                ExecutorName("airflow.providers.celery.executors.celery_executor.CeleryExecutor"),
+                ExecutorName("airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"),
+            ]
         )
 
         reload(cli_parser)
@@ -218,15 +222,49 @@ class TestCli:
         )
         celery_executor_cli_commands_mock.return_value = [celery_executor_command]
         reload(executor_loader)
-        executor_loader.ExecutorLoader.import_all_executors = mock.Mock(
-            return_value=[(AwsEcsExecutor, ""), (CeleryExecutor, "")]
+        executor_loader.ExecutorLoader.get_executor_names = mock.Mock(
+            return_value=[
+                ExecutorName("airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"),
+                ExecutorName("airflow.providers.celery.executors.celery_executor.CeleryExecutor"),
+            ]
         )
 
         reload(cli_parser)
         commands = [command.name for command in cli_parser.airflow_commands]
         assert celery_executor_command.name in commands
         assert ecs_executor_command.name not in commands
-        assert "Failed to load CLI commands from executor: AwsEcsExecutor" in caplog.messages[0]
+        assert (
+            "Failed to load CLI commands from executor: airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"
+            in caplog.messages[0]
+        )
+
+    @patch.object(AwsEcsExecutor, "get_cli_commands")
+    def test_cli_parser_fail_to_load_executor(self, ecs_executor_cli_commands_mock, caplog):
+        caplog.set_level("ERROR")
+
+        ecs_executor_command = ActionCommand(
+            name="ecs_command",
+            help="test command for ecs executor",
+            func=lambda: None,
+            args=[],
+        )
+        ecs_executor_cli_commands_mock.return_value = [ecs_executor_command]
+
+        reload(executor_loader)
+        executor_loader.ExecutorLoader.get_executor_names = mock.Mock(
+            return_value=[
+                ExecutorName("airflow.providers.incorrect.executor.Executor"),
+                ExecutorName("airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"),
+            ]
+        )
+
+        reload(cli_parser)
+        commands = [command.name for command in cli_parser.airflow_commands]
+        assert ecs_executor_command.name in commands
+        assert (
+            "Failed to load CLI commands from executor: airflow.providers.incorrect.executor.Executor"
+            in caplog.messages[0]
+        )
 
     def test_falsy_default_value(self):
         arg = cli_config.Arg(("--test",), default=0, type=int)

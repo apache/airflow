@@ -58,13 +58,12 @@ airflow_commands = core_commands.copy()  # make a copy to prevent bad interactio
 log = logging.getLogger(__name__)
 
 
-executors = [executor for executor, _ in ExecutorLoader.import_all_executors()]
-
-for executor in executors:
+for executor_name in ExecutorLoader.get_executor_names():
     try:
+        executor, _ = ExecutorLoader.import_executor_cls(executor_name)
         airflow_commands.extend(executor.get_cli_commands())
     except Exception:
-        log.exception("Failed to load CLI commands from executor: %s", executor.__name__)
+        log.exception("Failed to load CLI commands from executor: %s", executor_name)
         log.error(
             "Ensure all dependencies are met and try again. If using a Celery based executor install "
             "a 3.3.0+ version of the Celery provider. If using a Kubernetes executor, install a "
