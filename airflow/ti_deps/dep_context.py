@@ -92,7 +92,9 @@ class DepContext:
          :return: A list of all the finished tasks of this DAG and execution_date
         """
         if self.finished_tis is None:
-            finished_tis = dag_run.get_task_instances(state=State.finished, session=session)
+            finished_tis = dag_run.get_task_instances(
+                state=State.finished, dag_run_option="lazy", session=session
+            )
             for ti in finished_tis:
                 if not getattr(ti, "task", None) is not None and dag_run.dag:
                     try:
