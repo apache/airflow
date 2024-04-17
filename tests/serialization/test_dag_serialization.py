@@ -73,6 +73,7 @@ from airflow.serialization.serialized_objects import (
 from airflow.task.priority_strategy import _DownstreamPriorityWeightStrategy
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.timetables.simple import NullTimetable, OnceTimetable
+from airflow.triggers.testing import SuccessTrigger
 from airflow.utils import timezone
 from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import TaskGroup
@@ -2136,6 +2137,64 @@ class TestStringifiedDAGs:
                 )
             ),
         ):
+            SerializedDAG.to_dict(dag)
+
+    @pytest.mark.db_test
+    def test_start_trigger_and_next_method_in_serialized_dag(self):
+        """
+        Test that when we provide _start_trigger and _next_method, the DAG can be correctly serialized.
+        """
+        trigger = SuccessTrigger()
+
+        class TestOperator(BaseOperator):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self._start_trigger = trigger
+                self._next_method = "execute_complete"
+
+            def execute_complete(self):
+                pass
+
+        class Test2Operator(BaseOperator):
+            def __init__(self, *args, **kwargs):
+                self._start_trigger = trigger
+                self._next_method = "execute_complete"
+                super().__init__(*args, **kwargs)
+
+            def execute_complete(self):
+                pass
+
+        dag = DAG(dag_id="test_dag", start_date=datetime(2023, 11, 9))
+
+        with dag:
+            TestOperator(task_id="test_task_1")
+            TestOperator(task_id="test_task_2")
+
+        serialized_obj = SerializedDAG.to_dict(dag)
+
+        for task in serialized_obj["dag"]["tasks"]:
+            assert task["__var"]["_start_trigger"] == trigger.serialize()
+            assert task["__var"]["_next_method"] == "execute_complete"
+
+    @pytest.mark.db_test
+    def test_start_trigger_in_serialized_dag_but_no_next_method(self):
+        """
+        Test that when we provide _start_trigger without _next_method, an AriflowException should be raised.
+        """
+
+        trigger = SuccessTrigger()
+
+        class TestOperator(BaseOperator):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self._start_trigger = trigger
+
+        dag = DAG(dag_id="test_dag", start_date=datetime(2023, 11, 9))
+
+        with dag:
+            TestOperator(task_id="test_task")
+
+        with pytest.raises(AirflowException, match="_start_trigger and _next_method should be both set."):
             SerializedDAG.to_dict(dag)
 
 
