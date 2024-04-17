@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, NamedTuple
-from operator import attrgetter
 
 from itsdangerous import URLSafeSerializer
 from marshmallow import Schema, fields
@@ -159,6 +158,7 @@ class DAGDetailSchemaWithTasksInfo(DAGDetailSchema):
     @staticmethod
     def get_tasks_info(obj: DAG):
         from airflow.api_connexion.schemas.task_schema import TaskCollection, task_collection_schema_without_subdag
+        from operator import attrgetter
         tasks = obj.task_dict.values()
         try:
             tasks = sorted(tasks, key=attrgetter("task_id".lstrip("-")), reverse=("task_id"[0:1] == "-"))
