@@ -931,7 +931,10 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             try:
                 import cloudpickle  # noqa: F401
             except ImportError:
-                log.warning(
+                import logging
+
+                _log = logging.getLogger(__name__)
+                _log.warning(
                     "Cloudpickle package is required to be installed."
                     " Please install it with: pip install [cloudpickle]"
                 )
@@ -944,7 +947,10 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             try:
                 import dill  # noqa: F401
             except ImportError:
-                log.warning(
+                import logging
+
+                _log = logging.getLogger(__name__)
+                _log.warning(
                     "Dill package is required to be installed. Please install it with: pip install [dill]"
                 )
 
@@ -1157,11 +1163,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         os.environ.get("PYTEST_PLAIN_ASSERTS") != "true",
         reason="assertion rewriting breaks this test because cloudpickle will try to serialize "
         "AssertRewritingHook including captured stdout and we need to run "
-        "it with `--assert=plain`pytest option and PYTEST_PLAIN_ASSERTS=true ."
-        "Also this test is skipped on Python 3.11 because of impact of regression in Python 3.11 "
-        "connected likely with CodeType behaviour https://github.com/python/cpython/issues/100316 "
-        "That likely causes that cloudpickle is not able to serialize the `conf` correctly "
-        "Issue about fixing it is captured in https://github.com/apache/airflow/issues/35307",
+        "it with `--assert=plain`pytest option and PYTEST_PLAIN_ASSERTS=true .",
     )
     def test_airflow_context(self):
         def f(
@@ -1212,11 +1214,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         os.environ.get("PYTEST_PLAIN_ASSERTS") != "true",
         reason="assertion rewriting breaks this test because dill will try to serialize "
         "AssertRewritingHook including captured stdout and we need to run "
-        "it with `--assert=plain`pytest option and PYTEST_PLAIN_ASSERTS=true ."
-        "Also this test is skipped on Python 3.11 because of impact of regression in Python 3.11 "
-        "connected likely with CodeType behaviour https://github.com/python/cpython/issues/100316 "
-        "That likely causes that dill is not able to serialize the `conf` correctly "
-        "Issue about fixing it is captured in https://github.com/apache/airflow/issues/35307",
+        "it with `--assert=plain`pytest option and PYTEST_PLAIN_ASSERTS=true .",
     )
     def test_airflow_context_dill(self):
         def f(

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import cloudpickle
+import dill
 from sqlalchemy import BigInteger, Column, Integer, PickleType
 
 from airflow.models.base import Base
@@ -42,7 +42,7 @@ class DagPickle(Base):
     """
 
     id = Column(Integer, primary_key=True)
-    pickle = Column(PickleType(pickler=cloudpickle))
+    pickle = Column(PickleType(pickler=dill))
     created_dttm = Column(UtcDateTime, default=timezone.utcnow)
     pickle_hash = Column(BigInteger)
 

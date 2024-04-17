@@ -145,12 +145,6 @@ CORE_EXTRAS: dict[str, list[str]] = {
     "virtualenv": [
         "virtualenv",
     ],
-    "dill": [
-        "dill>=0.2.2",
-    ],
-    "cloudpickle": [
-        "cloudpickle",
-    ],
 }
 
 DOC_EXTRAS: dict[str, list[str]] = {
@@ -420,6 +414,7 @@ DEPENDENCIES = [
     # Blinker use for signals in Flask, this is an optional dependency in Flask 2.2 and lower.
     # In Flask 2.3 it becomes a mandatory dependency, and flask signals are always available.
     "blinker>=1.6.2",
+    "cloudpickle",
     # Colorlog 6.x merges TTYColoredFormatter into ColoredFormatter, breaking backwards compatibility with 4.x
     # Update CustomTTYColoredFormatter to remove
     "colorlog>=4.0.2, <5.0",
@@ -435,6 +430,7 @@ DEPENDENCIES = [
     "croniter>=2.0.2",
     "cryptography>=39.0.0",
     "deprecated>=1.2.13",
+    "dill>=0.2.2",
     "flask-caching>=1.5.0",
     # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
     # all parameters now are mandatory which make AirflowDatabaseSessionInterface incopatible with this version.

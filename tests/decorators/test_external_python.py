@@ -57,26 +57,17 @@ def venv_python():
 
 
 @pytest.fixture
-def venv_python_with_cloudpickle():
+def venv_python_with_cloudpickle_and_dill():
     with TemporaryDirectory() as d:
         venv.create(d, with_pip=True)
         python_path = Path(d) / "bin" / "python"
-        subprocess.call([python_path, "-m", "pip", "install", "cloudpickle"])
-        yield python_path
-
-
-@pytest.fixture
-def venv_python_with_dill():
-    with TemporaryDirectory() as d:
-        venv.create(d, with_pip=True)
-        python_path = Path(d) / "bin" / "python"
-        subprocess.call([python_path, "-m", "pip", "install", "dill"])
+        subprocess.call([python_path, "-m", "pip", "install", "cloudpickle", "dill"])
         yield python_path
 
 
 class TestExternalPythonDecorator:
-    def test_with_cloudpickle_works(self, dag_maker, venv_python_with_cloudpickle):
-        @task.external_python(python=venv_python_with_cloudpickle, use_cloudpickle=True)
+    def test_with_cloudpickle_works(self, dag_maker, venv_python_with_cloudpickle_and_dill):
+        @task.external_python(python=venv_python_with_cloudpickle_and_dill, use_cloudpickle=True)
         def f():
             """Import cloudpickle to double-check it is installed ."""
             try:
@@ -92,9 +83,9 @@ class TestExternalPythonDecorator:
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    def test_with_templated_python_cloudpickle(self, dag_maker, venv_python_with_cloudpickle):
+    def test_with_templated_python_cloudpickle(self, dag_maker, venv_python_with_cloudpickle_and_dill):
         # add template that produces empty string when rendered
-        templated_python_with_cloudpickle = venv_python_with_cloudpickle.as_posix() + "{{ '' }}"
+        templated_python_with_cloudpickle = venv_python_with_cloudpickle_and_dill.as_posix() + "{{ '' }}"
 
         @task.external_python(python=templated_python_with_cloudpickle, use_cloudpickle=True)
         def f():
@@ -123,14 +114,17 @@ class TestExternalPythonDecorator:
         with pytest.raises(CalledProcessError):
             ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    def test_with_dill_works(self, dag_maker, venv_python_with_dill):
-        @task.external_python(python=venv_python_with_dill, use_dill=True)
+    def test_with_dill_works(self, dag_maker, venv_python_with_cloudpickle_and_dill):
+        @task.external_python(python=venv_python_with_cloudpickle_and_dill, use_dill=True)
         def f():
             """Import dill to double-check it is installed ."""
             try:
                 import dill  # noqa: F401
             except ImportError:
-                log.warning(
+                import logging
+
+                _log = logging.getLogger(__name__)
+                _log.warning(
                     "Dill package is required to be installed. Please install it with: pip install [dill]"
                 )
 
@@ -139,9 +133,9 @@ class TestExternalPythonDecorator:
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    def test_with_templated_python_dill(self, dag_maker, venv_python_with_dill):
+    def test_with_templated_python_dill(self, dag_maker, venv_python_with_cloudpickle_and_dill):
         # add template that produces empty string when rendered
-        templated_python_with_dill = venv_python_with_dill.as_posix() + "{{ '' }}"
+        templated_python_with_dill = venv_python_with_cloudpickle_and_dill.as_posix() + "{{ '' }}"
 
         @task.external_python(python=templated_python_with_dill, use_dill=True)
         def f():
@@ -149,7 +143,10 @@ class TestExternalPythonDecorator:
             try:
                 import dill  # noqa: F401
             except ImportError:
-                log.warning(
+                import logging
+
+                _log = logging.getLogger(__name__)
+                _log.warning(
                     "Dill package is required to be installed. Please install it with: pip install [dill]"
                 )
 

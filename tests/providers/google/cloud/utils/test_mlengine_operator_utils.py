@@ -17,13 +17,11 @@
 from __future__ import annotations
 
 import base64
-import importlib
 import json
-import logging
-import shutil
 from datetime import datetime
 from unittest import mock
 
+import dill
 import pytest
 
 from airflow.exceptions import AirflowException
@@ -32,30 +30,6 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.apache.beam.operators.beam import BeamRunPythonPipelineOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.utils.mlengine_operator_utils import create_evaluate_ops
-
-log = logging.getLogger(__name__)
-
-try:
-    import cloudpickle
-    import dill
-except ImportError:
-    log.warning(
-        "Dill or cloudpickle packages are required to be installed."
-        " Please install one of them with: pip install [dill] or pip install [cloudpickle]"
-    )
-
-
-def is_cloudpickle_installed() -> bool:
-    """
-    Check if the dill or cloudpickle package is installed via checking if it is on the
-    path or installed as package.
-
-    :return: True if it is. Whichever way of checking it works, is fine.
-    """
-    if shutil.which("cloudpickle") or importlib.util.find_spec("cloudpickle"):
-        return True
-    return False
-
 
 TASK_PREFIX = "test-task-prefix"
 TASK_PREFIX_PREDICTION = TASK_PREFIX + "-prediction"
@@ -142,10 +116,7 @@ class TestMlengineOperatorUtils:
         # importing apache_beam elsewhere modifies the metrics. In order to avoid metrics being modified
         # by apache_beam import happening after importing this test, we retrieve the metrics here rather than
         # at the top of the file.
-        if is_cloudpickle_installed():
-            METRIC_FN_ENCODED = base64.b64encode(cloudpickle.dumps(METRIC_FN)).decode()
-        else:
-            METRIC_FN_ENCODED = base64.b64encode(dill.dumps(METRIC_FN)).decode()
+        METRIC_FN_ENCODED = base64.b64encode(dill.dumps(METRIC_FN, recurse=True)).decode()
 
         assert TASK_PREFIX_PREDICTION == evaluate_prediction.task_id
         assert PROJECT_ID == evaluate_prediction.project_id
@@ -191,10 +162,7 @@ class TestMlengineOperatorUtils:
         # importing apache_beam elsewhere modifies the metrics. In order to avoid metrics being modified
         # by apache_beam import happening after importing this test, we retrieve the metrics here rather than
         # at the top of the file.
-        if is_cloudpickle_installed():
-            METRIC_FN_ENCODED = base64.b64encode(cloudpickle.dumps(METRIC_FN)).decode()
-        else:
-            METRIC_FN_ENCODED = base64.b64encode(dill.dumps(METRIC_FN)).decode()
+        METRIC_FN_ENCODED = base64.b64encode(dill.dumps(METRIC_FN, recurse=True)).decode()
 
         assert TASK_PREFIX_PREDICTION == evaluate_prediction.task_id
         assert PROJECT_ID == evaluate_prediction.project_id
@@ -237,10 +205,7 @@ class TestMlengineOperatorUtils:
         # importing apache_beam elsewhere modifies the metrics. In order to avoid metrics being modified
         # by apache_beam import happening after importing this test, we retrieve the metrics here rather than
         # at the top of the file.
-        if is_cloudpickle_installed():
-            METRIC_FN_ENCODED = base64.b64encode(cloudpickle.dumps(METRIC_FN)).decode()
-        else:
-            METRIC_FN_ENCODED = base64.b64encode(dill.dumps(METRIC_FN)).decode()
+        METRIC_FN_ENCODED = base64.b64encode(dill.dumps(METRIC_FN, recurse=True)).decode()
 
         assert TASK_PREFIX_PREDICTION == evaluate_prediction.task_id
         assert PROJECT_ID == evaluate_prediction.project_id

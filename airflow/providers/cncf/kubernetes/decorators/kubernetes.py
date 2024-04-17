@@ -17,19 +17,17 @@
 from __future__ import annotations
 
 import base64
-import importlib
-import logging
 import os
-import shutil
+import pickle
 import uuid
 from shlex import quote
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Callable, Sequence
 
+import dill
 from kubernetes.client import models as k8s
 
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
-from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.python_kubernetes_script import (
     write_python_script,
@@ -37,16 +35,6 @@ from airflow.providers.cncf.kubernetes.python_kubernetes_script import (
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-log = logging.getLogger(__name__)
-
-if shutil.which("cloudpickle") or importlib.util.find_spec("cloudpickle"):
-    import cloudpickle as serialization_library
-elif shutil.which("dill") or importlib.util.find_spec("dill"):
-    import dill as serialization_library
-else:
-    log.warning("Neither dill and cloudpickle are installed. Please install one with: pip install [name]")
-    import pickle
 
 _PYTHON_SCRIPT_ENV = "__PYTHON_SCRIPT"
 _PYTHON_INPUT_ENV = "__PYTHON_INPUT"
@@ -77,17 +65,8 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
     # there are some cases we can't deepcopy the objects (e.g protobuf).
     shallow_copy_attrs: Sequence[str] = ("python_callable",)
 
-    def __init__(
-        self, namespace: str = "default", use_dill: bool = False, use_cloudpickle: bool = False, **kwargs
-    ) -> None:
-        if use_dill and use_cloudpickle:
-            raise AirflowException(
-                "Both 'use_dill' and 'use_cloudpickle' parameters are set to True. Please,"
-                " choose only one."
-            )
-        if use_dill:
-            use_cloudpickle = use_dill
-        self.use_cloudpickle = use_cloudpickle
+    def __init__(self, namespace: str = "default", use_dill: bool = False, **kwargs) -> None:
+        self.use_dill = use_dill
         super().__init__(
             namespace=namespace,
             name=kwargs.pop("name", f"k8s_airflow_pod_{uuid.uuid4().hex}"),
@@ -121,7 +100,7 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
 
     def execute(self, context: Context):
         with TemporaryDirectory(prefix="venv") as tmp_dir:
-            pickling_library = serialization_library if self.use_cloudpickle else pickle
+            pickling_library = dill if self.use_dill else pickle
             script_filename = os.path.join(tmp_dir, "script.py")
             input_filename = os.path.join(tmp_dir, "script.in")
 

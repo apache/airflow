@@ -18,12 +18,10 @@ from __future__ import annotations
 
 import base64
 import binascii
-import importlib
-import logging
-import shutil
 import sys
 from unittest import mock
 
+import dill
 import pytest
 
 if sys.version_info < (3, 12):
@@ -32,29 +30,6 @@ else:
     pytestmark = pytest.mark.skip(
         f"package apache_beam is not available for Python 3.12. Skipping all tests in {__name__}"
     )
-
-log = logging.getLogger(__name__)
-
-try:
-    import cloudpickle
-    import dill
-except ImportError:
-    log.warning(
-        "Dill or cloudpickle packages are required to be installed."
-        " Please install one of them with: pip install [dill] or pip install [cloudpickle]"
-    )
-
-
-def is_cloudpickle_installed() -> bool:
-    """
-    Check if the dill or cloudpickle package is installed via checking if it is on the
-    path or installed as package.
-
-    :return: True if it is. Whichever way of checking it works, is fine.
-    """
-    if shutil.which("cloudpickle") or importlib.util.find_spec("cloudpickle"):
-        return True
-    return False
 
 
 class TestJsonCode:
@@ -100,10 +75,7 @@ class TestMakeSummary:
 
     def test_run_should_fail_if_enc_fn_is_not_callable(self):
         non_callable_value = 1
-        if is_cloudpickle_installed():
-            fn_enc = base64.b64encode(cloudpickle.dumps(non_callable_value)).decode("utf-8")
-        else:
-            fn_enc = base64.b64encode(dill.dumps(non_callable_value)).decode("utf-8")
+        fn_enc = base64.b64encode(dill.dumps(non_callable_value)).decode("utf-8")
 
         with pytest.raises(ValueError):
             mlengine_prediction_summary.run(
@@ -126,10 +98,7 @@ class TestMakeSummary:
             def metric_function():
                 return 1
 
-            if is_cloudpickle_installed():
-                fn_enc = base64.b64encode(cloudpickle.dumps(metric_function)).decode("utf-8")
-            else:
-                fn_enc = base64.b64encode(dill.dumps(metric_function)).decode("utf-8")
+            fn_enc = base64.b64encode(dill.dumps(metric_function)).decode("utf-8")
 
             mlengine_prediction_summary.run(
                 [

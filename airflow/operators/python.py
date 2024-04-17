@@ -23,6 +23,7 @@ import inspect
 import json
 import logging
 import os
+import pickle
 import shutil
 import subprocess
 import sys
@@ -63,7 +64,6 @@ elif shutil.which("dill") or importlib.util.find_spec("dill"):
     import dill as serialization_library
 else:
     log.warning("Neither dill and cloudpickle are installed. Please install one with: pip install [name]")
-    import pickle
 
 if TYPE_CHECKING:
     from pendulum.datetime import DateTime
