@@ -330,7 +330,8 @@
   "cohere": {
     "deps": [
       "apache-airflow>=2.6.0",
-      "cohere>=5.0.0"
+      "cohere>=5.0.0",
+      "opentelemetry-proto==1.24.0"
     ],
     "devel-deps": [],
     "cross-providers-deps": [],
