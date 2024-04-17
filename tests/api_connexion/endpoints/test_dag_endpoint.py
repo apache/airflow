@@ -714,7 +714,9 @@ class TestGetDagDetails(TestDagEndpoint):
             "catchup": True,
             "concurrency": 16,
             "dag_id": "test_dag",
+            "dag_display_name": "test_dag",
             "dag_run_timeout": None,
+            "dataset_expression": None,
             "default_view": None,
             "description": None,
             "doc_md": "details",
@@ -733,6 +735,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "last_pickled": None,
             "max_active_runs": 16,
             "max_active_tasks": 16,
+            "max_consecutive_failed_dag_runs": 0,
             "next_dagrun": None,
             "next_dagrun_create_after": None,
             "next_dagrun_data_interval_end": None,
@@ -772,7 +775,9 @@ class TestGetDagDetails(TestDagEndpoint):
             "catchup": True,
             "concurrency": 16,
             "dag_id": "test_dag",
+            "dag_display_name": "test_dag",
             "dag_run_timeout": None,
+            "dataset_expression": None,
             "default_view": None,
             "description": None,
             "doc_md": "details",
@@ -791,6 +796,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "last_pickled": None,
             "max_active_runs": 16,
             "max_active_tasks": 16,
+            "max_consecutive_failed_dag_runs": 0,
             "next_dagrun": None,
             "next_dagrun_create_after": None,
             "next_dagrun_data_interval_end": None,
@@ -842,6 +848,7 @@ class TestGetDagDetails(TestDagEndpoint):
                     "retry_exponential_backoff": False,
                     "start_date": "2020-06-15T00:00:00+00:00",
                     "task_id": TASK_ID,
+                    "task_display_name": TASK_ID,
                     "template_fields": [],
                     "trigger_rule": "all_success",
                     "ui_color": "#e8f7e4",
@@ -872,6 +879,7 @@ class TestGetDagDetails(TestDagEndpoint):
                     "retry_exponential_backoff": False,
                     "start_date": "2020-06-16T00:00:00+00:00",
                     "task_id": TASK_ID2,
+                    "task_display_name": TASK_ID2,
                     "template_fields": [],
                     "trigger_rule": "all_success",
                     "ui_color": "#e8f7e4",
@@ -886,6 +894,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "timezone": UTC_JSON_REPR,
         }
         assert response.json == expected
+
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get(f"/api/v1/dags/{self.dag_id}/details")
