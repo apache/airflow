@@ -1668,7 +1668,7 @@ def upgradedb(
     add_default_pool_if_not_exists(session=session)
     synchronize_log_template(session=session)
     current_version = _get_current_revision(session=session)
-    trigger_kwargs_encryption_version = _REVISION_HEADS_MAP["2.9.0"]
+    trigger_kwargs_encryption_revision = _REVISION_HEADS_MAP["2.9.0"]
     if (
         _from_revision != trigger_kwargs_encryption_version
         and _revision_greater(config, trigger_kwargs_encryption_version, _from_revision)
