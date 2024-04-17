@@ -122,11 +122,17 @@ class TestDruidSubmitHook:
         with pytest.raises(AirflowException):
             self.db_hook.submit_indexing_job("Long json file")
 
-        requests = [task_post, status_check, shutdown_post]
-        for request in requests:
-            assert request.call_count == 1
-            if request.called_once:
-                assert False is request.request_history[0].verify
+        assert task_post.call_count == 1
+        if task_post.called_once:
+            assert False is task_post.request_history[0].verify
+
+        assert status_check.call_count > 1
+        if status_check.call_count > 1:
+            assert False is status_check.request_history[0].verify
+
+        assert shutdown_post.call_count == 1
+        if shutdown_post.called_once:
+            assert False is shutdown_post.request_history[0].verify
 
     def test_submit_correct_json_body(self, requests_mock):
         task_post = requests_mock.post(
