@@ -2168,7 +2168,7 @@ class TestStringifiedDAGs:
 
         with dag:
             TestOperator(task_id="test_task_1")
-            TestOperator(task_id="test_task_2")
+            Test2Operator(task_id="test_task_2")
 
         serialized_obj = SerializedDAG.to_dict(dag)
 
