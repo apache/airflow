@@ -34,7 +34,7 @@ import { BiCollapse, BiExpand } from "react-icons/bi";
 
 import { useDatasets, useGraphData, useGridData } from "src/api";
 import useSelection from "src/dag/useSelection";
-import { getMetaValue, useOffsetTop } from "src/utils";
+import { getMetaValue, getTask, useOffsetTop } from "src/utils";
 import { useGraphLayout } from "src/utils/graph";
 import Edge from "src/components/Graph/Edge";
 import type { DepNode, WebserverEdge } from "src/types";
@@ -67,6 +67,10 @@ const Graph = ({
   const [arrange, setArrange] = useState(data?.arrange || "LR");
   const [hasRendered, setHasRendered] = useState(false);
   const [isZoomedOut, setIsZoomedOut] = useState(false);
+
+  const {
+    data: { dagRuns, groups },
+  } = useGridData();
 
   useEffect(() => {
     setArrange(data?.arrange || "LR");
@@ -104,7 +108,11 @@ const Graph = ({
     );
     const consumingDag = dataset?.consumingDags?.find((d) => d.dagId === dagId);
     if (dataset.id) {
-      if (producingTask?.taskId) {
+      // check that the task is in the graph
+      if (
+        producingTask?.taskId &&
+        getTask({ taskId: producingTask?.taskId, task: groups })
+      ) {
         datasetEdges.push({
           sourceId: producingTask.taskId,
           targetId: dataset.id.toString(),
@@ -130,9 +138,6 @@ const Graph = ({
 
   const { selected } = useSelection();
 
-  const {
-    data: { dagRuns, groups },
-  } = useGridData();
   const { colors } = useTheme();
   const { getZoom, fitView } = useReactFlow();
   const latestDagRunId = dagRuns[dagRuns.length - 1]?.runId;
