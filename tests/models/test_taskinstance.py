@@ -3494,13 +3494,14 @@ class TestTaskInstance:
             example.expand(param=["a", "b"])
 
         dr = dag_maker.create_dagrun()
-        tis, _ = example.expand_mapped_task(dr.run_id, session=session)
+        example_task = dr.dag.get_task("example")
+        tis, _ = example_task.expand_mapped_task(dr.run_id, session=session)
 
         rendered_map_index = []
         with set_current_task_instance_session(session):
             for ti in tis:
-                ti.task = task
-                ti.refresh_from_task(example)
+                ti.task = example_task
+                ti.refresh_from_task(example_task)
                 ti.dry_run()
 
                 rendered_map_index.append(ti.rendered_map_index)
