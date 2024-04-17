@@ -117,7 +117,6 @@ from airflow.utils.context import (
 from airflow.utils.email import send_email
 from airflow.utils.helpers import prune_dict, render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.module_loading import qualname
 from airflow.utils.net import get_hostname
 from airflow.utils.operator_helpers import ExecutionCallableRunner, context_to_airflow_vars
 from airflow.utils.platform import getuser
@@ -1230,11 +1229,11 @@ def _run_finished_callback(
     if callbacks:
         callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
         for callback in callbacks:
+            log.info("Executing %s callback", callback.__name__)
             try:
                 callback(context)
             except Exception:
-                callback_name = qualname(callback).split(".")[-1]
-                log.exception("Error when executing %s callback", callback_name)  # type: ignore[attr-defined]
+                log.exception("Error when executing %s callback", callback.__name__)  # type: ignore[attr-defined]
 
 
 def _log_state(*, task_instance: TaskInstance | TaskInstancePydantic, lead_msg: str = "") -> None:
