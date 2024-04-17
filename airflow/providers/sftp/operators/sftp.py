@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains SFTP operator."""
+
 from __future__ import annotations
 
 import os
@@ -74,7 +75,7 @@ class SFTPOperator(BaseOperator):
                 remote_filepath="/tmp/tmp1/tmp2/file.txt",
                 operation="put",
                 create_intermediate_dirs=True,
-                dag=dag
+                dag=dag,
             )
 
     """
@@ -141,8 +142,8 @@ class SFTPOperator(BaseOperator):
                 self.sftp_hook = SFTPHook(ssh_conn_id=self.ssh_conn_id)
             if self.sftp_hook is None:
                 warnings.warn(
-                    "Parameter `ssh_hook` is deprecated"
-                    "Please use `sftp_hook` instead."
+                    "Parameter `ssh_hook` is deprecated. "
+                    "Please use `sftp_hook` instead. "
                     "The old parameter `ssh_hook` will be removed in a future version.",
                     AirflowProviderDeprecationWarning,
                     stacklevel=2,
@@ -194,7 +195,7 @@ class SFTPOperator(BaseOperator):
 
     def get_openlineage_facets_on_start(self):
         """
-        Returns OpenLineage datasets.
+        Return OpenLineage datasets.
 
         Dataset will have the following structure:
             input: file://<local_host>/path
@@ -210,7 +211,9 @@ class SFTPOperator(BaseOperator):
             local_host = socket.gethostbyname(local_host)
         except Exception as e:
             self.log.warning(
-                f"Failed to resolve local hostname. Using the hostname got by socket.gethostbyname() without resolution. {e}",  # noqa: E501
+                "Failed to resolve local hostname. "
+                "Using the hostname got by socket.gethostbyname() without resolution. %s",
+                e,
                 exc_info=True,
             )
 
@@ -225,7 +228,8 @@ class SFTPOperator(BaseOperator):
             remote_host = socket.gethostbyname(remote_host)
         except OSError as e:
             self.log.warning(
-                f"Failed to resolve remote hostname. Using the provided hostname without resolution. {e}",  # noqa: E501
+                "Failed to resolve remote hostname. Using the provided hostname without resolution. %s",
+                e,
                 exc_info=True,
             )
 

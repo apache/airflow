@@ -68,7 +68,7 @@ class OpenFaasHook(BaseHook):
                 self.log.info("Function deployed %s", self.function_name)
 
     def invoke_async_function(self, body: dict[str, Any]) -> None:
-        """Invoking function asynchronously."""
+        """Invoke function asynchronously."""
         url = self.get_conn().host + self.INVOKE_ASYNC_FUNCTION + self.function_name
         self.log.info("Invoking function asynchronously %s", url)
         response = requests.post(url, body)
@@ -79,7 +79,7 @@ class OpenFaasHook(BaseHook):
             raise AirflowException("failed to invoke function")
 
     def invoke_function(self, body: dict[str, Any]) -> None:
-        """Invoking function synchronously, will block until function completes and returns."""
+        """Invoke function synchronously. This will block until function completes and returns."""
         url = self.get_conn().host + self.INVOKE_FUNCTION + self.function_name
         self.log.info("Invoking function synchronously %s", url)
         response = requests.post(url, body)

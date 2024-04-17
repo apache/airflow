@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Azure Data Explorer operators."""
+
 from __future__ import annotations
 
 from functools import cached_property
@@ -67,12 +68,12 @@ class AzureDataExplorerQueryOperator(BaseOperator):
 
     @cached_property
     def hook(self) -> AzureDataExplorerHook:
-        """Returns new instance of AzureDataExplorerHook."""
+        """Return new instance of AzureDataExplorerHook."""
         return AzureDataExplorerHook(self.azure_data_explorer_conn_id)
 
     @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
     def get_hook(self) -> AzureDataExplorerHook:
-        """Returns new instance of AzureDataExplorerHook."""
+        """Return new instance of AzureDataExplorerHook."""
         return self.hook
 
     def execute(self, context: Context) -> KustoResultTable | str:

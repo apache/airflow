@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Interact with Amazon EKS, using the boto3 library."""
+
 from __future__ import annotations
 
 import base64
@@ -73,6 +74,25 @@ class NodegroupStates(Enum):
     DELETE_FAILED = "DELETE_FAILED"
     DEGRADED = "DEGRADED"
     NONEXISTENT = "NONEXISTENT"
+
+
+COMMAND = """
+            output=$({python_executable} -m airflow.providers.amazon.aws.utils.eks_get_token \
+                --cluster-name {eks_cluster_name} {args} 2>&1)
+
+            if [ $? -ne 0 ]; then
+                echo "Error running the script"
+                exit 1
+            fi
+
+            expiration_timestamp=$(echo "$output" | grep -oP 'expirationTimestamp:\s*\K[^,]+')
+            token=$(echo "$output" | grep -oP 'token:\s*\K[^,]+')
+
+            json_string=$(printf '{{"kind": "ExecCredential","apiVersion": \
+                "client.authentication.k8s.io/v1alpha1","spec": {{}},"status": \
+                {{"expirationTimestamp": "%s","token": "%s"}}}}' "$expiration_timestamp" "$token")
+            echo $json_string
+            """
 
 
 class EksHook(AwsBaseHook):
@@ -521,6 +541,16 @@ class EksHook(AwsBaseHook):
         :param eks_cluster_name: The name of the cluster to generate kubeconfig file for.
         :param pod_namespace: The namespace to run within kubernetes.
         """
+        args = ""
+        if self.region_name is not None:
+            args = args + f" --region-name {self.region_name}"
+
+        if self.aws_conn_id is not None:
+            args = args + f" --aws-conn-id {self.aws_conn_id}"
+
+        # We need to determine which python executable the host is running in order to correctly
+        # call the eks_get_token.py script.
+        python_executable = f"python{sys.version_info[0]}.{sys.version_info[1]}"
         # Set up the client
         eks_client = self.conn
 
@@ -556,28 +586,14 @@ class EksHook(AwsBaseHook):
                     "user": {
                         "exec": {
                             "apiVersion": AUTHENTICATION_API_VERSION,
-                            "command": sys.executable,
+                            "command": "sh",
                             "args": [
-                                "-m",
-                                "airflow.providers.amazon.aws.utils.eks_get_token",
-                                *(
-                                    ["--region-name", self.region_name]
-                                    if self.region_name is not None
-                                    else []
+                                "-c",
+                                COMMAND.format(
+                                    python_executable=python_executable,
+                                    eks_cluster_name=eks_cluster_name,
+                                    args=args,
                                 ),
-                                *(
-                                    ["--aws-conn-id", self.aws_conn_id]
-                                    if self.aws_conn_id is not None
-                                    else []
-                                ),
-                                "--cluster-name",
-                                eks_cluster_name,
-                            ],
-                            "env": [
-                                {
-                                    "name": "AIRFLOW__LOGGING__LOGGING_LEVEL",
-                                    "value": "FATAL",
-                                }
                             ],
                             "interactiveMode": "Never",
                         }

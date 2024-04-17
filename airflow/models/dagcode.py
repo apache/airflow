@@ -177,12 +177,13 @@ class DagCode(Base):
         return cls.code(fileloc)
 
     @classmethod
-    def code(cls, fileloc) -> str:
+    @provide_session
+    def code(cls, fileloc, session: Session = NEW_SESSION) -> str:
         """Return source code for this DagCode object.
 
         :return: source code as string
         """
-        return cls._get_code_from_db(fileloc)
+        return cls._get_code_from_db(fileloc, session)
 
     @staticmethod
     def _get_code_from_file(fileloc):

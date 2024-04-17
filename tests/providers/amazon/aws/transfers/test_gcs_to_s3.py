@@ -21,7 +21,7 @@ from tempfile import NamedTemporaryFile
 from unittest import mock
 
 import pytest
-from moto import mock_s3
+from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
@@ -46,7 +46,7 @@ def _create_test_bucket():
     return hook, bucket
 
 
-@mock_s3
+@mock_aws
 class TestGCSToS3Operator:
     @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook")
     def test_execute__match_glob(self, mock_hook):

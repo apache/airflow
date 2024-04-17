@@ -31,6 +31,8 @@ from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
 
+pytestmark = pytest.mark.db_test
+
 
 def test_index_redirect(admin_client):
     resp = admin_client.get("/")
@@ -58,7 +60,7 @@ def test_doc_urls(admin_client, monkeypatch):
     check_content_in_response("/api/v1/ui", resp)
 
 
-@pytest.fixture()
+@pytest.fixture
 def heartbeat_healthy():
     # case-1: healthy scheduler status
     last_heartbeat = timezone.utcnow()
@@ -66,7 +68,7 @@ def heartbeat_healthy():
         state="running",
         latest_heartbeat=last_heartbeat,
     )
-    SchedulerJobRunner(job=job),
+    SchedulerJobRunner(job=job)
     with create_session() as session:
         session.add(job)
     yield "healthy", last_heartbeat.isoformat()
@@ -78,7 +80,7 @@ def heartbeat_healthy():
         ).delete()
 
 
-@pytest.fixture()
+@pytest.fixture
 def heartbeat_too_slow():
     # case-2: unhealthy scheduler status - scenario 1 (SchedulerJob is running too slowly)
     last_heartbeat = timezone.utcnow() - datetime.timedelta(minutes=1)
@@ -86,7 +88,7 @@ def heartbeat_too_slow():
         state="running",
         latest_heartbeat=last_heartbeat,
     )
-    SchedulerJobRunner(job=job),
+    SchedulerJobRunner(job=job)
     with create_session() as session:
         session.query(Job).filter(
             Job.job_type == "SchedulerJob",
@@ -101,7 +103,7 @@ def heartbeat_too_slow():
         ).delete()
 
 
-@pytest.fixture()
+@pytest.fixture
 def heartbeat_not_running():
     # case-3: unhealthy scheduler status - scenario 2 (no running SchedulerJob)
     with create_session() as session:
@@ -109,7 +111,7 @@ def heartbeat_not_running():
             Job.job_type == "SchedulerJob",
             Job.state == "running",
         ).delete()
-    yield "unhealthy", None
+    return "unhealthy", None
 
 
 @pytest.mark.parametrize(
@@ -154,7 +156,7 @@ def delete_role_if_exists(app):
     return func
 
 
-@pytest.fixture()
+@pytest.fixture
 def non_exist_role_name(delete_role_if_exists):
     role_name = "test_roles_create_role"
     delete_role_if_exists(role_name)
@@ -162,7 +164,7 @@ def non_exist_role_name(delete_role_if_exists):
     delete_role_if_exists(role_name)
 
 
-@pytest.fixture()
+@pytest.fixture
 def exist_role_name(app, delete_role_if_exists):
     role_name = "test_roles_create_role_new"
     app.appbuilder.sm.add_role(role_name)
@@ -170,7 +172,7 @@ def exist_role_name(app, delete_role_if_exists):
     delete_role_if_exists(role_name)
 
 
-@pytest.fixture()
+@pytest.fixture
 def exist_role(app, exist_role_name):
     return app.appbuilder.sm.find_role(exist_role_name)
 
@@ -316,7 +318,7 @@ def test_views_post_access_denied(viewer_client, url):
     check_content_in_response("Access is Denied", resp)
 
 
-@pytest.fixture()
+@pytest.fixture
 def non_exist_username(app):
     username = "fake_username"
     user = app.appbuilder.sm.find_user(username)
@@ -346,7 +348,7 @@ def test_create_user(app, admin_client, non_exist_username):
     assert app.appbuilder.sm.find_user(non_exist_username)
 
 
-@pytest.fixture()
+@pytest.fixture
 def exist_username(app, exist_role):
     username = "test_edit_user_user"
     app.appbuilder.sm.add_user(

@@ -69,7 +69,7 @@ class TemplateJobStartTrigger(BaseTrigger):
         self.cancel_timeout = cancel_timeout
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes class arguments and classpath."""
+        """Serialize class arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.dataflow.TemplateJobStartTrigger",
             {
@@ -85,6 +85,8 @@ class TemplateJobStartTrigger(BaseTrigger):
 
     async def run(self):
         """
+        Fetch job status or yield certain Events.
+
         Main loop of the class in where it is fetching the job status and yields certain Event.
 
         If the job has status success then it yields TriggerEvent with success status, if job has

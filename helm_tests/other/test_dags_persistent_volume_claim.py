@@ -110,3 +110,18 @@ class TestDagsPersistentVolumeClaim:
         annotations = jmespath.search("metadata.annotations", docs[0])
         assert "value" == annotations.get("key")
         assert "value-two" == annotations.get("key-two")
+
+    def test_dags_persistent_volume_claim_template_storage_class_name(self):
+        docs = render_chart(
+            values={
+                "dags": {
+                    "persistence": {
+                        "existingClaim": None,
+                        "enabled": True,
+                        "storageClassName": "{{ .Release.Name }}-storage-class",
+                    }
+                }
+            },
+            show_only=["templates/dags-persistent-volume-claim.yaml"],
+        )
+        assert "release-name-storage-class" == jmespath.search("spec.storageClassName", docs[0])

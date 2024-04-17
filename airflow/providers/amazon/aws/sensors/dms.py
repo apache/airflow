@@ -17,47 +17,53 @@
 # under the License.
 from __future__ import annotations
 
-from functools import cached_property
 from typing import TYPE_CHECKING, Iterable, Sequence
 
 from deprecated import deprecated
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class DmsTaskBaseSensor(BaseSensorOperator):
+class DmsTaskBaseSensor(AwsBaseSensor[DmsHook]):
     """
     Contains general sensor behavior for DMS task.
 
     Subclasses should set ``target_statuses`` and ``termination_statuses`` fields.
 
     :param replication_task_arn: AWS DMS replication task ARN
-    :param aws_conn_id: aws connection to uses
     :param target_statuses: the target statuses, sensor waits until
         the task reaches any of these states
     :param termination_statuses: the termination statuses, sensor fails when
         the task reaches any of these states
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields: Sequence[str] = ("replication_task_arn",)
-    template_ext: Sequence[str] = ()
+    aws_hook_class = DmsHook
+    template_fields: Sequence[str] = aws_template_fields("replication_task_arn")
 
     def __init__(
         self,
         replication_task_arn: str,
-        aws_conn_id="aws_default",
         target_statuses: Iterable[str] | None = None,
         termination_statuses: Iterable[str] | None = None,
-        *args,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
-        self.aws_conn_id = aws_conn_id
+        super().__init__(**kwargs)
         self.replication_task_arn = replication_task_arn
         self.target_statuses: Iterable[str] = target_statuses or []
         self.termination_statuses: Iterable[str] = termination_statuses or []
@@ -67,14 +73,8 @@ class DmsTaskBaseSensor(BaseSensorOperator):
         """Get DmsHook."""
         return self.hook
 
-    @cached_property
-    def hook(self) -> DmsHook:
-        return DmsHook(self.aws_conn_id)
-
     def poke(self, context: Context):
-        status: str | None = self.hook.get_task_status(self.replication_task_arn)
-
-        if not status:
+        if not (status := self.hook.get_task_status(self.replication_task_arn)):
             # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
             message = f"Failed to read task status, task with ARN {self.replication_task_arn} not found"
             if self.soft_fail:
@@ -105,15 +105,21 @@ class DmsTaskCompletedSensor(DmsTaskBaseSensor):
         :ref:`howto/sensor:DmsTaskCompletedSensor`
 
     :param replication_task_arn: AWS DMS replication task ARN
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields: Sequence[str] = ("replication_task_arn",)
-    template_ext: Sequence[str] = ()
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.target_statuses = ["stopped"]
-        self.termination_statuses = [
+    def __init__(self, **kwargs):
+        kwargs["target_statuses"] = ["stopped"]
+        kwargs["termination_statuses"] = [
             "creating",
             "deleting",
             "failed",
@@ -123,3 +129,4 @@ class DmsTaskCompletedSensor(DmsTaskBaseSensor):
             "ready",
             "testing",
         ]
+        super().__init__(**kwargs)

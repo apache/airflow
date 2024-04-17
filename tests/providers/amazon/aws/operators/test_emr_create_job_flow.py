@@ -92,6 +92,7 @@ class TestEmrCreateJobFlowOperator:
         assert self.operator.emr_conn_id == "emr_default"
         assert self.operator.region_name == "ap-southeast-2"
 
+    @pytest.mark.db_test
     def test_render_template(self):
         self.operator.job_flow_overrides = self._config
         dag_run = DagRun(dag_id=self.operator.dag_id, execution_date=DEFAULT_DATE, run_id="test")
@@ -120,6 +121,7 @@ class TestEmrCreateJobFlowOperator:
 
         assert self.operator.job_flow_overrides == expected_args
 
+    @pytest.mark.db_test
     def test_render_template_from_file(self, mocked_hook_client):
         self.operator.job_flow_overrides = "job.j2.json"
         self.operator.params = {"releaseLabel": "5.11.0"}

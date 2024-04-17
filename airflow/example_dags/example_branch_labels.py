@@ -18,6 +18,7 @@
 """
 Example DAG demonstrating the usage of labels with different branches.
 """
+
 from __future__ import annotations
 
 import pendulum

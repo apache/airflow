@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.configuration import ensure_secrets_loaded, initialize_secrets_backends
 from airflow.models import Connection, Variable
 from airflow.secrets.cache import SecretCache
@@ -41,10 +43,10 @@ class TestConnectionsFromSecrets:
     @mock.patch("airflow.secrets.metastore.MetastoreBackend.get_connection")
     @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_connection")
     def test_get_connection_first_try(self, mock_env_get, mock_meta_get):
-        mock_env_get.side_effect = ["something"]  # returns something
+        mock_env_get.return_value = Connection("something")  # returns something
         Connection.get_connection_from_secrets("fake_conn_id")
         mock_env_get.assert_called_once_with(conn_id="fake_conn_id")
-        mock_meta_get.not_called()
+        mock_meta_get.assert_not_called()
 
     @conf_vars(
         {
@@ -115,6 +117,7 @@ class TestConnectionsFromSecrets:
         assert "mysql://airflow:airflow@host:5432/airflow" == conn.get_uri()
 
 
+@pytest.mark.db_test
 class TestVariableFromSecrets:
     def setup_method(self) -> None:
         clear_db_variables()

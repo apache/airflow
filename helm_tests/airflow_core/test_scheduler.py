@@ -57,7 +57,7 @@ class TestScheduler:
                 "executor": "CeleryExecutor",
                 "scheduler": {
                     "extraContainers": [
-                        {"name": "test-container", "image": "test-registry/test-repo:test-tag"}
+                        {"name": "{{ .Chart.Name }}", "image": "test-registry/test-repo:test-tag"}
                     ],
                 },
             },
@@ -65,7 +65,7 @@ class TestScheduler:
         )
 
         assert {
-            "name": "test-container",
+            "name": "airflow",
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
 
@@ -194,7 +194,7 @@ class TestScheduler:
             values=values,
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
-        expected_result = revision_history_limit if revision_history_limit else global_revision_history_limit
+        expected_result = revision_history_limit or global_revision_history_limit
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
 
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
@@ -774,6 +774,24 @@ class TestScheduler:
         assert "127.0.0.1" == jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0])
         assert "foo.local" == jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0])
 
+    def test_scheduler_template_storage_class_name(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "persistence": {
+                        "storageClassName": "{{ .Release.Name }}-storage-class",
+                        "enabled": True,
+                    }
+                },
+                "logs": {"persistence": {"enabled": False}},
+                "executor": "LocalExecutor",
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+        assert "release-name-storage-class" == jmespath.search(
+            "spec.volumeClaimTemplates[0].spec.storageClassName", docs[0]
+        )
+
 
 class TestSchedulerNetworkPolicy:
     """Tests scheduler network policy."""
@@ -873,7 +891,7 @@ class TestSchedulerServiceAccount:
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
-    def test_overriden_automount_service_account_token(self):
+    def test_overridden_automount_service_account_token(self):
         docs = render_chart(
             values={
                 "scheduler": {
@@ -883,3 +901,20 @@ class TestSchedulerServiceAccount:
             show_only=["templates/scheduler/scheduler-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
+
+
+class TestSchedulerCreation:
+    """Tests scheduler deployment creation."""
+
+    def test_can_be_disabled(self):
+        """
+        Scheduler should be able to be disabled if the users desires.
+
+        For example, user may be disabled when using scheduler and having it deployed on another host.
+        """
+        docs = render_chart(
+            values={"scheduler": {"enabled": False}},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert 0 == len(docs)

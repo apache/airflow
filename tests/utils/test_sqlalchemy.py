@@ -36,13 +36,15 @@ from airflow.settings import Session
 from airflow.utils.sqlalchemy import (
     ExecutorConfigType,
     ensure_pod_is_valid_after_unpickling,
-    nowait,
+    is_sqlalchemy_v1,
     prohibit_commit,
-    skip_locked,
     with_row_locks,
 )
 from airflow.utils.state import State
 from airflow.utils.timezone import utcnow
+
+pytestmark = pytest.mark.db_test
+
 
 TEST_POD = k8s.V1Pod(spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base")]))
 
@@ -115,70 +117,6 @@ class TestSqlAlchemyUtils:
         dag.clear()
 
     @pytest.mark.parametrize(
-        "dialect, supports_for_update_of, expected_return_value",
-        [
-            (
-                "postgresql",
-                True,
-                {"skip_locked": True},
-            ),
-            (
-                "mysql",
-                False,
-                {},
-            ),
-            (
-                "mysql",
-                True,
-                {"skip_locked": True},
-            ),
-            (
-                "sqlite",
-                False,
-                {"skip_locked": True},
-            ),
-        ],
-    )
-    def test_skip_locked(self, dialect, supports_for_update_of, expected_return_value):
-        session = mock.Mock()
-        session.bind.dialect.name = dialect
-        session.bind.dialect.supports_for_update_of = supports_for_update_of
-        assert skip_locked(session=session) == expected_return_value
-
-    @pytest.mark.parametrize(
-        "dialect, supports_for_update_of, expected_return_value",
-        [
-            (
-                "postgresql",
-                True,
-                {"nowait": True},
-            ),
-            (
-                "mysql",
-                False,
-                {},
-            ),
-            (
-                "mysql",
-                True,
-                {"nowait": True},
-            ),
-            (
-                "sqlite",
-                False,
-                {
-                    "nowait": True,
-                },
-            ),
-        ],
-    )
-    def test_nowait(self, dialect, supports_for_update_of, expected_return_value):
-        session = mock.Mock()
-        session.bind.dialect.name = dialect
-        session.bind.dialect.supports_for_update_of = supports_for_update_of
-        assert nowait(session=session) == expected_return_value
-
-    @pytest.mark.parametrize(
         "dialect, supports_for_update_of, use_row_level_lock_conf, expected_use_row_level_lock",
         [
             ("postgresql", True, True, True),
@@ -217,8 +155,8 @@ class TestSqlAlchemyUtils:
             guard.commit()
 
             # Check the expected_commit is reset
-            with pytest.raises(RuntimeError):
-                self.session.execute(text("SELECT 1"))
+            self.session.execute(text("SELECT 1"))
+            with pytest.raises(RuntimeError, match="UNEXPECTED COMMIT"):
                 self.session.commit()
 
     def test_prohibit_commit_specific_session_only(self):
@@ -375,3 +313,16 @@ class TestExecutorConfigType:
         # show that the pickled (bad) pod is now a good pod, and same as the copy made
         # before making it bad
         assert result["pod_override"].to_dict() == copy_of_test_pod.to_dict()
+
+
+@pytest.mark.parametrize(
+    "mock_version, expected_result",
+    [
+        ("1.0.0", True),  # Test 1: v1 identified as v1
+        ("2.3.4", False),  # Test 2: v2 not identified as v1
+    ],
+)
+def test_is_sqlalchemy_v1(mock_version, expected_result):
+    with mock.patch("airflow.utils.sqlalchemy.metadata") as mock_metadata:
+        mock_metadata.version.return_value = mock_version
+        assert is_sqlalchemy_v1() == expected_result

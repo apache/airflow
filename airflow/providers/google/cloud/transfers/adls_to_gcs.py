@@ -24,8 +24,14 @@ from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
-from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
-from airflow.providers.microsoft.azure.operators.adls import ADLSListOperator
+
+try:
+    from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
+    from airflow.providers.microsoft.azure.operators.adls import ADLSListOperator
+except ModuleNotFoundError as e:
+    from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+    raise AirflowOptionalProviderFeatureException(e)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -58,12 +64,12 @@ class ADLSToGCSOperator(ADLSListOperator):
         resulting gcs path will be ``gs://mybucket/hello/world.avro`` ::
 
             copy_single_file = AdlsToGoogleCloudStorageOperator(
-                task_id='copy_single_file',
-                src_adls='hello/world.avro',
-                dest_gcs='gs://mybucket',
+                task_id="copy_single_file",
+                src_adls="hello/world.avro",
+                dest_gcs="gs://mybucket",
                 replace=False,
-                azure_data_lake_conn_id='azure_data_lake_default',
-                gcp_conn_id='google_cloud_default'
+                azure_data_lake_conn_id="azure_data_lake_default",
+                gcp_conn_id="google_cloud_default",
             )
 
         The following Operator would copy all parquet files from ADLS
@@ -110,7 +116,6 @@ class ADLSToGCSOperator(ADLSListOperator):
         google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-
         super().__init__(path=src_adls, azure_data_lake_conn_id=azure_data_lake_conn_id, **kwargs)
 
         self.src_adls = src_adls

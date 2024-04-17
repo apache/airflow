@@ -18,21 +18,28 @@ from __future__ import annotations
 
 import datetime
 import decimal
+import sys
+from importlib import metadata
+from unittest.mock import patch
 
 import numpy as np
+import pendulum
 import pendulum.tz
 import pytest
 from dateutil.tz import tzutc
+from packaging import version
 from pendulum import DateTime
+from pendulum.tz.timezone import FixedTimezone, Timezone
 
-from airflow import PY39
 from airflow.models.param import Param, ParamsDict
 from airflow.serialization.serde import DATA, deserialize, serialize
 
-if PY39:
+if sys.version_info >= (3, 9):
     from zoneinfo import ZoneInfo
 else:
     from backports.zoneinfo import ZoneInfo
+
+PENDULUM3 = version.parse(metadata.version("pendulum")).major == 3
 
 
 class TestSerializers:
@@ -75,6 +82,11 @@ class TestSerializers:
         assert i.timestamp() == d.timestamp()
 
         i = DateTime(2022, 7, 10, tzinfo=ZoneInfo("Europe/Paris"))
+        s = serialize(i)
+        d = deserialize(s)
+        assert i.timestamp() == d.timestamp()
+
+        i = datetime.datetime.now()
         s = serialize(i)
         d = deserialize(s)
         assert i.timestamp() == d.timestamp()
@@ -175,3 +187,200 @@ class TestSerializers:
         e = serialize(i)
         d = deserialize(e)
         assert i.equals(d)
+
+    def test_iceberg(self):
+        pytest.importorskip("pyiceberg", minversion="2.0.0")
+        from pyiceberg.catalog import Catalog
+        from pyiceberg.io import FileIO
+        from pyiceberg.table import Table
+
+        with patch.object(Catalog, "__abstractmethods__", set()), patch.object(
+            FileIO, "__abstractmethods__", set()
+        ), patch("pyiceberg.catalog.Catalog.load_table") as mock_load_table, patch(
+            "pyiceberg.catalog.load_catalog"
+        ) as mock_load_catalog:
+            uri = "http://rest.no.where"
+            catalog = Catalog("catalog", uri=uri)
+            identifier = ("catalog", "schema", "table")
+            mock_load_catalog.return_value = catalog
+
+            i = Table(identifier, "bar", catalog=catalog, metadata_location="", io=FileIO())
+            mock_load_table.return_value = i
+
+            e = serialize(i)
+            d = deserialize(e)
+            assert i == d
+        mock_load_catalog.assert_called_with("catalog", uri=uri)
+        mock_load_table.assert_called_with((identifier[1], identifier[2]))
+
+    def test_deltalake(selfa):
+        deltalake = pytest.importorskip("deltalake")
+
+        with patch("deltalake.table.Metadata"), patch("deltalake.table.RawDeltaTable"), patch.object(
+            deltalake.DeltaTable, "version", return_value=0
+        ), patch.object(deltalake.DeltaTable, "table_uri", new_callable=lambda: "/tmp/bucket/path"):
+            uri = "/tmp/bucket/path"
+
+            i = deltalake.DeltaTable(uri, storage_options={"key": "value"})
+
+            e = serialize(i)
+            d = deserialize(e)
+            assert i.table_uri == d.table_uri
+            assert i.version() == d.version()
+            assert i._storage_options == d._storage_options
+
+            i = deltalake.DeltaTable(uri)
+            e = serialize(i)
+            d = deserialize(e)
+            assert i.table_uri == d.table_uri
+            assert i.version() == d.version()
+            assert i._storage_options == d._storage_options
+            assert d._storage_options is None
+
+    @pytest.mark.skipif(not PENDULUM3, reason="Test case for pendulum~=3")
+    @pytest.mark.parametrize(
+        "ser_value, expected",
+        [
+            pytest.param(
+                {
+                    "__classname__": "pendulum.datetime.DateTime",
+                    "__version__": 2,
+                    "__data__": {
+                        "timestamp": 1680307200.0,
+                        "tz": {
+                            "__classname__": "builtins.tuple",
+                            "__version__": 1,
+                            "__data__": ["UTC", "pendulum.tz.timezone.FixedTimezone", 1, True],
+                        },
+                    },
+                },
+                pendulum.datetime(2023, 4, 1, tz=Timezone("UTC")),
+                id="in-utc-timezone",
+            ),
+            pytest.param(
+                {
+                    "__classname__": "pendulum.datetime.DateTime",
+                    "__version__": 2,
+                    "__data__": {
+                        "timestamp": 1680292800.0,
+                        "tz": {
+                            "__classname__": "builtins.tuple",
+                            "__version__": 1,
+                            "__data__": ["Asia/Tbilisi", "pendulum.tz.timezone.Timezone", 1, True],
+                        },
+                    },
+                },
+                pendulum.datetime(2023, 4, 1, tz=Timezone("Asia/Tbilisi")),
+                id="non-dts-timezone",
+            ),
+            pytest.param(
+                {
+                    "__classname__": "pendulum.datetime.DateTime",
+                    "__version__": 2,
+                    "__data__": {
+                        "timestamp": 1680303600.0,
+                        "tz": {
+                            "__classname__": "builtins.tuple",
+                            "__version__": 1,
+                            "__data__": ["Europe/London", "pendulum.tz.timezone.Timezone", 1, True],
+                        },
+                    },
+                },
+                pendulum.datetime(2023, 4, 1, tz=Timezone("Europe/London")),
+                id="dts-timezone",
+            ),
+            pytest.param(
+                {
+                    "__classname__": "pendulum.datetime.DateTime",
+                    "__version__": 2,
+                    "__data__": {
+                        "timestamp": 1680310800.0,
+                        "tz": {
+                            "__classname__": "builtins.tuple",
+                            "__version__": 1,
+                            "__data__": [-3600, "pendulum.tz.timezone.FixedTimezone", 1, True],
+                        },
+                    },
+                },
+                pendulum.datetime(2023, 4, 1, tz=FixedTimezone(-3600)),
+                id="offset-timezone",
+            ),
+        ],
+    )
+    def test_pendulum_2_to_3(self, ser_value, expected):
+        """Test deserialize objects in pendulum 3 which serialised in pendulum 2."""
+        assert deserialize(ser_value) == expected
+
+    @pytest.mark.skipif(PENDULUM3, reason="Test case for pendulum~=2")
+    @pytest.mark.parametrize(
+        "ser_value, expected",
+        [
+            pytest.param(
+                {
+                    "__classname__": "pendulum.datetime.DateTime",
+                    "__version__": 2,
+                    "__data__": {
+                        "timestamp": 1680307200.0,
+                        "tz": {
+                            "__classname__": "builtins.tuple",
+                            "__version__": 1,
+                            "__data__": ["UTC", "pendulum.tz.timezone.Timezone", 1, True],
+                        },
+                    },
+                },
+                pendulum.datetime(2023, 4, 1, tz=Timezone("UTC")),
+                id="in-utc-timezone",
+            ),
+            pytest.param(
+                {
+                    "__classname__": "pendulum.datetime.DateTime",
+                    "__version__": 2,
+                    "__data__": {
+                        "timestamp": 1680292800.0,
+                        "tz": {
+                            "__classname__": "builtins.tuple",
+                            "__version__": 1,
+                            "__data__": ["Asia/Tbilisi", "pendulum.tz.timezone.Timezone", 1, True],
+                        },
+                    },
+                },
+                pendulum.datetime(2023, 4, 1, tz=Timezone("Asia/Tbilisi")),
+                id="non-dts-timezone",
+            ),
+            pytest.param(
+                {
+                    "__classname__": "pendulum.datetime.DateTime",
+                    "__version__": 2,
+                    "__data__": {
+                        "timestamp": 1680303600.0,
+                        "tz": {
+                            "__classname__": "builtins.tuple",
+                            "__version__": 1,
+                            "__data__": ["Europe/London", "pendulum.tz.timezone.Timezone", 1, True],
+                        },
+                    },
+                },
+                pendulum.datetime(2023, 4, 1, tz=Timezone("Europe/London")),
+                id="dts-timezone",
+            ),
+            pytest.param(
+                {
+                    "__classname__": "pendulum.datetime.DateTime",
+                    "__version__": 2,
+                    "__data__": {
+                        "timestamp": 1680310800.0,
+                        "tz": {
+                            "__classname__": "builtins.tuple",
+                            "__version__": 1,
+                            "__data__": [-3600, "pendulum.tz.timezone.FixedTimezone", 1, True],
+                        },
+                    },
+                },
+                pendulum.datetime(2023, 4, 1, tz=FixedTimezone(-3600)),
+                id="offset-timezone",
+            ),
+        ],
+    )
+    def test_pendulum_3_to_2(self, ser_value, expected):
+        """Test deserialize objects in pendulum 2 which serialised in pendulum 3."""
+        assert deserialize(ser_value) == expected

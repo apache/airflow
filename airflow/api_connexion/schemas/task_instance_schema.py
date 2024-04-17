@@ -55,6 +55,7 @@ class TaskInstanceSchema(SQLAlchemySchema):
     state = TaskInstanceStateField()
     _try_number = auto_field(data_key="try_number")
     max_tries = auto_field()
+    task_display_name = fields.String(attribute="task_display_name", dump_only=True)
     hostname = auto_field()
     unixname = auto_field()
     pool = auto_field()
@@ -67,6 +68,7 @@ class TaskInstanceSchema(SQLAlchemySchema):
     executor_config = auto_field()
     note = auto_field()
     sla_miss = fields.Nested(SlaMissSchema, dump_default=None)
+    rendered_map_index = auto_field()
     rendered_fields = JsonObjectField(dump_default={})
     trigger = fields.Nested(TriggerSchema)
     triggerer_job = fields.Nested(JobSchema)
@@ -155,7 +157,7 @@ class ClearTaskInstanceFormSchema(Schema):
 class SetTaskInstanceStateFormSchema(Schema):
     """Schema for handling the request of setting state of task instance of a DAG."""
 
-    dry_run = fields.Boolean(dump_default=True)
+    dry_run = fields.Boolean(load_default=True)
     task_id = fields.Str(required=True)
     execution_date = fields.DateTime(validate=validate_istimezone)
     dag_run_id = fields.Str()

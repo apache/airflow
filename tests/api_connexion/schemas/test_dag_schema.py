@@ -18,14 +18,20 @@ from __future__ import annotations
 
 from datetime import datetime
 
+import pendulum
+import pytest
+
 from airflow.api_connexion.schemas.dag_schema import (
     DAGCollection,
     DAGCollectionSchema,
     DAGDetailSchema,
     DAGSchema,
 )
+from airflow.datasets import Dataset
 from airflow.models import DagModel, DagTag
 from airflow.models.dag import DAG
+
+UTC_JSON_REPR = "UTC" if pendulum.__version__.startswith("3") else "Timezone('UTC')"
 
 
 def test_serialize_test_dag_schema(url_safe_serializer):
@@ -45,6 +51,7 @@ def test_serialize_test_dag_schema(url_safe_serializer):
 
     assert {
         "dag_id": "test_dag_id",
+        "dag_display_name": "test_dag_id",
         "description": "The description",
         "fileloc": "/root/airflow/dags/my_dag.py",
         "file_token": url_safe_serializer.dumps("/root/airflow/dags/my_dag.py"),
@@ -60,6 +67,7 @@ def test_serialize_test_dag_schema(url_safe_serializer):
         "next_dagrun_data_interval_start": None,
         "next_dagrun_data_interval_end": None,
         "max_active_runs": 16,
+        "max_consecutive_failed_dag_runs": 0,
         "next_dagrun_create_after": None,
         "last_expired": None,
         "max_active_tasks": 16,
@@ -82,6 +90,7 @@ def test_serialize_test_dag_collection_schema(url_safe_serializer):
         "dags": [
             {
                 "dag_id": "test_dag_id_a",
+                "dag_display_name": "test_dag_id_a",
                 "description": None,
                 "fileloc": "/tmp/a.py",
                 "file_token": url_safe_serializer.dumps("/tmp/a.py"),
@@ -100,6 +109,7 @@ def test_serialize_test_dag_collection_schema(url_safe_serializer):
                 "next_dagrun_create_after": None,
                 "last_expired": None,
                 "max_active_tasks": 16,
+                "max_consecutive_failed_dag_runs": 0,
                 "last_pickled": None,
                 "default_view": None,
                 "last_parsed_time": None,
@@ -110,6 +120,7 @@ def test_serialize_test_dag_collection_schema(url_safe_serializer):
             },
             {
                 "dag_id": "test_dag_id_b",
+                "dag_display_name": "test_dag_id_b",
                 "description": None,
                 "fileloc": "/tmp/a.py",
                 "file_token": url_safe_serializer.dumps("/tmp/a.py"),
@@ -128,6 +139,7 @@ def test_serialize_test_dag_collection_schema(url_safe_serializer):
                 "next_dagrun_create_after": None,
                 "last_expired": None,
                 "max_active_tasks": 16,
+                "max_consecutive_failed_dag_runs": 0,
                 "last_pickled": None,
                 "default_view": None,
                 "last_parsed_time": None,
@@ -141,6 +153,7 @@ def test_serialize_test_dag_collection_schema(url_safe_serializer):
     } == schema.dump(instance)
 
 
+@pytest.mark.db_test
 def test_serialize_test_dag_detail_schema(url_safe_serializer):
     dag = DAG(
         dag_id="test_dag",
@@ -158,6 +171,7 @@ def test_serialize_test_dag_detail_schema(url_safe_serializer):
         "concurrency": 16,
         "max_active_tasks": 16,
         "dag_id": "test_dag",
+        "dag_display_name": "test_dag",
         "dag_run_timeout": None,
         "default_view": "duration",
         "description": None,
@@ -180,8 +194,68 @@ def test_serialize_test_dag_detail_schema(url_safe_serializer):
         "schedule_interval": {"__type": "TimeDelta", "days": 1, "seconds": 0, "microseconds": 0},
         "start_date": "2020-06-19T00:00:00+00:00",
         "tags": [{"name": "example1"}, {"name": "example2"}],
-        "timezone": "Timezone('UTC')",
+        "template_searchpath": None,
+        "timezone": UTC_JSON_REPR,
         "max_active_runs": 16,
+        "max_consecutive_failed_dag_runs": 0,
+        "pickle_id": None,
+        "end_date": None,
+        "is_paused_upon_creation": None,
+        "render_template_as_native_obj": False,
+    }
+    obj = schema.dump(dag)
+    expected.update({"last_parsed": obj["last_parsed"]})
+    assert obj == expected
+
+
+@pytest.mark.db_test
+def test_serialize_test_dag_with_dataset_schedule_detail_schema(url_safe_serializer):
+    dataset1 = Dataset(uri="s3://bucket/obj1")
+    dataset2 = Dataset(uri="s3://bucket/obj2")
+    dag = DAG(
+        dag_id="test_dag",
+        start_date=datetime(2020, 6, 19),
+        doc_md="docs",
+        orientation="LR",
+        default_view="duration",
+        params={"foo": 1},
+        schedule=dataset1 & dataset2,
+        tags=["example1", "example2"],
+    )
+    schema = DAGDetailSchema()
+
+    expected = {
+        "catchup": True,
+        "concurrency": 16,
+        "max_active_tasks": 16,
+        "dag_id": "test_dag",
+        "dag_display_name": "test_dag",
+        "dag_run_timeout": None,
+        "default_view": "duration",
+        "description": None,
+        "doc_md": "docs",
+        "fileloc": __file__,
+        "file_token": url_safe_serializer.dumps(__file__),
+        "is_active": None,
+        "is_paused": None,
+        "is_subdag": False,
+        "orientation": "LR",
+        "owners": [],
+        "params": {
+            "foo": {
+                "__class": "airflow.models.param.Param",
+                "value": 1,
+                "description": None,
+                "schema": {},
+            }
+        },
+        "schedule_interval": {"__type": "CronExpression", "value": "Dataset"},
+        "start_date": "2020-06-19T00:00:00+00:00",
+        "tags": [{"name": "example1"}, {"name": "example2"}],
+        "template_searchpath": None,
+        "timezone": UTC_JSON_REPR,
+        "max_active_runs": 16,
+        "max_consecutive_failed_dag_runs": 0,
         "pickle_id": None,
         "end_date": None,
         "is_paused_upon_creation": None,

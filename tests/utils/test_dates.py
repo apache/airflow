@@ -53,7 +53,6 @@ class TestDates:
             dates.parse_execution_date(bad_execution_date_str)
 
     def test_round_time(self):
-
         rt1 = dates.round_time(timezone.datetime(2015, 1, 1, 6), timedelta(days=1))
         assert timezone.datetime(2015, 1, 1, 0, 0) == rt1
 
@@ -110,16 +109,16 @@ class TestUtilsDatesDateRange:
         assert dates.date_range(datetime(2016, 1, 1), datetime(2016, 1, 3)) == []
 
     def test_end_date_before_start_date(self):
-        with pytest.raises(Exception, match="Wait. start_date needs to be before end_date"):
+        with pytest.raises(ValueError, match="Wait. start_date needs to be before end_date"):
             dates.date_range(datetime(2016, 2, 1), datetime(2016, 1, 1), delta=timedelta(seconds=1))
 
     def test_both_end_date_and_num_given(self):
-        with pytest.raises(Exception, match="Wait. Either specify end_date OR num"):
+        with pytest.raises(ValueError, match="Wait. Either specify end_date OR num"):
             dates.date_range(datetime(2016, 1, 1), datetime(2016, 1, 3), num=2, delta=timedelta(seconds=1))
 
     def test_invalid_delta(self):
         exception_msg = "Wait. delta must be either datetime.timedelta or cron expression as str"
-        with pytest.raises(Exception, match=exception_msg):
+        with pytest.raises(TypeError, match=exception_msg):
             dates.date_range(datetime(2016, 1, 1), datetime(2016, 1, 3), delta=1)
 
     def test_positive_num_given(self):

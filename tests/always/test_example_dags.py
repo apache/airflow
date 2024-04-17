@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from glob import glob
 from pathlib import Path
 
@@ -31,6 +32,11 @@ AIRFLOW_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
 
 NO_DB_QUERY_EXCEPTION = ["/airflow/example_dags/example_subdag_operator.py"]
 
+if os.environ.get("PYDANTIC", "v2") != "v2":
+    pytest.skip(
+        "The test is skipped because we are running in limited Pydantic environment", allow_module_level=True
+    )
+
 
 def get_suspended_providers_folders() -> list[str]:
     """
@@ -40,7 +46,7 @@ def get_suspended_providers_folders() -> list[str]:
     suspended_providers = []
     for provider_path in AIRFLOW_PROVIDERS_ROOT.rglob("provider.yaml"):
         provider_yaml = yaml.safe_load(provider_path.read_text())
-        if provider_yaml.get("suspended"):
+        if provider_yaml["state"] == "suspended":
             suspended_providers.append(
                 provider_path.parent.relative_to(AIRFLOW_SOURCES_ROOT)
                 .as_posix()
@@ -49,14 +55,34 @@ def get_suspended_providers_folders() -> list[str]:
     return suspended_providers
 
 
-def example_not_suspended_dags():
+def get_python_excluded_providers_folders() -> list[str]:
+    """
+    Returns a list of providers folders that should be excluded for current Python version and
+    skipped when running tests (without any prefix - for example apache/beam, yandex, google etc.).
+    """
+    excluded_providers = []
+    current_python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
+    for provider_path in AIRFLOW_PROVIDERS_ROOT.rglob("provider.yaml"):
+        provider_yaml = yaml.safe_load(provider_path.read_text())
+        excluded_python_versions = provider_yaml.get("excluded-python-versions", [])
+        if current_python_version in excluded_python_versions:
+            excluded_providers.append(
+                provider_path.parent.relative_to(AIRFLOW_SOURCES_ROOT)
+                .as_posix()
+                .replace("airflow/providers/", "")
+            )
+    return excluded_providers
+
+
+def example_not_excluded_dags():
     example_dirs = ["airflow/**/example_dags/example_*.py", "tests/system/providers/**/example_*.py"]
-    suspended_providers_folders = get_suspended_providers_folders()
+    excluded_providers_folders = get_suspended_providers_folders()
+    excluded_providers_folders.extend(get_python_excluded_providers_folders())
     possible_prefixes = ["airflow/providers/", "tests/system/providers/"]
     suspended_providers_folders = [
         AIRFLOW_SOURCES_ROOT.joinpath(prefix, provider).as_posix()
         for prefix in possible_prefixes
-        for provider in suspended_providers_folders
+        for provider in excluded_providers_folders
     ]
     for example_dir in example_dirs:
         candidates = glob(f"{AIRFLOW_SOURCES_ROOT.as_posix()}/{example_dir}", recursive=True)
@@ -68,7 +94,7 @@ def example_not_suspended_dags():
 def example_dags_except_db_exception():
     return [
         dag_file
-        for dag_file in example_not_suspended_dags()
+        for dag_file in example_not_excluded_dags()
         if not dag_file.endswith(tuple(NO_DB_QUERY_EXCEPTION))
     ]
 
@@ -77,7 +103,8 @@ def relative_path(path):
     return os.path.relpath(path, AIRFLOW_SOURCES_ROOT.as_posix())
 
 
-@pytest.mark.parametrize("example", example_not_suspended_dags(), ids=relative_path)
+@pytest.mark.db_test
+@pytest.mark.parametrize("example", example_not_excluded_dags(), ids=relative_path)
 def test_should_be_importable(example):
     dagbag = DagBag(
         dag_folder=example,
@@ -87,6 +114,7 @@ def test_should_be_importable(example):
     assert len(dagbag.dag_ids) >= 1
 
 
+@pytest.mark.db_test
 @pytest.mark.parametrize("example", example_dags_except_db_exception(), ids=relative_path)
 def test_should_not_do_database_queries(example):
     with assert_queries_count(0):

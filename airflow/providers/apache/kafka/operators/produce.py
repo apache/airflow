@@ -30,10 +30,13 @@ local_logger = logging.getLogger("airflow")
 
 def acked(err, msg):
     if err is not None:
-        local_logger.error(f"Failed to deliver message: {err}")
+        local_logger.error("Failed to deliver message: %s", err)
     else:
         local_logger.info(
-            f"Produced record to topic {msg.topic()} partition [{msg.partition()}] @ offset {msg.offset()}"
+            "Produced record to topic %s, partition [%s] @ offset %s",
+            msg.topic(),
+            msg.partition(),
+            msg.offset(),
         )
 
 
@@ -81,7 +84,6 @@ class ProduceToTopicOperator(BaseOperator):
         poll_timeout: float = 0,
         **kwargs: Any,
     ) -> None:
-
         super().__init__(**kwargs)
 
         if delivery_callback:
@@ -107,7 +109,6 @@ class ProduceToTopicOperator(BaseOperator):
         return
 
     def execute(self, context) -> None:
-
         # Get producer and callable
         producer = KafkaProducerHook(kafka_config_id=self.kafka_config_id).get_producer()
 

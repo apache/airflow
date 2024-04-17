@@ -131,9 +131,9 @@ def create_iam_oidc_identity_provider(cluster_name):
 
 @task
 def delete_iam_oidc_identity_provider(cluster_name):
-    oidc_provider_issuer_url = boto3.client("eks").describe_cluster(name=cluster_name,)["cluster"][
-        "identity"
-    ]["oidc"]["issuer"]
+    oidc_provider_issuer_url = boto3.client("eks").describe_cluster(
+        name=cluster_name,
+    )["cluster"]["identity"]["oidc"]["issuer"]
     oidc_provider_issuer_endpoint = oidc_provider_issuer_url.replace("https://", "")
 
     account_id = boto3.client("sts").get_caller_identity()["Account"]
@@ -275,13 +275,14 @@ with DAG(
         task_id="start_job",
         virtual_cluster_id=str(create_emr_eks_cluster.output),
         execution_role_arn=job_role_arn,
-        release_label="emr-6.3.0-latest",
+        release_label="emr-7.0.0-latest",
         job_driver=job_driver_arg,
         configuration_overrides=configuration_overrides_arg,
         name="pi.py",
     )
     # [END howto_operator_emr_container]
     job_starter.wait_for_completion = False
+    job_starter.job_retry_max_attempts = 5
 
     # [START howto_sensor_emr_container]
     job_waiter = EmrContainerSensor(

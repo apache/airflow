@@ -19,11 +19,15 @@ from __future__ import annotations
 
 from unittest.mock import Mock, patch
 
+import pytest
 from github import BadCredentialsException, Github, NamedUser
 
 from airflow.models import Connection
 from airflow.providers.github.hooks.github import GithubHook
 from airflow.utils import db
+
+pytestmark = pytest.mark.db_test
+
 
 github_client_mock = Mock(name="github_client_for_test")
 

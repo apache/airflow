@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-
 # Details: https://github.com/kaxil/boring-cyborg
 
 labelPRBasedOnFilePath:
@@ -118,11 +117,6 @@ labelPRBasedOnFilePath:
     - tests/providers/apache/spark/**/*
     - tests/system/providers/apache/spark/**/*
 
-  provider:apache-sqoop:
-    - airflow/providers/apache/sqoop/**/*
-    - docs/apache-airflow-providers-apache-sqoop/**/*
-    - tests/providers/apache/sqoop/**/*
-
   provider:apprise:
     - airflow/providers/apprise/**/*
     - docs/apache-airflow-providers-apprise/**/*
@@ -159,23 +153,27 @@ labelPRBasedOnFilePath:
     - airflow/example_dags/example_kubernetes_executor.py
     - airflow/providers/cncf/kubernetes/**/*
     - airflow/providers/celery/executors/celery_kubernetes_executor.py
-    - docs/apache-airflow/core-concepts/executor/kubernetes.rst
-    - docs/apache-airflow/core-concepts/executor/celery_kubernetes.rst
     - docs/apache-airflow-providers-cncf-kubernetes/**/*
     - kubernetes_tests/**/*
     - tests/providers/cncf/kubernetes/**/*
     - tests/system/providers/cncf/kubernetes/**/*
+
+  provider:cohere:
+    - airflow/providers/cohere/**/*
+    - docs/apache-airflow-providers-cohere/**/*
+    - tests/providers/cohere/**/*
+    - tests/system/providers/cohere/**/*
+
+  provider:common-io:
+    - airflow/providers/common/io/**/*
+    - docs/apache-airflow-providers-common-io/**/*
+    - tests/system/providers/common/io/**/*
 
   provider:common-sql:
     - airflow/providers/common/sql/**/*
     - docs/apache-airflow-providers-common-sql/**/*
     - tests/providers/common/sql/**/*
     - tests/system/providers/common/sql/**/*
-
-  provider:daskexecutor:
-    - airflow/providers/daskexecutor/**/*
-    - docs/apache-airflow-providers-daskexecutor/**/*
-    - tests/providers/daskexecutor/**/*
 
   provider:databricks:
     - airflow/providers/databricks/**/*
@@ -184,9 +182,9 @@ labelPRBasedOnFilePath:
     - tests/system/providers/databricks/**/*
 
   provider:datadog:
-    - airflow/providers/daskexecutor/**/*
-    - docs/apache-airflow-providers-daskexecutor/**/*
-    - tests/providers/daskexecutor/**/*
+    - airflow/providers/datadog/**/*
+    - docs/apache-airflow-providers-datadog/**/*
+    - tests/providers/datadog/**/*
 
   provider:dbt-cloud:
     - airflow/providers/dbt/cloud/**/*
@@ -222,6 +220,11 @@ labelPRBasedOnFilePath:
     - docs/apache-airflow-providers-exasol/**/*
     - tests/providers/exasol/**/*
 
+  provider:fab:
+    - airflow/providers/fab/**/*
+    - docs/apache-airflow-providers-fab/**/*
+    - tests/providers/fab/**/*
+
   provider:facebook:
     - airflow/providers/facebook/**/*
     - docs/apache-airflow-providers-facebook/**/*
@@ -251,9 +254,9 @@ labelPRBasedOnFilePath:
     - tests/providers/grpc/**/*
 
   provider:hashicorp:
-    - airflow/providers/grpc/**/*
-    - docs/apache-airflow-providers-grpc/**/*
-    - tests/providers/grpc/**/*
+    - airflow/providers/hashicorp/**/*
+    - docs/apache-airflow-providers-hashicorp/**/*
+    - tests/providers/hashicorp/**/*
 
   provider:http:
     - airflow/providers/http/**/*
@@ -329,6 +332,12 @@ labelPRBasedOnFilePath:
     - docs/apache-airflow-providers-odbc/**/*
     - tests/providers/odbc/**/*
 
+  provider:openai:
+    - airflow/providers/openai/**/*
+    - docs/apache-airflow-providers-openai/**/*
+    - tests/providers/openai/**/*
+    - tests/system/providers/openai/**/*
+
   provider:openfaas:
     - airflow/providers/openfaas/**/*
     - docs/apache-airflow-providers-openfaas/**/*
@@ -338,6 +347,12 @@ labelPRBasedOnFilePath:
     - airflow/providers/openlineage/**/*
     - docs/apache-airflow-providers-openlineage/**/*
     - tests/providers/openlineage/**/*
+
+  provider:opensearch:
+    - airflow/providers/opensearch/**/*
+    - docs/apache-airflow-providers-opensearch/**/*
+    - tests/providers/opensearch/**/*
+    - tests/system/providers/opensearch/**/*
 
   provider:opsgenie:
     - airflow/providers/opsgenie/**/*
@@ -361,11 +376,17 @@ labelPRBasedOnFilePath:
     - tests/providers/papermill/**/*
     - tests/system/providers/papermill/**/*
 
-  provider:plexus:
-    - airflow/providers/plexus/**/*
-    - docs/apache-airflow-providers-plexus/**/*
-    - tests/providers/plexus/**/*
-    - tests/system/providers/plexus/**/*
+  provider:pgvector:
+    - airflow/providers/pgvector/**/*
+    - docs/apache-airflow-providers-pgvector/**/*
+    - tests/providers/pgvector/**/*
+    - tests/system/providers/pgvector/**/*
+
+  provider:pinecone:
+    - airflow/providers/pinecone/**/*
+    - docs/apache-airflow-providers-pinecone/**/*
+    - tests/providers/pinecone/**/*
+    - tests/system/providers/pinecone/**/*
 
   provider:postgres:
     - airflow/providers/postgres/**/*
@@ -379,11 +400,11 @@ labelPRBasedOnFilePath:
     - tests/providers/presto/**/*
     - tests/system/providers/presto/**/*
 
-  provider:qubole:
-    - airflow/providers/qubole/**/*
-    - docs/apache-airflow-providers-qubole/**/*
-    - tests/providers/qubole/**/*
-    - tests/system/providers/qubole/**/*
+  provider:qdrant:
+    - airflow/providers/qdrant/**/*
+    - docs/apache-airflow-providers-qdrant/**/*
+    - tests/providers/qdrant/**/*
+    - tests/system/providers/qdrant/**/*
 
   provider:redis:
     - airflow/providers/redis/**/*
@@ -468,6 +489,12 @@ labelPRBasedOnFilePath:
     - tests/providers/telegram/**/*
     - tests/system/providers/telegram/**/*
 
+  provider:teradata:
+    - airflow/providers/teradata/**/*
+    - docs/apache-airflow-providers-teradata/**/*
+    - tests/providers/teradata/**/*
+    - tests/system/providers/teradata/**/*
+
   provider:trino:
     - airflow/providers/trino/**/*
     - docs/apache-airflow-providers-trino/**/*
@@ -478,6 +505,12 @@ labelPRBasedOnFilePath:
     - airflow/providers/vertica/**/*
     - docs/apache-airflow-providers-vertica/**/*
     - tests/providers/vertica/**/*
+
+  provider:weaviate:
+    - airflow/providers/weaviate/**/*
+    - docs/apache-airflow-providers-weaviate/**/*
+    - tests/providers/weaviate/**/*
+    - tests/system/providers/weaviate/**/*
 
   provider:yandex:
     - airflow/providers/yandex/**/*
@@ -512,11 +545,8 @@ labelPRBasedOnFilePath:
     - dev/**/*
     - .github/**/*
     - Dockerfile.ci
-    - BREEZE.rst
-    - CONTRIBUTING.*
-    - LOCAL_VIRTUALENV.rst
-    - STATIC_CODE_CHECKS.rst
-    - TESTING.rst
+    - CONTRIBUTING.rst
+    - contributing-docs/**/*
     - yamllint-config.yml
     - .asf.yaml
     - .bash_completion
@@ -635,6 +665,9 @@ labelPRBasedOnFilePath:
   area:system-tests:
     - tests/system/**/*
 
+  area:db-migrations:
+    - airflow/migrations/versions/*
+
 # Various Flags to control behaviour of the "Labeler"
 labelerFlags:
   # If this flag is changed to 'false', labels would only be added when the PR is first created
@@ -647,12 +680,12 @@ labelerFlags:
 firstPRWelcomeComment: >
   Congratulations on your first Pull Request and welcome to the Apache Airflow community!
   If you have any issues or are unsure about any anything please check our
-  Contribution Guide (https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst)
+  Contributors' Guide (https://github.com/apache/airflow/blob/main/contributing-docs/README.rst)
 
   Here are some useful points:
 
   - Pay attention to the quality of your code (ruff, mypy and type annotations). Our [pre-commits](
-  https://github.com/apache/airflow/blob/main/STATIC_CODE_CHECKS.rst#prerequisites-for-pre-commit-hooks)
+  https://github.com/apache/airflow/blob/main/contributing-docs/08_static_code_checks.rst#prerequisites-for-pre-commit-hooks)
   will help you with that.
 
   - In case of a new feature add useful documentation (in docstrings or in `docs/` directory).
@@ -660,8 +693,8 @@ firstPRWelcomeComment: >
   [guide](https://github.com/apache/airflow/blob/main/docs/apache-airflow/howto/custom-operator.rst)
   Consider adding an example DAG that shows how users should use it.
 
-  - Consider using [Breeze environment](https://github.com/apache/airflow/blob/main/BREEZE.rst) for testing
-  locally, it's a heavy docker but it ships with a working Airflow and a lot of integrations.
+  - Consider using [Breeze environment](https://github.com/apache/airflow/blob/main/dev/breeze/doc/README.rst)
+  for testing locally, it's a heavy docker but it ships with a working Airflow and a lot of integrations.
 
   - Be patient and persistent. It might take some time to get a review or get the final approval from
   Committers.
@@ -670,7 +703,7 @@ firstPRWelcomeComment: >
   communication including (but not limited to) comments on Pull Requests, Mailing list and Slack.
 
   - Be sure to read the [Airflow Coding style](
-  https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#coding-style-and-best-practices).
+  https://github.com/apache/airflow/blob/main/contributing-docs/05_pull_requests.rst#coding-style-and-best-practices).
 
   - Always keep your Pull Requests rebased, otherwise your build might fail due to changes not related
   to your commits.

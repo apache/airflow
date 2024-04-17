@@ -16,12 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# mypy ignore arg types (for templated fields)
-# type: ignore[arg-type]
 
 """
 Example Airflow DAG for Google Vertex AI service testing Hyperparameter Tuning Job operations.
 """
+
 from __future__ import annotations
 
 import os
@@ -106,6 +105,23 @@ with DAG(
     )
     # [END how_to_cloud_vertex_ai_create_hyperparameter_tuning_job_operator]
 
+    # [START how_to_cloud_vertex_ai_create_hyperparameter_tuning_job_operator_deferrable]
+    create_hyperparameter_tuning_job_def = CreateHyperparameterTuningJobOperator(
+        task_id="create_hyperparameter_tuning_job_def",
+        staging_bucket=STAGING_BUCKET,
+        display_name=DISPLAY_NAME,
+        worker_pool_specs=WORKER_POOL_SPECS,
+        sync=False,
+        region=REGION,
+        project_id=PROJECT_ID,
+        parameter_spec=PARAM_SPECS,
+        metric_spec=METRIC_SPEC,
+        max_trial_count=15,
+        parallel_trial_count=3,
+        deferrable=True,
+    )
+    # [END how_to_cloud_vertex_ai_create_hyperparameter_tuning_job_operator_deferrable]
+
     # [START how_to_cloud_vertex_ai_get_hyperparameter_tuning_job_operator]
     get_hyperparameter_tuning_job = GetHyperparameterTuningJobOperator(
         task_id="get_hyperparameter_tuning_job",
@@ -127,6 +143,16 @@ with DAG(
     )
     # [END how_to_cloud_vertex_ai_delete_hyperparameter_tuning_job_operator]
 
+    delete_hyperparameter_tuning_job_def = DeleteHyperparameterTuningJobOperator(
+        task_id="delete_hyperparameter_tuning_job_def",
+        project_id=PROJECT_ID,
+        region=REGION,
+        hyperparameter_tuning_job_id="{{ task_instance.xcom_pull("
+        "task_ids='create_hyperparameter_tuning_job_def', "
+        "key='hyperparameter_tuning_job_id') }}",
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
     # [START how_to_cloud_vertex_ai_list_hyperparameter_tuning_job_operator]
     list_hyperparameter_tuning_job = ListHyperparameterTuningJobOperator(
         task_id="list_hyperparameter_tuning_job",
@@ -145,9 +171,9 @@ with DAG(
         # TEST SETUP
         create_bucket
         # TEST BODY
-        >> create_hyperparameter_tuning_job
+        >> [create_hyperparameter_tuning_job, create_hyperparameter_tuning_job_def]
         >> get_hyperparameter_tuning_job
-        >> delete_hyperparameter_tuning_job
+        >> [delete_hyperparameter_tuning_job, delete_hyperparameter_tuning_job_def]
         >> list_hyperparameter_tuning_job
         # TEST TEARDOWN
         >> delete_bucket

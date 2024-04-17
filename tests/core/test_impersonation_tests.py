@@ -37,6 +37,10 @@ from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from tests.test_utils import db
 
+# The entire module into the quarantined mark, this might have unpredictable side effects to other tests
+# and should be moved into the isolated environment into the future.
+pytestmark = [pytest.mark.platform("breeze"), pytest.mark.db_test, pytest.mark.quarantined]
+
 DEV_NULL = "/dev/null"
 TEST_ROOT_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 TEST_DAG_FOLDER = os.path.join(TEST_ROOT_FOLDER, "dags")
@@ -95,7 +99,6 @@ def check_original_docker_image():
             "and only allow to run the test there. This is done by checking /.dockerenv file "
             "(always present inside container) and checking for PYTHON_BASE_IMAGE variable."
         )
-    yield
 
 
 @pytest.fixture
@@ -227,7 +230,6 @@ class TestImpersonationWithCustomPythonPath(BaseImpersonationTest):
         monkeypatch.syspath_prepend(TEST_UTILS_FOLDER)
         self.dagbag = self.get_dagbag(TEST_DAG_CORRUPTED_FOLDER)
         monkeypatch.undo()
-        yield
 
     def test_impersonation_custom(self, monkeypatch):
         """

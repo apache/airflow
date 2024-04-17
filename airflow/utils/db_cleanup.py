@@ -20,6 +20,7 @@ This module took inspiration from the community maintenance dag.
 See:
 (https://github.com/teamclairvoyant/airflow-maintenance-dags/blob/4e5c7682a808082561d60cbc9cafaa477b0d8c65/db-cleanup/airflow-db-cleanup.py).
 """
+
 from __future__ import annotations
 
 import csv
@@ -49,7 +50,7 @@ if TYPE_CHECKING:
 
     from airflow.models import Base
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 ARCHIVE_TABLE_PREFIX = "_airflow_deleted__"
 
@@ -118,6 +119,7 @@ config_list: list[_TableConfig] = [
     _TableConfig(table_name="callback_request", recency_column_name="created_at"),
     _TableConfig(table_name="celery_taskmeta", recency_column_name="date_done"),
     _TableConfig(table_name="celery_tasksetmeta", recency_column_name="date_done"),
+    _TableConfig(table_name="trigger", recency_column_name="created_date"),
 ]
 
 if conf.get("webserver", "session_backend") == "database":
@@ -151,14 +153,12 @@ def _dump_table_to_file(*, target_table, file_path, export_format, session):
 
 
 def _do_delete(*, query, orm_model, skip_archive, session):
-    from datetime import datetime
-
     import re2
 
     print("Performing Delete...")
     # using bulk delete
     # create a new table and copy the rows there
-    timestamp_str = re2.sub(r"[^\d]", "", datetime.utcnow().isoformat())[:14]
+    timestamp_str = re2.sub(r"[^\d]", "", timezone.utcnow().isoformat())[:14]
     target_table_name = f"{ARCHIVE_TABLE_PREFIX}{orm_model.name}__{timestamp_str}"
     print(f"Moving data to table {target_table_name}")
     bind = session.get_bind()
@@ -186,9 +186,7 @@ def _do_delete(*, query, orm_model, skip_archive, session):
     if dialect_name == "sqlite":
         pk_cols = source_table.primary_key.columns
         delete = source_table.delete().where(
-            tuple_(*pk_cols).in_(
-                select(*[target_table.c[x.name] for x in source_table.primary_key.columns]).subquery()
-            )
+            tuple_(*pk_cols).in_(select(*[target_table.c[x.name] for x in source_table.primary_key.columns]))
         )
     else:
         delete = source_table.delete().where(
@@ -220,6 +218,8 @@ def _subquery_keep_last(*, recency_column, keep_last_filters, group_by_columns, 
 class CreateTableAs(Executable, ClauseElement):
     """Custom sqlalchemy clause element for CTAS operations."""
 
+    inherit_cache = False
+
     def __init__(self, name, query):
         self.name = name
         self.query = query
@@ -228,11 +228,6 @@ class CreateTableAs(Executable, ClauseElement):
 @compiles(CreateTableAs)
 def _compile_create_table_as__other(element, compiler, **kw):
     return f"CREATE TABLE {element.name} AS {compiler.process(element.query)}"
-
-
-@compiles(CreateTableAs, "mssql")
-def _compile_create_table_as__mssql(element, compiler, **kw):
-    return f"WITH cte AS ( {compiler.process(element.query)} ) SELECT * INTO {element.name} FROM cte"
 
 
 def _build_query(
@@ -328,16 +323,18 @@ def _confirm_drop_archives(*, tables: list[str]):
     if len(tables) > 3:
         text_ = f"{len(tables)} archived tables prefixed with {ARCHIVE_TABLE_PREFIX}"
     else:
-        text_ = f"the following archived tables {tables}"
+        text_ = f"the following archived tables: {', '.join(tables)}"
     question = (
         f"You have requested that we drop {text_}.\n"
-        f"This is irreversible. Consider backing up the tables first \n"
+        f"This is irreversible. Consider backing up the tables first.\n"
     )
     print(question)
     if len(tables) > 3:
-        show_tables = ask_yesno("Show tables? (y/n): ")
+        show_tables = ask_yesno("Show tables that will be dropped? (y/n): ")
         if show_tables:
-            print(tables, "\n")
+            for table in tables:
+                print(f"  {table}")
+            print("\n")
     answer = input("Enter 'drop archived tables' (without quotes) to proceed.\n").strip()
     if answer != "drop archived tables":
         raise SystemExit("User did not confirm; exiting.")

@@ -20,6 +20,8 @@ from __future__ import annotations
 from io import StringIO
 from unittest import mock
 
+import pytest
+
 from airflow.providers.ftp.hooks import ftp as fh
 
 
@@ -45,12 +47,17 @@ class TestFTPHook:
 
         self.conn_mock.quit.assert_called_once_with()
 
+    def test_describe_directory(self):
+        with fh.FTPHook() as ftp_hook:
+            ftp_hook.describe_directory(self.path)
+
+        self.conn_mock.mlsd.assert_called_once_with(self.path)
+
     def test_list_directory(self):
         with fh.FTPHook() as ftp_hook:
             ftp_hook.list_directory(self.path)
 
-        self.conn_mock.cwd.assert_called_once_with(self.path)
-        self.conn_mock.nlst.assert_called_once_with()
+        self.conn_mock.nlst.assert_called_once_with(self.path)
 
     def test_create_directory(self):
         with fh.FTPHook() as ftp_hook:
@@ -110,14 +117,14 @@ class TestFTPHook:
         _buffer = StringIO("buffer")
         with fh.FTPHook() as ftp_hook:
             ftp_hook.retrieve_file(self.path, _buffer)
-        self.conn_mock.retrbinary.assert_called_once_with("RETR path", _buffer.write, 8192)
+        self.conn_mock.retrbinary.assert_called_once_with("RETR /some/path", _buffer.write, 8192)
 
     def test_retrieve_file_with_callback(self):
         func = mock.Mock()
         _buffer = StringIO("buffer")
         with fh.FTPHook() as ftp_hook:
             ftp_hook.retrieve_file(self.path, _buffer, callback=func)
-        self.conn_mock.retrbinary.assert_called_once_with("RETR path", func, 8192)
+        self.conn_mock.retrbinary.assert_called_once_with("RETR /some/path", func, 8192)
 
     def test_connection_success(self):
         with fh.FTPHook() as ftp_hook:
@@ -134,6 +141,7 @@ class TestFTPHook:
             assert msg == "Test"
 
 
+@pytest.mark.db_test
 class TestIntegrationFTPHook:
     def setup_method(self):
         from airflow.models import Connection

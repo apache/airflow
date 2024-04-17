@@ -40,7 +40,7 @@ class TestOracleOperator:
         context = "test_context"
         task_id = "test_task_id"
 
-        with pytest.warns(AirflowProviderDeprecationWarning, match="This class is deprecated.*"):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="Call to deprecated class *"):
             operator = OracleOperator(
                 sql=sql,
                 oracle_conn_id=oracle_conn_id,
@@ -83,6 +83,7 @@ class TestOracleStoredProcedureOperator:
             handler=mock.ANY,
         )
 
+    @pytest.mark.db_test
     @mock.patch.object(OracleHook, "callproc", autospec=OracleHook.callproc)
     def test_push_oracle_exit_to_xcom(self, mock_callproc, request, dag_maker):
         # Test pulls the value previously pushed to xcom and checks if it's the same

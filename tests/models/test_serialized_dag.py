@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Unit tests for SerializedDagModel."""
+
 from __future__ import annotations
 
 from unittest import mock
@@ -36,6 +37,8 @@ from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import create_session
 from tests.test_utils import db
 from tests.test_utils.asserts import assert_queries_count
+
+pytestmark = pytest.mark.db_test
 
 
 # To move it to a shared module.
@@ -210,7 +213,7 @@ class TestSerializedDagModel:
         excessive dag parsing.
         """
         first_dag_hash = None
-        for r in range(10):
+        for _ in range(10):
             with DAG(
                 dag_id="example",
                 start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),

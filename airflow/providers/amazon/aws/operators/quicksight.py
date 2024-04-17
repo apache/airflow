@@ -18,16 +18,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.quicksight import QuickSightHook
+from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-DEFAULT_CONN_ID = "aws_default"
 
-
-class QuickSightCreateIngestionOperator(BaseOperator):
+class QuickSightCreateIngestionOperator(AwsBaseOperator[QuickSightHook]):
     """
     Creates and starts a new SPICE ingestion for a dataset;  also helps to Refresh existing SPICE datasets.
 
@@ -43,23 +42,25 @@ class QuickSightCreateIngestionOperator(BaseOperator):
         that the operation waits to check the status of the Amazon QuickSight Ingestion.
     :param check_interval: if wait is set to be true, this is the time interval
         in seconds which the operator will check the status of the Amazon QuickSight Ingestion
-    :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
-         If this is None or empty then the default boto3 behaviour is used. If
-         running Airflow in a distributed manner and aws_conn_id is None or
-         empty, then the default boto3 configuration would be used (and must be
-         maintained on each worker node).
-    :param region: Which AWS region the connection should use. (templated)
-         If this is None or empty then the default boto3 behaviour is used.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields: Sequence[str] = (
+    aws_hook_class = QuickSightHook
+    template_fields: Sequence[str] = aws_template_fields(
         "data_set_id",
         "ingestion_id",
         "ingestion_type",
         "wait_for_completion",
         "check_interval",
-        "aws_conn_id",
-        "region",
     )
     ui_color = "#ffd700"
 
@@ -70,26 +71,18 @@ class QuickSightCreateIngestionOperator(BaseOperator):
         ingestion_type: str = "FULL_REFRESH",
         wait_for_completion: bool = True,
         check_interval: int = 30,
-        aws_conn_id: str = DEFAULT_CONN_ID,
-        region: str | None = None,
         **kwargs,
     ):
+        super().__init__(**kwargs)
         self.data_set_id = data_set_id
         self.ingestion_id = ingestion_id
         self.ingestion_type = ingestion_type
         self.wait_for_completion = wait_for_completion
         self.check_interval = check_interval
-        self.aws_conn_id = aws_conn_id
-        self.region = region
-        super().__init__(**kwargs)
 
     def execute(self, context: Context):
-        hook = QuickSightHook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region,
-        )
         self.log.info("Running the Amazon QuickSight SPICE Ingestion on Dataset ID: %s", self.data_set_id)
-        return hook.create_ingestion(
+        return self.hook.create_ingestion(
             data_set_id=self.data_set_id,
             ingestion_id=self.ingestion_id,
             ingestion_type=self.ingestion_type,

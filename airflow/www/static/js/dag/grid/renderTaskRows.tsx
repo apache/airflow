@@ -24,7 +24,7 @@ import useSelection, { SelectionProps } from "src/dag/useSelection";
 import type { Task, DagRun } from "src/types";
 
 import StatusBox, { boxSize, boxSizePx } from "../StatusBox";
-import TaskName from "./TaskName";
+import TaskName from "../TaskName";
 
 const boxPadding = 3;
 const boxPaddingPx = `${boxPadding}px`;
@@ -146,6 +146,8 @@ const Row = (props: RowProps) => {
         bg={isSelected ? "blue.100" : "inherit"}
         borderBottomWidth={1}
         borderBottomColor={isGroup && isOpen ? "gray.400" : "gray.200"}
+        borderRightWidth="16px"
+        borderRightColor={isSelected ? "blue.100" : "transparent"}
         role="group"
         _hover={!isSelected ? { bg: hoverBlue } : undefined}
         transition="background-color 0.2s"
@@ -159,18 +161,28 @@ const Row = (props: RowProps) => {
             lineHeight="18px"
             position="sticky"
             left={0}
+            cursor="pointer"
+            onClick={() => onSelect({ taskId: task.id })}
             borderBottom={0}
             width="100%"
             zIndex={1}
           >
             <TaskName
-              onToggle={memoizedToggle}
+              onClick={(e) => {
+                if (isGroup) {
+                  e.stopPropagation();
+                  memoizedToggle();
+                }
+              }}
               isGroup={isGroup}
               isMapped={task.isMapped && !isParentMapped}
               label={task.label || task.id || ""}
               id={task.id || ""}
               isOpen={isOpen}
-              level={level}
+              pl={level * 4 + 4}
+              setupTeardownType={task.setupTeardownType}
+              pr={4}
+              noOfLines={1}
             />
           </Td>
         )}

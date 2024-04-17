@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import signal
 from pathlib import Path
 from subprocess import PIPE, STDOUT
 from tempfile import TemporaryDirectory
@@ -105,3 +106,11 @@ class TestSubprocessHook:
         command = ["bash", "-c", 'printf "This will cause a coding error \\xb1\\xa6\\x01\n"']
         result = hook.run_command(command=command)
         assert result.exit_code == 0
+
+    @mock.patch("os.getpgid", return_value=123)
+    @mock.patch("os.killpg")
+    def test_send_sigterm(self, mock_killpg, mock_getpgid):
+        hook = SubprocessHook()
+        hook.sub_process = MagicMock()
+        hook.send_sigterm()
+        mock_killpg.assert_called_with(123, signal.SIGTERM)

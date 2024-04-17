@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-import warnings
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from airflow.exceptions import AirflowException
@@ -76,17 +75,10 @@ class HiveStatsCollectionOperator(BaseOperator):
         metastore_conn_id: str = "metastore_default",
         presto_conn_id: str = "presto_default",
         mysql_conn_id: str = "airflow_db",
+        ds: str = "{{ ds }}",
+        dttm: str = "{{ logical_date.isoformat() }}",
         **kwargs: Any,
     ) -> None:
-        if "col_blacklist" in kwargs:
-            warnings.warn(
-                f"col_blacklist kwarg passed to {self.__class__.__name__} "
-                f"(task_id: {kwargs.get('task_id')}) is deprecated, "
-                f"please rename it to excluded_columns instead",
-                category=FutureWarning,
-                stacklevel=2,
-            )
-            excluded_columns = kwargs.pop("col_blacklist")
         super().__init__(**kwargs)
         self.table = table
         self.partition = partition
@@ -96,8 +88,8 @@ class HiveStatsCollectionOperator(BaseOperator):
         self.presto_conn_id = presto_conn_id
         self.mysql_conn_id = mysql_conn_id
         self.assignment_func = assignment_func
-        self.ds = "{{ ds }}"
-        self.dttm = "{{ execution_date.isoformat() }}"
+        self.ds = ds
+        self.dttm = dttm
 
     def get_default_exprs(self, col: str, col_type: str) -> dict[Any, Any]:
         """Get default expressions."""

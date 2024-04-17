@@ -60,6 +60,7 @@ class TestSnsNotifier:
             notifier.notify({})
             mock_hook.return_value.publish_to_target.assert_called_once_with(**publish_kwargs)
 
+    @pytest.mark.db_test
     def test_sns_notifier_templated(self, dag_maker):
         with dag_maker("test_sns_notifier_templated") as dag:
             EmptyOperator(task_id="task1")

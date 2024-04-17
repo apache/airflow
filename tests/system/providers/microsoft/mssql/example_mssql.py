@@ -18,6 +18,7 @@
 """
 Example use of MsSql related operators.
 """
+
 from __future__ import annotations
 
 # [START mssql_operator_howto_guide]
@@ -45,7 +46,6 @@ with DAG(
     tags=["example"],
     catchup=False,
 ) as dag:
-
     # [START howto_operator_mssql]
 
     # Example of creating a task to create a table in MsSql

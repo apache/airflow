@@ -18,6 +18,13 @@
 ---
 name: 'Setup Breeze'
 description: 'Sets up Python and Breeze'
+inputs:
+  python-version:
+    description: 'Python version to use'
+    # Version of Python used for reproducibility of the packages built
+    # Python 3.8 tarfile produces different tarballs than Python 3.9+ tarfile that's why we are forcing
+    # Python 3.9 for all release preparation commands to make sure that the tarballs are reproducible
+    default: "3.9"
 outputs:
   host-python-version:
     description: Python version used in host
@@ -26,25 +33,21 @@ runs:
   using: "composite"
   steps:
     - name: "Setup python"
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
-        python-version: 3.8
+        python-version: ${{ inputs.python-version }}
         cache: 'pip'
-        cache-dependency-path: ./dev/breeze/setup*
-    - name: Cache breeze
-      uses: actions/cache@v3
-      with:
-        path: ~/.local/pipx
-        # README has the latest breeze's hash and python location is used to distinguish between
-        # different minor versions of python
-        key: "breeze-3.8-${{ env.pythonLocation }}-${{ hashFiles('dev/breeze/README.md') }}"
-        restore-keys: breeze-3.8-${{ env.pythonLocation }}
+        cache-dependency-path: ./dev/breeze/pyproject.toml
     - name: "Install Breeze"
       shell: bash
       run: ./scripts/ci/install_breeze.sh
+      env:
+        PYTHON_VERSION: ${{ inputs.python-version }}
     - name: "Free space"
       shell: bash
       run: breeze ci free-space
+      env:
+        AIRFLOW_SOURCES_ROOT: "${{ github.workspace }}"
     - name: "Get Python version"
       shell: bash
       run: >
@@ -54,3 +57,5 @@ runs:
     - name: "Disable cheatsheet"
       shell: bash
       run: breeze setup config --no-cheatsheet --no-asciiart
+      env:
+        AIRFLOW_SOURCES_ROOT: "${{ github.workspace }}"

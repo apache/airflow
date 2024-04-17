@@ -15,10 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-version: "3.7"
+version: "3.8"
 services:
   marquez:
     image: marquezproject/marquez:0.40.0
+    labels:
+      breeze.description: "Integration required for Openlineage hooks."
     environment:
       - POSTGRES_USER=marquez
       - POSTGRES_PASSWORD=marquez

@@ -49,13 +49,11 @@ def run_with_db_retries(max_retries: int = MAX_DB_RETRIES, logger: logging.Logge
 
 
 @overload
-def retry_db_transaction(*, retries: int = MAX_DB_RETRIES) -> Callable[[F], F]:
-    ...
+def retry_db_transaction(*, retries: int = MAX_DB_RETRIES) -> Callable[[F], F]: ...
 
 
 @overload
-def retry_db_transaction(_func: F) -> F:
-    ...
+def retry_db_transaction(_func: F) -> F: ...
 
 
 def retry_db_transaction(_func: Callable | None = None, *, retries: int = MAX_DB_RETRIES, **retry_kwargs):

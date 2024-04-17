@@ -35,6 +35,8 @@ from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
 from tests.test_utils import db
 
+pytestmark = pytest.mark.db_test
+
 
 class TestClearTasks:
     @pytest.fixture(autouse=True, scope="class")
@@ -208,7 +210,10 @@ class TestClearTasks:
         session.refresh(dr)
 
         assert dr.state == state
-        assert dr.start_date
+        if state == DagRunState.QUEUED:
+            assert dr.start_date is None
+        if state == DagRunState.RUNNING:
+            assert dr.start_date
         assert dr.last_scheduling_decision == DEFAULT_DATE
 
     @pytest.mark.parametrize(

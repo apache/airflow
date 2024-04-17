@@ -18,6 +18,7 @@
 """
 Example Airflow DAG for Google Cloud Storage to SFTP transfer operators.
 """
+
 from __future__ import annotations
 
 import os
@@ -57,7 +58,6 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:
-
     create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
 
     unzip_file = BashOperator(

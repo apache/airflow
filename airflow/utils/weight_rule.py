@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from enum import Enum
 
-from airflow.compat.functools import cache
+import methodtools
 
 
 class WeightRule(str, Enum):
@@ -34,8 +34,8 @@ class WeightRule(str, Enum):
         """Check if weight rule is valid."""
         return weight_rule in cls.all_weight_rules()
 
+    @methodtools.lru_cache(maxsize=None)
     @classmethod
-    @cache
     def all_weight_rules(cls) -> set[str]:
         """Return all weight rules."""
         return set(cls.__members__.values())

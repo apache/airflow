@@ -26,6 +26,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
+from google.cloud.dlp_v2 import StoredInfoTypeConfig
 from google.cloud.dlp_v2.types import ContentItem, InspectConfig, InspectTemplate
 
 from airflow.models.dag import DAG
@@ -64,16 +65,18 @@ OBJECT_GCS_URI = f"gs://{BUCKET_NAME}/{FILE_SET}"
 OBJECT_GCS_OUTPUT_URI = OBJECT_GCS_URI + FILE_NAME
 
 CUSTOM_INFO_TYPE_ID = "custom_info_type"
-CUSTOM_INFO_TYPES = {
-    "large_custom_dictionary": {
-        "output_path": {"path": OBJECT_GCS_OUTPUT_URI},
-        "cloud_storage_file_set": {"url": OBJECT_GCS_URI + "*"},
+CUSTOM_INFO_TYPES = StoredInfoTypeConfig(
+    {
+        "large_custom_dictionary": {
+            "output_path": {"path": OBJECT_GCS_OUTPUT_URI},
+            "cloud_storage_file_set": {"url": f"{OBJECT_GCS_URI}*"},
+        }
     }
-}
+)
 UPDATE_CUSTOM_INFO_TYPE = {
     "large_custom_dictionary": {
         "output_path": {"path": OBJECT_GCS_OUTPUT_URI},
-        "cloud_storage_file_set": {"url": OBJECT_GCS_URI + "*"},
+        "cloud_storage_file_set": {"url": f"{OBJECT_GCS_URI}*"},
     }
 }
 

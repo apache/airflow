@@ -40,7 +40,6 @@ INPUT_URI = "gs://test-bucket//test-video.mp4"
 class TestCloudVideoIntelligenceOperators:
     @mock.patch("airflow.providers.google.cloud.operators.video_intelligence.CloudVideoIntelligenceHook")
     def test_detect_video_labels_green_path(self, mock_hook):
-
         mocked_operation = mock.Mock()
         mocked_operation.result = mock.Mock(return_value=AnnotateVideoResponse(annotation_results=[]))
         mock_hook.return_value.annotate_video.return_value = mocked_operation

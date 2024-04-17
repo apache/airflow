@@ -42,11 +42,15 @@ class GlueCrawlerSensor(BaseSensorOperator):
 
     :param crawler_name: The AWS Glue crawler unique name
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     """
 
     template_fields: Sequence[str] = ("crawler_name",)
 
-    def __init__(self, *, crawler_name: str, aws_conn_id: str = "aws_default", **kwargs) -> None:
+    def __init__(self, *, crawler_name: str, aws_conn_id: str | None = "aws_default", **kwargs) -> None:
         super().__init__(**kwargs)
         self.crawler_name = crawler_name
         self.aws_conn_id = aws_conn_id

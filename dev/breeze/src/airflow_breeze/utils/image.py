@@ -197,18 +197,8 @@ def tag_image_as_latest(image_params: CommonBuildParams, output: Output | None) 
         check=False,
     )
     if command.returncode != 0:
-        return command
-    if image_params.push:
-        command = run_command(
-            [
-                "docker",
-                "push",
-                image_params.airflow_image_name + ":latest",
-            ],
-            output=output,
-            capture_output=True,
-            check=False,
-        )
+        get_console(output=output).print(command.stdout)
+        get_console(output=output).print(command.stderr)
     return command
 
 
@@ -246,6 +236,8 @@ def just_pull_ci_image(github_repository, python_version: str) -> tuple[ShellPar
         python=python_version,
         github_repository=github_repository,
         skip_environment_initialization=True,
+        skip_image_upgrade_check=True,
+        quiet=True,
     )
     get_console().print(f"[info]Pulling {shell_params.airflow_image_name_with_tag}.[/]")
     pull_command_result = run_command(
@@ -263,6 +255,8 @@ def check_if_ci_image_available(
         python=python_version,
         github_repository=github_repository,
         skip_environment_initialization=True,
+        skip_image_upgrade_check=True,
+        quiet=True,
     )
     inspect_command_result = run_command(
         ["docker", "inspect", shell_params.airflow_image_name_with_tag],

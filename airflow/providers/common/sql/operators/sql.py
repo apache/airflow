@@ -220,7 +220,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         :ref:`howto/operator:SQLExecuteQueryOperator`
     """
 
-    template_fields: Sequence[str] = ("conn_id", "sql", "parameters")
+    template_fields: Sequence[str] = ("conn_id", "sql", "parameters", "hook_params")
     template_ext: Sequence[str] = (".sql", ".json")
     template_fields_renderers = {"sql": "sql", "parameters": "json"}
     ui_color = "#cdaaed"
@@ -416,7 +416,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         :ref:`howto/operator:SQLColumnCheckOperator`
     """
 
-    template_fields: Sequence[str] = ("partition_clause", "table", "sql")
+    template_fields: Sequence[str] = ("partition_clause", "table", "sql", "hook_params")
     template_fields_renderers = {"sql": "sql"}
 
     sql_check_template = """
@@ -644,7 +644,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
         :ref:`howto/operator:SQLTableCheckOperator`
     """
 
-    template_fields: Sequence[str] = ("partition_clause", "table", "sql", "conn_id")
+    template_fields: Sequence[str] = ("partition_clause", "table", "sql", "conn_id", "hook_params")
 
     template_fields_renderers = {"sql": "sql"}
 
@@ -729,6 +729,8 @@ class SQLCheckOperator(BaseSQLOperator):
     The ``SQLCheckOperator`` expects a sql query that will return a single row.
     Each value on that first row is evaluated using python ``bool`` casting.
     If any of the values return ``False`` the check is failed and errors out.
+    If a Python dict is returned, and any values in the Python dict are ``False``,
+    the check is failed and errors out.
 
     Note that Python bool casting evals the following as ``False``:
 
@@ -737,6 +739,7 @@ class SQLCheckOperator(BaseSQLOperator):
     * Empty string (``""``)
     * Empty list (``[]``)
     * Empty dictionary or set (``{}``)
+    * Dictionary with value = ``False`` (``{'DUPLICATE_ID_CHECK': False}``)
 
     Given a query like ``SELECT COUNT(*) FROM foo``, it will fail only if
     the count ``== 0``. You can craft much more complex query that could,
@@ -757,7 +760,7 @@ class SQLCheckOperator(BaseSQLOperator):
     :param parameters: (optional) the parameters to render the SQL query with.
     """
 
-    template_fields: Sequence[str] = ("sql",)
+    template_fields: Sequence[str] = ("sql", "hook_params")
     template_ext: Sequence[str] = (
         ".hql",
         ".sql",
@@ -785,6 +788,8 @@ class SQLCheckOperator(BaseSQLOperator):
         self.log.info("Record: %s", records)
         if not records:
             self._raise_exception(f"The following query returned zero rows: {self.sql}")
+        elif isinstance(records, dict) and not all(records.values()):
+            self._raise_exception(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
         elif not all(records):
             self._raise_exception(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
 
@@ -804,6 +809,7 @@ class SQLValueCheckOperator(BaseSQLOperator):
     template_fields: Sequence[str] = (
         "sql",
         "pass_value",
+        "hook_params",
     )
     template_ext: Sequence[str] = (
         ".hql",
@@ -837,14 +843,11 @@ class SQLValueCheckOperator(BaseSQLOperator):
         is_numeric_value_check = isinstance(pass_value_conv, float)
 
         error_msg = (
-            "Test failed.\nPass value:{pass_value_conv}\n"
-            "Tolerance:{tolerance_pct_str}\n"
-            "Query:\n{sql}\nResults:\n{records!s}"
-        ).format(
-            pass_value_conv=pass_value_conv,
-            tolerance_pct_str=f"{self.tol:.1%}" if self.tol is not None else None,
-            sql=self.sql,
-            records=records,
+            f"Test failed.\n"
+            f"Pass value:{pass_value_conv}\n"
+            f"Tolerance:{f'{self.tol:.1%}' if self.tol is not None else None}\n"
+            f"Query:\n{self.sql}\n"
+            f"Results:\n{records!s}"
         )
 
         if not is_numeric_value_check:
@@ -904,7 +907,7 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
     """
 
     __mapper_args__ = {"polymorphic_identity": "SQLIntervalCheckOperator"}
-    template_fields: Sequence[str] = ("sql1", "sql2")
+    template_fields: Sequence[str] = ("sql1", "sql2", "hook_params")
     template_ext: Sequence[str] = (
         ".hql",
         ".sql",
@@ -1032,7 +1035,7 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
     :param max_threshold: numerical value or max threshold sql to be executed (templated)
     """
 
-    template_fields: Sequence[str] = ("sql", "min_threshold", "max_threshold")
+    template_fields: Sequence[str] = ("sql", "min_threshold", "max_threshold", "hook_params")
     template_ext: Sequence[str] = (
         ".hql",
         ".sql",
@@ -1056,8 +1059,13 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
 
     def execute(self, context: Context):
         hook = self.get_db_hook()
-        result = hook.get_first(self.sql)[0]
-        if not result:
+        result = hook.get_first(self.sql)
+
+        # if the query returns 0 rows result will be None so cannot be indexed into
+        # also covers indexing out of bounds on empty list, tuple etc. if returned
+        try:
+            result = result[0]
+        except (TypeError, IndexError):
             self._raise_exception(f"The following query returned zero rows: {self.sql}")
 
         min_threshold = _convert_to_float_if_possible(self.min_threshold)

@@ -19,6 +19,7 @@
 Airflow System Test DAG that verifies Dataproc Metastore
 operators for managing backups.
 """
+
 from __future__ import annotations
 
 import datetime

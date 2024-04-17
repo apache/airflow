@@ -22,6 +22,7 @@ This module contains a Google AutoML hook.
 
     PredictResponse
 """
+
 from __future__ import annotations
 
 from functools import cached_property
@@ -83,12 +84,12 @@ class CloudAutoMLHook(GoogleBaseHook):
 
     @staticmethod
     def extract_object_id(obj: dict) -> str:
-        """Returns unique id of the object."""
+        """Return unique id of the object."""
         return obj["name"].rpartition("/")[-1]
 
     def get_conn(self) -> AutoMlClient:
         """
-        Retrieves connection to AutoML.
+        Retrieve connection to AutoML.
 
         :return: Google Cloud AutoML client object.
         """
@@ -97,7 +98,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         return self._client
 
     def wait_for_operation(self, operation: Operation, timeout: float | None = None):
-        """Waits for long-lasting operation to complete."""
+        """Wait for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
         except Exception:
@@ -124,7 +125,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
     ) -> Operation:
         """
-        Creates a model_id and returns a Model in the `response` field when it completes.
+        Create a model_id and returns a Model in the `response` field when it completes.
 
         When you create a model, several model evaluations are created for it:
         a global evaluation, and one evaluation for each annotation spec.
@@ -257,7 +258,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Dataset:
         """
-        Creates a dataset.
+        Create a dataset.
 
         :param dataset: The dataset to create. If a dict is provided, it must be of the
             same form as the protobuf message Dataset.
@@ -294,7 +295,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
-        Imports data into a dataset. For Tables this method can only be called on an empty Dataset.
+        Import data into a dataset. For Tables this method can only be called on an empty Dataset.
 
         :param dataset_id: Name of the AutoML dataset.
         :param input_config: The desired input location and its domain specific semantics, if any.
@@ -335,7 +336,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ListColumnSpecsPager:
         """
-        Lists column specs in a table spec.
+        List column specs in a table spec.
 
         :param dataset_id: Name of the AutoML dataset.
         :param table_spec_id: table_spec_id for path builder.
@@ -384,7 +385,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Model:
         """
-        Gets a AutoML model.
+        Get a AutoML model.
 
         :param model_id: Name of the model.
         :param project_id: ID of the Google Cloud project where model is located if None then
@@ -419,7 +420,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
-        Deletes a AutoML model.
+        Delete a AutoML model.
 
         :param model_id: Name of the model.
         :param project_id: ID of the Google Cloud project where model is located if None then
@@ -452,7 +453,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Dataset:
         """
-        Updates a dataset.
+        Update a dataset.
 
         :param dataset: The dataset which replaces the resource on the server.
             If a dict is provided, it must be of the same form as the protobuf message Dataset.
@@ -536,7 +537,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ListTableSpecsPager:
         """
-        Lists table specs in a dataset_id.
+        List table specs in a dataset_id.
 
         :param dataset_id: Name of the dataset.
         :param filter_: Filter expression, see go/filtering.
@@ -579,7 +580,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ListDatasetsPager:
         """
-        Lists datasets in a project.
+        List datasets in a project.
 
         :param project_id: ID of the Google Cloud project where dataset is located if None then
             default project_id is used.
@@ -616,7 +617,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
-        Deletes a dataset and all of its contents.
+        Delete a dataset and all of its contents.
 
         :param dataset_id: ID of dataset to be deleted.
         :param project_id: ID of the Google Cloud project where dataset is located if None then

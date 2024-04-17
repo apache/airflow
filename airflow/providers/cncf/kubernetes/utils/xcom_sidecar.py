@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Attach a sidecar container that blocks the pod from completing until Airflow pulls result data."""
+
 from __future__ import annotations
 
 import copy

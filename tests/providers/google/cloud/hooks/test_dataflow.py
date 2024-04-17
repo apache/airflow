@@ -18,8 +18,10 @@
 from __future__ import annotations
 
 import copy
+import logging
 import re
 import shlex
+import subprocess
 from asyncio import Future
 from typing import Any
 from unittest import mock
@@ -27,7 +29,7 @@ from unittest.mock import MagicMock
 from uuid import UUID
 
 import pytest
-from google.cloud.dataflow_v1beta3 import GetJobRequest, JobView
+from google.cloud.dataflow_v1beta3 import GetJobRequest, JobView, ListJobsRequest
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.apache.beam.hooks.beam import BeamHook, run_beam_command
@@ -55,7 +57,7 @@ PARAMETERS = {
     "inputFile": "gs://dataflow-samples/shakespeare/kinglear.txt",
     "output": "gs://test/output/my_output",
 }
-TEST_ENVIRONMENT = {}
+TEST_ENVIRONMENT: dict[str, str] = {}
 PY_FILE = "apache_beam.examples.wordcount"
 JAR_FILE = "unitest.jar"
 JOB_CLASS = "com.example.UnitTest"
@@ -89,6 +91,7 @@ BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 DATAFLOW_STRING = "airflow.providers.google.cloud.hooks.dataflow.{}"
 TEST_PROJECT = "test-project"
 TEST_JOB_ID = "test-job-id"
+TEST_JOBS_FILTER = ListJobsRequest.Filter.ACTIVE
 TEST_LOCATION = "custom-location"
 DEFAULT_PY_INTERPRETER = "python3"
 TEST_FLEX_PARAMETERS = {
@@ -176,6 +179,7 @@ class TestFallbackToVariables:
             FixtureFallback().test_fn({"project": "TEST"}, "TEST2")
 
 
+@pytest.mark.db_test
 class TestDataflowHook:
     def test_delegate_to_runtime_error(self):
         with pytest.raises(RuntimeError):
@@ -819,6 +823,7 @@ class TestDataflowHook:
         method_wait_for_done.assert_called_once_with()
 
 
+@pytest.mark.db_test
 class TestDataflowTemplateHook:
     def setup_method(self):
         self.dataflow_hook = DataflowHook(gcp_conn_id="google_cloud_default")
@@ -827,7 +832,6 @@ class TestDataflowTemplateHook:
     @mock.patch(DATAFLOW_STRING.format("_DataflowJobsController"))
     @mock.patch(DATAFLOW_STRING.format("DataflowHook.get_conn"))
     def test_start_template_dataflow(self, mock_conn, mock_controller, mock_uuid):
-
         launch_method = (
             mock_conn.return_value.projects.return_value.locations.return_value.templates.return_value.launch
         )
@@ -1248,7 +1252,6 @@ class TestDataflowJob:
         ],
     )
     def test_dataflow_job_wait_for_multiple_jobs_and_one_in_terminal_state(self, state, exception_regex):
-
         (
             self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.list.return_value.execute.return_value
         ) = {
@@ -1281,11 +1284,10 @@ class TestDataflowJob:
             num_retries=20,
             multiple_jobs=True,
         )
-        with pytest.raises(Exception, match=exception_regex):
+        with pytest.raises(AirflowException, match=exception_regex):
             dataflow_job.wait_for_done()
 
     def test_dataflow_job_wait_for_multiple_jobs_and_streaming_jobs(self):
-
         mock_jobs_list = (
             self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.list
         )
@@ -1356,7 +1358,6 @@ class TestDataflowJob:
         assert dataflow_job.get_jobs() == [job]
 
     def test_dataflow_job_is_job_running_with_no_job(self):
-
         mock_jobs_list = (
             self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.list
         )
@@ -1419,6 +1420,10 @@ class TestDataflowJob:
     @pytest.mark.parametrize(
         "job_state, wait_until_finished, expected_result",
         [
+            # DONE
+            (DataflowJobStatus.JOB_STATE_DONE, None, True),
+            (DataflowJobStatus.JOB_STATE_DONE, True, True),
+            (DataflowJobStatus.JOB_STATE_DONE, False, True),
             # RUNNING
             (DataflowJobStatus.JOB_STATE_RUNNING, None, False),
             (DataflowJobStatus.JOB_STATE_RUNNING, True, False),
@@ -1512,7 +1517,7 @@ class TestDataflowJob:
             num_retries=20,
             multiple_jobs=True,
         )
-        with pytest.raises(Exception, match=exception_regex):
+        with pytest.raises(AirflowException, match=exception_regex):
             dataflow_job._check_dataflow_job_state(job)
 
     @pytest.mark.parametrize(
@@ -1553,7 +1558,7 @@ class TestDataflowJob:
             multiple_jobs=False,
             expected_terminal_state=expected_terminal_state,
         )
-        with pytest.raises(Exception, match=match):
+        with pytest.raises(AirflowException, match=match):
             dataflow_job._check_dataflow_job_state(job)
 
     def test_dataflow_job_cancel_job(self):
@@ -1719,13 +1724,8 @@ class TestDataflowJob:
         mock_jobs.return_value.update.assert_not_called()
 
     def test_fetch_list_job_messages_responses(self):
-
-        mock_list = (
-            self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.messages.return_value.list
-        )
-        mock_list_next = (
-            self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.messages.return_value.list_next
-        )
+        mock_list = self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.messages.return_value.list
+        mock_list_next = self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.messages.return_value.list_next
 
         mock_list.return_value.execute.return_value = "response_1"
         mock_list_next.return_value = None
@@ -1745,7 +1745,6 @@ class TestDataflowJob:
         assert result == ["response_1"]
 
     def test_fetch_all_jobs_when_no_jobs_returned(self):
-
         (
             self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.list.return_value.execute.return_value
         ) = {}
@@ -1905,33 +1904,57 @@ class TestDataflow:
         )
         assert found_job_id is None
 
+    @pytest.mark.db_test
     @mock.patch("subprocess.Popen")
     @mock.patch("select.select")
-    def test_dataflow_wait_for_done_logging(self, mock_select, mock_popen):
-        mock_logging = MagicMock()
-        mock_logging.info = MagicMock()
-        mock_logging.warning = MagicMock()
-        mock_proc = MagicMock()
-        mock_proc.stderr = MagicMock()
-        mock_proc.stderr.readlines = MagicMock(return_value=["test\n", "error\n"])
-        mock_stderr_fd = MagicMock()
-        mock_proc.stderr.fileno = MagicMock(return_value=mock_stderr_fd)
-        mock_proc_poll = MagicMock()
-        mock_select.return_value = [[mock_stderr_fd]]
+    def test_dataflow_wait_for_done_logging(self, mock_select, mock_popen, caplog):
+        logger_name = "fake-dataflow-wait-for-done-logger"
+        fake_logger = logging.getLogger(logger_name)
 
-        def poll_resp_error():
-            mock_proc.return_code = 1
-            return True
+        cmd = ["fake", "cmd"]
+        mock_proc = MagicMock(name="FakeProc")
+        fake_stderr_fd = MagicMock(name="FakeStderr")
+        fake_stdout_fd = MagicMock(name="FakeStdout")
 
-        mock_proc_poll.side_effect = [None, poll_resp_error]
-        mock_proc.poll = mock_proc_poll
+        mock_proc.stderr = fake_stderr_fd
+        mock_proc.stdout = fake_stdout_fd
+        fake_stderr_fd.readline.side_effect = [
+            b"dataflow-stderr-1",
+            b"dataflow-stderr-2",
+            StopIteration,
+            b"dataflow-stderr-3",
+            StopIteration,
+            b"dataflow-other-stderr",
+        ]
+        fake_stdout_fd.readline.side_effect = [b"dataflow-stdout", StopIteration]
+        mock_select.side_effect = [
+            ([fake_stderr_fd], None, None),
+            (None, None, None),
+            ([fake_stderr_fd], None, None),
+        ]
+        mock_proc.poll.side_effect = [None, True]
+        mock_proc.returncode = 1
         mock_popen.return_value = mock_proc
-        with pytest.raises(Exception):
-            run_beam_command(cmd=["test", "cmd"], log=mock_logging)
-            mock_logging.info.assert_called_once_with("Running command: %s", "test cmd")
+
+        caplog.clear()
+        with pytest.raises(AirflowException, match="Apache Beam process failed with return code 1"):
+            run_beam_command(cmd=cmd, log=fake_logger)
+
+        mock_popen.assert_called_once_with(
+            cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True, cwd=None
+        )
+        info_messages = [rt[2] for rt in caplog.record_tuples if rt[0] == logger_name and rt[1] == 20]
+        assert "Running command: fake cmd" in info_messages
+        assert "dataflow-stdout" in info_messages
+
+        warn_messages = [rt[2] for rt in caplog.record_tuples if rt[0] == logger_name and rt[1] == 30]
+        assert "dataflow-stderr-1" in warn_messages
+        assert "dataflow-stderr-2" in warn_messages
+        assert "dataflow-stderr-3" in warn_messages
+        assert "dataflow-other-stderr" in warn_messages
 
 
-@pytest.fixture()
+@pytest.fixture
 def make_mock_awaitable():
     def func(mock_obj, return_value):
         f = Future()
@@ -1953,7 +1976,7 @@ class TestAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.initialize_client")
+    @mock.patch(DATAFLOW_STRING.format("AsyncDataflowHook.initialize_client"))
     async def test_get_job(self, initialize_client_mock, hook, make_mock_awaitable):
         client = initialize_client_mock.return_value
         make_mock_awaitable(client.get_job, None)
@@ -1976,3 +1999,27 @@ class TestAsyncHook:
         client.get_job.assert_called_once_with(
             request=request,
         )
+
+    @pytest.mark.asyncio
+    @mock.patch(DATAFLOW_STRING.format("AsyncDataflowHook.initialize_client"))
+    async def test_list_jobs(self, initialize_client_mock, hook, make_mock_awaitable):
+        client = initialize_client_mock.return_value
+        make_mock_awaitable(client.get_job, None)
+
+        await hook.list_jobs(
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            jobs_filter=TEST_JOBS_FILTER,
+        )
+
+        request = ListJobsRequest(
+            {
+                "project_id": TEST_PROJECT_ID,
+                "location": TEST_LOCATION,
+                "filter": TEST_JOBS_FILTER,
+                "page_size": None,
+                "page_token": None,
+            }
+        )
+        initialize_client_mock.assert_called_once()
+        client.list_jobs.assert_called_once_with(request=request)

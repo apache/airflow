@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, Dict, Tuple, Union
 
 import pytest
 
-from airflow import PY38, PY311
 from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.decorators.base import DecoratedMappedOperator
 from airflow.exceptions import AirflowException, XComNotFound
@@ -42,10 +41,15 @@ from airflow.utils.types import DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.operators.test_python import BasePythonTest
 
+pytestmark = pytest.mark.db_test
+
+
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
+PY38 = sys.version_info >= (3, 8)
+PY311 = sys.version_info >= (3, 11)
 
 
 class TestAirflowTaskDecorator(BasePythonTest):
@@ -94,14 +98,45 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         assert identity_dict_with_decorator_call(5, 5).operator.multiple_outputs is True
 
+    def test_infer_multiple_outputs_typed_dict(self):
+        from typing import TypedDict
+
+        class TypeDictClass(TypedDict):
+            pass
+
+        @task_decorator
+        def t1() -> TypeDictClass:
+            return {}
+
+        assert t1().operator.multiple_outputs is True
+
+    # We do not enable `from __future__ import annotations` for particular this test module,
+    # that mean `str | None` annotation would raise TypeError in Python 3.9 and below
+    @pytest.mark.skipif(sys.version_info < (3, 10), reason="PEP 604 is implemented in Python 3.10")
+    def test_infer_multiple_outputs_pep_604_union_type(self):
+        @task_decorator
+        def t1() -> str | None:
+            # Before PEP 604 which are implemented in Python 3.10 `str | None`
+            # returns `types.UnionType` which are class and could be check in `issubclass()`.
+            # However in Python 3.10+ this construction returns object `typing.Union`
+            # which can not be used in `issubclass()`
+            return "foo"
+
+        assert t1().operator.multiple_outputs is False
+
+    def test_infer_multiple_outputs_union_type(self):
+        @task_decorator
+        def t1() -> Union[str, None]:
+            return "foo"
+
+        assert t1().operator.multiple_outputs is False
+
     def test_infer_multiple_outputs_forward_annotation(self):
         if TYPE_CHECKING:
 
-            class FakeTypeCheckingOnlyClass:
-                ...
+            class FakeTypeCheckingOnlyClass: ...
 
-            class UnresolveableName:
-                ...
+            class UnresolveableName: ...
 
         @task_decorator
         def t1(x: "FakeTypeCheckingOnlyClass", y: int) -> Dict[int, int]:  # type: ignore[empty-body]
@@ -121,10 +156,9 @@ class TestAirflowTaskDecorator(BasePythonTest):
             def t3(  # type: ignore[empty-body]
                 x: "FakeTypeCheckingOnlyClass",
                 y: int,
-            ) -> "UnresolveableName[int, int]":
-                ...
+            ) -> "UnresolveableName[int, int]": ...
 
-            line = sys._getframe().f_lineno - 6 if PY38 else sys._getframe().f_lineno - 3
+            line = sys._getframe().f_lineno - 5 if PY38 else sys._getframe().f_lineno - 2
             if PY311:
                 # extra line explaining the error location in Py311
                 line = line - 1
@@ -221,6 +255,17 @@ class TestAirflowTaskDecorator(BasePythonTest):
         with pytest.raises(TypeError):
             add_number()
         add_number("test")
+
+    def test_fails_context_parameter_other_than_none(self):
+        """Fail if a context parameter has a default and it's not None."""
+        error_message = "Context key parameter try_number can't have a default other than None"
+
+        @task_decorator
+        def add_number_to_try_number(num: int, try_number: int = 0):
+            return num + try_number
+
+        with pytest.raises(ValueError, match=error_message):
+            add_number_to_try_number(1)
 
     def test_fail_method(self):
         """Tests that @task will fail if signature is not binding."""
@@ -692,8 +737,7 @@ def test_mapped_decorator_unmap_merge_op_kwargs(dag_maker, session):
             return ["x"]
 
         @task_decorator
-        def task2(arg1, arg2):
-            ...
+        def task2(arg1, arg2): ...
 
         task2.partial(arg1=1).expand(arg2=task1())
 
@@ -720,8 +764,7 @@ def test_mapped_decorator_converts_partial_kwargs(dag_maker, session):
             return ["x" * arg]
 
         @task_decorator(retry_delay=30)
-        def task2(arg1, arg2):
-            ...
+        def task2(arg1, arg2): ...
 
         task2.partial(arg1=1).expand(arg2=task1.expand(arg=[1, 2]))
 
@@ -745,8 +788,7 @@ def test_mapped_decorator_converts_partial_kwargs(dag_maker, session):
 
 def test_mapped_render_template_fields(dag_maker, session):
     @task_decorator
-    def fn(arg1, arg2):
-        ...
+    def fn(arg1, arg2): ...
 
     with set_current_task_instance_session(session=session):
         with dag_maker(session=session):
@@ -884,8 +926,7 @@ def test_no_warnings(reset_logging_config, caplog):
         return 1
 
     @task_decorator
-    def other(x):
-        ...
+    def other(x): ...
 
     with DAG(dag_id="test", start_date=DEFAULT_DATE, schedule=None):
         other(some_task())
@@ -896,7 +937,7 @@ def test_task_decorator_dataset(dag_maker, session):
     from airflow.datasets import Dataset
 
     result = None
-    uri = "s3://test"
+    uri = "s3://bucket/name"
 
     with dag_maker(session=session) as dag:
 

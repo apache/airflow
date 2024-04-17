@@ -27,7 +27,7 @@ TEST_JOB_RUN_STATUS = "SUCCEEDED"
 
 @pytest.fixture
 def trigger():
-    yield GlueDataBrewJobCompleteTrigger(
+    return GlueDataBrewJobCompleteTrigger(
         aws_conn_id="aws_default", job_name=TEST_JOB_NAME, run_id=TEST_JOB_RUN_ID
     )
 

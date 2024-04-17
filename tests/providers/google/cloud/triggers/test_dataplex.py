@@ -49,7 +49,7 @@ def trigger():
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def async_get_data_scan_job():
     def func(**kwargs):
         m = mock.MagicMock()
@@ -109,7 +109,7 @@ class TestDataplexDataQualityJobTrigger:
         )
         mock_convert_to_dict.return_value = {}
 
-        actual_event = await (trigger.run()).asend(None)
+        actual_event = await trigger.run().asend(None)
         await asyncio.sleep(0.5)
 
         expected_event = TriggerEvent(

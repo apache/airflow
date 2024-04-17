@@ -142,7 +142,6 @@ class AzureBatchOperator(BaseOperator):
         should_delete_pool: bool = False,
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
         self.batch_pool_id = batch_pool_id
         self.batch_pool_vm_size = batch_pool_vm_size

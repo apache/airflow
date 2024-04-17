@@ -38,6 +38,8 @@ example:
     # configuration requirements.
     remote_logging = True
     remote_base_log_folder = wasb-base-folder/path/to/logs
+
+    [azure_remote_logging]
     remote_wasb_log_container = my-container
 
 #. Install the provider package with ``pip install apache-airflow-providers-microsoft-azure``

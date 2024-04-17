@@ -27,6 +27,9 @@ from airflow.providers.databricks.triggers.databricks import DatabricksExecution
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.session import provide_session
 
+pytestmark = pytest.mark.db_test
+
+
 DEFAULT_CONN_ID = "databricks_default"
 HOST = "xx.cloud.databricks.com"
 LOGIN = "login"
@@ -93,6 +96,7 @@ class TestDatabricksExecutionTrigger:
                 "retry_limit": 3,
                 "retry_args": None,
                 "run_page_url": RUN_PAGE_URL,
+                "repair_run": False,
             },
         )
 
@@ -116,6 +120,7 @@ class TestDatabricksExecutionTrigger:
                         life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="SUCCESS"
                     ).to_json(),
                     "run_page_url": RUN_PAGE_URL,
+                    "repair_run": False,
                 }
             )
 
@@ -145,6 +150,7 @@ class TestDatabricksExecutionTrigger:
                         life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="SUCCESS"
                     ).to_json(),
                     "run_page_url": RUN_PAGE_URL,
+                    "repair_run": False,
                 }
             )
         mock_sleep.assert_called_once()

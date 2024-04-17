@@ -25,7 +25,7 @@ from black import Mode, TargetVersion, format_str, parse_pyproject_toml
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
 
-from common_precommit_utils import AIRFLOW_BREEZE_SOURCES_PATH  # isort: skip # noqa E402
+from common_precommit_utils import AIRFLOW_BREEZE_SOURCES_PATH
 
 
 @lru_cache(maxsize=None)

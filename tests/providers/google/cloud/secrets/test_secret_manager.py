@@ -28,6 +28,8 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.google.cloud.secrets.secret_manager import CloudSecretManagerBackend
 
+pytestmark = pytest.mark.db_test
+
 CREDENTIALS = "test-creds"
 KEY_FILE = "test-file.json"
 PROJECT_ID = "test-project-id"

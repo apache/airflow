@@ -27,6 +27,9 @@ smtplib_string = "airflow.providers.smtp.hooks.smtp.smtplib"
 
 
 class TestEmailOperator:
+    def setup_method(self):
+        self.default_op_kwargs = dict(to="to", subject="subject", html_content="content")
+
     @patch("airflow.providers.smtp.hooks.smtp.SmtpHook.get_connection")
     @patch(smtplib_string)
     def test_loading_sender_email_from_connection(self, mock_smtplib, mock_hook_conn):
@@ -46,7 +49,13 @@ class TestEmailOperator:
             ),
         )
         smtp_client_mock = mock_smtplib.SMTP_SSL()
-        op = EmailOperator(task_id="test_email", to="to", subject="subject", html_content="content")
+        op = EmailOperator(task_id="test_email", **self.default_op_kwargs)
         op.execute({})
         call_args = smtp_client_mock.sendmail.call_args.kwargs
         assert call_args["from_addr"] == sender_email
+
+    def test_assert_templated_fields(self):
+        """Test expected templated fields."""
+        operator = EmailOperator(task_id="test_assert_templated_fields", **self.default_op_kwargs)
+        template_fields = ("to", "from_email", "subject", "html_content", "files", "cc", "bcc")
+        assert operator.template_fields == template_fields

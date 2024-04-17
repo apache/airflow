@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google ML Engine Hook."""
+
 from __future__ import annotations
 
 import contextlib
@@ -97,7 +98,7 @@ class MLEngineHook(GoogleBaseHook):
 
     def get_conn(self) -> Resource:
         """
-        Retrieves the connection to MLEngine.
+        Retrieve the connection to MLEngine.
 
         :return: Google MLEngine services object.
         """
@@ -107,7 +108,7 @@ class MLEngineHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def create_job(self, job: dict, project_id: str, use_existing_job_fn: Callable | None = None) -> dict:
         """
-        Launches a MLEngine job and wait for it to reach a terminal state.
+        Launch a MLEngine job and wait for it to reach a terminal state.
 
         :param project_id: The Google Cloud project id within which MLEngine
             job will be launched. If set to None or missing, the default project_id from the Google Cloud
@@ -169,7 +170,7 @@ class MLEngineHook(GoogleBaseHook):
         project_id: str,
     ):
         """
-        Launches a MLEngine job and wait for it to reach a terminal state.
+        Launch a MLEngine job and wait for it to reach a terminal state.
 
         :param project_id: The Google Cloud project id within which MLEngine
             job will be launched. If set to None or missing, the default project_id from the Google Cloud
@@ -202,7 +203,7 @@ class MLEngineHook(GoogleBaseHook):
         project_id: str,
     ) -> dict:
         """
-        Cancels a MLEngine job.
+        Cancel a MLEngine job.
 
         :param project_id: The Google Cloud project id within which MLEngine
             job will be cancelled. If set to None or missing, the default project_id from the Google Cloud
@@ -231,7 +232,7 @@ class MLEngineHook(GoogleBaseHook):
 
     def get_job(self, project_id: str, job_id: str) -> dict:
         """
-        Gets a MLEngine job based on the job id.
+        Get a MLEngine job based on the job id.
 
         :param project_id: The project in which the Job is located. If set to None or missing, the default
             project_id from the Google Cloud connection is used. (templated)
@@ -255,7 +256,7 @@ class MLEngineHook(GoogleBaseHook):
 
     def _wait_for_job_done(self, project_id: str, job_id: str, interval: int = 30):
         """
-        Waits for the Job to reach a terminal state.
+        Wait for the Job to reach a terminal state.
 
         This method will periodically check the job state until the job reach
         a terminal state.
@@ -284,7 +285,7 @@ class MLEngineHook(GoogleBaseHook):
         project_id: str,
     ) -> dict:
         """
-        Creates the Version on Google Cloud ML Engine.
+        Create the Version on Google Cloud ML Engine.
 
         :param version_spec: A dictionary containing the information about the version. (templated)
         :param model_name: The name of the Google Cloud ML Engine model that the version belongs to.
@@ -320,7 +321,7 @@ class MLEngineHook(GoogleBaseHook):
         project_id: str,
     ) -> dict:
         """
-        Sets a version to be the default. Blocks until finished.
+        Set a version to be the default. Blocks until finished.
 
         :param model_name: The name of the Google Cloud ML Engine model that the version belongs to.
             (templated)
@@ -351,7 +352,7 @@ class MLEngineHook(GoogleBaseHook):
         project_id: str,
     ) -> list[dict]:
         """
-        Lists all available versions of a model. Blocks until finished.
+        List all available versions of a model. Blocks until finished.
 
         :param model_name: The name of the Google Cloud ML Engine model that the version
             belongs to. (templated)
@@ -387,7 +388,7 @@ class MLEngineHook(GoogleBaseHook):
         project_id: str,
     ) -> dict:
         """
-        Deletes the given version of a model. Blocks until finished.
+        Delete the given version of a model. Blocks until finished.
 
         :param model_name: The name of the Google Cloud ML Engine model that the version
             belongs to. (templated)
@@ -467,7 +468,7 @@ class MLEngineHook(GoogleBaseHook):
         project_id: str,
     ) -> dict | None:
         """
-        Gets a Model. Blocks until finished.
+        Get a Model. Blocks until finished.
 
         :param model_name: The name of the model.
         :param project_id: The Google Cloud project name to which MLEngine model belongs. If set to None
@@ -581,7 +582,7 @@ class MLEngineAsyncHook(GoogleBaseAsyncHook):
         project_id: str | None = None,
     ) -> str | None:
         """
-        Polls for job status asynchronously using gcloud-aio.
+        Poll for job status asynchronously using gcloud-aio.
 
         Note that an OSError is raised when Job results are still pending.
         Exception means that Job finished with errors
@@ -590,7 +591,9 @@ class MLEngineAsyncHook(GoogleBaseAsyncHook):
         async with ClientSession() as session:
             try:
                 job = await self.get_job(
-                    project_id=project_id, job_id=job_id, session=session  #  type: ignore
+                    project_id=project_id,
+                    job_id=job_id,
+                    session=session,  #  type: ignore
                 )
                 job = await job.json(content_type=None)
                 self.log.info("Retrieving json_response: %s", job)

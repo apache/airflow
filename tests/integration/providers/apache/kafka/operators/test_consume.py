@@ -58,7 +58,6 @@ class TestConsumeFromTopic:
     """
 
     def setup_method(self):
-
         for num in (1, 2, 3):
             db.merge_conn(
                 Connection(
@@ -127,7 +126,7 @@ class TestConsumeFromTopic:
 
         p = Producer(**{"bootstrap.servers": "broker:29092"})
 
-        for x in range(20):
+        for _ in range(20):
             p.produce(TOPIC, TOPIC)
 
         assert len(p) == 20

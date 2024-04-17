@@ -132,7 +132,7 @@ class VerticaHook(DbApiHook):
         conn = connect(**conn_config)
         return conn
 
-    @overload
+    @overload  # type: ignore[override]
     def run(
         self,
         sql: str | Iterable[str],
@@ -141,8 +141,7 @@ class VerticaHook(DbApiHook):
         handler: None = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     def run(
@@ -153,8 +152,7 @@ class VerticaHook(DbApiHook):
         handler: Callable[[Any], Any] = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
-    ) -> Any | list[Any]:
-        ...
+    ) -> Any | list[Any]: ...
 
     def run(
         self,

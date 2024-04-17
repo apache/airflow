@@ -26,6 +26,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import google.auth
+import google.auth.compute_engine
 import pytest
 import tenacity
 from google.auth.environment_vars import CREDENTIALS
@@ -49,6 +50,7 @@ except GoogleAuthError:
 MODULE_NAME = "airflow.providers.google.common.hooks.base_google"
 PROJECT_ID = "PROJECT_ID"
 ENV_VALUE = "/tmp/a"
+SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
 
 
 class NoForbiddenAfterCount:
@@ -88,10 +90,9 @@ class TestQuotaRetry:
         assert 5 == custom_fn.counter
 
     def test_raise_exception_on_non_quota_exception(self):
+        message = "POST https://translation.googleapis.com/language/translate/v2: Daily Limit Exceeded"
+        errors = [mock.MagicMock(details=mock.PropertyMock(return_value="dailyLimitExceeded"))]
         with pytest.raises(Forbidden, match="Daily Limit Exceeded"):
-            message = "POST https://translation.googleapis.com/language/translate/v2: Daily Limit Exceeded"
-            errors = [mock.MagicMock(details=mock.PropertyMock(return_value="dailyLimitExceeded"))]
-
             _retryable_test_with_temporary_quota_retry(
                 NoForbiddenAfterCount(5, message=message, errors=errors)
             )
@@ -246,9 +247,9 @@ class TestProvideGcpCredentialFile:
 
         @hook.GoogleBaseHook.provide_gcp_credential_file
         def assert_gcp_credential_file_in_env(_):
-            raise Exception()
+            raise RuntimeError("Some exception occurred")
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="Some exception occurred"):
             assert_gcp_credential_file_in_env(self.instance)
 
         assert os.environ[CREDENTIALS] == ENV_VALUE
@@ -272,9 +273,9 @@ class TestProvideGcpCredentialFile:
 
         @hook.GoogleBaseHook.provide_gcp_credential_file
         def assert_gcp_credential_file_in_env(_):
-            raise Exception()
+            raise RuntimeError("Some exception occurred")
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="Some exception occurred"):
             assert_gcp_credential_file_in_env(self.instance)
 
         assert CREDENTIALS not in os.environ
@@ -324,9 +325,9 @@ class TestProvideGcpCredentialFileAsContext:
         key_path = "/test/key-path"
         self.instance.extras = {"key_path": key_path}
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="Some exception occurred"):
             with self.instance.provide_gcp_credential_file_as_context():
-                raise Exception()
+                raise RuntimeError("Some exception occurred")
 
         assert os.environ[CREDENTIALS] == ENV_VALUE
 
@@ -345,13 +346,14 @@ class TestProvideGcpCredentialFileAsContext:
         key_path = "/test/key-path"
         self.instance.extras = {"key_path": key_path}
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="Some exception occurred"):
             with self.instance.provide_gcp_credential_file_as_context():
-                raise Exception()
+                raise RuntimeError("Some exception occurred")
 
         assert CREDENTIALS not in os.environ
 
 
+@pytest.mark.db_test
 class TestGoogleBaseHook:
     def setup_method(self):
         self.instance = hook.GoogleBaseHook()
@@ -682,6 +684,20 @@ class TestGoogleBaseHook:
                 ["ACCOUNT_2", "ACCOUNT_3"],
                 id="multiple_elements_list_with_override",
             ),
+            pytest.param(
+                None,
+                "ACCOUNT_1,ACCOUNT_2,ACCOUNT_3",
+                "ACCOUNT_3",
+                ["ACCOUNT_1", "ACCOUNT_2"],
+                id="multiple_elements_list_as_string",
+            ),
+            pytest.param(
+                None,
+                "ACCOUNT_1, ACCOUNT_2, ACCOUNT_3",
+                "ACCOUNT_3",
+                ["ACCOUNT_1", "ACCOUNT_2"],
+                id="multiple_elements_list_as_string_with_space",
+            ),
         ],
     )
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
@@ -824,6 +840,7 @@ class TestProvideAuthorizedGcloud:
 
 
 class TestNumRetry:
+    @pytest.mark.db_test
     def test_should_return_int_when_set_int_via_connection(self):
         instance = hook.GoogleBaseHook(gcp_conn_id="google_cloud_default")
         instance.extras = {
@@ -858,3 +875,99 @@ class TestNumRetry:
         instance = hook.GoogleBaseHook(gcp_conn_id="google_cloud_default")
         assert isinstance(instance.num_retries, int)
         assert 5 == instance.num_retries
+
+
+class TestCredentialsToken:
+    @pytest.mark.asyncio
+    async def test_get_project(self):
+        mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
+        token = hook._CredentialsToken(mock_credentials, project=PROJECT_ID, scopes=SCOPES)
+        assert await token.get_project() == PROJECT_ID
+
+    @pytest.mark.asyncio
+    async def test_get(self):
+        mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
+        mock_credentials.token = "ACCESS_TOKEN"
+        token = hook._CredentialsToken(mock_credentials, project=PROJECT_ID, scopes=SCOPES)
+        assert await token.get() == "ACCESS_TOKEN"
+        mock_credentials.refresh.assert_called_once()
+        # ensure token caching works on subsequent calls of `get`
+        mock_credentials.reset_mock()
+        assert await token.get() == "ACCESS_TOKEN"
+        mock_credentials.refresh.assert_not_called()
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{MODULE_NAME}.get_credentials_and_project_id", return_value=("CREDENTIALS", "PROJECT_ID"))
+    async def test_from_hook(self, get_creds_and_project, monkeypatch):
+        monkeypatch.setenv(
+            "AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT",
+            "google-cloud-platform://",
+        )
+        instance = hook.GoogleBaseHook(gcp_conn_id="google_cloud_default")
+        token = await hook._CredentialsToken.from_hook(instance)
+        assert token.credentials == "CREDENTIALS"
+        assert token.project == "PROJECT_ID"
+
+
+class TestGoogleBaseAsyncHook:
+    @pytest.mark.asyncio
+    @mock.patch("google.auth.default")
+    async def test_get_token(self, mock_auth_default, monkeypatch) -> None:
+        mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
+        mock_credentials.token = "ACCESS_TOKEN"
+        mock_auth_default.return_value = (mock_credentials, "PROJECT_ID")
+        monkeypatch.setenv(
+            "AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT",
+            "google-cloud-platform://?project=CONN_PROJECT_ID",
+        )
+
+        instance = hook.GoogleBaseAsyncHook(gcp_conn_id="google_cloud_default")
+        instance.sync_hook_class = hook.GoogleBaseHook
+        token = await instance.get_token()
+        assert await token.get_project() == "CONN_PROJECT_ID"
+        assert await token.get() == "ACCESS_TOKEN"
+        mock_credentials.refresh.assert_called_once()
+
+    @pytest.mark.asyncio
+    @mock.patch("google.auth.default")
+    async def test_get_token_impersonation(self, mock_auth_default, monkeypatch, requests_mock) -> None:
+        mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
+        mock_credentials.token = "ACCESS_TOKEN"
+        mock_auth_default.return_value = (mock_credentials, "PROJECT_ID")
+        monkeypatch.setenv(
+            "AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT",
+            "google-cloud-platform://?project=CONN_PROJECT_ID",
+        )
+        requests_mock.post(
+            "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/SERVICE_ACCOUNT@SA_PROJECT.iam.gserviceaccount.com:generateAccessToken",
+            text='{"accessToken": "IMPERSONATED_ACCESS_TOKEN", "expireTime": "2014-10-02T15:01:23Z"}',
+        )
+
+        instance = hook.GoogleBaseAsyncHook(
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain="SERVICE_ACCOUNT@SA_PROJECT.iam.gserviceaccount.com",
+        )
+        instance.sync_hook_class = hook.GoogleBaseHook
+        token = await instance.get_token()
+        assert await token.get_project() == "CONN_PROJECT_ID"
+        assert await token.get() == "IMPERSONATED_ACCESS_TOKEN"
+
+    @pytest.mark.asyncio
+    @mock.patch("google.auth.default")
+    async def test_get_token_impersonation_conn(self, mock_auth_default, monkeypatch, requests_mock) -> None:
+        mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
+        mock_auth_default.return_value = (mock_credentials, "PROJECT_ID")
+        monkeypatch.setenv(
+            "AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT",
+            "google-cloud-platform://?project=CONN_PROJECT_ID&impersonation_chain=SERVICE_ACCOUNT@SA_PROJECT.iam.gserviceaccount.com",
+        )
+        requests_mock.post(
+            "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/SERVICE_ACCOUNT@SA_PROJECT.iam.gserviceaccount.com:generateAccessToken",
+            text='{"accessToken": "IMPERSONATED_ACCESS_TOKEN", "expireTime": "2014-10-02T15:01:23Z"}',
+        )
+
+        instance = hook.GoogleBaseAsyncHook(gcp_conn_id="google_cloud_default")
+        instance.sync_hook_class = hook.GoogleBaseHook
+        token = await instance.get_token()
+        assert await token.get_project() == "CONN_PROJECT_ID"
+        assert await token.get() == "IMPERSONATED_ACCESS_TOKEN"

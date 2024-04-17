@@ -15,4 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
+
+.. _configuration:openlineage:
+
 .. include:: ../exts/includes/providers-configurations-ref.rst

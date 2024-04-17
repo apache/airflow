@@ -228,7 +228,7 @@ def get_single_tuple_array(title: str, t: NamedTuple) -> Table:
     for key, value in t._asdict().items():
         table.add_column(header=key, header_style="info")
         row.append(get_printable_value(key, value))
-    table.add_row(*row, style="magenta")
+    table.add_row(*row, style="special")
     return table
 
 
@@ -245,7 +245,7 @@ def get_multi_tuple_array(title: str, tuples: list[tuple[NamedTuple, ...]]) -> T
         for named_tuple in t:
             for key, value in named_tuple._asdict().items():
                 row.append(get_printable_value(key, value))
-        table.add_row(*row, style="magenta")
+        table.add_row(*row, style="special")
     return table
 
 
@@ -283,7 +283,7 @@ class ParallelMonitor(Thread):
         self.time_in_seconds = time_in_seconds
         self.debug_resources = debug_resources
         self.progress_matcher = progress_matcher
-        self.start_time = datetime.datetime.utcnow()
+        self.start_time = datetime.datetime.now(tz=datetime.timezone.utc)
 
     def print_single_progress(self, output: Output):
         if self.progress_matcher:
@@ -312,7 +312,7 @@ class ParallelMonitor(Thread):
     def print_summary(self):
         import psutil
 
-        time_passed = datetime.datetime.utcnow() - self.start_time
+        time_passed = datetime.datetime.now(tz=datetime.timezone.utc) - self.start_time
         get_console().rule()
         for output in self.outputs:
             self.print_single_progress(output)
@@ -443,9 +443,15 @@ def check_async_run_results(
     try:
         if errors:
             get_console().print("\n[error]There were errors when running some tasks. Quitting.[/]\n")
+            from airflow_breeze.utils.docker_command_utils import fix_ownership_using_docker
+
+            fix_ownership_using_docker()
             sys.exit(1)
         else:
             get_console().print(f"\n[success]{success}[/]\n")
+            from airflow_breeze.utils.docker_command_utils import fix_ownership_using_docker
+
+            fix_ownership_using_docker()
     finally:
         if not skip_cleanup:
             for output in outputs:

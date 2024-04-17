@@ -49,7 +49,7 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):
         )
 
     def get_conn(self) -> Resource:
-        """Returns a Google Deployment Manager service object."""
+        """Return a Google Deployment Manager service object."""
         http_authorized = self._authorize()
         return build("deploymentmanager", "v2", http=http_authorized, cache_discovery=False)
 
@@ -61,7 +61,7 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):
         order_by: str | None = None,
     ) -> list[dict[str, Any]]:
         """
-        Lists deployments in a google cloud project.
+        List deployments in a google cloud project.
 
         :param project_id: The project ID for this request.
         :param deployment_filter: A filter expression which limits resources returned in the response.
@@ -84,7 +84,7 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):
         self, project_id: str | None, deployment: str | None = None, delete_policy: str | None = None
     ) -> None:
         """
-        Deletes a deployment and all associated resources in a google cloud project.
+        Delete a deployment and all associated resources in a google cloud project.
 
         :param project_id: The project ID for this request.
         :param deployment: The name of the deployment for this request.

@@ -101,7 +101,6 @@ def upgrade():
             )
             batch_op.create_unique_constraint("dag_run_dag_id_run_id_key", ["dag_id", "run_id"])
     elif dialect_name == "mssql":
-
         with op.batch_alter_table("dag_run") as batch_op:
             batch_op.drop_index("idx_not_null_dag_id_execution_date")
             batch_op.drop_index("idx_not_null_dag_id_run_id")
@@ -349,7 +348,6 @@ def downgrade():
             )
 
     if dialect_name == "mssql":
-
         with op.batch_alter_table("dag_run", schema=None) as batch_op:
             batch_op.drop_constraint("dag_run_dag_id_execution_date_key", type_="unique")
             batch_op.drop_constraint("dag_run_dag_id_run_id_key", type_="unique")

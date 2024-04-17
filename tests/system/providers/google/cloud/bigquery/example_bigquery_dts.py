@@ -18,6 +18,7 @@
 """
 Example Airflow DAG that creates and deletes Bigquery data transfer configurations.
 """
+
 from __future__ import annotations
 
 import os
@@ -88,7 +89,6 @@ with DAG(
     catchup=False,
     tags=["example", "bigquery"],
 ) as dag:
-
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
     )

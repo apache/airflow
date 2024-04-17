@@ -29,7 +29,7 @@ def _get_process_memory():
 
 
 def _human_readable_size(size, decimal_places=3):
-    for unit in ["B", "KiB", "MiB", "GiB", "TiB"]:
+    for unit in ["B", "KiB", "MiB", "GiB", "TiB"]:  # noqa: B007
         if size < 1024.0:
             break
         size /= 1024.0
@@ -83,4 +83,4 @@ if __name__ == "__main__":
     # Example:
 
     with trace_memory():
-        import airflow  # noqa
+        import airflow  # noqa: F401

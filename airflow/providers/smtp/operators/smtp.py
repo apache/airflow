@@ -36,15 +36,15 @@ class EmailOperator(BaseOperator):
     :param html_content: content of the email, html markup
         is allowed. (templated)
     :param files: file names to attach in email (templated)
-    :param cc: list of recipients to be added in CC field
-    :param bcc: list of recipients to be added in BCC field
+    :param cc: list of recipients to be added in CC field (templated)
+    :param bcc: list of recipients to be added in BCC field (templated)
     :param mime_subtype: MIME sub content type
     :param mime_charset: character set parameter added to the Content-Type
         header.
     :param custom_headers: additional headers to add to the MIME message.
     """
 
-    template_fields: Sequence[str] = ("to", "from_email", "subject", "html_content", "files")
+    template_fields: Sequence[str] = ("to", "from_email", "subject", "html_content", "files", "cc", "bcc")
     template_fields_renderers = {"html_content": "html"}
     template_ext: Sequence[str] = (".html",)
     ui_color = "#e6faf9"

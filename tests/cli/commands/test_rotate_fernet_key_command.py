@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
 from cryptography.fernet import Fernet
 
 from airflow.cli import cli_parser
@@ -27,6 +28,8 @@ from airflow.models import Connection, Variable
 from airflow.utils.session import provide_session
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_connections, clear_db_variables
+
+pytestmark = pytest.mark.db_test
 
 
 class TestRotateFernetKeyCommand:

@@ -22,6 +22,7 @@ This module contains Base AWS Hook.
     For more information on how to use this hook, take a look at the guide:
     :ref:`howto/connection:aws`
 """
+
 from __future__ import annotations
 
 import datetime
@@ -29,7 +30,6 @@ import inspect
 import json
 import logging
 import os
-import warnings
 from copy import deepcopy
 from functools import cached_property, wraps
 from pathlib import Path
@@ -44,6 +44,7 @@ import tenacity
 from botocore.config import Config
 from botocore.waiter import Waiter, WaiterModel
 from dateutil.tz import tzlocal
+from deprecated import deprecated
 from slugify import slugify
 
 from airflow.configuration import conf
@@ -314,7 +315,7 @@ class BaseSessionFactory(LoggingMixin):
             idp_request_retry_kwargs = saml_config["idp_request_retry_kwargs"]
             self.log.info("idp_request_retry_kwargs= %s", idp_request_retry_kwargs)
             from requests.adapters import HTTPAdapter
-            from requests.packages.urllib3.util.retry import Retry
+            from urllib3.util.retry import Retry
 
             retry_strategy = Retry(**idp_request_retry_kwargs)
             adapter = HTTPAdapter(max_retries=retry_strategy)
@@ -490,7 +491,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         return manager.providers[hook.package_name].version
 
     @staticmethod
-    def _find_class_name(target_function_name: str) -> str:
+    def _find_operator_class_name(target_function_name: str) -> str | None:
         """Given a frame off the stack, return the name of the class that made the call.
 
         This method may raise a ValueError or an IndexError. The caller is
@@ -499,7 +500,11 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         stack = inspect.stack()
         # Find the index of the most recent frame which called the provided function name
         # and pull that frame off the stack.
-        target_frame = next(frame for frame in stack if frame.function == target_function_name)[0]
+        target_frames = [frame for frame in stack if frame.function == target_function_name]
+        if target_frames:
+            target_frame = target_frames[0][0]
+        else:
+            return None
         # Get the local variables for that frame.
         frame_variables = target_frame.f_locals["self"]
         # Get the class object for that frame.
@@ -507,14 +512,32 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         # Return the name of the class object.
         return frame_class_object.__name__
 
+    @staticmethod
+    def _find_executor_class_name() -> str | None:
+        """Inspect the call stack looking for any executor classes and returning the first found."""
+        stack = inspect.stack()
+        # Fetch class objects on all frames, looking for one containing an executor (since it
+        # will inherit from BaseExecutor)
+        for frame in stack:
+            classes = []
+            for name, obj in frame[0].f_globals.items():
+                if inspect.isclass(obj):
+                    classes.append(name)
+            if "BaseExecutor" in classes:
+                return classes[-1]
+        return None
+
     @return_on_error("Unknown")
     def _get_caller(self, target_function_name: str = "execute") -> str:
-        """Given a function name, walk the stack and return the name of the class which called it last."""
-        caller = self._find_class_name(target_function_name)
+        """Try to determine the caller of this hook. Whether that be an AWS Operator, Sensor or Executor."""
+        caller = self._find_operator_class_name(target_function_name)
         if caller == "BaseSensorOperator":
             # If the result is a BaseSensorOperator, then look for whatever last called "poke".
-            return self._get_caller("poke")
-        return caller
+            caller = self._find_operator_class_name("poke")
+        if not caller:
+            # Check if we can find an executor
+            caller = self._find_executor_class_name()
+        return caller if caller else "Unknown"
 
     @staticmethod
     @return_on_error("00000000-0000-0000-0000-000000000000")
@@ -606,6 +629,20 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     def verify(self) -> bool | str | None:
         """Verify or not SSL certificates boto3 client/resource read-only property."""
         return self.conn_config.verify
+
+    @cached_property
+    def account_id(self) -> str:
+        """Return associated AWS Account ID."""
+        return (
+            self.get_session(region_name=self.region_name)
+            .client(
+                service_name="sts",
+                endpoint_url=self.conn_config.get_service_endpoint_url("sts"),
+                config=self.config,
+                verify=self.verify,
+            )
+            .get_caller_identity()["Account"]
+        )
 
     def get_session(self, region_name: str | None = None, deferrable: bool = False) -> boto3.session.Session:
         """Get the underlying boto3.session.Session(region_name=region_name)."""
@@ -790,8 +827,8 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
         return retry_decorator
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Return custom UI field behaviour for AWS Connection."""
         return {
             "hidden_fields": ["host", "schema", "port"],
@@ -984,6 +1021,13 @@ except ImportError:
     pass
 
 
+@deprecated(
+    reason=(
+        "`airflow.providers.amazon.aws.hook.base_aws.BaseAsyncSessionFactory` "
+        "has been deprecated and will be removed in future"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class BaseAsyncSessionFactory(BaseSessionFactory):
     """
     Base AWS Session Factory class to handle aiobotocore session creation.
@@ -993,12 +1037,6 @@ class BaseAsyncSessionFactory(BaseSessionFactory):
     """
 
     def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "airflow.providers.amazon.aws.hook.base_aws.BaseAsyncSessionFactory has been deprecated and "
-            "will be removed in future",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         super().__init__(*args, **kwargs)
 
     async def get_role_credentials(self) -> dict:
@@ -1077,6 +1115,13 @@ class BaseAsyncSessionFactory(BaseSessionFactory):
         return self._get_session_with_assume_role()
 
 
+@deprecated(
+    reason=(
+        "`airflow.providers.amazon.aws.hook.base_aws.AwsBaseAsyncHook` "
+        "has been deprecated and will be removed in future"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class AwsBaseAsyncHook(AwsBaseHook):
     """Interacts with AWS using aiobotocore asynchronously.
 
@@ -1093,12 +1138,6 @@ class AwsBaseAsyncHook(AwsBaseHook):
     """
 
     def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "airflow.providers.amazon.aws.hook.base_aws.AwsBaseAsyncHook has been deprecated and "
-            "will be removed in future",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         super().__init__(*args, **kwargs)
 
     def get_async_session(self) -> AioSession:

@@ -48,7 +48,8 @@ class AppriseHook(BaseHook):
 
     def get_config_from_conn(self):
         conn = self.get_connection(self.apprise_conn_id)
-        return json.loads(conn.extra_dejson["config"])
+        config = conn.extra_dejson["config"]
+        return json.loads(config) if isinstance(config, str) else config
 
     def set_config_from_conn(self, apprise_obj: apprise.Apprise):
         """Set config from connection to apprise object."""
@@ -110,8 +111,8 @@ class AppriseHook(BaseHook):
     def get_conn(self) -> None:
         raise NotImplementedError()
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget
         from flask_babel import lazy_gettext
@@ -127,8 +128,8 @@ class AppriseHook(BaseHook):
             ),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         return {
             "hidden_fields": ["host", "schema", "login", "password", "port", "extra"],
             "relabeling": {},

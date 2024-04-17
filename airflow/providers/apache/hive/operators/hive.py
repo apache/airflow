@@ -22,10 +22,7 @@ import re
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
-from deprecated.classic import deprecated
-
 from airflow.configuration import conf
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.utils import operator_helpers
@@ -54,7 +51,6 @@ class HiveOperator(BaseOperator):
         object documentation for more details.
     :param script_begin_tag: If defined, the operator will get rid of the
         part of the script before the first occurrence of `script_begin_tag`
-    :param run_as_owner: Run HQL code as a DAG's owner.
     :param mapred_queue: queue used by the Hadoop CapacityScheduler. (templated)
     :param mapred_queue_priority: priority within CapacityScheduler queue.
         Possible settings include: VERY_HIGH, HIGH, NORMAL, LOW, VERY_LOW
@@ -62,6 +58,7 @@ class HiveOperator(BaseOperator):
         This can make monitoring easier.
     :param hive_cli_params: parameters passed to hive CLO
     :param auth: optional authentication option passed for the Hive connection
+    :param proxy_user: Run HQL code as this user.
     """
 
     template_fields: Sequence[str] = (
@@ -72,6 +69,7 @@ class HiveOperator(BaseOperator):
         "hiveconfs",
         "mapred_job_name",
         "mapred_queue_priority",
+        "proxy_user",
     )
     template_ext: Sequence[str] = (
         ".hql",
@@ -89,12 +87,12 @@ class HiveOperator(BaseOperator):
         hiveconfs: dict[Any, Any] | None = None,
         hiveconf_jinja_translate: bool = False,
         script_begin_tag: str | None = None,
-        run_as_owner: bool = False,
         mapred_queue: str | None = None,
         mapred_queue_priority: str | None = None,
         mapred_job_name: str | None = None,
         hive_cli_params: str = "",
         auth: str | None = None,
+        proxy_user: str | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -104,15 +102,12 @@ class HiveOperator(BaseOperator):
         self.hiveconfs = hiveconfs or {}
         self.hiveconf_jinja_translate = hiveconf_jinja_translate
         self.script_begin_tag = script_begin_tag
-        self.run_as = None
-        if run_as_owner:
-            self.run_as = self.dag.owner
         self.mapred_queue = mapred_queue
         self.mapred_queue_priority = mapred_queue_priority
         self.mapred_job_name = mapred_job_name
         self.hive_cli_params = hive_cli_params
         self.auth = auth
-
+        self.proxy_user = proxy_user
         job_name_template = conf.get_mandatory_value(
             "hive",
             "mapred_job_name_template",
@@ -125,18 +120,13 @@ class HiveOperator(BaseOperator):
         """Get Hive cli hook."""
         return HiveCliHook(
             hive_cli_conn_id=self.hive_cli_conn_id,
-            run_as=self.run_as,
             mapred_queue=self.mapred_queue,
             mapred_queue_priority=self.mapred_queue_priority,
             mapred_job_name=self.mapred_job_name,
             hive_cli_params=self.hive_cli_params,
             auth=self.auth,
+            proxy_user=self.proxy_user,
         )
-
-    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
-    def get_hook(self) -> HiveCliHook:
-        """Get Hive cli hook."""
-        return self.hook
 
     def prepare_template(self) -> None:
         if self.hiveconf_jinja_translate:

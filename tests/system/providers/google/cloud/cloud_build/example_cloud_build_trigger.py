@@ -18,6 +18,7 @@
 """
 Example Airflow DAG that displays interactions with Google Cloud Build.
 """
+
 from __future__ import annotations
 
 import os
@@ -90,7 +91,6 @@ with DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
-
     # [START howto_operator_create_build_trigger]
     create_build_trigger = CloudBuildCreateBuildTriggerOperator(
         task_id="create_build_trigger", project_id=PROJECT_ID, trigger=create_build_trigger_body

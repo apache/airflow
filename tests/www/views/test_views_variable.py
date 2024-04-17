@@ -33,6 +33,7 @@ from tests.test_utils.www import (
     client_with_login,
 )
 
+pytestmark = pytest.mark.db_test
 VARIABLE = {
     "key": "test_key",
     "val": "text_val",
@@ -54,11 +55,14 @@ def user_variable_reader(app):
         app,
         username="user_variable_reader",
         role_name="role_variable_reader",
-        permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE)],
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+        ],
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def client_variable_reader(app, user_variable_reader):
     """Client for User that can only access the first DAG from TEST_FILTER_DAG_IDS"""
     return client_with_login(
@@ -173,7 +177,7 @@ def test_import_variables_fails_if_action_if_exists_is_fail(session, admin_clien
         data={"file": (bytes_content, "test.json"), "action_if_exists": "fail"},
         follow_redirects=True,
     )
-    assert "Failed. The variables with these keys: 'str_key'  already exists." in caplog.text
+    assert "Failed. The variables with these keys: 'str_key' already exists." in caplog.text
 
 
 def test_import_variables_anon(session, app):
@@ -187,6 +191,16 @@ def test_import_variables_anon(session, app):
     )
     check_content_not_in_response("variable(s) successfully updated.", resp)
     check_content_in_response("Sign In", resp)
+
+
+def test_import_variables_access_denied(session, app, viewer_client):
+    content = '{"str_key": "str_value}'
+    bytes_content = BytesIO(bytes(content, encoding="utf-8"))
+
+    resp = viewer_client.post(
+        "/variable/varimport", data={"file": (bytes_content, "test.json")}, follow_redirects=True
+    )
+    check_content_in_response("Access is Denied", resp)
 
 
 def test_import_variables_form_shown(app, admin_client):
@@ -204,10 +218,11 @@ def test_description_retrieval(session, admin_client):
     admin_client.post("/variable/add", data=VARIABLE, follow_redirects=True)
 
     row = session.query(Variable.key, Variable.description).first()
-    assert row.key == "test_key" and row.description == "test_description"
+    assert row.key == "test_key"
+    assert row.description == "test_description"
 
 
-@pytest.fixture()
+@pytest.fixture
 def variable(session):
     variable = Variable(
         key=VARIABLE["key"],
@@ -241,3 +256,13 @@ def test_action_muldelete(session, admin_client, variable):
     )
     assert resp.status_code == 200
     assert session.query(Variable).filter(Variable.id == var_id).count() == 0
+
+
+def test_action_muldelete_access_denied(session, client_variable_reader, variable):
+    var_id = variable.id
+    resp = client_variable_reader.post(
+        "/variable/action_post",
+        data={"action": "muldelete", "rowid": [var_id]},
+        follow_redirects=True,
+    )
+    check_content_in_response("Access is Denied", resp)

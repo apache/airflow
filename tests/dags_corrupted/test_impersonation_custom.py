@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-# AIRFLOW-1893 - Originally, impersonation tests were incomplete missing the use case when
+# Originally, impersonation tests were incomplete missing the use case when
 # DAGs access custom packages usually made available through the PYTHONPATH environment
 # variable. This file includes a DAG that imports a custom package made available and if
 # run via the previous implementation of impersonation, will fail by not being able to

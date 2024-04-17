@@ -208,10 +208,34 @@ They match, right? Good. Now, add the public key to your values. It'll look some
           github.com ssh-rsa AAAA...1/wsjk=
 
 
+External Scheduler
+^^^^^^^^^^^^^^^^^^
+
+To use an external Scheduler instance:
+
+.. code-block:: yaml
+
+  scheduler:
+    enabled: false
+
+Ensure that your external webserver/scheduler is connected to the same redis host. This will ensure the scheduler is aware of the workers deployed in the helm-chart.
+
 Accessing the Airflow UI
 ------------------------
 
 How you access the Airflow UI will depend on your environment; however, the chart does support various options:
+
+External Webserver
+^^^^^^^^^^^^^^^^^^
+
+To use an external Webserver:
+
+.. code-block:: yaml
+
+  webserver:
+    enabled: false
+
+Ensure that your external webserver/scheduler is connected to the same redis host. This will ensure the scheduler is aware of the workers deployed in the helm-chart.
 
 Ingress
 ^^^^^^^

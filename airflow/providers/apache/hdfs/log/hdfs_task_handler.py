@@ -41,10 +41,8 @@ class HdfsTaskHandler(FileTaskHandler, LoggingMixin):
         self._hook = None
         self.closed = False
         self.upload_on_close = True
-        self.delete_local_copy = (
-            kwargs["delete_local_copy"]
-            if "delete_local_copy" in kwargs
-            else conf.getboolean("logging", "delete_local_logs", fallback=False)
+        self.delete_local_copy = kwargs.get(
+            "delete_local_copy", conf.getboolean("logging", "delete_local_logs")
         )
 
     @cached_property
@@ -105,31 +103,3 @@ class HdfsTaskHandler(FileTaskHandler, LoggingMixin):
             messages.append(f"No logs found on hdfs for ti={ti}")
 
         return messages, logs
-
-    def _read(self, ti, try_number, metadata=None):
-        """
-        Read logs of given task instance and try_number from HDFS.
-
-        If failed, read the log from task instance host machine.
-
-        todo: when min airflow version >= 2.6 then remove this method (``_read``)
-
-        :param ti: task instance object
-        :param try_number: task instance try_number to read logs from
-        :param metadata: log metadata,
-                         can be used for steaming log reading and auto-tailing.
-        """
-        # from airflow 2.6 we no longer implement the _read method
-        if hasattr(super(), "_read_remote_logs"):
-            return super()._read(ti, try_number, metadata)
-        # if we get here, we're on airflow < 2.6 and we use this backcompat logic
-        messages, logs = self._read_remote_logs(ti, try_number, metadata)
-        if logs:
-            return "".join(f"*** {x}\n" for x in messages) + "\n".join(logs), {"end_of_log": True}
-        else:
-            if metadata and metadata.get("log_pos", 0) > 0:
-                log_prefix = ""
-            else:
-                log_prefix = "*** Falling back to local log\n"
-            local_log, metadata = super()._read(ti, try_number, metadata)
-            return f"{log_prefix}{local_log}", metadata

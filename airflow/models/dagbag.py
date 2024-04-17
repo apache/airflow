@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import hashlib
 import importlib
 import importlib.machinery
 import importlib.util
@@ -48,7 +47,12 @@ from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.docs import get_docs_url
-from airflow.utils.file import correct_maybe_zipped, list_py_file_paths, might_contain_dag
+from airflow.utils.file import (
+    correct_maybe_zipped,
+    get_unique_dag_module_name,
+    list_py_file_paths,
+    might_contain_dag,
+)
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -85,11 +89,16 @@ class DagBag(LoggingMixin):
     :param dag_folder: the folder to scan to find DAGs
     :param include_examples: whether to include the examples that ship
         with airflow or not
+    :param safe_mode: when ``False``, scans all python modules for dags.
+        When ``True`` uses heuristics (files containing ``DAG`` and ``airflow`` strings)
+        to filter python modules to scan for dags.
     :param read_dags_from_db: Read DAGs from DB if ``True`` is passed.
         If ``False`` DAGs are read from python files.
+    :param store_serialized_dags: deprecated parameter, same effect as `read_dags_from_db`
     :param load_op_links: Should the extra operator link be loaded via plugins when
         de-serializing the DAG? This flag is set to False in Scheduler so that Extra Operator links
         are not loaded to not run User code in Scheduler.
+    :param collect_dags: when True, collects dags during class initialization.
     """
 
     def __init__(
@@ -326,9 +335,7 @@ class DagBag(LoggingMixin):
             return []
 
         self.log.debug("Importing %s", filepath)
-        path_hash = hashlib.sha1(filepath.encode("utf-8")).hexdigest()
-        org_mod_name = Path(filepath).stem
-        mod_name = f"unusual_prefix_{path_hash}_{org_mod_name}"
+        mod_name = get_unique_dag_module_name(filepath)
 
         if mod_name in sys.modules:
             del sys.modules[mod_name]
@@ -434,7 +441,7 @@ class DagBag(LoggingMixin):
 
         found_dags = []
 
-        for (dag, mod) in top_level_dags:
+        for dag, mod in top_level_dags:
             dag.fileloc = mod.__file__
             try:
                 dag.validate()
@@ -622,7 +629,7 @@ class DagBag(LoggingMixin):
 
         log = cls.logger()
 
-        def _serialize_dag_capturing_errors(dag, session):
+        def _serialize_dag_capturing_errors(dag, session, processor_subdir):
             """
             Try to serialize the dag to the DB, but make a note of any errors.
 
@@ -636,6 +643,7 @@ class DagBag(LoggingMixin):
                     dag,
                     min_update_interval=settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
                     session=session,
+                    processor_subdir=processor_subdir,
                 )
                 if dag_was_updated:
                     DagBag._sync_perm_for_dag(dag, session=session)
@@ -665,7 +673,9 @@ class DagBag(LoggingMixin):
                 try:
                     # Write Serialized DAGs to DB, capturing errors
                     for dag in dags.values():
-                        serialize_errors.extend(_serialize_dag_capturing_errors(dag, session))
+                        serialize_errors.extend(
+                            _serialize_dag_capturing_errors(dag, session, processor_subdir)
+                        )
 
                     DAG.bulk_write_to_db(dags.values(), processor_subdir=processor_subdir, session=session)
                 except OperationalError:

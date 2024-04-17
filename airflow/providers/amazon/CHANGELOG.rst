@@ -26,6 +26,424 @@
 Changelog
 ---------
 
+8.20.0
+......
+
+Features
+~~~~~~~~
+
+* ``AWS Batch Executor (#37618)``
+* ``Add fallback 'region_name' value to AWS Executors (#38704)``
+* ``Introduce Amazon Bedrock service (#38602)``
+* ``Amazon Bedrock - Model Customization Jobs (#38693)``
+* ``ECS Executor - add support to adopt orphaned tasks. (#37786)``
+* ``Update AWS auth manager CLI command to not disable AVP schema validation (#38301)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Reduce 's3hook' memory usage (#37886)``
+* ``Add check in AWS auth manager to check if the Amazon Verified Permissions schema is up to date (#38333)``
+* ``fix: EmrServerlessStartJobOperator not serializing DAGs correctly when partial/expand is used. (#38022)``
+* ``fix(amazon): add return statement to yield within a while loop in triggers (#38396)``
+* ``Fix set deprecated amazon operators arguments in 'MappedOperator' (#38346)``
+* ``'ECSExecutor' API Retry bug fix (#38118)``
+* ``Fix 'region' argument in 'MappedOperator' based on 'AwsBaseOperator' / 'AwsBaseSensor' (#38178)``
+* ``Fix bug for ECS Executor where tasks were being skipped if one task failed. (#37979)``
+* ``Fix init checks for aws redshift to s3 operator (#37861)``
+
+Misc
+~~~~
+
+* ``Make the method 'BaseAuthManager.is_authorized_custom_view' abstract (#37915)``
+* ``Replace "Role" by "Group" in AWS auth manager (#38078)``
+* ``Avoid use of 'assert' outside of the tests (#37718)``
+* ``Use 'AwsLogsHook' when fetching Glue job logs (#38010)``
+* ``Implement 'filter_permitted_dag_ids' in AWS auth manager (#37666)``
+* ``AWS auth manager CLI: persist the policy store description when doing updates (#37946)``
+* ``Change f-string to formatting into the logging messages for Batch Executor (#37929)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update yanked versions in providers changelogs (#38262)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``Resolve G004: Logging statement uses f-string (#37873)``
+   * ``Add back system test for AWS auth manager (#38044)``
+   * ``Revert "Add system test to test the AWS auth manager (#37947)" (#38004)``
+   * ``Add system test to test the AWS auth manager (#37947)``
+   * ``fix: try002 for provider amazon (#38789)``
+   * ``Typo fix (#38783)``
+   * ``fix: COMMAND string should be raw to avoid SyntaxWarning: invalid escape sequence '\s' (#38734)``
+   * ``Revert "fix: COMMAND string should be raw to avoid SyntaxWarning: invalid escape sequence '\s' (#38734)" (#38864)``
+
+8.19.0
+......
+
+Features
+~~~~~~~~
+
+* ``Implement 'filter_permitted_menu_items' in AWS auth manager (#37627)``
+* ``Implement 'batch_is_authorized_*' APIs in AWS auth manager (#37430)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix init checks for aws 'eks' (#37674)``
+* ``Fix init checks for aws gcs_to_s3 (#37662)``
+
+
+Misc
+~~~~
+
+* ``Use named loggers instead of root logger (#37801)``
+* ``Avoid non-recommended usage of logging (#37792)``
+* ``Unify 'aws_conn_id' type to always be 'str | None' (#37768)``
+* ``Limit 'pandas' to '<2.2' (#37748)``
+* ``Implement AIP-60 Dataset URI formats (#37005)``
+* ``Bump min versions of openapi validators (#37691)``
+* ``Update action names in AWS auth manager (#37572)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix 'example_emr' system test (#37667)``
+   * ``Avoid to use too broad 'noqa' (#37862)``
+   * ``Resolve G003: "Logging statement uses +" (#37848)``
+   * ``D105 Check on Amazon (#37764)``
+
+8.18.0
+......
+
+Features
+~~~~~~~~
+
+* ``ECS Executor - Add backoff on failed task retry (#37109)``
+* ``SqlToS3Operator: feat/ add max_rows_per_file parameter (#37055)``
+* ``Adding Amazon Neptune Hook and Operators (#37000)``
+* ``Add retry configuration in 'EmrContainerOperator' (#37426)``
+* ``Create CLI commands for AWS auth manager to create AWS Identity Center related resources (#37407)``
+* ``Add extra operator links for EMR Serverless (#34225)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'log_query' to format SQL statement correctly in 'AthenaOperator' (#36962)``
+* ``check sagemaker training job status before deferring 'SageMakerTrainingOperator' (#36685)``
+
+Misc
+~~~~
+
+* ``Merge all ECS executor configs following recursive python dict update (#37137)``
+* ``Update default value for 'BatchSensor' (#37234)``
+* ``remove info log from download_file (#37211)``
+* ``S3ToRedshiftOperator templating aws_conn_id (#37195)``
+* ``Updates to ECS Docs (#37125)``
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+* ``Replace usage of 'datetime.utcnow' and 'datetime.utcfromtimestamp' in providers (#37138)``
+* ``add type annotations to Amazon provider "execute_coplete" methods (#36330)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D401 support in amazon provider (#37275)``
+   * ``Upgrade mypy to 1.8.0 (#36428)``
+   * ``Make Amazon Provider tests compatible with 'moto>=5' (#37060)``
+   * ``Limit moto to version below 5.0.0 (#37054)``
+   * ``docs: Add doc page with providers deprecations (#37075)``
+   * ``Prepare docs 1st wave of Providers February 2024 (#37326)``
+
+8.17.0
+......
+
+Features
+~~~~~~~~
+
+* ``add deferrable mode to RedshiftDataOperator (#36586)``
+* ``Adds support for capacity providers to ECS Executor (#36722)``
+* ``Add use_regex argument for allowing 'S3KeySensor' to check s3 keys with regular expression (#36578)``
+* ``Add deferrable mode to RedshiftClusterSensor (#36550)``
+* ``AthenaSqlHook implementation (#36171)``
+* ``Create CLI commands for AWS auth manager to create Amazon Verified Permissions related resources (#36799)``
+* ``Implement 'is_authorized_dag' in AWS auth manager (#36619)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix stacklevel in warnings.warn into the providers (#36831)``
+* ``EC2 'CreateInstance': terminate instances in on_kill (#36828)``
+* ``Fallback to default value if '[aws] cloudwatch_task_handler_json_serializer' not set (#36851)``
+* ``AWS auth manager: raise AirflowOptionalProviderfeature exception for AVP command (#36824)``
+* ``check transform job status before deferring SageMakerTransformOperator (#36680)``
+* ``check sagemaker processing job status before deferring (#36658)``
+* ``check job_status before BatchOperator execute in deferrable mode (#36523)``
+* ``Update the redshift hostname check to avoid possible bugs (#36703)``
+* ``Refresh credentials in 'AwsEcsExecutor' (#36179)``
+
+Misc
+~~~~
+
+* ``Fix docstring for apply_wildcard parameter in 'S3ListOperator'. Changed the order of docstring for fix (#36679)``
+* ``Use base aws classes in AWS DMS Operators/Sensors (#36772)``
+* ``Use base aws classes in AWS Redshift Data API Operators (#36764)``
+* ``Use base aws classes in Amazon EventBridge Operators (#36765)``
+* ``Use base aws classes in Amazon QuickSight Operators/Sensors (#36776)``
+* ``Use base aws classes in AWS Datasync Operators (#36766)``
+* ``Use base aws classes in Amazon DynamoDB Sensors (#36770)``
+* ``Use base aws classes in AWS CloudFormation Operators/Sensors (#36771)``
+* ``Set min pandas dependency to 1.2.5 for all providers and airflow (#36698)``
+* ``Bump min version of amazon-provider related dependencies (#36660)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+
+8.16.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add AWS Step Functions links (#36599)``
+* ``Add OpenLineage support for Redshift SQL (#35794)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix assignment of template field in '__init__' in 'AwsToAwsBaseOperator' (#36604)``
+* ``Fix assignment of template field in '__init__' in 'DataSyncOperator' (#36605)``
+* ``Check redshift cluster state before deferring to triggerer (#36416)``
+
+Misc
+~~~~
+
+* ``Use base aws classes in Amazon SQS Operators/Sensors/Triggers (#36613)``
+* ``Use base aws classes in Amazon SNS Operators (#36615)``
+* ``Use base aws classes in AWS Step Functions Operators/Sensors/Triggers (#36468)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Select ruff B006 to detect the usage of mutable values as argument default (#36626)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+
+
+8.15.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Amazon Athena query results extra link (#36447)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/amazon): remove event['message'] call in EmrContainerOperator.execute_complete|as the key message no longer exists (#36417)``
+* ``handle tzinfo in S3Hook.is_keys_unchanged_async (#36363)``
+
+Misc
+~~~~
+
+* ``Use base aws classes in Amazon ECS Operators/Sensors/Triggers (#36393)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+8.14.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'jsonpath_ng.ext.parse' support for 'SqsSensor' (#36170)``
+* ``Increase ConflictException retries to 4 total (#36337)``
+* ``Increase width of execution_date input in trigger.html (#36278) (#36304)``
+* ``Allow storage options to be passed (#35820)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove 'is_authorized_cluster_activity' from auth manager (#36175)``
+* ``Follow BaseHook connection fields method signature in child classes (#36086)``
+
+Misc
+~~~~
+
+* ``Add code snippet formatting in docstrings via Ruff (#36262)``
+* ``Remove remaining Airflow 2.6 backcompat code from Amazon Provider (#36324)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+8.13.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Support IAM authentication for Redshift serverless (#35897)``
+* ``Implement 'is_authorized_variable' in AWS auth manager (#35804)``
+* ``Enhance 'attribute_value' in 'DynamoDBValueSensor' to accept list (#35831)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix handling of single quotes in 'RedshiftToS3Operator' (#35986)``
+* ``Fix a bug in get_iam_token for Redshift Serverless (#36001)``
+* ``Fix reraise outside of try block in 'AthenaHook.get_output_location' (#36008)``
+* ``Fix a bug with accessing hooks in EKS trigger (#35989)``
+* ``Fix a bug in method name used in 'GlacierToGCSOperator' (#35978)``
+* ``Fix EC2Hook get_instance for client_type api (#35960)``
+* ``Avoid creating the hook in the EmrServerlessCancelJobsTrigger init (#35992)``
+* ``Stop getting message from event after migrating 'EmrContainerTrigger' to 'AwsBaseWaiterTrigger' (#35892)``
+* ``Fix for 'EksCreateClusterOperator' deferrable mode (#36079)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+* ``Update 'boto3' and 'botocore' versions notes (#36073)``
+* ``Improve typing hints for only_client_type decorator (#35997)``
+* ``Refactor some methods in EmrContainerHook (#35999)``
+* ``Refactor get_output_location in AthenaHook (#35996)``
+* ``Move RDS hook to a cached property in RDS trigger (#35990)``
+* ``Replace default empty dict value by None in AzureBlobStorageToS3Operator (#35977)``
+* ``Update 'set_context' signature to match superclass one and stop setting the instance attribute in CloudwatchTaskHandler (#35975)``
+* ``Use S3 hook instead of AwsGenericHook in AWS S3 FS (#35973)``
+* ``AWS auth manager: implement all 'is_authorized_*' methods (but 'is_authorized_dag') (#35928)``
+* ``Remove setting a non-existing object param and use local var instead in S3Hook (#35950)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add feature to build "chicken-egg" packages from sources (#35890)``
+   * ``Fix AWS system tests (#36091)``
+
+8.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'EC2HibernateInstanceOperator' and 'EC2RebootInstanceOperator' (#35790)``
+* ``Add OpenLineage support to 'S3FileTransformOperator' (#35819)``
+* ``Add OpenLineage support to S3Operators - Copy, Delete and Create Object (#35796)``
+* ``Added retry strategy parameter to Amazon AWS provider Batch Operator to allow dynamic Batch retry strategies (#35789)``
+* ``Added name field to template_fields in EmrServerlessStartJobOperator (#35648)``
+* ``openlineage, aws: Add OpenLineage support for AthenaOperator. (#35090)``
+* ``Implement login and logout in AWS auth manager (#35488)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Batch operator's retry_strategy (#35808)``
+* ``Fix and reapply templates for provider documentation (#35686)``
+* ``Make EksPodOperator exec config not rely on log level (#35771)``
+* ``Fix 'configuration_overrides' parameter in 'EmrServerlessStartJobOperator' (#35787)``
+
+Misc
+~~~~
+
+* ``Updated docstring: 'check_key_async' is now in line with description of '_check_key_async' (#35799)``
+* ``Check attr on parent not self re TaskContextLogger set_context (#35780)``
+* ``Allow a wider range of watchtower versions (#35713)``
+* ``Extend task context logging support for remote logging using AWS S3 (#32950)``
+* ``Log failure reason for containers if a task fails for ECS Executor (#35496)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Update http to s3 system test (#35711)``
+
+8.11.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+
+Features
+~~~~~~~~
+
+
+* ``Add support for anonymous access to s3 buckets for objectstorage (#35273)``
+* ``ECS Executor Health Check (#35412)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix AWS RDS hook's DB instance state check (#34773)``
+* ``Fix parameter syntax in Amazon docstrings (#35349)``
+* ``Improve error handling in AWS Links (#35518)``
+* ``Update ECS executor healthcheck with a catchall except (#35512)``
+
+Misc
+~~~~
+
+* ``Move ECS Executor to its own file (#35418)``
+* ``Clarify "task" in ECS Executor log messages (#35304)``
+* ``Make optional 'output_location' attribute in 'AthenaOperator' (#35265)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add verificationy that provider docs are as expected (#35424)``
+   * ``Work around typing issue in examples and providers (#35494)``
+   * ``Improve docs on objectstorage (#35294)``
+
+
+8.10.0
+......
+
+.. note::
+  This release introduce experimental feature: AWS ECS Executor.
+
+Features
+~~~~~~~~
+
+* ``Add AWS ECS Executor (#34381)``
+* ``AIP-58: Add Airflow ObjectStore (AFS) (#34729)``
+* ``Add Http to s3 operator (#35176)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Enable encryption in S3 download_files() hook. (#35037)``
+
+Misc
+~~~~
+
+* ``Use base aws classes in Amazon AppFlow Operators (#35082)``
+* ``Use base aws classes in Amazon Athena Operators/Sensors/Triggers (#35133)``
+* ``Use base aws classes in Amazon Lambda Operators/Sensors (#34890)``
+* ``Use base aws classes in Amazon S3 Glacier Operators/Sensors (#35108)``
+* ``Expose catalog parameter in 'AthenaOperator' (#35103)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor string splitting (#34185)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``Upgrade pre-commits (#35033)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+
+8.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Glue 'DataBrew' operator (#34807)``
+* ``Add 'check_interval' and 'max_attempts' as parameter of 'DynamoDBToS3Operator' (#34972)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Set 'EcsRunTaskOperator' default waiter duration to 70 days (#34928)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D401 Support - A thru Common (Inclusive) (#34934)``
+
 8.8.0
 .....
 
@@ -1337,8 +1755,10 @@ Misc
    * ``Fix mypy errors in amazon aws transfer (#20590)``
    * ``Update documentation for provider December 2021 release (#20523)``
 
-2.5.0
-.....
+2.5.0 (YANKED)
+..............
+
+.. warning:: This release has been **yanked** with a reason: ``Contains breaking changes``
 
 Features
 ~~~~~~~~

@@ -18,6 +18,7 @@
 """
 Example Airflow DAG for DataprocSubmitJobOperator with trino job.
 """
+
 from __future__ import annotations
 
 import os

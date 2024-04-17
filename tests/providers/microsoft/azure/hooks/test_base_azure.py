@@ -23,6 +23,10 @@ import pytest
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
 
+pytestmark = pytest.mark.db_test
+
+MODULE = "airflow.providers.microsoft.azure.hooks.base_azure"
+
 
 class TestBaseAzureHook:
     @pytest.mark.parametrize(
@@ -30,7 +34,7 @@ class TestBaseAzureHook:
         [Connection(conn_id="azure_default", extra={"key_path": "key_file.json"})],
         indirect=True,
     )
-    @patch("airflow.providers.microsoft.azure.hooks.base_azure.get_client_from_auth_file")
+    @patch(f"{MODULE}.get_client_from_auth_file")
     def test_get_conn_with_key_path(self, mock_get_client_from_auth_file, mocked_connection):
         mock_get_client_from_auth_file.return_value = "foo-bar"
         mock_sdk_client = Mock()
@@ -47,7 +51,7 @@ class TestBaseAzureHook:
         [Connection(conn_id="azure_default", extra={"key_json": {"test": "test"}})],
         indirect=True,
     )
-    @patch("airflow.providers.microsoft.azure.hooks.base_azure.get_client_from_json_dict")
+    @patch(f"{MODULE}.get_client_from_json_dict")
     def test_get_conn_with_key_json(self, mock_get_client_from_json_dict, mocked_connection):
         mock_sdk_client = Mock()
         mock_get_client_from_json_dict.return_value = "foo-bar"
@@ -58,7 +62,7 @@ class TestBaseAzureHook:
         )
         assert auth_sdk_client == "foo-bar"
 
-    @patch("airflow.providers.microsoft.azure.hooks.base_azure.ServicePrincipalCredentials")
+    @patch(f"{MODULE}.ServicePrincipalCredentials")
     @pytest.mark.parametrize(
         "mocked_connection",
         [
@@ -86,3 +90,41 @@ class TestBaseAzureHook:
             subscription_id=mocked_connection.extra_dejson["subscriptionId"],
         )
         assert auth_sdk_client == "spam-egg"
+
+    @pytest.mark.parametrize(
+        "mocked_connection",
+        [
+            Connection(
+                conn_id="azure_default",
+                extra={
+                    "managed_identity_client_id": "test_client_id",
+                    "workload_identity_tenant_id": "test_tenant_id",
+                    "subscriptionId": "subscription_id",
+                },
+            )
+        ],
+        indirect=True,
+    )
+    @patch("azure.common.credentials.ServicePrincipalCredentials")
+    @patch("airflow.providers.microsoft.azure.hooks.base_azure.AzureIdentityCredentialAdapter")
+    def test_get_conn_fallback_to_azure_identity_credential_adapter(
+        self,
+        mock_credential_adapter,
+        mock_service_pricipal_credential,
+        mocked_connection,
+    ):
+        mock_credential = Mock()
+        mock_credential_adapter.return_value = mock_credential
+
+        mock_sdk_client = Mock()
+        AzureBaseHook(mock_sdk_client).get_conn()
+
+        mock_credential_adapter.assert_called_with(
+            managed_identity_client_id="test_client_id",
+            workload_identity_tenant_id="test_tenant_id",
+        )
+        assert not mock_service_pricipal_credential.called
+        mock_sdk_client.assert_called_once_with(
+            credentials=mock_credential,
+            subscription_id="subscription_id",
+        )

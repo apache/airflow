@@ -18,9 +18,14 @@ from __future__ import annotations
 
 from unittest.mock import Mock, patch
 
+import pytest
+
 from airflow.models import Connection
 from airflow.providers.arangodb.hooks.arangodb import ArangoDBHook
 from airflow.utils import db
+
+pytestmark = pytest.mark.db_test
+
 
 arangodb_client_mock = Mock(name="arangodb_client_for_test")
 

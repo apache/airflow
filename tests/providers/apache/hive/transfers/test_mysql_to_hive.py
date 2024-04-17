@@ -270,9 +270,7 @@ class TestTransfer:
                         INSERT INTO {} VALUES (
                             '{}', '{}'
                         )
-                    """.format(
-                            mysql_table, *db_record
-                        )
+                    """.format(mysql_table, *db_record)
                     )
                     conn.commit()
 

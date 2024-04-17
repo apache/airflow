@@ -25,6 +25,7 @@ Define a namespace or assign a default one.
 Notice: optional kubernetes_namespace parameter in VIRTUAL_CLUSTER_CONFIG should be the same as GKE_NAMESPACE
 
 """
+
 from __future__ import annotations
 
 import os
@@ -65,7 +66,7 @@ VIRTUAL_CLUSTER_CONFIG = {
             "gke_cluster_target": f"projects/{PROJECT_ID}/locations/{REGION}/clusters/{GKE_CLUSTER_NAME}",
             "node_pool_target": [
                 {
-                    "node_pool": f"projects/{PROJECT_ID}/locations/{REGION}/clusters/{GKE_CLUSTER_NAME}/nodePools/dp",  # noqa
+                    "node_pool": f"projects/{PROJECT_ID}/locations/{REGION}/clusters/{GKE_CLUSTER_NAME}/nodePools/dp",
                     "roles": ["DEFAULT"],
                     "node_pool_config": {
                         "config": {

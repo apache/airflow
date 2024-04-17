@@ -27,7 +27,7 @@ from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.typing_compat import TypedDict
 from airflow.utils.db import exists_query
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import nowait, with_row_locks
+from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -172,10 +172,10 @@ class Pool(Base):
         query = select(Pool.pool, Pool.slots, Pool.include_deferred)
 
         if lock_rows:
-            query = with_row_locks(query, session=session, **nowait(session))
+            query = with_row_locks(query, session=session, nowait=True)
 
         pool_rows = session.execute(query)
-        for (pool_name, total_slots, include_deferred) in pool_rows:
+        for pool_name, total_slots, include_deferred in pool_rows:
             if total_slots == -1:
                 total_slots = float("inf")  # type: ignore
             pools[pool_name] = PoolStats(total=total_slots, running=0, queued=0, open=0, deferred=0)

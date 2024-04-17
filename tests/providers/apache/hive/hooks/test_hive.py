@@ -17,22 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
-
-from airflow import PY311
-
-if PY311:
-    pytest.skip(
-        "The tests are skipped because Apache Hive provider is not supported on Python 3.11",
-        allow_module_level=True,
-    )
-
 import datetime
 import itertools
 from collections import namedtuple
 from unittest import mock
 
 import pandas as pd
+import pytest
 from hmsclient import HMSClient
 
 from airflow.exceptions import AirflowException
@@ -62,6 +53,7 @@ class EmptyMockConnectionCursor(BaseMockConnectionCursor):
         self.iterable = []
 
 
+@pytest.mark.db_test
 class TestHiveCliHook:
     @mock.patch("tempfile.tempdir", "/tmp/")
     @mock.patch("tempfile._RandomNameSequence.__next__")
@@ -83,7 +75,6 @@ class TestHiveCliHook:
                 "AIRFLOW_CTX_DAG_EMAIL": "test@airflow.com",
             },
         ):
-
             hook = MockHiveCliHook()
             hook.run_cli("SHOW DATABASES")
 
@@ -124,8 +115,8 @@ class TestHiveCliHook:
         )
 
     def test_hive_cli_hook_invalid_schema(self):
+        hook = InvalidHiveCliHook()
         with pytest.raises(RuntimeError) as error:
-            hook = InvalidHiveCliHook()
             hook.run_cli("SHOW DATABASES")
 
         assert str(error.value) == "The schema `default;` contains invalid characters: ;"
@@ -207,7 +198,6 @@ class TestHiveCliHook:
                 dag_run_id_ctx_var_name: "test_dag_run_id",
             },
         ):
-
             hook = MockHiveCliHook()
             mock_popen.return_value = MockSubProcess(output=mock_output)
 
@@ -417,16 +407,16 @@ class TestHiveMetastoreHook:
         socket_mock.socket.return_value.connect_ex.return_value = 0
         self.hook.get_metastore_client()
 
-    @mock.patch(
-        "airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_connection",
-        return_value=Connection(host="metastore1.host,metastore2.host", port=9802),
-    )
     @mock.patch("airflow.providers.apache.hive.hooks.hive.socket")
-    def test_ha_hosts(self, socket_mock, get_connection_mock):
-        socket_mock.socket.return_value.connect_ex.return_value = 1
-        with pytest.raises(AirflowException):
-            HiveMetastoreHook()
-        assert socket_mock.socket.call_count == 2
+    def test_ha_hosts(self, socket_mock):
+        with mock.patch(
+            "airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_connection",
+            return_value=Connection(host="metastore1.host,metastore2.host", port=9802),
+        ):
+            socket_mock.socket.return_value.connect_ex.return_value = 1
+            with pytest.raises(AirflowException):
+                HiveMetastoreHook()
+            assert socket_mock.socket.call_count == 2
 
     def test_get_conn(self):
         with mock.patch(
@@ -468,7 +458,6 @@ class TestHiveMetastoreHook:
         )
 
     def test_check_for_named_partition(self):
-
         # Check for existing partition.
 
         partition = f"{self.partition_by}={DEFAULT_DATE_DS}"
@@ -492,7 +481,6 @@ class TestHiveMetastoreHook:
         )
 
     def test_get_table(self):
-
         self.hook.metastore.__enter__().get_table = mock.MagicMock()
         self.hook.get_table(db=self.database, table_name=self.table)
         self.hook.metastore.__enter__().get_table.assert_called_with(
@@ -593,6 +581,7 @@ class TestHiveMetastoreHook:
         assert metastore_mock.drop_partition(self.table, db=self.database, part_vals=[DEFAULT_DATE_DS]), ret
 
 
+@pytest.mark.db_test
 class TestHiveServer2Hook:
     def _upload_dataframe(self):
         df = pd.DataFrame({"a": [1, 2], "b": [1, 2]})
@@ -875,23 +864,44 @@ class TestHiveServer2Hook:
         assert "test_dag_run_id" in output
 
 
+@pytest.mark.db_test
 @mock.patch.dict("os.environ", AIRFLOW__CORE__SECURITY="kerberos")
 class TestHiveCli:
     def setup_method(self):
         self.nondefault_schema = "nondefault"
 
-    def test_get_proxy_user_value(self):
+    def test_default_values(self):
+        hook = MockHiveCliHook()
+
+        assert hook.use_beeline
+        assert hook.auth is None
+        assert hook.sub_process is None
+        assert hook.mapred_queue == "airflow"
+        assert hook.mapred_queue_priority is None
+        assert hook.mapred_job_name is None
+        assert hook.proxy_user is None
+        assert not hook.high_availability
+
+    @pytest.mark.parametrize(
+        "extra_dejson, correct_proxy_user, proxy_user",
+        [
+            ({"proxy_user": "a_user_proxy"}, "hive.server2.proxy.user=a_user_proxy", None),
+        ],
+    )
+    def test_get_proxy_user_value(self, extra_dejson, correct_proxy_user, proxy_user):
         hook = MockHiveCliHook()
         returner = mock.MagicMock()
-        returner.extra_dejson = {"proxy_user": "a_user_proxy"}
+        returner.extra_dejson = extra_dejson
+        returner.login = "admin"
         hook.use_beeline = True
         hook.conn = returner
+        hook.proxy_user = proxy_user
 
         # Run
         result = hook._prepare_cli_cmd()
 
         # Verify
-        assert "hive.server2.proxy.user=a_user_proxy" in result[2]
+        assert correct_proxy_user in result[2]
 
     def test_get_wrong_principal(self):
         hook = MockHiveCliHook()
@@ -903,3 +913,43 @@ class TestHiveCli:
         # Run
         with pytest.raises(RuntimeError, match="The principal should not contain the ';' character"):
             hook._prepare_cli_cmd()
+
+    @pytest.mark.parametrize(
+        "extra_dejson, expected_keys",
+        [
+            (
+                {"high_availability": "true"},
+                "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2",
+            ),
+            (
+                {"high_availability": "false"},
+                "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2",
+            ),
+            ({}, "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2"),
+            # with proxy user
+            (
+                {"proxy_user": "a_user_proxy", "high_availability": "true"},
+                "hive.server2.proxy.user=a_user_proxy;"
+                "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2",
+            ),
+        ],
+    )
+    def test_high_availability(self, extra_dejson, expected_keys):
+        hook = MockHiveCliHook()
+        returner = mock.MagicMock()
+        returner.extra_dejson = extra_dejson
+        returner.login = "admin"
+        hook.use_beeline = True
+        hook.conn = returner
+        hook.high_availability = (
+            True
+            if ("high_availability" in extra_dejson and extra_dejson["high_availability"] == "true")
+            else False
+        )
+
+        result = hook._prepare_cli_cmd()
+
+        if hook.high_availability:
+            assert expected_keys in result[2]
+        else:
+            assert expected_keys not in result[2]

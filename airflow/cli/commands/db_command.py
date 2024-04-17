@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Database sub-commands."""
+
 from __future__ import annotations
 
 import logging
@@ -28,6 +29,7 @@ from packaging.version import parse as parse_version
 from tenacity import Retrying, stop_after_attempt, wait_fixed
 
 from airflow import settings
+from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.exceptions import AirflowException
 from airflow.utils import cli as cli_utils, db
 from airflow.utils.db import _REVISION_HEADS_MAP
@@ -223,13 +225,6 @@ def shell(args):
         env["PGPASSWORD"] = url.password or ""
         env["PGDATABASE"] = url.database
         execute_interactive(["psql"], env=env)
-    elif url.get_backend_name() == "mssql":
-        env = os.environ.copy()
-        env["MSSQL_CLI_SERVER"] = url.host
-        env["MSSQL_CLI_DATABASE"] = url.database
-        env["MSSQL_CLI_USER"] = url.username
-        env["MSSQL_CLI_PASSWORD"] = url.password
-        execute_interactive(["mssql-cli"], env=env)
     else:
         raise AirflowException(f"Unknown driver: {url.drivername}")
 
@@ -238,6 +233,8 @@ def shell(args):
 @providers_configuration_loaded
 def check(args):
     """Run a check command that checks if db is available."""
+    if InternalApiConfig.get_use_internal_api():
+        return
     retries: int = args.retry
     retry_delay: int = args.retry_delay
 

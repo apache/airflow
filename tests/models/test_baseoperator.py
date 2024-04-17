@@ -41,11 +41,12 @@ from airflow.models.baseoperator import (
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
+from airflow.task.priority_strategy import _DownstreamPriorityWeightStrategy, _UpstreamPriorityWeightStrategy
 from airflow.utils.edgemodifier import Label
 from airflow.utils.task_group import TaskGroup
+from airflow.utils.template import literal
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
-from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_operators import DeprecatedOperator, MockOperator
@@ -85,8 +86,7 @@ class DummyClass(metaclass=BaseOperatorMeta):
     def __init__(self, test_param, params=None, default_args=None):
         self.test_param = test_param
 
-    def set_xcomargs_dependencies(self):
-        ...
+    def set_xcomargs_dependencies(self): ...
 
 
 class DummySubClass(DummyClass):
@@ -98,6 +98,11 @@ class DummySubClass(DummyClass):
 class MockNamedTuple(NamedTuple):
     var1: str
     var2: str
+
+
+class CustomInt(int):
+    def __int__(self):
+        raise ValueError("Cannot cast to int")
 
 
 class TestBaseOperator:
@@ -186,31 +191,18 @@ class TestBaseOperator:
         )
 
         # An operator with default trigger rule and a fail-stop dag should be allowed
-        try:
-            BaseOperator(
-                task_id="test_valid_trigger_rule", dag=fail_stop_dag, trigger_rule=DEFAULT_TRIGGER_RULE
-            )
-        except FailStopDagInvalidTriggerRule as exception:
-            assert (
-                False
-            ), f"BaseOperator raises exception with fail-stop dag & default trigger rule: {exception}"
-
+        BaseOperator(task_id="test_valid_trigger_rule", dag=fail_stop_dag, trigger_rule=DEFAULT_TRIGGER_RULE)
         # An operator with non default trigger rule and a non fail-stop dag should be allowed
-        try:
-            BaseOperator(
-                task_id="test_valid_trigger_rule", dag=non_fail_stop_dag, trigger_rule=TriggerRule.DUMMY
-            )
-        except FailStopDagInvalidTriggerRule as exception:
-            assert (
-                False
-            ), f"BaseOperator raises exception with non fail-stop dag & non-default trigger rule: {exception}"
-
+        BaseOperator(
+            task_id="test_valid_trigger_rule", dag=non_fail_stop_dag, trigger_rule=TriggerRule.ALWAYS
+        )
         # An operator with non default trigger rule and a fail stop dag should not be allowed
         with pytest.raises(FailStopDagInvalidTriggerRule):
             BaseOperator(
-                task_id="test_invalid_trigger_rule", dag=fail_stop_dag, trigger_rule=TriggerRule.DUMMY
+                task_id="test_invalid_trigger_rule", dag=fail_stop_dag, trigger_rule=TriggerRule.ALWAYS
             )
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize(
         ("content", "context", "expected_output"),
         [
@@ -276,6 +268,9 @@ class TestBaseOperator:
             ),
             # By default, Jinja2 drops one (single) trailing newline
             ("{{ foo }}\n\n", {"foo": "bar"}, "bar\n"),
+            (literal("{{ foo }}"), {"foo": "bar"}, "{{ foo }}"),
+            (literal(["{{ foo }}_1", "{{ foo }}_2"]), {"foo": "bar"}, ["{{ foo }}_1", "{{ foo }}_2"]),
+            (literal(("{{ foo }}_1", "{{ foo }}_2")), {"foo": "bar"}, ("{{ foo }}_1", "{{ foo }}_2")),
         ],
     )
     def test_render_template(self, content, context, expected_output):
@@ -315,45 +310,41 @@ class TestBaseOperator:
         assert result == expected_output
 
     def test_mapped_dag_slas_disabled_classic(self):
-        with pytest.raises(AirflowException, match="SLAs are unsupported with mapped tasks"):
-            with DAG(
-                "test-dag", start_date=DEFAULT_DATE, default_args=dict(sla=timedelta(minutes=30))
-            ) as dag:
+        class MyOp(BaseOperator):
+            def __init__(self, x, **kwargs):
+                self.x = x
+                super().__init__(**kwargs)
 
-                @dag.task
-                def get_values():
-                    return [0, 1, 2]
+            def execute(self, context):
+                print(self.x)
 
-                task1 = get_values()
+        with DAG("test-dag", start_date=DEFAULT_DATE, default_args=dict(sla=timedelta(minutes=30))) as dag:
 
-                class MyOp(BaseOperator):
-                    def __init__(self, x, **kwargs):
-                        self.x = x
-                        super().__init__(**kwargs)
+            @dag.task
+            def get_values():
+                return [0, 1, 2]
 
-                    def execute(self, context):
-                        print(self.x)
-
+            task1 = get_values()
+            with pytest.raises(AirflowException, match="SLAs are unsupported with mapped tasks"):
                 MyOp.partial(task_id="hi").expand(x=task1)
 
     def test_mapped_dag_slas_disabled_taskflow(self):
-        with pytest.raises(AirflowException, match="SLAs are unsupported with mapped tasks"):
-            with DAG(
-                "test-dag", start_date=DEFAULT_DATE, default_args=dict(sla=timedelta(minutes=30))
-            ) as dag:
+        with DAG("test-dag", start_date=DEFAULT_DATE, default_args=dict(sla=timedelta(minutes=30))) as dag:
 
-                @dag.task
-                def get_values():
-                    return [0, 1, 2]
+            @dag.task
+            def get_values():
+                return [0, 1, 2]
 
-                task1 = get_values()
+            task1 = get_values()
 
-                @dag.task
-                def print_val(x):
-                    print(x)
+            @dag.task
+            def print_val(x):
+                print(x)
 
+            with pytest.raises(AirflowException, match="SLAs are unsupported with mapped tasks"):
                 print_val.expand(x=task1)
 
+    @pytest.mark.db_test
     def test_render_template_fields(self):
         """Verify if operator attributes are correctly templated."""
         task = MockOperator(task_id="op1", arg1="{{ foo }}", arg2="{{ bar }}")
@@ -375,6 +366,7 @@ class TestBaseOperator:
         result = task.render_template(content, {"foo": "bar"})
         assert content is result
 
+    @pytest.mark.db_test
     def test_nested_template_fields_declared_must_exist(self):
         """Test render_template when a nested template field is missing."""
         task = BaseOperator(task_id="op1")
@@ -415,6 +407,7 @@ class TestBaseOperator:
         with pytest.raises(jinja2.exceptions.TemplateSyntaxError):
             task.render_template("{{ invalid expression }}", {})
 
+    @pytest.mark.db_test
     @mock.patch("airflow.templates.SandboxedEnvironment", autospec=True)
     def test_jinja_env_creation(self, mock_jinja_env):
         """Verify if a Jinja environment is created only once when templating."""
@@ -751,8 +744,8 @@ class TestBaseOperator:
         assert op1 in op2.upstream_list
 
     def test_set_xcomargs_dependencies_error_when_outside_dag(self):
+        op1 = BaseOperator(task_id="op1")
         with pytest.raises(AirflowException):
-            op1 = BaseOperator(task_id="op1")
             MockOperator(task_id="op2", arg1=op1.output)
 
     def test_invalid_trigger_rule(self):
@@ -776,11 +769,11 @@ class TestBaseOperator:
 
     def test_weight_rule_default(self):
         op = BaseOperator(task_id="test_task")
-        assert WeightRule.DOWNSTREAM == op.weight_rule
+        assert _DownstreamPriorityWeightStrategy() == op.weight_rule
 
     def test_weight_rule_override(self):
         op = BaseOperator(task_id="test_task", weight_rule="upstream")
-        assert WeightRule.UPSTREAM == op.weight_rule
+        assert _UpstreamPriorityWeightStrategy() == op.weight_rule
 
     # ensure the default logging config is used for this test, no matter what ran before
     @pytest.mark.usefixtures("reset_logging_config")
@@ -819,13 +812,22 @@ def test_init_subclass_args():
     assert task_copy.context_arg == context
 
 
-def test_operator_retries_invalid(dag_maker):
+@pytest.mark.db_test
+@pytest.mark.parametrize(
+    ("retries", "expected"),
+    [
+        pytest.param("foo", "'retries' type must be int, not str", id="string"),
+        pytest.param(CustomInt(10), "'retries' type must be int, not CustomInt", id="custom int"),
+    ],
+)
+def test_operator_retries_invalid(dag_maker, retries, expected):
     with pytest.raises(AirflowException) as ctx:
         with dag_maker():
-            BaseOperator(task_id="test_illegal_args", retries="foo")
-    assert str(ctx.value) == "'retries' type must be int, not str"
+            BaseOperator(task_id="test_illegal_args", retries=retries)
+    assert str(ctx.value) == expected
 
 
+@pytest.mark.db_test
 @pytest.mark.parametrize(
     ("retries", "expected"),
     [
@@ -854,6 +856,7 @@ def test_operator_retries(caplog, dag_maker, retries, expected):
     assert caplog.record_tuples == expected
 
 
+@pytest.mark.db_test
 def test_default_retry_delay(dag_maker):
     with dag_maker(dag_id="test_default_retry_delay"):
         task1 = BaseOperator(task_id="test_no_explicit_retry_delay")
@@ -861,6 +864,7 @@ def test_default_retry_delay(dag_maker):
         assert task1.retry_delay == timedelta(seconds=300)
 
 
+@pytest.mark.db_test
 def test_dag_level_retry_delay(dag_maker):
     with dag_maker(dag_id="test_dag_level_retry_delay", default_args={"retry_delay": timedelta(seconds=100)}):
         task1 = BaseOperator(task_id="test_no_explicit_retry_delay")
@@ -868,6 +872,7 @@ def test_dag_level_retry_delay(dag_maker):
         assert task1.retry_delay == timedelta(seconds=100)
 
 
+@pytest.mark.db_test
 def test_task_level_retry_delay(dag_maker):
     with dag_maker(
         dag_id="test_task_level_retry_delay", default_args={"retry_delay": timedelta(seconds=100)}
@@ -889,6 +894,7 @@ def test_deepcopy():
     copy.deepcopy(dag)
 
 
+@pytest.mark.db_test
 @pytest.mark.parametrize(
     ("task", "context", "expected_exception", "expected_rendering", "expected_log", "not_expected_log"),
     [
@@ -945,6 +951,7 @@ def test_render_template_fields_logging(
         assert not_expected_log not in caplog.text
 
 
+@pytest.mark.db_test
 def test_find_mapped_dependants_in_another_group(dag_maker):
     from airflow.utils.task_group import TaskGroup
 
@@ -986,6 +993,7 @@ def get_states(dr):
     return dict(ti_dict)
 
 
+@pytest.mark.db_test
 def test_teardown_and_fail_stop(dag_maker):
     """
     when fail_stop enabled, teardowns should run according to their setups.
@@ -1030,6 +1038,7 @@ def test_teardown_and_fail_stop(dag_maker):
     assert states == expected
 
 
+@pytest.mark.db_test
 def test_get_task_instances(session):
     import pendulum
 

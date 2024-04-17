@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Configuration of Airflow Docs"""
+
 from __future__ import annotations
 
 # Airflow documentation build configuration file, created by
@@ -47,7 +48,7 @@ from airflow.configuration import AirflowConfigParser, retrieve_configuration_de
 
 sys.path.append(str(Path(__file__).parent / "exts"))
 
-from docs_build.third_party_inventories import THIRD_PARTY_INDEXES  # noqa: E402
+from docs_build.third_party_inventories import THIRD_PARTY_INDEXES
 
 CONF_DIR = pathlib.Path(__file__).parent.absolute()
 INVENTORY_CACHE_DIR = CONF_DIR / "_inventory_cache"
@@ -63,7 +64,7 @@ if PACKAGE_NAME == "apache-airflow":
 elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
     from provider_yaml_utils import load_package_data
 
-    ALL_PROVIDER_YAMLS = load_package_data()
+    ALL_PROVIDER_YAMLS = load_package_data(include_suspended=True)
     try:
         CURRENT_PROVIDER = next(
             provider_yaml
@@ -71,7 +72,7 @@ elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
             if provider_yaml["package-name"] == PACKAGE_NAME
         )
     except StopIteration:
-        raise Exception(f"Could not find provider.yaml file for package: {PACKAGE_NAME}")
+        raise RuntimeError(f"Could not find provider.yaml file for package: {PACKAGE_NAME}")
     PACKAGE_DIR = pathlib.Path(CURRENT_PROVIDER["package-dir"])
     PACKAGE_VERSION = CURRENT_PROVIDER["versions"][0]
     SYSTEM_TESTS_DIR = CURRENT_PROVIDER["system-tests-dir"]
@@ -151,6 +152,7 @@ extensions = [
     "sphinx_airflow_theme",
     "redirects",
     "substitution_extensions",
+    "sphinx_design",
 ]
 if PACKAGE_NAME == "apache-airflow":
     extensions.extend(
@@ -184,6 +186,7 @@ elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
         [
             "extra_provider_files_with_substitutions",
             "autoapi.extension",
+            "providers_extensions",
         ]
     )
 else:
@@ -195,6 +198,8 @@ if PACKAGE_NAME == "apache-airflow":
     exclude_patterns = [
         # We only link to selected subpackages.
         "_api/airflow/index.rst",
+        # "_api/airflow/operators/index.rst",
+        # "_api/airflow/sensors/index.rst",
         # Included in the cluster-policies doc
         "_api/airflow/policies/index.rst",
         "README.rst",
@@ -248,8 +253,10 @@ if PACKAGE_NAME == "apache-airflow":
 
     models_included: set[str] = {
         "baseoperator.py",
+        "baseoperatorlink.py",
         "connection.py",
         "dag.py",
+        "dagrun.py",
         "dagbag.py",
         "param.py",
         "taskinstance.py",
@@ -315,6 +322,9 @@ if PACKAGE_NAME in ["apache-airflow", "helm-chart"]:
     html_static_path = [f"{PACKAGE_NAME}/static"]
 else:
     html_static_path = []
+
+html_static_path.append("sphinx_design/static/")  # Style overrides for the sphinx-design extension.
+
 # A list of JavaScript filename. The entry must be a filename string or a
 # tuple containing the filename string and the attributes dictionary. The
 # filename must be relative to the html_static_path, or a full URI with
@@ -335,12 +345,15 @@ if PACKAGE_NAME == "apache-airflow":
         "installation/installing-from-pypi.html",
         "installation/installing-from-sources.html",
         "administration-and-deployment/logging-monitoring/advanced-logging-configuration.html",
+        "howto/docker-compose/index.html",
     ]
 if PACKAGE_NAME.startswith("apache-airflow-providers"):
     manual_substitutions_in_generated_html = ["example-dags.html", "operators.html", "index.html"]
 if PACKAGE_NAME == "docker-stack":
     # Substitute in links
-    manual_substitutions_in_generated_html = ["build.html"]
+    manual_substitutions_in_generated_html = ["build.html", "index.html"]
+
+html_css_files = ["custom.css"]
 
 # -- Theme configuration -------------------------------------------------------
 # Custom sidebar templates, maps document names to template names.
@@ -369,7 +382,7 @@ html_theme_options["navbar_links"] = [
     {"href": "/community/", "text": "Community"},
     {"href": "/meetups/", "text": "Meetups"},
     {"href": "/docs/", "text": "Documentation"},
-    {"href": "/use-cases/", "text": "Use-cases"},
+    {"href": "/use-cases/", "text": "Use Cases"},
     {"href": "/announcements/", "text": "Announcements"},
     {"href": "/blog/", "text": "Blog"},
     {"href": "/ecosystem/", "text": "Ecosystem"},
@@ -441,7 +454,7 @@ def get_configs_and_deprecations(
     # the config has been templated, not before
     # e.g. {{dag_id}} in default_config.cfg -> {dag_id} in airflow.cfg, and what we want in docs
     keys_to_format = ["default", "example"]
-    for conf_name, conf_section in configs.items():
+    for conf_section in configs.values():
         for option_name, option in list(conf_section["options"].items()):
             for key in keys_to_format:
                 if option[key] and "{{" in option[key]:
@@ -451,7 +464,7 @@ def get_configs_and_deprecations(
                 del conf_section["options"][option_name]
 
     # Sort options, config and deprecated options for JINJA variables to display
-    for section_name, config in configs.items():
+    for config in configs.values():
         config["options"] = {k: v for k, v in sorted(config["options"].items())}
     configs = {k: v for k, v in sorted(configs.items())}
     for section in deprecated_options:
@@ -811,6 +824,25 @@ if PACKAGE_NAME == "apache-airflow":
     redoc = [
         {
             "name": "Airflow REST API",
+            "page": "stable-rest-api-ref",
+            "spec": OPENAPI_FILE,
+            "opts": {
+                "hide-hostname": True,
+                "no-auto-auth": True,
+            },
+        },
+    ]
+
+    # Options for script updater
+    redoc_script_url = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.48/bundles/redoc.standalone.js"
+
+elif PACKAGE_NAME == "apache-airflow-providers-fab":
+    OPENAPI_FILE = os.path.join(
+        os.path.dirname(__file__), "..", "airflow", "providers", "fab", "auth_manager", "openapi", "v1.yaml"
+    )
+    redoc = [
+        {
+            "name": "Fab provider REST API",
             "page": "stable-rest-api-ref",
             "spec": OPENAPI_FILE,
             "opts": {

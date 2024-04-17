@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Airflow module for email backend using sendgrid."""
+
 from __future__ import annotations
 
 import base64

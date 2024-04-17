@@ -26,7 +26,8 @@ from airflow.exceptions import AirflowException
 from airflow.providers.apache.druid.hooks.druid import DruidDbApiHook, DruidHook, IngestionType
 
 
-class TestDruidHook:
+@pytest.mark.db_test
+class TestDruidSubmitHook:
     def setup_method(self):
         import requests_mock
 
@@ -58,12 +59,14 @@ class TestDruidHook:
         with pytest.raises(AirflowException):
             self.db_hook.submit_indexing_job("Long json file")
 
-        assert task_post.called_once
-        assert status_check.called_once
+        # PGH005: false positive on ``requests_mock`` argument `called_once`
+        assert task_post.call_count == 1
+        assert status_check.call_count == 1
 
     def test_submit_ok(self, requests_mock):
         task_post = requests_mock.post(
             "http://druid-overlord:8081/druid/indexer/v1/task",
+            status_code=200,
             text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
         )
         status_check = requests_mock.get(
@@ -74,12 +77,14 @@ class TestDruidHook:
         # Exists just as it should
         self.db_hook.submit_indexing_job("Long json file")
 
-        assert task_post.called_once
-        assert status_check.called_once
+        # PGH005: false positive on ``requests_mock`` argument `called_once`
+        assert task_post.call_count == 1
+        assert status_check.call_count == 1
 
     def test_submit_sql_based_ingestion_ok(self, requests_mock):
         task_post = requests_mock.post(
             "http://druid-overlord:8081/druid/v2/sql/task",
+            status_code=202,
             text='{"taskId":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
         )
         status_check = requests_mock.get(
@@ -90,8 +95,29 @@ class TestDruidHook:
         # Exists just as it should
         self.db_hook.submit_indexing_job("Long json file", IngestionType.MSQ)
 
-        assert task_post.called_once
-        assert status_check.called_once
+        # PGH005: false positive on ``requests_mock`` argument `called_once`
+        assert task_post.call_count == 1
+        assert status_check.call_count == 1
+
+    def test_submit_with_correct_ssl_arg(self, requests_mock):
+        self.db_hook.verify_ssl = False
+        task_post = requests_mock.post(
+            "http://druid-overlord:8081/druid/indexer/v1/task",
+            text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
+        )
+        status_check = requests_mock.get(
+            "http://druid-overlord:8081/druid/indexer/v1/task/9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status",
+            text='{"status":{"status": "SUCCESS"}}',
+        )
+
+        self.db_hook.submit_indexing_job("Long json file")
+
+        # PGH005: false positive on ``requests_mock`` argument `called_once`
+        assert task_post.call_count == 1
+        assert status_check.call_count == 1
+        if task_post.called_once:
+            verify_ssl = task_post.request_history[0].verify
+            assert False is verify_ssl
 
     def test_submit_correct_json_body(self, requests_mock):
         task_post = requests_mock.post(
@@ -110,8 +136,9 @@ class TestDruidHook:
         """
         self.db_hook.submit_indexing_job(json_ingestion_string)
 
-        assert task_post.called_once
-        assert status_check.called_once
+        # PGH005: false positive on ``requests_mock`` argument `called_once`
+        assert task_post.call_count == 1
+        assert status_check.call_count == 1
         if task_post.called_once:
             req_body = task_post.request_history[0].json()
             assert req_body["task"] == "9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"
@@ -130,8 +157,9 @@ class TestDruidHook:
         with pytest.raises(AirflowException):
             self.db_hook.submit_indexing_job("Long json file")
 
-        assert task_post.called_once
-        assert status_check.called_once
+        # PGH005: false positive on requests_mock arguments
+        assert task_post.call_count == 1
+        assert status_check.call_count == 1
 
     def test_submit_timeout(self, requests_mock):
         self.db_hook.timeout = 1
@@ -154,9 +182,40 @@ class TestDruidHook:
         with pytest.raises(AirflowException):
             self.db_hook.submit_indexing_job("Long json file")
 
-        assert task_post.called_once
         assert status_check.called
-        assert shutdown_post.called_once
+        # PGH005: false positive on ``requests_mock`` argument `called_once`
+        assert task_post.call_count == 1
+        assert shutdown_post.call_count == 1
+
+
+class TestDruidHook:
+    def setup_method(self):
+        import requests_mock
+
+        session = requests.Session()
+        adapter = requests_mock.Adapter()
+        session.mount("mock", adapter)
+
+        class TestDRuidhook(DruidHook):
+            self.is_sql_based_ingestion = False
+
+            def get_conn_url(self, ingestion_type: IngestionType = IngestionType.BATCH):
+                if ingestion_type == IngestionType.MSQ:
+                    return "http://druid-overlord:8081/druid/v2/sql/task"
+                return "http://druid-overlord:8081/druid/indexer/v1/task"
+
+        self.db_hook = TestDRuidhook()
+
+    @patch("airflow.providers.apache.druid.hooks.druid.DruidHook.get_connection")
+    def test_conn_property(self, mock_get_connection):
+        get_conn_value = MagicMock()
+        get_conn_value.host = "test_host"
+        get_conn_value.conn_type = "https"
+        get_conn_value.port = "1"
+        get_conn_value.extra_dejson = {"endpoint": "ingest"}
+        mock_get_connection.return_value = get_conn_value
+        hook = DruidHook()
+        assert hook.conn == get_conn_value
 
     @patch("airflow.providers.apache.druid.hooks.druid.DruidHook.get_connection")
     def test_get_conn_url(self, mock_get_connection):
@@ -212,6 +271,23 @@ class TestDruidHook:
         get_conn_value.password = None
         mock_get_connection.return_value = get_conn_value
         assert self.db_hook.get_auth() is None
+
+    @pytest.mark.parametrize(
+        "verify_ssl_arg, ca_bundle_path, expected_return_value",
+        [
+            (False, None, False),
+            (True, None, True),
+            (False, "path/to/ca_bundle", "path/to/ca_bundle"),
+            (True, "path/to/ca_bundle", True),
+        ],
+    )
+    @patch("airflow.providers.apache.druid.hooks.druid.DruidHook.get_connection")
+    def test_get_verify(self, mock_get_connection, verify_ssl_arg, ca_bundle_path, expected_return_value):
+        get_conn_value = MagicMock()
+        get_conn_value.extra_dejson = {"ca_bundle_path": ca_bundle_path}
+        mock_get_connection.return_value = get_conn_value
+        hook = DruidHook(verify_ssl=verify_ssl_arg)
+        assert hook.get_verify() == expected_return_value
 
 
 class TestDruidDbApiHook:

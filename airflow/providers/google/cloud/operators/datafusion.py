@@ -15,11 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google DataFusion operators."""
+
 from __future__ import annotations
 
 import time
 from typing import TYPE_CHECKING, Any, Sequence
 
+from deprecated import deprecated
 from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.errors import HttpError
 
@@ -49,10 +51,11 @@ class DataFusionPipelineLinkHelper:
     """
 
     @staticmethod
+    @deprecated(
+        reason="Please use `airflow.providers.google.cloud.utils.helpers.resource_path_to_dict` instead.",
+        category=AirflowProviderDeprecationWarning,
+    )
     def get_project_id(instance):
-        raise AirflowProviderDeprecationWarning(
-            "DataFusionPipelineLinkHelper is deprecated. Consider using resource_path_to_dict() instead."
-        )
         instance = instance["name"]
         project_id = next(x for x in instance.split("/") if x.startswith("airflow"))
         return project_id
@@ -537,6 +540,7 @@ class CloudDataFusionCreatePipelineOperator(GoogleCloudBaseOperator):
             task_instance=self,
             uri=instance["serviceEndpoint"],
             pipeline_name=self.pipeline_name,
+            namespace=self.namespace,
         )
         self.log.info("Pipeline %s created", self.pipeline_name)
 
@@ -705,7 +709,12 @@ class CloudDataFusionListPipelinesOperator(GoogleCloudBaseOperator):
         )
         self.log.info("Pipelines: %s", pipelines)
 
-        DataFusionPipelinesLink.persist(context=context, task_instance=self, uri=service_endpoint)
+        DataFusionPipelinesLink.persist(
+            context=context,
+            task_instance=self,
+            uri=service_endpoint,
+            namespace=self.namespace,
+        )
         return pipelines
 
 
@@ -825,6 +834,7 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
             task_instance=self,
             uri=instance["serviceEndpoint"],
             pipeline_name=self.pipeline_name,
+            namespace=self.namespace,
         )
 
         if self.deferrable:
@@ -865,7 +875,7 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any]):
         """
-        Callback for when the trigger fires - returns immediately.
+        Act as a callback for when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
@@ -954,6 +964,7 @@ class CloudDataFusionStopPipelineOperator(GoogleCloudBaseOperator):
             task_instance=self,
             uri=instance["serviceEndpoint"],
             pipeline_name=self.pipeline_name,
+            namespace=self.namespace,
         )
         hook.stop_pipeline(
             pipeline_name=self.pipeline_name,

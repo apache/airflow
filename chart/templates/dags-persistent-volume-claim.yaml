@@ -46,7 +46,7 @@ spec:
   {{- if (eq "-" .Values.dags.persistence.storageClassName) }}
   storageClassName: ""
   {{- else }}
-  storageClassName: "{{ .Values.dags.persistence.storageClassName }}"
+  storageClassName: {{ tpl .Values.dags.persistence.storageClassName . | quote }}
   {{- end }}
   {{- end }}
 {{- end }}

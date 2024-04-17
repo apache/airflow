@@ -23,11 +23,8 @@ import re
 import socket
 import subprocess
 import time
-import warnings
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TYPE_CHECKING, Any, Iterable, Mapping
-
-from airflow.exceptions import AirflowProviderDeprecationWarning
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -80,6 +77,7 @@ class HiveCliHook(BaseHook):
         This can make monitoring easier.
     :param hive_cli_params: Space separated list of hive command parameters to add to the
         hive command.
+    :param proxy_user: Run HQL code as this user.
     """
 
     conn_name_attr = "hive_cli_conn_id"
@@ -90,12 +88,12 @@ class HiveCliHook(BaseHook):
     def __init__(
         self,
         hive_cli_conn_id: str = default_conn_name,
-        run_as: str | None = None,
         mapred_queue: str | None = None,
         mapred_queue_priority: str | None = None,
         mapred_job_name: str | None = None,
         hive_cli_params: str = "",
         auth: str | None = None,
+        proxy_user: str | None = None,
     ) -> None:
         super().__init__()
         conn = self.get_connection(hive_cli_conn_id)
@@ -103,9 +101,7 @@ class HiveCliHook(BaseHook):
         self.use_beeline: bool = conn.extra_dejson.get("use_beeline", False)
         self.auth = auth
         self.conn = conn
-        self.run_as = run_as
         self.sub_process: Any = None
-
         if mapred_queue_priority:
             mapred_queue_priority = mapred_queue_priority.upper()
             if mapred_queue_priority not in HIVE_QUEUE_PRIORITIES:
@@ -116,19 +112,42 @@ class HiveCliHook(BaseHook):
         self.mapred_queue = mapred_queue or conf.get("hive", "default_hive_mapred_queue")
         self.mapred_queue_priority = mapred_queue_priority
         self.mapred_job_name = mapred_job_name
+        self.proxy_user = proxy_user
+        self.high_availability = self.conn.extra_dejson.get("high_availability", False)
+
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to Hive Client Wrapper connection form."""
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import BooleanField, StringField
+
+        return {
+            "use_beeline": BooleanField(lazy_gettext("Use Beeline"), default=True),
+            "proxy_user": StringField(lazy_gettext("Proxy User"), widget=BS3TextFieldWidget(), default=""),
+            "principal": StringField(
+                lazy_gettext("Principal"), widget=BS3TextFieldWidget(), default="hive/_HOST@EXAMPLE.COM"
+            ),
+            "high_availability": BooleanField(lazy_gettext("High Availability"), default=False),
+        }
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom UI field behaviour for Hive Client Wrapper connection."""
+        return {
+            "hidden_fields": ["extra"],
+            "relabeling": {},
+        }
 
     def _get_proxy_user(self) -> str:
         """Set the proper proxy_user value in case the user overwrite the default."""
         conn = self.conn
-
+        if self.proxy_user is not None:
+            return f"hive.server2.proxy.user={self.proxy_user}"
         proxy_user_value: str = conn.extra_dejson.get("proxy_user", "")
-        if proxy_user_value == "login" and conn.login:
-            return f"hive.server2.proxy.user={conn.login}"
-        if proxy_user_value == "owner" and self.run_as:
-            return f"hive.server2.proxy.user={self.run_as}"
-        if proxy_user_value != "":  # There is a custom proxy user
+        if proxy_user_value != "":
             return f"hive.server2.proxy.user={proxy_user_value}"
-        return proxy_user_value  # The default proxy user (undefined)
+        return ""
 
     def _prepare_cli_cmd(self) -> list[Any]:
         """Create the command list from available information."""
@@ -139,7 +158,12 @@ class HiveCliHook(BaseHook):
         if self.use_beeline:
             hive_bin = "beeline"
             self._validate_beeline_parameters(conn)
-            jdbc_url = f"jdbc:hive2://{conn.host}:{conn.port}/{conn.schema}"
+            if self.high_availability:
+                jdbc_url = f"jdbc:hive2://{conn.host}/{conn.schema}"
+                self.log.info("High Availability set, setting JDBC url as %s", jdbc_url)
+            else:
+                jdbc_url = f"jdbc:hive2://{conn.host}:{conn.port}/{conn.schema}"
+                self.log.info("High Availability not set, setting JDBC url as %s", jdbc_url)
             if conf.get("core", "security") == "kerberos":
                 template = conn.extra_dejson.get("principal", "hive/_HOST@EXAMPLE.COM")
                 if "_HOST" in template:
@@ -150,6 +174,10 @@ class HiveCliHook(BaseHook):
                 if ";" in proxy_user:
                     raise RuntimeError("The proxy_user should not contain the ';' character")
                 jdbc_url += f";principal={template};{proxy_user}"
+                if self.high_availability:
+                    if not jdbc_url.endswith(";"):
+                        jdbc_url += ";"
+                    jdbc_url += "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2"
             elif self.auth:
                 jdbc_url += ";auth=" + self.auth
 
@@ -166,18 +194,28 @@ class HiveCliHook(BaseHook):
         return [hive_bin, *cmd_extra, *hive_params_list]
 
     def _validate_beeline_parameters(self, conn):
-        if ":" in conn.host or "/" in conn.host or ";" in conn.host:
-            raise Exception(
+        if self.high_availability:
+            if ";" in conn.schema:
+                raise ValueError(
+                    f"The schema used in beeline command ({conn.schema}) should not contain ';' character)"
+                )
+            return
+        elif ":" in conn.host or "/" in conn.host or ";" in conn.host:
+            raise ValueError(
                 f"The host used in beeline command ({conn.host}) should not contain ':/;' characters)"
             )
         try:
             int_port = int(conn.port)
             if not 0 < int_port <= 65535:
-                raise Exception(f"The port used in beeline command ({conn.port}) should be in range 0-65535)")
+                raise ValueError(
+                    f"The port used in beeline command ({conn.port}) should be in range 0-65535)"
+                )
         except (ValueError, TypeError) as e:
-            raise Exception(f"The port used in beeline command ({conn.port}) should be a valid integer: {e})")
+            raise ValueError(
+                f"The port used in beeline command ({conn.port}) should be a valid integer: {e})"
+            )
         if ";" in conn.schema:
-            raise Exception(
+            raise ValueError(
                 f"The schema used in beeline command ({conn.schema}) should not contain ';' character)"
             )
 
@@ -302,7 +340,6 @@ class HiveCliHook(BaseHook):
         other_ = ";".join(other)
         for query_set in [create, insert]:
             for query in query_set:
-
                 query_preview = " ".join(query.split())[:50]
                 self.log.info("Testing HQL [%s (...)]", query_preview)
                 if query_set == insert:
@@ -459,8 +496,7 @@ class HiveCliHook(BaseHook):
             pvals = ", ".join(f"{k}='{v}'" for k, v in partition.items())
             hql += f"PARTITION ({pvals})"
 
-        # As a workaround for HIVE-10541, add a newline character
-        # at the end of hql (AIRFLOW-2412).
+        # Add a newline character as a workaround for https://issues.apache.org/jira/browse/HIVE-10541,
         hql += ";\n"
 
         self.log.info(hql)
@@ -500,11 +536,13 @@ class HiveMetastoreHook(BaseHook):
     def __getstate__(self) -> dict[str, Any]:
         # This is for pickling to work despite the thrift hive client not
         # being picklable
+        """Serialize object and omit non-serializable attributes."""
         state = dict(self.__dict__)
         del state["metastore"]
         return state
 
     def __setstate__(self, d: dict[str, Any]) -> None:
+        """Deserialize object and restore non-serializable attributes."""
         self.__dict__.update(d)
         self.__dict__["metastore"] = self.get_metastore_client()
 
@@ -519,15 +557,6 @@ class HiveMetastoreHook(BaseHook):
 
         if not host:
             raise AirflowException("Failed to locate the valid server.")
-
-        if "authMechanism" in conn.extra_dejson:
-            warnings.warn(
-                "The 'authMechanism' option is deprecated. Please use 'auth_mechanism'.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            conn.extra_dejson["auth_mechanism"] = conn.extra_dejson["authMechanism"]
-            del conn.extra_dejson["authMechanism"]
 
         auth_mechanism = conn.extra_dejson.get("auth_mechanism", "NOSASL")
 
@@ -583,12 +612,11 @@ class HiveMetastoreHook(BaseHook):
 
         :param schema: Name of hive schema (database) @table belongs to
         :param table: Name of hive table @partition belongs to
-        :param partition: Expression that matches the partitions to check for
-            (eg `a = 'b' AND c = 'd'`)
+        :param partition: Expression that matches the partitions to check for (e.g. `a = 'b' AND c = 'd'`)
 
         >>> hh = HiveMetastoreHook()
-        >>> t = 'static_babynames_partitioned'
-        >>> hh.check_for_partition('airflow', t, "ds='2015-01-01'")
+        >>> t = "static_babynames_partitioned"
+        >>> hh.check_for_partition("airflow", t, "ds='2015-01-01'")
         True
         """
         with self.metastore as client:
@@ -607,10 +635,10 @@ class HiveMetastoreHook(BaseHook):
         :param partition_name: Name of the partitions to check for (eg `a=b/c=d`)
 
         >>> hh = HiveMetastoreHook()
-        >>> t = 'static_babynames_partitioned'
-        >>> hh.check_for_named_partition('airflow', t, "ds=2015-01-01")
+        >>> t = "static_babynames_partitioned"
+        >>> hh.check_for_named_partition("airflow", t, "ds=2015-01-01")
         True
-        >>> hh.check_for_named_partition('airflow', t, "ds=xxx")
+        >>> hh.check_for_named_partition("airflow", t, "ds=xxx")
         False
         """
         with self.metastore as client:
@@ -620,7 +648,7 @@ class HiveMetastoreHook(BaseHook):
         """Get a metastore table object.
 
         >>> hh = HiveMetastoreHook()
-        >>> t = hh.get_table(db='airflow', table_name='static_babynames')
+        >>> t = hh.get_table(db="airflow", table_name="static_babynames")
         >>> t.tableName
         'static_babynames'
         >>> [col.name for col in t.sd.cols]
@@ -650,8 +678,8 @@ class HiveMetastoreHook(BaseHook):
         For subpartitioned table, the number might easily exceed this.
 
         >>> hh = HiveMetastoreHook()
-        >>> t = 'static_babynames_partitioned'
-        >>> parts = hh.get_partitions(schema='airflow', table_name=t)
+        >>> t = "static_babynames_partitioned"
+        >>> parts = hh.get_partitions(schema="airflow", table_name=t)
         >>> len(parts)
         1
         >>> parts
@@ -766,9 +794,9 @@ class HiveMetastoreHook(BaseHook):
         Check if table exists.
 
         >>> hh = HiveMetastoreHook()
-        >>> hh.table_exists(db='airflow', table_name='static_babynames')
+        >>> hh.table_exists(db="airflow", table_name="static_babynames")
         True
-        >>> hh.table_exists(db='airflow', table_name='does_not_exist')
+        >>> hh.table_exists(db="airflow", table_name="does_not_exist")
         False
         """
         try:
@@ -832,15 +860,6 @@ class HiveServer2Hook(DbApiHook):
 
         db = self.get_connection(self.hiveserver2_conn_id)  # type: ignore
 
-        if "authMechanism" in db.extra_dejson:
-            warnings.warn(
-                "The 'authMechanism' option is deprecated. Please use 'auth_mechanism'.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            db.extra_dejson["auth_mechanism"] = db.extra_dejson["authMechanism"]
-            del db.extra_dejson["authMechanism"]
-
         auth_mechanism = db.extra_dejson.get("auth_mechanism", "NONE")
         if auth_mechanism == "NONE" and db.login is None:
             # we need to give a username
@@ -887,13 +906,10 @@ class HiveServer2Hook(DbApiHook):
             sql = [sql]
         previous_description = None
         with contextlib.closing(self.get_conn(schema)) as conn, contextlib.closing(conn.cursor()) as cur:
-
             cur.arraysize = fetch_size or 1000
 
-            # not all query services (e.g. impala AIRFLOW-4434) support the set command
-
             db = self.get_connection(self.hiveserver2_conn_id)  # type: ignore
-
+            # Not all query services (e.g. impala) support the set command
             if db.extra_dejson.get("run_set_variable_statements", True):
                 env_context = get_context_from_env_var()
                 if hive_conf:

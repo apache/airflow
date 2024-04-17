@@ -30,10 +30,13 @@ class SqliteHook(DbApiHook):
     default_conn_name = "sqlite_default"
     conn_type = "sqlite"
     hook_name = "Sqlite"
-    placeholder = "?"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._placeholder: str = "?"
 
     def get_conn(self) -> sqlite3.dbapi2.Connection:
-        """Returns a sqlite connection object."""
+        """Return SQLite connection object."""
         sqlalchemy_uri = self.get_uri()
         # The sqlite3 connection does not use the sqlite scheme.
         # See https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#uri-connections for details.

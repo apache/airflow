@@ -20,7 +20,15 @@ from typing import TYPE_CHECKING, Callable
 
 import sqlparse
 from attrs import define
-from openlineage.client.facet import BaseFacet, ExtractionError, ExtractionErrorRunFacet, SqlJobFacet
+from openlineage.client.facet import (
+    BaseFacet,
+    ColumnLineageDatasetFacet,
+    ColumnLineageDatasetFacetFieldsAdditional,
+    ColumnLineageDatasetFacetFieldsAdditionalInputFields,
+    ExtractionError,
+    ExtractionErrorRunFacet,
+    SqlJobFacet,
+)
 from openlineage.common.sql import DbTableMeta, SqlMeta, parse
 
 from airflow.providers.openlineage.extractors.base import OperatorLineage
@@ -59,6 +67,7 @@ class GetTableSchemasParams(TypedDict):
     is_cross_db: bool
     information_schema_columns: list[str]
     information_schema_table: str
+    use_flat_cross_db_query: bool
     is_uppercase_names: bool
     database: str | None
 
@@ -75,6 +84,8 @@ class DatabaseInfo:
     :param database: Takes precedence over parsed database name.
     :param information_schema_columns: List of columns names from information schema table.
     :param information_schema_table_name: Information schema table name.
+    :param use_flat_cross_db_query: Specifies if single information schema table should be used
+        for cross-database queries (e.g. for Redshift).
     :param is_information_schema_cross_db: Specifies if information schema contains
         cross-database data.
     :param is_uppercase_names: Specifies if database accepts only uppercase names (e.g. Snowflake).
@@ -87,6 +98,7 @@ class DatabaseInfo:
     database: str | None = None
     information_schema_columns: list[str] = DEFAULT_INFORMATION_SCHEMA_COLUMNS
     information_schema_table_name: str = DEFAULT_INFORMATION_SCHEMA_TABLE_NAME
+    use_flat_cross_db_query: bool = False
     is_information_schema_cross_db: bool = False
     is_uppercase_names: bool = False
     normalize_name_method: Callable[[str], str] = default_normalize_name_method
@@ -125,6 +137,7 @@ class SQLParser:
             "information_schema_table": database_info.information_schema_table_name,
             "is_uppercase_names": database_info.is_uppercase_names,
             "database": database or database_info.database,
+            "use_flat_cross_db_query": database_info.use_flat_cross_db_query,
         }
         return get_table_schemas(
             hook,
@@ -143,6 +156,47 @@ class SQLParser:
             else None,
         )
 
+    def attach_column_lineage(
+        self, datasets: list[Dataset], database: str | None, parse_result: SqlMeta
+    ) -> None:
+        """
+        Attaches column lineage facet to the list of datasets.
+
+        Note that currently each dataset has the same column lineage information set.
+        This would be a matter of change after OpenLineage SQL Parser improvements.
+        """
+        if not len(parse_result.column_lineage):
+            return
+        for dataset in datasets:
+            dataset.facets["columnLineage"] = ColumnLineageDatasetFacet(
+                fields={
+                    column_lineage.descendant.name: ColumnLineageDatasetFacetFieldsAdditional(
+                        inputFields=[
+                            ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                                namespace=dataset.namespace,
+                                name=".".join(
+                                    filter(
+                                        None,
+                                        (
+                                            column_meta.origin.database or database,
+                                            column_meta.origin.schema or self.default_schema,
+                                            column_meta.origin.name,
+                                        ),
+                                    )
+                                )
+                                if column_meta.origin
+                                else "",
+                                field=column_meta.name,
+                            )
+                            for column_meta in column_lineage.lineage
+                        ],
+                        transformationType="",
+                        transformationDescription="",
+                    )
+                    for column_lineage in parse_result.column_lineage
+                }
+            )
+
     def generate_openlineage_metadata_from_sql(
         self,
         sql: list[str] | str,
@@ -151,7 +205,7 @@ class SQLParser:
         database: str | None = None,
         sqlalchemy_engine: Engine | None = None,
     ) -> OperatorLineage:
-        """Parses SQL statement(s) and generates OpenLineage metadata.
+        """Parse SQL statement(s) and generate OpenLineage metadata.
 
         Generated OpenLineage metadata contains:
 
@@ -198,6 +252,8 @@ class SQLParser:
             sqlalchemy_engine=sqlalchemy_engine,
         )
 
+        self.attach_column_lineage(outputs, database or database_info.database, parse_result)
+
         return OperatorLineage(
             inputs=inputs,
             outputs=outputs,
@@ -215,7 +271,7 @@ class SQLParser:
 
     @classmethod
     def normalize_sql(cls, sql: list[str] | str) -> str:
-        """Makes sure to return a semicolon-separated SQL statements."""
+        """Make sure to return a semicolon-separated SQL statement."""
         return ";\n".join(stmt.rstrip(" ;\r\n") for stmt in cls.split_sql_string(sql))
 
     @classmethod
@@ -246,13 +302,14 @@ class SQLParser:
         tables: list[DbTableMeta],
         normalize_name: Callable[[str], str],
         is_cross_db: bool,
-        information_schema_columns,
-        information_schema_table,
-        is_uppercase_names,
+        information_schema_columns: list[str],
+        information_schema_table: str,
+        is_uppercase_names: bool,
+        use_flat_cross_db_query: bool,
         database: str | None = None,
         sqlalchemy_engine: Engine | None = None,
     ) -> str:
-        """Creates SELECT statement to query information schema table."""
+        """Create SELECT statement to query information schema table."""
         tables_hierarchy = cls._get_tables_hierarchy(
             tables,
             normalize_name=normalize_name,
@@ -263,6 +320,7 @@ class SQLParser:
             columns=information_schema_columns,
             information_schema_table_name=information_schema_table,
             tables_hierarchy=tables_hierarchy,
+            use_flat_cross_db_query=use_flat_cross_db_query,
             uppercase_names=is_uppercase_names,
             sqlalchemy_engine=sqlalchemy_engine,
         )
@@ -275,7 +333,7 @@ class SQLParser:
         is_cross_db: bool = False,
     ) -> TablesHierarchy:
         """
-        Creates a hierarchy of database -> schema -> table name.
+        Create a hierarchy of database -> schema -> table name.
 
         This helps to create simpler information schema query grouped by
         database and schema.

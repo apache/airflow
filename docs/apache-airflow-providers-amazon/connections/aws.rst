@@ -127,6 +127,10 @@ Extra (optional)
 
     * ``verify``: Whether or not to verify SSL certificates.
 
+        * ``False`` - Do not validate SSL certificates.
+        * **path/to/cert/bundle.pem** - A filename of the CA cert bundle to use. You can specify this argument
+          if you want to use a different CA cert bundle than the one used by botocore.
+
     The following extra parameters used for specific AWS services:
 
     * ``service_config``: json used to specify configuration/parameters per AWS service / Amazon provider hook,
@@ -395,6 +399,8 @@ provide selected options in the connection's extra field.
       }
     }
 
+
+.. _howto/connection:aws:avoid-throttling-exceptions:
 
 Avoid Throttling exceptions
 ---------------------------

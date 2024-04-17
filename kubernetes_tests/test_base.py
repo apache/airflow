@@ -20,7 +20,7 @@ import os
 import subprocess
 import tempfile
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from subprocess import check_call, check_output
 
@@ -39,6 +39,11 @@ print()
 print(f"Cluster host/port used: ${KUBERNETES_HOST_PORT}")
 print(f"Executor: {EXECUTOR}")
 print()
+
+
+class StringContainingId(str):
+    def __eq__(self, other):
+        return self in other
 
 
 class BaseK8STest:
@@ -72,7 +77,7 @@ class BaseK8STest:
         with open(output_file_path, "w") as output_file:
             print("=" * 80, file=output_file)
             print(f"Describe resources for namespace {namespace}", file=output_file)
-            print(f"Datetime: {datetime.utcnow()}", file=output_file)
+            print(f"Datetime: {datetime.now(tz=timezone.utc)}", file=output_file)
             print("=" * 80, file=output_file)
             print("Describing pods", file=output_file)
             print("-" * 80, file=output_file)
@@ -108,7 +113,7 @@ class BaseK8STest:
 
     @staticmethod
     def _delete_airflow_pod(name=""):
-        suffix = "-" + name if name else ""
+        suffix = f"-{name}" if name else ""
         air_pod = check_output(["kubectl", "get", "pods"]).decode()
         air_pod = air_pod.splitlines()
         names = [re2.compile(r"\s+").split(x)[0] for x in air_pod if "airflow" + suffix in x]

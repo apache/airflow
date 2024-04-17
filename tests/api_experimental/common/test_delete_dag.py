@@ -35,6 +35,8 @@ from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
+pytestmark = pytest.mark.db_test
+
 
 class TestDeleteDAGCatchError:
     def test_delete_dag_non_existent_dag(self):
@@ -162,7 +164,6 @@ class TestDeleteDAGSuccessfulDelete:
         self.check_dag_models_removed(expect_logs=0)
 
     def test_delete_dag_preserves_other_dags(self):
-
         self.setup_dag_models()
 
         with create_session() as session:

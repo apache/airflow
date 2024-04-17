@@ -21,11 +21,15 @@ from unittest import mock
 
 import pytest
 import telegram
+import tenacity
 
 import airflow
 from airflow.models import Connection
 from airflow.providers.telegram.hooks.telegram import TelegramHook
 from airflow.utils import db
+
+pytestmark = pytest.mark.db_test
+
 
 TELEGRAM_TOKEN = "dummy token"
 
@@ -59,11 +63,11 @@ class TestTelegramHook:
             )
         )
 
-    def test_should_raise_exception_if_both_connection_or_token_is_not_provided(self):
-        with pytest.raises(airflow.exceptions.AirflowException) as ctx:
-            TelegramHook()
+    def test_should_use_default_connection(self):
+        hook = TelegramHook()
 
-        assert "Cannot get token: No valid Telegram connection supplied." == str(ctx.value)
+        assert hook.token == TELEGRAM_TOKEN
+        assert hook.chat_id is None
 
     def test_should_raise_exception_if_conn_id_doesnt_exist(self):
         with pytest.raises(airflow.exceptions.AirflowNotFoundException) as ctx:
@@ -79,19 +83,17 @@ class TestTelegramHook:
 
     @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
     def test_should_raise_exception_if_chat_id_is_not_provided_anywhere(self, mock_get_conn):
-        with pytest.raises(airflow.exceptions.AirflowException) as ctx:
-            hook = TelegramHook(telegram_conn_id="telegram_default")
+        hook = TelegramHook(telegram_conn_id="telegram_default")
+        error_message = "'chat_id' must be provided for telegram message"
+        with pytest.raises(airflow.exceptions.AirflowException, match=error_message):
             hook.send_message({"text": "test telegram message"})
-
-        assert "'chat_id' must be provided for telegram message" == str(ctx.value)
 
     @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
     def test_should_raise_exception_if_message_text_is_not_provided(self, mock_get_conn):
-        with pytest.raises(airflow.exceptions.AirflowException) as ctx:
-            hook = TelegramHook(telegram_conn_id="telegram_default")
+        hook = TelegramHook(telegram_conn_id="telegram_default")
+        error_message = "'text' must be provided for telegram message"
+        with pytest.raises(airflow.exceptions.AirflowException, match=error_message):
             hook.send_message({"chat_id": -420913222})
-
-        assert "'text' must be provided for telegram message" == str(ctx.value)
 
     @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
     def test_should_send_message_if_all_parameters_are_correctly_provided(self, mock_get_conn):
@@ -160,11 +162,9 @@ class TestTelegramHook:
 
         mock_get_conn.return_value.send_message.side_effect = side_effect
 
-        with pytest.raises(Exception) as ctx:
-            hook = TelegramHook(telegram_conn_id="telegram-webhook-with-chat_id")
+        hook = TelegramHook(telegram_conn_id="telegram-webhook-with-chat_id")
+        with pytest.raises(tenacity.RetryError) as ctx:
             hook.send_message({"text": "test telegram message"})
-
-        assert "RetryError" in str(ctx.value)
         assert "state=finished raised TelegramError" in str(ctx.value)
 
         mock_get_conn.assert_called_once()

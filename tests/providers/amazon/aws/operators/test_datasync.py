@@ -20,7 +20,7 @@ from unittest import mock
 
 import boto3
 import pytest
-from moto import mock_datasync
+from moto import mock_aws
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
@@ -66,7 +66,7 @@ MOCK_DATA = {
 }
 
 
-@mock_datasync
+@mock_aws
 @mock.patch.object(DataSyncHook, "get_conn")
 class DataSyncTestCaseBase:
     # Runs once for each test
@@ -108,7 +108,43 @@ class DataSyncTestCaseBase:
         self.client = None
 
 
-@mock_datasync
+def test_generic_params():
+    op = DataSyncOperator(
+        task_id="generic-task",
+        task_arn="arn:fake",
+        source_location_uri="fake://source",
+        destination_location_uri="fake://destination",
+        aws_conn_id="fake-conn-id",
+        region_name="cn-north-1",
+        verify=False,
+        botocore_config={"read_timeout": 42},
+        # Non-generic hook params
+        wait_interval_seconds=42,
+    )
+
+    assert op.hook.client_type == "datasync"
+    assert op.hook.resource_type is None
+    assert op.hook.aws_conn_id == "fake-conn-id"
+    assert op.hook._region_name == "cn-north-1"
+    assert op.hook._verify is False
+    assert op.hook._config is not None
+    assert op.hook._config.read_timeout == 42
+    assert op.hook.wait_interval_seconds == 42
+
+    op = DataSyncOperator(
+        task_id="generic-task",
+        task_arn="arn:fake",
+        source_location_uri="fake://source",
+        destination_location_uri="fake://destination",
+    )
+    assert op.hook.aws_conn_id == "aws_default"
+    assert op.hook._region_name is None
+    assert op.hook._verify is None
+    assert op.hook._config is None
+    assert op.hook.wait_interval_seconds is not None
+
+
+@mock_aws
 @mock.patch.object(DataSyncHook, "get_conn")
 class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
     def set_up_operator(
@@ -304,6 +340,7 @@ class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
         # ### Check mocks:
         mock_get_conn.assert_called()
 
+    @pytest.mark.db_test
     def test_return_value(self, mock_get_conn):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
@@ -319,7 +356,7 @@ class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
         mock_get_conn.assert_called()
 
 
-@mock_datasync
+@mock_aws
 @mock.patch.object(DataSyncHook, "get_conn")
 class TestDataSyncOperatorGetTasks(DataSyncTestCaseBase):
     def set_up_operator(
@@ -496,6 +533,7 @@ class TestDataSyncOperatorGetTasks(DataSyncTestCaseBase):
         # ### Check mocks:
         mock_get_conn.assert_called()
 
+    @pytest.mark.db_test
     def test_return_value(self, mock_get_conn):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
@@ -512,7 +550,7 @@ class TestDataSyncOperatorGetTasks(DataSyncTestCaseBase):
         mock_get_conn.assert_called()
 
 
-@mock_datasync
+@mock_aws
 @mock.patch.object(DataSyncHook, "get_conn")
 class TestDataSyncOperatorUpdate(DataSyncTestCaseBase):
     def set_up_operator(
@@ -594,6 +632,7 @@ class TestDataSyncOperatorUpdate(DataSyncTestCaseBase):
         # ### Check mocks:
         mock_get_conn.assert_called()
 
+    @pytest.mark.db_test
     def test_return_value(self, mock_get_conn):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
@@ -610,7 +649,7 @@ class TestDataSyncOperatorUpdate(DataSyncTestCaseBase):
         mock_get_conn.assert_called()
 
 
-@mock_datasync
+@mock_aws
 @mock.patch.object(DataSyncHook, "get_conn")
 class TestDataSyncOperator(DataSyncTestCaseBase):
     def set_up_operator(
@@ -764,6 +803,7 @@ class TestDataSyncOperator(DataSyncTestCaseBase):
         # ### Check mocks:
         mock_get_conn.assert_called()
 
+    @pytest.mark.db_test
     def test_return_value(self, mock_get_conn):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
@@ -779,7 +819,7 @@ class TestDataSyncOperator(DataSyncTestCaseBase):
         mock_get_conn.assert_called()
 
 
-@mock_datasync
+@mock_aws
 @mock.patch.object(DataSyncHook, "get_conn")
 class TestDataSyncOperatorDelete(DataSyncTestCaseBase):
     def set_up_operator(self, task_id="test_datasync_delete_task_operator", task_arn="self"):
@@ -858,6 +898,7 @@ class TestDataSyncOperatorDelete(DataSyncTestCaseBase):
         # ### Check mocks:
         mock_get_conn.assert_called()
 
+    @pytest.mark.db_test
     def test_return_value(self, mock_get_conn):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:

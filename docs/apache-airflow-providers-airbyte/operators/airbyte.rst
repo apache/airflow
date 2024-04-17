@@ -38,10 +38,14 @@ create in Airbyte between a source and destination synchronization job.
 Use the ``airbyte_conn_id`` parameter to specify the Airbyte connection to use to
 connect to your account.
 
-You can trigger a synchronization job in Airflow in two ways with the Operator. The first one
-is a synchronous process. This will trigger the Airbyte job and the Operator manage the status
-of the job. Another way is use the flag ``async = True`` so the Operator only trigger the job and
-return the ``job_id`` that should be pass to the AirbyteSensor.
+Airbyte currently supports two different API's. The first one is the `Config API <https://airbyte-public-api-docs.s3.us-east-2.amazonaws.com/rapidoc-api-docs.html>`_
+which is specifically used for Open Source Airbyte Instances. The second is the `Cloud API <https://reference.airbyte.com/reference/start>`_
+which is used for the Airbyte Cloud Service. If you are using Airbyte's Cloud service,
+then you will need to specify ``api_type="cloud"`` as part of the Operator's parameters.
+
+You can trigger a synchronization job in Airflow in two ways with the Operator. The first one is a synchronous process.
+This Operator will initiate the Airbyte job, and the Operator manages the job status. Another way is to use the flag
+``async = True`` so the Operator only triggers the job and returns the ``job_id``, passed to the AirbyteSensor.
 
 An example using the synchronous way:
 

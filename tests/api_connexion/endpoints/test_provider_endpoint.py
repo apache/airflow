@@ -24,6 +24,8 @@ from airflow.providers_manager import ProviderInfo
 from airflow.security import permissions
 from tests.test_utils.api_connexion_utils import create_user, delete_user
 
+pytestmark = pytest.mark.db_test
+
 MOCK_PROVIDERS = {
     "apache-airflow-providers-amazon": ProviderInfo(
         "1.0.0",
@@ -67,7 +69,7 @@ def configured_app(minimal_app_for_api):
 
 class TestBaseProviderEndpoint:
     @pytest.fixture(autouse=True)
-    def setup_attrs(self, configured_app) -> None:
+    def setup_attrs(self, configured_app, cleanup_providers_manager) -> None:
         self.app = configured_app
         self.client = self.app.test_client()  # type:ignore
 

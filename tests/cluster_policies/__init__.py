@@ -74,6 +74,7 @@ def example_task_policy(task: BaseOperator):
 
 # [END example_list_of_cluster_policy_rules]
 
+
 # [START example_dag_cluster_policy]
 def dag_policy(dag: DAG):
     """Ensure that DAG has at least one tag and skip the DAG with `only_for_beta` tag."""

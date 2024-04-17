@@ -47,7 +47,14 @@ spec:
   advanced: {{- toYaml .Values.workers.keda.advanced | nindent 4 }}
   {{- end }}
   triggers:
-    - type: postgresql
+    {{- if eq .Values.data.metadataConnection.protocol "mysql" }}
+    - type: "mysql"
+      metadata:
+        queryValue: "1"
+        connectionStringFromEnv: KEDA_DB_CONN
+        query: {{ tpl .Values.workers.keda.query . | quote }}
+    {{- else }}
+    - type: "postgresql"
       metadata:
         targetQueryValue: "1"
         {{- if and .Values.pgbouncer.enabled (not .Values.workers.keda.usePgbouncer) }}
@@ -56,4 +63,6 @@ spec:
         connectionFromEnv: AIRFLOW_CONN_AIRFLOW_DB
         {{- end }}
         query: {{ tpl .Values.workers.keda.query . | quote }}
+    {{- end }}
+
 {{- end }}

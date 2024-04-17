@@ -226,11 +226,11 @@ class TestCLIGetNumReadyWorkersRunning:
             assert self.monitor._get_num_ready_workers_running() == 0
 
 
+@pytest.mark.db_test
 class TestCliWebServer(_ComonCLIGunicornTestClass):
-
     main_process_regexp = r"airflow webserver"
 
-    @pytest.mark.execution_timeout(210)
+    @pytest.mark.execution_timeout(400)
     def test_cli_webserver_background(self, tmp_path):
         with mock.patch.dict(
             "os.environ",
@@ -272,11 +272,13 @@ class TestCliWebServer(_ComonCLIGunicornTestClass):
                 assert self._find_process(r"airflow webserver", print_found_process=True)
                 console.print("[blue]Waiting for gunicorn processes:")
                 # wait for gunicorn to start
-                for i in range(30):
+                for _ in range(120):
                     if self._find_process(r"^gunicorn"):
                         break
                     console.print("[blue]Waiting for gunicorn to start ...")
                     time.sleep(1)
+                else:
+                    pytest.fail("Gunicorn processes not found after 120 seconds")
                 console.print("[blue]Running gunicorn processes:")
                 assert self._find_all_processes("^gunicorn", print_found_process=True)
                 console.print("[magenta]Webserver process started successfully.")

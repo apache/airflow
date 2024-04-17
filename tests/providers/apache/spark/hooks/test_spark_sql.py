@@ -29,6 +29,8 @@ from airflow.providers.apache.spark.hooks.spark_sql import SparkSqlHook
 from airflow.utils import db
 from tests.test_utils.db import clear_db_connections
 
+pytestmark = pytest.mark.db_test
+
 
 def get_after(sentinel, iterable):
     """Get the value after `sentinel` in an `iterable`"""
@@ -200,12 +202,12 @@ class TestSparkSqlHook:
         mock_popen.return_value.wait.return_value = status
 
         # When
+        hook = SparkSqlHook(
+            conn_id="spark_default",
+            sql=sql,
+            master=master,
+        )
         with pytest.raises(AirflowException) as ctx:
-            hook = SparkSqlHook(
-                conn_id="spark_default",
-                sql=sql,
-                master=master,
-            )
             hook.run_query(params)
 
         # Then

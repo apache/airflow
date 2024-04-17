@@ -27,11 +27,11 @@ Operators
 
 .. _howto/operator:OpenSearchCreateIndexOperator:
 
-Create an Index in Open Search
-==============================
+Create an Index in OpenSearch
+=============================
 
 Use :class:`~airflow.providers.opensearch.operators.opensearch.OpenSearchCreateIndexOperator`
-to create a new index in an Open Search domain.
+to create a new index in an OpenSearch domain.
 
 
 
@@ -45,10 +45,10 @@ to create a new index in an Open Search domain.
 .. _howto/operator:OpenSearchAddDocumentOperator:
 
 Add a Document to an Index on OpenSearch
-=========================================
+========================================
 
 Use :class:`~airflow.providers.opensearch.operators.opensearch.OpenSearchAddDocumentOperator`
-to add single documents to an Open Search Index
+to add single documents to an OpenSearch Index
 
 .. exampleinclude:: /../../tests/system/providers/opensearch/example_opensearch.py
     :language: python
@@ -59,11 +59,11 @@ to add single documents to an Open Search Index
 
 .. _howto/operator:OpenSearchQueryOperator:
 
-Run a query against an Open Search Index
-=========================================
+Run a query against an OpenSearch Index
+=======================================
 
 Use :class:`~airflow.providers.opensearch.operators.opensearch.OpenSearchQueryOperator`
-to run a query against an Open Search index.
+to run a query against an OpenSearch index.
 
 .. exampleinclude:: /../../tests/system/providers/opensearch/example_opensearch.py
     :language: python

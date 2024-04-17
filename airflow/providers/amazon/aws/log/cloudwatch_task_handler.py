@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
@@ -96,15 +96,15 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         # Replace unsupported log group name characters
         return super()._render_filename(ti, try_number).replace(":", "_")
 
-    def set_context(self, ti):
+    def set_context(self, ti: TaskInstance, *, identifier: str | None = None):
         super().set_context(ti)
-        self.json_serialize = conf.getimport("aws", "cloudwatch_task_handler_json_serializer")
+        _json_serialize = conf.getimport("aws", "cloudwatch_task_handler_json_serializer", fallback=None)
         self.handler = watchtower.CloudWatchLogHandler(
             log_group_name=self.log_group,
             log_stream_name=self._render_filename(ti, ti.try_number),
             use_queues=not getattr(ti, "is_trigger_log_context", False),
             boto3_client=self.hook.get_conn(),
-            json_serialize_default=self.json_serialize,
+            json_serialize_default=_json_serialize or json_serialize_legacy,
         )
 
     def close(self):
@@ -163,7 +163,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         return "\n".join(self._event_to_str(event) for event in events)
 
     def _event_to_str(self, event: dict) -> str:
-        event_dt = datetime.utcfromtimestamp(event["timestamp"] / 1000.0)
+        event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=timezone.utc)
         formatted_event_dt = event_dt.strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
         message = event["message"]
         return f"[{formatted_event_dt}] {message}"

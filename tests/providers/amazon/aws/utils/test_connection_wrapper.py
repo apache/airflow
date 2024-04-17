@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import os
+import warnings
 from dataclasses import fields
 from unittest import mock
 
@@ -27,6 +29,9 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.models import Connection
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper, _ConnectionMetadata
 
+pytestmark = pytest.mark.db_test
+
+
 MOCK_AWS_CONN_ID = "mock-conn-id"
 MOCK_CONN_TYPE = "aws"
 MOCK_ROLE_ARN = "arn:aws:iam::222222222222:role/awesome-role"
@@ -34,7 +39,9 @@ MOCK_ROLE_ARN = "arn:aws:iam::222222222222:role/awesome-role"
 
 def mock_connection_factory(
     conn_id: str | None = MOCK_AWS_CONN_ID, conn_type: str | None = MOCK_CONN_TYPE, **kwargs
-) -> Connection:
+) -> Connection | None:
+    if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
+        return None
     return Connection(conn_id=conn_id, conn_type=conn_type, **kwargs)
 
 
@@ -231,7 +238,8 @@ class TestAwsConnectionWrapper:
             expected["profile_name"] = profile_name
         if region_name:
             expected["region_name"] = region_name
-        with pytest.warns(None):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")  # Not expected any warnings here
             wrap_conn = AwsConnectionWrapper(conn=mock_conn)
         session_kwargs = wrap_conn.session_kwargs
         assert session_kwargs == expected
@@ -348,7 +356,7 @@ class TestAwsConnectionWrapper:
             " Please set extra['endpoint_url'] instead"
         )
 
-        with pytest.warns(None) as records:
+        with warnings.catch_warnings(record=True) as records:
             wrap_conn = AwsConnectionWrapper(conn=mock_conn)
 
         if extra.get("host"):

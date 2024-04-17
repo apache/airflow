@@ -19,6 +19,7 @@
 Example Airflow DAG that creates and deletes Queues and creates, gets, lists,
 runs and deletes Tasks in the Google Cloud Tasks service in the Google Cloud.
 """
+
 from __future__ import annotations
 
 import os

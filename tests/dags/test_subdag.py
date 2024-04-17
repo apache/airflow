@@ -18,6 +18,7 @@
 """
 A DAG with subdag for testing purpose.
 """
+
 from __future__ import annotations
 
 import warnings
@@ -63,7 +64,6 @@ with DAG(
     default_args=DEFAULT_TASK_ARGS,
     schedule=timedelta(minutes=1),
 ):
-
     start = EmptyOperator(
         task_id="start",
     )

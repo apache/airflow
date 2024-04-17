@@ -85,7 +85,6 @@ class JiraTicketSensor(JiraSensor):
         field_checker_func: Callable | None = None,
         **kwargs,
     ) -> None:
-
         self.jira_conn_id = jira_conn_id
         self.ticket_id = ticket_id
         self.field = field
@@ -108,7 +107,6 @@ class JiraTicketSensor(JiraSensor):
         """Check issue using different conditions to prepare to evaluate sensor."""
         result = None
         if jira_result is not None and self.field is not None and self.expected_value is not None:
-
             field_val = jira_result.get("fields", {}).get(self.field, None)
             if field_val is not None:
                 if isinstance(field_val, list):

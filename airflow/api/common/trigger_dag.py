@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Triggering DAG runs APIs."""
+
 from __future__ import annotations
 
 import json
@@ -54,7 +55,7 @@ def _trigger_dag(
     if dag is None or dag_id not in dag_bag.dags:
         raise DagNotFound(f"Dag id {dag_id} not found")
 
-    execution_date = execution_date if execution_date else timezone.utcnow()
+    execution_date = execution_date or timezone.utcnow()
 
     if not timezone.is_localized(execution_date):
         raise ValueError("The execution_date should be localized")

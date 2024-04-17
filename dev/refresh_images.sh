@@ -25,29 +25,36 @@ export GITHUB_TOKEN=""
 
 breeze setup self-upgrade --use-current-airflow-sources
 
-breeze ci-image build \
-     --builder airflow_cache \
-     --run-in-parallel \
-     --prepare-buildx-cache \
-     --force-build \
-     --platform linux/amd64,linux/arm64 \
-     --verbose
+for PYTHON in 3.8 3.9 3.10 3.11 3.12
+do
+    breeze ci-image build \
+         --builder airflow_cache \
+         --run-in-parallel \
+         --prepare-buildx-cache \
+         --platform linux/amd64,linux/arm64 \
+         --python ${PYTHON} \
+         --verbose
+done
 
 rm -fv ./dist/* ./docker-context-files/*
 
 breeze release-management prepare-provider-packages \
-    --package-list-file ./scripts/ci/installed_providers.txt \
+    --package-list-file ./prod_image_installed_providers.txt \
     --package-format wheel \
     --version-suffix-for-pypi dev0
 
 breeze release-management prepare-airflow-package --package-format wheel --version-suffix-for-pypi dev0
 
-mv -v ./dist/*.whl ./docker-context-files
+mv -v ./dist/*.whl ./docker-context-files && chmod a+r ./docker-context-files/*
 
-breeze prod-image build \
-     --builder airflow_cache \
-     --run-in-parallel \
-     --install-packages-from-context \
-     --prepare-buildx-cache \
-     --platform linux/amd64,linux/arm64 \
-     --verbose
+for PYTHON in 3.8 3.9 3.10 3.11 3.12
+do
+    breeze prod-image build \
+         --builder airflow_cache \
+         --run-in-parallel \
+         --install-packages-from-context \
+         --prepare-buildx-cache \
+         --platform linux/amd64,linux/arm64 \
+         --python ${PYTHON} \
+         --verbose
+done

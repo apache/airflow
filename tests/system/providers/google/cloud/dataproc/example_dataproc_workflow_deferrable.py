@@ -17,6 +17,7 @@
 """
 Example Airflow DAG for Dataproc workflow operators.
 """
+
 from __future__ import annotations
 
 import os

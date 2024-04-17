@@ -51,6 +51,7 @@ Any extra attributes set by a cluster policy take priority over those defined in
 if you set an ``sla`` on your Task in the DAG file, and then your cluster policy also sets an ``sla``, the
 cluster policy's value will take precedence.
 
+.. _administration-and-deployment:cluster-policies-define:
 
 How do define a policy function
 -------------------------------
@@ -60,6 +61,10 @@ There are two ways to configure cluster policies:
 1. create an ``airflow_local_settings.py`` file somewhere in the python search path (the ``config/`` folder
    under your $AIRFLOW_HOME is a good "default" location) and then add callables to the file matching one or more
    of the cluster policy names above (e.g. ``dag_policy``).
+
+See :ref:`Configuring local settings <set-config:configuring-local-settings>` for details on how to
+configure local settings.
+
 
 2. By using a
    `setuptools entrypoint <https://packaging.python.org/guides/creating-and-discovering-plugins/#using-package-metadata>`_
@@ -162,6 +167,9 @@ For example, your ``airflow_local_settings.py`` might follow this pattern:
         :language: python
         :start-after: [START example_list_of_cluster_policy_rules]
         :end-before: [END example_list_of_cluster_policy_rules]
+
+See :ref:`Configuring local settings <set-config:configuring-local-settings>` for details on how to
+configure local settings.
 
 
 Task instance mutation

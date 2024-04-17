@@ -32,17 +32,17 @@ if TYPE_CHECKING:
 
 class OpenSearchQueryOperator(BaseOperator):
     """
-    Runs a query search against a given index on an OpenSearch cluster and returns results.
+    Run a query search against a given index on an OpenSearch cluster and returns results.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:OpenSearchQueryOperator`
 
-    :param: query: A Dictionary Open Search DSL query.
-    :param: search_object: A Search object from opensearch-dsl.
-    :param: index_name: The name of the index to search for documents.
-    :param: opensearch_conn_id: opensearch connection to use
-    :param: log_query: Whether to log the query used. Defaults to True and logs query used.
+    :param query: A Dictionary OpenSearch DSL query.
+    :param search_object: A Search object from opensearch-dsl.
+    :param index_name: The name of the index to search for documents.
+    :param opensearch_conn_id: opensearch connection to use
+    :param log_query: Whether to log the query used. Defaults to True and logs query used.
     """
 
     template_fields: Sequence[str] = ["query"]
@@ -66,11 +66,11 @@ class OpenSearchQueryOperator(BaseOperator):
 
     @cached_property
     def hook(self) -> OpenSearchHook:
-        """Gets an instance of an OpenSearchHook."""
+        """Get an instance of an OpenSearchHook."""
         return OpenSearchHook(open_search_conn_id=self.opensearch_conn_id, log_query=self.log_query)
 
     def execute(self, context: Context) -> Any:
-        """Executes a search against a given index or a Search object on an OpenSearch Cluster."""
+        """Execute a search against a given index or a Search object on an OpenSearch Cluster."""
         result = None
 
         if self.query is not None:
@@ -97,15 +97,15 @@ class OpenSearchQueryOperator(BaseOperator):
 
 class OpenSearchCreateIndexOperator(BaseOperator):
     """
-    Create a new index on an Open Search cluster with a given index name.
+    Create a new index on an OpenSearch cluster with a given index name.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:OpenSearchCreateIndexOperator`
 
-    :param: index_name: The name of the index to be created.
-    :param: index_body: A dictionary that defines index settings
-    :param: opensearch_conn_id: opensearch connection to use
+    :param index_name: The name of the index to be created.
+    :param index_body: A dictionary that defines index settings
+    :param opensearch_conn_id: opensearch connection to use
     """
 
     def __init__(
@@ -123,11 +123,11 @@ class OpenSearchCreateIndexOperator(BaseOperator):
 
     @cached_property
     def hook(self) -> OpenSearchHook:
-        """Gets an instance of an OpenSearchHook."""
+        """Get an instance of an OpenSearchHook."""
         return OpenSearchHook(open_search_conn_id=self.opensearch_conn_id, log_query=False)
 
     def execute(self, context: Context) -> Any:
-        """Creates an index on an Open Search cluster."""
+        """Create an index on an OpenSearch cluster."""
         try:
             self.hook.client.indices.create(index=self.index_name, body=self.index_body)
         except OpenSearchException as e:
@@ -142,11 +142,11 @@ class OpenSearchAddDocumentOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:OpenSearchAddDocumentOperator`
 
-    :param: index_name: The name of the index to put the document.
-    :param: document: A dictionary representation of the document.
-    :param: document_id: The id for the document in the index.
-    :param: doc_class: A Document subclassed object using opensearch-dsl
-    :param: opensearch_conn_id: opensearch connection to use
+    :param index_name: The name of the index to put the document.
+    :param document: A dictionary representation of the document.
+    :param document_id: The id for the document in the index.
+    :param doc_class: A Document subclassed object using opensearch-dsl
+    :param opensearch_conn_id: opensearch connection to use
     """
 
     def __init__(
@@ -168,11 +168,11 @@ class OpenSearchAddDocumentOperator(BaseOperator):
 
     @cached_property
     def hook(self) -> OpenSearchHook:
-        """Gets an instance of an OpenSearchHook."""
+        """Get an instance of an OpenSearchHook."""
         return OpenSearchHook(open_search_conn_id=self.opensearch_conn_id, log_query=False)
 
     def execute(self, context: Context) -> Any:
-        """Saves a document to a given index on an OpenSearch cluster."""
+        """Save a document to a given index on an OpenSearch cluster."""
         if self.doc_class is not None:
             try:
                 doc = self.doc_class.init(using=self.hook.client)

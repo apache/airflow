@@ -19,6 +19,7 @@
 """
 Module to update db migration information in Airflow
 """
+
 from __future__ import annotations
 
 import os
@@ -28,6 +29,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Iterable
 
 from alembic.script import ScriptDirectory
+from rich.console import Console
 from tabulate import tabulate
 
 from airflow import __version__ as airflow_version
@@ -35,6 +37,8 @@ from airflow.utils.db import _get_alembic_config
 
 if TYPE_CHECKING:
     from alembic.script import Script
+
+console = Console(width=400, color_system="standard")
 
 airflow_version = re.match(r"(\d+\.\d+\.\d+).*", airflow_version).group(1)  # type: ignore
 project_root = Path(__file__).parents[2].resolve()
@@ -104,7 +108,8 @@ def revision_suffix(rev: Script):
 
 def ensure_airflow_version(revisions: Iterable[Script]):
     for rev in revisions:
-        assert rev.module.__file__ is not None  # For Mypy.
+        if TYPE_CHECKING:  # For mypy
+            assert rev.module.__file__ is not None
         file = Path(rev.module.__file__)
         content = file.read_text()
         if not has_version(content):
@@ -171,18 +176,23 @@ def ensure_filenames_are_sorted(revisions):
             "alembic merge -m 'merge heads " + ", ".join(head_prefixes) + "' " + " ".join(unmerged_heads)
         )
         raise SystemExit(
-            "You have multiple alembic heads; please merge them with the `alembic merge` command "
-            f"and re-run pre-commit. It should fail once more before succeeding. "
-            f"\nhint: `{alembic_command}`"
+            "You have multiple alembic heads; please merge them with by running `alembic merge` command under "
+            f'"airflow" directory (where alembic.ini located) and re-run pre-commit. '
+            f"It should fail once more before succeeding.\nhint: `{alembic_command}`"
         )
     for old, new in renames:
         os.rename(old, new)
 
 
 if __name__ == "__main__":
+    console.print("[bright_blue]Updating migration reference")
     revisions = list(reversed(list(get_revisions())))
+    console.print("[bright_blue]Making sure airflow version updated")
     ensure_airflow_version(revisions=revisions)
     revisions = list(reversed(list(get_revisions())))
+    console.print("[bright_blue]Making sure filenames are sorted")
     ensure_filenames_are_sorted(revisions=revisions)
     revisions = list(get_revisions())
+    console.print("[bright_blue]Updating documentation")
     update_docs(revisions=revisions)
+    console.print("[green]Migrations OK")

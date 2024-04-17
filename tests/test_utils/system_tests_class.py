@@ -67,7 +67,7 @@ class SystemTest:
         klass = request.cls
         klass.log = logging.getLogger(klass.__module__ + "." + klass.__name__)
 
-    @pytest.fixture(autouse=True, scope="function")
+    @pytest.fixture(autouse=True)
     def setup_system(self):
         """
         We want to avoid random errors while database got reset - those

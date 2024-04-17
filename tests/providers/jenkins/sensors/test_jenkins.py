@@ -44,7 +44,7 @@ class TestJenkinsBuildSensor:
     )
     @patch("jenkins.Jenkins")
     def test_poke_buliding(self, mock_jenkins, build_number, build_state, result):
-        target_build_number = build_number if build_number else 10
+        target_build_number = build_number or 10
 
         jenkins_mock = MagicMock()
         jenkins_mock.get_job_info.return_value = {"lastBuild": {"number": target_build_number}}
@@ -91,7 +91,7 @@ class TestJenkinsBuildSensor:
     def test_poke_finish_building(
         self, mock_jenkins, build_number, build_state, result, soft_fail, expected_exception
     ):
-        target_build_number = build_number if build_number else 10
+        target_build_number = build_number or 10
 
         jenkins_mock = MagicMock()
         jenkins_mock.get_job_info.return_value = {"lastBuild": {"number": target_build_number}}
@@ -113,7 +113,7 @@ class TestJenkinsBuildSensor:
             if result not in sensor.target_states:
                 with pytest.raises(expected_exception):
                     sensor.poke(None)
-                    assert jenkins_mock.get_build_info.call_count == 2
+                assert jenkins_mock.get_build_info.call_count == 2
             else:
                 output = sensor.poke(None)
                 assert output == (not build_state)

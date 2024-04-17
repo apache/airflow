@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Dataprep operator."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
@@ -51,13 +52,13 @@ class DataprepGetJobsForJobGroupOperator(GoogleCloudBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.dataprep_conn_id = (dataprep_conn_id,)
+        self.dataprep_conn_id = dataprep_conn_id
         self.job_group_id = job_group_id
 
     def execute(self, context: Context) -> dict:
         self.log.info("Fetching data for job with id: %d ...", self.job_group_id)
         hook = GoogleDataprepHook(
-            dataprep_conn_id="dataprep_default",
+            dataprep_conn_id=self.dataprep_conn_id,
         )
         response = hook.get_jobs_for_job_group(job_id=int(self.job_group_id))
         return response

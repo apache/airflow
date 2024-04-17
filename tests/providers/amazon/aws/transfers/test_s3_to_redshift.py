@@ -391,6 +391,7 @@ class TestS3ToRedshiftTransfer:
             "copy_options",
             "redshift_conn_id",
             "method",
+            "aws_conn_id",
         )
 
     def test_execute_unavailable_method(self):

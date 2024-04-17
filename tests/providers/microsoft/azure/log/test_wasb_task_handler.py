@@ -32,6 +32,9 @@ from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
+pytestmark = pytest.mark.db_test
+
+
 DEFAULT_DATE = datetime(2020, 8, 10)
 
 
@@ -176,8 +179,8 @@ class TestWasbTaskHandler:
             )
 
     @pytest.mark.parametrize(
-        "delete_local_copy, expected_existence_of_local_copy, airflow_version",
-        [(True, False, "2.6.0"), (False, True, "2.6.0"), (True, True, "2.5.0"), (False, True, "2.5.0")],
+        "delete_local_copy, expected_existence_of_local_copy",
+        [(True, False), (False, True)],
     )
     @mock.patch("airflow.providers.microsoft.azure.log.wasb_task_handler.WasbTaskHandler.wasb_write")
     def test_close_with_delete_local_logs_conf(
@@ -187,11 +190,8 @@ class TestWasbTaskHandler:
         tmp_path_factory,
         delete_local_copy,
         expected_existence_of_local_copy,
-        airflow_version,
     ):
-        with conf_vars({("logging", "delete_local_logs"): str(delete_local_copy)}), mock.patch(
-            "airflow.version.version", airflow_version
-        ):
+        with conf_vars({("logging", "delete_local_logs"): str(delete_local_copy)}):
             handler = WasbTaskHandler(
                 base_log_folder=str(tmp_path_factory.mktemp("local-s3-log-location")),
                 wasb_log_folder=self.wasb_log_folder,

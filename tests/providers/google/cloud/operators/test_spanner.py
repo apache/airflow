@@ -511,14 +511,14 @@ class TestCloudSpanner:
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
     def test_database_update_ex_if_database_not_exist(self, mock_hook):
         mock_hook.return_value.get_database.return_value = None
+        op = SpannerUpdateDatabaseInstanceOperator(
+            project_id=PROJECT_ID,
+            instance_id=INSTANCE_ID,
+            database_id=DB_ID,
+            ddl_statements=DDL_STATEMENTS,
+            task_id="id",
+        )
         with pytest.raises(AirflowException) as ctx:
-            op = SpannerUpdateDatabaseInstanceOperator(
-                project_id=PROJECT_ID,
-                instance_id=INSTANCE_ID,
-                database_id=DB_ID,
-                ddl_statements=DDL_STATEMENTS,
-                task_id="id",
-            )
             op.execute(None)
         err = ctx.value
         assert (

@@ -93,29 +93,29 @@ class AzureContainerInstancesOperator(BaseOperator):
 
     **Example**::
 
-                AzureContainerInstancesOperator(
-                    ci_conn_id = "azure_service_principal",
-                    registry_conn_id = "azure_registry_user",
-                    resource_group = "my-resource-group",
-                    name = "my-container-name-{{ ds }}",
-                    image = "myprivateregistry.azurecr.io/my_container:latest",
-                    region = "westeurope",
-                    environment_variables = {"MODEL_PATH":  "my_value",
-                     "POSTGRES_LOGIN": "{{ macros.connection('postgres_default').login }}",
-                     "POSTGRES_PASSWORD": "{{ macros.connection('postgres_default').password }}",
-                     "JOB_GUID": "{{ ti.xcom_pull(task_ids='task1', key='guid') }}" },
-                    secured_variables = ['POSTGRES_PASSWORD'],
-                    volumes = [("azure_container_instance_conn_id",
-                            "my_storage_container",
-                            "my_fileshare",
-                            "/input-data",
-                        True),],
-                    memory_in_gb=14.0,
-                    cpu=4.0,
-                    gpu=GpuResource(count=1, sku='K80'),
-                    command=["/bin/echo", "world"],
-                    task_id="start_container"
-                )
+        AzureContainerInstancesOperator(
+            ci_conn_id="azure_service_principal",
+            registry_conn_id="azure_registry_user",
+            resource_group="my-resource-group",
+            name="my-container-name-{{ ds }}",
+            image="myprivateregistry.azurecr.io/my_container:latest",
+            region="westeurope",
+            environment_variables={
+                "MODEL_PATH": "my_value",
+                "POSTGRES_LOGIN": "{{ macros.connection('postgres_default').login }}",
+                "POSTGRES_PASSWORD": "{{ macros.connection('postgres_default').password }}",
+                "JOB_GUID": "{{ ti.xcom_pull(task_ids='task1', key='guid') }}",
+            },
+            secured_variables=["POSTGRES_PASSWORD"],
+            volumes=[
+                ("azure_container_instance_conn_id", "my_storage_container", "my_fileshare", "/input-data", True),
+            ],
+            memory_in_gb=14.0,
+            cpu=4.0,
+            gpu=GpuResource(count=1, sku="K80"),
+            command=["/bin/echo", "world"],
+            task_id="start_container",
+        )
     """
 
     template_fields: Sequence[str] = ("name", "image", "command", "environment_variables", "volumes")
@@ -151,7 +151,7 @@ class AzureContainerInstancesOperator(BaseOperator):
 
         self.ci_conn_id = ci_conn_id
         self.resource_group = resource_group
-        self.name = self._check_name(name)
+        self.name = name
         self.image = image
         self.region = region
         self.registry_conn_id = registry_conn_id
@@ -278,12 +278,11 @@ class AzureContainerInstancesOperator(BaseOperator):
                 self.on_kill()
 
     def on_kill(self) -> None:
-        if self.remove_on_error:
-            self.log.info("Deleting container group")
-            try:
-                self._ci_hook.delete(self.resource_group, self.name)
-            except Exception:
-                self.log.exception("Could not delete container group")
+        self.log.info("Deleting container group")
+        try:
+            self._ci_hook.delete(self.resource_group, self.name)
+        except Exception:
+            self.log.exception("Could not delete container group")
 
     def _monitor_logging(self, resource_group: str, name: str) -> int:
         last_state = None
@@ -371,9 +370,6 @@ class AzureContainerInstancesOperator(BaseOperator):
 
     @staticmethod
     def _check_name(name: str) -> str:
-        if "{{" in name:
-            # Let macros pass as they cannot be checked at construction time
-            return name
         regex_check = re.match("[a-z0-9]([-a-z0-9]*[a-z0-9])?", name)
         if regex_check is None or regex_check.group() != name:
             raise AirflowException('ACI name must match regex [a-z0-9]([-a-z0-9]*[a-z0-9])? (like "my-name")')

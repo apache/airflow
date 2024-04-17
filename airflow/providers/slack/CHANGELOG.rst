@@ -27,6 +27,115 @@
 Changelog
 ---------
 
+8.6.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix set deprecated slack operators arguments in 'MappedOperator' (#38345)``
+* ``Update SqlToSlackApiFileOperator with new param to check empty output (#38079)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+   * ``Avoid to use too broad 'noqa' (#37862)``
+   * ``Add comment about versions updated by release manager (#37488)``
+
+8.6.1
+.....
+
+Misc
+~~~~
+
+* ``Remove the remaining references to use the token bypassing the Connection in the Slack provider. (#37112)``
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Follow D401 style in openlineage, slack, and tableau providers (#37312)``
+
+8.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Optionally use 'client.files_upload_v2' in Slack Provider (#36757)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix stacklevel in warnings.warn into the providers (#36831)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+   * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+
+8.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Slack: Remove parameter 'token' in SlackAPIPostOperator's docstring (#36121)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+8.5.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix and reapply templates for provider documentation (#35686)``
+   * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+   * ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
+   * ``Use reproducible builds for provider packages (#35693)``
+
+8.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Reorganize SQL to Slack Operators (#35215)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Work around typing issue in examples and providers (#35494)``
+   * ``Add missing examples into Slack Provider (#35495)``
+
+8.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Pass additional arguments from Slack's Operators/Notifiers to Hooks (#35039)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``Upgrade pre-commits (#35033)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+
 8.2.0
 .....
 

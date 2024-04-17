@@ -20,15 +20,8 @@ from __future__ import annotations
 from functools import cached_property
 from typing import Sequence
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.notifications.basenotifier import BaseNotifier
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
-
-try:
-    from airflow.notifications.basenotifier import BaseNotifier
-except ImportError:
-    raise AirflowOptionalProviderFeatureException(
-        "Failed to import BaseNotifier. This feature is only available in Airflow versions >= 2.6.0"
-    )
 
 
 class SqsNotifier(BaseNotifier):

@@ -410,7 +410,6 @@ def test_configure_trigger_log_handler_root_old_file_task():
             ): "tests.jobs.test_triggerer_job_logging.root_logger_old_file_task",
         }
     ):
-
         configure_logging()
 
     # check custom config used

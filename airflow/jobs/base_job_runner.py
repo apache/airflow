@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from airflow.exceptions import AirflowException
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
@@ -35,7 +36,7 @@ class BaseJobRunner:
 
     def __init__(self, job: Job) -> None:
         if job.job_type and job.job_type != self.job_type:
-            raise Exception(
+            raise AirflowException(
                 f"The job is already assigned a different job_type: {job.job_type}."
                 f"This is a bug and should be reported."
             )

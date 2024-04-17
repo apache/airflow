@@ -17,11 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 from urllib import parse
 
+from deprecated import deprecated
 from elasticsearch import Elasticsearch
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -108,9 +108,7 @@ class ElasticsearchSQLHook(DbApiHook):
         if conn.extra_dejson.get("timeout", False):
             conn_args["timeout"] = conn.extra_dejson["timeout"]
 
-        conn = connect(**conn_args)
-
-        return conn
+        return connect(**conn_args)
 
     def get_uri(self) -> str:
         conn_id = getattr(self, self.conn_name_attr)
@@ -140,6 +138,10 @@ class ElasticsearchSQLHook(DbApiHook):
         return uri
 
 
+@deprecated(
+    reason="Please use `airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchSQLHook`.",
+    category=AirflowProviderDeprecationWarning,
+)
 class ElasticsearchHook(ElasticsearchSQLHook):
     """
     This class is deprecated and was renamed to ElasticsearchSQLHook.
@@ -148,12 +150,6 @@ class ElasticsearchHook(ElasticsearchSQLHook):
     """
 
     def __init__(self, *args, **kwargs):
-        warnings.warn(
-            """This class is deprecated.
-            Please use `airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchSQLHook`.""",
-            AirflowProviderDeprecationWarning,
-            stacklevel=3,
-        )
         super().__init__(*args, **kwargs)
 
 

@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, AsyncIterator, SupportsAbs
+from typing import Any, AsyncIterator, Sequence, SupportsAbs
 
 from aiohttp import ClientSession
 from aiohttp.client_exceptions import ClientResponseError
@@ -33,9 +33,18 @@ class BigQueryInsertJobTrigger(BaseTrigger):
     :param conn_id: Reference to google cloud connection id
     :param job_id:  The ID of the job. It will be suffixed with hash of job configuration
     :param project_id: Google Cloud Project where the job is running
+    :param location: The dataset location.
     :param dataset_id: The dataset ID of the requested table. (templated)
     :param table_id: The table ID of the requested table. (templated)
-    :param poll_interval: polling period in seconds to check for the status
+    :param poll_interval: polling period in seconds to check for the status. (templated)
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account. (templated)
     """
 
     def __init__(
@@ -43,9 +52,12 @@ class BigQueryInsertJobTrigger(BaseTrigger):
         conn_id: str,
         job_id: str | None,
         project_id: str | None,
+        location: str | None,
         dataset_id: str | None = None,
         table_id: str | None = None,
         poll_interval: float = 4.0,
+        impersonation_chain: str | Sequence[str] | None = None,
+        cancel_on_kill: bool = True,
     ):
         super().__init__()
         self.log.info("Using the connection  %s .", conn_id)
@@ -54,11 +66,14 @@ class BigQueryInsertJobTrigger(BaseTrigger):
         self._job_conn = None
         self.dataset_id = dataset_id
         self.project_id = project_id
+        self.location = location
         self.table_id = table_id
         self.poll_interval = poll_interval
+        self.impersonation_chain = impersonation_chain
+        self.cancel_on_kill = cancel_on_kill
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes BigQueryInsertJobTrigger arguments and classpath."""
+        """Serialize BigQueryInsertJobTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.bigquery.BigQueryInsertJobTrigger",
             {
@@ -66,17 +81,22 @@ class BigQueryInsertJobTrigger(BaseTrigger):
                 "job_id": self.job_id,
                 "dataset_id": self.dataset_id,
                 "project_id": self.project_id,
+                "location": self.location,
                 "table_id": self.table_id,
                 "poll_interval": self.poll_interval,
+                "impersonation_chain": self.impersonation_chain,
+                "cancel_on_kill": self.cancel_on_kill,
             },
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current job execution status and yields a TriggerEvent."""
+        """Get current job execution status and yields a TriggerEvent."""
         hook = self._get_async_hook()
         try:
             while True:
-                job_status = await hook.get_job_status(job_id=self.job_id, project_id=self.project_id)
+                job_status = await hook.get_job_status(
+                    job_id=self.job_id, project_id=self.project_id, location=self.location
+                )
                 if job_status["status"] == "success":
                     yield TriggerEvent(
                         {
@@ -96,19 +116,27 @@ class BigQueryInsertJobTrigger(BaseTrigger):
                         self.poll_interval,
                     )
                     await asyncio.sleep(self.poll_interval)
+        except asyncio.CancelledError:
+            self.log.info("Task was killed.")
+            if self.job_id and self.cancel_on_kill:
+                await hook.cancel_job(  # type: ignore[union-attr]
+                    job_id=self.job_id, project_id=self.project_id, location=self.location
+                )
+            else:
+                self.log.info("Skipping to cancel job: %s:%s.%s", self.project_id, self.location, self.job_id)
         except Exception as e:
             self.log.exception("Exception occurred while checking for query completion")
             yield TriggerEvent({"status": "error", "message": str(e)})
 
     def _get_async_hook(self) -> BigQueryAsyncHook:
-        return BigQueryAsyncHook(gcp_conn_id=self.conn_id)
+        return BigQueryAsyncHook(gcp_conn_id=self.conn_id, impersonation_chain=self.impersonation_chain)
 
 
 class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
     """BigQueryCheckTrigger run on the trigger worker."""
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes BigQueryCheckTrigger arguments and classpath."""
+        """Serialize BigQueryCheckTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.bigquery.BigQueryCheckTrigger",
             {
@@ -116,13 +144,15 @@ class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
                 "job_id": self.job_id,
                 "dataset_id": self.dataset_id,
                 "project_id": self.project_id,
+                "location": self.location,
                 "table_id": self.table_id,
                 "poll_interval": self.poll_interval,
+                "impersonation_chain": self.impersonation_chain,
             },
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current job execution status and yields a TriggerEvent."""
+        """Get current job execution status and yields a TriggerEvent."""
         hook = self._get_async_hook()
         try:
             while True:
@@ -141,7 +171,6 @@ class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
                                 "records": None,
                             }
                         )
-                        return
                     else:
                         # Extract only first record from the query results
                         first_record = records.pop(0)
@@ -152,7 +181,7 @@ class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
                                 "records": first_record,
                             }
                         )
-                        return
+                    return
                 elif job_status["status"] == "error":
                     yield TriggerEvent({"status": "error", "message": job_status["message"]})
                     return
@@ -181,7 +210,7 @@ class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
         self.as_dict = as_dict
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes BigQueryInsertJobTrigger arguments and classpath."""
+        """Serialize BigQueryInsertJobTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.bigquery.BigQueryGetDataTrigger",
             {
@@ -189,14 +218,16 @@ class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
                 "job_id": self.job_id,
                 "dataset_id": self.dataset_id,
                 "project_id": self.project_id,
+                "location": self.location,
                 "table_id": self.table_id,
                 "poll_interval": self.poll_interval,
+                "impersonation_chain": self.impersonation_chain,
                 "as_dict": self.as_dict,
             },
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current job execution status and yields a TriggerEvent with response data."""
+        """Get current job execution status and yields a TriggerEvent with response data."""
         hook = self._get_async_hook()
         try:
             while True:
@@ -240,13 +271,21 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
     :param dataset_id: The dataset ID of the requested table. (templated)
     :param table: table name
     :param metrics_thresholds: dictionary of ratios indexed by metrics
-    :param date_filter_column: column name
-    :param days_back: number of days between ds and the ds we want to check
-        against
-    :param ratio_formula: ration formula
-    :param ignore_zero: boolean value to consider zero or not
+    :param location: The dataset location.
+    :param date_filter_column: column name. (templated)
+    :param days_back: number of days between ds and the ds we want to check against. (templated)
+    :param ratio_formula: ration formula. (templated)
+    :param ignore_zero: boolean value to consider zero or not. (templated)
     :param table_id: The table ID of the requested table. (templated)
-    :param poll_interval: polling period in seconds to check for the status
+    :param poll_interval: polling period in seconds to check for the status. (templated)
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account. (templated)
     """
 
     def __init__(
@@ -257,6 +296,7 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
         project_id: str | None,
         table: str,
         metrics_thresholds: dict[str, int],
+        location: str | None = None,
         date_filter_column: str | None = "ds",
         days_back: SupportsAbs[int] = -7,
         ratio_formula: str = "max_over_min",
@@ -264,14 +304,17 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
         dataset_id: str | None = None,
         table_id: str | None = None,
         poll_interval: float = 4.0,
+        impersonation_chain: str | Sequence[str] | None = None,
     ):
         super().__init__(
             conn_id=conn_id,
             job_id=first_job_id,
             project_id=project_id,
+            location=location,
             dataset_id=dataset_id,
             table_id=table_id,
             poll_interval=poll_interval,
+            impersonation_chain=impersonation_chain,
         )
         self.conn_id = conn_id
         self.first_job_id = first_job_id
@@ -285,7 +328,7 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
         self.ignore_zero = ignore_zero
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes BigQueryCheckTrigger arguments and classpath."""
+        """Serialize BigQueryCheckTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.bigquery.BigQueryIntervalCheckTrigger",
             {
@@ -295,15 +338,17 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
                 "project_id": self.project_id,
                 "table": self.table,
                 "metrics_thresholds": self.metrics_thresholds,
+                "location": self.location,
                 "date_filter_column": self.date_filter_column,
                 "days_back": self.days_back,
                 "ratio_formula": self.ratio_formula,
                 "ignore_zero": self.ignore_zero,
+                "impersonation_chain": self.impersonation_chain,
             },
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current job execution status and yields a TriggerEvent."""
+        """Get current job execution status and yields a TriggerEvent."""
         hook = self._get_async_hook()
         try:
             while True:
@@ -386,12 +431,21 @@ class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
     :param conn_id: Reference to google cloud connection id
     :param sql: the sql to be executed
     :param pass_value: pass value
-    :param job_id:  The ID of the job
+    :param job_id: The ID of the job
     :param project_id: Google Cloud Project where the job is running
-    :param tolerance: certain metrics for tolerance
+    :param tolerance: certain metrics for tolerance. (templated)
     :param dataset_id: The dataset ID of the requested table. (templated)
     :param table_id: The table ID of the requested table. (templated)
-    :param poll_interval: polling period in seconds to check for the status
+    :param location: The dataset location
+    :param poll_interval: polling period in seconds to check for the status. (templated)
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
     """
 
     def __init__(
@@ -404,7 +458,9 @@ class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
         tolerance: Any = None,
         dataset_id: str | None = None,
         table_id: str | None = None,
+        location: str | None = None,
         poll_interval: float = 4.0,
+        impersonation_chain: str | Sequence[str] | None = None,
     ):
         super().__init__(
             conn_id=conn_id,
@@ -412,14 +468,16 @@ class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
             project_id=project_id,
             dataset_id=dataset_id,
             table_id=table_id,
+            location=location,
             poll_interval=poll_interval,
+            impersonation_chain=impersonation_chain,
         )
         self.sql = sql
         self.pass_value = pass_value
         self.tolerance = tolerance
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes BigQueryValueCheckTrigger arguments and classpath."""
+        """Serialize BigQueryValueCheckTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.bigquery.BigQueryValueCheckTrigger",
             {
@@ -431,12 +489,14 @@ class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
                 "sql": self.sql,
                 "table_id": self.table_id,
                 "tolerance": self.tolerance,
+                "location": self.location,
                 "poll_interval": self.poll_interval,
+                "impersonation_chain": self.impersonation_chain,
             },
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current job execution status and yields a TriggerEvent."""
+        """Get current job execution status and yields a TriggerEvent."""
         hook = self._get_async_hook()
         try:
             while True:
@@ -473,6 +533,14 @@ class BigQueryTableExistenceTrigger(BaseTrigger):
     :param gcp_conn_id: Reference to google cloud connection id
     :param hook_params: params for hook
     :param poll_interval: polling period in seconds to check for the status
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account. (templated)
     """
 
     def __init__(
@@ -483,6 +551,7 @@ class BigQueryTableExistenceTrigger(BaseTrigger):
         gcp_conn_id: str,
         hook_params: dict[str, Any],
         poll_interval: float = 4.0,
+        impersonation_chain: str | Sequence[str] | None = None,
     ):
         self.dataset_id = dataset_id
         self.project_id = project_id
@@ -490,9 +559,10 @@ class BigQueryTableExistenceTrigger(BaseTrigger):
         self.gcp_conn_id: str = gcp_conn_id
         self.poll_interval = poll_interval
         self.hook_params = hook_params
+        self.impersonation_chain = impersonation_chain
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes BigQueryTableExistenceTrigger arguments and classpath."""
+        """Serialize BigQueryTableExistenceTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.bigquery.BigQueryTableExistenceTrigger",
             {
@@ -502,11 +572,14 @@ class BigQueryTableExistenceTrigger(BaseTrigger):
                 "gcp_conn_id": self.gcp_conn_id,
                 "poll_interval": self.poll_interval,
                 "hook_params": self.hook_params,
+                "impersonation_chain": self.impersonation_chain,
             },
         )
 
     def _get_async_hook(self) -> BigQueryTableAsyncHook:
-        return BigQueryTableAsyncHook(gcp_conn_id=self.gcp_conn_id)
+        return BigQueryTableAsyncHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
         """Will run until the table exists in the Google Big Query."""
@@ -561,6 +634,14 @@ class BigQueryTablePartitionExistenceTrigger(BigQueryTableExistenceTrigger):
     :param gcp_conn_id: Reference to google cloud connection id
     :param hook_params: params for hook
     :param poll_interval: polling period in seconds to check for the status
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account. (templated)
     """
 
     def __init__(self, partition_id: str, **kwargs):
@@ -568,7 +649,7 @@ class BigQueryTablePartitionExistenceTrigger(BigQueryTableExistenceTrigger):
         self.partition_id = partition_id
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes BigQueryTablePartitionExistenceTrigger arguments and classpath."""
+        """Serialize BigQueryTablePartitionExistenceTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.bigquery.BigQueryTablePartitionExistenceTrigger",
             {
@@ -578,13 +659,14 @@ class BigQueryTablePartitionExistenceTrigger(BigQueryTableExistenceTrigger):
                 "table_id": self.table_id,
                 "gcp_conn_id": self.gcp_conn_id,
                 "poll_interval": self.poll_interval,
+                "impersonation_chain": self.impersonation_chain,
                 "hook_params": self.hook_params,
             },
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
         """Will run until the table exists in the Google Big Query."""
-        hook = BigQueryAsyncHook(gcp_conn_id=self.gcp_conn_id)
+        hook = BigQueryAsyncHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         job_id = None
         while True:
             if job_id is not None:
@@ -609,7 +691,9 @@ class BigQueryTablePartitionExistenceTrigger(BigQueryTableExistenceTrigger):
                 await asyncio.sleep(self.poll_interval)
 
             else:
-                job_id = await hook.create_job_for_partition_get(self.dataset_id, project_id=self.project_id)
+                job_id = await hook.create_job_for_partition_get(
+                    self.dataset_id, table_id=self.table_id, project_id=self.project_id
+                )
                 self.log.info("Sleeping for %s seconds.", self.poll_interval)
                 await asyncio.sleep(self.poll_interval)
 

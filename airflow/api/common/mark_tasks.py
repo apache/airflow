@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Marks tasks APIs."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Collection, Iterable, Iterator, NamedTuple
@@ -366,11 +367,6 @@ def _set_dag_run_state(dag_id: str, run_id: str, state: DagRunState, session: SA
         select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
     ).scalar_one()
     dag_run.state = state
-    if state == DagRunState.RUNNING:
-        dag_run.start_date = timezone.utcnow()
-        dag_run.end_date = None
-    else:
-        dag_run.end_date = timezone.utcnow()
     session.merge(dag_run)
 
 
@@ -548,7 +544,6 @@ def __set_dag_run_state_to_running_or_queued(
         return res
 
     if execution_date:
-
         if not timezone.is_localized(execution_date):
             raise ValueError(f"Received non-localized date {execution_date}")
         dag_run = dag.get_dagrun(execution_date=execution_date)

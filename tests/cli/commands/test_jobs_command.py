@@ -30,6 +30,7 @@ from airflow.utils.state import JobState, State
 from tests.test_utils.db import clear_db_jobs
 
 
+@pytest.mark.db_test
 class TestCliConfigList:
     @classmethod
     def setup_class(cls):

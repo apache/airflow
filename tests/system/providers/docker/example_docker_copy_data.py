@@ -23,6 +23,7 @@ BashOperator & ShortCircuitOperator.
 TODO: Review the workflow, change it accordingly to
 your environment & enable the code.
 """
+
 from __future__ import annotations
 
 import os
@@ -45,7 +46,6 @@ with models.DAG(
     catchup=False,
     tags=["example", "docker"],
 ) as dag:
-
     locate_file_cmd = """
         sleep 10
         find {{params.source_location}} -type f  -printf "%f\n" | head -1
@@ -100,9 +100,7 @@ with models.DAG(
 
     (
         # TEST BODY
-        t_is_data_available
-        >> t_move
-        >> t_print
+        t_is_data_available >> t_move >> t_print
     )
 
 from tests.system.utils import get_test_run  # noqa: E402

@@ -41,10 +41,13 @@ This DAG relies on the following environment variables:
 * CBT_TABLE_ID - desired ID of the Table
 * CBT_POKE_INTERVAL - number of seconds between every attempt of Sensor check
 """
+
 from __future__ import annotations
 
 import os
 from datetime import datetime
+
+from google.cloud.bigtable import enums
 
 from airflow.decorators import task_group
 from airflow.models.dag import DAG
@@ -67,15 +70,15 @@ DAG_ID = "bigtable"
 CBT_INSTANCE_ID = f"bigtable-instance-id-{ENV_ID}"
 CBT_INSTANCE_DISPLAY_NAME = "Instance-name"
 CBT_INSTANCE_DISPLAY_NAME_UPDATED = f"{CBT_INSTANCE_DISPLAY_NAME} - updated"
-CBT_INSTANCE_TYPE = 2
+CBT_INSTANCE_TYPE = enums.Instance.Type.DEVELOPMENT
 CBT_INSTANCE_TYPE_PROD = 1
-CBT_INSTANCE_LABELS = {}
+CBT_INSTANCE_LABELS: dict[str, str] = {}
 CBT_INSTANCE_LABELS_UPDATED = {"env": "prod"}
 CBT_CLUSTER_ID = f"bigtable-cluster-id-{ENV_ID}"
 CBT_CLUSTER_ZONE = "europe-west1-b"
 CBT_CLUSTER_NODES = 3
 CBT_CLUSTER_NODES_UPDATED = 5
-CBT_CLUSTER_STORAGE_TYPE = 2
+CBT_CLUSTER_STORAGE_TYPE = enums.StorageType.HDD
 CBT_TABLE_ID = f"bigtable-table-id{ENV_ID}"
 CBT_POKE_INTERVAL = 60
 
@@ -94,10 +97,10 @@ with DAG(
         main_cluster_id=CBT_CLUSTER_ID,
         main_cluster_zone=CBT_CLUSTER_ZONE,
         instance_display_name=CBT_INSTANCE_DISPLAY_NAME,
-        instance_type=CBT_INSTANCE_TYPE,
+        instance_type=CBT_INSTANCE_TYPE,  # type: ignore[arg-type]
         instance_labels=CBT_INSTANCE_LABELS,
         cluster_nodes=None,
-        cluster_storage_type=CBT_CLUSTER_STORAGE_TYPE,
+        cluster_storage_type=CBT_CLUSTER_STORAGE_TYPE,  # type: ignore[arg-type]
         task_id="create_instance_task",
     )
     create_instance_task2 = BigtableCreateInstanceOperator(
@@ -105,10 +108,10 @@ with DAG(
         main_cluster_id=CBT_CLUSTER_ID,
         main_cluster_zone=CBT_CLUSTER_ZONE,
         instance_display_name=CBT_INSTANCE_DISPLAY_NAME,
-        instance_type=CBT_INSTANCE_TYPE,
+        instance_type=CBT_INSTANCE_TYPE,  # type: ignore[arg-type]
         instance_labels=CBT_INSTANCE_LABELS,
         cluster_nodes=CBT_CLUSTER_NODES,
-        cluster_storage_type=CBT_CLUSTER_STORAGE_TYPE,
+        cluster_storage_type=CBT_CLUSTER_STORAGE_TYPE,  # type: ignore[arg-type]
         task_id="create_instance_task2",
     )
     # [END howto_operator_gcp_bigtable_instance_create]

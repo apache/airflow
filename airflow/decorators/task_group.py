@@ -116,14 +116,14 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
         return task_group
 
     def override(self, **kwargs: Any) -> _TaskGroupFactory[FParams, FReturn]:
-        # TODO: fixme when mypy gets compatible with new attrs
+        # TODO: FIXME when mypy gets compatible with new attrs
         return attr.evolve(self, tg_kwargs={**self.tg_kwargs, **kwargs})  # type: ignore[arg-type]
 
     def partial(self, **kwargs: Any) -> _TaskGroupFactory[FParams, FReturn]:
         self._validate_arg_names("partial", kwargs)
         prevent_duplicates(self.partial_kwargs, kwargs, fail_reason="duplicate partial")
         kwargs.update(self.partial_kwargs)
-        # TODO: fixme when mypy gets compatible with new attrs
+        # TODO: FIXME when mypy gets compatible with new attrs
         return attr.evolve(self, partial_kwargs=kwargs)  # type: ignore[arg-type]
 
     def expand(self, **kwargs: OperatorExpandArgument) -> DAGNode:
@@ -186,14 +186,12 @@ def task_group(
     ui_color: str = "CornflowerBlue",
     ui_fgcolor: str = "#000",
     add_suffix_on_collision: bool = False,
-) -> Callable[[Callable[FParams, FReturn]], _TaskGroupFactory[FParams, FReturn]]:
-    ...
+) -> Callable[[Callable[FParams, FReturn]], _TaskGroupFactory[FParams, FReturn]]: ...
 
 
 # This covers the @task_group case (no parentheses).
 @overload
-def task_group(python_callable: Callable[FParams, FReturn]) -> _TaskGroupFactory[FParams, FReturn]:
-    ...
+def task_group(python_callable: Callable[FParams, FReturn]) -> _TaskGroupFactory[FParams, FReturn]: ...
 
 
 def task_group(python_callable=None, **tg_kwargs):

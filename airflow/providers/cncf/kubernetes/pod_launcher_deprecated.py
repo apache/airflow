@@ -15,13 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """Launches pods."""
+
 from __future__ import annotations
 
 import json
 import math
 import time
 import warnings
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import pendulum
 import tenacity
@@ -32,7 +33,7 @@ from requests.exceptions import HTTPError
 
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
-from airflow.providers.cncf.kubernetes.pod_generator import PodDefaults
+from airflow.providers.cncf.kubernetes.pod_generator import PodDefaultsDeprecated
 from airflow.settings import pod_mutation_hook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
@@ -119,7 +120,7 @@ class PodLauncher(LoggingMixin):
             )
         except ApiException as e:
             # If the pod is already deleted
-            if e.status != 404:
+            if str(e.status) != "404":
                 raise
 
     def start_pod(self, pod: V1Pod, startup_timeout: int = 120):
@@ -148,13 +149,13 @@ class PodLauncher(LoggingMixin):
         """
         if get_logs:
             read_logs_since_sec = None
-            last_log_time = None
+            last_log_time: pendulum.DateTime | None = None
             while True:
                 logs = self.read_pod_logs(pod, timestamps=True, since_seconds=read_logs_since_sec)
                 for line in logs:
                     timestamp, message = self.parse_log_line(line.decode("utf-8"))
                     if timestamp:
-                        last_log_time = pendulum.parse(timestamp)
+                        last_log_time = cast(pendulum.DateTime, pendulum.parse(timestamp))
                     self.log.info(message)
                 time.sleep(1)
 
@@ -271,7 +272,7 @@ class PodLauncher(LoggingMixin):
             self._client.connect_get_namespaced_pod_exec,
             pod.metadata.name,
             pod.metadata.namespace,
-            container=PodDefaults.SIDECAR_CONTAINER_NAME,
+            container=PodDefaultsDeprecated.SIDECAR_CONTAINER_NAME,
             command=["/bin/sh"],
             stdin=True,
             stdout=True,
@@ -280,7 +281,7 @@ class PodLauncher(LoggingMixin):
             _preload_content=False,
         )
         try:
-            result = self._exec_pod_command(resp, f"cat {PodDefaults.XCOM_MOUNT_PATH}/return.json")
+            result = self._exec_pod_command(resp, f"cat {PodDefaultsDeprecated.XCOM_MOUNT_PATH}/return.json")
             self._exec_pod_command(resp, "kill -s SIGINT 1")
         finally:
             resp.close()

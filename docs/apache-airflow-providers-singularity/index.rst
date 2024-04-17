@@ -69,7 +69,7 @@ Package apache-airflow-providers-singularity
 `Singularity <https://sylabs.io/guides/latest/user-guide/>`__
 
 
-Release: 3.3.0
+Release: 3.4.0
 
 Provider package
 ----------------
@@ -87,11 +87,11 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.5.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.5.0``
+``apache-airflow``  ``>=2.6.0``
 ``spython``         ``>=0.0.56``
 ==================  ==================

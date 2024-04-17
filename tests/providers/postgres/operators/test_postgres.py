@@ -93,10 +93,8 @@ class TestPostgres:
 
         from psycopg2 import OperationalError
 
-        try:
+        with pytest.raises(OperationalError, match='database "foobar" does not exist'):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        except OperationalError as e:
-            assert 'database "foobar" does not exist' in str(e)
 
     def test_runtime_parameter_setting(self):
         """
@@ -192,6 +190,7 @@ class TestPostgresOpenLineage:
         assert "schema" in lineage_on_complete.outputs[0].facets
 
 
+@pytest.mark.db_test
 def test_parameters_are_templatized(create_task_instance_of_operator):
     """Test that PostgreSQL operator could template the same fields as SQLExecuteQueryOperator"""
     ti = create_task_instance_of_operator(

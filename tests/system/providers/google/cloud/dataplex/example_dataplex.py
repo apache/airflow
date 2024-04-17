@@ -17,6 +17,7 @@
 """
 Example Airflow DAG that shows how to use Dataplex.
 """
+
 from __future__ import annotations
 
 import datetime
@@ -41,7 +42,7 @@ from airflow.providers.google.cloud.sensors.dataplex import DataplexTaskStateSen
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "project_id")
 
 DAG_ID = "example_dataplex"
 
@@ -83,7 +84,6 @@ with DAG(
     schedule="@once",
     tags=["example", "dataplex"],
 ) as dag:
-
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
     )

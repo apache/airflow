@@ -30,6 +30,8 @@ from airflow.utils.state import State
 HEALTHY = "healthy"
 UNHEALTHY = "unhealthy"
 
+pytestmark = pytest.mark.db_test
+
 
 class TestHealthTestBase:
     @pytest.fixture(autouse=True)

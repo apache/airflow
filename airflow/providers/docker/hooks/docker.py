@@ -18,12 +18,13 @@
 from __future__ import annotations
 
 import json
+import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from docker import APIClient, TLSConfig
 from docker.constants import DEFAULT_TIMEOUT_SECONDS
-from docker.errors import APIError
+from docker.errors import APIError, DockerException
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
@@ -44,7 +45,7 @@ class DockerHook(BaseHook):
 
     :param docker_conn_id: :ref:`Docker connection id <howto/connection:docker>` where stored credentials
          to Docker Registry. If set to ``None`` or empty then hook does not login to Container Registry.
-    :param base_url: URL to the Docker server.
+    :param base_url: URL or list of URLs to the Docker server.
     :param version: The version of the API to use. Use ``auto`` or ``None`` for automatically detect
         the server's version.
     :param tls: Is connection required TLS, for enable pass ``True`` for use with default options,
@@ -60,7 +61,7 @@ class DockerHook(BaseHook):
     def __init__(
         self,
         docker_conn_id: str | None = default_conn_name,
-        base_url: str | None = None,
+        base_url: str | list[str] | None = None,
         version: str | None = None,
         tls: TLSConfig | bool | None = None,
         timeout: int = DEFAULT_TIMEOUT_SECONDS,
@@ -68,12 +69,10 @@ class DockerHook(BaseHook):
         super().__init__()
         if not base_url:
             raise AirflowException("URL to the Docker server not provided.")
-        elif tls:
-            if base_url.startswith("tcp://"):
-                base_url = base_url.replace("tcp://", "https://")
-                self.log.debug("Change `base_url` schema from 'tcp://' to 'https://'.")
-            if not base_url.startswith("https://"):
-                self.log.warning("When `tls` specified then `base_url` expected 'https://' schema.")
+        if isinstance(base_url, str):
+            base_url = [base_url]
+        if tls:
+            base_url = list(map(self._redact_tls_schema, base_url))
 
         self.docker_conn_id = docker_conn_id
         self.__base_url = base_url
@@ -103,29 +102,63 @@ class DockerHook(BaseHook):
         :param ssl_version: Version of SSL to use when communicating with docker daemon.
         """
         if ca_cert and client_cert and client_key:
-            # Ignore type error on SSL version here.
-            # It is deprecated and type annotation is wrong, and it should be string.
-            return TLSConfig(
-                ca_cert=ca_cert,
-                client_cert=(client_cert, client_key),
-                verify=verify,
-                ssl_version=ssl_version,
-                assert_hostname=assert_hostname,
-            )
+            from importlib.metadata import version
+
+            from packaging.version import Version
+
+            tls_config = {
+                "ca_cert": ca_cert,
+                "client_cert": (client_cert, client_key),
+                "verify": verify,
+                "assert_hostname": assert_hostname,
+                "ssl_version": ssl_version,
+            }
+
+            docker_py_version = Version(version("docker"))
+            if docker_py_version.major >= 7:
+                # `ssl_version` and `assert_hostname` removed into the `docker>=7`
+                # see: https://github.com/docker/docker-py/pull/3185
+                if tls_config.pop("ssl_version", None) is not None:
+                    warnings.warn(
+                        f"`ssl_version` removed in `docker.TLSConfig` constructor arguments "
+                        f"since `docker>=7`, but you use {docker_py_version}. "
+                        f"This parameter does not have any affect.",
+                        UserWarning,
+                        stacklevel=2,
+                    )
+                if tls_config.pop("assert_hostname", None) is not None:
+                    warnings.warn(
+                        f"`assert_hostname` removed in `docker.TLSConfig` constructor arguments "
+                        f"since `docker>=7`, but you use {docker_py_version}. "
+                        f"This parameter does not have any affect.",
+                        UserWarning,
+                        stacklevel=2,
+                    )
+            return TLSConfig(**tls_config)
         return False
 
     @cached_property
     def api_client(self) -> APIClient:
         """Create connection to docker host and return ``docker.APIClient`` (cached)."""
-        client = APIClient(
-            base_url=self.__base_url, version=self.__version, tls=self.__tls, timeout=self.__timeout
-        )
-        if self.docker_conn_id:
-            # Obtain connection and try to login to Container Registry only if ``docker_conn_id`` set.
-            self.__login(client, self.get_connection(self.docker_conn_id))
-
-        self._client_created = True
-        return client
+        for url in self.__base_url:
+            try:
+                client = APIClient(
+                    base_url=url, version=self.__version, tls=self.__tls, timeout=self.__timeout
+                )
+                if not client.ping():
+                    msg = f"Failed to ping host {url}."
+                    raise AirflowException(msg)
+                if self.docker_conn_id:
+                    # Obtain connection and try to login to Container Registry only if ``docker_conn_id`` set.
+                    self.__login(client, self.get_connection(self.docker_conn_id))
+            except APIError:
+                raise
+            except DockerException as e:
+                self.log.error("Failed to establish connection to Docker host %s: %s", url, e)
+            else:
+                self._client_created = True
+                return client
+        raise AirflowException("Failed to establish connection to any given Docker hosts.")
 
     @property
     def client_created(self) -> bool:
@@ -166,8 +199,8 @@ class DockerHook(BaseHook):
             self.log.error("Login failed")
             raise
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Return connection form widgets."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -199,3 +232,11 @@ class DockerHook(BaseHook):
                 )
             },
         }
+
+    def _redact_tls_schema(self, url: str) -> str:
+        if url.startswith("tcp://"):
+            url = url.replace("tcp://", "https://")
+            self.log.debug("Change `base_url` schema from 'tcp://' to 'https://'.")
+        if not url.startswith("https://"):
+            self.log.warning("When `tls` specified then `base_url` expected 'https://' schema.")
+        return url

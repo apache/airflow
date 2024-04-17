@@ -302,7 +302,7 @@ class TestVaultSecrets:
         test_client = VaultBackend(**kwargs)
         assert test_client.get_conn_uri(conn_id="test_mysql") is None
         mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-            mount_point="airflow", path="connections/test_mysql", version=None
+            mount_point="airflow", path="connections/test_mysql", version=None, raise_on_deleted_version=True
         )
         assert test_client.get_connection(conn_id="test_mysql") is None
 
@@ -454,7 +454,7 @@ class TestVaultSecrets:
         test_client = VaultBackend(**kwargs)
         assert test_client.get_variable("hello") is None
         mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-            mount_point="airflow", path="variables/hello", version=None
+            mount_point="airflow", path="variables/hello", version=None, raise_on_deleted_version=True
         )
         assert test_client.get_variable("hello") is None
 

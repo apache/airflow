@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from enum import Enum
+
 # Licensed to Cloudera, Inc. under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -47,6 +49,22 @@ NEED_KRB181_WORKAROUND: bool | None = None
 log = logging.getLogger(__name__)
 
 
+class KerberosMode(Enum):
+    """
+    Defines modes for running airflow kerberos.
+
+    :return: None.
+    """
+
+    STANDARD = "standard"
+    ONE_TIME = "one-time"
+
+
+def get_kerberos_principle(principal: str | None) -> str:
+    """Retrieve Kerberos principal. Fallback to principal from Airflow configuration if not provided."""
+    return principal or conf.get_mandatory_value("kerberos", "principal").replace("_HOST", get_hostname())
+
+
 def renew_from_kt(principal: str | None, keytab: str, exit_on_fail: bool = True):
     """
     Renew kerberos token from keytab.
@@ -59,10 +77,7 @@ def renew_from_kt(principal: str | None, keytab: str, exit_on_fail: bool = True)
     # minutes to give ourselves a large renewal buffer.
     renewal_lifetime = f"{conf.getint('kerberos', 'reinit_frequency')}m"
 
-    cmd_principal = principal or conf.get_mandatory_value("kerberos", "principal").replace(
-        "_HOST", get_hostname()
-    )
-
+    cmd_principal = get_kerberos_principle(principal)
     if conf.getboolean("kerberos", "forwardable"):
         forwardable = "-f"
     else:
@@ -174,18 +189,24 @@ def detect_conf_var() -> bool:
         return b"X-CACHECONF:" in file.read()
 
 
-def run(principal: str | None, keytab: str):
+def run(principal: str | None, keytab: str, mode: KerberosMode = KerberosMode.STANDARD):
     """
     Run the kerberos renewer.
 
     :param principal: principal name
     :param keytab: keytab file
+    :param mode: mode to run the airflow kerberos in
     :return: None
     """
     if not keytab:
         log.warning("Keytab renewer not starting, no keytab configured")
         sys.exit(0)
 
-    while True:
+    log.info("Using airflow kerberos with mode: %s", mode.value)
+
+    if mode == KerberosMode.STANDARD:
+        while True:
+            renew_from_kt(principal, keytab)
+            time.sleep(conf.getint("kerberos", "reinit_frequency"))
+    elif mode == KerberosMode.ONE_TIME:
         renew_from_kt(principal, keytab)
-        time.sleep(conf.getint("kerberos", "reinit_frequency"))

@@ -16,14 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-import operator
-from typing import TYPE_CHECKING, Any, Collection
-
-from pendulum import DateTime
+from typing import TYPE_CHECKING, Any, Collection, Sequence
 
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
+from airflow.utils import timezone
 
 if TYPE_CHECKING:
+    from pendulum import DateTime
     from sqlalchemy import Session
 
     from airflow.models.dataset import DatasetEvent
@@ -35,7 +34,7 @@ class _TrivialTimetable(Timetable):
     """Some code reuse for "trivial" timetables that has nothing complex."""
 
     periodic = False
-    run_ordering = ("execution_date",)
+    run_ordering: Sequence[str] = ("execution_date",)
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
@@ -103,7 +102,7 @@ class OnceTimetable(_TrivialTimetable):
             return None
         # "@once" always schedule to the start_date determined by the DAG and
         # tasks, regardless of catchup or not. This has been the case since 1.10
-        # and we're inheriting it. See AIRFLOW-1928.
+        # and we're inheriting it.
         run_after = restriction.earliest
         if restriction.latest is not None and run_after > restriction.latest:
             return None
@@ -134,10 +133,12 @@ class ContinuousTimetable(_TrivialTimetable):
             return None
         if last_automated_data_interval is not None:  # has already run once
             start = last_automated_data_interval.end
-            end = DateTime.utcnow()
+            end = timezone.coerce_datetime(timezone.utcnow())
         else:  # first run
             start = restriction.earliest
-            end = max(restriction.earliest, DateTime.utcnow())  # won't run any earlier than start_date
+            end = max(
+                restriction.earliest, timezone.coerce_datetime(timezone.utcnow())
+            )  # won't run any earlier than start_date
 
         if restriction.latest is not None and end > restriction.latest:
             return None
@@ -178,16 +179,20 @@ class DatasetTriggeredTimetable(_TrivialTimetable):
         logical_date: DateTime,
         events: Collection[DatasetEvent],
     ) -> DataInterval:
-
         if not events:
             return DataInterval(logical_date, logical_date)
 
-        start = min(
-            events, key=operator.attrgetter("source_dag_run.data_interval_start")
-        ).source_dag_run.data_interval_start
-        end = max(
-            events, key=operator.attrgetter("source_dag_run.data_interval_end")
-        ).source_dag_run.data_interval_end
+        start_dates, end_dates = [], []
+        for event in events:
+            if event.source_dag_run is not None:
+                start_dates.append(event.source_dag_run.data_interval_start)
+                end_dates.append(event.source_dag_run.data_interval_end)
+            else:
+                start_dates.append(event.timestamp)
+                end_dates.append(event.timestamp)
+
+        start = min(start_dates)
+        end = max(end_dates)
         return DataInterval(start, end)
 
     def next_dagrun_info(

@@ -26,3 +26,4 @@ Once you have Airflow up and running with the :doc:`/start`, these tutorials are
     fundamentals
     taskflow
     pipeline
+    objectstorage

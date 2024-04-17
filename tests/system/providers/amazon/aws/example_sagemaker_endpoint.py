@@ -156,7 +156,7 @@ def set_up(env_id, role_arn, ti=None):
         "PrimaryContainer": {
             "Mode": "SingleModel",
             "Image": knn_image_uri,
-            "ModelDataUrl": f"s3://{bucket_name}/{training_output_s3_key}/{training_job_name}/output/model.tar.gz",  # noqa: E501
+            "ModelDataUrl": f"s3://{bucket_name}/{training_output_s3_key}/{training_job_name}/output/model.tar.gz",
         },
     }
 

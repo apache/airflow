@@ -16,12 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# mypy ignore arg types (for templated fields)
-# type: ignore[arg-type]
 
 """
 Example Airflow DAG for Google Vertex AI service testing Dataset operations.
 """
+
 from __future__ import annotations
 
 import os
@@ -101,10 +100,8 @@ TEST_IMPORT_CONFIG = [
         "data_item_labels": {
             "test-labels-name": "test-labels-value",
         },
-        "import_schema_uri": (
-            "gs://google-cloud-aiplatform/schema/dataset/ioformat/image_bounding_box_io_format_1.0.0.yaml"
-        ),
-        "gcs_source": {"uris": ["gs://cloud-samples-data/vision/salads.csv"]},
+        "import_schema_uri": "image_classification_single_label_io_format_1.0.0.yaml",
+        "gcs_source": {"uris": [f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/vertex-ai/image-dataset-flowers.csv"]},
     },
 ]
 DATASET_TO_UPDATE = {"display_name": "test-name"}

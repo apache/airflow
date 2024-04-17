@@ -21,7 +21,7 @@ from typing import Any
 
 def bq_cast(string_field: str, bq_type: str) -> None | int | float | bool | str:
     """
-    Helper method that casts a BigQuery row to the appropriate data types.
+    Cast a BigQuery row to the appropriate data types.
 
     This is useful because BigQuery returns all fields as strings.
     """
@@ -41,7 +41,7 @@ def bq_cast(string_field: str, bq_type: str) -> None | int | float | bool | str:
 
 def convert_job_id(job_id: str | list[str], project_id: str, location: str | None) -> Any:
     """
-    Helper method that converts to path: project_id:location:job_id.
+    Convert job_id to path: project_id:location:job_id.
 
     :param project_id: Required. The ID of the Google Cloud project where workspace located.
     :param location: Optional. The ID of the Google Cloud region where workspace located.

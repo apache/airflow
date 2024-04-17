@@ -67,6 +67,8 @@ class _UpstreamTIStates(NamedTuple):
         counter: dict[str, int] = Counter()
         setup_counter: dict[str, int] = Counter()
         for ti in finished_upstreams:
+            if TYPE_CHECKING:
+                assert ti.task
             curr_state = {ti.state: 1}
             counter.update(curr_state)
             if ti.task.is_setup:
@@ -96,6 +98,9 @@ class TriggerRuleDep(BaseTIDep):
         session: Session,
         dep_context: DepContext,
     ) -> Iterator[TIDepStatus]:
+        if TYPE_CHECKING:
+            assert ti.task
+
         # Checking that all upstream dependencies have succeeded.
         if not ti.task.upstream_task_ids:
             yield self._passing_status(reason="The task instance did not have any upstream tasks.")
@@ -130,6 +135,9 @@ class TriggerRuleDep(BaseTIDep):
             This extra closure allows us to query the database only when needed,
             and at most once.
             """
+            if TYPE_CHECKING:
+                assert ti.task
+
             return ti.task.get_mapped_ti_count(ti.run_id, session=session)
 
         @functools.lru_cache
@@ -141,7 +149,9 @@ class TriggerRuleDep(BaseTIDep):
             task instance of the same task).
             """
             if TYPE_CHECKING:
+                assert ti.task
                 assert isinstance(ti.task.dag, DAG)
+
             try:
                 expanded_ti_count = _get_expanded_ti_count()
             except (NotFullyPopulated, NotMapped):
@@ -162,6 +172,9 @@ class TriggerRuleDep(BaseTIDep):
                 2. ti is in a mapped task group and upstream has a map index
                   that ti does not depend on.
             """
+            if TYPE_CHECKING:
+                assert ti.task
+
             # Not actually an upstream task.
             if upstream.task_id not in relevant_ids:
                 return False
@@ -188,6 +201,9 @@ class TriggerRuleDep(BaseTIDep):
             # Optimization: If the current task is not in a mapped task group,
             # it depends on all upstream task instances.
             from airflow.models.taskinstance import TaskInstance
+
+            if TYPE_CHECKING:
+                assert ti.task
 
             if ti.task.get_closest_mapped_task_group() is None:
                 yield TaskInstance.task_id.in_(relevant_tasks.keys())
@@ -222,6 +238,9 @@ class TriggerRuleDep(BaseTIDep):
             :param dep_context: The current dependency context.
             :param session: Database session.
             """
+            if TYPE_CHECKING:
+                assert ti.task
+
             task = ti.task
 
             indirect_setups = {k: v for k, v in relevant_setups.items() if k not in task.upstream_task_ids}
@@ -275,9 +294,12 @@ class TriggerRuleDep(BaseTIDep):
                         task_ids=ti.task_id, key=PAST_DEPENDS_MET, session=session, default=False
                     )
                     if not past_depends_met:
-                        yield self._failing_status(
-                            reason="Task should be skipped but the past depends are not met"
-                        ), changed
+                        yield (
+                            self._failing_status(
+                                reason="Task should be skipped but the past depends are not met"
+                            ),
+                            changed,
+                        )
                         return
                 changed = ti.set_state(new_state, session)
 
@@ -288,13 +310,16 @@ class TriggerRuleDep(BaseTIDep):
             if ti.map_index > -1:
                 non_successes -= removed
             if non_successes > 0:
-                yield self._failing_status(
-                    reason=(
-                        f"All setup tasks must complete successfully. Relevant setups: {relevant_setups}: "
-                        f"upstream_states={upstream_states}, "
-                        f"upstream_task_ids={task.upstream_task_ids}"
+                yield (
+                    self._failing_status(
+                        reason=(
+                            f"All setup tasks must complete successfully. Relevant setups: {relevant_setups}: "
+                            f"upstream_states={upstream_states}, "
+                            f"upstream_task_ids={task.upstream_task_ids}"
+                        ),
                     ),
-                ), changed
+                    changed,
+                )
 
         def _evaluate_direct_relatives() -> Iterator[TIDepStatus]:
             """Evaluate whether ``ti``'s trigger rule was met.
@@ -303,6 +328,9 @@ class TriggerRuleDep(BaseTIDep):
             :param dep_context: The current dependency context.
             :param session: Database session.
             """
+            if TYPE_CHECKING:
+                assert ti.task
+
             task = ti.task
             upstream_tasks = {t.task_id: t for t in task.upstream_list}
             trigger_rule = task.trigger_rule
@@ -429,8 +457,8 @@ class TriggerRuleDep(BaseTIDep):
                 if success + failed <= 0:
                     yield self._failing_status(
                         reason=(
-                            f"Task's trigger rule '{trigger_rule}'"
-                            "requires at least one upstream task failure or success"
+                            f"Task's trigger rule '{trigger_rule}' "
+                            "requires at least one upstream task failure or success "
                             f"but none were failed or success. upstream_states={upstream_states}, "
                             f"upstream_task_ids={task.upstream_task_ids}"
                         )
@@ -515,14 +543,6 @@ class TriggerRuleDep(BaseTIDep):
                             f"upstream_task_ids={task.upstream_task_ids}"
                         )
                     )
-                elif upstream_setup is None:  # for now, None only happens in mapped case
-                    yield self._failing_status(
-                        reason=(
-                            f"Task's trigger rule '{trigger_rule}' cannot have mapped tasks as upstream. "
-                            f"upstream_states={upstream_states}, "
-                            f"upstream_task_ids={task.upstream_task_ids}"
-                        )
-                    )
                 elif upstream_setup and not success_setup:
                     yield self._failing_status(
                         reason=(
@@ -534,6 +554,9 @@ class TriggerRuleDep(BaseTIDep):
                     )
             else:
                 yield self._failing_status(reason=f"No strategy to evaluate trigger rule '{trigger_rule}'.")
+
+        if TYPE_CHECKING:
+            assert ti.task
 
         if not ti.task.is_teardown:
             # a teardown cannot have any indirect setups

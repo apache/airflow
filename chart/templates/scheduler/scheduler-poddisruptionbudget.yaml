@@ -20,6 +20,7 @@
 ################################
 ## Airflow Scheduler PodDisruptionBudget
 #################################
+{{- if .Values.scheduler.enabled }}
 {{- if .Values.scheduler.podDisruptionBudget.enabled }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -41,4 +42,5 @@ spec:
       component: scheduler
       release: {{ .Release.Name }}
   {{- toYaml .Values.scheduler.podDisruptionBudget.config | nindent 2 }}
+{{- end }}
 {{- end }}

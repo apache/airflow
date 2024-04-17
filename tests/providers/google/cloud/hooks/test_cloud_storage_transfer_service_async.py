@@ -42,16 +42,20 @@ def hook_async():
 
 
 class TestCloudDataTransferServiceAsyncHook:
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRANSFER_HOOK_PATH}.CloudDataTransferServiceAsyncHook.get_conn")
     @mock.patch(f"{TRANSFER_HOOK_PATH}.StorageTransferServiceAsyncClient")
-    def test_get_conn(self, mock_async_client):
+    async def test_get_conn(self, mock_async_client, mock_get_conn):
         expected_value = "Async Hook"
         mock_async_client.return_value = expected_value
+        mock_get_conn.return_value = expected_value
 
         hook = CloudDataTransferServiceAsyncHook(project_id=TEST_PROJECT_ID)
-        conn_0 = hook.get_conn()
+
+        conn_0 = await hook.get_conn()
         assert conn_0 == expected_value
 
-        conn_1 = hook.get_conn()
+        conn_1 = await hook.get_conn()
         assert conn_1 == expected_value
         assert id(conn_0) == id(conn_1)
 

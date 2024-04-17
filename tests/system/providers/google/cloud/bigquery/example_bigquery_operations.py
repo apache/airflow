@@ -18,6 +18,7 @@
 """
 Example Airflow DAG for Google BigQuery service local file upload and external table creation.
 """
+
 from __future__ import annotations
 
 import os

@@ -35,6 +35,8 @@ from airflow.metrics.protocols import Timer
 from airflow.metrics.validators import (
     OTEL_NAME_MAX_LENGTH,
     AllowListValidator,
+    ListValidator,
+    get_validator,
     stat_name_otel_handler,
 )
 
@@ -166,11 +168,11 @@ class SafeOtelLogger:
         self,
         otel_provider,
         prefix: str = DEFAULT_METRIC_NAME_PREFIX,
-        allow_list_validator=AllowListValidator(),
+        metrics_validator: ListValidator = AllowListValidator(),
     ):
         self.otel: Callable = otel_provider
         self.prefix: str = prefix
-        self.metrics_validator = allow_list_validator
+        self.metrics_validator = metrics_validator
         self.meter = otel_provider.get_meter(__name__)
         self.metrics_map = MetricsMap(self.meter)
 
@@ -303,7 +305,7 @@ class MetricsMap:
         else:
             counter = self.meter.create_counter(name=otel_safe_name)
 
-        logging.debug("Created %s as type: %s", otel_safe_name, _type_as_str(counter))
+        log.debug("Created %s as type: %s", otel_safe_name, _type_as_str(counter))
         return counter
 
     def get_counter(self, name: str, attributes: Attributes = None):
@@ -393,15 +395,12 @@ def get_otel_logger(cls) -> SafeOtelLogger:
     interval = conf.getint("metrics", "otel_interval_milliseconds", fallback=None)  # ex: 30000
     debug = conf.getboolean("metrics", "otel_debugging_on")
 
-    allow_list = conf.get("metrics", "metrics_allow_list", fallback=None)
-    allow_list_validator = AllowListValidator(allow_list)
-
     resource = Resource(attributes={SERVICE_NAME: "Airflow"})
 
     protocol = "https" if ssl_active else "http"
     endpoint = f"{protocol}://{host}:{port}/v1/metrics"
 
-    logging.info("[Metric Exporter] Connecting to OpenTelemetry Collector at %s", endpoint)
+    log.info("[Metric Exporter] Connecting to OpenTelemetry Collector at %s", endpoint)
     readers = [
         PeriodicExportingMetricReader(
             OTLPMetricExporter(
@@ -424,4 +423,4 @@ def get_otel_logger(cls) -> SafeOtelLogger:
         ),
     )
 
-    return SafeOtelLogger(metrics.get_meter_provider(), prefix, allow_list_validator)
+    return SafeOtelLogger(metrics.get_meter_provider(), prefix, get_validator())

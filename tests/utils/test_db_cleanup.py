@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 from contextlib import suppress
-from datetime import datetime
 from importlib import import_module
 from io import StringIO
 from pathlib import Path
@@ -34,6 +33,7 @@ from sqlalchemy.ext.declarative import DeclarativeMeta
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.operators.python import PythonOperator
+from airflow.utils import timezone
 from airflow.utils.db_cleanup import (
     ARCHIVE_TABLE_PREFIX,
     CreateTableAs,
@@ -49,6 +49,8 @@ from airflow.utils.db_cleanup import (
 )
 from airflow.utils.session import create_session
 from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs, drop_tables_with_prefix
+
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(autouse=True)
@@ -321,7 +323,6 @@ class TestDBCleanup:
             "ab_user",
             "variable",  # leave alone
             "dataset",  # not good way to know if "stale"
-            "trigger",  # self-maintaining
             "task_map",  # keys to TI, so no need
             "serialized_dag",  # handled through FK to Dag
             "log_template",  # not a significant source of data; age not indicative of staleness
@@ -353,13 +354,13 @@ class TestDBCleanup:
         Ensure every table we have configured (and that is present in the db) can be cleaned successfully.
         For example, this checks that the recency column is actually a column.
         """
-        run_cleanup(clean_before_timestamp=datetime.utcnow(), dry_run=True)
+        run_cleanup(clean_before_timestamp=timezone.utcnow(), dry_run=True)
         assert "Encountered error when attempting to clean table" not in caplog.text
 
         # Lets check we have the right error message just in case
         caplog.clear()
         with patch("airflow.utils.db_cleanup._cleanup_table", side_effect=OperationalError("oops", {}, None)):
-            run_cleanup(clean_before_timestamp=datetime.utcnow(), table_names=["task_instance"], dry_run=True)
+            run_cleanup(clean_before_timestamp=timezone.utcnow(), table_names=["task_instance"], dry_run=True)
         assert "Encountered error when attempting to clean table" in caplog.text
 
     @pytest.mark.parametrize(
@@ -394,17 +395,17 @@ class TestDBCleanup:
     @patch("airflow.utils.db_cleanup.ask_yesno")
     def test_confirm_drop_archives(self, mock_ask_yesno, tables):
         expected = (
-            f"You have requested that we drop the following archived tables {tables}.\n"
-            "This is irreversible. Consider backing up the tables first"
+            f"You have requested that we drop the following archived tables: {', '.join(tables)}.\n"
+            "This is irreversible. Consider backing up the tables first."
         )
         if len(tables) > 3:
             expected = (
                 f"You have requested that we drop {len(tables)} archived tables prefixed with "
                 f"_airflow_deleted__.\n"
-                "This is irreversible. Consider backing up the tables first \n"
-                "\n"
-                f"{tables}"
+                "This is irreversible. Consider backing up the tables first.\n"
             )
+            for table in tables:
+                expected += f"\n  {table}"
 
         mock_ask_yesno.return_value = True
         with patch("sys.stdout", new=StringIO()) as fake_out, patch(

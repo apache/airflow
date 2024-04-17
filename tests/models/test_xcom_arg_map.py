@@ -23,6 +23,8 @@ from airflow.exceptions import AirflowSkipException
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 
+pytestmark = pytest.mark.db_test
+
 
 def test_xcom_map(dag_maker, session):
     results = set()
@@ -293,14 +295,16 @@ def test_xcom_map_zip_nest(dag_maker, session):
 
     # Run "push_letters" and "push_numbers".
     decision = dr.task_instance_scheduling_decisions(session=session)
-    assert decision.schedulable_tis and all(ti.task_id.startswith("push_") for ti in decision.schedulable_tis)
+    assert decision.schedulable_tis
+    assert all(ti.task_id.startswith("push_") for ti in decision.schedulable_tis)
     for ti in decision.schedulable_tis:
         ti.run(session=session)
     session.commit()
 
     # Run "pull".
     decision = dr.task_instance_scheduling_decisions(session=session)
-    assert decision.schedulable_tis and all(ti.task_id == "pull" for ti in decision.schedulable_tis)
+    assert decision.schedulable_tis
+    assert all(ti.task_id == "pull" for ti in decision.schedulable_tis)
     for ti in decision.schedulable_tis:
         ti.run(session=session)
 

@@ -116,19 +116,21 @@ class TestPrepareVirtualenv:
         mock_execute_in_subprocess.assert_called_with(["/VENV/bin/pip", "install", "apache-beam[gcp]"])
 
     def test_remove_task_decorator(self):
-
         py_source = "@task.virtualenv(use_dill=True)\ndef f():\nimport funcsigs"
         res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.virtualenv")
         assert res == "def f():\nimport funcsigs"
 
     def test_remove_decorator_no_parens(self):
-
         py_source = "@task.virtualenv\ndef f():\nimport funcsigs"
         res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.virtualenv")
         assert res == "def f():\nimport funcsigs"
 
-    def test_remove_decorator_nested(self):
+    def test_remove_decorator_including_comment(self):
+        py_source = "@task.virtualenv\ndef f():\n# @task.virtualenv\nimport funcsigs"
+        res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.virtualenv")
+        assert res == "def f():\n# @task.virtualenv\nimport funcsigs"
 
+    def test_remove_decorator_nested(self):
         py_source = "@foo\n@task.virtualenv\n@bar\ndef f():\nimport funcsigs"
         res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.virtualenv")
         assert res == "@foo\n@bar\ndef f():\nimport funcsigs"

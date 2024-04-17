@@ -18,13 +18,9 @@ import datetime
 from functools import cached_property
 from typing import TYPE_CHECKING, Optional
 
-from pydantic import BaseModel as BaseModelPydantic
-
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
-
-if TYPE_CHECKING:
-    from airflow.jobs.job import Job
+from airflow.utils.pydantic import BaseModel as BaseModelPydantic, ConfigDict
 
 
 def check_runner_initialized(job_runner: Optional[BaseJobRunner], job_type: str) -> BaseJobRunner:
@@ -46,12 +42,9 @@ class JobPydantic(BaseModelPydantic):
     executor_class: Optional[str]
     hostname: Optional[str]
     unixname: Optional[str]
+    grace_multiplier: float = 2.1
 
-    class Config:
-        """Make sure it deals automatically with SQLAlchemy ORM classes."""
-
-        from_attributes = True
-        orm_mode = True  # Pydantic 1.x compatibility.
+    model_config = ConfigDict(from_attributes=True)
 
     @cached_property
     def executor(self):
@@ -59,15 +52,18 @@ class JobPydantic(BaseModelPydantic):
 
     @cached_property
     def heartrate(self) -> float:
-        assert self.job_type is not None
+        from airflow.jobs.job import Job
+
+        if TYPE_CHECKING:
+            assert self.job_type is not None
         return Job._heartrate(self.job_type)
 
-    def is_alive(self, grace_multiplier=2.1) -> bool:
+    def is_alive(self) -> bool:
         """Is this job currently alive."""
+        from airflow.jobs.job import Job, health_check_threshold
+
         return Job._is_alive(
-            job_type=self.job_type,
-            heartrate=self.heartrate,
             state=self.state,
+            health_check_threshold_value=health_check_threshold(self.job_type, self.heartrate),
             latest_heartbeat=self.latest_heartbeat,
-            grace_multiplier=grace_multiplier,
         )

@@ -39,6 +39,8 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_pools
 
+pytestmark = pytest.mark.db_test
+
 EXECDATE = timezone.utcnow()
 EXECDATE_NOFRACTIONS = EXECDATE.replace(microsecond=0)
 EXECDATE_ISO = EXECDATE_NOFRACTIONS.isoformat()
@@ -133,13 +135,11 @@ class TestLocalClient:
 
             # test output
             queued_at = pendulum.now()
-            started_at = pendulum.now()
             mock.return_value = DagRun(
                 dag_id=test_dag_id,
                 run_id=run_id,
                 queued_at=queued_at,
                 execution_date=EXECDATE,
-                start_date=started_at,
                 external_trigger=True,
                 state=DagRunState.QUEUED,
                 conf={},
@@ -157,7 +157,7 @@ class TestLocalClient:
                 "last_scheduling_decision": None,
                 "logical_date": EXECDATE,
                 "run_type": DagRunType.MANUAL,
-                "start_date": started_at,
+                "start_date": None,
                 "state": DagRunState.QUEUED,
             }
             dag_run = self.client.trigger_dag(dag_id=test_dag_id)

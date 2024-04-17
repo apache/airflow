@@ -36,6 +36,7 @@ Helm Chart for Apache Airflow
     using-additional-containers
     customizing-workers
     Installing from sources<installing-helm-chart-from-sources>
+    Extending the Chart<extending-the-chart>
 
 .. toctree::
     :hidden:
@@ -58,7 +59,7 @@ deployment on a `Kubernetes <http://kubernetes.io>`__ cluster using the
 Requirements
 ------------
 
--  Kubernetes 1.23+ cluster
+-  Kubernetes 1.25+ cluster
 -  Helm 3.0+
 -  PV provisioner support in the underlying infrastructure (optionally)
 
@@ -67,9 +68,9 @@ Features
 
 * Supported executors: ``LocalExecutor``, ``CeleryExecutor``, ``KubernetesExecutor``, ``LocalKubernetesExecutor``, ``CeleryKubernetesExecutor``
 * Supported Airflow version: ``1.10+``, ``2.0+``
-* Supported database backend: ``PostgresSQL``, ``MySQL``
+* Supported database backend: ``PostgreSQL``, ``MySQL``
 * Autoscaling for ``CeleryExecutor`` provided by KEDA
-* PostgreSQL and PgBouncer with a battle-tested configuration
+* ``PostgreSQL`` and ``PgBouncer`` with a battle-tested configuration
 * Monitoring:
 
    * StatsD/Prometheus metrics for Airflow

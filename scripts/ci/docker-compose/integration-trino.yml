@@ -15,9 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
+version: "3.8"
 services:
   trino:
     image: ghcr.io/apache/airflow-trino:359-2021.07.04
+    labels:
+      breeze.description: "Integration required for Trino hooks."
     hostname: trino
     domainname: example.com
 
@@ -39,7 +42,6 @@ services:
       - "37778-37786:7778"
 
     volumes:
-      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
       - ../dockerfiles/krb5-kdc-server/krb5.conf:/etc/krb5.conf:ro
       - trino-db-volume:/data/trino
       - kerberos-keytabs:/home/trino/kerberos-keytabs

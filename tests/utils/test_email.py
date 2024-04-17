@@ -145,6 +145,7 @@ class TestEmail:
         assert msg["To"] == ",".join(recipients)
 
 
+@pytest.mark.db_test
 class TestEmailSmtp:
     @mock.patch("airflow.utils.email.send_mime_email")
     def test_send_smtp(self, mock_send_mime, tmp_path):

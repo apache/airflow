@@ -17,7 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import importlib
+import inspect
 import logging
 import os
 import sys
@@ -29,29 +31,14 @@ import pytest
 from airflow.hooks.base import BaseHook
 from airflow.listeners.listener import get_listener_manager
 from airflow.plugins_manager import AirflowPlugin
+from airflow.utils.module_loading import qualname
 from airflow.www import app as application
-from setup import AIRFLOW_SOURCES_ROOT
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
 
-importlib_metadata_string = "importlib_metadata"
+pytestmark = pytest.mark.db_test
 
-try:
-    import importlib_metadata
-
-    # If importlib_metadata is installed, it takes precedence over built-in importlib.metadata in PY39
-    # so we should use the default declared above
-except ImportError:
-    try:
-        import importlib.metadata
-
-        # only when we do not have importlib_metadata, the importlib.metadata is actually used
-        importlib_metadata = "importlib.metadata"  # type: ignore
-    except ImportError:
-        raise Exception(
-            "Either importlib_metadata must be installed or importlib.metadata must be"
-            " available in system libraries (Python 3.9+). We seem to have neither."
-        )
+AIRFLOW_SOURCES_ROOT = Path(__file__).parents[2].resolve()
 
 ON_LOAD_EXCEPTION_PLUGIN = """
 from airflow.plugins_manager import AirflowPlugin
@@ -71,6 +58,22 @@ def clean_plugins():
     get_listener_manager().clear()
 
 
+@pytest.fixture
+def mock_metadata_distribution(mocker):
+    @contextlib.contextmanager
+    def wrapper(*args, **kwargs):
+        if sys.version_info < (3, 12):
+            patch_fq = "importlib_metadata.distributions"
+        else:
+            patch_fq = "importlib.metadata.distributions"
+
+        with mock.patch(patch_fq, *args, **kwargs) as m:
+            yield m
+
+    return wrapper
+
+
+@pytest.mark.db_test
 class TestPluginsRBAC:
     @pytest.fixture(autouse=True)
     def _set_attrs(self, app):
@@ -137,11 +140,11 @@ class TestPluginsRBAC:
         assert self.app.blueprints["test_plugin"].name == bp.name
 
     def test_app_static_folder(self):
-
         # Blueprint static folder should be properly set
         assert AIRFLOW_SOURCES_ROOT / "airflow" / "www" / "static" == Path(self.app.static_folder).resolve()
 
 
+@pytest.mark.db_test
 def test_flaskappbuilder_nomenu_views():
     from tests.plugins.test_plugin import v_nomenu_appbuilder_package
 
@@ -159,7 +162,7 @@ def test_flaskappbuilder_nomenu_views():
 
 
 class TestPluginsManager:
-    @pytest.fixture(autouse=True, scope="function")
+    @pytest.fixture(autouse=True)
     def clean_plugins(self):
         from airflow import plugins_manager
 
@@ -167,7 +170,6 @@ class TestPluginsManager:
         plugins_manager.plugins = []
 
     def test_no_log_when_no_plugins(self, caplog):
-
         with mock_plugin_manager(plugins=[]):
             from airflow import plugins_manager
 
@@ -204,7 +206,7 @@ class TestPluginsManager:
         with mock.patch("airflow.plugins_manager.plugins", []):
             plugins_manager.load_plugins_from_plugin_directory()
 
-            assert 6 == len(plugins_manager.plugins)
+            assert 7 == len(plugins_manager.plugins)
             for plugin in plugins_manager.plugins:
                 if "AirflowTestOnLoadPlugin" in str(plugin):
                     assert "postload" == plugin.name
@@ -304,7 +306,7 @@ class TestPluginsManager:
 
         assert caplog.record_tuples == []
 
-    def test_entrypoint_plugin_errors_dont_raise_exceptions(self, caplog):
+    def test_entrypoint_plugin_errors_dont_raise_exceptions(self, mock_metadata_distribution, caplog):
         """
         Test that Airflow does not raise an error if there is any Exception because of a plugin.
         """
@@ -320,9 +322,9 @@ class TestPluginsManager:
         mock_entrypoint.load.side_effect = ImportError("my_fake_module not found")
         mock_dist.entry_points = [mock_entrypoint]
 
-        with mock.patch(
-            f"{importlib_metadata_string}.distributions", return_value=[mock_dist]
-        ), caplog.at_level(logging.ERROR, logger="airflow.plugins_manager"):
+        with mock_metadata_distribution(return_value=[mock_dist]), caplog.at_level(
+            logging.ERROR, logger="airflow.plugins_manager"
+        ):
             load_entrypoint_plugins()
 
             received_logs = caplog.text
@@ -379,7 +381,13 @@ class TestPluginsManager:
             plugins_manager.integrate_listener_plugins(get_listener_manager())
 
             assert get_listener_manager().has_listeners
-            assert get_listener_manager().pm.get_plugins().pop().__name__ == "tests.listeners.empty_listener"
+            listeners = get_listener_manager().pm.get_plugins()
+            listener_names = [el.__name__ if inspect.ismodule(el) else qualname(el) for el in listeners]
+            # sort names as order of listeners is not guaranteed
+            assert [
+                "tests.listeners.class_listener.ClassBasedListener",
+                "tests.listeners.empty_listener",
+            ] == sorted(listener_names)
 
     def test_should_import_plugin_from_providers(self):
         from airflow import plugins_manager
@@ -419,7 +427,7 @@ class TestPluginsDirectorySource:
 
 
 class TestEntryPointSource:
-    def test_should_return_correct_source_details(self):
+    def test_should_return_correct_source_details(self, mock_metadata_distribution):
         from airflow import plugins_manager
 
         mock_entrypoint = mock.Mock()
@@ -431,7 +439,7 @@ class TestEntryPointSource:
         mock_dist.version = "1.0.0"
         mock_dist.entry_points = [mock_entrypoint]
 
-        with mock.patch(f"{importlib_metadata_string}.distributions", return_value=[mock_dist]):
+        with mock_metadata_distribution(return_value=[mock_dist]):
             plugins_manager.load_entrypoint_plugins()
 
         source = plugins_manager.EntryPointSource(mock_entrypoint, mock_dist)

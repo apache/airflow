@@ -23,7 +23,7 @@ Example Airflow DAG that demonstrates interactions with Google Cloud Transfer.
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from airflow.models.dag import DAG
@@ -83,7 +83,7 @@ gcs_to_gcs_transfer_body = {
     SCHEDULE: {
         SCHEDULE_START_DATE: datetime(2015, 1, 1).date(),
         SCHEDULE_END_DATE: datetime(2030, 1, 1).date(),
-        START_TIME_OF_DAY: (datetime.utcnow() + timedelta(seconds=120)).time(),
+        START_TIME_OF_DAY: (datetime.now(tz=timezone.utc) + timedelta(seconds=120)).time(),
     },
     TRANSFER_SPEC: {
         GCS_DATA_SOURCE: {BUCKET_NAME: BUCKET_NAME_SRC},
@@ -108,7 +108,6 @@ with DAG(
     catchup=False,
     tags=["example", "transfer", "gcp"],
 ) as dag:
-
     create_bucket_src = GCSCreateBucketOperator(
         task_id="create_bucket_src",
         bucket_name=BUCKET_NAME_SRC,

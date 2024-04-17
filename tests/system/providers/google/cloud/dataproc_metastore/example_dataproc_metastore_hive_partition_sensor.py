@@ -21,6 +21,7 @@ using Dataproc Metastore Sensor.
 
 Note that Metastore service must be configured to use gRPC endpoints.
 """
+
 from __future__ import annotations
 
 import datetime
@@ -113,7 +114,6 @@ with DAG(
     catchup=False,
     tags=["example", "dataproc", "metastore", "partition", "hive", "sensor"],
 ) as dag:
-
     create_metastore_service = DataprocMetastoreCreateServiceOperator(
         task_id="create_metastore_service",
         region=REGION,

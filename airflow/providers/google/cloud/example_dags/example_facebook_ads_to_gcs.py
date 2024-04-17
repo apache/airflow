@@ -18,6 +18,7 @@
 """
 Example Airflow DAG that shows how to use FacebookAdsReportToGcsOperator.
 """
+
 from __future__ import annotations
 
 import os
@@ -62,7 +63,6 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:
-
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket",
         bucket_name=GCS_BUCKET,

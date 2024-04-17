@@ -17,12 +17,15 @@
 from __future__ import annotations
 
 import re
+import warnings
 from unittest import mock
 
 import pytest
 
 from airflow.www.extensions import init_views
 from tests.test_utils.config import conf_vars
+
+pytestmark = pytest.mark.db_test
 
 
 class TestInitApiExperimental:
@@ -35,6 +38,6 @@ class TestInitApiExperimental:
     @conf_vars({("api", "enable_experimental_api"): "false"})
     def test_should_not_raise_deprecation_warning_when_disabled(self):
         app = mock.MagicMock()
-        with pytest.warns(None) as warnings:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")  # Not expected any warnings here
             init_views.init_api_experimental(app)
-        assert len(warnings) == 0

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Spanner operators."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
@@ -297,7 +298,7 @@ class SpannerQueryDatabaseInstanceOperator(GoogleCloudBaseOperator):
     @staticmethod
     def sanitize_queries(queries: list[str]) -> None:
         """
-        Drops empty query in queries.
+        Drop empty query in queries.
 
         :param queries: queries
         """

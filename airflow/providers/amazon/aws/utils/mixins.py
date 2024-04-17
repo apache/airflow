@@ -31,8 +31,10 @@ import warnings
 from functools import cached_property
 from typing import Any, Generic, NamedTuple, TypeVar
 
+from deprecated import deprecated
 from typing_extensions import final
 
+from airflow.compat.functools import cache
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
@@ -159,7 +161,22 @@ class AwsBaseHookMixin(Generic[AwsHookType]):
 
     @property
     @final
+    @deprecated(
+        reason="`region` is deprecated and will be removed in the future. Please use `region_name` instead.",
+        category=AirflowProviderDeprecationWarning,
+    )
     def region(self) -> str | None:
         """Alias for ``region_name``, used for compatibility (deprecated)."""
-        warnings.warn(REGION_MSG, AirflowProviderDeprecationWarning, stacklevel=3)
         return self.region_name
+
+
+@cache
+def aws_template_fields(*template_fields: str) -> tuple[str, ...]:
+    """Merge provided template_fields with generic one and return in alphabetical order."""
+    if not all(isinstance(tf, str) for tf in template_fields):
+        msg = (
+            "Expected that all provided arguments are strings, but got "
+            f"{', '.join(map(repr, template_fields))}."
+        )
+        raise TypeError(msg)
+    return tuple(sorted(list({"aws_conn_id", "region_name", "verify"} | set(template_fields))))

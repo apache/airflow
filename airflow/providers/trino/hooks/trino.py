@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterable, Mapping, TypeVar
 
 import trino
@@ -28,6 +29,7 @@ from trino.transaction import IsolationLevel
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.utils.helpers import exactly_one
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING, DEFAULT_FORMAT_PREFIX
 
 if TYPE_CHECKING:
@@ -85,11 +87,14 @@ class TrinoHook(DbApiHook):
     conn_type = "trino"
     hook_name = "Trino"
     query_id = ""
-    placeholder = "?"
     _test_connection_sql = "select 1"
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._placeholder: str = "?"
+
     def get_conn(self) -> Connection:
-        """Returns a connection object."""
+        """Return a connection object."""
         db = self.get_connection(self.trino_conn_id)  # type: ignore[attr-defined]
         extra = db.extra_dejson
         auth = None
@@ -99,11 +104,20 @@ class TrinoHook(DbApiHook):
         elif db.password:
             auth = trino.auth.BasicAuthentication(db.login, db.password)  # type: ignore[attr-defined]
         elif extra.get("auth") == "jwt":
-            if "jwt__file" in extra:
-                with open(extra.get("jwt__file")) as jwt_file:
-                    token = jwt_file.read()
+            if not exactly_one(jwt_file := "jwt__file" in extra, jwt_token := "jwt__token" in extra):
+                msg = (
+                    "When auth set to 'jwt' then expected exactly one parameter 'jwt__file' or 'jwt__token'"
+                    " in connection extra, but "
+                )
+                if jwt_file and jwt_token:
+                    msg += "provided both."
+                else:
+                    msg += "none of them provided."
+                raise ValueError(msg)
+            elif jwt_file:
+                token = Path(extra["jwt__file"]).read_text()
             else:
-                token = extra.get("jwt__token")
+                token = extra["jwt__token"]
             auth = trino.auth.JWTAuthentication(token=token)
         elif extra.get("auth") == "certs":
             auth = trino.auth.CertificateAuthentication(
@@ -145,12 +159,13 @@ class TrinoHook(DbApiHook):
             verify=_boolify(extra.get("verify", True)),
             session_properties=extra.get("session_properties") or None,
             client_tags=extra.get("client_tags") or None,
+            timezone=extra.get("timezone") or None,
         )
 
         return trino_conn
 
     def get_isolation_level(self) -> Any:
-        """Returns an isolation level."""
+        """Return an isolation level."""
         db = self.get_connection(self.trino_conn_id)  # type: ignore[attr-defined]
         isolation_level = db.extra_dejson.get("isolation_level", "AUTOCOMMIT").upper()
         return getattr(IsolationLevel, isolation_level, IsolationLevel.AUTOCOMMIT)
@@ -177,9 +192,7 @@ class TrinoHook(DbApiHook):
         except DatabaseError as e:
             raise TrinoException(e)
 
-    def get_pandas_df(
-        self, sql: str = "", parameters: Iterable | Mapping[str, Any] | None = None, **kwargs
-    ):  # type: ignore[override]
+    def get_pandas_df(self, sql: str = "", parameters: Iterable | Mapping[str, Any] | None = None, **kwargs):  # type: ignore[override]
         import pandas as pd
 
         cursor = self.get_cursor()
@@ -191,7 +204,7 @@ class TrinoHook(DbApiHook):
         column_descriptions = cursor.description
         if data:
             df = pd.DataFrame(data, **kwargs)
-            df.columns = [c[0] for c in column_descriptions]
+            df.rename(columns={n: c[0] for n, c in zip(df.columns, column_descriptions)}, inplace=True)
         else:
             df = pd.DataFrame(**kwargs)
         return df
@@ -206,7 +219,7 @@ class TrinoHook(DbApiHook):
         **kwargs,
     ) -> None:
         """
-        A generic way to insert a set of tuples into a table.
+        Insert a set of tuples into a table in a generic way.
 
         :param table: Name of the target table
         :param rows: The rows to insert into the table
@@ -237,7 +250,7 @@ class TrinoHook(DbApiHook):
         return cell
 
     def get_openlineage_database_info(self, connection):
-        """Returns Trino specific information for OpenLineage."""
+        """Return Trino specific information for OpenLineage."""
         from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
         return DatabaseInfo(
@@ -258,9 +271,9 @@ class TrinoHook(DbApiHook):
         )
 
     def get_openlineage_database_dialect(self, _):
-        """Returns Trino dialect."""
+        """Return Trino dialect."""
         return "trino"
 
     def get_openlineage_default_schema(self):
-        """Returns Trino default schema."""
+        """Return Trino default schema."""
         return trino.constants.DEFAULT_SCHEMA

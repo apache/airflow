@@ -144,6 +144,7 @@ with DAG(
         crawler_name=glue_crawler_name,
     )
     # [END howto_sensor_glue_crawler]
+    wait_for_crawl.timeout = 500
 
     # [START howto_operator_glue]
     submit_glue_job = GlueJobOperator(

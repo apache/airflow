@@ -16,12 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# mypy ignore arg types (for templated fields)
-# type: ignore[arg-type]
 
 """
 Example Airflow DAG for Google Vertex AI service testing Custom Jobs operations.
 """
+
 from __future__ import annotations
 
 import os

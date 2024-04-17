@@ -80,6 +80,7 @@ class TestSageMakerBaseOperator:
             self.sagemaker._get_unique_job_name("test", True, lambda _: None)
 
 
+@pytest.mark.db_test
 class TestSageMakerExperimentOperator:
     @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
     def test_create_experiment(self, conn_mock):

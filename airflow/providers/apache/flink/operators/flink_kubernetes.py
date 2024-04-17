@@ -99,7 +99,6 @@ class FlinkKubernetesOperator(BaseOperator):
         return self.hook.core_v1_client
 
     def execute(self, context: Context):
-
         self.log.info(
             "Creating flinkApplication with Context: %s and op_context: %s", self.cluster_context, context
         )

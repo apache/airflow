@@ -21,6 +21,8 @@ import pytest
 from airflow.models.base import get_id_collation_args
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.mark.parametrize(
     ("dsn", "expected", "extra"),

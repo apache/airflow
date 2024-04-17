@@ -18,12 +18,22 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.providers.amazon.aws.hooks.athena import AthenaHook
+import pytest
+
+from airflow.providers.amazon.aws.hooks.athena import (
+    MULTI_LINE_QUERY_LOG_PREFIX,
+    AthenaHook,
+    query_params_to_string,
+)
+
+MULTILINE_QUERY = """
+SELECT * FROM TEST_TABLE
+WHERE Success='True';"""
 
 MOCK_DATA = {
     "query": "SELECT * FROM TEST_TABLE",
     "database": "TEST_DATABASE",
-    "outputLocation": "s3://test_s3_bucket/",
+    "output_location": "s3://test_s3_bucket/",
     "client_request_token": "eac427d0-1c6d-4dfb-96aa-2835d3ac6595",
     "workgroup": "primary",
     "query_execution_id": "eac427d0-1c6d-4dfb-96aa-2835d3ac6595",
@@ -32,7 +42,7 @@ MOCK_DATA = {
 }
 
 mock_query_context = {"Database": MOCK_DATA["database"]}
-mock_result_configuration = {"OutputLocation": MOCK_DATA["outputLocation"]}
+mock_result_configuration = {"OutputLocation": MOCK_DATA["output_location"]}
 
 MOCK_RUNNING_QUERY_EXECUTION = {"QueryExecution": {"Status": {"State": "RUNNING"}}}
 MOCK_SUCCEEDED_QUERY_EXECUTION = {"QueryExecution": {"Status": {"State": "SUCCEEDED"}}}
@@ -43,6 +53,7 @@ MOCK_QUERY_EXECUTION_OUTPUT = {
     "QueryExecution": {
         "QueryExecutionId": MOCK_DATA["query_execution_id"],
         "ResultConfiguration": {"OutputLocation": "s3://test_bucket/test.csv"},
+        "Status": {"StateChangeReason": "Terminated by user."},
     }
 }
 
@@ -195,3 +206,73 @@ class TestAthenaHook:
         mock_conn.return_value.get_query_execution.return_value = MOCK_QUERY_EXECUTION_OUTPUT
         result = self.athena.get_output_location(query_execution_id=MOCK_DATA["query_execution_id"])
         assert result == "s3://test_bucket/test.csv"
+
+    @pytest.mark.parametrize(
+        "query_execution_id", [pytest.param("", id="empty-string"), pytest.param(None, id="none")]
+    )
+    def test_hook_get_output_location_empty_execution_id(self, query_execution_id):
+        with pytest.raises(ValueError, match="Invalid Query execution id"):
+            self.athena.get_output_location(query_execution_id=query_execution_id)
+
+    @pytest.mark.parametrize("response", [pytest.param({}, id="empty-dict"), pytest.param(None, id="none")])
+    def test_hook_get_output_location_no_response(self, response):
+        with mock.patch.object(AthenaHook, "get_query_info", return_value=response) as m:
+            with pytest.raises(ValueError, match="Unable to get query information"):
+                self.athena.get_output_location(query_execution_id="PLACEHOLDER")
+            m.assert_called_once_with(query_execution_id="PLACEHOLDER", use_cache=True)
+
+    def test_hook_get_output_location_invalid_response(self, caplog):
+        with mock.patch.object(AthenaHook, "get_query_info") as m:
+            m.return_value = {"foo": "bar"}
+            caplog.clear()
+            caplog.set_level("ERROR")
+            with pytest.raises(KeyError):
+                self.athena.get_output_location(query_execution_id="PLACEHOLDER")
+            assert "Error retrieving OutputLocation" in caplog.text
+
+    @mock.patch.object(AthenaHook, "get_conn")
+    def test_hook_get_query_info_caching(self, mock_conn):
+        mock_conn.return_value.get_query_execution.return_value = MOCK_QUERY_EXECUTION_OUTPUT
+        self.athena.get_state_change_reason(query_execution_id=MOCK_DATA["query_execution_id"])
+        assert not self.athena._AthenaHook__query_results
+        # get_output_location uses cache
+        self.athena.get_output_location(query_execution_id=MOCK_DATA["query_execution_id"])
+        assert MOCK_DATA["query_execution_id"] in self.athena._AthenaHook__query_results
+        mock_conn.return_value.get_query_execution.assert_called_with(
+            QueryExecutionId=MOCK_DATA["query_execution_id"]
+        )
+        self.athena.get_state_change_reason(
+            query_execution_id=MOCK_DATA["query_execution_id"], use_cache=False
+        )
+        mock_conn.return_value.get_query_execution.assert_called_with(
+            QueryExecutionId=MOCK_DATA["query_execution_id"]
+        )
+
+    def test_single_line_query_log_formatting(self):
+        params = {
+            "QueryString": MOCK_DATA["query"],
+            "QueryExecutionContext": {"Database": MOCK_DATA["database"]},
+            "ResultConfiguration": {"OutputLocation": MOCK_DATA["output_location"]},
+            "WorkGroup": MOCK_DATA["workgroup"],
+        }
+
+        result = query_params_to_string(params)
+
+        assert isinstance(result, str)
+        assert result.count("\n") == len(params.keys())
+
+    def test_multi_line_query_log_formatting(self):
+        params = {
+            "QueryString": MULTILINE_QUERY,
+            "QueryExecutionContext": {"Database": MOCK_DATA["database"]},
+            "ResultConfiguration": {"OutputLocation": MOCK_DATA["output_location"]},
+            "WorkGroup": MOCK_DATA["workgroup"],
+        }
+        num_query_lines = MULTILINE_QUERY.count("\n")
+
+        result = query_params_to_string(params)
+
+        assert isinstance(result, str)
+        assert result.count("\n") == len(params.keys()) + num_query_lines
+        # All lines except the first line of the multiline query log message get the double prefix/indent.
+        assert result.count(MULTI_LINE_QUERY_LOG_PREFIX) == (num_query_lines * 2) - 1

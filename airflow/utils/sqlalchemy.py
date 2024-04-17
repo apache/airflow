@@ -22,31 +22,28 @@ import copy
 import datetime
 import json
 import logging
+from importlib import metadata
 from typing import TYPE_CHECKING, Any, Generator, Iterable, overload
 
-import pendulum
 from dateutil import relativedelta
-from sqlalchemy import TIMESTAMP, PickleType, and_, event, false, nullsfirst, or_, true, tuple_
-from sqlalchemy.dialects import mssql, mysql
-from sqlalchemy.sql import Select
-from sqlalchemy.types import JSON, Text, TypeDecorator, UnicodeText
+from packaging import version
+from sqlalchemy import TIMESTAMP, PickleType, event, nullsfirst, tuple_
+from sqlalchemy.dialects import mysql
+from sqlalchemy.types import JSON, Text, TypeDecorator
 
-from airflow import settings
 from airflow.configuration import conf
 from airflow.serialization.enums import Encoding
-from airflow.utils.timezone import make_naive
+from airflow.utils.timezone import make_naive, utc
 
 if TYPE_CHECKING:
     from kubernetes.client.models.v1_pod import V1Pod
     from sqlalchemy.exc import OperationalError
     from sqlalchemy.orm import Query, Session
-    from sqlalchemy.sql import ColumnElement
+    from sqlalchemy.sql import ColumnElement, Select
     from sqlalchemy.sql.expression import ColumnOperators
     from sqlalchemy.types import TypeEngine
 
 log = logging.getLogger(__name__)
-
-utc = pendulum.tz.timezone("UTC")
 
 
 class UtcDateTime(TypeDecorator):
@@ -75,9 +72,8 @@ class UtcDateTime(TypeDecorator):
         elif value.tzinfo is None:
             raise ValueError("naive datetime is disallowed")
         elif dialect.name == "mysql":
-            # For mysql we should store timestamps as naive values
-            # In MySQL 5.7 inserting timezone value fails with 'invalid-date'
-            # See https://issues.apache.org/jira/browse/AIRFLOW-7001
+            # For mysql versions prior 8.0.19 we should send timestamps as naive values in UTC
+            # see: https://dev.mysql.com/doc/refman/8.0/en/date-and-time-literals.html
             return make_naive(value, timezone=utc)
         return value.astimezone(utc)
 
@@ -98,9 +94,7 @@ class UtcDateTime(TypeDecorator):
         return value
 
     def load_dialect_impl(self, dialect):
-        if dialect.name == "mssql":
-            return mssql.DATETIME2(precision=6)
-        elif dialect.name == "mysql":
+        if dialect.name == "mysql":
             return mysql.TIMESTAMP(fsp=6)
         return super().load_dialect_impl(dialect)
 
@@ -117,9 +111,7 @@ class ExtendedJSON(TypeDecorator):
     cache_ok = True
 
     def load_dialect_impl(self, dialect) -> TypeEngine:
-        if dialect.name != "mssql":
-            return dialect.type_descriptor(JSON)
-        return dialect.type_descriptor(UnicodeText)
+        return dialect.type_descriptor(JSON)
 
     def process_bind_param(self, value, dialect):
         from airflow.serialization.serialized_objects import BaseSerialization
@@ -127,24 +119,13 @@ class ExtendedJSON(TypeDecorator):
         if value is None:
             return None
 
-        # First, encode it into our custom JSON-targeted dict format
-        value = BaseSerialization.serialize(value)
-
-        # Then, if the database does not have native JSON support, encode it again as a string
-        if dialect.name == "mssql":
-            value = json.dumps(value)
-
-        return value
+        return BaseSerialization.serialize(value)
 
     def process_result_value(self, value, dialect):
         from airflow.serialization.serialized_objects import BaseSerialization
 
         if value is None:
             return None
-
-        # Deserialize from a string first if needed
-        if dialect.name == "mssql":
-            value = json.loads(value)
 
         return BaseSerialization.deserialize(value)
 
@@ -252,7 +233,6 @@ class ExecutorConfigType(PickleType):
     cache_ok = True
 
     def bind_processor(self, dialect):
-
         from airflow.serialization.serialized_objects import BaseSerialization
 
         super_process = super().bind_processor(dialect)
@@ -292,6 +272,8 @@ class ExecutorConfigType(PickleType):
 
     def compare_values(self, x, y):
         """
+        Compare x and y using self.comparator if available. Else, use __eq__.
+
         The TaskInstance.executor_config attribute is a pickled object that may contain kubernetes objects.
 
         If the installed library version has changed since the object was originally pickled,
@@ -355,46 +337,6 @@ class Interval(TypeDecorator):
         return data
 
 
-def skip_locked(session: Session) -> dict[str, Any]:
-    """
-    Return kargs for passing to `with_for_update()` suitable for the current DB engine version.
-
-    We do this as we document the fact that on DB engines that don't support this construct, we do not
-    support/recommend running HA scheduler. If a user ignores this and tries anyway everything will still
-    work, just slightly slower in some circumstances.
-
-    Specifically don't emit SKIP LOCKED for MySQL < 8, or MariaDB, neither of which support this construct
-
-    See https://jira.mariadb.org/browse/MDEV-13115
-    """
-    dialect = session.bind.dialect
-
-    if dialect.name != "mysql" or dialect.supports_for_update_of:
-        return {"skip_locked": True}
-    else:
-        return {}
-
-
-def nowait(session: Session) -> dict[str, Any]:
-    """
-    Return kwargs for passing to `with_for_update()` suitable for the current DB engine version.
-
-    We do this as we document the fact that on DB engines that don't support this construct, we do not
-    support/recommend running HA scheduler. If a user ignores this and tries anyway everything will still
-    work, just slightly slower in some circumstances.
-
-    Specifically don't emit NOWAIT for MySQL < 8, or MariaDB, neither of which support this construct
-
-    See https://jira.mariadb.org/browse/MDEV-13115
-    """
-    dialect = session.bind.dialect
-
-    if dialect.name != "mysql" or dialect.supports_for_update_of:
-        return {"nowait": True}
-    else:
-        return {}
-
-
 def nulls_first(col, session: Session) -> dict[str, Any]:
     """Specify *NULLS FIRST* to the column ordering.
 
@@ -411,22 +353,44 @@ def nulls_first(col, session: Session) -> dict[str, Any]:
 USE_ROW_LEVEL_LOCKING: bool = conf.getboolean("scheduler", "use_row_level_locking", fallback=True)
 
 
-def with_row_locks(query: Query, session: Session, **kwargs) -> Query:
+def with_row_locks(
+    query: Query,
+    session: Session,
+    *,
+    nowait: bool = False,
+    skip_locked: bool = False,
+    **kwargs,
+) -> Query:
     """
-    Apply with_for_update to an SQLAlchemy query, if row level locking is in use.
+    Apply with_for_update to the SQLAlchemy query if row level locking is in use.
+
+    This wrapper is needed so we don't use the syntax on unsupported database
+    engines. In particular, MySQL (prior to 8.0) and MariaDB do not support
+    row locking, where we do not support nor recommend running HA scheduler. If
+    a user ignores this and tries anyway, everything will still work, just
+    slightly slower in some circumstances.
+
+    See https://jira.mariadb.org/browse/MDEV-13115
 
     :param query: An SQLAlchemy Query object
     :param session: ORM Session
+    :param nowait: If set to True, will pass NOWAIT to supported database backends.
+    :param skip_locked: If set to True, will pass SKIP LOCKED to supported database backends.
     :param kwargs: Extra kwargs to pass to with_for_update (of, nowait, skip_locked, etc)
     :return: updated query
     """
     dialect = session.bind.dialect
 
     # Don't use row level locks if the MySQL dialect (Mariadb & MySQL < 8) does not support it.
-    if USE_ROW_LEVEL_LOCKING and (dialect.name != "mysql" or dialect.supports_for_update_of):
-        return query.with_for_update(**kwargs)
-    else:
+    if not USE_ROW_LEVEL_LOCKING:
         return query
+    if dialect.name == "mysql" and not dialect.supports_for_update_of:
+        return query
+    if nowait:
+        kwargs["nowait"] = True
+    if skip_locked:
+        kwargs["skip_locked"] = True
+    return query.with_for_update(**kwargs)
 
 
 @contextlib.contextmanager
@@ -518,8 +482,7 @@ def is_lock_not_available_error(error: OperationalError):
 def tuple_in_condition(
     columns: tuple[ColumnElement, ...],
     collection: Iterable[Any],
-) -> ColumnOperators:
-    ...
+) -> ColumnOperators: ...
 
 
 @overload
@@ -528,8 +491,7 @@ def tuple_in_condition(
     collection: Select,
     *,
     session: Session,
-) -> ColumnOperators:
-    ...
+) -> ColumnOperators: ...
 
 
 def tuple_in_condition(
@@ -542,31 +504,18 @@ def tuple_in_condition(
     Generate a tuple-in-collection operator to use in ``.where()``.
 
     For most SQL backends, this generates a simple ``([col, ...]) IN [condition]``
-    clause. This however does not work with MSSQL, where we need to expand to
-    ``(c1 = v1a AND c2 = v2a ...) OR (c1 = v1b AND c2 = v2b ...) ...`` manually.
+    clause.
 
     :meta private:
     """
-    if settings.engine.dialect.name != "mssql":
-        return tuple_(*columns).in_(collection)
-    if not isinstance(collection, Select):
-        rows = collection
-    elif session is None:
-        raise TypeError("session is required when passing in a subquery")
-    else:
-        rows = session.execute(collection)
-    clauses = [and_(*(c == v for c, v in zip(columns, values))) for values in rows]
-    if not clauses:
-        return false()
-    return or_(*clauses)
+    return tuple_(*columns).in_(collection)
 
 
 @overload
 def tuple_not_in_condition(
     columns: tuple[ColumnElement, ...],
     collection: Iterable[Any],
-) -> ColumnOperators:
-    ...
+) -> ColumnOperators: ...
 
 
 @overload
@@ -575,8 +524,7 @@ def tuple_not_in_condition(
     collection: Select,
     *,
     session: Session,
-) -> ColumnOperators:
-    ...
+) -> ColumnOperators: ...
 
 
 def tuple_not_in_condition(
@@ -592,17 +540,15 @@ def tuple_not_in_condition(
 
     :meta private:
     """
-    dialect = session.bind.dialect if session else settings.engine.dialect
+    return tuple_(*columns).not_in(collection)
 
-    if dialect.name != "mssql":
-        return tuple_(*columns).not_in(collection)
-    if not isinstance(collection, Select):
-        rows = collection
-    elif session is None:
-        raise TypeError("session is required when passing in a subquery")
-    else:
-        rows = session.execute(collection)
-    clauses = [or_(*(c != v for c, v in zip(columns, values))) for values in rows]
-    if not clauses:
-        return true()
-    return and_(*clauses)
+
+def get_orm_mapper():
+    """Get the correct ORM mapper for the installed SQLAlchemy version."""
+    import sqlalchemy.orm.mapper
+
+    return sqlalchemy.orm.mapper if is_sqlalchemy_v1() else sqlalchemy.orm.Mapper
+
+
+def is_sqlalchemy_v1() -> bool:
+    return version.parse(metadata.version("sqlalchemy")).major == 1

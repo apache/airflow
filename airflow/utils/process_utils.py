@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Utilities for running or stopping processes."""
+
 from __future__ import annotations
 
 import errno
@@ -205,12 +206,12 @@ def execute_interactive(cmd: list[str], **kwargs) -> None:
     log.info("Executing cmd: %s", " ".join(shlex.quote(c) for c in cmd))
 
     old_tty = termios.tcgetattr(sys.stdin)
-    tty.setraw(sys.stdin.fileno())
+    old_sigint_handler = signal.getsignal(signal.SIGINT)
+    tty.setcbreak(sys.stdin.fileno())
 
     # open pseudo-terminal to interact with subprocess
     primary_fd, secondary_fd = pty.openpty()
     try:
-        # use os.setsid() make it run in a new process group, or bash job control will not be enabled
         with subprocess.Popen(
             cmd,
             stdin=secondary_fd,
@@ -219,8 +220,10 @@ def execute_interactive(cmd: list[str], **kwargs) -> None:
             universal_newlines=True,
             **kwargs,
         ) as proc:
+            # ignore SIGINT in the parent process
+            signal.signal(signal.SIGINT, signal.SIG_IGN)
             while proc.poll() is None:
-                readable_fbs, _, _ = select.select([sys.stdin, primary_fd], [], [])
+                readable_fbs, _, _ = select.select([sys.stdin, primary_fd], [], [], 0)
                 if sys.stdin in readable_fbs:
                     input_data = os.read(sys.stdin.fileno(), 10240)
                     os.write(primary_fd, input_data)
@@ -230,6 +233,7 @@ def execute_interactive(cmd: list[str], **kwargs) -> None:
                         os.write(sys.stdout.fileno(), output_data)
     finally:
         # restore tty settings back
+        signal.signal(signal.SIGINT, old_sigint_handler)
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_tty)
 
 

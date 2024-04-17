@@ -25,6 +25,7 @@ from google.cloud.dataplex_v1.types import DataScanJob
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.google.cloud.hooks.dataplex import AirflowDataQualityScanResultTimeoutException
 from airflow.providers.google.cloud.sensors.dataplex import (
+    DataplexDataProfileJobStatusSensor,
     DataplexDataQualityJobStatusSensor,
     DataplexTaskStateSensor,
     TaskState,
@@ -177,6 +178,85 @@ class TestDataplexDataQualityJobStatusSensor:
         mock_duration.return_value = result_timeout + 1
 
         sensor = DataplexDataQualityJobStatusSensor(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            job_id=TEST_JOB_ID,
+            data_scan_id=TEST_DATA_SCAN_ID,
+            region=REGION,
+            api_version=API_VERSION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            timeout=TIMEOUT,
+            result_timeout=result_timeout,
+        )
+
+        with pytest.raises(AirflowDataQualityScanResultTimeoutException):
+            sensor.poke(context={})
+
+
+class TestDataplexDataProfileJobStatusSensor:
+    def run_job(self, state: int):
+        job = mock.Mock()
+        job.state = state
+        return job
+
+    @mock.patch(DATAPLEX_HOOK)
+    def test_done(self, mock_hook):
+        job = self.run_job(DataScanJob.State.SUCCEEDED)
+        mock_hook.return_value.get_data_scan_job.return_value = job
+
+        sensor = DataplexDataProfileJobStatusSensor(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            job_id=TEST_JOB_ID,
+            data_scan_id=TEST_DATA_SCAN_ID,
+            region=REGION,
+            api_version=API_VERSION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            timeout=TIMEOUT,
+        )
+        result = sensor.poke(context={})
+
+        mock_hook.return_value.get_data_scan_job.assert_called_once_with(
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_id=TEST_JOB_ID,
+            data_scan_id=TEST_DATA_SCAN_ID,
+            timeout=TIMEOUT,
+            retry=DEFAULT,
+            metadata=(),
+        )
+
+        assert result
+
+    def test_start_sensor_time(self):
+        sensor = DataplexDataProfileJobStatusSensor(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            job_id=TEST_JOB_ID,
+            data_scan_id=TEST_DATA_SCAN_ID,
+            region=REGION,
+            api_version=API_VERSION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            timeout=TIMEOUT,
+        )
+
+        assert sensor.start_sensor_time is None
+
+        duration_1 = sensor._duration()
+        duration_2 = sensor._duration()
+
+        assert sensor.start_sensor_time
+        assert 0 < duration_1 < duration_2
+
+    @mock.patch.object(DataplexDataProfileJobStatusSensor, "_duration")
+    def test_start_sensor_time_timeout(self, mock_duration):
+        result_timeout = 100
+        mock_duration.return_value = result_timeout + 1
+
+        sensor = DataplexDataProfileJobStatusSensor(
             task_id=TASK_ID,
             project_id=PROJECT_ID,
             job_id=TEST_JOB_ID,

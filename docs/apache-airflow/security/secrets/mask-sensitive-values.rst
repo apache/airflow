@@ -50,7 +50,7 @@ any words in ('access_token', 'api_key', 'apikey','authorization', 'passphrase',
 Adding your own masks
 """""""""""""""""""""
 
-If you want to mask an additional secret that is already masked by one of the above methods, you can do it in
+If you want to mask an additional secret that is not already masked by one of the above methods, you can do it in
 your DAG file or operator's ``execute`` function using the ``mask_secret`` function. For example:
 
 .. code-block:: python

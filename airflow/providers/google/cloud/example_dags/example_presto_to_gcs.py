@@ -18,6 +18,7 @@
 """
 Example DAG using PrestoToGCSOperator.
 """
+
 from __future__ import annotations
 
 import os
@@ -54,7 +55,6 @@ with DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
-
     create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create-dataset", dataset_id=DATASET_NAME)
 
     delete_dataset = BigQueryDeleteDatasetOperator(

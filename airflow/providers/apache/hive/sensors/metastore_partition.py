@@ -54,7 +54,6 @@ class MetastorePartitionSensor(SqlSensor):
         mysql_conn_id: str = "metastore_mysql",
         **kwargs: Any,
     ):
-
         self.partition_name = partition_name
         self.table = table
         self.schema = schema

@@ -19,8 +19,14 @@ from __future__ import annotations
 
 from typing import Sequence
 
-from airflow.providers.amazon.aws.utils.mixins import AwsBaseHookMixin, AwsHookParams, AwsHookType
+from airflow.providers.amazon.aws.utils.mixins import (
+    AwsBaseHookMixin,
+    AwsHookParams,
+    AwsHookType,
+    aws_template_fields,
+)
 from airflow.sensors.base import BaseSensorOperator
+from airflow.utils.types import NOTSET, ArgNotSet
 
 
 class AwsBaseSensor(BaseSensorOperator, AwsBaseHookMixin[AwsHookType]):
@@ -70,11 +76,7 @@ class AwsBaseSensor(BaseSensorOperator, AwsBaseHookMixin[AwsHookType]):
     :meta private:
     """
 
-    template_fields: Sequence[str] = (
-        "aws_conn_id",
-        "region_name",
-        "botocore_config",
-    )
+    template_fields: Sequence[str] = aws_template_fields()
 
     def __init__(
         self,
@@ -83,10 +85,12 @@ class AwsBaseSensor(BaseSensorOperator, AwsBaseHookMixin[AwsHookType]):
         region_name: str | None = None,
         verify: bool | str | None = None,
         botocore_config: dict | None = None,
+        region: str | None | ArgNotSet = NOTSET,  # Required for `.partial` signature check
         **kwargs,
     ):
+        additional_params = {} if region is NOTSET else {"region": region}
         hook_params = AwsHookParams.from_constructor(
-            aws_conn_id, region_name, verify, botocore_config, additional_params=kwargs
+            aws_conn_id, region_name, verify, botocore_config, additional_params=additional_params
         )
         super().__init__(**kwargs)
         self.aws_conn_id = hook_params.aws_conn_id

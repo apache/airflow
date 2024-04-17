@@ -16,12 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# mypy ignore arg types (for templated fields)
-# type: ignore[arg-type]
 
 """
 Example Airflow DAG for Google Vertex AI service testing Custom Jobs operations.
 """
+
 from __future__ import annotations
 
 import os
@@ -31,6 +30,7 @@ from google.cloud.aiplatform import schema
 from google.protobuf.json_format import ParseDict
 from google.protobuf.struct_pb2 import Value
 
+from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
@@ -130,11 +130,72 @@ with DAG(
         dataset_id=tabular_dataset_id,
         replica_count=REPLICA_COUNT,
         model_display_name=MODEL_DISPLAY_NAME,
+        region=REGION,
+        project_id=PROJECT_ID,
+    )
+    model_id_v1 = create_custom_training_job.output["model_id"]
+    # [END how_to_cloud_vertex_ai_create_custom_training_job_operator]
+
+    # [START how_to_cloud_vertex_ai_create_custom_training_job_operator_deferrable]
+    create_custom_training_job_deferrable = CreateCustomTrainingJobOperator(
+        task_id="custom_task_deferrable",
+        staging_bucket=f"gs://{CUSTOM_GCS_BUCKET_NAME}",
+        display_name=f"{CUSTOM_DISPLAY_NAME}_DEF",
+        script_path=LOCAL_TRAINING_SCRIPT_PATH,
+        container_uri=CONTAINER_URI,
+        requirements=["gcsfs==0.7.1"],
+        model_serving_container_image_uri=MODEL_SERVING_CONTAINER_URI,
+        # run params
+        dataset_id=tabular_dataset_id,
+        replica_count=REPLICA_COUNT,
+        model_display_name=f"{MODEL_DISPLAY_NAME}_DEF",
+        region=REGION,
+        project_id=PROJECT_ID,
+        deferrable=True,
+    )
+    model_id_v1_deferrable = create_custom_training_job.output["model_id"]
+    # [END how_to_cloud_vertex_ai_create_custom_training_job_operator_deferrable]
+
+    # [START how_to_cloud_vertex_ai_create_custom_training_job_v2_operator]
+    create_custom_training_job_v2 = CreateCustomTrainingJobOperator(
+        task_id="custom_task_v2",
+        staging_bucket=f"gs://{CUSTOM_GCS_BUCKET_NAME}",
+        display_name=CUSTOM_DISPLAY_NAME,
+        script_path=LOCAL_TRAINING_SCRIPT_PATH,
+        container_uri=CONTAINER_URI,
+        requirements=["gcsfs==0.7.1"],
+        model_serving_container_image_uri=MODEL_SERVING_CONTAINER_URI,
+        parent_model=model_id_v1,
+        # run params
+        dataset_id=tabular_dataset_id,
+        replica_count=REPLICA_COUNT,
+        model_display_name=MODEL_DISPLAY_NAME,
         sync=False,
         region=REGION,
         project_id=PROJECT_ID,
     )
-    # [END how_to_cloud_vertex_ai_create_custom_training_job_operator]
+    # [END how_to_cloud_vertex_ai_create_custom_training_job_v2_operator]
+
+    # [START how_to_cloud_vertex_ai_create_custom_training_job_v2_operator_deferrable]
+    create_custom_training_job_v2_deferrable = CreateCustomTrainingJobOperator(
+        task_id="custom_task_v2_deferrable",
+        staging_bucket=f"gs://{CUSTOM_GCS_BUCKET_NAME}",
+        display_name=f"{CUSTOM_DISPLAY_NAME}_DEF",
+        script_path=LOCAL_TRAINING_SCRIPT_PATH,
+        container_uri=CONTAINER_URI,
+        requirements=["gcsfs==0.7.1"],
+        model_serving_container_image_uri=MODEL_SERVING_CONTAINER_URI,
+        parent_model=model_id_v1,
+        # run params
+        dataset_id=tabular_dataset_id,
+        replica_count=REPLICA_COUNT,
+        model_display_name=f"{MODEL_DISPLAY_NAME}_DEF",
+        sync=False,
+        region=REGION,
+        project_id=PROJECT_ID,
+        deferrable=True,
+    )
+    # [END how_to_cloud_vertex_ai_create_custom_training_job_v2_operator_deferrable]
 
     # [START how_to_cloud_vertex_ai_delete_custom_training_job_operator]
     delete_custom_training_job = DeleteCustomTrainingJobOperator(
@@ -161,17 +222,20 @@ with DAG(
     )
 
     (
-        # TEST SETUP
-        create_bucket
-        >> move_data_files
-        >> download_training_script_file
-        >> create_tabular_dataset
-        # TEST BODY
-        >> create_custom_training_job
-        # TEST TEARDOWN
-        >> delete_custom_training_job
-        >> delete_tabular_dataset
-        >> delete_bucket
+        chain(
+            # TEST SETUP
+            create_bucket,
+            move_data_files,
+            download_training_script_file,
+            create_tabular_dataset,
+            # TEST BODY
+            [create_custom_training_job, create_custom_training_job_deferrable],
+            [create_custom_training_job_v2, create_custom_training_job_v2_deferrable],
+            # TEST TEARDOWN
+            delete_custom_training_job,
+            delete_tabular_dataset,
+            delete_bucket,
+        )
     )
 
 

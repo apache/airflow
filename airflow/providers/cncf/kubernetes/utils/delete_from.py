@@ -54,7 +54,6 @@ def delete_from_dict(k8s_client, data, body, namespace, verbose=False, **kwargs)
             except client.rest.ApiException as api_exception:
                 api_exceptions.append(api_exception)
     else:
-
         try:
             _delete_from_yaml_single_item(
                 k8s_client=k8s_client,

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module allows you to connect to GitHub."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -68,8 +69,8 @@ class GithubHook(BaseHook):
 
         return self.client
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict:
         """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "login", "extra"],

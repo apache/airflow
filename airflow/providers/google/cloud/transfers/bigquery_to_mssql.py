@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google BigQuery to MSSQL operator."""
+
 from __future__ import annotations
 
 import warnings
@@ -62,11 +63,9 @@ class BigQueryToMsSqlOperator(BigQueryToSqlBaseOperator):
     ) -> None:
         if mssql_table is not None:
             warnings.warn(
-                # fmt: off
-                "The `mssql_table` parameter has been deprecated. "
-                "Use `target_table_name` instead.",
-                # fmt: on
+                "The `mssql_table` parameter has been deprecated. Use `target_table_name` instead.",
                 AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
 
             if target_table_name is not None:

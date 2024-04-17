@@ -17,41 +17,19 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Iterable, List, Optional
+from typing import TYPE_CHECKING, Iterable, List, Optional
 
-from pydantic import BaseModel as BaseModelPydantic, PlainSerializer, PlainValidator, ValidationInfo
-from typing_extensions import Annotated
-
-from airflow import DAG
+from airflow.serialization.pydantic.dag import PydanticDag
 from airflow.serialization.pydantic.dataset import DatasetEventPydantic
+from airflow.utils.pydantic import BaseModel as BaseModelPydantic, ConfigDict, is_pydantic_2_installed
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.jobs.scheduler_job_runner import TI
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
     from airflow.utils.state import TaskInstanceState
-
-
-def serialize_operator(x: DAG) -> dict:
-    from airflow.serialization.serialized_objects import SerializedDAG
-
-    return SerializedDAG.serialize_dag(x)
-
-
-def validated_operator(x: DAG | dict[str, Any], _info: ValidationInfo) -> Any:
-    from airflow.serialization.serialized_objects import SerializedDAG
-
-    if isinstance(x, DAG):
-        return x
-    return SerializedDAG.deserialize_dag(x)
-
-
-PydanticDag = Annotated[
-    DAG,
-    PlainValidator(validated_operator),
-    PlainSerializer(serialize_operator, return_type=dict),
-]
 
 
 class DagRunPydantic(BaseModelPydantic):
@@ -61,7 +39,6 @@ class DagRunPydantic(BaseModelPydantic):
     dag_id: str
     queued_at: Optional[datetime]
     execution_date: datetime
-    logical_date: datetime
     start_date: Optional[datetime]
     end_date: Optional[datetime]
     state: str
@@ -74,16 +51,16 @@ class DagRunPydantic(BaseModelPydantic):
     data_interval_end: Optional[datetime]
     last_scheduling_decision: Optional[datetime]
     dag_hash: Optional[str]
-    updated_at: datetime
+    updated_at: Optional[datetime]
     dag: Optional[PydanticDag]
-    consumed_dataset_events: List[DatasetEventPydantic]  # noqa
+    consumed_dataset_events: List[DatasetEventPydantic]  # noqa: UP006
+    log_template_id: Optional[int]
 
-    class Config:
-        """Make sure it deals automatically with SQLAlchemy ORM classes."""
+    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
-        from_attributes = True
-        orm_mode = True  # Pydantic 1.x compatibility.
-        arbitrary_types_allowed = True
+    @property
+    def logical_date(self) -> datetime:
+        return self.execution_date
 
     @provide_session
     def get_task_instances(
@@ -92,22 +69,21 @@ class DagRunPydantic(BaseModelPydantic):
         session: Session = NEW_SESSION,
     ) -> list[TI]:
         """
-        Returns the task instances for this dag run.
+        Return the task instances for this dag run.
 
         TODO: make it works for AIP-44
         """
         raise NotImplementedError()
 
-    @provide_session
     def get_task_instance(
         self,
         task_id: str,
-        session: Session = NEW_SESSION,
+        session: Session,
         *,
         map_index: int = -1,
-    ) -> TI | None:
+    ) -> TI | TaskInstancePydantic | None:
         """
-        Returns the task instance specified by task_id for this dag run.
+        Return the task instance specified by task_id for this dag run.
 
         :param task_id: the task id
         :param session: Sqlalchemy ORM Session
@@ -122,5 +98,11 @@ class DagRunPydantic(BaseModelPydantic):
             map_index=map_index,
         )
 
+    def get_log_template(self, session: Session):
+        from airflow.models.dagrun import DagRun
 
-DagRunPydantic.model_rebuild()
+        return DagRun._get_log_template(log_template_id=self.log_template_id)
+
+
+if is_pydantic_2_installed():
+    DagRunPydantic.model_rebuild()

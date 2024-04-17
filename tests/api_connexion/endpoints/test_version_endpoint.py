@@ -20,6 +20,8 @@ from unittest import mock
 
 import pytest
 
+pytestmark = pytest.mark.db_test
+
 
 class TestGetHealthTest:
     @pytest.fixture(autouse=True)

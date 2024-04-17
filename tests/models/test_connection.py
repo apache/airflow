@@ -186,3 +186,67 @@ class TestConnection:
     )
     def test_get_uri(self, connection, expected_uri):
         assert connection.get_uri() == expected_uri
+
+    @pytest.mark.parametrize(
+        "connection, expected_conn_id",
+        [
+            # a valid example of connection id
+            (
+                Connection(
+                    conn_id="12312312312213___12312321",
+                    conn_type="type",
+                    login="user",
+                    password="pass",
+                    host="host",
+                    port=100,
+                    schema="schema",
+                    extra={"param1": "val1", "param2": "val2"},
+                ),
+                "12312312312213___12312321",
+            ),
+            # an invalid example of connection id, which allows potential code execution
+            (
+                Connection(
+                    conn_id="<script>alert(1)</script>",
+                    conn_type="type",
+                    host="protocol://host",
+                    port=100,
+                    schema="schema",
+                    extra={"param1": "val1", "param2": "val2"},
+                ),
+                None,
+            ),
+            # a valid connection as well
+            (
+                Connection(
+                    conn_id="a_valid_conn_id_!!##",
+                    conn_type="type",
+                    login="user",
+                    password="pass",
+                    host="protocol://host",
+                    port=100,
+                    schema="schema",
+                    extra={"param1": "val1", "param2": "val2"},
+                ),
+                "a_valid_conn_id_!!##",
+            ),
+            # a valid connection as well testing dashes
+            (
+                Connection(
+                    conn_id="a_-.11",
+                    conn_type="type",
+                    login="user",
+                    password="pass",
+                    host="protocol://host",
+                    port=100,
+                    schema="schema",
+                    extra={"param1": "val1", "param2": "val2"},
+                ),
+                "a_-.11",
+            ),
+        ],
+    )
+    # Responsible for ensuring that the sanitized connection id
+    # string works as expected.
+    def test_sanitize_conn_id(self, connection, expected_conn_id):
+        assert connection.conn_id == expected_conn_id

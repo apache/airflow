@@ -239,7 +239,6 @@ class TestS3ToGoogleCloudStorageOperator:
         gcs_destination,
         gcs_object,
     ):
-
         operator = S3ToGCSOperator(
             task_id=TASK_ID,
             bucket=S3_BUCKET,
@@ -480,6 +479,7 @@ class TestS3ToGoogleCloudStorageOperatorDeferrable:
 
         mock_log.return_value.info.assert_not_called()
 
+    @pytest.mark.db_test
     def test_get_transfer_hook(self):
         operator = S3ToGCSOperator(
             task_id=TASK_ID,

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from functools import cached_property
 
 import hvac
@@ -125,7 +126,7 @@ class _VaultClient(LoggingMixin):
             raise VaultError(
                 f"The auth_type is not supported: {auth_type}. It should be one of {VALID_AUTH_TYPES}"
             )
-        if auth_type == "token" and not token and not token_path:
+        if auth_type == "token" and not token and not token_path and "VAULT_TOKEN" not in os.environ:
             raise VaultError("The 'token' authentication type requires 'token' or 'token_path'")
         if auth_type == "github" and not token and not token_path:
             raise VaultError("The 'github' authentication type requires 'token' or 'token_path'")
@@ -151,7 +152,7 @@ class _VaultClient(LoggingMixin):
         self.url = url
         self.auth_type = auth_type
         self.kwargs = kwargs
-        self.token = token
+        self.token = token or os.getenv("VAULT_TOKEN", None)
         self.token_path = token_path
         self.auth_mount_point = auth_mount_point
         self.mount_point = mount_point
@@ -373,7 +374,10 @@ class _VaultClient(LoggingMixin):
                 response = self.client.secrets.kv.v1.read_secret(path=secret_path, mount_point=mount_point)
             else:
                 response = self.client.secrets.kv.v2.read_secret_version(
-                    path=secret_path, mount_point=mount_point, version=secret_version
+                    path=secret_path,
+                    mount_point=mount_point,
+                    version=secret_version,
+                    raise_on_deleted_version=True,
                 )
         except InvalidPath:
             self.log.debug("Secret not found %s with mount point %s", secret_path, mount_point)
@@ -384,7 +388,7 @@ class _VaultClient(LoggingMixin):
 
     def get_secret_metadata(self, secret_path: str) -> dict | None:
         """
-        Reads secret metadata (including versions) from the engine. It is only valid for KV version 2.
+        Read secret metadata (including versions) from the engine. It is only valid for KV version 2.
 
         :param secret_path: The path of the secret.
         :return: secret metadata. This is a Dict containing metadata for the secret.
@@ -406,7 +410,7 @@ class _VaultClient(LoggingMixin):
         self, secret_path: str, secret_version: int | None = None
     ) -> dict | None:
         """
-        Reads secret including metadata. It is only valid for KV version 2.
+        Read secret including metadata. It is only valid for KV version 2.
 
         See https://hvac.readthedocs.io/en/stable/usage/secrets_engines/kv_v2.html for details.
 
@@ -422,7 +426,10 @@ class _VaultClient(LoggingMixin):
         try:
             mount_point, secret_path = self._parse_secret_path(secret_path)
             return self.client.secrets.kv.v2.read_secret_version(
-                path=secret_path, mount_point=mount_point, version=secret_version
+                path=secret_path,
+                mount_point=mount_point,
+                version=secret_version,
+                raise_on_deleted_version=True,
             )
         except InvalidPath:
             self.log.debug(
@@ -437,7 +444,7 @@ class _VaultClient(LoggingMixin):
         self, secret_path: str, secret: dict, method: str | None = None, cas: int | None = None
     ) -> Response:
         """
-        Creates or updates secret.
+        Create or updates secret.
 
         :param secret_path: The path of the secret.
         :param secret: Secret to create or update for the path specified
@@ -461,10 +468,10 @@ class _VaultClient(LoggingMixin):
         mount_point, secret_path = self._parse_secret_path(secret_path)
         if self.kv_engine_version == 1:
             response = self.client.secrets.kv.v1.create_or_update_secret(
-                secret_path=secret_path, secret=secret, mount_point=mount_point, method=method
+                path=secret_path, secret=secret, mount_point=mount_point, method=method
             )
         else:
             response = self.client.secrets.kv.v2.create_or_update_secret(
-                secret_path=secret_path, secret=secret, mount_point=mount_point, cas=cas
+                path=secret_path, secret=secret, mount_point=mount_point, cas=cas
             )
         return response

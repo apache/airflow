@@ -22,6 +22,7 @@ The first task calls an sql command, defined in the SQLite operator,
 which when triggered, is performed on the connected sqlite database.
 The second task is similar but instead calls the SQL command from an external file.
 """
+
 from __future__ import annotations
 
 import os
@@ -41,7 +42,6 @@ with DAG(
     tags=["example"],
     catchup=False,
 ) as dag:
-
     # [START howto_operator_sqlite]
 
     # Example of creating a task that calls a common CREATE TABLE sql command.

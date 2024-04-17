@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for SSH connections."""
+
 from __future__ import annotations
 
 import os
@@ -27,6 +28,7 @@ from select import select
 from typing import Any, Sequence
 
 import paramiko
+from deprecated import deprecated
 from paramiko.config import SSH_PORT
 from sshtunnel import SSHTunnelForwarder
 from tenacity import Retrying, stop_after_attempt, wait_fixed, wait_random
@@ -93,9 +95,9 @@ class SSHHook(BaseHook):
     conn_type = "ssh"
     hook_name = "SSH"
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour."""
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom UI field behaviour for SSH connection."""
         return {
             "hidden_fields": ["schema"],
             "relabeling": {
@@ -282,7 +284,7 @@ class SSHHook(BaseHook):
         return paramiko.ProxyCommand(cmd) if cmd else None
 
     def get_conn(self) -> paramiko.SSHClient:
-        """Opens an SSH connection to the remote host."""
+        """Establish an SSH connection to the remote host."""
         self.log.debug("Creating SSH client for conn_id: %s", self.ssh_conn_id)
         client = paramiko.SSHClient()
 
@@ -298,7 +300,7 @@ class SSHHook(BaseHook):
 
         if self.no_host_key_check:
             self.log.warning("No Host Key Verification. This won't protect against Man-In-The-Middle attacks")
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # nosec B507
             # to avoid BadHostKeyException, skip loading and saving host keys
             known_hosts = os.path.expanduser("~/.ssh/known_hosts")
             if not self.allow_host_key_change and os.path.isfile(known_hosts):
@@ -365,17 +367,20 @@ class SSHHook(BaseHook):
         self.client = client
         return client
 
-    def __enter__(self) -> SSHHook:
-        warnings.warn(
+    @deprecated(
+        reason=(
             "The contextmanager of SSHHook is deprecated."
             "Please use get_conn() as a contextmanager instead."
-            "This method will be removed in Airflow 2.0",
-            category=AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
+            "This method will be removed in Airflow 2.0"
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
+    def __enter__(self) -> SSHHook:
+        """Return an instance of SSHHook when the `with` statement is used."""
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Clear ssh client after exiting the `with` statement block."""
         if self.client is not None:
             self.client.close()
             self.client = None
@@ -422,6 +427,15 @@ class SSHHook(BaseHook):
 
         return client
 
+    @deprecated(
+        reason=(
+            "SSHHook.create_tunnel is deprecated, Please "
+            "use get_tunnel() instead. But please note that the "
+            "order of the parameters have changed. "
+            "This method will be removed in Airflow 2.0"
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
     def create_tunnel(
         self, local_port: int, remote_port: int, remote_host: str = "localhost"
     ) -> SSHTunnelForwarder:
@@ -431,15 +445,6 @@ class SSHHook(BaseHook):
         :param remote_port: remote port number
         :param remote_host: remote host
         """
-        warnings.warn(
-            "SSHHook.create_tunnel is deprecated, Please"
-            "use get_tunnel() instead. But please note that the"
-            "order of the parameters have changed"
-            "This method will be removed in Airflow 2.0",
-            category=AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-
         return self.get_tunnel(remote_port, remote_host, local_port)
 
     def _pkey_from_private_key(self, private_key: str, passphrase: str | None = None) -> paramiko.PKey:

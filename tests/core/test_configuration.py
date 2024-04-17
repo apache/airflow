@@ -39,7 +39,9 @@ from airflow.configuration import (
     get_airflow_home,
     get_all_expansion_variables,
     run_command,
+    write_default_airflow_configuration_if_needed,
 )
+from airflow.providers_manager import ProvidersManager
 from tests.test_utils.config import conf_vars
 from tests.test_utils.reset_warning_registry import reset_warning_registry
 from tests.utils.test_config import (
@@ -447,6 +449,42 @@ key2 = 1.23
         assert isinstance(test_conf.getfloat("valid", "key2"), float)
         assert 1.23 == test_conf.getfloat("valid", "key2")
 
+    def test_getlist(self):
+        """Test AirflowConfigParser.getlist"""
+        test_config = """
+[empty]
+key0 = willbereplacedbymock
+
+[single]
+key1 = str
+
+[many]
+key2 = one,two,three
+
+[diffdelimiter]
+key3 = one;two;three
+"""
+        test_conf = AirflowConfigParser(default_config=test_config)
+        single = test_conf.getlist("single", "key1")
+        assert isinstance(single, list)
+        assert len(single) == 1
+        many = test_conf.getlist("many", "key2")
+        assert isinstance(many, list)
+        assert len(many) == 3
+        semicolon = test_conf.getlist("diffdelimiter", "key3", delimiter=";")
+        assert isinstance(semicolon, list)
+        assert len(semicolon) == 3
+        with patch.object(test_conf, "get", return_value=None):
+            with pytest.raises(
+                AirflowConfigException, match=re.escape("Failed to convert value None to list.")
+            ):
+                test_conf.getlist("empty", "key0")
+        with patch.object(test_conf, "get", return_value=None):
+            with pytest.raises(
+                AirflowConfigException, match=re.escape("Failed to convert value None to list.")
+            ):
+                test_conf.getlist("empty", "key0")
+
     @pytest.mark.parametrize(
         ("config_str", "expected"),
         [
@@ -595,26 +633,27 @@ AIRFLOW_HOME = /root/airflow
         assert isinstance(section_dict[key], type)
 
     def test_auth_backends_adds_session(self):
-        test_conf = AirflowConfigParser(default_config="")
-        # Guarantee we have deprecated settings, so we test the deprecation
-        # lookup even if we remove this explicit fallback
-        test_conf.deprecated_values = {
-            "api": {
-                "auth_backends": (
-                    re.compile(r"^airflow\.api\.auth\.backend\.deny_all$|^$"),
-                    "airflow.api.auth.backend.session",
-                    "3.0",
-                ),
-            },
-        }
-        test_conf.read_dict({"api": {"auth_backends": "airflow.api.auth.backend.basic_auth"}})
+        with patch("os.environ", {"AIRFLOW__API__AUTH_BACKEND": None}):
+            test_conf = AirflowConfigParser(default_config="")
+            # Guarantee we have deprecated settings, so we test the deprecation
+            # lookup even if we remove this explicit fallback
+            test_conf.deprecated_values = {
+                "api": {
+                    "auth_backends": (
+                        re.compile(r"^airflow\.api\.auth\.backend\.deny_all$|^$"),
+                        "airflow.api.auth.backend.session",
+                        "3.0",
+                    ),
+                },
+            }
+            test_conf.read_dict({"api": {"auth_backends": "airflow.api.auth.backend.basic_auth"}})
 
-        with pytest.warns(FutureWarning):
-            test_conf.validate()
-            assert (
-                test_conf.get("api", "auth_backends")
-                == "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
-            )
+            with pytest.warns(FutureWarning):
+                test_conf.validate()
+                assert (
+                    test_conf.get("api", "auth_backends")
+                    == "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
+                )
 
     def test_command_from_env(self):
         test_cmdenv_config = """[testcmdenv]
@@ -1133,7 +1172,6 @@ sql_alchemy_conn=sqlite://test
 
     def test_deprecated_funcs(self):
         for func in [
-            "load_test_config",
             "get",
             "getboolean",
             "getfloat",
@@ -1599,7 +1637,9 @@ def test_sensitive_values():
     all_keys = {(s, k) for s, v in conf.configuration_description.items() for k in v.get("options")}
     suspected_sensitive = {(s, k) for (s, k) in all_keys if k.endswith(("password", "kwargs"))}
     exclude_list = {
+        ("aws_batch_executor", "submit_job_kwargs"),
         ("kubernetes_executor", "delete_option_kwargs"),
+        ("aws_ecs_executor", "run_task_kwargs"),  # Only a constrained set of values, none are sensitive
     }
     suspected_sensitive -= exclude_list
     sensitive_values.update(suspected_sensitive)
@@ -1649,3 +1689,98 @@ def test_error_when_contributing_to_existing_section():
             ):
                 conf.load_providers_configuration()
         assert conf.get("celery", "celery_app_name") == "test"
+
+
+# Technically it's not a DB test, but we want to make sure it's not interfering with xdist non-db tests
+# Because the `_cleanup` method might cause side-effect for parallel-run tests
+@pytest.mark.db_test
+class TestWriteDefaultAirflowConfigurationIfNeeded:
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self, tmp_path_factory):
+        self.test_airflow_home = tmp_path_factory.mktemp("airflow_home")
+        self.test_airflow_config = self.test_airflow_home / "airflow.cfg"
+        self.test_non_relative_path = tmp_path_factory.mktemp("other")
+
+        with pytest.MonkeyPatch.context() as monkeypatch_ctx:
+            self.monkeypatch = monkeypatch_ctx
+            self.patch_airflow_home(self.test_airflow_home)
+            self.patch_airflow_config(self.test_airflow_config)
+            yield
+            # make sure any side effects of "write_default_airflow_configuration_if_needed" are removed
+            ProvidersManager()._cleanup()
+
+    def patch_airflow_home(self, airflow_home):
+        self.monkeypatch.setattr("airflow.configuration.AIRFLOW_HOME", os.fspath(airflow_home))
+
+    def patch_airflow_config(self, airflow_config):
+        self.monkeypatch.setattr("airflow.configuration.AIRFLOW_CONFIG", os.fspath(airflow_config))
+
+    def test_default(self):
+        """Test write default config in `${AIRFLOW_HOME}/airflow.cfg`."""
+        assert not self.test_airflow_config.exists()
+        try:
+            write_default_airflow_configuration_if_needed()
+            assert self.test_airflow_config.exists()
+        finally:
+            self.test_airflow_config.unlink()
+
+    @pytest.mark.parametrize(
+        "relative_to_airflow_home",
+        [
+            pytest.param(True, id="relative-to-airflow-home"),
+            pytest.param(False, id="non-relative-to-airflow-home"),
+        ],
+    )
+    def test_config_already_created(self, relative_to_airflow_home):
+        if relative_to_airflow_home:
+            test_airflow_config = self.test_airflow_home / "test-existed-config"
+        else:
+            test_airflow_config = self.test_non_relative_path / "test-existed-config"
+
+        test_airflow_config.write_text("foo=bar")
+        write_default_airflow_configuration_if_needed()
+        assert test_airflow_config.read_text() == "foo=bar"
+
+    def test_config_path_relative(self):
+        """Test write default config in path relative to ${AIRFLOW_HOME}."""
+        test_airflow_config_parent = self.test_airflow_home / "config"
+        test_airflow_config = test_airflow_config_parent / "test-airflow.config"
+        self.patch_airflow_config(test_airflow_config)
+
+        assert not test_airflow_config_parent.exists()
+        assert not test_airflow_config.exists()
+        write_default_airflow_configuration_if_needed()
+        assert test_airflow_config.exists()
+
+    def test_config_path_non_relative_directory_exists(self):
+        """Test write default config in path non-relative to ${AIRFLOW_HOME} and directory exists."""
+        test_airflow_config_parent = self.test_non_relative_path
+        test_airflow_config = test_airflow_config_parent / "test-airflow.cfg"
+        self.patch_airflow_config(test_airflow_config)
+
+        assert test_airflow_config_parent.exists()
+        assert not test_airflow_config.exists()
+        write_default_airflow_configuration_if_needed()
+        assert test_airflow_config.exists()
+
+    def test_config_path_non_relative_directory_not_exists(self):
+        """Test raise an error if path to config non-relative to ${AIRFLOW_HOME} and directory not exists."""
+        test_airflow_config_parent = self.test_non_relative_path / "config"
+        test_airflow_config = test_airflow_config_parent / "test-airflow.cfg"
+        self.patch_airflow_config(test_airflow_config)
+
+        assert not test_airflow_config_parent.exists()
+        assert not test_airflow_config.exists()
+        with pytest.raises(FileNotFoundError, match="not exists and it is not relative to"):
+            write_default_airflow_configuration_if_needed()
+        assert not test_airflow_config.exists()
+        assert not test_airflow_config_parent.exists()
+
+    def test_config_paths_is_directory(self):
+        """Test raise an error if AIRFLOW_CONFIG is a directory."""
+        test_airflow_config = self.test_airflow_home / "config-dir"
+        test_airflow_config.mkdir()
+        self.patch_airflow_config(test_airflow_config)
+
+        with pytest.raises(IsADirectoryError, match="configuration file, but got a directory"):
+            write_default_airflow_configuration_if_needed()

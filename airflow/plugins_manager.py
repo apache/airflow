@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Manages all plugins."""
+
 from __future__ import annotations
 
 import importlib
@@ -30,15 +31,19 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterable
 
 from airflow import settings
+from airflow.task.priority_strategy import (
+    PriorityWeightStrategy,
+    airflow_priority_weight_strategies,
+)
 from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.file import find_path_from_directory
 from airflow.utils.module_loading import import_string, qualname
 
 if TYPE_CHECKING:
     try:
-        import importlib_metadata
+        import importlib_metadata as metadata
     except ImportError:
-        from importlib import metadata as importlib_metadata  # type: ignore[no-redef]
+        from importlib import metadata  # type: ignore[no-redef]
     from types import ModuleType
 
     from airflow.hooks.base import BaseHook
@@ -68,6 +73,7 @@ operator_extra_links: list[Any] | None = None
 registered_operator_link_classes: dict[str, type] | None = None
 registered_ti_dep_classes: dict[str, type] | None = None
 timetable_classes: dict[str, type[Timetable]] | None = None
+priority_weight_strategy_classes: dict[str, type[PriorityWeightStrategy]] | None = None
 """
 Mapping of class names to class of OperatorLinks registered by plugins.
 
@@ -78,15 +84,18 @@ PLUGINS_ATTRIBUTES_TO_DUMP = {
     "hooks",
     "executors",
     "macros",
+    "admin_views",
     "flask_blueprints",
+    "menu_links",
     "appbuilder_views",
     "appbuilder_menu_items",
     "global_operator_extra_links",
     "operator_extra_links",
+    "source",
     "ti_deps",
     "timetables",
-    "source",
     "listeners",
+    "priority_weight_strategies",
 }
 
 
@@ -116,7 +125,7 @@ class PluginsDirectorySource(AirflowPluginSource):
 class EntryPointSource(AirflowPluginSource):
     """Class used to define Plugins loaded from entrypoint."""
 
-    def __init__(self, entrypoint: importlib_metadata.EntryPoint, dist: importlib_metadata.Distribution):
+    def __init__(self, entrypoint: metadata.EntryPoint, dist: metadata.Distribution):
         self.dist = dist.metadata["Name"]
         self.version = dist.version
         self.entrypoint = str(entrypoint)
@@ -167,16 +176,19 @@ class AirflowPlugin:
 
     listeners: list[ModuleType | object] = []
 
+    # A list of priority weight strategy classes that can be used for calculating tasks weight priority.
+    priority_weight_strategies: list[type[PriorityWeightStrategy]] = []
+
     @classmethod
     def validate(cls):
-        """Validates that plugin has a name."""
+        """Validate if plugin has a name."""
         if not cls.name:
             raise AirflowPluginException("Your plugin needs a name.")
 
     @classmethod
     def on_load(cls, *args, **kwargs):
         """
-        Executed when the plugin is loaded; This method is only called once during runtime.
+        Execute when the plugin is loaded; This method is only called once during runtime.
 
         :param args: If future arguments are passed in on call.
         :param kwargs: If future arguments are passed in on call.
@@ -294,7 +306,7 @@ def load_providers_plugins():
 
 
 def make_module(name: str, objects: list[Any]):
-    """Creates new module."""
+    """Create new module."""
     if not objects:
         return None
     log.debug("Creating module %s", name)
@@ -554,11 +566,13 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
             for attr in attrs_to_dump:
                 if attr in ("global_operator_extra_links", "operator_extra_links"):
                     info[attr] = [f"<{qualname(d.__class__)} object>" for d in getattr(plugin, attr)]
-                elif attr in ("macros", "timetables", "hooks", "executors"):
+                elif attr in ("macros", "timetables", "hooks", "executors", "priority_weight_strategies"):
                     info[attr] = [qualname(d) for d in getattr(plugin, attr)]
                 elif attr == "listeners":
-                    # listeners are always modules
-                    info[attr] = [d.__name__ for d in getattr(plugin, attr)]
+                    # listeners may be modules or class instances
+                    info[attr] = [
+                        d.__name__ if inspect.ismodule(d) else qualname(d) for d in getattr(plugin, attr)
+                    ]
                 elif attr == "appbuilder_views":
                     info[attr] = [
                         {**d, "view": qualname(d["view"].__class__) if "view" in d else None}
@@ -573,3 +587,28 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
                     info[attr] = getattr(plugin, attr)
             plugins_info.append(info)
     return plugins_info
+
+
+def initialize_priority_weight_strategy_plugins():
+    """Collect priority weight strategy classes registered by plugins."""
+    global priority_weight_strategy_classes
+
+    if priority_weight_strategy_classes is not None:
+        return
+
+    ensure_plugins_loaded()
+
+    if plugins is None:
+        raise AirflowPluginException("Can't load plugins.")
+
+    log.debug("Initialize extra priority weight strategy plugins")
+
+    plugins_priority_weight_strategy_classes = {
+        qualname(priority_weight_strategy_class): priority_weight_strategy_class
+        for plugin in plugins
+        for priority_weight_strategy_class in plugin.priority_weight_strategies
+    }
+    priority_weight_strategy_classes = {
+        **airflow_priority_weight_strategies,
+        **plugins_priority_weight_strategy_classes,
+    }

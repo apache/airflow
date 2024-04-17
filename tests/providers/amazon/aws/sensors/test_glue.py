@@ -21,16 +21,12 @@ from unittest.mock import ANY
 
 import pytest
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.sensors.glue import GlueJobSensor
 
 
 class TestGlueJobSensor:
-    def setup_method(self):
-        conf.load_test_config()
-
     @mock.patch.object(GlueJobHook, "print_job_logs")
     @mock.patch.object(GlueJobHook, "get_conn")
     @mock.patch.object(GlueJobHook, "get_job_state")
@@ -132,13 +128,11 @@ class TestGlueJobSensor:
 
         with pytest.raises(AirflowException):
             assert not op.poke({})
-            mock_print_job_logs.assert_called_once_with(
-                job_name=job_name,
-                run_id=job_run_id,
-                log_group_suffix="error",
-                filter_pattern="?ERROR ?Exception",
-                next_token=ANY,
-            )
+        mock_print_job_logs.assert_called_once_with(
+            job_name=job_name,
+            run_id=job_run_id,
+            continuation_tokens=ANY,
+        )
 
     @pytest.mark.parametrize(
         "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))

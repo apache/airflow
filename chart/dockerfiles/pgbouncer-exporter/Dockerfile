@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-ARG ALPINE_VERSION="3.17"
+ARG ALPINE_VERSION="3.19"
 ARG GO_VERSION
 
 FROM golang:${GO_VERSION} AS builder

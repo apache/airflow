@@ -22,6 +22,7 @@
     - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/batch.html
     - https://docs.aws.amazon.com/batch/latest/APIReference/Welcome.html
 """
+
 from __future__ import annotations
 
 import warnings
@@ -44,8 +45,9 @@ from airflow.providers.amazon.aws.triggers.batch import (
     BatchCreateComputeEnvironmentTrigger,
     BatchJobTrigger,
 )
-from airflow.providers.amazon.aws.utils import trim_none_values
+from airflow.providers.amazon.aws.utils import trim_none_values, validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
+from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -112,6 +114,7 @@ class BatchOperator(BaseOperator):
         "array_properties",
         "node_overrides",
         "parameters",
+        "retry_strategy",
         "waiters",
         "tags",
         "wait_for_completion",
@@ -122,6 +125,7 @@ class BatchOperator(BaseOperator):
         "container_overrides": "json",
         "parameters": "json",
         "node_overrides": "json",
+        "retry_strategy": "json",
     }
 
     @property
@@ -160,6 +164,7 @@ class BatchOperator(BaseOperator):
         share_identifier: str | None = None,
         scheduling_priority_override: int | None = None,
         parameters: dict | None = None,
+        retry_strategy: dict | None = None,
         job_id: str | None = None,
         waiters: Any | None = None,
         max_retries: int = 4200,
@@ -201,6 +206,9 @@ class BatchOperator(BaseOperator):
         self.scheduling_priority_override = scheduling_priority_override
         self.array_properties = array_properties
         self.parameters = parameters or {}
+        self.retry_strategy = retry_strategy or {}
+        if not self.retry_strategy.get("attempts", None):
+            self.retry_strategy["attempts"] = 1
         self.waiters = waiters
         self.tags = tags or {}
         self.wait_for_completion = wait_for_completion
@@ -224,7 +232,7 @@ class BatchOperator(BaseOperator):
             region_name=self.region_name,
         )
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> str | None:
         """Submit and monitor an AWS Batch job.
 
         :raises: AirflowException
@@ -232,28 +240,43 @@ class BatchOperator(BaseOperator):
         self.submit_job(context)
 
         if self.deferrable:
-            self.defer(
-                timeout=self.execution_timeout,
-                trigger=BatchJobTrigger(
-                    job_id=self.job_id,
-                    waiter_max_attempts=self.max_retries,
-                    aws_conn_id=self.aws_conn_id,
-                    region_name=self.region_name,
-                    waiter_delay=self.poll_interval,
-                ),
-                method_name="execute_complete",
-            )
+            if not self.job_id:
+                raise AirflowException("AWS Batch job - job_id was not found")
+
+            job = self.hook.get_job_description(self.job_id)
+            job_status = job.get("status")
+            if job_status == self.hook.SUCCESS_STATE:
+                self.log.info("Job completed.")
+                return self.job_id
+            elif job_status == self.hook.FAILURE_STATE:
+                raise AirflowException(f"Error while running job: {self.job_id} is in {job_status} state")
+            elif job_status in self.hook.INTERMEDIATE_STATES:
+                self.defer(
+                    timeout=self.execution_timeout,
+                    trigger=BatchJobTrigger(
+                        job_id=self.job_id,
+                        waiter_max_attempts=self.max_retries,
+                        aws_conn_id=self.aws_conn_id,
+                        region_name=self.region_name,
+                        waiter_delay=self.poll_interval,
+                    ),
+                    method_name="execute_complete",
+                )
+
+            raise AirflowException(f"Unexpected status: {job_status}")
 
         if self.wait_for_completion:
             self.monitor_job(context)
 
         return self.job_id
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             raise AirflowException(f"Error while running job: {event}")
-        else:
-            self.log.info("Job completed.")
+
+        self.log.info("Job completed.")
         return event["job_id"]
 
     def on_kill(self):
@@ -287,6 +310,7 @@ class BatchOperator(BaseOperator):
             "tags": self.tags,
             "containerOverrides": self.container_overrides,
             "nodeOverrides": self.node_overrides,
+            "retryStrategy": self.retry_strategy,
             "shareIdentifier": self.share_identifier,
             "schedulingPriorityOverride": self.scheduling_priority_override,
         }
@@ -457,16 +481,16 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
         aws_conn_id: str | None = None,
         region_name: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        status_retries=NOTSET,
         **kwargs,
     ):
-        if "status_retries" in kwargs:
+        if status_retries is not NOTSET:
             warnings.warn(
                 "The `status_retries` parameter is unused and should be removed. "
                 "It'll be deleted in a future version.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            kwargs.pop("status_retries")  # remove before calling super() to prevent unexpected arg error
 
         super().__init__(**kwargs)
 
@@ -516,7 +540,9 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
         self.log.info("AWS Batch compute environment created successfully")
         return arn
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             raise AirflowException(f"Error while waiting for the compute environment to be ready: {event}")
         return event["value"]

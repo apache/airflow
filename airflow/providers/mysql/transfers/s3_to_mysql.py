@@ -59,7 +59,7 @@ class S3ToMySqlOperator(BaseOperator):
         mysql_table: str,
         mysql_duplicate_key_handling: str = "IGNORE",
         mysql_extra_options: str | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         mysql_conn_id: str = "mysql_default",
         mysql_local_infile: bool = False,
         **kwargs,
@@ -75,7 +75,7 @@ class S3ToMySqlOperator(BaseOperator):
 
     def execute(self, context: Context) -> None:
         """
-        Executes the transfer operation from S3 to MySQL.
+        Execute the transfer operation from S3 to MySQL.
 
         :param context: The context that is being provided when executing.
         """

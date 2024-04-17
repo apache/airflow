@@ -30,6 +30,8 @@ from airflow.models import Pool
 from airflow.settings import Session
 from airflow.utils.db import add_default_pool_if_not_exists
 
+pytestmark = pytest.mark.db_test
+
 
 class TestCliPools:
     @classmethod

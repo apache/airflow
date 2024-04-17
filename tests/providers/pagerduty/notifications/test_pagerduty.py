@@ -19,12 +19,17 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.pagerduty.hooks.pagerduty_events import PagerdutyEventsHook
 from airflow.providers.pagerduty.notifications.pagerduty import (
     PagerdutyNotifier,
     send_pagerduty_notification,
 )
+
+pytestmark = pytest.mark.db_test
+
 
 PAGERDUTY_API_DEFAULT_CONN_ID = PagerdutyEventsHook.default_conn_name
 

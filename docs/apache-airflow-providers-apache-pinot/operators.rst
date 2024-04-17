@@ -70,4 +70,4 @@ For parameter definition, take a look at :class:`~airflow.providers.apache.pinot
 Reference
 ^^^^^^^^^
 
-For more information, please see the documentation at ``Pinot documentation on querrying data <https://docs.pinot.apache.org/users/api/querying-pinot-using-standard-sql>``
+For more information, please see the documentation at ``Pinot documentation on querying data <https://docs.pinot.apache.org/users/api/querying-pinot-using-standard-sql>``

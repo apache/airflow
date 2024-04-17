@@ -109,6 +109,7 @@ class DbtCloudJobRunStatus(Enum):
     SUCCESS = 10
     ERROR = 20
     CANCELLED = 30
+    NON_TERMINAL_STATUSES = (QUEUED, STARTING, RUNNING)
     TERMINAL_STATUSES = (SUCCESS, ERROR, CANCELLED)
 
     @classmethod
@@ -174,8 +175,8 @@ class DbtCloudHook(HttpHook):
     conn_type = "dbt_cloud"
     hook_name = "dbt Cloud"
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Build custom field behavior for the dbt Cloud connection form in the Airflow UI."""
         return {
             "hidden_fields": ["schema", "port", "extra"],
@@ -458,6 +459,20 @@ class DbtCloudHook(HttpHook):
                 "order_by": order_by,
             },
             paginate=True,
+        )
+
+    @fallback_to_default_account
+    def get_job_runs(self, account_id: int | None = None, payload: dict[str, Any] | None = None) -> Response:
+        """
+        Retrieve metadata for a specific run of a dbt Cloud job.
+
+        :param account_id: Optional. The ID of a dbt Cloud account.
+        :param paylod: Optional. Query Parameters
+        :return: The request response.
+        """
+        return self._run_and_get_response(
+            endpoint=f"{account_id}/runs/",
+            payload=payload,
         )
 
     @fallback_to_default_account

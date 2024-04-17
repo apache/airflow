@@ -154,7 +154,9 @@ def display_spelling_error_summary(spelling_errors: dict[str, list[SpellingError
 
     console.print("=" * 100)
     console.print()
-    msg = """
+    msg = """[green]
+If there are spelling errors related to class or function name, make sure
+those names are quoted with backticks '`' - this should exclude it from spellcheck process.
 If there are spelling errors in the summary above, and the spelling is
 correct, add the spelling to docs/spelling_wordlist.txt or use the
 spelling directive.
@@ -177,11 +179,16 @@ def _display_error(error: SpellingError):
     if error.file_path:
         console.print(f"File path: {os.path.relpath(error.file_path, start=DOCS_DIR)}")
         if error.spelling:
-            console.print(f"Incorrect Spelling: '{error.spelling}'")
+            console.print(f"[red]Incorrect Spelling: '{error.spelling}'")
         if error.suggestion:
             console.print(f"Suggested Spelling: '{error.suggestion}'")
         if error.context_line:
             console.print(f"Line with Error: '{error.context_line}'")
-        if error.file_path and not error.file_path.endswith("<unknown>") and error.line_no:
+        if (
+            error.file_path
+            and not error.file_path.endswith("<unknown>")
+            and error.line_no
+            and os.path.isfile(error.file_path)
+        ):
             console.print(f"Line Number: {error.line_no}")
             console.print(prepare_code_snippet(error.file_path, error.line_no))

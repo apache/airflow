@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Interact with AWS S3, using the boto3 library."""
+
 from __future__ import annotations
 
 import asyncio
@@ -30,21 +31,25 @@ import warnings
 from contextlib import suppress
 from copy import deepcopy
 from datetime import datetime
-from functools import wraps
+from functools import cached_property, wraps
 from inspect import signature
 from io import BytesIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile, gettempdir
-from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import urlsplit
 from uuid import uuid4
 
 if TYPE_CHECKING:
+    from mypy_boto3_s3.service_resource import Bucket as S3Bucket, Object as S3ResourceObject
+
+    from airflow.utils.types import ArgNotSet
+
     with suppress(ImportError):
         from aiobotocore.client import AioBaseClient
 
 from asgiref.sync import sync_to_async
-from boto3.s3.transfer import TransferConfig
+from boto3.s3.transfer import S3Transfer, TransferConfig
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -53,22 +58,17 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.utils.helpers import chunks
 
-if TYPE_CHECKING:
-    from mypy_boto3_s3.service_resource import Bucket as S3Bucket, Object as S3ResourceObject
-
-T = TypeVar("T", bound=Callable)
-
 logger = logging.getLogger(__name__)
 
 
-def provide_bucket_name(func: T) -> T:
+def provide_bucket_name(func: Callable) -> Callable:
     """Provide a bucket name taken from the connection if no bucket name has been passed to the function."""
     if hasattr(func, "_unify_bucket_name_and_key_wrapped"):
         logger.warning("`unify_bucket_name_and_key` should wrap `provide_bucket_name`.")
     function_signature = signature(func)
 
     @wraps(func)
-    def wrapper(*args, **kwargs) -> T:
+    def wrapper(*args, **kwargs) -> Callable:
         bound_args = function_signature.bind(*args, **kwargs)
 
         if "bucket_name" not in bound_args.arguments:
@@ -88,10 +88,10 @@ def provide_bucket_name(func: T) -> T:
 
         return func(*bound_args.args, **bound_args.kwargs)
 
-    return cast(T, wrapper)
+    return wrapper
 
 
-def provide_bucket_name_async(func: T) -> T:
+def provide_bucket_name_async(func: Callable) -> Callable:
     """Provide a bucket name taken from the connection if no bucket name has been passed to the function."""
     function_signature = signature(func)
 
@@ -108,15 +108,15 @@ def provide_bucket_name_async(func: T) -> T:
 
         return await func(*bound_args.args, **bound_args.kwargs)
 
-    return cast(T, wrapper)
+    return wrapper
 
 
-def unify_bucket_name_and_key(func: T) -> T:
+def unify_bucket_name_and_key(func: Callable) -> Callable:
     """Unify bucket name and key in case no bucket name and at least a key has been passed to the function."""
     function_signature = signature(func)
 
     @wraps(func)
-    def wrapper(*args, **kwargs) -> T:
+    def wrapper(*args, **kwargs) -> Callable:
         bound_args = function_signature.bind(*args, **kwargs)
 
         if "wildcard_key" in bound_args.arguments:
@@ -139,7 +139,7 @@ def unify_bucket_name_and_key(func: T) -> T:
     # if provide_bucket_name is applied first, and there's a bucket defined in conn
     # then if user supplies full key, bucket in key is not respected
     wrapper._unify_bucket_name_and_key_wrapped = True  # type: ignore[attr-defined]
-    return cast(T, wrapper)
+    return wrapper
 
 
 class S3Hook(AwsBaseHook):
@@ -167,7 +167,7 @@ class S3Hook(AwsBaseHook):
 
     def __init__(
         self,
-        aws_conn_id: str | None = AwsBaseHook.default_conn_name,
+        aws_conn_id: str | None | ArgNotSet = AwsBaseHook.default_conn_name,
         transfer_config_args: dict | None = None,
         extra_args: dict | None = None,
         *args,
@@ -185,6 +185,15 @@ class S3Hook(AwsBaseHook):
         self._extra_args = extra_args or {}
 
         super().__init__(*args, **kwargs)
+
+    @cached_property
+    def resource(self):
+        return self.get_session().resource(
+            self.service_name,
+            endpoint_url=self.conn_config.get_service_endpoint_url(service_name=self.service_name),
+            config=self.config,
+            verify=self.verify,
+        )
 
     @property
     def extra_args(self):
@@ -218,12 +227,12 @@ class S3Hook(AwsBaseHook):
         elif format[0] == "https:":
             temp_split = format[1].split(".")
             if temp_split[0] == "s3":
-                split_url = format[1].split("/")
-                bucket_name = split_url[1]
-                key = "/".join(split_url[2:])
+                # "https://s3.region-code.amazonaws.com/bucket-name/key-name"
+                _, bucket_name, key = format[1].split("/", 2)
             elif temp_split[1] == "s3":
+                # "https://bucket-name.s3.region-code.amazonaws.com/key-name"
                 bucket_name = temp_split[0]
-                key = "/".join(format[1].split("/")[1:])
+                key = format[1].partition("/")[-1]
             else:
                 raise S3HookUriParseFailure(
                     "Please provide a bucket name using a valid virtually hosted format which should "
@@ -305,13 +314,7 @@ class S3Hook(AwsBaseHook):
         :param bucket_name: the name of the bucket
         :return: the bucket object to the bucket name.
         """
-        s3_resource = self.get_session().resource(
-            "s3",
-            endpoint_url=self.conn_config.endpoint_url,
-            config=self.config,
-            verify=self.verify,
-        )
-        return s3_resource.Bucket(bucket_name)
+        return self.resource.Bucket(bucket_name)
 
     @provide_bucket_name
     def create_bucket(self, bucket_name: str | None = None, region_name: str | None = None) -> None:
@@ -460,7 +463,9 @@ class S3Hook(AwsBaseHook):
         return prefixes
 
     @provide_bucket_name_async
-    async def get_file_metadata_async(self, client: AioBaseClient, bucket_name: str, key: str) -> list[Any]:
+    async def get_file_metadata_async(
+        self, client: AioBaseClient, bucket_name: str, key: str | None = None
+    ) -> list[Any]:
         """
         Get a list of files that a key matching a wildcard expression exists in a bucket asynchronously.
 
@@ -468,7 +473,7 @@ class S3Hook(AwsBaseHook):
         :param bucket_name: the name of the bucket
         :param key: the path to the key
         """
-        prefix = re.split(r"[\[*?]", key, 1)[0]
+        prefix = re.split(r"[\[\*\?]", key, 1)[0] if key else ""
         delimiter = ""
         paginator = client.get_paginator("list_objects_v2")
         response = paginator.paginate(Bucket=bucket_name, Prefix=prefix, Delimiter=delimiter)
@@ -484,6 +489,7 @@ class S3Hook(AwsBaseHook):
         bucket_val: str,
         wildcard_match: bool,
         key: str,
+        use_regex: bool = False,
     ) -> bool:
         """
         Get a list of files that a key matching a wildcard expression or get the head object.
@@ -496,11 +502,17 @@ class S3Hook(AwsBaseHook):
         :param bucket_val: the name of the bucket
         :param key: S3 keys that will point to the file
         :param wildcard_match: the path to the key
+        :param use_regex: whether to use regex to check bucket
         """
         bucket_name, key = self.get_s3_bucket_key(bucket_val, key, "bucket_name", "bucket_key")
         if wildcard_match:
             keys = await self.get_file_metadata_async(client, bucket_name, key)
             key_matches = [k for k in keys if fnmatch.fnmatch(k["Key"], key)]
+            if not key_matches:
+                return False
+        elif use_regex:
+            keys = await self.get_file_metadata_async(client, bucket_name)
+            key_matches = [k for k in keys if re.match(pattern=key, string=k["Key"])]
             if not key_matches:
                 return False
         else:
@@ -516,22 +528,31 @@ class S3Hook(AwsBaseHook):
         bucket: str,
         bucket_keys: str | list[str],
         wildcard_match: bool,
+        use_regex: bool = False,
     ) -> bool:
         """
-        Check for all keys in bucket and returns boolean value.
+        Get a list of files that a key matching a wildcard expression or get the head object.
+
+        If wildcard_match is True get list of files that a key matching a wildcard
+        expression exists in a bucket asynchronously and return the boolean value. If wildcard_match
+        is False get the head object from the bucket and return the boolean value.
 
         :param client: aiobotocore client
         :param bucket: the name of the bucket
         :param bucket_keys: S3 keys that will point to the file
         :param wildcard_match: the path to the key
+        :param use_regex: whether to use regex to check bucket
         """
         if isinstance(bucket_keys, list):
             return all(
                 await asyncio.gather(
-                    *(self._check_key_async(client, bucket, wildcard_match, key) for key in bucket_keys)
+                    *(
+                        self._check_key_async(client, bucket, wildcard_match, key, use_regex)
+                        for key in bucket_keys
+                    )
                 )
             )
-        return await self._check_key_async(client, bucket, wildcard_match, bucket_keys)
+        return await self._check_key_async(client, bucket, wildcard_match, bucket_keys, use_regex)
 
     async def check_for_prefix_async(
         self, client: AioBaseClient, prefix: str, delimiter: str, bucket_name: str | None = None
@@ -709,7 +730,9 @@ class S3Hook(AwsBaseHook):
             }
 
         if last_activity_time:
-            inactivity_seconds = int((datetime.now() - last_activity_time).total_seconds())
+            inactivity_seconds = int(
+                (datetime.now(last_activity_time.tzinfo) - last_activity_time).total_seconds()
+            )
         else:
             # Handles the first poke where last inactivity time is None.
             last_activity_time = datetime.now()
@@ -801,7 +824,7 @@ class S3Hook(AwsBaseHook):
         _prefix = _original_prefix.split("*", 1)[0] if _apply_wildcard else _original_prefix
         delimiter = delimiter or ""
         start_after_key = start_after_key or ""
-        self.object_filter_usr = object_filter
+        object_filter_usr = object_filter
         config = {
             "PageSize": page_size,
             "MaxItems": max_items,
@@ -823,8 +846,8 @@ class S3Hook(AwsBaseHook):
                 if _apply_wildcard:
                     new_keys = (k for k in new_keys if fnmatch.fnmatch(k["Key"], _original_prefix))
                 keys.extend(new_keys)
-        if self.object_filter_usr is not None:
-            return self.object_filter_usr(keys, from_datetime, to_datetime)
+        if object_filter_usr is not None:
+            return object_filter_usr(keys, from_datetime, to_datetime)
 
         return self._list_key_object_filter(keys, from_datetime, to_datetime)
 
@@ -912,14 +935,17 @@ class S3Hook(AwsBaseHook):
         :param bucket_name: the name of the bucket
         :return: the key object from the bucket
         """
-        s3_resource = self.get_session().resource(
-            "s3",
-            endpoint_url=self.conn_config.endpoint_url,
-            config=self.config,
-            verify=self.verify,
-        )
-        obj = s3_resource.Object(bucket_name, key)
-        obj.load()
+
+        def sanitize_extra_args() -> dict[str, str]:
+            """Parse extra_args and return a dict with only the args listed in ALLOWED_DOWNLOAD_ARGS."""
+            return {
+                arg_name: arg_value
+                for (arg_name, arg_value) in self.extra_args.items()
+                if arg_name in S3Transfer.ALLOWED_DOWNLOAD_ARGS
+            }
+
+        obj = self.resource.Object(bucket_name, key)
+        obj.load(**sanitize_extra_args())
         return obj
 
     @unify_bucket_name_and_key
@@ -1219,6 +1245,7 @@ class S3Hook(AwsBaseHook):
         dest_bucket_name: str | None = None,
         source_version_id: str | None = None,
         acl_policy: str | None = None,
+        **kwargs,
     ) -> None:
         """
         Create a copy of an object that is already stored in S3.
@@ -1260,7 +1287,7 @@ class S3Hook(AwsBaseHook):
 
         copy_source = {"Bucket": source_bucket_name, "Key": source_bucket_key, "VersionId": source_version_id}
         response = self.get_conn().copy_object(
-            Bucket=dest_bucket_name, Key=dest_bucket_key, CopySource=copy_source, ACL=acl_policy
+            Bucket=dest_bucket_name, Key=dest_bucket_key, CopySource=copy_source, ACL=acl_policy, **kwargs
         )
         return response
 
@@ -1336,6 +1363,10 @@ class S3Hook(AwsBaseHook):
         """
         Download a file from the S3 location to the local file system.
 
+        Note:
+            This function shadows the 'download_file' method of S3 API, but it is not the same.
+            If you want to use the original method from S3 API, please use 'S3Hook.get_conn().download_file()'
+
         .. seealso::
             - :external+boto3:py:meth:`S3.Object.download_fileobj`
 
@@ -1353,12 +1384,6 @@ class S3Hook(AwsBaseHook):
             Default: True.
         :return: the file name.
         """
-        self.log.info(
-            "This function shadows the 'download_file' method of S3 API, but it is not the same. If you "
-            "want to use the original method from S3 API, please call "
-            "'S3Hook.get_conn().download_file()'"
-        )
-
         self.log.info("Downloading source S3 file from Bucket %s with path %s", bucket_name, key)
 
         try:

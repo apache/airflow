@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for winrm remote execution."""
+
 from __future__ import annotations
 
 from winrm.protocol import Protocol
@@ -24,7 +25,7 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.utils.platform import getuser
 
-# TODO: Fixme please - I have too complex implementation
+# TODO: FIXME please - I have too complex implementation
 
 
 class WinRMHook(BaseHook):

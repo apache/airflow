@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, AsyncIterator
+from typing import Any, AsyncIterator, Iterable
 
 from google.api_core.exceptions import GoogleAPIError
 from google.cloud.storage_transfer_v1.types import TransferOperation
@@ -37,27 +37,36 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
     :param job_names: List of transfer jobs names.
     :param project_id: GCP project id.
     :param poll_interval: Interval in seconds between polls.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     """
 
-    def __init__(self, job_names: list[str], project_id: str | None = None, poll_interval: int = 10) -> None:
+    def __init__(
+        self,
+        job_names: list[str],
+        project_id: str | None = None,
+        poll_interval: int = 10,
+        gcp_conn_id: str = "google_cloud_default",
+    ) -> None:
         super().__init__()
         self.project_id = project_id
+        self.gcp_conn_id = gcp_conn_id
         self.job_names = job_names
         self.poll_interval = poll_interval
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes StorageTransferJobsTrigger arguments and classpath."""
+        """Serialize StorageTransferJobsTrigger arguments and classpath."""
         return (
             f"{self.__class__.__module__ }.{self.__class__.__qualname__}",
             {
                 "project_id": self.project_id,
                 "job_names": self.job_names,
                 "poll_interval": self.poll_interval,
+                "gcp_conn_id": self.gcp_conn_id,
             },
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current data storage transfer jobs and yields a TriggerEvent."""
+        """Get current data storage transfer jobs and yields a TriggerEvent."""
         async_hook: CloudDataTransferServiceAsyncHook = self.get_async_hook()
 
         while True:
@@ -67,11 +76,11 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
                 jobs_pager = await async_hook.get_jobs(job_names=self.job_names)
                 jobs, awaitable_operations = [], []
                 async for job in jobs_pager:
-                    operation = async_hook.get_latest_operation(job)
+                    awaitable_operation = async_hook.get_latest_operation(job)
                     jobs.append(job)
-                    awaitable_operations.append(operation)
+                    awaitable_operations.append(awaitable_operation)
 
-                operations: list[TransferOperation] = await asyncio.gather(*awaitable_operations)
+                operations: Iterable[TransferOperation | None] = await asyncio.gather(*awaitable_operations)
 
                 for job, operation in zip(jobs, operations):
                     if operation is None:
@@ -117,4 +126,7 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
             await asyncio.sleep(self.poll_interval)
 
     def get_async_hook(self) -> CloudDataTransferServiceAsyncHook:
-        return CloudDataTransferServiceAsyncHook(project_id=self.project_id)
+        return CloudDataTransferServiceAsyncHook(
+            project_id=self.project_id,
+            gcp_conn_id=self.gcp_conn_id,
+        )

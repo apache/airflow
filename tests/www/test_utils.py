@@ -24,6 +24,7 @@ from unittest.mock import Mock
 from urllib.parse import parse_qs
 
 import pendulum
+import pytest
 from bs4 import BeautifulSoup
 from markupsafe import Markup
 
@@ -31,6 +32,7 @@ from airflow.models import DagRun
 from airflow.utils import json as utils_json
 from airflow.www import utils
 from airflow.www.utils import DagRunCustomSQLAInterface, json_f, wrapped_markdown
+from tests.test_utils.config import conf_vars
 
 
 class TestUtils:
@@ -157,6 +159,7 @@ class TestUtils:
         assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html
         assert "<script>alert(1)</script>" not in html
 
+    @pytest.mark.db_test
     def test_task_instance_link(self):
         from airflow.www.app import cached_app
 
@@ -172,6 +175,7 @@ class TestUtils:
         assert "<a&1>" not in html
         assert "<b2>" not in html
 
+    @pytest.mark.db_test
     def test_dag_link(self):
         from airflow.www.app import cached_app
 
@@ -181,6 +185,7 @@ class TestUtils:
         assert "%3Ca%261%3E" in html
         assert "<a&1>" not in html
 
+    @pytest.mark.db_test
     def test_dag_link_when_dag_is_none(self):
         """Test that when there is no dag_id, dag_link does not contain hyperlink"""
         from airflow.www.app import cached_app
@@ -191,6 +196,7 @@ class TestUtils:
         assert "None" in html
         assert "<a href=" not in html
 
+    @pytest.mark.db_test
     def test_dag_run_link(self):
         from airflow.www.app import cached_app
 
@@ -381,8 +387,9 @@ class TestWrappedMarkdown:
         )
 
     def test_wrapped_markdown_with_collapsible_section(self):
-        rendered = wrapped_markdown(
-            """
+        with conf_vars({("webserver", "allow_raw_html_descriptions"): "true"}):
+            rendered = wrapped_markdown(
+                """
 # A collapsible section with markdown
 <details>
   <summary>Click to expand!</summary>
@@ -394,10 +401,10 @@ class TestWrappedMarkdown:
      * Sub bullets
 </details>
             """
-        )
+            )
 
-        assert (
-            """<div class="rich_doc" ><h1>A collapsible section with markdown</h1>
+            assert (
+                """<div class="rich_doc" ><h1>A collapsible section with markdown</h1>
 <details>
   <summary>Click to expand!</summary>
 <h2>Heading</h2>
@@ -412,10 +419,23 @@ class TestWrappedMarkdown:
 </ol>
 </details>
 </div>"""
-            == rendered
-        )
+                == rendered
+            )
+
+    @pytest.mark.parametrize("allow_html", [False, True])
+    def test_wrapped_markdown_with_raw_html(self, allow_html):
+        with conf_vars({("webserver", "allow_raw_html_descriptions"): str(allow_html)}):
+            HTML = "test <code>raw HTML</code>"
+            rendered = wrapped_markdown(HTML)
+            if allow_html:
+                assert HTML in rendered
+            else:
+                from markupsafe import escape
+
+                assert escape(HTML) in rendered
 
 
+@pytest.mark.db_test
 def test_dag_run_custom_sqla_interface_delete_no_collateral_damage(dag_maker, session):
     interface = DagRunCustomSQLAInterface(obj=DagRun, session=session)
     dag_ids = (f"test_dag_{x}" for x in range(1, 4))

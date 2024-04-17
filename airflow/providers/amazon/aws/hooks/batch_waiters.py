@@ -23,6 +23,7 @@ AWS Batch service waiters.
     - https://boto3.amazonaws.com/v1/documentation/api/latest/guide/clients.html#waiters
     - https://github.com/boto/botocore/blob/develop/botocore/waiter.py
 """
+
 from __future__ import annotations
 
 import json
@@ -101,7 +102,6 @@ class BatchWaitersHook(BatchClientHook):
     """
 
     def __init__(self, *args, waiter_config: dict | None = None, **kwargs) -> None:
-
         super().__init__(*args, **kwargs)
 
         self._default_config: dict | None = None

@@ -41,6 +41,9 @@ from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
+pytestmark = pytest.mark.db_test
+
+
 if TYPE_CHECKING:
     from airflow.models import DagRun
 

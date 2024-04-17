@@ -16,8 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains hook to integrate with Apache Cassandra."""
+
 from __future__ import annotations
 
+import re
 from typing import Any, Union
 
 from cassandra.auth import PlainTextAuthProvider
@@ -47,11 +49,7 @@ class CassandraHook(BaseHook, LoggingMixin):
     If SSL is enabled in Cassandra, pass in a dict in the extra field as kwargs for
     ``ssl.wrap_socket()``. For example::
 
-        {
-            'ssl_options' : {
-                'ca_certs' : PATH_TO_CA_CERTS
-            }
-        }
+        {"ssl_options": {"ca_certs": PATH_TO_CA_CERTS}}
 
     Default load balancing policy is RoundRobinPolicy. To specify a different
     LB policy::
@@ -156,7 +154,7 @@ class CassandraHook(BaseHook, LoggingMixin):
         if policy_name == "WhiteListRoundRobinPolicy":
             hosts = policy_args.get("hosts")
             if not hosts:
-                raise Exception("Hosts must be specified for WhiteListRoundRobinPolicy")
+                raise ValueError("Hosts must be specified for WhiteListRoundRobinPolicy")
             return WhiteListRoundRobinPolicy(hosts)
 
         if policy_name == "TokenAwarePolicy":
@@ -188,6 +186,13 @@ class CassandraHook(BaseHook, LoggingMixin):
         cluster_metadata = self.get_conn().cluster.metadata
         return keyspace in cluster_metadata.keyspaces and table in cluster_metadata.keyspaces[keyspace].tables
 
+    @staticmethod
+    def _sanitize_input(input_string: str) -> str:
+        if re.match(r"^\w+$", input_string):
+            return input_string
+        else:
+            raise ValueError(f"Invalid input: {input_string}")
+
     def record_exists(self, table: str, keys: dict[str, str]) -> bool:
         """
         Check if a record exists in Cassandra.
@@ -196,9 +201,11 @@ class CassandraHook(BaseHook, LoggingMixin):
                       Use dot notation to target a specific keyspace.
         :param keys: The keys and their values to check the existence.
         """
-        keyspace = self.keyspace
+        keyspace = self._sanitize_input(self.keyspace) if self.keyspace else self.keyspace
         if "." in table:
-            keyspace, table = table.split(".", 1)
+            keyspace, table = map(self._sanitize_input, table.split(".", 1))
+        else:
+            table = self._sanitize_input(table)
         ks_str = " AND ".join(f"{key}=%({key})s" for key in keys)
         query = f"SELECT * FROM {keyspace}.{table} WHERE {ks_str}"
         try:

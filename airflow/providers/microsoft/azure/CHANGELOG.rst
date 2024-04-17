@@ -27,6 +27,220 @@
 Changelog
 ---------
 
+10.0.0
+......
+
+.. warning::
+   * We bumped the minimum version of azure-cosmos to 4.6.0, and providing a partition key is now required to create, get or delete a container and to get a document.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+   * ``azure_synapse_pipeline`` connection type has been changed to ``azure_synapse``.
+   * The usage of ``default_conn_name=azure_synapse_connection`` is deprecated and will be removed in future. The new default connection name for ``AzureSynapsePipelineHook`` is: ``default_conn_name=azure_synapse_default``.
+
+* ``Feature/refactor azure synapse pipeline class (#38723)``
+
+Features
+~~~~~~~~
+
+* ``Add 'ADLSCreateObjectOperator' (#37821)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(microsoft/azure): add return statement to yield within a while loop in triggers (#38393)``
+* ``fix cosmos hook static checks by making providing partition_key mandatory (#38199)``
+
+Misc
+~~~~
+
+* ``refactor: Refactored __new__ magic method of BaseOperatorMeta to avoid bad mixing classic and decorated operators (#37937)``
+* ``update to latest service bus (#38384)``
+* ``Limit azure-cosmos (#38175)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``fix: try002 for provider microsoft azure (#38805)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+
+9.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Pass proxies config when using ClientSecretCredential in AzureDataLakeStorageV2Hook (#37103)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add comment about versions updated by release manager (#37488)``
+   * ``D401 Support in Microsoft providers (#37327)``
+
+9.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+   In this version of the provider, ``include`` and ``delimiter`` params have been removed from
+   ``WasbPrefixSensorTrigger``. These params will now need to passed through ``check_options`` param
+
+* ``Fix WasbPrefixSensor arg inconsistency between sync and async mode (#36806)``
+* ``add WasbPrefixSensorTrigger params breaking change to azure provider changelog (#36940)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix failed tasks are not detected in 'AzureBatchHook' (#36785)``
+* ``Fix assignment of template field in '__init__' in 'container_instances.py' (#36529)``
+
+Misc
+~~~~
+
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+   * ``Fix stacklevel in warnings.warn into the providers (#36831)``
+   * ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
+   * ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+   * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Add docs for RC2 wave of providers for 2nd round of Jan 2024 (#37019)``
+
+8.5.1
+.....
+
+Misc
+~~~~
+
+* ``Remove unused '_parse_version' function (#36450)``
+* ``Clean WASB task handler code after bumping min Airflow version to 2.6.0 (#36421)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+8.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Allow storage options to be passed (#35820)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``azurefilesharehook fix with connection type azure (#36309)``
+* ``Follow BaseHook connection fields method signature in child classes (#36086)``
+
+Misc
+~~~~
+
+* ``Add code snippet formatting in docstrings via Ruff (#36262)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+8.4.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix reraise outside of try block in 'AzureSynapsePipelineRunLink.get_fields_from_url' (#36009)``
+* ``Do not catch too broad exception in 'WasbHook.delete_container' (#36034)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add feature to build "chicken-egg" packages from sources (#35890)``
+
+8.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Azure Synapse Pipeline connection-type in the UI (#35709)``
+* ``Add task context logging feature to allow forwarding messages to task logs (#32646)``
+* ``Add operator to invoke Azure-Synapse pipeline (#35091)``
+* ``Extend task context logging support for remote logging using WASB (Azure Blob Storage) (#32972)``
+
+Misc
+~~~~
+
+* ``Check attr on parent not self re TaskContextLogger set_context (#35780)``
+* ``Remove backcompat with Airflow 2.3/2.4 in providers (#35727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix and reapply templates for provider documentation (#35686)``
+   * ``Use reproducible builds for provider packages (#35693)``
+
+8.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``add managed identity support to AsyncDefaultAzureCredential (#35394)``
+* ``feat(provider/azure): add managed identity support to container_registry hook (#35320)``
+* ``feat(provider/azure): add managed identity support to wasb hook (#35326)``
+* ``feat(provider/azure): add managed identity support to asb hook (#35324)``
+* ``feat(provider/azure): add managed identity support to cosmos hook (#35323)``
+* ``feat(provider/azure): add managed identity support to container_volume hook (#35321)``
+* ``feat(provider/azure): add managed identity support to container_instance hook (#35319)``
+* ``feat(provider/azure): add managed identity support to adx hook (#35325)``
+* ``feat(provider/azure): add managed identity support to batch hook (#35327)``
+* ``feat(provider/azure): add managed identity support to data_factory hook (#35328)``
+* ``feat(provider/azure): add managed identity support to synapse hook (#35329)``
+* ``feat(provider/azure): add managed identity support to fileshare hook (#35330)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix AzureContainerInstanceOperator remove_on_error (#35212)``
+* ``fix(providers/microsoft): setting use_async=True for get_async_default_azure_credential (#35432)``
+
+
+Misc
+~~~~
+
+* ``Remove empty TYPE_CHECKING block into the Azure provider (#35477)``
+* ``Refactor azure managed identity (#35367)``
+* ``Reuse get_default_azure_credential method from Azure utils method (#35318)``
+* `` make DefaultAzureCredential configurable in AzureKeyVaultBackend (#35052)``
+* ``Make DefaultAzureCredential in AzureBaseHook configuration (#35051)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch from Black to Ruff formatter (#35287)``
+
+8.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``AIP-58: Add Airflow ObjectStore (AFS) (#34729)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``Upgrade pre-commits (#35033)``
+
 8.0.0
 .....
 

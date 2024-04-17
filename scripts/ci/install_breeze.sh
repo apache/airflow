@@ -19,6 +19,15 @@ set -euxo pipefail
 
 cd "$( dirname "${BASH_SOURCE[0]}" )/../../"
 
-python -m pip install pipx packaging==23.1
-python -m pipx install --editable ./dev/breeze/ --force
+PYTHON_ARG=""
+
+if [[ ${PYTHON_VERSION=} != "" ]]; then
+    PYTHON_ARG="--python=$(which python"${PYTHON_VERSION}") "
+fi
+
+python -m pip install --upgrade pip==24.0
+python -m pip install "pipx>=1.4.1"
+python -m pipx uninstall apache-airflow-breeze >/dev/null 2>&1 || true
+# shellcheck disable=SC2086
+python -m pipx install ${PYTHON_ARG} --force --editable ./dev/breeze/
 echo '/home/runner/.local/bin' >> "${GITHUB_PATH}"

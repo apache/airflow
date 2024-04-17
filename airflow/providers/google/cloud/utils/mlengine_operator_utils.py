@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains helper functions for MLEngine operators."""
+
 from __future__ import annotations
 
 import base64
@@ -56,8 +57,14 @@ def create_evaluate_ops(
     dag: DAG | None = None,
     py_interpreter="python3",
 ) -> tuple[MLEngineStartBatchPredictionJobOperator, BeamRunPythonPipelineOperator, PythonOperator]:
-    """
-    Creates Operators needed for model evaluation and returns.
+    r"""
+    Create Operators needed for model evaluation and returns.
+
+    This function is deprecated. All the functionality of legacy MLEngine and new features are available
+    on the Vertex AI platform.
+
+    To create and view Model Evaluation, please check the documentation:
+    https://cloud.google.com/vertex-ai/docs/evaluation/using-model-evaluation#create_an_evaluation.
 
     It gets prediction over inputs via Cloud ML Engine BatchPrediction API by
     calling MLEngineBatchPredictionOperator, then summarize and validate

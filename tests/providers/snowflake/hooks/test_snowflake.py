@@ -50,7 +50,7 @@ BASE_CONNECTION_KWARGS: dict = {
 }
 
 
-@pytest.fixture()
+@pytest.fixture
 def non_encrypted_temporary_private_key(tmp_path: Path) -> Path:
     key = rsa.generate_private_key(backend=default_backend(), public_exponent=65537, key_size=2048)
     private_key = key.private_bytes(
@@ -61,7 +61,7 @@ def non_encrypted_temporary_private_key(tmp_path: Path) -> Path:
     return test_key_file
 
 
-@pytest.fixture()
+@pytest.fixture
 def encrypted_temporary_private_key(tmp_path: Path) -> Path:
     key = rsa.generate_private_key(backend=default_backend(), public_exponent=65537, key_size=2048)
     private_key = key.private_bytes(

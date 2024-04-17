@@ -116,12 +116,6 @@ class TestPubSubPullSensor:
 
         with pytest.raises(expected_exception):
             operator.execute({})
-            mock_hook.return_value.pull.assert_called_once_with(
-                project_id=TEST_PROJECT,
-                subscription=TEST_SUBSCRIPTION,
-                max_messages=5,
-                return_immediately=False,
-            )
 
     @mock.patch("airflow.providers.google.cloud.sensors.pubsub.PubSubHook")
     def test_execute_with_messages_callback(self, mock_hook):

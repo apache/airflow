@@ -34,10 +34,17 @@ export default function useClearRun(dagId: string, runId: string) {
   const { startRefresh } = useAutoRefresh();
   return useMutation(
     ["dagRunClear", dagId, runId],
-    ({ confirmed = false }: { confirmed: boolean }) => {
+    ({
+      confirmed = false,
+      only_failed = false,
+    }: {
+      confirmed: boolean;
+      only_failed?: boolean;
+    }) => {
       const params = new URLSearchParamsWrapper({
         csrf_token: csrfToken,
         confirmed,
+        only_failed,
         dag_id: dagId,
         dag_run_id: runId,
       }).toString();

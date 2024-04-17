@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass
 from typing import Any, Sequence
@@ -154,7 +155,8 @@ class CacheableChoice(click.Choice):
             allowed, allowed_values = check_if_values_allowed(param_name, value)
             if allowed:
                 new_value = value
-                write_to_cache_file(param_name, new_value, check_allowed_values=False)
+                if not os.environ.get("SKIP_SAVING_CHOICES"):
+                    write_to_cache_file(param_name, new_value, check_allowed_values=False)
             else:
                 new_value = allowed_values[0]
                 get_console().print(
@@ -191,7 +193,27 @@ class CacheableChoice(click.Choice):
         super().__init__(choices=choices, case_sensitive=case_sensitive)
 
 
-class MySQLBackendVersionType(CacheableChoice):
+class BackendVersionChoice(CacheableChoice):
+    """
+    This specialized type of parameter allows to override the value of parameter with the BACKEND_VERSION
+    environment variable if it is set.
+
+    It's used to pass single matrix element in the matrix of tests when we run tests in CI - so that we do
+    not have to pass different matrices for different backends (which will be used to get the workflows
+    muvh more DRY).
+    """
+
+    name = "BackendVersionChoice"
+
+    def convert(self, value: Any, param: Parameter | None, ctx: Context | None) -> Any:
+        backend_version_env_value = os.environ.get("BACKEND_VERSION")
+        if backend_version_env_value:
+            if backend_version_env_value in self.choices:
+                value = backend_version_env_value
+        return super().convert(value, param, ctx)
+
+
+class MySQLBackendVersionChoice(BackendVersionChoice):
     def convert(self, value, param, ctx):
         if isinstance(value, CacheableDefault):
             param_name = param.envvar if param.envvar else param.name.upper()
@@ -213,6 +235,9 @@ class MySQLBackendVersionType(CacheableChoice):
         return super().convert(value, param, ctx)
 
 
+ALLOWED_VCS_PROTOCOLS = ("git+file://", "git+https://", "git+ssh://", "git+http://", "git+git://", "git://")
+
+
 class UseAirflowVersionType(BetterChoice):
     """Extends choice with dynamic version number."""
 
@@ -222,5 +247,7 @@ class UseAirflowVersionType(BetterChoice):
 
     def convert(self, value, param, ctx):
         if re.match(r"^\d*\.\d*\.\d*\S*$", value):
+            return value
+        if value.startswith(ALLOWED_VCS_PROTOCOLS):
             return value
         return super().convert(value, param, ctx)

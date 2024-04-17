@@ -19,6 +19,7 @@
 Example Airflow DAG that translates text in Google Cloud Translate
 service in the Google Cloud.
 """
+
 from __future__ import annotations
 
 from datetime import datetime

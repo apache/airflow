@@ -40,6 +40,7 @@ from sqlalchemy import (
     delete,
     text,
 )
+from sqlalchemy.dialects.mysql import LONGBLOB
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Query, reconstructor, relationship
 from sqlalchemy.orm.exc import NoResultFound
@@ -48,7 +49,7 @@ from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
+from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.utils import timezone
 from airflow.utils.helpers import exactly_one, is_container
 from airflow.utils.json import XComDecoder, XComEncoder
@@ -74,7 +75,7 @@ if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
 
 
-class BaseXCom(Base, LoggingMixin):
+class BaseXCom(TaskInstanceDependencies, LoggingMixin):
     """Base class for XCom objects."""
 
     __tablename__ = "xcom"
@@ -88,7 +89,7 @@ class BaseXCom(Base, LoggingMixin):
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
     run_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
 
-    value = Column(LargeBinary)
+    value = Column(LargeBinary().with_variant(LONGBLOB, "mysql"))
     timestamp = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     __table_args__ = (
@@ -97,9 +98,7 @@ class BaseXCom(Base, LoggingMixin):
         # separately, and enforce uniqueness with DagRun.id instead.
         Index("idx_xcom_key", key),
         Index("idx_xcom_task_instance", dag_id, task_id, run_id, map_index),
-        PrimaryKeyConstraint(
-            "dag_run_id", "task_id", "map_index", "key", name="xcom_pkey", mssql_clustered=True
-        ),
+        PrimaryKeyConstraint("dag_run_id", "task_id", "map_index", "key", name="xcom_pkey"),
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],
             [
@@ -420,7 +419,7 @@ class BaseXCom(Base, LoggingMixin):
 
         result = query.with_entities(BaseXCom.value).first()
         if result:
-            return BaseXCom.deserialize_value(result)
+            return XCom.deserialize_value(result)
         return None
 
     @overload
@@ -558,8 +557,14 @@ class BaseXCom(Base, LoggingMixin):
         for xcom in xcoms:
             if not isinstance(xcom, XCom):
                 raise TypeError(f"Expected XCom; received {xcom.__class__.__name__}")
+            XCom.purge(xcom, session)
             session.delete(xcom)
         session.commit()
+
+    @staticmethod
+    def purge(xcom: XCom, session: Session) -> None:
+        """Purge an XCom entry from underlying storage implementations."""
+        pass
 
     @overload
     @staticmethod
@@ -643,7 +648,13 @@ class BaseXCom(Base, LoggingMixin):
         query = session.query(BaseXCom).filter_by(dag_id=dag_id, task_id=task_id, run_id=run_id)
         if map_index is not None:
             query = query.filter_by(map_index=map_index)
-        query.delete()
+
+        for xcom in query:
+            # print(f"Clearing XCOM {xcom} with value {xcom.value}")
+            XCom.purge(xcom, session)
+            session.delete(xcom)
+
+        session.commit()
 
     @staticmethod
     def serialize_value(
@@ -685,10 +696,8 @@ class BaseXCom(Base, LoggingMixin):
             except pickle.UnpicklingError:
                 return json.loads(result.value.decode("UTF-8"), cls=XComDecoder, object_hook=object_hook)
         else:
-            try:
-                return json.loads(result.value.decode("UTF-8"), cls=XComDecoder, object_hook=object_hook)
-            except (json.JSONDecodeError, UnicodeDecodeError):
-                return pickle.loads(result.value)
+            # Since xcom_pickling is disabled, we should only try to deserialize with JSON
+            return json.loads(result.value.decode("UTF-8"), cls=XComDecoder, object_hook=object_hook)
 
     @staticmethod
     def deserialize_value(result: XCom) -> Any:

@@ -31,7 +31,7 @@ class EventScheduler(scheduler, LoggingMixin):
         delay: float,
         action: Callable,
         arguments=(),
-        kwargs={},
+        kwargs=None,
     ):
         """Call a function at (roughly) a given interval."""
 
@@ -43,4 +43,4 @@ class EventScheduler(scheduler, LoggingMixin):
             # Good enough for now
             self.enter(delay, 1, repeat, args, kwargs)
 
-        self.enter(delay, 1, repeat, arguments, kwargs)
+        self.enter(delay, 1, repeat, arguments, kwargs or {})

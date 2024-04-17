@@ -153,7 +153,6 @@ class CloudBatchDeleteJobOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
         self.project_id = project_id
         self.region = region
@@ -215,7 +214,6 @@ class CloudBatchListJobsOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
         self.project_id = project_id
         self.region = region
@@ -273,7 +271,6 @@ class CloudBatchListTasksOperator(GoogleCloudBaseOperator):
         limit: int | None = None,
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
         self.project_id = project_id
         self.region = region

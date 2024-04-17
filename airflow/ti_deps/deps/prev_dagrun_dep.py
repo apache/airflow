@@ -120,6 +120,8 @@ class PrevDagrunDep(BaseTIDep):
 
     @provide_session
     def _get_dep_statuses(self, ti: TI, session: Session, dep_context):
+        if TYPE_CHECKING:
+            assert ti.task
         if dep_context.ignore_depends_on_past:
             self._push_past_deps_met_xcom_if_needed(ti, dep_context)
             reason = "The context specified that the state of past DAGs could be ignored."

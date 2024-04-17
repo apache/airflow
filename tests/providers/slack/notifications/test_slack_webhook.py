@@ -19,11 +19,17 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.slack.notifications.slack_webhook import (
     SlackWebhookNotifier,
     send_slack_webhook_notification,
 )
+
+pytestmark = pytest.mark.db_test
+
+DEFAULT_HOOKS_PARAMETERS = {"timeout": None, "proxy": None, "retry_handlers": None}
 
 
 class TestSlackNotifier:
@@ -31,9 +37,26 @@ class TestSlackNotifier:
         assert send_slack_webhook_notification is SlackWebhookNotifier
 
     @mock.patch("airflow.providers.slack.notifications.slack_webhook.SlackWebhookHook")
-    def test_slack_webhook_notifier(self, mock_slack_hook):
+    @pytest.mark.parametrize(
+        "slack_op_kwargs, hook_extra_kwargs",
+        [
+            pytest.param({}, DEFAULT_HOOKS_PARAMETERS, id="default-hook-parameters"),
+            pytest.param(
+                {"timeout": 42, "proxy": "http://spam.egg", "retry_handlers": []},
+                {"timeout": 42, "proxy": "http://spam.egg", "retry_handlers": []},
+                id="with-extra-hook-parameters",
+            ),
+        ],
+    )
+    def test_slack_webhook_notifier(self, mock_slack_hook, slack_op_kwargs, hook_extra_kwargs):
         notifier = send_slack_webhook_notification(
-            text="foo-bar", blocks="spam-egg", attachments="baz-qux", unfurl_links=True, unfurl_media=False
+            slack_webhook_conn_id="test_conn_id",
+            text="foo-bar",
+            blocks="spam-egg",
+            attachments="baz-qux",
+            unfurl_links=True,
+            unfurl_media=False,
+            **slack_op_kwargs,
         )
         notifier.notify({})
         mock_slack_hook.return_value.send.assert_called_once_with(
@@ -43,6 +66,7 @@ class TestSlackNotifier:
             unfurl_media=False,
             attachments="baz-qux",
         )
+        mock_slack_hook.assert_called_once_with(slack_webhook_conn_id="test_conn_id", **hook_extra_kwargs)
 
     @mock.patch("airflow.providers.slack.notifications.slack_webhook.SlackWebhookHook")
     def test_slack_webhook_templated(self, mock_slack_hook, dag_maker):

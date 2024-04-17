@@ -45,6 +45,8 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 from tests.test_utils.www import client_with_login
 
+pytestmark = pytest.mark.db_test
+
 DAG_ID = "dag_for_testing_log_view"
 DAG_ID_REMOVED = "removed_dag_for_testing_log_view"
 TASK_ID = "task_for_testing_log_view"
@@ -77,7 +79,7 @@ def log_app(backup_modules, log_path):
     @conf_vars(
         {
             ("logging", "logging_config_class"): "airflow_local_settings.LOGGING_CONFIG",
-            ("webserver", "auth_rate_limited"): "False",
+            ("fab", "auth_rate_limited"): "False",
         }
     )
     def factory():
@@ -196,7 +198,7 @@ def create_expected_log_file(log_path, tis):
         shutil.rmtree(sub_path)
 
 
-@pytest.fixture()
+@pytest.fixture
 def log_admin_client(log_app):
     return client_with_login(log_app, username="test", password="test")
 
@@ -276,7 +278,7 @@ def test_get_logs_with_metadata_as_download_file(log_admin_client, create_expect
 DIFFERENT_LOG_FILENAME = "{{ ti.dag_id }}/{{ ti.run_id }}/{{ ti.task_id }}/{{ try_number }}.log"
 
 
-@pytest.fixture()
+@pytest.fixture
 def dag_run_with_log_filename(tis):
     run_filters = [DagRun.dag_id == DAG_ID, DagRun.execution_date == DEFAULT_DATE]
     with create_session() as session:
@@ -464,6 +466,30 @@ def test_get_logs_with_json_response_format(log_admin_client, create_expected_lo
     assert "message" in response.json
     assert "metadata" in response.json
     assert "Log for testing." in response.json["message"][0][1]
+
+
+def test_get_logs_invalid_execution_data_format(log_admin_client):
+    url_template = (
+        "get_logs_with_metadata?dag_id={}&"
+        "task_id={}&execution_date={}&"
+        "try_number={}&metadata={}&format=file"
+    )
+    try_number = 1
+    url = url_template.format(
+        DAG_ID,
+        TASK_ID,
+        urllib.parse.quote_plus("Tuesday February 27, 2024"),
+        try_number,
+        "{}",
+    )
+    response = log_admin_client.get(url)
+    assert response.status_code == 400
+    assert response.json == {
+        "error": (
+            "Given execution date 'Tuesday February 27, 2024' could not be identified as a date. "
+            "Example date format: 2015-11-16T14:34:15+00:00"
+        )
+    }
 
 
 @unittest.mock.patch("airflow.www.views.TaskLogReader")

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Task sensor."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
@@ -70,7 +71,6 @@ class TaskQueueEmptySensor(BaseSensorOperator):
         self.impersonation_chain = impersonation_chain
 
     def poke(self, context: Context) -> bool:
-
         hook = CloudTasksHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

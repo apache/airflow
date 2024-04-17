@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
 from airflow.decorators import task_group
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.empty import EmptyOperator
@@ -27,6 +29,7 @@ from airflow.utils import timezone
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
+@pytest.mark.db_test
 def test_get_custom_facets(dag_maker):
     with dag_maker(dag_id="dag_test_get_custom_facets") as dag:
 

@@ -29,6 +29,9 @@ from airflow.exceptions import AirflowSkipException
 from airflow.providers.sftp.sensors.sftp import SFTPSensor
 from airflow.sensors.base import PokeReturnValue
 
+# Ignore missing args provided by default_args
+# mypy: disable-error-code="arg-type"
+
 
 class TestSFTPSensor:
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
@@ -61,7 +64,6 @@ class TestSFTPSensor:
         context = {"ds": "1970-01-01"}
         with pytest.raises(expected_exception):
             sftp_sensor.poke(context)
-            sftp_hook_mock.return_value.get_mod_time.assert_called_once_with("/path/to/file/1970-01-01.txt")
 
     def test_hook_not_created_during_init(self):
         sftp_sensor = SFTPSensor(task_id="unit_test", path="/path/to/file/1970-01-01.txt")

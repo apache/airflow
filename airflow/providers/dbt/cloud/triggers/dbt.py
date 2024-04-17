@@ -78,6 +78,7 @@ class DbtCloudRunJobTrigger(BaseTrigger):
                             "run_id": self.run_id,
                         }
                     )
+                    return
                 await asyncio.sleep(self.poll_interval)
             job_run_status = await hook.get_job_status(self.run_id, self.account_id)
             if job_run_status == DbtCloudJobRunStatus.SUCCESS.value:

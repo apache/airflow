@@ -16,12 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import warnings
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, AsyncIterator
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
+from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftAsyncHook, RedshiftHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
+from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
@@ -45,7 +47,7 @@ class RedshiftCreateClusterTrigger(AwsBaseWaiterTrigger):
         cluster_identifier: str,
         poll_interval: int | None = None,
         max_attempt: int | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         waiter_delay: int = 15,
         waiter_max_attempts: int = 999999,
     ):
@@ -93,7 +95,7 @@ class RedshiftPauseClusterTrigger(AwsBaseWaiterTrigger):
         cluster_identifier: str,
         poll_interval: int | None = None,
         max_attempts: int | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         waiter_delay: int = 15,
         waiter_max_attempts: int = 999999,
     ):
@@ -141,7 +143,7 @@ class RedshiftCreateClusterSnapshotTrigger(AwsBaseWaiterTrigger):
         cluster_identifier: str,
         poll_interval: int | None = None,
         max_attempts: int | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         waiter_delay: int = 15,
         waiter_max_attempts: int = 999999,
     ):
@@ -189,7 +191,7 @@ class RedshiftResumeClusterTrigger(AwsBaseWaiterTrigger):
         cluster_identifier: str,
         poll_interval: int | None = None,
         max_attempts: int | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         waiter_delay: int = 15,
         waiter_max_attempts: int = 999999,
     ):
@@ -234,7 +236,7 @@ class RedshiftDeleteClusterTrigger(AwsBaseWaiterTrigger):
         cluster_identifier: str,
         poll_interval: int | None = None,
         max_attempts: int | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         waiter_delay: int = 30,
         waiter_max_attempts: int = 30,
     ):
@@ -262,3 +264,54 @@ class RedshiftDeleteClusterTrigger(AwsBaseWaiterTrigger):
 
     def hook(self) -> AwsGenericHook:
         return RedshiftHook(aws_conn_id=self.aws_conn_id)
+
+
+class RedshiftClusterTrigger(BaseTrigger):
+    """
+    RedshiftClusterTrigger is fired as deferred class with params to run the task in trigger worker.
+
+    :param aws_conn_id: Reference to AWS connection id for redshift
+    :param cluster_identifier: unique identifier of a cluster
+    :param target_status: Reference to the status which needs to be checked
+    :param poke_interval:  polling period in seconds to check for the status
+    """
+
+    def __init__(
+        self,
+        aws_conn_id: str | None,
+        cluster_identifier: str,
+        target_status: str,
+        poke_interval: float,
+    ):
+        super().__init__()
+        self.aws_conn_id = aws_conn_id
+        self.cluster_identifier = cluster_identifier
+        self.target_status = target_status
+        self.poke_interval = poke_interval
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        """Serialize RedshiftClusterTrigger arguments and classpath."""
+        return (
+            "airflow.providers.amazon.aws.triggers.redshift_cluster.RedshiftClusterTrigger",
+            {
+                "aws_conn_id": self.aws_conn_id,
+                "cluster_identifier": self.cluster_identifier,
+                "target_status": self.target_status,
+                "poke_interval": self.poke_interval,
+            },
+        )
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        """Run async until the cluster status matches the target status."""
+        try:
+            hook = RedshiftAsyncHook(aws_conn_id=self.aws_conn_id)
+            while True:
+                res = await hook.cluster_status(self.cluster_identifier)
+                if (res["status"] == "success" and res["cluster_state"] == self.target_status) or res[
+                    "status"
+                ] == "error":
+                    yield TriggerEvent(res)
+                    return
+                await asyncio.sleep(self.poke_interval)
+        except Exception as e:
+            yield TriggerEvent({"status": "error", "message": str(e)})

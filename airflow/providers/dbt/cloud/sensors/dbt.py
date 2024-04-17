@@ -21,6 +21,8 @@ import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from deprecated import deprecated
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
@@ -149,6 +151,13 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
         return generate_openlineage_events_from_dbt_cloud_run(operator=self, task_instance=task_instance)
 
 
+@deprecated(
+    reason=(
+        "Class `DbtCloudJobRunAsyncSensor` is deprecated and will be removed in a future release. "
+        "Please use `DbtCloudJobRunSensor` and set `deferrable` attribute to `True` instead"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class DbtCloudJobRunAsyncSensor(DbtCloudJobRunSensor):
     """
     This class is deprecated.
@@ -158,10 +167,4 @@ class DbtCloudJobRunAsyncSensor(DbtCloudJobRunSensor):
     """
 
     def __init__(self, **kwargs: Any) -> None:
-        warnings.warn(
-            "Class `DbtCloudJobRunAsyncSensor` is deprecated and will be removed in a future release. "
-            "Please use `DbtCloudJobRunSensor` and set `deferrable` attribute to `True` instead",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         super().__init__(deferrable=True, **kwargs)

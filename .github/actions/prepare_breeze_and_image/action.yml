@@ -32,6 +32,9 @@ runs:
     - name: "Install Breeze"
       uses: ./.github/actions/breeze
       id: breeze
+    - name: Login to ghcr.io
+      shell: bash
+      run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
     - name: Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG }}
       shell: bash
       run: breeze ci-image pull --tag-as-latest

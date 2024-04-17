@@ -25,15 +25,15 @@ operators talk to the
 or the ``api/2.1/jobs/runs/submit``
 `endpoint <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit>`_.
 """
+
 from __future__ import annotations
 
 import json
-import warnings
 from typing import Any
 
 from requests import exceptions as requests_exceptions
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
 GET_CLUSTER_ENDPOINT = ("GET", "api/2.0/clusters/get")
@@ -41,6 +41,8 @@ RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
 START_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/start")
 TERMINATE_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/delete")
 
+CREATE_ENDPOINT = ("POST", "api/2.1/jobs/create")
+RESET_ENDPOINT = ("POST", "api/2.1/jobs/reset")
 RUN_NOW_ENDPOINT = ("POST", "api/2.1/jobs/run-now")
 SUBMIT_RUN_ENDPOINT = ("POST", "api/2.1/jobs/runs/submit")
 GET_RUN_ENDPOINT = ("GET", "api/2.1/jobs/runs/get")
@@ -54,7 +56,7 @@ INSTALL_LIBS_ENDPOINT = ("POST", "api/2.0/libraries/install")
 UNINSTALL_LIBS_ENDPOINT = ("POST", "api/2.0/libraries/uninstall")
 
 LIST_JOBS_ENDPOINT = ("GET", "api/2.1/jobs/list")
-LIST_PIPELINES_ENDPOINT = ("GET", "/api/2.0/pipelines")
+LIST_PIPELINES_ENDPOINT = ("GET", "api/2.0/pipelines")
 
 WORKSPACE_GET_STATUS_ENDPOINT = ("GET", "api/2.0/workspace/get-status")
 
@@ -194,6 +196,22 @@ class DatabricksHook(BaseDatabricksHook):
     ) -> None:
         super().__init__(databricks_conn_id, timeout_seconds, retry_limit, retry_delay, retry_args, caller)
 
+    def create_job(self, json: dict) -> int:
+        """Call the ``api/2.1/jobs/create`` endpoint.
+
+        :param json: The data used in the body of the request to the ``create`` endpoint.
+        :return: the job_id as an int
+        """
+        response = self._do_api_call(CREATE_ENDPOINT, json)
+        return response["job_id"]
+
+    def reset_job(self, job_id: str, json: dict) -> None:
+        """Call the ``api/2.1/jobs/reset`` endpoint.
+
+        :param json: The data used in the new_settings of the request to the ``reset`` endpoint.
+        """
+        self._do_api_call(RESET_ENDPOINT, {"job_id": job_id, "new_settings": json})
+
     def run_now(self, json: dict) -> int:
         """
         Call the ``api/2.1/jobs/run-now`` endpoint.
@@ -217,7 +235,6 @@ class DatabricksHook(BaseDatabricksHook):
     def list_jobs(
         self,
         limit: int = 25,
-        offset: int | None = None,
         expand_tasks: bool = False,
         job_name: str | None = None,
         page_token: str | None = None,
@@ -226,7 +243,6 @@ class DatabricksHook(BaseDatabricksHook):
         List the jobs in the Databricks Job Service.
 
         :param limit: The limit/batch size used to retrieve jobs.
-        :param offset: The offset of the first job to return, relative to the most recently created job.
         :param expand_tasks: Whether to include task and cluster details in the response.
         :param job_name: Optional name of a job to search.
         :param page_token: The optional page token pointing at the first first job to return.
@@ -234,29 +250,15 @@ class DatabricksHook(BaseDatabricksHook):
         """
         has_more = True
         all_jobs = []
-        use_token_pagination = (page_token is not None) or (offset is None)
-        if offset is not None:
-            warnings.warn(
-                """You are using the deprecated offset parameter in list_jobs.
-                It will be hard-limited at the maximum value of 1000 by Databricks API after Oct 9, 2023.
-                Please paginate using page_token instead.""",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
         if page_token is None:
             page_token = ""
-        if offset is None:
-            offset = 0
 
         while has_more:
             payload: dict[str, Any] = {
                 "limit": limit,
                 "expand_tasks": expand_tasks,
             }
-            if use_token_pagination:
-                payload["page_token"] = page_token
-            else:  # offset pagination
-                payload["offset"] = offset
+            payload["page_token"] = page_token
             if job_name:
                 payload["name"] = job_name
             response = self._do_api_call(LIST_JOBS_ENDPOINT, payload)
@@ -268,7 +270,6 @@ class DatabricksHook(BaseDatabricksHook):
             has_more = response.get("has_more", False)
             if has_more:
                 page_token = response.get("next_page_token", "")
-                offset += len(jobs)
 
         return all_jobs
 
@@ -320,8 +321,8 @@ class DatabricksHook(BaseDatabricksHook):
             payload["filter"] = filter
 
         while has_more:
-            if next_token:
-                payload["page_token"] = next_token
+            if next_token is not None:
+                payload = {**payload, "page_token": next_token}
             response = self._do_api_call(LIST_PIPELINES_ENDPOINT, payload)
             pipelines = response.get("statuses", [])
             all_pipelines += pipelines
@@ -343,11 +344,11 @@ class DatabricksHook(BaseDatabricksHook):
 
         if len(matching_pipelines) > 1:
             raise AirflowException(
-                f"There are more than one job with name {pipeline_name}. "
+                f"There are more than one pipelines with name {pipeline_name}. "
                 "Please delete duplicated pipelines first"
             )
 
-        if not pipeline_name:
+        if not pipeline_name or len(matching_pipelines) == 0:
             return None
         else:
             return matching_pipelines[0]["pipeline_id"]
@@ -517,13 +518,24 @@ class DatabricksHook(BaseDatabricksHook):
         json = {"run_id": run_id}
         self._do_api_call(DELETE_RUN_ENDPOINT, json)
 
-    def repair_run(self, json: dict) -> None:
+    def repair_run(self, json: dict) -> int:
         """
         Re-run one or more tasks.
 
         :param json: repair a job run.
         """
-        self._do_api_call(REPAIR_RUN_ENDPOINT, json)
+        response = self._do_api_call(REPAIR_RUN_ENDPOINT, json)
+        return response["repair_id"]
+
+    def get_latest_repair_id(self, run_id: int) -> int | None:
+        """Get latest repair id if any exist for run_id else None."""
+        json = {"run_id": run_id, "include_history": "true"}
+        response = self._do_api_call(GET_RUN_ENDPOINT, json)
+        repair_history = response["repair_history"]
+        if len(repair_history) == 1:
+            return None
+        else:
+            return repair_history[-1]["id"]
 
     def get_cluster_state(self, cluster_id: str) -> ClusterState:
         """
@@ -642,6 +654,16 @@ class DatabricksHook(BaseDatabricksHook):
                 raise e
 
         return None
+
+    def update_job_permission(self, job_id: int, json: dict[str, Any]) -> dict:
+        """
+        Update databricks job permission.
+
+        :param job_id: job id
+        :param json: payload
+        :return: json containing permission specification
+        """
+        return self._do_api_call(("PATCH", f"api/2.0/permissions/jobs/{job_id}"), json)
 
     def test_connection(self) -> tuple[bool, str]:
         """Test the Databricks connectivity from UI."""

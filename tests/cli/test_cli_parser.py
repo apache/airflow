@@ -37,6 +37,7 @@ from airflow.cli import cli_config, cli_parser
 from airflow.cli.cli_config import ActionCommand, core_commands, lazy_load_command
 from airflow.cli.utils import CliConflictError
 from airflow.configuration import AIRFLOW_HOME
+from airflow.executors import executor_loader
 from airflow.executors.local_executor import LocalExecutor
 from tests.test_utils.config import conf_vars
 
@@ -135,6 +136,7 @@ class TestCli:
                     f"short option flags {conflict_short_option}"
                 )
 
+    @pytest.mark.db_test
     @patch.object(LocalExecutor, "get_cli_commands")
     def test_dynamic_conflict_detection(self, cli_commands_mock: MagicMock):
         core_commands.append(
@@ -153,6 +155,7 @@ class TestCli:
                 args=[],
             )
         ]
+        reload(executor_loader)
         with pytest.raises(CliConflictError, match="test_command"):
             # force re-evaluation of cli commands (done in top level code)
             reload(cli_parser)
@@ -226,6 +229,7 @@ class TestCli:
 
         with pytest.raises(argparse.ArgumentTypeError):
             cli_config.positive_int(allow_zero=False)("0")
+        with pytest.raises(argparse.ArgumentTypeError):
             cli_config.positive_int(allow_zero=True)("-1")
 
     @pytest.mark.parametrize(
@@ -239,6 +243,7 @@ class TestCli:
         with conf_vars({("core", "executor"): "SequentialExecutor"}), contextlib.redirect_stderr(
             StringIO()
         ) as stderr:
+            reload(executor_loader)
             reload(cli_parser)
             parser = cli_parser.get_parser()
             with pytest.raises(SystemExit):
@@ -269,6 +274,7 @@ class TestCli:
             with conf_vars({("core", "executor"): executor}), contextlib.redirect_stderr(
                 StringIO()
             ) as stderr:
+                reload(executor_loader)
                 reload(cli_parser)
                 parser = cli_parser.get_parser()
                 with pytest.raises(SystemExit) as e:  # running the help command exits, so we prevent that
@@ -280,8 +286,8 @@ class TestCli:
     def test_non_existing_directory_raises_when_metavar_is_dir_for_db_export_cleaned(self):
         """Test that the error message is correct when the directory does not exist."""
         with contextlib.redirect_stderr(StringIO()) as stderr:
+            parser = cli_parser.get_parser()
             with pytest.raises(SystemExit):
-                parser = cli_parser.get_parser()
                 parser.parse_args(["db", "export-archived", "--output-path", "/non/existing/directory"])
             error_msg = stderr.getvalue()
 
@@ -297,8 +303,8 @@ class TestCli:
     ):
         """Test that invalid choice raises for export-format in db export-cleaned command."""
         with contextlib.redirect_stderr(StringIO()) as stderr:
+            parser = cli_parser.get_parser()
             with pytest.raises(SystemExit):
-                parser = cli_parser.get_parser()
                 parser.parse_args(
                     ["db", "export-archived", "--export-format", export_format, "--output-path", "mydir"]
                 )
@@ -342,6 +348,7 @@ class TestCliSubprocess:
     than from provider packages which might not be installed in the test environment.
     """
 
+    @pytest.mark.quarantined
     def test_cli_run_time(self):
         setup_code = "import subprocess"
         command = [sys.executable, "-m", "airflow", "--help"]

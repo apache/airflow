@@ -15,17 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains Google Vertex AI operators.
 
-.. spelling:word-list::
+"""This module contains Google Vertex AI operators."""
 
-    undeployed
-    undeploy
-    Undeploys
-    aiplatform
-    FieldMask
-    unassigns
-"""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence

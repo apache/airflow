@@ -24,7 +24,10 @@ from unittest import mock
 import pytest
 
 import airflow
-from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
+from airflow.providers.google.cloud.hooks.dataflow import (
+    DEFAULT_DATAFLOW_LOCATION,
+    DataflowJobStatus,
+)
 from airflow.providers.google.cloud.operators.dataflow import (
     CheckJobRunning,
     DataflowCreateJavaJobOperator,
@@ -536,6 +539,7 @@ class TestDataflowTemplatedJobStartOperator:
         with pytest.raises(ValueError):
             DataflowTemplatedJobStartOperator(**init_kwargs)
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook.start_template_dataflow")
     def test_start_with_custom_region(self, dataflow_mock):
         init_kwargs = {
@@ -553,8 +557,9 @@ class TestDataflowTemplatedJobStartOperator:
         assert dataflow_mock.called
         _, kwargs = dataflow_mock.call_args_list[0]
         assert kwargs["variables"]["region"] == TEST_REGION
-        assert kwargs["location"] is None
+        assert kwargs["location"] == DEFAULT_DATAFLOW_LOCATION
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook.start_template_dataflow")
     def test_start_with_location(self, dataflow_mock):
         init_kwargs = {

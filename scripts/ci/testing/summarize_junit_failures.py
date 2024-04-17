@@ -43,7 +43,7 @@ def translate_classname(classname):
 
     parts = classname.split(".")
 
-    for offset, component in enumerate(parts, 1):
+    for offset, component in enumerate(parts, 1):  # noqa: B007
         candidate = context / component
 
         if candidate.is_dir():
@@ -108,7 +108,6 @@ def summarize_file(input, test_type, backend):
 if __name__ == "__main__":
     fname_pattern = re.compile("^test_result-(?P<test_type>.*?)-(?P<backend>.*).xml$")
     for fname in sys.argv[1:]:
-
         match = fname_pattern.match(os.path.basename(fname))
 
         if not match:
