@@ -3480,6 +3480,34 @@ class TestTaskInstance:
         assert State.SKIPPED == ti.state
         assert callback_function.called
 
+    def test_rendered_map_index_on_dry_run(self, dag_maker, session):
+        from airflow.operators.python import get_current_context
+        from airflow.utils.task_instance_session import set_current_task_instance_session
+
+        with dag_maker():
+            @task(map_index_template="instance-map-index-{{ variable }}")
+            def example(param: str):
+                context = get_current_context()
+                context["variable"] = param * 3
+
+            example.expand(param=["a", "b"])
+
+        dr = dag_maker.create_dagrun()
+        tis, _ = example.expand_mapped_task(
+            dr.run_id, session=session
+        )
+
+        rendered_map_index = []
+        with set_current_task_instance_session(session):
+            for ti in tis:
+                ti.task = task
+                ti.refresh_from_task(example)
+                ti.dry_run()
+
+                rendered_map_index.append(ti.rendered_map_index)
+
+        assert sorted(rendered_map_index) == ["instance-map-index-aaa", "instance-map-index-bbb"]
+
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])
 @pytest.mark.parametrize("queue_by_policy", [None, "forced_queue"])
