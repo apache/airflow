@@ -26,14 +26,16 @@ from airflow.api_connexion.schemas.common_schema import (
     TimeDeltaSchema,
     WeightRuleField,
 )
-from airflow.api_connexion.schemas.dag_schema import DAGSchema
 from airflow.models.mappedoperator import MappedOperator
 
 if TYPE_CHECKING:
     from airflow.models.operator import Operator
 
+class SubDagMixin:
+    from airflow.api_connexion.schemas.dag_schema import DAGSchema
+    sub_dag = fields.Nested(DAGSchema, dump_only=True)
 
-class TaskSchema(Schema):
+class TaskSchema(Schema, SubDagMixin):
     """Task schema."""
 
     class_ref = fields.Method("_get_class_reference", dump_only=True)
@@ -61,7 +63,6 @@ class TaskSchema(Schema):
     ui_color = ColorField(dump_only=True)
     ui_fgcolor = ColorField(dump_only=True)
     template_fields = fields.List(fields.String(), dump_only=True)
-    sub_dag = fields.Nested(DAGSchema, dump_only=True)
     downstream_task_ids = fields.List(fields.String(), dump_only=True)
     params = fields.Method("_get_params", dump_only=True)
     is_mapped = fields.Method("_get_is_mapped", dump_only=True)
@@ -85,6 +86,9 @@ class TaskSchema(Schema):
     def _get_is_mapped(obj):
         return isinstance(obj, MappedOperator)
 
+class TaskSchemaWithoutSubdag(TaskSchema):
+    """Task schema."""
+    pass
 
 class TaskCollection(NamedTuple):
     """List of Tasks with metadata."""
@@ -99,6 +103,12 @@ class TaskCollectionSchema(Schema):
     tasks = fields.List(fields.Nested(TaskSchema))
     total_entries = fields.Int()
 
+class TaskCollectionSchemaWithoutSubdag(Schema):
+    """Schema for TaskCollection."""
+
+    tasks = fields.List(fields.Nested(TaskSchemaWithoutSubdag))
+    total_entries = fields.Int()
 
 task_schema = TaskSchema()
 task_collection_schema = TaskCollectionSchema()
+task_collection_schema_without_subdag = TaskCollectionSchemaWithoutSubdag()
