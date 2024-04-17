@@ -111,17 +111,23 @@ const Main = () => {
 
   const gridWidth = localStorage.getItem(gridWidthKey) || undefined;
 
-  const onToggleGridCollapse = useCallback(() => {
-    const gridElement = gridRef.current;
-    if (gridElement) {
-      if (isGridCollapsed) {
-        gridElement.style.width = localStorage.getItem(gridWidthKey) || "";
-      } else {
-        gridElement.style.width = collapsedWidth;
-      }
-      setIsGridCollapsed(!isGridCollapsed);
-    }
-  }, [isGridCollapsed]);
+  const onToggleGridCollapse = useCallback(
+    (collapseNext?: boolean) => {
+      const gridElement = gridRef.current;
+      const collapse =
+        collapseNext !== undefined ? collapseNext : !isGridCollapsed;
+      if (collapse !== undefined)
+        if (gridElement) {
+          if (!collapse) {
+            gridElement.style.width = localStorage.getItem(gridWidthKey) || "";
+          } else {
+            gridElement.style.width = collapsedWidth;
+          }
+          setIsGridCollapsed(collapse);
+        }
+    },
+    [isGridCollapsed]
+  );
 
   const resize = useCallback(
     (e: MouseEvent) => {
@@ -183,10 +189,10 @@ const Main = () => {
   const toggleFullScreen = () => {
     if (!isFullScreen) {
       setAccordionIndexes([]);
-      setIsGridCollapsed(true);
+      onToggleGridCollapse(true);
     } else {
       setAccordionIndexes([0]);
-      setIsGridCollapsed(false);
+      onToggleGridCollapse(false);
     }
   };
 
