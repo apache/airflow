@@ -1204,60 +1204,60 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         self.run_as_operator(f, use_cloudpickle=True, system_site_packages=True, requirements=None)
 
-        # This tests might take longer than default 60 seconds as it is serializing a lot of
-        # context using dill (which is slow apparently).
-        @pytest.mark.execution_timeout(120)
-        @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
-        @pytest.mark.skipif(
-            os.environ.get("PYTEST_PLAIN_ASSERTS") != "true",
-            reason="assertion rewriting breaks this test because dill will try to serialize "
-            "AssertRewritingHook including captured stdout and we need to run "
-            "it with `--assert=plain`pytest option and PYTEST_PLAIN_ASSERTS=true ."
-            "Also this test is skipped on Python 3.11 because of impact of regression in Python 3.11 "
-            "connected likely with CodeType behaviour https://github.com/python/cpython/issues/100316 "
-            "That likely causes that dill is not able to serialize the `conf` correctly "
-            "Issue about fixing it is captured in https://github.com/apache/airflow/issues/35307",
-        )
-        def test_airflow_context_dill(self):
-            def f(
-                # basic
-                ds_nodash,
-                inlets,
-                next_ds,
-                next_ds_nodash,
-                outlets,
-                params,
-                prev_ds,
-                prev_ds_nodash,
-                run_id,
-                task_instance_key_str,
-                test_mode,
-                tomorrow_ds,
-                tomorrow_ds_nodash,
-                ts,
-                ts_nodash,
-                ts_nodash_with_tz,
-                yesterday_ds,
-                yesterday_ds_nodash,
-                # pendulum-specific
-                execution_date,
-                next_execution_date,
-                prev_execution_date,
-                prev_execution_date_success,
-                prev_start_date_success,
-                prev_end_date_success,
-                # airflow-specific
-                macros,
-                conf,
-                dag,
-                dag_run,
-                task,
-                # other
-                **context,
-            ):
-                pass
+    # This tests might take longer than default 60 seconds as it is serializing a lot of
+    # context using dill (which is slow apparently).
+    @pytest.mark.execution_timeout(120)
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
+    @pytest.mark.skipif(
+        os.environ.get("PYTEST_PLAIN_ASSERTS") != "true",
+        reason="assertion rewriting breaks this test because dill will try to serialize "
+        "AssertRewritingHook including captured stdout and we need to run "
+        "it with `--assert=plain`pytest option and PYTEST_PLAIN_ASSERTS=true ."
+        "Also this test is skipped on Python 3.11 because of impact of regression in Python 3.11 "
+        "connected likely with CodeType behaviour https://github.com/python/cpython/issues/100316 "
+        "That likely causes that dill is not able to serialize the `conf` correctly "
+        "Issue about fixing it is captured in https://github.com/apache/airflow/issues/35307",
+    )
+    def test_airflow_context_dill(self):
+        def f(
+            # basic
+            ds_nodash,
+            inlets,
+            next_ds,
+            next_ds_nodash,
+            outlets,
+            params,
+            prev_ds,
+            prev_ds_nodash,
+            run_id,
+            task_instance_key_str,
+            test_mode,
+            tomorrow_ds,
+            tomorrow_ds_nodash,
+            ts,
+            ts_nodash,
+            ts_nodash_with_tz,
+            yesterday_ds,
+            yesterday_ds_nodash,
+            # pendulum-specific
+            execution_date,
+            next_execution_date,
+            prev_execution_date,
+            prev_execution_date_success,
+            prev_start_date_success,
+            prev_end_date_success,
+            # airflow-specific
+            macros,
+            conf,
+            dag,
+            dag_run,
+            task,
+            # other
+            **context,
+        ):
+            pass
 
-            self.run_as_operator(f, use_dill=True, system_site_packages=True, requirements=None)
+        self.run_as_operator(f, use_dill=True, system_site_packages=True, requirements=None)
 
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_pendulum_context(self):
