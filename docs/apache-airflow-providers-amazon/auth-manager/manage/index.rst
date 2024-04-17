@@ -134,6 +134,8 @@ Give all permissions to specific user
 Give all permissions to a group of users
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+This is equivalent to the :doc:`Admin role in Flask AppBuilder <apache-airflow-providers-fab:auth-manager/access-control>`.
+
  ::
 
   permit(
@@ -148,6 +150,8 @@ Give all permissions to a group of users
 Give read-only permissions to a group of users
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+This is equivalent to the :doc:`Viewer role in Flask AppBuilder <apache-airflow-providers-fab:auth-manager/access-control>`.
+
  ::
 
   permit(
@@ -156,13 +160,77 @@ Give read-only permissions to a group of users
       Airflow::Action::"Configuration.GET",
       Airflow::Action::"Connection.GET",
       Airflow::Action::"Custom.GET",
-      Airflow::Action::"Dag.PUT",
       Airflow::Action::"Dag.GET",
       Airflow::Action::"Menu.MENU",
       Airflow::Action::"Pool.GET",
       Airflow::Action::"Variable.GET",
       Airflow::Action::"Dataset.GET",
       Airflow::Action::"View.GET"
+    ],
+    resource
+  );
+
+Give standard Airflow user permissions to a group of users
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is equivalent to the :doc:`User role in Flask AppBuilder <apache-airflow-providers-fab:auth-manager/access-control>`.
+
+ ::
+
+  permit(
+    principal in Airflow::Group::"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+    action in [
+      Airflow::Action::"Configuration.GET",
+      Airflow::Action::"Connection.GET",
+      Airflow::Action::"Custom.GET",
+      Airflow::Action::"Dag.GET",
+      Airflow::Action::"Menu.MENU",
+      Airflow::Action::"Pool.GET",
+      Airflow::Action::"Variable.GET",
+      Airflow::Action::"Dataset.GET",
+      Airflow::Action::"View.GET",
+      Airflow::Action::"Dag.POST",
+      Airflow::Action::"Dag.PUT",
+      Airflow::Action::"Dag.DELETE",
+    ],
+    resource
+  );
+
+Give operational permissions to a group of users
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is equivalent to the :doc:`Op role in Flask AppBuilder <apache-airflow-providers-fab:auth-manager/access-control>`.
+
+ ::
+
+  permit(
+    principal in Airflow::Group::"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+    action in [
+      Airflow::Action::"Configuration.GET",
+      Airflow::Action::"Connection.GET",
+      Airflow::Action::"Custom.GET",
+      Airflow::Action::"Dag.GET",
+      Airflow::Action::"Menu.MENU",
+      Airflow::Action::"Pool.GET",
+      Airflow::Action::"Variable.GET",
+      Airflow::Action::"Dataset.GET",
+      Airflow::Action::"View.GET",
+      Airflow::Action::"Dag.POST",
+      Airflow::Action::"Dag.PUT",
+      Airflow::Action::"Dag.DELETE",
+      Airflow::Action::"Connection.POST",
+      Airflow::Action::"Connection.PUT",
+      Airflow::Action::"Connection.DELETE",
+      Airflow::Action::"Pool.POST",
+      Airflow::Action::"Pool.PUT",
+      Airflow::Action::"Pool.DELETE",
+      Airflow::Action::"Variable.POST",
+      Airflow::Action::"Variable.PUT",
+      Airflow::Action::"Variable.DELETE",
+      Airflow::Action::"Dataset.POST",
+      Airflow::Action::"Dataset.PUT",
+      Airflow::Action::"Dataset.DELETE",
+
     ],
     resource
   );
