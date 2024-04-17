@@ -96,7 +96,8 @@ class TabularVttsSensor(BaseSensorOperator):
                         return False
                 else:
                     snapshot_id = "" if snapshot.parent_snapshot_id is None else f"({snapshot.snapshot_id})"
-                    self.log.warning(f"Key '{PROPERTY_KEY_VTTS}' not found on snapshot {snapshot_id} summary")
+                    self.log.warning(
+                        f"Key '%s' not found on snapshot %s summary", PROPERTY_KEY_VTTS, snapshot_id)
 
                 # Since there can be another operation in between, check the parent
                 if snapshot.parent_snapshot_id is not None:
