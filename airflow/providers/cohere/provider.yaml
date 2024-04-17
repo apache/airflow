@@ -44,6 +44,7 @@ integrations:
 dependencies:
   - apache-airflow>=2.6.0
   - cohere>=5.0.0
+  - opentelemetry-proto==1.24.0
 
 hooks:
   - integration-name: Cohere
