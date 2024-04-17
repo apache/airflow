@@ -3493,9 +3493,7 @@ class TestTaskInstance:
             example.expand(param=["a", "b"])
 
         dr = dag_maker.create_dagrun()
-        tis, _ = example.expand_mapped_task(
-            dr.run_id, session=session
-        )
+        tis, _ = example.expand_mapped_task(dr.run_id, session=session)
 
         rendered_map_index = []
         with set_current_task_instance_session(session):
