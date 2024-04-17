@@ -258,7 +258,11 @@ class TestBeamRunPythonPipelineOperator:
 
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
     @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
-    def test_execute_gcs_hook_called_only_with_gs_prefix(self, mock_gcs_hook, _):
+    def test_execute_gcs_hook_not_called_without_gs_prefix(self, mock_gcs_hook, _):
+        """
+        Test that execute method does not call GCSHook when neither py_file nor requirements_file
+        starts with 'gs://'. (i.e., running pipeline entirely locally)
+        """
         local_test_op_args = {
             "task_id": TASK_ID,
             "py_file": 'local_file.py',
@@ -272,42 +276,64 @@ class TestBeamRunPythonPipelineOperator:
             }
         }
 
-        """
-        Test that execute method does not call GCSHook when neither py_file nor requirements_file
-        starts with 'gs://'.
-        """
-        test_kwargs_local = copy.deepcopy(local_test_op_args)
-        op = BeamRunPythonPipelineOperator(**test_kwargs_local)
+        op = BeamRunPythonPipelineOperator(**local_test_op_args)
         context_mock = mock.MagicMock()
 
         op.execute(context_mock)
         mock_gcs_hook.assert_not_called()
-        mock_gcs_hook.reset_mock()
 
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    def test_execute_gcs_hook_called_with_gs_prefix_py_file(self, mock_gcs_hook, _):
         """
         Test that execute method calls GCSHook when only 'py_file' starts with 'gs://'.
         """
-        test_kwargs_local = copy.deepcopy(local_test_op_args)
-        test_kwargs_local['py_file'] = 'gs://gcs_file.py'
-        op = BeamRunPythonPipelineOperator(**test_kwargs_local)
+        local_test_op_args = {
+            "task_id": TASK_ID,
+            "py_file": 'gs://gcs_file.py',
+            "py_options": ['-m'],
+            "default_pipeline_options": {
+                "project": TEST_PROJECT,
+                'requirements_file': 'local_requirements.txt'
+            },
+            "pipeline_options": {
+                "output": 'test_local/output', "labels": {"foo": "bar"}
+            }
+        }
+        op = BeamRunPythonPipelineOperator(**local_test_op_args)
         context_mock = mock.MagicMock()
+
         op.execute(context_mock)
         mock_gcs_hook.assert_called_once()
-        mock_gcs_hook.reset_mock()
 
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    def test_execute_gcs_hook_called_with_gs_prefix_pipeline_requirements(self, mock_gcs_hook, _):
         """
-        Test that execute calls GCSHook when only pipeline_options 'requirements_file' starts with 'gs://'.
+        Test that execute method calls GCSHook when only pipeline_options 'requirements_file' starts with
+        'gs://'.
         Note: "pipeline_options" is merged with and overrides keys in "default_pipeline_options" when 
-              BeamRunPythonPipelineOperator is instantiated, so testing 'requirements_file' specified 
+              BeamRunPythonPipelineOperator is instantiated, so testing GCS 'requirements_file' specified 
               in "pipeline_options"
         """
-        test_kwargs_local = copy.deepcopy(local_test_op_args)
-        test_kwargs_local['pipeline_options']['requirements_file'] = 'gs://gcs_requirements.txt'
-        op = BeamRunPythonPipelineOperator(**test_kwargs_local)
+        local_test_op_args = {
+            "task_id": TASK_ID,
+            "py_file": 'local_file.py',
+            "py_options": ['-m'],
+            "default_pipeline_options": {
+                "project": TEST_PROJECT,
+                'requirements_file': 'gs://gcs_requirements.txt'
+            },
+            "pipeline_options": {
+                "output": 'test_local/output', "labels": {"foo": "bar"}
+            }
+        }
+        
+        op = BeamRunPythonPipelineOperator(**local_test_op_args)
         context_mock = mock.MagicMock()
+
         op.execute(context_mock)
         mock_gcs_hook.assert_called_once()
-        mock_gcs_hook.reset_mock()
 
 
 class TestBeamRunJavaPipelineOperator:
