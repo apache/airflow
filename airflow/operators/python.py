@@ -684,11 +684,12 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             **kwargs,
         )
 
-    def _requirements_list(self) -> list[str]:
+    def _requirements_list(self, exclude_cloudpickle: bool = False) -> list[str]:
         """Prepare a list of requirements that need to be installed for the virtual environment."""
         requirements = [str(dependency) for dependency in self.requirements]
-        if not self.system_site_packages and self.use_cloudpickle and "cloudpickle" not in requirements:
-            requirements.append("cloudpickle")
+        if not exclude_cloudpickle:
+            if not self.system_site_packages and self.use_cloudpickle and "cloudpickle" not in requirements:
+                requirements.append("cloudpickle")
         requirements.sort()  # Ensure a hash is stable
         return requirements
 
@@ -705,7 +706,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             index_urls=self.index_urls,
         )
 
-    def _calculate_cache_hash(self) -> tuple[str, str]:
+    def _calculate_cache_hash(self, exclude_cloudpickle: bool = False) -> tuple[str, str]:
         """Generate the hash of the cache folder to use.
 
         The following factors are used as input for the hash:
@@ -719,7 +720,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         Returns a hash and the data dict which is the base for the hash as text.
         """
         hash_dict = {
-            "requirements_list": self._requirements_list(),
+            "requirements_list": self._requirements_list(exclude_cloudpickle=exclude_cloudpickle),
             "pip_install_options": self.pip_install_options,
             "index_urls": self.index_urls,
             "cache_key": str(Variable.get("PythonVirtualenvOperator.cache_key", "")),
@@ -750,14 +751,22 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
                             self.log.info("Re-using cached Python virtual environment in %s", venv_path)
                             return venv_path
 
-                        self.log.error(
-                            "Unicorn alert: Found a previous virtual environment in %s "
-                            "with the same hash but different parameters. Previous setup: '%s' / "
-                            "Requested venv setup: '%s'. Please report a bug to airflow!",
-                            venv_path,
-                            previous_hash_data,
-                            hash_data,
-                        )
+                        _, hash_data_before_upgrade = self._calculate_cache_hash(exclude_cloudpickle=True)
+                        if previous_hash_data == hash_data_before_upgrade:
+                            self.log.warning(
+                                "Found a previous virtual environment in  with outdated dependencies %s, "
+                                "deleting and re-creating.",
+                                venv_path,
+                            )
+                        else:
+                            self.log.error(
+                                "Unicorn alert: Found a previous virtual environment in %s "
+                                "with the same hash but different parameters. Previous setup: '%s' / "
+                                "Requested venv setup: '%s'. Please report a bug to airflow!",
+                                venv_path,
+                                previous_hash_data,
+                                hash_data,
+                            )
                     else:
                         self.log.warning(
                             "Found a previous (probably partial installed) virtual environment in %s, "
