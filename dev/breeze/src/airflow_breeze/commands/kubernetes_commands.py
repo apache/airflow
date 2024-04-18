@@ -204,8 +204,8 @@ option_wait_time_in_seconds_0_default = click.option(
 option_parallelism_cluster = click.option(
     "--parallelism",
     help="Maximum number of processes to use while running the operation in parallel for cluster operations.",
-    type=click.IntRange(1, max(1, (mp.cpu_count() + 1) // 3) if not generating_command_images() else 4),
-    default=max(1, (mp.cpu_count() + 1) // 3) if not generating_command_images() else 2,
+    type=click.IntRange(1, max(1, mp.cpu_count() / 2) if not generating_command_images() else 4),
+    default=max(1, mp.cpu_count() / 2) if not generating_command_images() else 2,
     envvar="PARALLELISM",
     show_default=True,
 )
