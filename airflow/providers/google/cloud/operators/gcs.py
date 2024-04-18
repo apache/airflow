@@ -297,7 +297,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         *,
         bucket_name: str,
         objects: list[str] | None = None,
-        prefix: str | None = None,
+        prefix: str | list[str] | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -309,12 +309,14 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
 
         if objects is None and prefix is None:
-            err_message = "(Task {task_id}) Either object or prefix should be set. Both are None.".format(
+            err_message = "(Task {task_id}) Either objects or prefix should be set. Both are None.".format(
                 **kwargs
             )
             raise ValueError(err_message)
+        if objects is not None and prefix is not None:
+            err_message = "(Task {task_id}) Objects or prefix should be set. Both provided.".format(**kwargs)
+            raise ValueError(err_message)
 
-        self._objects: list[str] = []
         super().__init__(**kwargs)
 
     def execute(self, context: Context) -> None:
@@ -324,15 +326,14 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         )
 
         if self.objects is not None:
-            self._objects = self.objects
+            objects = self.objects
         else:
-            self._objects = hook.list(bucket_name=self.bucket_name, prefix=self.prefix)
-        self.log.info("Deleting %s objects from %s", len(self._objects), self.bucket_name)
-        for object_name in self._objects:
+            objects = hook.list(bucket_name=self.bucket_name, prefix=self.prefix)
+        self.log.info("Deleting %s objects from %s", len(objects), self.bucket_name)
+        for object_name in objects:
             hook.delete(bucket_name=self.bucket_name, object_name=object_name)
 
-    def get_openlineage_facets_on_complete(self, task_instance):
-        """Implement on_complete as execute() resolves object names."""
+    def get_openlineage_facets_on_start(self):
         from openlineage.client.facet import (
             LifecycleStateChange,
             LifecycleStateChangeDatasetFacet,
@@ -342,8 +343,17 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
 
         from airflow.providers.openlineage.extractors import OperatorLineage
 
-        if not self._objects:
-            return OperatorLineage()
+        objects = []
+        if self.objects is not None:
+            objects = self.objects
+        elif self.prefix is not None:
+            prefixes = [self.prefix] if isinstance(self.prefix, str) else self.prefix
+            for pref in prefixes:
+                # Use parent if not a file (dot not in name) and not a dir (ends with slash)
+                if "." not in pref.split("/")[-1] and not pref.endswith("/"):
+                    pref = Path(pref).parent.as_posix()
+                pref = "/" if pref in (".", "", "/") else pref.rstrip("/")
+                objects.append(pref)
 
         bucket_url = f"gs://{self.bucket_name}"
         input_datasets = [
@@ -360,7 +370,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
                     )
                 },
             )
-            for object_name in self._objects
+            for object_name in objects
         ]
 
         return OperatorLineage(inputs=input_datasets)
