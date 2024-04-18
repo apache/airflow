@@ -264,7 +264,6 @@ class PineconeHook(BaseHook):
         """
         self.pc.configure_index(name=index_name, replicas=replicas, pod_type=pod_type)
 
-    @staticmethod
     def create_collection(self, collection_name: str, index_name: str) -> None:
         """
         Create a new collection from a specified index.
