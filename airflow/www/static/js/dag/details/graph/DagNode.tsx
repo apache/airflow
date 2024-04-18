@@ -18,7 +18,7 @@
  */
 
 import React from "react";
-import { Box, Flex, Text } from "@chakra-ui/react";
+import { Flex, Text, useTheme } from "@chakra-ui/react";
 import type { NodeProps } from "reactflow";
 
 import { SimpleStatus } from "src/dag/StatusBox";
@@ -53,10 +53,11 @@ const DagNode = ({
 }: NodeProps<CustomNodeProps>) => {
   const { onSelect } = useSelection();
   const containerRef = useContainerRef();
+  const { colors } = useTheme();
 
   if (!task) return null;
 
-  const bg = isOpen ? "blackAlpha.50" : "white";
+  const groupBg = isOpen ? `${colors.blue[500]}15` : "blue.50";
   const { isMapped } = task;
   const mappedStates = instance?.mappedStates;
 
@@ -67,9 +68,9 @@ const DagNode = ({
     : label;
 
   let operatorTextColor = "";
-  let operatorBG = "";
+  let operatorBg = "";
   if (style) {
-    [, operatorBG] = style.split(":");
+    [, operatorBg] = style.split(":");
   }
 
   if (labelStyle) {
@@ -83,6 +84,12 @@ const DagNode = ({
       ? stateColors[instance.state]
       : "gray.400";
 
+  let borderWidth = 2;
+  if (isZoomedOut) {
+    if (isSelected) borderWidth = 10;
+    else borderWidth = 6;
+  } else if (isSelected) borderWidth = 4;
+
   return (
     <Tooltip
       label={
@@ -95,15 +102,16 @@ const DagNode = ({
       placement="top"
       openDelay={hoverDelay}
     >
-      <Box
+      <Flex
         borderRadius={isZoomedOut ? 10 : 5}
-        borderWidth={(isSelected ? 4 : 2) * (isZoomedOut ? 3 : 1)}
+        borderWidth={borderWidth}
         borderColor={nodeBorderColor}
+        wordBreak="break-word"
         bg={
-          !task.children?.length && operatorBG
+          !task.children?.length && operatorBg
             ? // Fade the operator color to clash less with the task instance status
-              `color-mix(in srgb, ${operatorBG.replace(";", "")} 80%, white)`
-            : bg
+              `color-mix(in srgb, ${operatorBg.replace(";", "")} 80%, white)`
+            : groupBg
         }
         height={`${height}px`}
         width={`${width}px`}
@@ -121,6 +129,10 @@ const DagNode = ({
         }}
         px={isZoomedOut ? 1 : 2}
         mt={isZoomedOut ? -2 : 0}
+        alignItems={isZoomedOut && !isOpen ? "center" : undefined}
+        justifyContent={isZoomedOut && !isOpen ? "center" : undefined}
+        flexDirection="column"
+        overflow="wrap"
       >
         <TaskName
           label={taskName}
@@ -131,9 +143,7 @@ const DagNode = ({
             onToggleCollapse();
           }}
           setupTeardownType={setupTeardownType}
-          fontWeight="bold"
           isZoomedOut={isZoomedOut}
-          mt={isZoomedOut ? -2 : 0}
           noOfLines={2}
         />
         {!isZoomedOut && (
@@ -159,7 +169,7 @@ const DagNode = ({
             )}
           </>
         )}
-      </Box>
+      </Flex>
     </Tooltip>
   );
 };

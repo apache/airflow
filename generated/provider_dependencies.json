@@ -36,7 +36,8 @@
       "jsonpath_ng>=1.5.3",
       "redshift_connector>=2.0.918",
       "sqlalchemy_redshift>=0.8.6",
-      "watchtower>=2.0.1,<4"
+      "watchtower>=2.0.1,<4",
+      "xmlsec<1.3.14"
     ],
     "devel-deps": [
       "aiobotocore>=2.7.0",
