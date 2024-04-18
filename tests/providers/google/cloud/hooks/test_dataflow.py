@@ -29,7 +29,14 @@ from unittest.mock import MagicMock
 from uuid import UUID
 
 import pytest
-from google.cloud.dataflow_v1beta3 import GetJobRequest, JobView, ListJobsRequest
+from google.cloud.dataflow_v1beta3 import (
+    GetJobMetricsRequest,
+    GetJobRequest,
+    JobView,
+    ListJobMessagesRequest,
+    ListJobsRequest,
+)
+from google.cloud.dataflow_v1beta3.types import JobMessageImportance
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.apache.beam.hooks.beam import BeamHook, run_beam_command
@@ -1284,7 +1291,7 @@ class TestDataflowJob:
             num_retries=20,
             multiple_jobs=True,
         )
-        with pytest.raises(Exception, match=exception_regex):
+        with pytest.raises(AirflowException, match=exception_regex):
             dataflow_job.wait_for_done()
 
     def test_dataflow_job_wait_for_multiple_jobs_and_streaming_jobs(self):
@@ -1517,7 +1524,7 @@ class TestDataflowJob:
             num_retries=20,
             multiple_jobs=True,
         )
-        with pytest.raises(Exception, match=exception_regex):
+        with pytest.raises(AirflowException, match=exception_regex):
             dataflow_job._check_dataflow_job_state(job)
 
     @pytest.mark.parametrize(
@@ -1558,7 +1565,7 @@ class TestDataflowJob:
             multiple_jobs=False,
             expected_terminal_state=expected_terminal_state,
         )
-        with pytest.raises(Exception, match=match):
+        with pytest.raises(AirflowException, match=match):
             dataflow_job._check_dataflow_job_state(job)
 
     def test_dataflow_job_cancel_job(self):
@@ -1964,7 +1971,7 @@ def make_mock_awaitable():
     return func
 
 
-class TestAsyncHook:
+class TestAsyncDataflowHook:
     def test_delegate_to_runtime_error(self):
         with pytest.raises(RuntimeError):
             AsyncDataflowHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
@@ -2023,3 +2030,47 @@ class TestAsyncHook:
         )
         initialize_client_mock.assert_called_once()
         client.list_jobs.assert_called_once_with(request=request)
+
+    @pytest.mark.asyncio
+    @mock.patch(DATAFLOW_STRING.format("AsyncDataflowHook.initialize_client"))
+    async def test_list_job_messages(self, initialize_client_mock, hook):
+        client = initialize_client_mock.return_value
+        await hook.list_job_messages(
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            job_id=TEST_JOB_ID,
+        )
+        request = ListJobMessagesRequest(
+            {
+                "project_id": TEST_PROJECT_ID,
+                "job_id": TEST_JOB_ID,
+                "minimum_importance": JobMessageImportance.JOB_MESSAGE_BASIC,
+                "page_size": None,
+                "page_token": None,
+                "start_time": None,
+                "end_time": None,
+                "location": TEST_LOCATION,
+            }
+        )
+        initialize_client_mock.assert_called_once()
+        client.list_job_messages.assert_called_once_with(request=request)
+
+    @pytest.mark.asyncio
+    @mock.patch(DATAFLOW_STRING.format("AsyncDataflowHook.initialize_client"))
+    async def test_get_job_metrics(self, initialize_client_mock, hook):
+        client = initialize_client_mock.return_value
+        await hook.get_job_metrics(
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            job_id=TEST_JOB_ID,
+        )
+        request = GetJobMetricsRequest(
+            {
+                "project_id": TEST_PROJECT_ID,
+                "job_id": TEST_JOB_ID,
+                "start_time": None,
+                "location": TEST_LOCATION,
+            }
+        )
+        initialize_client_mock.assert_called_once()
+        client.get_job_metrics.assert_called_once_with(request=request)

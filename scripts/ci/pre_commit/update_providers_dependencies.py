@@ -227,6 +227,8 @@ if __name__ == "__main__":
     DEPENDENCIES_JSON_FILE_PATH.write_text(new_content)
     if new_content != old_content:
         if os.environ.get("CI"):
+            # make sure the message is printed outside the folded section
+            console.print("::endgroup::")
             console.print()
             console.print(f"There is a need to regenerate {DEPENDENCIES_JSON_FILE_PATH}")
             console.print(

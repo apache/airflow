@@ -35,6 +35,21 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.7.2
+.....
+
+Latest change: 2024-03-16
+
+=================================================================================================  ===========  ====================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================================
+`baa6f08a5c <https://github.com/apache/airflow/commit/baa6f08a5cd4c8fa35ddf481e649e97b8576b952>`_  2024-03-16   ``Rename 'SparkSubmitOperator''s fields' names to comply with templated fields validation (#38051)``
+`58bffa6862 <https://github.com/apache/airflow/commit/58bffa686238102cb628f19a16d9ad1c65ecda15>`_  2024-03-12   ``Rename 'SparkSqlOperator''s field's name to comply with templated fields validation (#38045)``
+`83316b8158 <https://github.com/apache/airflow/commit/83316b81584c9e516a8142778fc509f19d95cc3e>`_  2024-03-04   ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+`5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
+`08036e5df5 <https://github.com/apache/airflow/commit/08036e5df5ae3ec9f600219361f86a1a3e8e9d19>`_  2024-02-08   ``D401 Support in Providers (simple) (#37258)``
+=================================================================================================  ===========  ====================================================================================================
+
 4.7.1
 .....
 
@@ -43,6 +58,7 @@ Latest change: 2024-01-26
 =================================================================================================  ===========  ====================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================================================
+`cead3da4a6 <https://github.com/apache/airflow/commit/cead3da4a6f483fa626b81efd27a24dcb5a36ab0>`_  2024-01-26   ``Add docs for RC2 wave of providers for 2nd round of Jan 2024 (#37019)``
 `0b680c9492 <https://github.com/apache/airflow/commit/0b680c94922e3f7ca1f3ada8328e315bbae37dc8>`_  2024-01-26   ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
 `2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 `c439ab87c4 <https://github.com/apache/airflow/commit/c439ab87c421aaa6bd5d8074780e4f63606a1ef1>`_  2024-01-10   ``Standardize airflow build process and switch to Hatchling build backend (#36537)``

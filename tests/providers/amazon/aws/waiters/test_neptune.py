@@ -53,9 +53,9 @@ class TestCustomNeptuneWaiters:
         waiter.wait(DBClusterIdentifier="test_cluster")
 
     def test_cluster_available_failed(self, mock_describe_clusters):
+        mock_describe_clusters.return_value = {"DBClusters": [{"Status": "migration-failed"}]}
+        waiter = NeptuneHook(aws_conn_id=None).get_waiter("cluster_available")
         with pytest.raises(botocore.exceptions.WaiterError):
-            mock_describe_clusters.return_value = {"DBClusters": [{"Status": "migration-failed"}]}
-            waiter = NeptuneHook(aws_conn_id=None).get_waiter("cluster_available")
             waiter.wait(DBClusterIdentifier="test_cluster")
 
     def test_starting_up(self, mock_describe_clusters):
@@ -74,9 +74,9 @@ class TestCustomNeptuneWaiters:
         waiter.wait(DBClusterIdentifier="test_cluster")
 
     def test_cluster_stopped_failed(self, mock_describe_clusters):
+        mock_describe_clusters.return_value = {"DBClusters": [{"Status": "migration-failed"}]}
+        waiter = NeptuneHook(aws_conn_id=None).get_waiter("cluster_stopped")
         with pytest.raises(botocore.exceptions.WaiterError):
-            mock_describe_clusters.return_value = {"DBClusters": [{"Status": "migration-failed"}]}
-            waiter = NeptuneHook(aws_conn_id=None).get_waiter("cluster_stopped")
             waiter.wait(DBClusterIdentifier="test_cluster")
 
     def test_stopping(self, mock_describe_clusters):

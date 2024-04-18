@@ -993,7 +993,7 @@ def decrypt_trigger_kwargs(*, session: Session) -> None:
         # this can happen when we downgrade to an old version before the Trigger table was added
         return
 
-    for trigger in session.query(Trigger):
+    for trigger in session.scalars(select(Trigger.encrypted_kwargs)):
         # decrypt the string and convert it to serialized dict
         trigger.encrypted_kwargs = json.dumps(BaseSerialization.serialize(trigger.kwargs))
     session.commit()
@@ -1744,12 +1744,12 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
         else:
             log.info("Applying downgrade migrations.")
             command.downgrade(config, revision=to_revision, sql=show_sql_only)
-    if _revision_greater(
-        config,
-        _REVISION_HEADS_MAP["2.9.0"],
-        to_revision,
-    ):
-        decrypt_trigger_kwargs(session=session)
+            if _revision_greater(
+                config,
+                _REVISION_HEADS_MAP["2.9.0"],
+                to_revision,
+            ):
+                decrypt_trigger_kwargs(session=session)
 
 
 def drop_airflow_models(connection):

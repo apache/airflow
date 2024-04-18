@@ -61,6 +61,8 @@ from airflow_breeze.commands.common_options import (
     option_standalone_dag_processor,
     option_upgrade_boto,
     option_use_airflow_version,
+    option_use_uv,
+    option_uv_http_timeout,
     option_verbose,
 )
 from airflow_breeze.commands.common_package_installation_options import (
@@ -282,6 +284,8 @@ option_warn_image_upgrade_needed = click.option(
 @option_upgrade_boto
 @option_use_airflow_version
 @option_use_packages_from_dist
+@option_use_uv
+@option_uv_http_timeout
 @option_verbose
 def shell(
     airflow_constraints_location: str,
@@ -331,6 +335,8 @@ def shell(
     upgrade_boto: bool,
     use_airflow_version: str | None,
     use_packages_from_dist: bool,
+    use_uv: bool,
+    uv_http_timeout: int,
     verbose_commands: bool,
     warn_image_upgrade_needed: bool,
 ):
@@ -382,6 +388,7 @@ def shell(
         pydantic=pydantic,
         python=python,
         quiet=quiet,
+        restart=restart,
         run_db_tests_only=run_db_tests_only,
         skip_db_tests=skip_db_tests,
         skip_image_upgrade_check=skip_image_upgrade_check,
@@ -391,8 +398,9 @@ def shell(
         upgrade_boto=upgrade_boto,
         use_airflow_version=use_airflow_version,
         use_packages_from_dist=use_packages_from_dist,
+        use_uv=use_uv,
+        uv_http_timeout=uv_http_timeout,
         verbose_commands=verbose_commands,
-        restart=restart,
         warn_image_upgrade_needed=warn_image_upgrade_needed,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
@@ -476,6 +484,8 @@ option_executor_start_airflow = click.option(
 @option_python
 @option_restart
 @option_standalone_dag_processor
+@option_use_uv
+@option_uv_http_timeout
 @option_use_airflow_version
 @option_use_packages_from_dist
 @option_verbose
@@ -519,6 +529,8 @@ def start_airflow(
     standalone_dag_processor: bool,
     use_airflow_version: str | None,
     use_packages_from_dist: bool,
+    use_uv: bool,
+    uv_http_timeout: int,
 ):
     """
     Enter breeze environment and starts all Airflow components in the tmux session.
@@ -576,6 +588,8 @@ def start_airflow(
         start_airflow=True,
         use_airflow_version=use_airflow_version,
         use_packages_from_dist=use_packages_from_dist,
+        use_uv=use_uv,
+        uv_http_timeout=uv_http_timeout,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     result = enter_shell(shell_params=shell_params)

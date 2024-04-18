@@ -116,7 +116,9 @@ class AirbyteTriggerSyncOperator(BaseOperator):
                 elif state == hook.CANCELLED:
                     raise AirflowException(f"Job was cancelled:\n{self.job_id}")
                 else:
-                    raise Exception(f"Encountered unexpected state `{state}` for job_id `{self.job_id}")
+                    raise AirflowException(
+                        f"Encountered unexpected state `{state}` for job_id `{self.job_id}"
+                    )
             else:
                 hook.wait_for_job(job_id=self.job_id, wait_seconds=self.wait_seconds, timeout=self.timeout)
             self.log.info("Job %s completed successfully", self.job_id)

@@ -335,7 +335,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ["ruff==0.3.5"]
+        additional_dependencies: ["ruff==0.3.6"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
       - id: ruff-format
         name: Run 'ruff format' for extremely fast Python formatting
@@ -345,7 +345,7 @@ repos:
         types_or: [python, pyi]
         args: []
         require_serial: true
-        additional_dependencies: ["ruff==0.3.5"]
+        additional_dependencies: ["ruff==0.3.6"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^airflow/contrib/
       - id: replace-bad-characters
         name: Replace bad characters
@@ -437,21 +437,21 @@ repos:
         files: ^docs/apache-airflow/extra-packages-ref\.rst$|^hatch_build.py
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/check_extra_packages_ref.py
-        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.22.4', 'tabulate']
+        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.24.0', 'tabulate']
       - id: check-hatch-build-order
         name: Check order of dependencies in hatch_build.py
         language: python
         files: ^hatch_build.py$
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/check_order_hatch_build.py
-        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.22.4']
+        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.24.0']
       - id: update-extras
         name: Update extras in documentation
         entry: ./scripts/ci/pre_commit/insert_extras.py
         language: python
         files: ^contributing-docs/12_airflow_dependencies_and_extras.rst$|^INSTALL$|^airflow/providers/.*/provider\.yaml$|^Dockerfile.*
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.22.4']
+        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.24.0']
       - id: check-extras-order
         name: Check order of extras in Dockerfile
         entry: ./scripts/ci/pre_commit/check_order_dockerfile_extras.py
@@ -596,6 +596,7 @@ repos:
           ^airflow/www/static/css/bootstrap-theme.css$|
           ^airflow/www/static/js/types/api-generated.ts$|
           ^airflow/www/templates/appbuilder/flash.html$|
+          ^chart/values.schema.json$|
           ^.*/.*_vendor/|
           ^dev/|
           ^docs/README.rst$|
@@ -757,6 +758,14 @@ repos:
         entry: ./scripts/ci/pre_commit/sort_spelling_wordlist.py
         language: python
         files: ^\.pre-commit-config\.yaml$|^docs/spelling_wordlist\.txt$
+        require_serial: true
+        pass_filenames: false
+      - id: update-openapi-spec-tags-to-be-sorted
+        name: Sort alphabetically openapi spec tags
+        entry: ./scripts/ci/pre_commit/sort_tags_in_openapi_spec.py
+        types: [yaml]
+        language: python
+        files: ^\.pre-commit-config\.yaml$|^airflow/api_connexion/openapi/v1\.yaml$
         require_serial: true
         pass_filenames: false
       - id: lint-helm-chart
@@ -985,6 +994,13 @@ repos:
         files: \.py$
         exclude: ^.*/.*_vendor/
         additional_dependencies: ['rich>=12.4.4']
+      - id: check-compat-cache-on-methods
+        name: Check that compat cache do not use on class methods
+        entry: ./scripts/ci/pre_commit/compat_cache_on_methods.py
+        language: python
+        pass_filenames: true
+        files: ^airflow/.*\.py$
+        exclude: ^.*/.*_vendor/
       - id: lint-chart-schema
         name: Lint chart/values.schema.json file
         entry: ./scripts/ci/pre_commit/chart_schema.py
@@ -1078,7 +1094,7 @@ repos:
         entry: "^\\s*from re\\s|^\\s*import re\\s"
         pass_filenames: true
         files: \.py$
-        exclude: ^airflow/providers|^dev/.*\.py$|^scripts/.*\.py$|^tests/|^\w+_tests/|^docs/.*\.py$|^airflow/utils/helpers.py$
+        exclude: ^airflow/providers|^dev/.*\.py$|^scripts/.*\.py$|^tests/|^\w+_tests/|^docs/.*\.py$|^airflow/utils/helpers.py$|^hatch_build.py$
       - id: check-deferrable-default-value
         name: Check default value of deferrable attribute
         language: python

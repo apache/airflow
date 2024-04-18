@@ -205,7 +205,7 @@ def _fake_ctx_output(*names: str) -> str:
         (
             _fake_ctx_output("default"),
             "default",
-            "[info]Using default as context",
+            "[info]Using 'default' as context",
         ),
         ("\n", "default", "[warning]Could not detect docker builder"),
         (
@@ -216,22 +216,22 @@ def _fake_ctx_output(*names: str) -> str:
         (
             _fake_ctx_output("a", "desktop-linux"),
             "desktop-linux",
-            "[info]Using desktop-linux as context",
+            "[info]Using 'desktop-linux' as context",
         ),
         (
             _fake_ctx_output("a", "default"),
             "default",
-            "[info]Using default as context",
+            "[info]Using 'default' as context",
         ),
         (
             _fake_ctx_output("a", "default", "desktop-linux"),
             "desktop-linux",
-            "[info]Using desktop-linux as context",
+            "[info]Using 'desktop-linux' as context",
         ),
         (
             '[{"Name": "desktop-linux", "DockerEndpoint": "unix://desktop-linux"}]',
             "desktop-linux",
-            "[info]Using desktop-linux as context",
+            "[info]Using 'desktop-linux' as context",
         ),
     ],
 )

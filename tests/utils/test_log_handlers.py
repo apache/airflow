@@ -576,7 +576,7 @@ AIRFLOW_CTX_DAG_RUN_ID=manual__2022-11-16T08:05:52.324532+00:00
 
 def test_parse_timestamps():
     actual = []
-    for timestamp, idx, line in _parse_timestamps_in_log_file(log_sample.splitlines()):
+    for timestamp, _, _ in _parse_timestamps_in_log_file(log_sample.splitlines()):
         actual.append(timestamp)
     assert actual == [
         pendulum.parse("2022-11-16T00:05:54.278000-08:00"),

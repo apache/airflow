@@ -22,9 +22,10 @@ description: |
     `Snowflake <https://www.snowflake.com/>`__
 
 state: ready
-source-date-epoch: 1707636525
+source-date-epoch: 1712666514
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 5.4.0
   - 5.3.1
   - 5.3.0
   - 5.2.1

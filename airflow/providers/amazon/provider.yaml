@@ -22,9 +22,10 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
-source-date-epoch: 1709554658
+source-date-epoch: 1712664326
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 8.20.0
   - 8.19.0
   - 8.18.0
   - 8.17.0
@@ -97,6 +98,10 @@ dependencies:
   - sqlalchemy_redshift>=0.8.6
   - asgiref
   - PyAthena>=3.0.10
+  # XML sec 1.3.14 breaks Amazon's authentication with `lxml & xmlsec libxml2 library version mismatch`
+  # We should investigate if we can upgrade to a newer version of lxml and xmlsec
+  # Tracked in https://github.com/apache/airflow/issues/39103
+  - xmlsec<1.3.14
 
 additional-extras:
   - name: pandas
@@ -454,6 +459,9 @@ sensors:
   - integration-name: AWS Batch
     python-modules:
       - airflow.providers.amazon.aws.sensors.batch
+  - integration-name: Amazon Bedrock
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.bedrock
   - integration-name: Amazon CloudFormation
     python-modules:
       - airflow.providers.amazon.aws.sensors.cloud_formation
@@ -650,6 +658,9 @@ triggers:
   - integration-name: AWS Batch
     python-modules:
       - airflow.providers.amazon.aws.triggers.batch
+  - integration-name: Amazon Bedrock
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.bedrock
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.triggers.ec2

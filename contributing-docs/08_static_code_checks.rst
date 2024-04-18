@@ -146,6 +146,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-cncf-k8s-only-for-executors                         | Check cncf.kubernetes imports used for executors only        |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-compat-cache-on-methods                             | Check that compat cache do not use on class methods          |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-core-deprecation-classes                            | Verify usage of Airflow deprecation classes in core          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-daysago-import-from-utils                           | Make sure days_ago is imported from airflow.utils.dates      |         |
@@ -356,6 +358,8 @@ require Breeze Docker image to be built locally.
 | update-local-yml-file                                     | Update mounts in the local yml file                          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-migration-references                               | Update migration ref doc                                     | *       |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| update-openapi-spec-tags-to-be-sorted                     | Sort alphabetically openapi spec tags                        |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-providers-dependencies                             | Update dependencies for provider packages                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+

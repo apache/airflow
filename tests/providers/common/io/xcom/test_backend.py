@@ -20,7 +20,6 @@ from __future__ import annotations
 import pytest
 
 import airflow.models.xcom
-from airflow.io.path import ObjectStoragePath
 from airflow.models.xcom import BaseXCom, resolve_xcom_backend
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.common.io.xcom.backend import XComObjectStorageBackend
@@ -40,6 +39,19 @@ def reset_db():
     yield
     db.clear_db_runs()
     db.clear_db_xcom()
+
+
+@pytest.fixture(autouse=True)
+def reset_cache():
+    from airflow.providers.common.io.xcom import backend
+
+    backend._get_base_path.cache_clear()
+    backend._get_compression.cache_clear()
+    backend._get_threshold.cache_clear()
+    yield
+    backend._get_base_path.cache_clear()
+    backend._get_compression.cache_clear()
+    backend._get_threshold.cache_clear()
 
 
 @pytest.fixture
@@ -121,7 +133,7 @@ class TestXComObjectStorageBackend:
         )
 
         data = BaseXCom.deserialize_value(res)
-        p = ObjectStoragePath(self.path) / XComObjectStorageBackend._get_key(data)
+        p = XComObjectStorageBackend._get_full_path(data)
         assert p.exists() is True
 
         value = XCom.get_value(
@@ -166,7 +178,7 @@ class TestXComObjectStorageBackend:
         )
 
         data = BaseXCom.deserialize_value(res)
-        p = ObjectStoragePath(self.path) / XComObjectStorageBackend._get_key(data)
+        p = XComObjectStorageBackend._get_full_path(data)
         assert p.exists() is True
 
         XCom.clear(
@@ -205,7 +217,7 @@ class TestXComObjectStorageBackend:
         )
 
         data = BaseXCom.deserialize_value(res)
-        p = ObjectStoragePath(self.path) / XComObjectStorageBackend._get_key(data)
+        p = XComObjectStorageBackend._get_full_path(data)
         assert p.exists() is True
         assert p.suffix == ".gz"
 

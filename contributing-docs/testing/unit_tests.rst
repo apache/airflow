@@ -66,7 +66,7 @@ For avoid this make sure:
 .. code-block:: python
 
     def test_deprecated_argument():
-        with pytest.warn(AirflowProviderDeprecationWarning, match="expected warning pattern"):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="expected warning pattern"):
             SomeDeprecatedClass(foo="bar", spam="egg")
 
 
@@ -1111,6 +1111,25 @@ This prepares airflow .whl package in the dist folder.
 Other Settings
 --------------
 
+Enable masking secrets in tests
+...............................
+
+By default masking secrets in test disabled because it might have side effects
+into the other tests which intends to check logging/stdout/stderr values
+
+If you need to test masking secrets in test cases
+you have to apply ``pytest.mark.enable_redact`` to the specific test case, class or module.
+
+
+.. code-block:: python
+
+    @pytest.mark.enable_redact
+    def test_masking(capsys):
+        mask_secret("eggs")
+        RedactedIO().write("spam eggs and potatoes")
+        assert "spam *** and potatoes" in capsys.readouterr().out
+
+
 Skip test on unsupported platform / environment
 ...............................................
 
@@ -1120,6 +1139,34 @@ for prevent to run on unsupported platform.
 - ``linux``: Run test only on linux platform
 - ``breeze``: Run test only inside of Breeze container, it might be useful in case of run
   some potential dangerous things in tests or if it expects to use common Breeze things.
+
+Warnings capture system
+.......................
+
+By default, all warnings captured during the test runs are saved into the ``tests/warnings.txt``.
+
+If required, you could change the path by providing ``--warning-output-path`` as pytest CLI arguments
+or by setting the environment variable ``CAPTURE_WARNINGS_OUTPUT``.
+
+.. code-block:: console
+
+    root@3f98e75b1ebe:/opt/airflow# pytest tests/core/ --warning-output-path=/foo/bar/spam.egg
+    ...
+    ========================= Warning summary. Total: 34, Unique: 16 ==========================
+    airflow: total 11, unique 1
+    other: total 12, unique 4
+    tests: total 11, unique 11
+    Warnings saved into /foo/bar/spam.egg file.
+
+    ================================= short test summary info =================================
+
+You might also disable capture warnings by providing ``--disable-capture-warnings`` as pytest CLI arguments
+or by setting `global warnings filter <https://docs.python.org/3/library/warnings.html#the-warnings-filter>`__
+to **ignore**, e.g. set ``PYTHONWARNINGS`` environment variable to ``ignore``.
+
+.. code-block:: bash
+
+     pytest tests/core/ --disable-capture-warnings
 
 Code Coverage
 -------------

@@ -247,7 +247,11 @@ const Details = ({
         flexWrap="wrap"
         ml={6}
       >
-        <Header />
+        <Header
+          mapIndex={
+            mappedTaskInstance?.renderedMapIndex || mappedTaskInstance?.mapIndex
+          }
+        />
         <Flex flexWrap="wrap">
           {runId && !taskId && (
             <>

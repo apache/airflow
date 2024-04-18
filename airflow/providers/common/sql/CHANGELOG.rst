@@ -25,6 +25,26 @@
 Changelog
 ---------
 
+1.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add hook_params to template_fields for BaseSQLOperator-related Operators (#38724)``
+* ``Make 'placeholder' of DbApiHook configurable in UI (#38528)``
+
+Misc
+~~~~
+
+* ``Undeprecating 'DBApiHookForTests._make_common_data_structure' (#38573)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update yanked versions in providers changelogs (#38262)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``fix: try002 for provider common sql (#38800)``
+
 1.11.1
 ......
 

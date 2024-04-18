@@ -46,10 +46,11 @@ from airflow.exceptions import (
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     POD_NAME_MAX_LENGTH,
     add_pod_suffix,
+    add_unique_suffix,
     rand_str,
 )
 from airflow.providers.cncf.kubernetes.pod_generator_deprecated import (
-    PodDefaults,
+    PodDefaults as PodDefaultsDeprecated,
     PodGenerator as PodGeneratorDeprecated,
 )
 from airflow.utils import yaml
@@ -179,10 +180,10 @@ class PodGenerator:
         """Add sidecar."""
         pod_cp = copy.deepcopy(pod)
         pod_cp.spec.volumes = pod.spec.volumes or []
-        pod_cp.spec.volumes.insert(0, PodDefaults.VOLUME)
+        pod_cp.spec.volumes.insert(0, PodDefaultsDeprecated.VOLUME)
         pod_cp.spec.containers[0].volume_mounts = pod_cp.spec.containers[0].volume_mounts or []
-        pod_cp.spec.containers[0].volume_mounts.insert(0, PodDefaults.VOLUME_MOUNT)
-        pod_cp.spec.containers.append(PodDefaults.SIDECAR_CONTAINER)
+        pod_cp.spec.containers[0].volume_mounts.insert(0, PodDefaultsDeprecated.VOLUME_MOUNT)
+        pod_cp.spec.containers.append(PodDefaultsDeprecated.SIDECAR_CONTAINER)
 
         return pod_cp
 
@@ -397,7 +398,7 @@ class PodGenerator:
                 UserWarning,
                 stacklevel=2,
             )
-            pod_id = add_pod_suffix(pod_name=pod_id, max_len=POD_NAME_MAX_LENGTH)
+            pod_id = add_unique_suffix(name=pod_id, max_len=POD_NAME_MAX_LENGTH)
         try:
             image = pod_override_object.spec.containers[0].image  # type: ignore
             if not image:

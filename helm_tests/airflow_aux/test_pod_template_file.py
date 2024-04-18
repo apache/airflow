@@ -845,3 +845,58 @@ class TestPodTemplateFile:
         )
 
         assert jmespath.search("spec.runtimeClassName", docs[0]) == "nvidia"
+
+    def test_airflow_local_settings_kerberos_sidecar(self):
+        docs = render_chart(
+            values={
+                "airflowLocalSettings": "# Well hello!",
+                "workers": {"kerberosSidecar": {"enabled": True}},
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+        jmespath.search("spec.containers[1].name", docs[0]) == "worker-kerberos"
+
+        assert {
+            "name": "config",
+            "mountPath": "/opt/airflow/config/airflow_local_settings.py",
+            "subPath": "airflow_local_settings.py",
+            "readOnly": True,
+        } in jmespath.search("spec.containers[1].volumeMounts", docs[0])
+
+    @pytest.mark.parametrize(
+        "airflow_version, init_container_enabled, expected_init_containers",
+        [
+            ("1.9.0", True, 0),
+            ("1.9.0", False, 0),
+            ("1.10.14", True, 0),
+            ("1.10.14", False, 0),
+            ("2.0.2", True, 0),
+            ("2.0.2", False, 0),
+            ("2.1.0", True, 0),
+            ("2.1.0", False, 0),
+            ("2.8.0", True, 1),
+            ("2.8.0", False, 0),
+        ],
+    )
+    def test_airflow_kerberos_init_container(
+        self, airflow_version, init_container_enabled, expected_init_containers
+    ):
+        docs = render_chart(
+            values={
+                "airflowVersion": airflow_version,
+                "workers": {
+                    "kerberosInitContainer": {"enabled": init_container_enabled},
+                },
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        initContainers = jmespath.search("spec.initContainers", docs[0])
+        if expected_init_containers == 0:
+            assert initContainers is None
+
+        if expected_init_containers == 1:
+            assert initContainers[0]["name"] == "kerberos-init"
+            assert initContainers[0]["args"] == ["kerberos", "-o"]

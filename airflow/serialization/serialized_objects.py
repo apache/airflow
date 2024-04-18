@@ -67,6 +67,7 @@ from airflow.task.priority_strategy import (
     airflow_priority_weight_strategies_classes,
 )
 from airflow.utils.code_utils import get_python_source
+from airflow.utils.context import Context, DatasetEventAccessor, DatasetEventAccessors
 from airflow.utils.docs import get_docs_url
 from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.operator_resources import Resources
@@ -533,14 +534,24 @@ class BaseSerialization:
         elif var.__class__.__name__ == "V1Pod" and _has_kubernetes() and isinstance(var, k8s.V1Pod):
             json_pod = PodGenerator.serialize_pod(var)
             return cls._encode(json_pod, type_=DAT.POD)
+        elif isinstance(var, DatasetEventAccessors):
+            return cls._encode(
+                cls.serialize(var._dict, strict=strict, use_pydantic_models=use_pydantic_models),  # type: ignore[attr-defined]
+                type_=DAT.DATASET_EVENT_ACCESSORS,
+            )
+        elif isinstance(var, DatasetEventAccessor):
+            return cls._encode(
+                cls.serialize(var.extra, strict=strict, use_pydantic_models=use_pydantic_models),
+                type_=DAT.DATASET_EVENT_ACCESSOR,
+            )
         elif isinstance(var, DAG):
             return cls._encode(SerializedDAG.serialize_dag(var), type_=DAT.DAG)
         elif isinstance(var, Resources):
             return var.to_dict()
         elif isinstance(var, MappedOperator):
-            return SerializedBaseOperator.serialize_mapped_operator(var)
+            return cls._encode(SerializedBaseOperator.serialize_mapped_operator(var), type_=DAT.OP)
         elif isinstance(var, BaseOperator):
-            return SerializedBaseOperator.serialize_operator(var)
+            return cls._encode(SerializedBaseOperator.serialize_operator(var), type_=DAT.OP)
         elif isinstance(var, cls._datetime_types):
             return cls._encode(var.timestamp(), type_=DAT.DATETIME)
         elif isinstance(var, datetime.timedelta):
@@ -602,6 +613,12 @@ class BaseSerialization:
             )
         elif isinstance(var, Connection):
             return cls._encode(var.to_dict(validate=True), type_=DAT.CONNECTION)
+        elif var.__class__ == Context:
+            d = {}
+            for k, v in var._context.items():
+                obj = cls.serialize(v, strict=strict, use_pydantic_models=use_pydantic_models)
+                d[str(k)] = obj
+            return cls._encode(d, type_=DAT.TASK_CONTEXT)
         elif use_pydantic_models and _ENABLE_AIP_44:
 
             def _pydantic_model_dump(model_cls: type[BaseModel], var: Any) -> dict[str, Any]:
@@ -648,9 +665,22 @@ class BaseSerialization:
             raise ValueError(f"The encoded_var should be dict and is {type(encoded_var)}")
         var = encoded_var[Encoding.VAR]
         type_ = encoded_var[Encoding.TYPE]
-
-        if type_ == DAT.DICT:
+        if type_ == DAT.TASK_CONTEXT:
+            d = {}
+            for k, v in var.items():
+                if k == "task":  # todo: add `_encode` of Operator so we don't need this
+                    continue
+                d[k] = cls.deserialize(v, use_pydantic_models=True)
+            d["task"] = d["task_instance"].task  # todo: add `_encode` of Operator so we don't need this
+            return Context(**d)
+        elif type_ == DAT.DICT:
             return {k: cls.deserialize(v, use_pydantic_models) for k, v in var.items()}
+        elif type_ == DAT.DATASET_EVENT_ACCESSORS:
+            d = DatasetEventAccessors()  # type: ignore[assignment]
+            d._dict = cls.deserialize(var)  # type: ignore[attr-defined]
+            return d
+        elif type_ == DAT.DATASET_EVENT_ACCESSOR:
+            return DatasetEventAccessor(extra=cls.deserialize(var))
         elif type_ == DAT.DAG:
             return SerializedDAG.deserialize_dag(var)
         elif type_ == DAT.OP:
@@ -688,17 +718,17 @@ class BaseSerialization:
             return Connection(**var)
         elif use_pydantic_models and _ENABLE_AIP_44:
             if type_ == DAT.BASE_JOB:
-                return JobPydantic.parse_obj(var)
+                return JobPydantic.model_validate(var)
             elif type_ == DAT.TASK_INSTANCE:
-                return TaskInstancePydantic.parse_obj(var)
+                return TaskInstancePydantic.model_validate(var)
             elif type_ == DAT.DAG_RUN:
-                return DagRunPydantic.parse_obj(var)
+                return DagRunPydantic.model_validate(var)
             elif type_ == DAT.DAG_MODEL:
-                return DagModelPydantic.parse_obj(var)
+                return DagModelPydantic.model_validate(var)
             elif type_ == DAT.DATA_SET:
-                return DatasetPydantic.parse_obj(var)
+                return DatasetPydantic.model_validate(var)
             elif type_ == DAT.LOG_TEMPLATE:
-                return LogTemplatePydantic.parse_obj(var)
+                return LogTemplatePydantic.model_validate(var)
         elif type_ == DAT.ARG_NOT_SET:
             return NOTSET
         else:
@@ -1462,9 +1492,15 @@ class SerializedDAG(DAG, BaseSerialization):
                 v = set(v)
             elif k == "tasks":
                 SerializedBaseOperator._load_operator_extra_links = cls._load_operator_extra_links
-
-                v = {task["task_id"]: SerializedBaseOperator.deserialize_operator(task) for task in v}
+                tasks = {}
+                for obj in v:
+                    if obj.get(Encoding.TYPE) == DAT.OP:
+                        deser = SerializedBaseOperator.deserialize_operator(obj[Encoding.VAR])
+                        tasks[deser.task_id] = deser
+                    else:  # todo: remove in Airflow 3.0 (backcompat for pre-2.10)
+                        tasks[obj["task_id"]] = SerializedBaseOperator.deserialize_operator(obj)
                 k = "task_dict"
+                v = tasks
             elif k == "timezone":
                 v = cls._deserialize_timezone(v)
             elif k == "dagrun_timeout":

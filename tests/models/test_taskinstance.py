@@ -29,7 +29,7 @@ import urllib
 from traceback import format_exception
 from typing import cast
 from unittest import mock
-from unittest.mock import call, mock_open, patch
+from unittest.mock import MagicMock, call, mock_open, patch
 from uuid import uuid4
 
 import pendulum
@@ -66,6 +66,8 @@ from airflow.models.taskinstance import (
     TaskInstance,
     TaskInstance as TI,
     TaskInstanceNote,
+    _get_private_try_number,
+    _get_try_number,
     _run_finished_callback,
 )
 from airflow.models.taskmap import TaskMap
@@ -368,7 +370,7 @@ class TestTaskInstance:
             assert ti.state == State.QUEUED
             dep_patch.return_value = TIDepStatus("mock_" + class_name, True, "mock")
 
-        for dep_patch, method_patch in patch_dict.values():
+        for dep_patch, _ in patch_dict.values():
             dep_patch.stop()
 
     def test_mark_non_runnable_task_as_success(self, create_task_instance):
@@ -2374,6 +2376,55 @@ class TestTaskInstance:
         assert event.source_task_id == "write"
         assert event.extra == {"one": 1}
 
+    def test_outlet_dataset_extra_yield(self, dag_maker, session):
+        from airflow.datasets import Dataset
+        from airflow.datasets.metadata import Metadata
+
+        with dag_maker(schedule=None, session=session) as dag:
+
+            @task(outlets=Dataset("test_outlet_dataset_extra_1"))
+            def write1():
+                result = "write_1 result"
+                yield Metadata("test_outlet_dataset_extra_1", {"foo": "bar"})
+                return result
+
+            write1()
+
+            def _write2_post_execute(context, result):
+                yield Metadata("test_outlet_dataset_extra_2", {"x": 1})
+
+            BashOperator(
+                task_id="write2",
+                bash_command=":",
+                outlets=Dataset("test_outlet_dataset_extra_2"),
+                post_execute=_write2_post_execute,
+            )
+
+        dr: DagRun = dag_maker.create_dagrun()
+        for ti in dr.get_task_instances(session=session):
+            ti.refresh_from_task(dag.get_task(ti.task_id))
+            ti.run(session=session)
+
+        xcom = session.scalars(
+            select(XCom).filter_by(dag_id=dr.dag_id, run_id=dr.run_id, task_id="write1", key="return_value")
+        ).one()
+        assert xcom.value == "write_1 result"
+
+        events = dict(iter(session.execute(select(DatasetEvent.source_task_id, DatasetEvent))))
+        assert set(events) == {"write1", "write2"}
+
+        assert events["write1"].source_dag_id == dr.dag_id
+        assert events["write1"].source_run_id == dr.run_id
+        assert events["write1"].source_task_id == "write1"
+        assert events["write1"].dataset.uri == "test_outlet_dataset_extra_1"
+        assert events["write1"].extra == {"foo": "bar"}
+
+        assert events["write2"].source_dag_id == dr.dag_id
+        assert events["write2"].source_run_id == dr.run_id
+        assert events["write2"].source_task_id == "write2"
+        assert events["write2"].dataset.uri == "test_outlet_dataset_extra_2"
+        assert events["write2"].extra == {"x": 1}
+
     def test_changing_of_dataset_when_ddrq_is_already_populated(self, dag_maker):
         """
         Test that when a task that produces dataset has ran, that changing the consumer
@@ -2798,20 +2849,7 @@ class TestTaskInstance:
             ti.refresh_from_db()
             assert ti.state == State.SUCCESS
 
-    @pytest.mark.parametrize(
-        "finished_state",
-        [
-            State.SUCCESS,
-            State.UP_FOR_RETRY,
-            State.FAILED,
-        ],
-    )
-    @patch("logging.Logger.exception")
-    def test_finished_callbacks_handle_and_log_exception(
-        self, mock_log, finished_state, create_task_instance
-    ):
-        called = completed = False
-
+    def test_finished_callbacks_handle_and_log_exception(self, caplog):
         def on_finish_callable(context):
             nonlocal called, completed
             called = True
@@ -2819,22 +2857,31 @@ class TestTaskInstance:
             completed = True
 
         for callback_input in [[on_finish_callable], on_finish_callable]:
+            called = completed = False
+            caplog.clear()
             _run_finished_callback(callbacks=callback_input, context={})
 
             assert called
             assert not completed
             callback_name = callback_input[0] if isinstance(callback_input, list) else callback_input
             callback_name = qualname(callback_name).split(".")[-1]
-            expected_message = "Error when executing %s callback"
-            mock_log.assert_called_with(expected_message, callback_name)
+            assert "Executing on_finish_callable callback" in caplog.text
+            assert "Error when executing on_finish_callable callback" in caplog.text
 
     @provide_session
     def test_handle_failure(self, create_dummy_dag, session=None):
         start_date = timezone.datetime(2016, 6, 1)
         clear_db_runs()
 
+        from airflow.listeners.listener import get_listener_manager
+
+        listener_callback_on_error = mock.MagicMock()
+        get_listener_manager().pm.hook.on_task_instance_failed = listener_callback_on_error
+
         mock_on_failure_1 = mock.MagicMock()
+        mock_on_failure_1.__name__ = "mock_on_failure_1"
         mock_on_retry_1 = mock.MagicMock()
+        mock_on_retry_1.__name__ = "mock_on_retry_1"
         dag, task1 = create_dummy_dag(
             dag_id="test_handle_failure",
             schedule=None,
@@ -2852,11 +2899,18 @@ class TestTaskInstance:
             state=None,
             session=session,
         )
-
         ti1 = dr.get_task_instance(task1.task_id, session=session)
         ti1.task = task1
+
         ti1.state = State.FAILED
-        ti1.handle_failure("test failure handling")
+        error_message = "test failure handling"
+        ti1.handle_failure(error_message)
+
+        # check that the listener callback was called, and that it can access the error
+        listener_callback_on_error.assert_called_once()
+        callback_args = listener_callback_on_error.call_args.kwargs
+        assert "error" in callback_args
+        assert callback_args["error"] == error_message
 
         context_arg_1 = mock_on_failure_1.call_args.args[0]
         assert context_arg_1
@@ -2864,7 +2918,9 @@ class TestTaskInstance:
         mock_on_retry_1.assert_not_called()
 
         mock_on_failure_2 = mock.MagicMock()
+        mock_on_failure_2.__name__ = "mock_on_failure_2"
         mock_on_retry_2 = mock.MagicMock()
+        mock_on_retry_2.__name__ = "mock_on_retry_2"
         task2 = EmptyOperator(
             task_id="test_handle_failure_on_retry",
             on_failure_callback=mock_on_failure_2,
@@ -2886,7 +2942,9 @@ class TestTaskInstance:
 
         # test the scenario where normally we would retry but have been asked to fail
         mock_on_failure_3 = mock.MagicMock()
+        mock_on_failure_3.__name__ = "mock_on_failure_3"
         mock_on_retry_3 = mock.MagicMock()
+        mock_on_retry_3.__name__ = "mock_on_retry_3"
         task3 = EmptyOperator(
             task_id="test_handle_failure_on_force_fail",
             on_failure_callback=mock_on_failure_3,
@@ -3315,6 +3373,7 @@ class TestTaskInstance:
             "rendered_map_index": None,
             "queued_by_job_id": 321,
             "pid": 123,
+            "executor": "some_executor",
             "executor_config": {"Some": {"extra": "information"}},
             "external_executor_id": "some_executor_id",
             "trigger_timeout": None,
@@ -3401,6 +3460,7 @@ class TestTaskInstance:
             raise AirflowSkipException
 
         callback_function = mock.MagicMock()
+        callback_function.__name__ = "callback_function"
 
         with dag_maker(dag_id="test_skipped_task"):
             task = PythonOperator(
@@ -3496,6 +3556,7 @@ def test_sensor_timeout(mode, retries, dag_maker):
         raise AirflowSensorTimeout
 
     mock_on_failure = mock.MagicMock()
+    mock_on_failure.__name__ = "mock_on_failure"
     with dag_maker(dag_id=f"test_sensor_timeout_{mode}_{retries}"):
         PythonSensor(
             task_id="test_raise_sensor_timeout",
@@ -3524,6 +3585,7 @@ def test_mapped_sensor_timeout(mode, retries, dag_maker):
         raise AirflowSensorTimeout
 
     mock_on_failure = mock.MagicMock()
+    mock_on_failure.__name__ = "mock_on_failure"
     with dag_maker(dag_id=f"test_sensor_timeout_{mode}_{retries}"):
         PythonSensor.partial(
             task_id="test_raise_sensor_timeout",
@@ -4561,3 +4623,27 @@ def test_taskinstance_with_note(create_task_instance, session):
 
     assert session.query(TaskInstance).filter_by(**filter_kwargs).one_or_none() is None
     assert session.query(TaskInstanceNote).filter_by(**filter_kwargs).one_or_none() is None
+
+
+def test__refresh_from_db_should_not_increment_try_number(dag_maker, session):
+    with dag_maker():
+        BashOperator(task_id="hello", bash_command="hi")
+    dag_maker.create_dagrun(state="success")
+    ti = session.scalar(select(TaskInstance))
+    assert ti.task_id == "hello"  # just to confirm...
+    assert ti.try_number == 1  # starts out as 1
+    ti.refresh_from_db()
+    assert ti.try_number == 1  # stays 1
+    ti.refresh_from_db()
+    assert ti.try_number == 1  # stays 1
+
+
+@pytest.mark.parametrize("state", list(TaskInstanceState))
+def test_get_private_try_number(state: str):
+    mock_ti = MagicMock()
+    mock_ti.state = state
+    private_try_number = 2
+    mock_ti._try_number = private_try_number
+    mock_ti.try_number = _get_try_number(task_instance=mock_ti)
+    delattr(mock_ti, "_try_number")
+    assert _get_private_try_number(task_instance=mock_ti) == private_try_number

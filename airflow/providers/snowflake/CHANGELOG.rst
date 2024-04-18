@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+5.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: update SnowflakeSqlApiHook to support OAuth (#37922)``
+
+Misc
+~~~~
+
+* ``Remove reference to execution_info in snowflake hook docstring (#37804)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update yanked versions in providers changelogs (#38262)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``Add comment about versions updated by release manager (#37488)``
+   * ``Resolve G004: Logging statement uses f-string (#37873)``
+   * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+   * ``Avoid to use too broad 'noqa' (#37862)``
+
 5.3.1
 .....
 

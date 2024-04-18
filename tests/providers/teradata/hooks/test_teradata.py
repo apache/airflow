@@ -226,9 +226,9 @@ class TestTeradataHook:
             "str",
         ]
         self.test_db_hook.insert_rows("table", rows, target_fields)
-        self.cur.execute.assert_called_once_with(
+        self.cur.executemany.assert_called_once_with(
             "INSERT INTO table (basestring, none, datetime, int, float, str) VALUES (?,?,?,?,?,?)",
-            ("'test_string", None, "2023-08-15T00:00:00", "1", "3.14", "str"),
+            [("'test_string", None, "2023-08-15T00:00:00", "1", "3.14", "str")],
         )
 
     def test_bulk_insert_rows_with_fields(self):
@@ -236,7 +236,8 @@ class TestTeradataHook:
         target_fields = ["col1", "col2", "col3"]
         self.test_db_hook.bulk_insert_rows("table", rows, target_fields)
         self.cur.executemany.assert_called_once_with(
-            "INSERT INTO table (col1, col2, col3) VALUES (?, ?, ?)", rows
+            "INSERT INTO table (col1, col2, col3) VALUES (?,?,?)",
+            [("1", "2", "3"), ("4", "5", "6"), ("7", "8", "9")],
         )
 
     def test_bulk_insert_rows_with_commit_every(self):
@@ -244,19 +245,20 @@ class TestTeradataHook:
         target_fields = ["col1", "col2", "col3"]
         self.test_db_hook.bulk_insert_rows("table", rows, target_fields, commit_every=2)
         calls = [
-            mock.call("INSERT INTO table (col1, col2, col3) values (1, 2, 3)"),
-            mock.call("INSERT INTO table (col1, col2, col3) values (1, 2, 3)"),
-        ]
-        calls = [
-            mock.call("INSERT INTO table (col1, col2, col3) VALUES (?, ?, ?)", rows[:2]),
-            mock.call("INSERT INTO table (col1, col2, col3) VALUES (?, ?, ?)", rows[2:]),
+            mock.call(
+                "INSERT INTO table (col1, col2, col3) VALUES (?,?,?)", [("1", "2", "3"), ("4", "5", "6")]
+            ),
+            mock.call("INSERT INTO table (col1, col2, col3) VALUES (?,?,?)", [("7", "8", "9")]),
         ]
         self.cur.executemany.assert_has_calls(calls, any_order=True)
 
     def test_bulk_insert_rows_without_fields(self):
         rows = [(1, 2, 3), (4, 5, 6), (7, 8, 9)]
         self.test_db_hook.bulk_insert_rows("table", rows)
-        self.cur.executemany.assert_called_once_with("INSERT INTO table  VALUES (?, ?, ?)", rows)
+        self.cur.executemany.assert_called_once_with(
+            "INSERT INTO table  VALUES (?,?,?)",
+            [("1", "2", "3"), ("4", "5", "6"), ("7", "8", "9")],
+        )
 
     def test_bulk_insert_rows_no_rows(self):
         rows = []

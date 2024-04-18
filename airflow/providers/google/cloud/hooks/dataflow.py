@@ -31,7 +31,17 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Callable, Generator, Sequence, TypeVar, cast
 
 from deprecated import deprecated
-from google.cloud.dataflow_v1beta3 import GetJobRequest, Job, JobState, JobsV1Beta3AsyncClient, JobView
+from google.cloud.dataflow_v1beta3 import (
+    GetJobRequest,
+    Job,
+    JobState,
+    JobsV1Beta3AsyncClient,
+    JobView,
+    ListJobMessagesRequest,
+    MessagesV1Beta3AsyncClient,
+    MetricsV1Beta3AsyncClient,
+)
+from google.cloud.dataflow_v1beta3.types import GetJobMetricsRequest, JobMessageImportance, JobMetrics
 from google.cloud.dataflow_v1beta3.types.jobs import ListJobsRequest
 from googleapiclient.discovery import build
 
@@ -47,6 +57,8 @@ from airflow.utils.timeout import timeout
 
 if TYPE_CHECKING:
     from google.cloud.dataflow_v1beta3.services.jobs_v1_beta3.pagers import ListJobsAsyncPager
+    from google.cloud.dataflow_v1beta3.services.messages_v1_beta3.pagers import ListJobMessagesAsyncPager
+    from google.protobuf.timestamp_pb2 import Timestamp
 
 
 # This is the default location
@@ -252,7 +264,7 @@ class _DataflowJobsController(LoggingMixin):
                 self._job_id = jobs[0]["id"]
             return jobs
         else:
-            raise Exception("Missing both dataflow job ID and name.")
+            raise ValueError("Missing both dataflow job ID and name.")
 
     def fetch_job_by_id(self, job_id: str) -> dict:
         """
@@ -410,18 +422,18 @@ class _DataflowJobsController(LoggingMixin):
         else:
             terminal_states = DataflowJobStatus.TERMINAL_STATES | {DataflowJobStatus.JOB_STATE_RUNNING}
             if self._expected_terminal_state not in terminal_states:
-                raise Exception(
+                raise AirflowException(
                     f"Google Cloud Dataflow job's expected terminal state "
                     f"'{self._expected_terminal_state}' is invalid."
                     f" The value should be any of the following: {terminal_states}"
                 )
             elif is_streaming and self._expected_terminal_state == DataflowJobStatus.JOB_STATE_DONE:
-                raise Exception(
+                raise AirflowException(
                     "Google Cloud Dataflow job's expected terminal state cannot be "
                     "JOB_STATE_DONE while it is a streaming job"
                 )
             elif not is_streaming and self._expected_terminal_state == DataflowJobStatus.JOB_STATE_DRAINED:
-                raise Exception(
+                raise AirflowException(
                     "Google Cloud Dataflow job's expected terminal state cannot be "
                     "JOB_STATE_DRAINED while it is a batch job"
                 )
@@ -435,7 +447,7 @@ class _DataflowJobsController(LoggingMixin):
             return self._wait_until_finished is False
 
         self.log.debug("Current job: %s", job)
-        raise Exception(
+        raise AirflowException(
             f"Google Cloud Dataflow job {job['name']} is in an unexpected terminal state: {current_state}, "
             f"expected terminal state: {self._expected_terminal_state}"
         )
@@ -1353,3 +1365,92 @@ class AsyncDataflowHook(GoogleBaseAsyncHook):
         )
         page_result: ListJobsAsyncPager = await client.list_jobs(request=request)
         return page_result
+
+    async def list_job_messages(
+        self,
+        job_id: str,
+        project_id: str | None = PROVIDE_PROJECT_ID,
+        minimum_importance: int = JobMessageImportance.JOB_MESSAGE_BASIC,
+        page_size: int | None = None,
+        page_token: str | None = None,
+        start_time: Timestamp | None = None,
+        end_time: Timestamp | None = None,
+        location: str | None = DEFAULT_DATAFLOW_LOCATION,
+    ) -> ListJobMessagesAsyncPager:
+        """
+        Return ListJobMessagesAsyncPager object from MessagesV1Beta3AsyncClient.
+
+        This method wraps around a similar method of MessagesV1Beta3AsyncClient. ListJobMessagesAsyncPager can be iterated
+        over to extract messages associated with a specific Job ID.
+
+        For more details see the MessagesV1Beta3AsyncClient method description at:
+        https://cloud.google.com/python/docs/reference/dataflow/latest/google.cloud.dataflow_v1beta3.services.messages_v1_beta3.MessagesV1Beta3AsyncClient
+
+        :param job_id: ID of the Dataflow job to get messages about.
+        :param project_id: Optional. The Google Cloud project ID in which to start a job.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
+        :param minimum_importance: Optional. Filter to only get messages with importance >= level.
+            For more details see the description at:
+            https://cloud.google.com/python/docs/reference/dataflow/latest/google.cloud.dataflow_v1beta3.types.JobMessageImportance
+        :param page_size: Optional. If specified, determines the maximum number of messages to return.
+            If unspecified, the service may choose an appropriate default, or may return an arbitrarily large number of results.
+        :param page_token: Optional. If supplied, this should be the value of next_page_token returned by an earlier call.
+            This will cause the next page of results to be returned.
+        :param start_time: Optional. If specified, return only messages with timestamps >= start_time.
+            The default is the job creation time (i.e. beginning of messages).
+        :param end_time: Optional. If specified, return only messages with timestamps < end_time. The default is the current time.
+        :param location: Optional. The [regional endpoint] (https://cloud.google.com/dataflow/docs/concepts/regional-endpoints) that contains
+            the job specified by job_id.
+        """
+        project_id = project_id or (await self.get_project_id())
+        client = await self.initialize_client(MessagesV1Beta3AsyncClient)
+        request = ListJobMessagesRequest(
+            {
+                "project_id": project_id,
+                "job_id": job_id,
+                "minimum_importance": minimum_importance,
+                "page_size": page_size,
+                "page_token": page_token,
+                "start_time": start_time,
+                "end_time": end_time,
+                "location": location,
+            }
+        )
+        page_results: ListJobMessagesAsyncPager = await client.list_job_messages(request=request)
+        return page_results
+
+    async def get_job_metrics(
+        self,
+        job_id: str,
+        project_id: str | None = PROVIDE_PROJECT_ID,
+        start_time: Timestamp | None = None,
+        location: str | None = DEFAULT_DATAFLOW_LOCATION,
+    ) -> JobMetrics:
+        """
+        Return JobMetrics object from MetricsV1Beta3AsyncClient.
+
+        This method wraps around a similar method of MetricsV1Beta3AsyncClient.
+
+        For more details see the MetricsV1Beta3AsyncClient method description at:
+        https://cloud.google.com/python/docs/reference/dataflow/latest/google.cloud.dataflow_v1beta3.services.metrics_v1_beta3.MetricsV1Beta3AsyncClient
+
+        :param job_id: ID of the Dataflow job to get metrics for.
+        :param project_id: Optional. The Google Cloud project ID in which to start a job.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
+        :param start_time: Optional. Return only metric data that has changed since this time.
+            Default is to return all information about all metrics for the job.
+        :param location: Optional. The [regional endpoint] (https://cloud.google.com/dataflow/docs/concepts/regional-endpoints) that contains
+            the job specified by job_id.
+        """
+        project_id = project_id or (await self.get_project_id())
+        client: MetricsV1Beta3AsyncClient = await self.initialize_client(MetricsV1Beta3AsyncClient)
+        request = GetJobMetricsRequest(
+            {
+                "project_id": project_id,
+                "job_id": job_id,
+                "start_time": start_time,
+                "location": location,
+            }
+        )
+        job_metrics: JobMetrics = await client.get_job_metrics(request=request)
+        return job_metrics

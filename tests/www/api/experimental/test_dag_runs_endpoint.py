@@ -18,10 +18,12 @@
 from __future__ import annotations
 
 import json
+import warnings
 
 import pytest
 
 from airflow.api.common.trigger_dag import trigger_dag
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models import DagBag, DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.settings import Session
@@ -36,7 +38,11 @@ class TestDagRunsEndpoint:
         session.query(DagRun).delete()
         session.commit()
         session.close()
-        dagbag = DagBag(include_examples=True)
+        with warnings.catch_warnings():
+            # Some dags use deprecated operators, e.g SubDagOperator
+            # if it is not imported, then it might have side effects for the other tests
+            warnings.simplefilter("ignore", category=RemovedInAirflow3Warning)
+            dagbag = DagBag(include_examples=True)
         for dag in dagbag.dags.values():
             dag.sync_to_db()
             SerializedDagModel.write_dag(dag)

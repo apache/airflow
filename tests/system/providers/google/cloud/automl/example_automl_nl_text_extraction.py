@@ -28,6 +28,7 @@ from google.cloud.aiplatform import schema
 from google.protobuf.struct_pb2 import Value
 
 from airflow.models.dag import DAG
+from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
     GCSDeleteBucketOperator,
@@ -69,11 +70,7 @@ DATA_CONFIG = [
     },
 ]
 
-
-def extract_object_id(obj: dict) -> str:
-    """Returns unique id of the object."""
-    return obj["name"].rpartition("/")[-1]
-
+extract_object_id = CloudAutoMLHook.extract_object_id
 
 # Example DAG for AutoML Natural Language Entities Extraction
 with DAG(
