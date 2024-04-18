@@ -144,7 +144,7 @@ def _handle_deferrable_databricks_operator_execution(operator, hook, log, contex
                 log.info("%s completed successfully.", operator.task_id)
 
 
-def _get_databricks_notebook_error(run_info: dict, hook: DatabricksHook, run_state: RunState):
+def _get_databricks_notebook_error(run_info: dict, hook: DatabricksHook, run_state: RunState) -> str:
     task_run_id = None
     if "tasks" in run_info:
         for task in run_info["tasks"]:
