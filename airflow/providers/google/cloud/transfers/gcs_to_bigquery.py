@@ -749,7 +749,6 @@ class GCSToBigQueryOperator(BaseOperator):
         )
         from openlineage.client.run import Dataset
 
-        from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url
         from airflow.providers.google.cloud.utils.openlineage import (
             get_facets_from_bq_table,
             get_identity_column_lineage_facet,
@@ -766,8 +765,7 @@ class GCSToBigQueryOperator(BaseOperator):
             "schema": output_dataset_facets["schema"],
         }
         input_datasets = []
-        for uri in sorted(self.source_uris):
-            bucket, blob = _parse_gcs_url(uri)
+        for blob in sorted(self.source_objects):
             additional_facets = {}
 
             if "*" in blob:
@@ -777,7 +775,7 @@ class GCSToBigQueryOperator(BaseOperator):
                     "symlink": SymlinksDatasetFacet(
                         identifiers=[
                             SymlinksDatasetFacetIdentifiers(
-                                namespace=f"gs://{bucket}", name=blob, type="file"
+                                namespace=f"gs://{self.bucket}", name=blob, type="file"
                             )
                         ]
                     ),
@@ -788,7 +786,7 @@ class GCSToBigQueryOperator(BaseOperator):
                     blob = "/"
 
             dataset = Dataset(
-                namespace=f"gs://{bucket}",
+                namespace=f"gs://{self.bucket}",
                 name=blob,
                 facets=merge_dicts(input_dataset_facets, additional_facets),
             )
