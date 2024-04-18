@@ -69,19 +69,7 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
                     return
 
                 if run_state.result_state == "FAILED":
-                    task_run_id = None
-                    if "tasks" in run_info:
-                        for task in run_info["tasks"]:
-                            if task.get("state", {}).get("result_state", "") == "FAILED":
-                                task_run_id = task["run_id"]
-                    if task_run_id is not None:
-                        run_output = hook.get_run_output(task_run_id)
-                        if "error" in run_output:
-                            notebook_error = run_output["error"]
-                        else:
-                            notebook_error = run_state.state_message
-                    else:
-                        notebook_error = run_state.state_message
+                    notebook_error = _get_databricks_notebook_error(run_info, hook, run_state)
                     error_message = (
                         f"{operator.task_id} failed with terminal state: {run_state} "
                         f"and with the error {notebook_error}"
@@ -156,17 +144,37 @@ def _handle_deferrable_databricks_operator_execution(operator, hook, log, contex
                 log.info("%s completed successfully.", operator.task_id)
 
 
-def _handle_deferrable_databricks_operator_completion(event: dict, log: Logger) -> None:
+def _get_databricks_notebook_error(run_info: dict, hook: DatabricksHook, run_state: RunState):
+    task_run_id = None
+    if "tasks" in run_info:
+        for task in run_info["tasks"]:
+            if task.get("state", {}).get("result_state", "") == "FAILED":
+                task_run_id = task["run_id"]
+    if task_run_id is not None:
+        run_output = hook.get_run_output(task_run_id)
+        if "error" in run_output:
+            notebook_error = run_output["error"]
+        else:
+            notebook_error = run_state.state_message
+    else:
+        notebook_error = run_state.state_message
+    return notebook_error
+
+
+def _handle_deferrable_databricks_operator_completion(event: dict, log: Logger, hook: DatabricksHook) -> None:
     validate_trigger_event(event)
     run_state = RunState.from_json(event["run_state"])
     run_page_url = event["run_page_url"]
+    run_id = event["run_id"]
     log.info("View run status, Spark UI, and logs at %s", run_page_url)
 
     if run_state.is_successful:
         log.info("Job run completed successfully.")
         return
+    run_info = hook.get_run(run_id)
+    notebook_error = _get_databricks_notebook_error(run_info, hook, run_state)
+    error_message = f"Job run failed with terminal state: {run_state} and with the error {notebook_error}"
 
-    error_message = f"Job run failed with terminal state: {run_state}"
     if event["repair_run"]:
         log.warning(
             "%s but since repair run is set, repairing the run with all failed tasks",
@@ -573,7 +581,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
             self.log.error("Error: Task: %s with invalid run_id was requested to be cancelled.", self.task_id)
 
     def execute_complete(self, context: dict | None, event: dict):
-        _handle_deferrable_databricks_operator_completion(event, self.log)
+        _handle_deferrable_databricks_operator_completion(event, self.log, self._hook)
 
 
 @deprecated(
@@ -850,7 +858,7 @@ class DatabricksRunNowOperator(BaseOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         if event:
-            _handle_deferrable_databricks_operator_completion(event, self.log)
+            _handle_deferrable_databricks_operator_completion(event, self.log, self._hook)
             if event["repair_run"]:
                 self.repair_run = False
                 self.run_id = event["run_id"]
