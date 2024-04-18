@@ -41,6 +41,7 @@ REQUIRED_FIELDS = ("category", "message", "node_id", "filename", "lineno", "grou
 CONSOLE_SIZE = shutil.get_terminal_size((80, 20)).columns
 # Use as prefix/suffix in report output
 IMPORTANT_WARNING_SIGN = {
+    "sqlalchemy.exc.RemovedIn20Warning": "!!!",
     "sqlalchemy.exc.MovedIn20Warning": "!!!",
     "sqlalchemy.exc.SAWarning": "!!",
     "pydantic.warnings.PydanticDeprecatedSince20": "!!",
@@ -52,6 +53,7 @@ IMPORTANT_WARNING_SIGN = {
 }
 # Always print messages for these warning categories
 ALWAYS_SHOW_WARNINGS = {
+    "sqlalchemy.exc.RemovedIn20Warning",
     "sqlalchemy.exc.MovedIn20Warning",
     "sqlalchemy.exc.SAWarning",
     "pytest.PytestWarning",
