@@ -962,8 +962,8 @@ class KubernetesPodOperator(BaseOperator):
         label_strings = [f"{label_id}={label}" for label_id, label in sorted(labels.items())]
         labels_value = ",".join(label_strings)
         if exclude_checked:
-            labels_value += f",{self.POD_CHECKED_KEY}!=True"
-        labels_value += ",!airflow-worker"
+            labels_value = f"{labels_value},{self.POD_CHECKED_KEY}!=True"
+        labels_value = f"{labels_value},!airflow-worker"
         return labels_value
 
     @staticmethod
