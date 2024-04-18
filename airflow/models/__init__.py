@@ -34,7 +34,6 @@ __all__ = [
     "DagRun",
     "DagTag",
     "DbCallbackRequest",
-    "ImportError",
     "Log",
     "MappedOperator",
     "Operator",
@@ -125,7 +124,6 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.models.dagwarning import DagWarning
     from airflow.models.db_callback_request import DbCallbackRequest
-    from airflow.models.errors import ImportError
     from airflow.models.log import Log
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.operator import Operator
