@@ -797,10 +797,6 @@ class KubernetesPodOperator(BaseOperator):
                 remote_pod=self.pod,
             )
 
-    @deprecated(reason="use `trigger_reentry` instead.", category=AirflowProviderDeprecationWarning)
-    def execute_complete(self, context: Context, event: dict, **kwargs):
-        return self.trigger_reentry(context=context, event=event)
-
     def write_logs(self, pod: k8s.V1Pod, follow: bool = False, since_time: DateTime | None = None) -> None:
         try:
             since_seconds = (
@@ -1128,6 +1124,10 @@ class KubernetesPodOperator(BaseOperator):
         """
         pod = self.build_pod_request_obj()
         print(yaml.dump(prune_dict(pod.to_dict(), mode="strict")))
+
+    @deprecated(reason="use `trigger_reentry` instead.", category=AirflowProviderDeprecationWarning)
+    def execute_complete(self, context: Context, event: dict, **kwargs):
+        return self.trigger_reentry(context=context, event=event)
 
 
 class _optionally_suppress(AbstractContextManager):
