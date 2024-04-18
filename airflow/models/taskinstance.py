@@ -1231,11 +1231,9 @@ def _run_finished_callback(
         for callback in callbacks:
             log.info("Executing %s callback", callback.__name__)
             try:
-                callback_name = qualname(callback).split(".")[-1]
-                log.info("Executing %s callback", callback_name)
                 callback(context)
             except Exception:
-                log.exception("Error when executing %s callback", callback_name)  # type: ignore[attr-defined]
+                log.exception("Error when executing %s callback", callback.__name__)  # type: ignore[attr-defined]
 
 
 def _log_state(*, task_instance: TaskInstance | TaskInstancePydantic, lead_msg: str = "") -> None:
