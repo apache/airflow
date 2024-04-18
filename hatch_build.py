@@ -75,6 +75,9 @@ CORE_EXTRAS: dict[str, list[str]] = {
         # Cgroupspy 0.2.2 added Python 3.10 compatibility
         "cgroupspy>=0.2.2",
     ],
+    "cloudpickle": [
+        "cloudpickle",
+    ],
     "deprecated-api": [
         "requests>=2.27.0,<3",
     ],
@@ -414,7 +417,6 @@ DEPENDENCIES = [
     # Blinker use for signals in Flask, this is an optional dependency in Flask 2.2 and lower.
     # In Flask 2.3 it becomes a mandatory dependency, and flask signals are always available.
     "blinker>=1.6.2",
-    "cloudpickle",
     # Colorlog 6.x merges TTYColoredFormatter into ColoredFormatter, breaking backwards compatibility with 4.x
     # Update CustomTTYColoredFormatter to remove
     "colorlog>=4.0.2, <5.0",

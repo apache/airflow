@@ -54,7 +54,10 @@ class TestPythonVirtualenvDecorator:
             try:
                 import dill  # noqa: F401
             except ImportError:
-                log.warning(
+                import logging
+
+                _log = logging.getLogger(__name__)
+                _log.warning(
                     "Dill package is required to be installed. Please install it with: pip install [dill]"
                 )
 
