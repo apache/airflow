@@ -43,6 +43,7 @@ CONSOLE_SIZE = shutil.get_terminal_size((80, 20)).columns
 IMPORTANT_WARNING_SIGN = {
     "sqlalchemy.exc.RemovedIn20Warning": "!!!",
     "sqlalchemy.exc.MovedIn20Warning": "!!!",
+    "sqlalchemy.exc.LegacyAPIWarning": "!!",
     "sqlalchemy.exc.SAWarning": "!!",
     "pydantic.warnings.PydanticDeprecatedSince20": "!!",
     "celery.exceptions.CPendingDeprecationWarning": "!!",
@@ -55,6 +56,7 @@ IMPORTANT_WARNING_SIGN = {
 ALWAYS_SHOW_WARNINGS = {
     "sqlalchemy.exc.RemovedIn20Warning",
     "sqlalchemy.exc.MovedIn20Warning",
+    "sqlalchemy.exc.LegacyAPIWarning",
     "sqlalchemy.exc.SAWarning",
     "pytest.PytestWarning",
 }
