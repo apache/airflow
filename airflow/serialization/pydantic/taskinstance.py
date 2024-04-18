@@ -24,7 +24,14 @@ from typing_extensions import Annotated
 from airflow.exceptions import AirflowRescheduleException, TaskDeferred
 from airflow.models import Operator
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.taskinstance import TaskInstance, TaskReturnCode, _defer_task, _run_raw_task
+from airflow.models.taskinstance import (
+    TaskInstance,
+    TaskReturnCode,
+    _defer_task,
+    _handle_reschedule,
+    _run_raw_task,
+    _set_ti_attrs,
+)
 from airflow.serialization.pydantic.dag import DagModelPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -486,8 +493,14 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         test_mode: bool = False,
         session: Session | None = None,
     ):
-        # todo: AIP-44
-        return NotImplementedError
+        updated_ti = _handle_reschedule(
+            ti=self,
+            actual_start_date=actual_start_date,
+            reschedule_exception=reschedule_exception,
+            test_mode=test_mode,
+            session=session,
+        )
+        _set_ti_attrs(self, updated_ti)  # _handle_reschedule is a remote call that mutates the TI
 
 
 if is_pydantic_2_installed():

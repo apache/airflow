@@ -53,6 +53,7 @@ def _initialize_map() -> dict[str, Callable]:
         _defer_task,
         _get_template_context,
         _handle_failure,
+        _handle_reschedule,
         _update_rtif,
     )
     from airflow.secrets.metastore import MetastoreBackend
@@ -67,6 +68,7 @@ def _initialize_map() -> dict[str, Callable]:
         _update_rtif,
         _orig_start_date,
         _handle_failure,
+        _handle_reschedule,
         _add_log,
         DagFileProcessor.update_import_errors,
         DagFileProcessor.manage_slas,

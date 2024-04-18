@@ -310,7 +310,7 @@ def _run_raw_task(
             TaskInstance.save_to_db(ti=ti, session=session)
         except AirflowRescheduleException as reschedule_exception:
             ti._handle_reschedule(actual_start_date, reschedule_exception, test_mode, session=session)
-            TaskInstance.save_to_db(ti=ti, session=session)
+            ti.log.info("Rescheduling task, marking task as UP_FOR_RESCHEDULE")
             return None
         except (AirflowFailException, AirflowSensorTimeout) as e:
             # If AirflowFailException is raised, task should not retry.
@@ -1517,6 +1517,64 @@ def _defer_task(
             ti.trigger_timeout = ti.start_date + execution_timeout
     if ti.test_mode:
         _add_log(event=ti.state, task_instance=ti, session=session)
+    session.merge(ti)
+    session.commit()
+    return ti
+
+
+@internal_api_call
+@provide_session
+def _handle_reschedule(
+    ti,
+    actual_start_date: datetime,
+    reschedule_exception: AirflowRescheduleException,
+    test_mode: bool = False,
+    session: Session = NEW_SESSION,
+):
+    # Don't record reschedule request in test mode
+    if test_mode:
+        return
+
+    ti = _coalesce_to_orm_ti(ti=ti, session=session)
+
+    from airflow.models.dagrun import DagRun  # Avoid circular import
+
+    ti.refresh_from_db(session)
+
+    if TYPE_CHECKING:
+        assert ti.task
+
+    ti.end_date = timezone.utcnow()
+    ti.set_duration()
+
+    # Lock DAG run to be sure not to get into a deadlock situation when trying to insert
+    # TaskReschedule which apparently also creates lock on corresponding DagRun entity
+    with_row_locks(
+        session.query(DagRun).filter_by(
+            dag_id=ti.dag_id,
+            run_id=ti.run_id,
+        ),
+        session=session,
+    ).one()
+    # Log reschedule request
+    session.add(
+        TaskReschedule(
+            ti.task_id,
+            ti.dag_id,
+            ti.run_id,
+            ti.try_number,
+            actual_start_date,
+            ti.end_date,
+            reschedule_exception.reschedule_date,
+            ti.map_index,
+        )
+    )
+
+    # set state
+    ti.state = TaskInstanceState.UP_FOR_RESCHEDULE
+
+    ti.clear_next_method_args()
+
     session.merge(ti)
     session.commit()
     return ti
@@ -2922,51 +2980,13 @@ class TaskInstance(Base, LoggingMixin):
         test_mode: bool = False,
         session: Session = NEW_SESSION,
     ):
-        # Don't record reschedule request in test mode
-        if test_mode:
-            return
-
-        from airflow.models.dagrun import DagRun  # Avoid circular import
-
-        self.refresh_from_db(session)
-
-        if TYPE_CHECKING:
-            assert self.task
-
-        self.end_date = timezone.utcnow()
-        self.set_duration()
-
-        # Lock DAG run to be sure not to get into a deadlock situation when trying to insert
-        # TaskReschedule which apparently also creates lock on corresponding DagRun entity
-        with_row_locks(
-            session.query(DagRun).filter_by(
-                dag_id=self.dag_id,
-                run_id=self.run_id,
-            ),
+        _handle_reschedule(
+            ti=self,
+            actual_start_date=actual_start_date,
+            reschedule_exception=reschedule_exception,
+            test_mode=test_mode,
             session=session,
-        ).one()
-        # Log reschedule request
-        session.add(
-            TaskReschedule(
-                self.task_id,
-                self.dag_id,
-                self.run_id,
-                self.try_number,
-                actual_start_date,
-                self.end_date,
-                reschedule_exception.reschedule_date,
-                self.map_index,
-            )
         )
-
-        # set state
-        self.state = TaskInstanceState.UP_FOR_RESCHEDULE
-
-        self.clear_next_method_args()
-
-        session.merge(self)
-        session.commit()
-        self.log.info("Rescheduling task, marking task as UP_FOR_RESCHEDULE")
 
     @staticmethod
     def get_truncated_error_traceback(error: BaseException, truncate_to: Callable) -> TracebackType | None:
