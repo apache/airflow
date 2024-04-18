@@ -99,7 +99,7 @@ class TestDruidSubmitHook:
         assert task_post.call_count == 1
         assert status_check.call_count == 1
 
-    def test_submit_with_correct_ssl_arg(self, requests_mock):
+    def test_submit_with_false_ssl_arg(self, requests_mock):
         # Timeout so that all three requests are sent
         self.db_hook.timeout = 1
         self.db_hook.max_ingestion_time = 5
@@ -122,17 +122,46 @@ class TestDruidSubmitHook:
         with pytest.raises(AirflowException):
             self.db_hook.submit_indexing_job("Long json file")
 
-        assert task_post.call_count == 1
-        if task_post.called_once:
-            assert False is task_post.request_history[0].verify
+        assert task_post.called_once
+        assert False is task_post.request_history[0].verify
 
         assert status_check.call_count > 1
-        if status_check.call_count > 1:
-            assert False is status_check.request_history[0].verify
+        assert False is status_check.request_history[0].verify
 
-        assert shutdown_post.call_count == 1
-        if shutdown_post.called_once:
-            assert False is shutdown_post.request_history[0].verify
+        assert shutdown_post.called_once
+        assert False is shutdown_post.request_history[0].verify
+
+    def test_submit_with_true_ssl_arg(self, requests_mock):
+        # Timeout so that all three requests are sent
+        self.db_hook.timeout = 1
+        self.db_hook.max_ingestion_time = 5
+        self.db_hook.verify_ssl = True
+
+        task_post = requests_mock.post(
+            "http://druid-overlord:8081/druid/indexer/v1/task",
+            text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
+        )
+        status_check = requests_mock.get(
+            "http://druid-overlord:8081/druid/indexer/v1/task/9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status",
+            text='{"status":{"status": "RUNNING"}}',
+        )
+        shutdown_post = requests_mock.post(
+            "http://druid-overlord:8081/druid/indexer/v1/task/"
+            "9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/shutdown",
+            text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
+        )
+
+        with pytest.raises(AirflowException):
+            self.db_hook.submit_indexing_job("Long json file")
+
+        assert task_post.called_once
+        assert True is task_post.request_history[0].verify
+
+        assert status_check.call_count > 1
+        assert True is status_check.request_history[0].verify
+
+        assert shutdown_post.called_once
+        assert True is shutdown_post.request_history[0].verify
 
     def test_submit_correct_json_body(self, requests_mock):
         task_post = requests_mock.post(
