@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import datetime
-import warnings
 from functools import reduce
 from typing import TYPE_CHECKING, Mapping
 from unittest import mock
@@ -30,7 +29,7 @@ import pytest
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.decorators import setup, task, task_group, teardown
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagrun import DagRun, DagRunNote
@@ -64,13 +63,7 @@ DEFAULT_DATE = pendulum.instance(_DEFAULT_DATE)
 def dagbag():
     from airflow.models.dagbag import DagBag
 
-    with warnings.catch_warnings():
-        # Some dags use deprecated operators, e.g SubDagOperator
-        # if it is not imported, then it might have side effects for the other tests
-        warnings.simplefilter("ignore", category=RemovedInAirflow3Warning)
-        # Ensure the DAGs we are looking at from the DB are up-to-date
-        dag_bag = DagBag(include_examples=True)
-    return dag_bag
+    return DagBag(include_examples=True)
 
 
 class TestDagRun:

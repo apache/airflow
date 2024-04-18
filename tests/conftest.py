@@ -23,7 +23,6 @@ import platform
 import re
 import subprocess
 import sys
-import warnings
 from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -321,24 +320,12 @@ def initial_db_init():
     from flask import Flask
 
     from airflow.configuration import conf
-    from airflow.exceptions import RemovedInAirflow3Warning
     from airflow.utils import db
     from airflow.www.extensions.init_appbuilder import init_appbuilder
     from airflow.www.extensions.init_auth_manager import get_auth_manager
 
-    ignore_warnings = {
-        RemovedInAirflow3Warning: [
-            # SubDagOperator warnings
-            "This class is deprecated. Please use `airflow.utils.task_group.TaskGroup`."
-        ]
-    }
-
     db.resetdb()
-    with warnings.catch_warnings():
-        for warning_category, messages in ignore_warnings.items():
-            for message in messages:
-                warnings.filterwarnings("ignore", message=re.escape(message), category=warning_category)
-        db.bootstrap_dagbag()
+    db.bootstrap_dagbag()
     # minimal app to add roles
     flask_app = Flask(__name__)
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
