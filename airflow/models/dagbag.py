@@ -58,6 +58,7 @@ from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.timeout import timeout
 from airflow.utils.types import NOTSET
+from airflow.utils.warnings import capture_with_reraise
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -326,7 +327,7 @@ class DagBag(LoggingMixin):
         DagContext.autoregistered_dags.clear()
 
         self.captured_warnings.pop(filepath, None)
-        with warnings.catch_warnings(record=True) as captured_warnings:
+        with capture_with_reraise() as captured_warnings:
             if filepath.endswith(".py") or not zipfile.is_zipfile(filepath):
                 mods = self._load_modules_from_file(filepath, safe_mode)
             else:
