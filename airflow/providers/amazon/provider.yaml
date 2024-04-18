@@ -501,6 +501,9 @@ sensors:
   - integration-name: AWS Lambda
     python-modules:
       - airflow.providers.amazon.aws.sensors.lambda_function
+  - integration-name: Amazon OpenSearch Serverless
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.opensearch_serverless
   - integration-name: Amazon RDS
     python-modules:
       - airflow.providers.amazon.aws.sensors.rds
@@ -674,6 +677,9 @@ triggers:
   - integration-name: AWS Lambda
     python-modules:
       - airflow.providers.amazon.aws.triggers.lambda_function
+  - integration-name: Amazon OpenSearch Serverless
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.opensearch_serverless
   - integration-name: Amazon Redshift
     python-modules:
       - airflow.providers.amazon.aws.triggers.redshift_cluster
