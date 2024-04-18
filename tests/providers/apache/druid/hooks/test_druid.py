@@ -122,13 +122,13 @@ class TestDruidSubmitHook:
         with pytest.raises(AirflowException):
             self.db_hook.submit_indexing_job("Long json file")
 
-        assert task_post.called_once
+        assert task_post.call_count == 1
         assert False is task_post.request_history[0].verify
 
         assert status_check.call_count > 1
         assert False is status_check.request_history[0].verify
 
-        assert shutdown_post.called_once
+        assert shutdown_post.call_count == 1
         assert False is shutdown_post.request_history[0].verify
 
     def test_submit_with_true_ssl_arg(self, requests_mock):
@@ -154,13 +154,13 @@ class TestDruidSubmitHook:
         with pytest.raises(AirflowException):
             self.db_hook.submit_indexing_job("Long json file")
 
-        assert task_post.called_once
+        assert task_post.call_count == 1
         assert True is task_post.request_history[0].verify
 
         assert status_check.call_count > 1
         assert True is status_check.request_history[0].verify
 
-        assert shutdown_post.called_once
+        assert shutdown_post.call_count == 1
         assert True is shutdown_post.request_history[0].verify
 
     def test_submit_correct_json_body(self, requests_mock):
