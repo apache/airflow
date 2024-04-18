@@ -16,10 +16,6 @@
 # under the License.
 from __future__ import annotations  # Added by precommit hooks
 
-# from airflow.providers.amazon.aws.executors.batch.batch_executor import AwsBatchExecutor
-from airflow.providers.amazon.aws.executors.batch import batch_executor
+__all__ = ["AwsBatchExecutor"]
 
-# precommit hooks (rust as of the time of commit) throws F401 - "Module imported but unused"
-# One of the solutions it suggests is using a "redundant alias". This is used below instead of doing a #no-qa
-# type ignore of the issue.
-AwsBatchExecutor = batch_executor.AwsBatchExecutor
+from airflow.providers.amazon.aws.executors.batch.batch_executor import AwsBatchExecutor
