@@ -201,7 +201,7 @@ class PineconeHook(BaseHook):
             source_collection=source_collection,
         )
 
-    def get_serverless_spec_obj(self, cloud, region: str | None = None) -> ServerlessSpec:
+    def get_serverless_spec_obj(self, cloud: str, region: str | None = None) -> ServerlessSpec:
         """
         Get a ServerlessSpec object.
 
