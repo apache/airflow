@@ -1090,10 +1090,7 @@ class SelectiveChecks:
             if USE_SELF_HOSTED_RUNNERS_LABEL in self._pr_labels:
                 # Forced self-hosted runners
                 return RUNS_ON_SELF_HOSTED_RUNNER
-            if actor in COMMITTERS:
-                return RUNS_ON_SELF_HOSTED_RUNNER
-            else:
-                return RUNS_ON_PUBLIC_RUNNER
+            return RUNS_ON_PUBLIC_RUNNER
         return RUNS_ON_PUBLIC_RUNNER
 
     @cached_property
