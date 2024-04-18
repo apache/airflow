@@ -255,6 +255,7 @@ cloudant
 cloudbuild
 CloudBuildClient
 cloudml
+cloudpickle
 cloudsqldatabehook
 CloudTasksClient
 Cloudwatch
