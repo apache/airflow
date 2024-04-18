@@ -265,15 +265,13 @@ class TestBeamRunPythonPipelineOperator:
         """
         local_test_op_args = {
             "task_id": TASK_ID,
-            "py_file": 'local_file.py',
-            "py_options": ['-m'],
+            "py_file": "local_file.py",
+            "py_options": ["-m"],
             "default_pipeline_options": {
                 "project": TEST_PROJECT,
-                'requirements_file': 'local_requirements.txt'
+                "requirements_file": "local_requirements.txt",
             },
-            "pipeline_options": {
-                "output": 'test_local/output', "labels": {"foo": "bar"}
-            }
+            "pipeline_options": {"output": "test_local/output", "labels": {"foo": "bar"}},
         }
 
         op = BeamRunPythonPipelineOperator(**local_test_op_args)
@@ -290,15 +288,13 @@ class TestBeamRunPythonPipelineOperator:
         """
         local_test_op_args = {
             "task_id": TASK_ID,
-            "py_file": 'gs://gcs_file.py',
-            "py_options": ['-m'],
+            "py_file": "gs://gcs_file.py",
+            "py_options": ["-m"],
             "default_pipeline_options": {
                 "project": TEST_PROJECT,
-                'requirements_file': 'local_requirements.txt'
+                "requirements_file": "local_requirements.txt",
             },
-            "pipeline_options": {
-                "output": 'test_local/output', "labels": {"foo": "bar"}
-            }
+            "pipeline_options": {"output": "test_local/output", "labels": {"foo": "bar"}},
         }
         op = BeamRunPythonPipelineOperator(**local_test_op_args)
         context_mock = mock.MagicMock()
@@ -312,23 +308,21 @@ class TestBeamRunPythonPipelineOperator:
         """
         Test that execute method calls GCSHook when only pipeline_options 'requirements_file' starts with
         'gs://'.
-        Note: "pipeline_options" is merged with and overrides keys in "default_pipeline_options" when 
-              BeamRunPythonPipelineOperator is instantiated, so testing GCS 'requirements_file' specified 
+        Note: "pipeline_options" is merged with and overrides keys in "default_pipeline_options" when
+              BeamRunPythonPipelineOperator is instantiated, so testing GCS 'requirements_file' specified
               in "pipeline_options"
         """
         local_test_op_args = {
             "task_id": TASK_ID,
-            "py_file": 'local_file.py',
-            "py_options": ['-m'],
+            "py_file": "local_file.py",
+            "py_options": ["-m"],
             "default_pipeline_options": {
                 "project": TEST_PROJECT,
-                'requirements_file': 'gs://gcs_requirements.txt'
+                "requirements_file": "gs://gcs_requirements.txt",
             },
-            "pipeline_options": {
-                "output": 'test_local/output', "labels": {"foo": "bar"}
-            }
+            "pipeline_options": {"output": "test_local/output", "labels": {"foo": "bar"}},
         }
-        
+
         op = BeamRunPythonPipelineOperator(**local_test_op_args)
         context_mock = mock.MagicMock()
 
