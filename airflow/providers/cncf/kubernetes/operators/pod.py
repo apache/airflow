@@ -937,15 +937,11 @@ class KubernetesPodOperator(BaseOperator):
     def process_pod_deletion(self, pod: k8s.V1Pod, *, reraise=True):
         with _optionally_suppress(reraise=reraise):
             if pod is not None:
-                should_delete_pod = (
-                    (self.on_finish_action == OnFinishAction.DELETE_POD)
-                    or (
-                        self.on_finish_action == OnFinishAction.DELETE_SUCCEEDED_POD
-                        and pod.status.phase == PodPhase.SUCCEEDED
-                    )
-                    or (
-                        self.on_finish_action == OnFinishAction.DELETE_SUCCEEDED_POD
-                        and container_is_succeeded(pod, self.base_container_name)
+                should_delete_pod = (self.on_finish_action == OnFinishAction.DELETE_POD) or (
+                    self.on_finish_action == OnFinishAction.DELETE_SUCCEEDED_POD
+                    and (
+                        pod.status.phase == PodPhase.SUCCEEDED
+                        or container_is_succeeded(pod, self.base_container_name)
                     )
                 )
                 if should_delete_pod:
