@@ -61,19 +61,36 @@ def import_all_models():
 
     import airflow.models.dagwarning
     import airflow.models.dataset
+    import airflow.models.errors
     import airflow.models.serialized_dag
     import airflow.models.tasklog
 
 
 def __getattr__(name):
     # PEP-562: Lazy loaded attributes on python modules
-    path = __lazy_imports.get(name)
-    if not path:
-        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    if name != "ImportError":
+        path = __lazy_imports.get(name)
+        if not path:
+            raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
-    from airflow.utils.module_loading import import_string
+        from airflow.utils.module_loading import import_string
 
-    val = import_string(f"{path}.{name}")
+        val = import_string(f"{path}.{name}")
+    else:
+        import warnings
+
+        from airflow.exceptions import RemovedInAirflow3Warning
+        from airflow.models.errors import ParseImportError
+
+        warnings.warn(
+            f"Import '{__name__}.ImportError' is deprecated due to shadowing with builtin exception "
+            f"ImportError and will be removed in the future. "
+            f"Please consider to use '{ParseImportError.__module__}.ParseImportError' instead.",
+            RemovedInAirflow3Warning,
+            stacklevel=2,
+        )
+        val = ParseImportError
+
     # Store for next time
     globals()[name] = val
     return val
@@ -93,7 +110,6 @@ __lazy_imports = {
     "DagTag": "airflow.models.dag",
     "DagWarning": "airflow.models.dagwarning",
     "DbCallbackRequest": "airflow.models.db_callback_request",
-    "ImportError": "airflow.models.errors",
     "Log": "airflow.models.log",
     "MappedOperator": "airflow.models.mappedoperator",
     "Operator": "airflow.models.operator",
