@@ -5439,7 +5439,7 @@ class AutocompleteView(AirflowBaseView):
             select(
                 sqla.literal("owner").label("type"),
                 DagModel.owners.label("name"),
-                DagModel._dag_display_property_value.label("dag_display_name"),
+                sqla.literal(None).label("dag_display_name"),
             )
             .distinct()
             .where(~DagModel.is_subdag, DagModel.is_active, DagModel.owners.ilike(f"%{query}%"))
