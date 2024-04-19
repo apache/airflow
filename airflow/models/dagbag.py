@@ -76,7 +76,7 @@ class FileLoadStat(NamedTuple):
     :param dag_num: Total number of DAGs loaded in this file.
     :param task_num: Total number of Tasks loaded in this file.
     :param dags: DAGs names loaded in this file.
-    :param warnings: Total warnings captured during the process file.
+    :param warnings: Total number of warnings captured from processing this file.
     """
 
     file: str
