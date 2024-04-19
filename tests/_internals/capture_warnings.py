@@ -127,8 +127,8 @@ class CaptureWarningsPlugin:
     def pytest_runtest_call(self, item: pytest.Item):
         with warnings.catch_warnings(record=True) as records:
             if not sys.warnoptions:
-                warnings.filterwarnings("always", category=DeprecationWarning)
-                warnings.filterwarnings("always", category=PendingDeprecationWarning)
+                warnings.filterwarnings("always", category=DeprecationWarning, append=True)
+                warnings.filterwarnings("always", category=PendingDeprecationWarning, append=True)
             yield
 
         for record in records:

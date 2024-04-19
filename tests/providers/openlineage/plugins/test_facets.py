@@ -14,8 +14,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations  # Added by precommit hooks
+from __future__ import annotations
 
-__all__ = ["AwsBatchExecutor"]
+from airflow.providers.openlineage.plugins.facets import AirflowRunFacet
 
-from airflow.providers.amazon.aws.executors.batch.batch_executor import AwsBatchExecutor
+
+def test_airflow_run_facet():
+    dag = {"dag_id": "123"}
+    dag_run = {"dag_run_id": "456"}
+    task = {"task_id": "789"}
+    task_instance = {"task_instance_id": "000"}
+    task_uuid = "XXX"
+
+    airflow_run_facet = AirflowRunFacet(
+        dag=dag, dagRun=dag_run, task=task, taskInstance=task_instance, taskUuid=task_uuid
+    )
+
+    assert airflow_run_facet.dag == dag
+    assert airflow_run_facet.dagRun == dag_run
+    assert airflow_run_facet.task == task
+    assert airflow_run_facet.taskInstance == task_instance
+    assert airflow_run_facet.taskUuid == task_uuid
