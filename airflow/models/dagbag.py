@@ -30,6 +30,12 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
 
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    select,
+)
 from sqlalchemy.exc import OperationalError
 from tabulate import tabulate
 
@@ -43,6 +49,7 @@ from airflow.exceptions import (
     AirflowDagDuplicatedIdException,
     RemovedInAirflow3Warning,
 )
+from airflow.models.base import Base
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
@@ -727,3 +734,34 @@ class DagBag(LoggingMixin):
 
         security_manager = ApplessAirflowSecurityManager(session=session)
         security_manager.sync_perm_for_dag(root_dag_id, dag.access_control)
+
+
+class DagPriorityParsingRequests(Base):
+    """Model to store the dag parsing requests that will be prioritized when parsing files."""
+
+    __tablename__ = "dag_priority_parsing_requests"
+
+    id = Column(Integer, primary_key=True)
+    # The location of the file containing the DAG object
+    # Note: Do not depend on fileloc pointing to a file; in the case of a
+    # packaged DAG, it will point to the subpath of the DAG within the
+    # associated zip.
+    fileloc = Column(String(2000), unique=True, nullable=False)
+
+    def __init__(self, fileloc: str):
+        super().__init__()
+        self.fileloc = fileloc
+
+    @staticmethod
+    @provide_session
+    def get_requests(session: Session = NEW_SESSION):
+        return session.scalars(select(DagPriorityParsingRequests)).all()
+
+    def __repr__(self):  # noqa: D105
+        return self.fileloc
+
+    def __eq__(self, other):  # noqa: D105
+        if isinstance(other, (self.__class__, DagPriorityParsingRequests)):
+            return self.fileloc == other.fileloc
+        else:
+            return NotImplemented

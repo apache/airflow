@@ -273,6 +273,20 @@ export interface paths {
       };
     };
   };
+  "/dag/parse/{file_token}": {
+    /** Request re-parsing of existing DAGs */
+    get: operations["reparse_dags"];
+    parameters: {
+      path: {
+        /**
+         * The key containing the encrypted path to the file. Encryption and decryption take place only on
+         * the server. This prevents the client from reading an non-DAG file. This also ensures API
+         * extensibility, because the format of encrypted data may change.
+         */
+        file_token: components["parameters"]["FileToken"];
+      };
+    };
+  };
   "/datasets/queuedEvent/{uri}": {
     /**
      * Get queued Dataset events for a Dataset
@@ -1472,6 +1486,10 @@ export interface components {
       execution_date?: string;
       /** @description The DAG run ID. */
       dag_run_id?: string;
+    };
+    DagPriorityParsingRequests: {
+      /** @description Path of the file */
+      fileloc?: string;
     };
     TaskInstanceReferenceCollection: {
       task_instances?: components["schemas"]["TaskInstanceReference"][];
@@ -3438,6 +3456,31 @@ export interface operations {
       404: components["responses"]["NotFound"];
     };
   };
+  /** Request re-parsing of existing DAGs */
+  reparse_dags: {
+    parameters: {
+      path: {
+        /**
+         * The key containing the encrypted path to the file. Encryption and decryption take place only on
+         * the server. This prevents the client from reading an non-DAG file. This also ensures API
+         * extensibility, because the format of encrypted data may change.
+         */
+        file_token: components["parameters"]["FileToken"];
+      };
+    };
+    responses: {
+      /** Success. */
+      201: {
+        content: {
+          "application/json": components["schemas"]["DagPriorityParsingRequests"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+  };
   /**
    * Get queued Dataset events for a Dataset
    *
@@ -5124,6 +5167,9 @@ export type TaskInstanceCollection = CamelCasedPropertiesDeep<
 export type TaskInstanceReference = CamelCasedPropertiesDeep<
   components["schemas"]["TaskInstanceReference"]
 >;
+export type DagPriorityParsingRequests = CamelCasedPropertiesDeep<
+  components["schemas"]["DagPriorityParsingRequests"]
+>;
 export type TaskInstanceReferenceCollection = CamelCasedPropertiesDeep<
   components["schemas"]["TaskInstanceReferenceCollection"]
 >;
@@ -5387,6 +5433,9 @@ export type GetDagDatasetQueuedEventsVariables = CamelCasedPropertiesDeep<
 export type DeleteDagDatasetQueuedEventsVariables = CamelCasedPropertiesDeep<
   operations["delete_dag_dataset_queued_events"]["parameters"]["path"] &
     operations["delete_dag_dataset_queued_events"]["parameters"]["query"]
+>;
+export type ReparseDagsVariables = CamelCasedPropertiesDeep<
+  operations["reparse_dags"]["parameters"]["path"]
 >;
 export type GetDatasetQueuedEventsVariables = CamelCasedPropertiesDeep<
   operations["get_dataset_queued_events"]["parameters"]["path"] &

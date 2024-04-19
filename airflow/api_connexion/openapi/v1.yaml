@@ -1091,6 +1091,34 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /dag/parse/{file_token}:
+    parameters:
+      - $ref: "#/components/parameters/FileToken"
+
+    get:
+      summary: Request re-parsing of DAGs
+      description: >
+        Request re-parsing of existing DAGs
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_parsing
+      operationId: reparse_dags
+      tags: [ DAG ]
+
+      responses:
+        "201":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DagPriorityParsingRequests"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /datasets/queuedEvent/{uri}:
     parameters:
       - $ref: "#/components/parameters/DatasetURI"
@@ -3703,6 +3731,14 @@ components:
           type: string
           readOnly: true
           description: The DAG run ID.
+
+    DagPriorityParsingRequests:
+      type: object
+      properties:
+        fileloc:
+          type: string
+          readOnly: true
+          description: Path of the file
 
     TaskInstanceReferenceCollection:
       type: object
