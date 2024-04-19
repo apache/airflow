@@ -27,6 +27,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     CloudDataTransferServiceAsyncHook,
 )
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -39,7 +40,9 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
     :param poll_interval: Interval in seconds between polls.
     """
 
-    def __init__(self, job_names: list[str], project_id: str | None = None, poll_interval: int = 10) -> None:
+    def __init__(
+        self, job_names: list[str], project_id: str = PROVIDE_PROJECT_ID, poll_interval: int = 10
+    ) -> None:
         super().__init__()
         self.project_id = project_id
         self.job_names = job_names

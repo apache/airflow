@@ -31,7 +31,7 @@ from airflow.providers.google.cloud.links.cloud_sql import CloudSQLInstanceDatab
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.cloud_sql import CloudSQLExportTrigger
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
-from airflow.providers.google.common.hooks.base_google import get_field
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, get_field
 from airflow.providers.google.common.links.storage import FileDetailsLink
 
 if TYPE_CHECKING:
@@ -244,7 +244,7 @@ class CloudSQLBaseOperator(GoogleCloudBaseOperator):
         self,
         *,
         instance: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1beta4",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -337,7 +337,7 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
         *,
         body: dict,
         instance: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1beta4",
         validate_body: bool = True,
@@ -440,7 +440,7 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
         *,
         body: dict,
         instance: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1beta4",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -572,7 +572,7 @@ class CloudSQLCloneInstanceOperator(CloudSQLBaseOperator):
         instance: str,
         destination_instance_name: str,
         clone_context: dict | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1beta4",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -663,7 +663,7 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
         *,
         instance: str,
         body: dict,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1beta4",
         validate_body: bool = True,
@@ -771,7 +771,7 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
         instance: str,
         database: str,
         body: dict,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1beta4",
         validate_body: bool = True,
@@ -867,7 +867,7 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
         *,
         instance: str,
         database: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1beta4",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -957,7 +957,7 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
         *,
         instance: str,
         body: dict,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1beta4",
         validate_body: bool = True,
@@ -1104,7 +1104,7 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
         *,
         instance: str,
         body: dict,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1beta4",
         validate_body: bool = True,

@@ -45,7 +45,11 @@ from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseAsyncHook,
+    GoogleBaseHook,
+)
 
 if TYPE_CHECKING:
     from google.cloud.storage_transfer_v1.services.storage_transfer_service.pagers import (
@@ -503,7 +507,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
 class CloudDataTransferServiceAsyncHook(GoogleBaseAsyncHook):
     """Asynchronous hook for Google Storage Transfer Service."""
 
-    def __init__(self, project_id: str | None = None, **kwargs: Any) -> None:
+    def __init__(self, project_id: str = PROVIDE_PROJECT_ID, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.project_id = project_id
         self._client: StorageTransferServiceAsyncClient | None = None

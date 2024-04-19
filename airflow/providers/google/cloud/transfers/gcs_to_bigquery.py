@@ -42,6 +42,7 @@ from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQuery
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
 from airflow.providers.google.cloud.triggers.bigquery import BigQueryInsertJobTrigger
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
@@ -229,7 +230,7 @@ class GCSToBigQueryOperator(BaseOperator):
         job_id: str | None = None,
         force_rerun: bool = True,
         reattach_states: set[str] | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

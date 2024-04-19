@@ -27,6 +27,7 @@ from airflow.providers.google.cloud.hooks.dataflow import (
     DataflowHook,
     DataflowJobStatus,
 )
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -67,7 +68,7 @@ class DataflowJobStatusSensor(BaseSensorOperator):
         *,
         job_id: str,
         expected_statuses: set[str] | str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -153,7 +154,7 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
         job_id: str,
         callback: Callable[[dict], bool],
         fail_on_terminal_state: bool = True,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -234,7 +235,7 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
         job_id: str,
         callback: Callable,
         fail_on_terminal_state: bool = True,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -315,7 +316,7 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
         job_id: str,
         callback: Callable,
         fail_on_terminal_state: bool = True,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,

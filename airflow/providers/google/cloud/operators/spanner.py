@@ -25,6 +25,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.spanner import SpannerHook
 from airflow.providers.google.cloud.links.spanner import SpannerDatabaseLink, SpannerInstanceLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -79,7 +80,7 @@ class SpannerDeployInstanceOperator(GoogleCloudBaseOperator):
         configuration_name: str,
         node_count: int,
         display_name: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -161,7 +162,7 @@ class SpannerDeleteInstanceOperator(GoogleCloudBaseOperator):
         self,
         *,
         instance_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -240,7 +241,7 @@ class SpannerQueryDatabaseInstanceOperator(GoogleCloudBaseOperator):
         instance_id: str,
         database_id: str,
         query: str | list[str],
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -350,7 +351,7 @@ class SpannerDeployDatabaseInstanceOperator(GoogleCloudBaseOperator):
         instance_id: str,
         database_id: str,
         ddl_statements: list[str],
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -456,7 +457,7 @@ class SpannerUpdateDatabaseInstanceOperator(GoogleCloudBaseOperator):
         instance_id: str,
         database_id: str,
         ddl_statements: list[str],
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         operation_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -550,7 +551,7 @@ class SpannerDeleteDatabaseInstanceOperator(GoogleCloudBaseOperator):
         *,
         instance_id: str,
         database_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
