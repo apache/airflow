@@ -1075,6 +1075,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             SetupTeardownContext.update_context_map(self)
 
         self._start_trigger: BaseTrigger | None = getattr(self, "_start_trigger", None)
+        self._next_method: str | None = getattr(self, "_next_method", None)
 
     def __eq__(self, other):
         if type(self) is type(other):
@@ -1698,12 +1699,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     @property
     def start_trigger(self) -> BaseTrigger | None:
         """Trigger when deferring task."""
-        return getattr(self, "_start_trigger", None)
+        return self._start_trigger
 
     @property
     def next_method(self) -> str | None:
         """Method to execute after finish deferring."""
-        return getattr(self, "_next_method", None)
+        return self._next_method
 
     def defer(
         self,
