@@ -25,7 +25,7 @@ from typing import Sequence
 from googleapiclient.discovery import build, build_from_document
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 5
@@ -84,7 +84,7 @@ class CloudFirestoreHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def export_documents(
-        self, body: dict, database_id: str = "(default)", project_id: str | None = None
+        self, body: dict, database_id: str = "(default)", project_id: str = PROVIDE_PROJECT_ID
     ) -> None:
         """
         Start a export with the specified configuration.
