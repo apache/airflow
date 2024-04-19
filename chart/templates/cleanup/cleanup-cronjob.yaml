@@ -75,6 +75,9 @@ spec:
             {{- end }}
         spec:
           restartPolicy: Never
+          {{- if .Values.cleanup.priorityClassName }}
+          priorityClassName: {{ .Values.cleanup.priorityClassName }}
+          {{- end }}
           nodeSelector: {{- toYaml $nodeSelector | nindent 12 }}
           affinity: {{- toYaml $affinity | nindent 12 }}
           {{- if .Values.schedulerName }}
