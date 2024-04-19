@@ -900,3 +900,14 @@ class TestPodTemplateFile:
         if expected_init_containers == 1:
             assert initContainers[0]["name"] == "kerberos-init"
             assert initContainers[0]["args"] == ["kerberos", "-o"]
+
+    def test_should_add_command(self):
+        docs = render_chart(
+            values={
+                "workers": {"command": ["test", "command", "to", "run"]},
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert ["test", "command", "to", "run"] == jmespath.search("spec.containers[0].command", docs[0])
