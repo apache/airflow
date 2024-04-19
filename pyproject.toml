@@ -434,6 +434,8 @@ banned-module-level-imports = ["numpy", "pandas"]
 "airflow.PY312".msg = "Use sys.version_info >= (3, 12) instead."
 # Deprecated imports
 "airflow.models.baseoperator.BaseOperatorLink".msg = "Use airflow.models.baseoperatorlink.BaseOperatorLink"
+"airflow.models.errors.ImportError".msg = "Use airflow.models.errors.ParseImportError"
+"airflow.models.ImportError".msg = "Use airflow.models.errors.ParseImportError"
 # Deprecated in Python 3.11, Pending Removal in Python 3.15: https://github.com/python/cpython/issues/90817
 # Deprecation warning in Python 3.11 also recommends using locale.getencoding but it available in Python 3.11
 "locale.getdefaultlocale".msg = "Use locale.setlocale() and locale.getlocale() instead."
