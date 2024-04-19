@@ -30,7 +30,7 @@ from unittest.mock import MagicMock, PropertyMock, patch
 import psutil
 import pytest
 import time_machine
-from sqlalchemy import func
+from sqlalchemy import func, select, update
 
 import airflow.example_dags
 from airflow import settings
@@ -39,6 +39,7 @@ from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.datasets import Dataset
+from airflow.datasets.manager import DatasetManager
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import MOCK_EXECUTOR
@@ -3783,6 +3784,55 @@ class TestSchedulerJob:
         assert session.query(DatasetDagRunQueue).filter_by(target_dag_id=dag3.dag_id).one_or_none() is None
 
         assert dag3.get_last_dagrun().creating_job_id == scheduler_job.id
+
+    @pytest.mark.need_serialized_dag
+    @pytest.mark.parametrize(
+        "disable, enable",
+        [
+            pytest.param({"is_active": False}, {"is_active": True}, id="active"),
+            pytest.param({"is_paused": True}, {"is_paused": False}, id="paused"),
+        ],
+    )
+    def test_no_create_dag_runs_when_dag_disabled(self, session, dag_maker, disable, enable):
+        ds = Dataset("ds")
+        with dag_maker(dag_id="consumer", schedule=[ds], session=session):
+            pass
+        with dag_maker(dag_id="producer", schedule="@daily", session=session):
+            BashOperator(task_id="task", bash_command="echo 1", outlets=ds)
+        dsm = DatasetManager()
+
+        ds_id = session.scalars(select(DatasetModel.id).filter_by(uri=ds.uri)).one()
+
+        dse_q = select(DatasetEvent).where(DatasetEvent.dataset_id == ds_id).order_by(DatasetEvent.timestamp)
+        ddrq_q = select(DatasetDagRunQueue).where(
+            DatasetDagRunQueue.dataset_id == ds_id, DatasetDagRunQueue.target_dag_id == "consumer"
+        )
+
+        # Simulate the consumer DAG being disabled.
+        session.execute(update(DagModel).where(DagModel.dag_id == "consumer").values(**disable))
+
+        # A DDRQ is not scheduled although an event is emitted.
+        dr1: DagRun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        dsm.register_dataset_change(
+            task_instance=dr1.get_task_instance("task", session=session),
+            dataset=ds,
+            session=session,
+        )
+        assert session.scalars(dse_q).one().source_run_id == dr1.run_id
+        assert session.scalars(ddrq_q).one_or_none() is None
+
+        # Simulate the consumer DAG being enabled.
+        session.execute(update(DagModel).where(DagModel.dag_id == "consumer").values(**enable))
+
+        # A DDRQ should be scheduled for the new event, but not the previous one.
+        dr2: DagRun = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
+        dsm.register_dataset_change(
+            task_instance=dr2.get_task_instance("task", session=session),
+            dataset=ds,
+            session=session,
+        )
+        assert [e.source_run_id for e in session.scalars(dse_q)] == [dr1.run_id, dr2.run_id]
+        assert session.scalars(ddrq_q).one().target_dag_id == "consumer"
 
     @time_machine.travel(DEFAULT_DATE + datetime.timedelta(days=1, seconds=9), tick=False)
     @mock.patch("airflow.jobs.scheduler_job_runner.Stats.timing")
