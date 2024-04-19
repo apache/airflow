@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-04-17T19:34:16.934306
+# This constraints file was automatically generated on 2024-04-19T12:42:59.821175
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -231,7 +231,7 @@ cachelib==0.9.0
 cachetools==5.3.3
 cassandra-driver==3.29.1
 cattrs==23.2.3
-celery==5.3.6
+celery==5.4.0
 certifi==2024.2.2
 cffi==1.16.0
 cfgv==3.4.0
@@ -247,6 +247,7 @@ click-repl==0.3.0
 click==8.1.7
 clickclick==20.10.2
 cloudant==2.15.0
+cloudpickle==3.0.0
 cohere==4.57
 colorama==0.4.6
 colorlog==4.8.0
@@ -258,7 +259,7 @@ cron-descriptor==1.4.3
 croniter==2.0.3
 cryptography==41.0.7
 curlify==2.2.1
-databricks-sql-connector==2.9.5
+databricks-sql-connector==2.9.6
 datadog==0.49.1
 db-dtypes==1.2.0
 decorator==5.1.1
@@ -310,7 +311,7 @@ google-cloud-audit-log==0.2.5
 google-cloud-automl==2.13.3
 google-cloud-batch==0.17.18
 google-cloud-bigquery-datatransfer==3.15.2
-google-cloud-bigquery==3.20.1
+google-cloud-bigquery==3.21.0
 google-cloud-bigtable==2.23.1
 google-cloud-build==3.24.0
 google-cloud-compute==1.18.0
@@ -335,7 +336,7 @@ google-cloud-redis==2.15.3
 google-cloud-resource-manager==1.12.3
 google-cloud-run==0.10.5
 google-cloud-secret-manager==2.19.0
-google-cloud-spanner==3.44.0
+google-cloud-spanner==3.45.0
 google-cloud-speech==2.26.0
 google-cloud-storage-transfer==1.11.3
 google-cloud-storage==2.16.0
@@ -355,9 +356,9 @@ greenlet==3.0.3
 grpc-google-iam-v1==0.13.0
 grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
-grpcio-status==1.62.1
-grpcio-tools==1.62.1
-grpcio==1.62.1
+grpcio-status==1.62.2
+grpcio-tools==1.62.2
+grpcio==1.62.2
 gssapi==1.8.3
 gunicorn==22.0.0
 h11==0.14.0
@@ -392,7 +393,7 @@ isodate==0.6.1
 itsdangerous==2.2.0
 jaraco.classes==3.4.0
 jaraco.context==5.3.0
-jaraco.functools==4.0.0
+jaraco.functools==4.0.1
 jedi==0.19.1
 jeepney==0.8.0
 jmespath==0.10.0
@@ -460,7 +461,7 @@ nh3==0.2.17
 nodeenv==1.8.0
 numpy==1.26.4
 oauthlib==3.2.2
-openai==1.21.0
+openai==1.23.1
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.12.0
@@ -609,7 +610,7 @@ smbprotocol==1.13.0
 smmap==5.0.1
 sniffio==1.3.1
 snowballstemmer==2.2.0
-snowflake-connector-python==3.8.1
+snowflake-connector-python==3.9.0
 snowflake-sqlalchemy==1.5.3
 sortedcontainers==2.4.0
 soupsieve==2.5
@@ -631,7 +632,7 @@ sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==1.1.5
 sphinxcontrib-spelling==8.0.0
 spython==0.3.13
-sqlalchemy-bigquery==1.10.0
+sqlalchemy-bigquery==1.11.0
 sqlalchemy-redshift==0.8.14
 sqlalchemy-spanner==1.7.0
 sqlalchemy_drill==1.1.4
@@ -640,7 +641,7 @@ sshtunnel==0.4.0
 stack-data==0.6.3
 starkbank-ecdsa==2.2.0
 statsd==4.0.1
-std-uritemplate==0.0.56
+std-uritemplate==0.0.57
 strictyaml==1.7.3
 sympy==1.12
 tableauserverclient==0.25
@@ -658,7 +659,7 @@ tomlkit==0.12.4
 tornado==6.4
 towncrier==23.11.0
 tqdm==4.66.2
-traitlets==5.14.2
+traitlets==5.14.3
 trino==0.328.0
 trove-classifiers==2024.4.10
 twine==5.0.0
