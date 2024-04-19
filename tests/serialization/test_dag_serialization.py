@@ -640,6 +640,9 @@ class TestStringifiedDAGs:
                 "template_ext",
                 "template_fields",
                 # We store the string, real dag has the actual code
+                "_pre_execute_hook",
+                "_post_execute_hook",
+                "on_execute_callback",
                 "on_failure_callback",
                 "on_success_callback",
                 "on_retry_callback",
