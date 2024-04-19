@@ -147,6 +147,7 @@ class TestDataprocClusterTrigger:
             "gcp_conn_id": TEST_GCP_CONN_ID,
             "impersonation_chain": None,
             "polling_interval_seconds": TEST_POLL_INTERVAL,
+            "delete_on_error": True,
         }
 
     @pytest.mark.asyncio
