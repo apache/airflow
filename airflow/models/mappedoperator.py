@@ -237,9 +237,8 @@ class OperatorPartial:
             # For classic operators, this points to expand_input because kwargs
             # to BaseOperator.expand() contribute to operator arguments.
             expand_input_attr="expand_input",
-            # start with trigger is not supported in dynamic task mapping
-            start_trigger=None,
-            next_method=None,
+            start_trigger=self.operator_class._start_trigger,
+            next_method=self.operator_class._next_method,
         )
         return op
 
@@ -312,6 +311,8 @@ class MappedOperator(AbstractOperator):
         (
             "parse_time_mapped_ti_count",
             "operator_class",
+            "_start_trigger",
+            "_next_method",
         )
     )
 

@@ -1317,7 +1317,6 @@ class TestStringifiedDAGs:
             "wait_for_past_depends_before_skipping": False,
             "weight_rule": _DownstreamPriorityWeightStrategy(),
             "multiple_outputs": False,
-            "_start_trigger": None,
         }, """
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -2247,6 +2246,7 @@ def test_operator_expand_serde():
         "_task_module": "airflow.operators.bash",
         "_task_type": "BashOperator",
         "_start_trigger": None,
+        "_next_method": None,
         "downstream_task_ids": [],
         "expand_input": {
             "type": "dict-of-lists",
@@ -2270,7 +2270,6 @@ def test_operator_expand_serde():
         "ui_fgcolor": "#000",
         "_disallow_kwargs_override": False,
         "_expand_input_attr": "expand_input",
-        "_next_method": None,
     }
 
     op = BaseSerialization.deserialize(serialized)
@@ -2280,6 +2279,7 @@ def test_operator_expand_serde():
     assert op.operator_class == {
         "_task_type": "BashOperator",
         "_start_trigger": None,
+        "_next_method": None,
         "downstream_task_ids": [],
         "task_id": "a",
         "template_ext": [".sh", ".bash"],

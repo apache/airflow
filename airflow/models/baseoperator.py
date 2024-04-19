@@ -818,6 +818,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # Set to True for an operator instantiated by a mapped operator.
     __from_mapped = False
 
+    _start_trigger: BaseTrigger | None = None
+    _next_method: str | None = None
+
     def __init__(
         self,
         task_id: str,
@@ -1073,9 +1076,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self._is_teardown = False
         if SetupTeardownContext.active:
             SetupTeardownContext.update_context_map(self)
-
-        self._start_trigger: BaseTrigger | None = getattr(self, "_start_trigger", None)
-        self._next_method: str | None = getattr(self, "_next_method", None)
 
     def __eq__(self, other):
         if type(self) is type(other):
@@ -1678,6 +1678,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "is_teardown",
                     "on_failure_fail_dagrun",
                     "map_index_template",
+                    "_start_trigger",
+                    "_next_method",
                 }
             )
             DagContext.pop_context_managed_dag()

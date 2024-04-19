@@ -1211,7 +1211,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         # Used to determine if an Operator is inherited from EmptyOperator
         setattr(op, "_is_empty", bool(encoded_op.get("_is_empty", False)))
 
-        # start with trigger
+        # Deserialize start_trigger
         serialized_start_trigger = encoded_op.get("_start_trigger")
         if serialized_start_trigger:
             trigger_cls_name, trigger_kwargs = serialized_start_trigger
@@ -1259,6 +1259,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 operator_name = encoded_op["_operator_name"]
             except KeyError:
                 operator_name = encoded_op["_task_type"]
+
             op = MappedOperator(
                 operator_class=op_data,
                 expand_input=EXPAND_INPUT_EMPTY,
@@ -1282,7 +1283,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 end_date=None,
                 disallow_kwargs_override=encoded_op["_disallow_kwargs_override"],
                 expand_input_attr=encoded_op["_expand_input_attr"],
-                # start with trigger is not supported in dynamic task mapping
                 start_trigger=None,
                 next_method=None,
             )
