@@ -19,15 +19,12 @@ from __future__ import annotations
 
 import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import cohere
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
-
-if TYPE_CHECKING:
-    from cohere.core.request_options import RequestOptions
 
 
 class CohereHook(BaseHook):
@@ -62,7 +59,7 @@ class CohereHook(BaseHook):
         conn_id: str = default_conn_name,
         timeout: int | None = None,
         max_retries: int | None = None,
-        request_options: RequestOptions | None = None,
+        request_options: dict | None = None,
     ) -> None:
         super().__init__()
         self.conn_id = conn_id
@@ -75,7 +72,11 @@ class CohereHook(BaseHook):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            self.request_options = {"max_retries": self.max_retries} if self.request_options is None else self.request_options.update({"max_retries": self.max_retries})
+            self.request_options = (
+                {"max_retries": self.max_retries}
+                if self.request_options is None
+                else self.request_options.update({"max_retries": self.max_retries})
+            )
 
     @cached_property
     def get_conn(self) -> cohere.Client:  # type: ignore[override]
@@ -84,7 +85,7 @@ class CohereHook(BaseHook):
 
     def create_embeddings(
         self, texts: list[str], model: str = "embed-multilingual-v2.0"
-    ) -> list[list[float]]:
+    ) -> list[list[float]] | cohere.EmbedByTypeResponseEmbeddings:
         response = self.get_conn.embed(texts=texts, model=model, request_options=self.request_options)
         embeddings = response.embeddings
         return embeddings
