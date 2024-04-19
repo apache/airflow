@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timedelta
-from dateutil.parser import parse as parse_date
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from paramiko.sftp import SFTP_NO_SUCH_FILE
@@ -31,7 +30,7 @@ from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.sftp.triggers.sftp import SFTPTrigger
 from airflow.sensors.base import BaseSensorOperator, PokeReturnValue
-from airflow.utils.timezone import convert_to_utc
+from airflow.utils.timezone import convert_to_utc, parse
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -107,7 +106,7 @@ class SFTPSensor(BaseSensorOperator):
 
             if self.newer_than:
                 if isinstance(self.newer_than, str):
-                    self.newer_than = parse_date(self.newer_than)
+                    self.newer_than = parse(self.newer_than)
                 _mod_time = convert_to_utc(datetime.strptime(mod_time, "%Y%m%d%H%M%S"))
                 _newer_than = convert_to_utc(self.newer_than)
                 if _newer_than <= _mod_time:
