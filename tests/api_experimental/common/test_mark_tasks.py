@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import datetime
-import warnings
 from typing import Callable
 
 import pytest
@@ -34,7 +33,6 @@ from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_success,
     set_state,
 )
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models import DagRun
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
@@ -52,13 +50,9 @@ pytestmark = pytest.mark.db_test
 def dagbag():
     from airflow.models.dagbag import DagBag
 
-    with warnings.catch_warnings():
-        # Some dags use deprecated operators, e.g SubDagOperator
-        # if it is not imported, then it might have side effects for the other tests
-        warnings.simplefilter("ignore", category=RemovedInAirflow3Warning)
-        # Ensure the DAGs we are looking at from the DB are up-to-date
-        non_serialized_dagbag = DagBag(read_dags_from_db=False, include_examples=True)
-        non_serialized_dagbag.sync_to_db()
+    # Ensure the DAGs we are looking at from the DB are up-to-date
+    non_serialized_dagbag = DagBag(read_dags_from_db=False, include_examples=True)
+    non_serialized_dagbag.sync_to_db()
     return DagBag(read_dags_from_db=True)
 
 
@@ -484,11 +478,7 @@ class TestMarkDAGRun:
 
     @classmethod
     def setup_class(cls):
-        with warnings.catch_warnings():
-            # Some dags use deprecated operators, e.g SubDagOperator
-            # if it is not imported, then it might have side effects for the other tests
-            warnings.simplefilter("ignore", category=RemovedInAirflow3Warning)
-            dagbag = models.DagBag(include_examples=True, read_dags_from_db=False)
+        dagbag = models.DagBag(include_examples=True, read_dags_from_db=False)
         cls.dag1 = dagbag.dags["miscellaneous_test_dag"]
         cls.dag1.sync_to_db()
         cls.dag2 = dagbag.dags["example_subdag_operator"]

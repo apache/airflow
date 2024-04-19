@@ -191,6 +191,7 @@ SYSTEM_TESTS = "tests/system"
 
 # Those directories are already ignored vu pyproject.toml. We want to exclude them here as well.
 NO_RECURSE_DIRS = [
+    "tests/_internals",
     "tests/dags_with_system_exit",
     "tests/test_utils",
     "tests/dags_corrupted",

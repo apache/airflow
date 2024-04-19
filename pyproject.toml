@@ -24,7 +24,7 @@
 requires = [
     "GitPython==3.1.43",
     "gitdb==4.0.11",
-    "hatchling==1.22.5",
+    "hatchling==1.24.1",
     "packaging==24.0",
     "pathspec==0.12.1",
     "pluggy==1.4.0",
@@ -78,9 +78,9 @@ dynamic = ["version", "optional-dependencies", "dependencies"]
 #
 # START CORE EXTRAS HERE
 #
-# aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, deprecated-api, github-enterprise,
-# google-auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, pydantic, rabbitmq, s3fs,
-# saml, sentry, statsd, uv, virtualenv
+# aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, cloudpickle, deprecated-api, github-
+# enterprise, google-auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, pydantic,
+# rabbitmq, s3fs, saml, sentry, statsd, uv, virtualenv
 #
 # END CORE EXTRAS HERE
 #
@@ -271,6 +271,9 @@ extend-select = [
     "PT", # flake8-pytest-style rules
     "TID25", # flake8-tidy-imports rules
     # Per rule enables
+    "RUF006", # Checks for asyncio dangling task
+    "RUF015", # Checks for unnecessary iterable allocation for first element
+    "RUF019", # Checks for unnecessary key check
     "RUF100", # Unused noqa (auto-fixable)
     # We ignore more pydocstyle than we enable, so be more selective at what we enable
     "D101",
@@ -288,10 +291,11 @@ extend-select = [
     "S101", # Checks use `assert` outside the test cases, test cases should be added into the exclusions
     "B004", # Checks for use of hasattr(x, "__call__") and replaces it with callable(x)
     "B006", # Checks for uses of mutable objects as function argument defaults.
+    "B007", # Checks for unused variables in the loop
     "B017", # Checks for pytest.raises context managers that catch Exception or BaseException.
     "B019", # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
+    "B028", # No explicit stacklevel keyword argument found
     "TRY002", # Prohibit use of `raise Exception`, use specific exceptions instead.
-    "RUF006", # Checks for asyncio dangling task
 ]
 ignore = [
     "D203",
@@ -322,7 +326,7 @@ required-imports = ["from __future__ import annotations"]
 combine-as-imports = true
 
 [tool.ruff.lint.per-file-ignores]
-"airflow/__init__.py" = ["F401"]
+"airflow/__init__.py" = ["F401", "B028"]
 "airflow/models/__init__.py" = ["F401", "TCH004"]
 "airflow/models/sqla_models.py" = ["F401"]
 
@@ -381,6 +385,35 @@ combine-as-imports = true
 "tests/providers/qdrant/operators/test_qdrant.py" = ["E402"]
 "tests/providers/snowflake/operators/test_snowflake_sql.py" = ["E402"]
 
+# All the modules which do not follow B028 yet: https://docs.astral.sh/ruff/rules/no-explicit-stacklevel/
+"airflow/api_connexion/endpoints/forward_to_fab_endpoint.py" = ["B028"]
+"airflow/cli/commands/connection_command.py" = ["B028"]
+"airflow/cli/commands/dag_command.py" = ["B028"]
+"airflow/cli/commands/db_command.py" = ["B028"]
+"airflow/configuration.py" = ["B028"]
+"airflow/decorators/task_group.py" = ["B028"]
+"airflow/jobs/scheduler_job_runner.py" = ["B028"]
+"airflow/jobs/triggerer_job_runner.py" = ["B028"]
+"airflow/kubernetes/pre_7_4_0_compatibility/pod_generator.py" = ["B028"]
+"airflow/logging_config.py" = ["B028"]
+"airflow/metrics/otel_logger.py" = ["B028"]
+"airflow/metrics/validators.py" = ["B028"]
+"airflow/models/baseoperator.py" = ["B028"]
+"airflow/models/connection.py" = ["B028"]
+"airflow/models/mappedoperator.py" = ["B028"]
+"airflow/models/param.py" = ["B028"]
+"airflow/models/xcom.py" = ["B028"]
+"airflow/providers_manager.py" = ["B028"]
+"airflow/serialization/serialized_objects.py" = ["B028"]
+"airflow/settings.py" = ["B028"]
+"airflow/utils/context.py" = ["B028"]
+"airflow/utils/dot_renderer.py" = ["B028"]
+"airflow/www/app.py" = ["B028"]
+"airflow/www/extensions/init_views.py" = ["B028"]
+"airflow/providers/jdbc/hooks/jdbc.py" = ["B028"]
+"airflow/providers/microsoft/azure/hooks/synapse.py" = ["B028"]
+"helm_tests/airflow_aux/test_basic_helm_chart.py" = ["B028"]
+
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.
 ban-relative-imports = "all"
@@ -428,8 +461,13 @@ banned-module-level-imports = ["numpy", "pandas"]
 "logging.fatal".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
 "logging.critical".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
 "logging.log".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
-# Some specific cases
-"unittest.TestCase".msg = "Use pytest compatible classes"
+# unittest related restrictions
+"unittest.TestCase".msg = "Use pytest compatible classes: https://docs.pytest.org/en/stable/getting-started.html#group-multiple-tests-in-a-class"
+"unittest.skip".msg = "Use `pytest.mark.skip` instead: https://docs.pytest.org/en/stable/reference/reference.html#marks"
+"unittest.skipIf".msg = "Use `pytest.mark.skipif` instead: https://docs.pytest.org/en/stable/reference/reference.html#marks"
+"unittest.skipUnless".msg = "Use `pytest.mark.skipif` instead: https://docs.pytest.org/en/stable/reference/reference.html#marks"
+"unittest.expectedFailure".msg = "Use `pytest.mark.xfail` instead: https://docs.pytest.org/en/stable/reference/reference.html#marks"
+
 
 [tool.ruff.lint.flake8-type-checking]
 exempt-modules = ["typing", "typing_extensions"]
@@ -456,6 +494,7 @@ addopts = [
 norecursedirs = [
     ".eggs",
     "airflow",
+    "tests/_internals",
     "tests/dags_with_system_exit",
     "tests/test_utils",
     "tests/dags_corrupted",
@@ -470,6 +509,7 @@ filterwarnings = [
     # Avoid building cartesian product which might impact performance
     "error:SELECT statement has a cartesian product between FROM:sqlalchemy.exc.SAWarning:airflow",
     'error:Coercing Subquery object into a select\(\) for use in IN\(\):sqlalchemy.exc.SAWarning:airflow',
+    'error:Class.*will not make use of SQL compilation caching',
     "ignore::DeprecationWarning:flask_appbuilder.filemanager",
     "ignore::DeprecationWarning:flask_appbuilder.widgets",
     # FAB do not support SQLAclhemy 2

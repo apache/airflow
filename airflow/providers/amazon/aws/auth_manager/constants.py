@@ -18,7 +18,6 @@
 # Configuration keys
 from __future__ import annotations
 
-CONF_ENABLE_KEY = "enable"
 CONF_SECTION_NAME = "aws_auth_manager"
 CONF_CONN_ID_KEY = "conn_id"
 CONF_REGION_NAME_KEY = "region_name"

@@ -56,6 +56,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--postgres-version",
                 "--mysql-version",
                 "--forward-credentials",
+                "--force-sa-warnings",
             ],
         },
         {
@@ -112,6 +113,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--python",
                 "--forward-credentials",
+                "--force-sa-warnings",
             ],
         },
         {
@@ -169,6 +171,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--postgres-version",
                 "--mysql-version",
                 "--forward-credentials",
+                "--force-sa-warnings",
             ],
         },
         {
@@ -220,6 +223,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--postgres-version",
                 "--mysql-version",
                 "--forward-credentials",
+                "--force-sa-warnings",
             ],
         },
         {

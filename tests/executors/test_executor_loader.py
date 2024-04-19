@@ -205,6 +205,7 @@ class TestExecutorLoader:
             "LocalExecutor, CeleryExecutor:, DebugExecutor",
             "LocalExecutor, my_cool_alias:",
             "LocalExecutor, my_cool_alias:CeleryExecutor",
+            "LocalExecutor, module.path.first:alias_second",
         ],
     )
     def test_get_hybrid_executors_from_config_core_executors_bad_config_format(self, executor_config):

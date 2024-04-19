@@ -218,6 +218,8 @@ def _subquery_keep_last(*, recency_column, keep_last_filters, group_by_columns, 
 class CreateTableAs(Executable, ClauseElement):
     """Custom sqlalchemy clause element for CTAS operations."""
 
+    inherit_cache = False
+
     def __init__(self, name, query):
         self.name = name
         self.query = query

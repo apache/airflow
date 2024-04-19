@@ -35,7 +35,7 @@ from packaging.version import parse as parse_version
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.providers.cncf.kubernetes.operators.job import KubernetesDeleteJobOperator, KubernetesJobOperator
+from airflow.providers.cncf.kubernetes.operators.job import KubernetesJobOperator
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.operators.resource import (
     KubernetesCreateResourceOperator,
@@ -64,6 +64,16 @@ from airflow.providers.google.cloud.triggers.kubernetes_engine import (
 )
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.timezone import utcnow
+
+try:
+    from airflow.providers.cncf.kubernetes.operators.job import KubernetesDeleteJobOperator
+except ImportError:
+    from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+    raise AirflowOptionalProviderFeatureException(
+        "Failed to import KubernetesDeleteJobOperator. This operator is only available in cncf-kubernetes "
+        "provider version >=8.1.0"
+    )
 
 if TYPE_CHECKING:
     from kubernetes.client.models import V1Job, V1Pod
