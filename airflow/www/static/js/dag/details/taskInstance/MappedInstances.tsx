@@ -47,12 +47,7 @@ const MappedInstances = ({ dagId, runId, taskId, onRowClicked }: Props) => {
   const sort = sortBy[0];
 
   const orderBy =
-    sort &&
-    (sort.id === "state" ||
-      sort.id === "mapIndex" ||
-      sort.id === "duration" ||
-      sort.id === "startDate" ||
-      sort.id === "endDate")
+    sort && sort.id
       ? `${sort.desc ? "-" : ""}${snakeCase(sort.id)}`
       : "";
 
