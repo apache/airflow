@@ -76,7 +76,7 @@ class FileLoadStat(NamedTuple):
     :param dag_num: Total number of DAGs loaded in this file.
     :param task_num: Total number of Tasks loaded in this file.
     :param dags: DAGs names loaded in this file.
-    :param warnings: Total number of warnings captured from processing this file.
+    :param warning_num: Total number of warnings captured from processing this file.
     """
 
     file: str
@@ -84,7 +84,7 @@ class FileLoadStat(NamedTuple):
     dag_num: int
     task_num: int
     dags: str
-    warnings: int
+    warning_num: int
 
 
 class DagBag(LoggingMixin):
@@ -589,7 +589,7 @@ class DagBag(LoggingMixin):
                         dag_num=len(found_dags),
                         task_num=sum(len(dag.tasks) for dag in found_dags),
                         dags=str([dag.dag_id for dag in found_dags]),
-                        warnings=len(self.captured_warnings.get(filepath, [])),
+                        warning_num=len(self.captured_warnings.get(filepath, [])),
                     )
                 )
             except Exception as e:
