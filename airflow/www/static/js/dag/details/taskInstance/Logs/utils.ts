@@ -20,7 +20,7 @@
 /* global moment */
 
 import { AnsiUp } from "ansi_up";
-import { getMetaValue, addColorKeyword } from "src/utils";
+import { getMetaValue, highlightByKeywords } from "src/utils";
 import { defaultFormatWithTZ } from "src/datetime_utils";
 
 export enum LogLevel {
@@ -122,7 +122,11 @@ export const parseLogs = (
         line.includes(fileSourceFilter)
       )
     ) {
-      parsedLine = addColorKeyword(parsedLine, errorKeywords, warningKeywords);
+      parsedLine = highlightByKeywords(
+        parsedLine,
+        errorKeywords,
+        warningKeywords
+      );
       // for lines with color convert to nice HTML
       const coloredLine = ansiUp.ansi_to_html(parsedLine);
 

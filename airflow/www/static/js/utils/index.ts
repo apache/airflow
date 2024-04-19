@@ -185,21 +185,21 @@ const toSentenceCase = (camelCase: string): string => {
   return "";
 };
 
-const addColorKeyword = (
+const highlightByKeywords = (
   parsedLine: string,
   errorKeywords: string[],
   warningKeywords: string[]
 ): string => {
   const lowerParsedLine = parsedLine.toLowerCase();
+  const red = (line: string) => `\x1b[1m\x1b[31m${line}\x1b[39m\x1b[0m`;
+  const yellow = (line: string) => `\x1b[1m\x1b[33m${line}\x1b[39m\x1b[0m`;
+
   const containsError = errorKeywords.some((keyword) =>
     lowerParsedLine.includes(keyword)
   );
-  const bold = (line: string) => `\x1b[1m${line}\x1b[0m`;
-  const red = (line: string) => `\x1b[31m${line}\x1b[39m`;
-  const yellow = (line: string) => `\x1b[33m${line}\x1b[39m`;
 
   if (containsError) {
-    return bold(red(parsedLine));
+    return red(parsedLine);
   }
 
   const containsWarning = warningKeywords.some((keyword) =>
@@ -207,7 +207,7 @@ const addColorKeyword = (
   );
 
   if (containsWarning) {
-    return bold(yellow(parsedLine));
+    return yellow(parsedLine);
   }
 
   return parsedLine;
@@ -225,5 +225,5 @@ export {
   getStatusBackgroundColor,
   useOffsetTop,
   toSentenceCase,
-  addColorKeyword,
+  highlightByKeywords,
 };
