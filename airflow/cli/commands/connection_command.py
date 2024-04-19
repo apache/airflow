@@ -163,7 +163,7 @@ def connections_export(args):
     file_formats = [".yaml", ".json", ".env"]
     if args.format:
         warnings.warn(
-            "Option `--format` is deprecated.  Use `--file-format` instead.", DeprecationWarning, stacklevel=3
+            "Option `--format` is deprecated. Use `--file-format` instead.", DeprecationWarning, stacklevel=3
         )
     if args.format and args.file_format:
         raise SystemExit("Option `--format` is deprecated.  Use `--file-format` instead.")
