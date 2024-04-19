@@ -23,6 +23,7 @@ from google.cloud.workflows.executions_v1beta import Execution
 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.google.cloud.hooks.workflows import WorkflowsHook
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -58,7 +59,7 @@ class WorkflowExecutionSensor(BaseSensorOperator):
         workflow_id: str,
         execution_id: str,
         location: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         success_states: set[Execution.State] | None = None,
         failure_states: set[Execution.State] | None = None,
         retry: Retry | _MethodDefault = DEFAULT,

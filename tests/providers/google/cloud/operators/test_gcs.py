@@ -172,48 +172,59 @@ class TestGCSDeleteObjectsOperator:
             any_order=True,
         )
 
-    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
-    def test_get_openlineage_facets_on_complete(self, mock_hook):
+    @pytest.mark.parametrize(
+        ("objects", "prefix", "inputs"),
+        (
+            (["folder/a.txt", "b.json"], None, ["folder/a.txt", "b.json"]),
+            (["folder/a.txt", "folder/b.json"], None, ["folder/a.txt", "folder/b.json"]),
+            (None, ["folder/a.txt", "b.json"], ["folder/a.txt", "b.json"]),
+            (None, "dir/pre", ["dir"]),
+            (None, ["dir/"], ["dir"]),
+            (None, "", ["/"]),
+            (None, "/", ["/"]),
+            (None, "pre", ["/"]),
+            (None, "dir/pre*", ["dir"]),
+            (None, "*", ["/"]),
+        ),
+        ids=(
+            "objects",
+            "multiple objects in the same dir",
+            "objects as prefixes",
+            "directory with prefix",
+            "directory",
+            "empty prefix",
+            "slash as prefix",
+            "prefix with no ending slash",
+            "directory with prefix with wildcard",
+            "just wildcard",
+        ),
+    )
+    def test_get_openlineage_facets_on_start(self, objects, prefix, inputs):
         bucket_url = f"gs://{TEST_BUCKET}"
         expected_inputs = [
             Dataset(
                 namespace=bucket_url,
-                name="folder/a.txt",
+                name=name,
                 facets={
                     "lifecycleStateChange": LifecycleStateChangeDatasetFacet(
                         lifecycleStateChange=LifecycleStateChange.DROP.value,
                         previousIdentifier=LifecycleStateChangeDatasetFacetPreviousIdentifier(
                             namespace=bucket_url,
-                            name="folder/a.txt",
+                            name=name,
                         ),
                     )
                 },
-            ),
-            Dataset(
-                namespace=bucket_url,
-                name="b.txt",
-                facets={
-                    "lifecycleStateChange": LifecycleStateChangeDatasetFacet(
-                        lifecycleStateChange=LifecycleStateChange.DROP.value,
-                        previousIdentifier=LifecycleStateChangeDatasetFacetPreviousIdentifier(
-                            namespace=bucket_url,
-                            name="b.txt",
-                        ),
-                    )
-                },
-            ),
+            )
+            for name in inputs
         ]
 
         operator = GCSDeleteObjectsOperator(
-            task_id=TASK_ID, bucket_name=TEST_BUCKET, objects=["folder/a.txt", "b.txt"]
+            task_id=TASK_ID, bucket_name=TEST_BUCKET, objects=objects, prefix=prefix
         )
-
-        operator.execute(None)
-
-        lineage = operator.get_openlineage_facets_on_complete(None)
-        assert len(lineage.inputs) == 2
+        lineage = operator.get_openlineage_facets_on_start()
+        assert len(lineage.inputs) == len(inputs)
         assert len(lineage.outputs) == 0
-        assert lineage.inputs == expected_inputs
+        assert sorted(lineage.inputs) == sorted(expected_inputs)
 
 
 class TestGoogleCloudStorageListOperator:
