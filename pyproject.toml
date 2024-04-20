@@ -125,7 +125,7 @@ dynamic = ["version", "optional-dependencies", "dependencies"]
 #
 # END DEPRECATED EXTRAS HERE
 #
-# !!!!!! Those provuders are defined in the `airflow/providers/<provider>/provider.yaml` files  !!!!!!!
+# !!!!!! Those providers are defined in the `airflow/providers/<provider>/provider.yaml` files  !!!!!!!
 #
 # Those extras are available as regular Airflow extras, they install provider packages in standard builds
 # or dependencies that are necessary to enable the feature in editable build.
