@@ -137,6 +137,7 @@ def dag_backfill(args, dag: list[DAG] | DAG | None = None) -> None:
         warnings.warn(
             "--ignore-first-depends-on-past is deprecated as the value is always set to True",
             category=RemovedInAirflow3Warning,
+            stacklevel=4,
         )
     args.ignore_first_depends_on_past = True
 
@@ -144,6 +145,7 @@ def dag_backfill(args, dag: list[DAG] | DAG | None = None) -> None:
         warnings.warn(
             "--treat-dag-as-regex is deprecated, use --treat-dag-id-as-regex instead",
             category=RemovedInAirflow3Warning,
+            stacklevel=4,
         )
         args.treat_dag_id_as_regex = args.treat_dag_as_regex
 

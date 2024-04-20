@@ -364,14 +364,14 @@ class GoogleBaseHook(BaseHook):
         return hasattr(self, "extras") and get_field(self.extras, f) or default
 
     @property
-    def project_id(self) -> str | None:
+    def project_id(self) -> str:
         """
         Returns project id.
 
         :return: id of the project
         """
         _, project_id = self.get_credentials_and_project_id()
-        return project_id
+        return project_id or PROVIDE_PROJECT_ID
 
     @property
     def num_retries(self) -> int:

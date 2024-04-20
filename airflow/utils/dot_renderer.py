@@ -26,7 +26,11 @@ from typing import TYPE_CHECKING, Any
 try:
     import graphviz
 except ImportError:
-    warnings.warn("Could not import graphviz. Rendering graph to the graphical format will not be possible.")
+    warnings.warn(
+        "Could not import graphviz. Rendering graph to the graphical format will not be possible.",
+        UserWarning,
+        stacklevel=2,
+    )
     graphviz = None
 
 from airflow.exceptions import AirflowException

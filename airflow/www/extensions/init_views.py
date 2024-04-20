@@ -317,6 +317,7 @@ def init_api_experimental(app):
         "Please note that the experimental API do not have access control. "
         "The authenticated user has full access.",
         RemovedInAirflow3Warning,
+        stacklevel=2,
     )
     base_paths.append("/api/experimental")
     app.register_blueprint(endpoints.api_experimental, url_prefix="/api/experimental")

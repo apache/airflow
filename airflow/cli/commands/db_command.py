@@ -50,6 +50,7 @@ def initdb(args):
         "`db init` is deprecated.  Use `db migrate` instead to migrate the db and/or "
         "airflow connections create-default-connections to create the default connections",
         DeprecationWarning,
+        stacklevel=2,
     )
     print(f"DB: {settings.engine.url!r}")
     db.initdb()
@@ -67,7 +68,7 @@ def resetdb(args):
 
 def upgradedb(args):
     """Upgrades the metadata database."""
-    warnings.warn("`db upgrade` is deprecated. Use `db migrate` instead.", DeprecationWarning)
+    warnings.warn("`db upgrade` is deprecated. Use `db migrate` instead.", DeprecationWarning, stacklevel=2)
     migratedb(args)
 
 

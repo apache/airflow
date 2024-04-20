@@ -82,6 +82,7 @@ def __getattr__(name: str):
                 f"Python version constraint {name!r} is deprecated and will be removed in the future. "
                 f"Please get version info from the 'sys.version_info'.",
                 DeprecationWarning,
+                stacklevel=2,
             )
             return sys.version_info >= (3, int(py_minor))
 

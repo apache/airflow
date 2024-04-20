@@ -75,6 +75,9 @@ CORE_EXTRAS: dict[str, list[str]] = {
         # Cgroupspy 0.2.2 added Python 3.10 compatibility
         "cgroupspy>=0.2.2",
     ],
+    "cloudpickle": [
+        "cloudpickle",
+    ],
     "deprecated-api": [
         "requests>=2.27.0,<3",
     ],
