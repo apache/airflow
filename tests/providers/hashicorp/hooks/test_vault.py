@@ -315,7 +315,6 @@ class TestVaultHook:
             access_key="user",
             secret_key="pass",
             role="role",
-            mount_point=None,
         )
         test_client.is_authenticated.assert_called_with()
         assert 2 == test_hook.vault_client.kv_engine_version
@@ -344,7 +343,6 @@ class TestVaultHook:
             access_key="user",
             secret_key="pass",
             role="role",
-            mount_point=None,
         )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -360,7 +358,6 @@ class TestVaultHook:
             access_key="login",
             secret_key="pass",
             role="role",
-            mount_point=None,
         )
         test_client.is_authenticated.assert_called_with()
         assert 2 == test_hook.vault_client.kv_engine_version

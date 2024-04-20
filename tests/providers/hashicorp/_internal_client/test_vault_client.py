@@ -128,7 +128,6 @@ class TestVaultClient:
             access_key="user",
             secret_key="pass",
             role="role",
-            mount_point=None,
         )
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
