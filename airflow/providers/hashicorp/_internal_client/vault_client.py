@@ -321,24 +321,27 @@ class _VaultClient(LoggingMixin):
             )
 
     def _auth_aws_iam(self, _client: hvac.Client) -> None:
-        if self.key_id or self.secret_id or self.role_id:
-            _client.auth.aws.iam_login(
-                access_key=self.key_id,
-                secret_key=self.secret_id,
-                role=self.role_id,
-                mount_point=self.auth_mount_point,
-            )
-        elif self.arn_role:
+        if self.arn_role:
             import boto3
 
             sts_client = boto3.client("sts")
             temporary_credentials = sts_client.assume_role(RoleArn=self.arn_role, RoleSessionName="airflow")
-            _client.auth.aws.iam_login(
-                access_key=temporary_credentials["Credentials"]["AccessKeyId"],
-                secret_key=temporary_credentials["Credentials"]["SecretAccessKey"],
-                session_token=temporary_credentials["Credentials"]["SessionToken"],
-                mount_point=self.auth_mount_point,
-            )
+            auth_args = {
+                "access_key": temporary_credentials["Credentials"]["AccessKeyId"],
+                "secret_key": temporary_credentials["Credentials"]["SecretAccessKey"],
+                "session_token": temporary_credentials["Credentials"]["SessionToken"],
+            }
+        else:
+            auth_args = {
+                "access_key": self.key_id,
+                "secret_key": self.secret_id,
+                "role": self.role_id,
+            }
+
+        if self.auth_mount_point:
+            auth_args["mount_point"] = self.auth_mount_point
+
+        _client.auth.aws.iam_login(**auth_args)
 
     def _auth_approle(self, _client: hvac.Client) -> None:
         if self.auth_mount_point:
