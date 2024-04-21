@@ -23,30 +23,30 @@ from requests import HTTPError
 
 from airflow.hooks.base import BaseHook
 
-DEFAULT_TABULAR_URL = "https://api.tabulardata.io/ws/v1"
+DEFAULT_ICEBERG_URL = "https://api.tabulardata.io/ws/v1"
 
 TOKENS_ENDPOINT = "oauth/tokens"
 
 
-class TabularHook(BaseHook):
+class IcebergHook(BaseHook):
     """
-    This hook acts as a base hook for tabular services.
+    This hook acts as a base hook for iceberg services.
 
     It offers the ability to generate temporary, short-lived
     session tokens to use within Airflow submitted jobs.
 
-    :param tabular_conn_id: The :ref:`Tabular connection id<howto/connection:tabular>`
-        which refers to the information to connect to the Tabular OAuth service.
+    :param iceberg_conn_id: The :ref:`Iceberg connection id<howto/connection:iceberg>`
+        which refers to the information to connect to the Iceberg.
     """
 
-    conn_name_attr = "tabular_conn_id"
-    default_conn_name = "tabular_default"
-    conn_type = "tabular"
-    hook_name = "Tabular"
+    conn_name_attr = "iceberg_conn_id"
+    default_conn_name = "iceberg_default"
+    conn_type = "iceberg"
+    hook_name = "Iceberg"
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Return custom UI field behaviour for Tabular connection."""
+        """Return custom UI field behaviour for Iceberg connection."""
         return {
             "hidden_fields": ["schema", "port"],
             "relabeling": {
@@ -55,21 +55,21 @@ class TabularHook(BaseHook):
                 "password": "Client Secret",
             },
             "placeholders": {
-                "host": DEFAULT_TABULAR_URL,
+                "host": DEFAULT_ICEBERG_URL,
                 "login": "client_id (token credentials auth)",
                 "password": "secret (token credentials auth)",
             },
         }
 
-    def __init__(self, tabular_conn_id: str = default_conn_name) -> None:
+    def __init__(self, iceberg_conn_id: str = default_conn_name) -> None:
         super().__init__()
-        self.conn_id = tabular_conn_id
+        self.conn_id = iceberg_conn_id
 
     def test_connection(self) -> tuple[bool, str]:
-        """Test the Tabular connection."""
+        """Test the Iceberg connection."""
         try:
             self.get_conn()
-            return True, "Successfully fetched token from Tabular"
+            return True, "Successfully fetched token from Iceberg"
         except HTTPError as e:
             return False, f"HTTP Error: {e}: {e.response.text}"
         except Exception as e:
@@ -78,7 +78,7 @@ class TabularHook(BaseHook):
     def get_conn(self) -> str:
         """Obtain a short-lived access token via a client_id and client_secret."""
         conn = self.get_connection(self.conn_id)
-        base_url = conn.host if conn.host else DEFAULT_TABULAR_URL
+        base_url = conn.host if conn.host else DEFAULT_ICEBERG_URL
         base_url = base_url.rstrip("/")
         client_id = conn.login
         client_secret = conn.password

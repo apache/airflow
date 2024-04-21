@@ -16,8 +16,8 @@
     specific language governing permissions and limitations
     under the License.
 
-``apache-airflow-providers-tabular``
-====================================
+``apache-airflow-providers-apache-iceberg``
+===========================================
 
 
 .. toctree::
@@ -41,17 +41,19 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/tabular/index>
+    System Tests <_api/tests/system/providers/apache/iceberg/index>
+
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-tabular/|version|/tests/system/providers/tabular>
-    PyPI Repository <https://pypi.org/project/apache-airflow-providers-tabular/>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apahce-iceberg/|version|/tests/system/providers/apache/iceberg>
+    PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-iceberg/>
     Installing from sources <installing-providers-from-sources>
-    Python API <_api/airflow/providers/tabular/index>
+    Python API <_api/airflow/providers/apache/iceberg/index>
+
 
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
@@ -65,34 +67,35 @@
     Detailed list of commits <commits>
 
 
-apache-airflow-providers-tabular package
+Package apache-airflow-providers-apache-iceberg
 ------------------------------------------------------
+`Iceberg <https://iceberg.apache.org/>`__
 
 `Tabular <https://tabular.io/>`__
 
 
-Release: 1.5.0
+Release: 1.0.0
 
 Provider package
 ----------------
 
-This package is for the ``tabular`` provider.
-All classes for this package are included in the ``airflow.providers.tabular`` python package.
+This is a provider package for ``apache.iceberg`` provider. All classes for this provider package
+are in ``airflow.providers.apache.iceberg`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
-``pip install apache-airflow-providers-tabular``.
-For the minimum Airflow version supported, see ``Requirements`` below.
+You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
+for the minimum Airflow version supported via
+``pip install apache-airflow-providers-apache-iceberg``
 
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.7.0``
+``apache-airflow``  ``>=2.6.0``
 ==================  ==================

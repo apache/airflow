@@ -478,10 +478,10 @@ labelPRBasedOnFilePath:
     - tests/system/providers/tableau/**/*
 
   provider:tabular:
-    - airflow/providers/tabular/**/*
-    - docs/apache-airflow-providers-tabular/**/*
-    - tests/providers/tabular/**/*
-    - tests/system/providers/tabular/**/*
+    - airflow/providers/apache/iceberg/**/*
+    - docs/apache-airflow-providers-apache-iceberg/**/*
+    - tests/providers/apache/iceberg/**/*
+    - tests/system/providers/apache/iceberg/**/*
 
   provider:telegram:
     - airflow/providers/telegram/**/*

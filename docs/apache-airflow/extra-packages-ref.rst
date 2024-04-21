@@ -143,6 +143,8 @@ custom bash/python providers).
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache-hive         | ``pip install 'apache-airflow[apache-hive]'``       | All Hive related operators                     |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
+| apache-iceberg      | ``pip install 'apache-airflow[apache-iceberg]'``    | Apache Iceberg hooks                           |
++---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache-impala       | ``pip install 'apache-airflow[apache-impala]'``     | All Impala related operators & hooks           |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache-kafka        | ``pip install 'apache-airflow[apache-kafka]'``      | All Kafka related operators & hooks            |
@@ -227,8 +229,6 @@ These are extras that add dependencies needed for integration with external serv
 | snowflake           | ``pip install 'apache-airflow[snowflake]'``         | Snowflake hooks and operators                       |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | tableau             | ``pip install 'apache-airflow[tableau]'``           | Tableau hooks and operators                         |
-+---------------------+-----------------------------------------------------+-----------------------------------------------------+
-| tabular             | ``pip install 'apache-airflow[tabular]'``           | Tabular hooks                                       |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | telegram            | ``pip install 'apache-airflow[telegram]'``          | Telegram hooks and operators                        |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
