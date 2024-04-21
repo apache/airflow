@@ -351,7 +351,11 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         :param project_id: (Optional) the ID of the project that owns the Transfer
             Job. If set to None or missing, the default project_id from the Google Cloud
             connection is used.
-        :return: If successful, Operation.
+        :return: If successful, Operation. See:
+            https://cloud.google.com/storage-transfer/docs/reference/rest/v1/Operation
+
+        .. seealso:: https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs/run
+
         """
         return (
             self.get_conn()
