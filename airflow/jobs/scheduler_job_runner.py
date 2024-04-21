@@ -196,6 +196,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "The '[celery] stalled_task_timeout' config option is deprecated. "
                 "Please update your config to use '[scheduler] task_queued_timeout' instead.",
                 DeprecationWarning,
+                stacklevel=2,
             )
         task_adoption_timeout = conf.getfloat("celery", "task_adoption_timeout", fallback=0)
         if task_adoption_timeout:
@@ -204,6 +205,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "The '[celery] task_adoption_timeout' config option is deprecated. "
                 "Please update your config to use '[scheduler] task_queued_timeout' instead.",
                 DeprecationWarning,
+                stacklevel=2,
             )
         worker_pods_pending_timeout = conf.getfloat(
             "kubernetes_executor", "worker_pods_pending_timeout", fallback=0
@@ -214,6 +216,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "The '[kubernetes_executor] worker_pods_pending_timeout' config option is deprecated. "
                 "Please update your config to use '[scheduler] task_queued_timeout' instead.",
                 DeprecationWarning,
+                stacklevel=2,
             )
         task_queued_timeout = conf.getfloat("scheduler", "task_queued_timeout")
         self._task_queued_timeout = max(

@@ -75,6 +75,9 @@ spec:
     spec:
       securityContext: {{ $securityContext | nindent 8 }}
       restartPolicy: OnFailure
+      {{- if .Values.createUserJob.priorityClassName }}
+      priorityClassName: {{ .Values.createUserJob.priorityClassName }}
+      {{- end }}
       nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
       affinity: {{- toYaml $affinity | nindent 8 }}
       {{- if .Values.schedulerName }}

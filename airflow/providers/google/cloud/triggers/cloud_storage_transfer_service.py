@@ -27,6 +27,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     CloudDataTransferServiceAsyncHook,
 )
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -43,7 +44,7 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
     def __init__(
         self,
         job_names: list[str],
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         poll_interval: int = 10,
         gcp_conn_id: str = "google_cloud_default",
     ) -> None:

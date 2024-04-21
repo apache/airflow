@@ -170,7 +170,7 @@ class PodGenerator:
 
     def gen_pod(self) -> k8s.V1Pod:
         """Generate pod."""
-        warnings.warn("This function is deprecated. ", RemovedInAirflow3Warning)
+        warnings.warn("This function is deprecated. ", RemovedInAirflow3Warning, stacklevel=2)
         result = self.ud_pod
 
         result.metadata.name = add_pod_suffix(pod_name=result.metadata.name)
@@ -185,7 +185,9 @@ class PodGenerator:
         """Add sidecar."""
         warnings.warn(
             "This function is deprecated. "
-            "Please use airflow.providers.cncf.kubernetes.utils.xcom_sidecar.add_xcom_sidecar instead"
+            "Please use airflow.providers.cncf.kubernetes.utils.xcom_sidecar.add_xcom_sidecar instead",
+            RemovedInAirflow3Warning,
+            stacklevel=2,
         )
         pod_cp = copy.deepcopy(pod)
         pod_cp.spec.volumes = pod.spec.volumes or []
@@ -223,6 +225,7 @@ class PodGenerator:
                 'please use a `kubernetes.client.models.V1Pod` class with a "pod_override" key'
                 " instead. ",
                 category=RemovedInAirflow3Warning,
+                stacklevel=2,
             )
             return PodGenerator.from_legacy_obj(obj)
         else:
@@ -401,7 +404,9 @@ class PodGenerator:
         """
         if len(pod_id) > 253:
             warnings.warn(
-                "pod_id supplied is longer than 253 characters; truncating and adding unique suffix."
+                "pod_id supplied is longer than 253 characters; truncating and adding unique suffix.",
+                category=UserWarning,
+                stacklevel=2,
             )
             pod_id = add_pod_suffix(pod_name=pod_id, max_len=253)
         try:
@@ -599,6 +604,7 @@ class PodGenerator:
         warnings.warn(
             "This function is deprecated. Use `add_pod_suffix` in `kubernetes_helper_functions`.",
             RemovedInAirflow3Warning,
+            stacklevel=2,
         )
 
         if not pod_id:

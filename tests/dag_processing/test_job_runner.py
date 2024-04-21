@@ -52,8 +52,9 @@ from airflow.dag_processing.manager import (
 from airflow.dag_processing.processor import DagFileProcessorProcess
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import Job
-from airflow.models import DagBag, DagModel, DbCallbackRequest, errors
+from airflow.models import DagBag, DagModel, DbCallbackRequest
 from airflow.models.dagcode import DagCode
+from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
@@ -173,14 +174,14 @@ class TestDagProcessorJobRunner:
         with create_session() as session:
             self.run_processor_manager_one_loop(manager, parent_pipe)
 
-            import_errors = session.query(errors.ImportError).all()
+            import_errors = session.query(ParseImportError).all()
             assert len(import_errors) == 1
 
             path_to_parse.unlink()
 
             # Rerun the scheduler once the dag file has been removed
             self.run_processor_manager_one_loop(manager, parent_pipe)
-            import_errors = session.query(errors.ImportError).all()
+            import_errors = session.query(ParseImportError).all()
 
             assert len(import_errors) == 0
             session.rollback()
@@ -847,7 +848,7 @@ class TestDagProcessorJobRunner:
 
             self.run_processor_manager_one_loop(manager, parent_pipe)
 
-            import_errors = session.query(errors.ImportError).order_by("id").all()
+            import_errors = session.query(ParseImportError).order_by("id").all()
             assert len(import_errors) == 1
             assert import_errors[0].processor_subdir == str(processor_dir_1)
 
@@ -868,7 +869,7 @@ class TestDagProcessorJobRunner:
 
             self.run_processor_manager_one_loop(manager, parent_pipe)
 
-            import_errors = session.query(errors.ImportError).order_by("id").all()
+            import_errors = session.query(ParseImportError).order_by("id").all()
             assert len(import_errors) == 2
             assert import_errors[0].processor_subdir == str(processor_dir_1)
             assert import_errors[1].processor_subdir == str(processor_dir_2)

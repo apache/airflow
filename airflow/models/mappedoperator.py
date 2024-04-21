@@ -171,7 +171,7 @@ class OperatorPartial:
                 task_id = repr(self.kwargs["task_id"])
             except KeyError:
                 task_id = f"at {hex(id(self))}"
-            warnings.warn(f"Task {task_id} was never mapped!")
+            warnings.warn(f"Task {task_id} was never mapped!", category=UserWarning, stacklevel=1)
 
     def expand(self, **mapped_kwargs: OperatorExpandArgument) -> MappedOperator:
         if not mapped_kwargs:
