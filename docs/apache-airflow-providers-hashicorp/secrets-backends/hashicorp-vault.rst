@@ -218,7 +218,7 @@ Add "verify": "absolute path to ca-certificate file"
     backend_kwargs = {"connections_path": "airflow-connections", "variables_path": null, "mount_point": "airflow", "url": "http://127.0.0.1:8200", "verify": "/etc/ssl/certs/ca-certificates"}
 
 Vault authentication with AWS Assume Role STS
-""""""""""""""""""""""""""""""""""""""""""""
+"""""""""""""""""""""""""""""""""""""""""""""
 
 Add parameter "arn_role": "The AWS ARN of the role to assume"
 
