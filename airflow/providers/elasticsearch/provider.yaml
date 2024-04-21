@@ -172,7 +172,7 @@ config:
         version_added: 5.4.0
         type: string
         example: module.callable
-        default: ~
+        default: ""
   elasticsearch_configs:
     description: ~
     options:
