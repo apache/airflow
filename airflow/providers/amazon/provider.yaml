@@ -98,6 +98,10 @@ dependencies:
   - sqlalchemy_redshift>=0.8.6
   - asgiref
   - PyAthena>=3.0.10
+  # XML sec 1.3.14 breaks Amazon's authentication with `lxml & xmlsec libxml2 library version mismatch`
+  # We should investigate if we can upgrade to a newer version of lxml and xmlsec
+  # Tracked in https://github.com/apache/airflow/issues/39103
+  - xmlsec<1.3.14
 
 additional-extras:
   - name: pandas

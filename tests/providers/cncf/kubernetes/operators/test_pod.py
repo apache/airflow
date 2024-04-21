@@ -235,20 +235,47 @@ class TestKubernetesPodOperator:
         )
 
     @pytest.mark.parametrize(
-        "input",
+        "input,render_template_as_native_obj,raises_error",
         [
-            pytest.param([k8s.V1EnvVar(name="{{ bar }}", value="{{ foo }}")], id="current"),
-            pytest.param({"{{ bar }}": "{{ foo }}"}, id="backcompat"),
+            pytest.param([k8s.V1EnvVar(name="{{ bar }}", value="{{ foo }}")], False, False, id="current"),
+            pytest.param({"{{ bar }}": "{{ foo }}"}, False, False, id="backcompat"),
+            pytest.param("{{ env }}", True, False, id="xcom_args"),
+            pytest.param("bad env", False, True, id="error"),
         ],
     )
-    def test_env_vars(self, input):
+    def test_env_vars(self, input, render_template_as_native_obj, raises_error):
+        dag = DAG(
+            dag_id="dag",
+            start_date=pendulum.now(),
+            render_template_as_native_obj=render_template_as_native_obj,
+        )
         k = KubernetesPodOperator(
             env_vars=input,
             task_id="task",
+            name="test",
+            dag=dag,
         )
-        k.render_template_fields(context={"foo": "footemplated", "bar": "bartemplated"})
-        assert k.env_vars[0].value == "footemplated"
-        assert k.env_vars[0].name == "bartemplated"
+        k.render_template_fields(
+            context={"foo": "footemplated", "bar": "bartemplated", "env": {"bartemplated": "footemplated"}}
+        )
+        if raises_error:
+            with pytest.raises(AirflowException):
+                k.build_pod_request_obj()
+        else:
+            k.build_pod_request_obj()
+            assert k.env_vars[0].name == "bartemplated"
+            assert k.env_vars[0].value == "footemplated"
+
+    def test_pod_runtime_info_envs(self):
+        k = KubernetesPodOperator(
+            task_id="task",
+            name="test",
+            pod_runtime_info_envs=[k8s.V1EnvVar(name="bar", value="foo")],
+        )
+        k.build_pod_request_obj()
+
+        assert k.env_vars[0].name == "bar"
+        assert k.env_vars[0].value == "foo"
 
     def test_security_context(self):
         security_context = V1PodSecurityContext(run_as_user=1245)
