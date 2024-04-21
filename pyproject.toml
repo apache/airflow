@@ -125,7 +125,7 @@ dynamic = ["version", "optional-dependencies", "dependencies"]
 #
 # END DEPRECATED EXTRAS HERE
 #
-# !!!!!! Those provuders are defined in the `airflow/providers/<provider>/provider.yaml` files  !!!!!!!
+# !!!!!! Those providers are defined in the `airflow/providers/<provider>/provider.yaml` files  !!!!!!!
 #
 # Those extras are available as regular Airflow extras, they install provider packages in standard builds
 # or dependencies that are necessary to enable the feature in editable build.
@@ -326,7 +326,7 @@ required-imports = ["from __future__ import annotations"]
 combine-as-imports = true
 
 [tool.ruff.lint.per-file-ignores]
-"airflow/__init__.py" = ["F401", "B028"]
+"airflow/__init__.py" = ["F401"]
 "airflow/models/__init__.py" = ["F401", "TCH004"]
 "airflow/models/sqla_models.py" = ["F401"]
 
@@ -386,30 +386,6 @@ combine-as-imports = true
 "tests/providers/snowflake/operators/test_snowflake_sql.py" = ["E402"]
 
 # All the modules which do not follow B028 yet: https://docs.astral.sh/ruff/rules/no-explicit-stacklevel/
-"airflow/api_connexion/endpoints/forward_to_fab_endpoint.py" = ["B028"]
-"airflow/cli/commands/connection_command.py" = ["B028"]
-"airflow/cli/commands/dag_command.py" = ["B028"]
-"airflow/cli/commands/db_command.py" = ["B028"]
-"airflow/configuration.py" = ["B028"]
-"airflow/decorators/task_group.py" = ["B028"]
-"airflow/jobs/scheduler_job_runner.py" = ["B028"]
-"airflow/jobs/triggerer_job_runner.py" = ["B028"]
-"airflow/kubernetes/pre_7_4_0_compatibility/pod_generator.py" = ["B028"]
-"airflow/logging_config.py" = ["B028"]
-"airflow/metrics/otel_logger.py" = ["B028"]
-"airflow/metrics/validators.py" = ["B028"]
-"airflow/models/baseoperator.py" = ["B028"]
-"airflow/models/connection.py" = ["B028"]
-"airflow/models/mappedoperator.py" = ["B028"]
-"airflow/models/param.py" = ["B028"]
-"airflow/models/xcom.py" = ["B028"]
-"airflow/providers_manager.py" = ["B028"]
-"airflow/serialization/serialized_objects.py" = ["B028"]
-"airflow/settings.py" = ["B028"]
-"airflow/utils/context.py" = ["B028"]
-"airflow/utils/dot_renderer.py" = ["B028"]
-"airflow/www/app.py" = ["B028"]
-"airflow/www/extensions/init_views.py" = ["B028"]
 "airflow/providers/jdbc/hooks/jdbc.py" = ["B028"]
 "airflow/providers/microsoft/azure/hooks/synapse.py" = ["B028"]
 "helm_tests/airflow_aux/test_basic_helm_chart.py" = ["B028"]
@@ -469,7 +445,11 @@ banned-module-level-imports = ["numpy", "pandas"]
 "unittest.skipIf".msg = "Use `pytest.mark.skipif` instead: https://docs.pytest.org/en/stable/reference/reference.html#marks"
 "unittest.skipUnless".msg = "Use `pytest.mark.skipif` instead: https://docs.pytest.org/en/stable/reference/reference.html#marks"
 "unittest.expectedFailure".msg = "Use `pytest.mark.xfail` instead: https://docs.pytest.org/en/stable/reference/reference.html#marks"
-
+# Moved in SQLAlchemy 2.0
+"sqlalchemy.ext.declarative.declarative_base".msg = "Use `sqlalchemy.orm.declarative_base`. Moved in SQLAlchemy 2.0"
+"sqlalchemy.ext.declarative.as_declarative".msg = "Use `sqlalchemy.orm.as_declarative`. Moved in SQLAlchemy 2.0"
+"sqlalchemy.ext.declarative.has_inherited_table".msg = "Use `sqlalchemy.orm.has_inherited_table`. Moved in SQLAlchemy 2.0"
+"sqlalchemy.ext.declarative.synonym_for".msg = "Use `sqlalchemy.orm.synonym_for`. Moved in SQLAlchemy 2.0"
 
 [tool.ruff.lint.flake8-type-checking]
 exempt-modules = ["typing", "typing_extensions"]
