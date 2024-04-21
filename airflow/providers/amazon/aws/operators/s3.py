@@ -28,10 +28,10 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils.helpers import exactly_one
+from airflow.utils.timezone import datetime
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
 
 BUCKET_DOES_NOT_EXIST_MSG = "Bucket with name: %s doesn't exist"
 
@@ -473,6 +473,10 @@ class S3DeleteObjectsOperator(BaseOperator):
 
     :param prefix: Prefix of objects to delete. (templated)
         All objects matching this prefix in the bucket will be deleted.
+    :param from_datetime: Greater LastModified Date of objects to delete. (templated)
+        All objects which LastModified Date is greater than this datetime in the bucket will be deleted.
+    :param to_datetime: less LastModified Date of objects to delete. (templated)
+        All objects which LastModified Date is less than this datetime in the bucket will be deleted.
     :param aws_conn_id: Connection id of the S3 connection to use
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
@@ -487,7 +491,7 @@ class S3DeleteObjectsOperator(BaseOperator):
                  CA cert bundle than the one used by botocore.
     """
 
-    template_fields: Sequence[str] = ("keys", "bucket", "prefix")
+    template_fields: Sequence[str] = ("keys", "bucket", "prefix", "from_datetime", "to_datetime")
 
     def __init__(
         self,
@@ -495,6 +499,8 @@ class S3DeleteObjectsOperator(BaseOperator):
         bucket: str,
         keys: str | list | None = None,
         prefix: str | None = None,
+        from_datetime: datetime | None = None,
+        to_datetime: datetime | None = None,
         aws_conn_id: str | None = "aws_default",
         verify: str | bool | None = None,
         **kwargs,
@@ -503,23 +509,37 @@ class S3DeleteObjectsOperator(BaseOperator):
         self.bucket = bucket
         self.keys = keys
         self.prefix = prefix
+        self.from_datetime = from_datetime
+        self.to_datetime = to_datetime
         self.aws_conn_id = aws_conn_id
         self.verify = verify
 
         self._keys: str | list[str] = ""
 
-        if not exactly_one(prefix is None, keys is None):
-            raise AirflowException("Either keys or prefix should be set.")
+        if not exactly_one(keys is None, all([prefix is None, from_datetime is None, to_datetime is None])):
+            raise AirflowException(
+                "Either keys or at least one of prefix, from_datetime, to_datetime should be set."
+            )
 
     def execute(self, context: Context):
-        if not exactly_one(self.keys is None, self.prefix is None):
-            raise AirflowException("Either keys or prefix should be set.")
+        if not exactly_one(
+            self.keys is None,
+            all([self.prefix is None, self.from_datetime is None, self.to_datetime is None]),
+        ):
+            raise AirflowException(
+                "Either keys or at least one of prefix, from_datetime, to_datetime should be set."
+            )
 
         if isinstance(self.keys, (list, str)) and not self.keys:
             return
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
-        keys = self.keys or s3_hook.list_keys(bucket_name=self.bucket, prefix=self.prefix)
+        keys = self.keys or s3_hook.list_keys(
+            bucket_name=self.bucket,
+            prefix=self.prefix,
+            from_datetime=self.from_datetime,
+            to_datetime=self.to_datetime,
+        )
         if keys:
             s3_hook.delete_objects(bucket=self.bucket, keys=keys)
             self._keys = keys
