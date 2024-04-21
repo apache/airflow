@@ -343,6 +343,28 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
 
+    @GoogleBaseHook.fallback_to_default_project_id
+    def run_transfer_job(self, job_name: str, project_id: str) -> dict:
+        """Run Google Storage Transfer Service job.
+
+        :param job_name: (Required) Name of the job to be fetched
+        :param project_id: (Optional) the ID of the project that owns the Transfer
+            Job. If set to None or missing, the default project_id from the Google Cloud
+            connection is used.
+        :return: If successful, Operation.
+        """
+        return (
+            self.get_conn()
+            .transferJobs()
+            .run(
+                jobName=job_name,
+                body={
+                    PROJECT_ID: project_id,
+                },
+            )
+            .execute(num_retries=self.num_retries)
+        )
+
     def cancel_transfer_operation(self, operation_name: str) -> None:
         """Cancel a transfer operation in Google Storage Transfer Service.
 
