@@ -28,7 +28,13 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from airflow.api.common.trigger_dag import trigger_dag
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowSkipException, DagNotFound, DagRunAlreadyExists, RemovedInAirflow3Warning
+from airflow.exceptions import (
+    AirflowException,
+    AirflowSkipException,
+    DagNotFound,
+    DagRunAlreadyExists,
+    RemovedInAirflow3Warning,
+)
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.dag import DagModel
@@ -90,7 +96,7 @@ class TriggerDagRunOperator(BaseOperator):
         (default: 60)
     :param allowed_states: List of allowed states, default is ``['success']``.
     :param failed_states: List of failed or dis-allowed states, default is ``None``.
-    :param soft_fail: Set to true to mark the task as SKIPPED on DagRunAlreadyExists
+    :param skip_when_already_exists: Set to true to mark the task as SKIPPED if a dag_run already exists
     :param deferrable: If waiting for completion, whether or not to defer the task until done,
         default is ``False``.
     :param execution_date: Deprecated parameter; same as ``logical_date``.
@@ -102,7 +108,7 @@ class TriggerDagRunOperator(BaseOperator):
         "logical_date",
         "conf",
         "wait_for_completion",
-        "soft_fail",
+        "skip_when_already_exists",
     )
     template_fields_renderers = {"conf": "py"}
     ui_color = "#ffefeb"
@@ -120,7 +126,7 @@ class TriggerDagRunOperator(BaseOperator):
         poke_interval: int = 60,
         allowed_states: list[str] | None = None,
         failed_states: list[str] | None = None,
-        soft_fail: bool = False,
+        skip_when_already_exists: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         execution_date: str | datetime.datetime | None = None,
         **kwargs,
@@ -140,7 +146,7 @@ class TriggerDagRunOperator(BaseOperator):
             self.failed_states = [DagRunState(s) for s in failed_states]
         else:
             self.failed_states = [DagRunState.FAILED]
-        self.soft_fail = soft_fail
+        self.skip_when_already_exists = skip_when_already_exists
         self._defer = deferrable
 
         if execution_date is not None:
@@ -200,9 +206,9 @@ class TriggerDagRunOperator(BaseOperator):
                 dag_run = e.dag_run
                 dag.clear(start_date=dag_run.logical_date, end_date=dag_run.logical_date)
             else:
-                if self.soft_fail:
+                if self.skip_when_already_exists:
                     raise AirflowSkipException(
-                        "Skipping due to soft_fail is set to True and DagRunAlreadyExists"
+                        "Skipping due to skip_when_already_exists is set to True and DagRunAlreadyExists"
                     )
                 raise e
         if dag_run is None:
