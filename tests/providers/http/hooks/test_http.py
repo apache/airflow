@@ -635,7 +635,7 @@ class TestHttpAsyncHook:
                     "verify": False,
                     "allow_redirects": False,
                     "max_redirects": 3,
-                    "trust_env": False
+                    "trust_env": False,
                 },
             }
         )
