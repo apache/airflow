@@ -207,6 +207,7 @@ class DatabricksCreateJobsOperator(BaseOperator):
         .. seealso::
             For more information about templating see :ref:`concepts:jinja-templating`.
     :param name: An optional name for the job.
+    :param description: An optional description for the job.
     :param tags: A map of tags associated with the job.
     :param tasks: A list of task specifications to be executed by this job.
         Array of objects (JobTaskSettings).
@@ -214,7 +215,7 @@ class DatabricksCreateJobsOperator(BaseOperator):
         tasks of this job. Array of objects (JobCluster).
     :param email_notifications: Object (JobEmailNotifications).
     :param webhook_notifications: Object (WebhookNotifications).
-    :param notification_settings: Optional notification settings
+    :param notification_settings: Optional notification settings.
     :param timeout_seconds: An optional timeout applied to each run of this job.
     :param schedule: Object (CronSchedule).
     :param max_concurrent_runs: An optional maximum allowed number of concurrent runs of the job.
@@ -250,6 +251,7 @@ class DatabricksCreateJobsOperator(BaseOperator):
         *,
         json: Any | None = None,
         name: str | None = None,
+        description: str | None = None,
         tags: dict[str, str] | None = None,
         tasks: list[dict] | None = None,
         job_clusters: list[dict] | None = None,
@@ -278,6 +280,8 @@ class DatabricksCreateJobsOperator(BaseOperator):
         self.databricks_retry_args = databricks_retry_args
         if name is not None:
             self.json["name"] = name
+        if description is not None:
+            self.json["description"] = description
         if tags is not None:
             self.json["tags"] = tags
         if tasks is not None:

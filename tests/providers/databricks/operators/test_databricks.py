@@ -63,6 +63,7 @@ RUN_ID = 1
 RUN_PAGE_URL = "run-page-url"
 JOB_ID = "42"
 JOB_NAME = "job-name"
+JOB_DESCRIPTION = "job-description"
 NOTEBOOK_PARAMS = {"dry-run": "true", "oldest-time-to-consider": "1457570074236"}
 JAR_PARAMS = ["param1", "param2"]
 RENDERED_TEMPLATED_JAR_PARAMS = [f"/test-{DATE}"]
@@ -413,6 +414,7 @@ class TestDatabricksCreateJobsOperator:
         """
         json = {
             "name": JOB_NAME,
+            "description": JOB_DESCRIPTION,
             "tags": TAGS,
             "tasks": TASKS,
             "job_clusters": JOB_CLUSTERS,
@@ -436,6 +438,7 @@ class TestDatabricksCreateJobsOperator:
         expected = utils.normalise_json_content(
             {
                 "name": JOB_NAME,
+                "description": JOB_DESCRIPTION,
                 "tags": TAGS,
                 "tasks": TASKS,
                 "job_clusters": JOB_CLUSTERS,
@@ -467,6 +470,7 @@ class TestDatabricksCreateJobsOperator:
         """
         json = {
             "name": JOB_NAME,
+            "description": JOB_DESCRIPTION,
             "tags": TAGS,
             "tasks": TASKS,
             "job_clusters": JOB_CLUSTERS,
@@ -488,6 +492,7 @@ class TestDatabricksCreateJobsOperator:
         expected = utils.normalise_json_content(
             {
                 "name": JOB_NAME,
+                "description": JOB_DESCRIPTION,
                 "tags": TAGS,
                 "tasks": TASKS,
                 "job_clusters": JOB_CLUSTERS,

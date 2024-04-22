@@ -44,6 +44,7 @@ override the top level ``json`` keys.
 
 Currently the named parameters that ``DatabricksCreateJobsOperator`` supports are:
   - ``name``
+  - ``description``
   - ``tags``
   - ``tasks``
   - ``job_clusters``
