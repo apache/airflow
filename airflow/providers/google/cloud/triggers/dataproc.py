@@ -151,7 +151,7 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
         try:
             while True:
                 cluster = await self.fetch_cluster_status()
-                if self.is_terminal_state(cluster.status.state):
+                if self.check_cluster_state(cluster.status.state):
                     if cluster.status.state == ClusterStatus.State.ERROR:
                         await self.gather_diagnostics_and_maybe_delete(cluster)
                     else:
@@ -174,9 +174,9 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
             project_id=self.project_id, region=self.region, cluster_name=self.cluster_name
         )
 
-    def is_terminal_state(self, state: ClusterStatus.State) -> bool:
+    def check_cluster_state(self, state: ClusterStatus.State) -> bool:
         """
-        Check if the state is terminal.
+        Check if the state is error or running.
 
         :param state: The state of the cluster.
         """
