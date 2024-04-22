@@ -287,7 +287,7 @@ class DatabricksCreateJobsOperator(BaseOperator):
             self.json["email_notifications"] = email_notifications
         if webhook_notifications is not None:
             self.json["webhook_notifications"] = webhook_notifications
-        if notification_settings:
+        if notification_settings is not None:
             self.json["notification_settings"] = notification_settings
         if timeout_seconds is not None:
             self.json["timeout_seconds"] = timeout_seconds
