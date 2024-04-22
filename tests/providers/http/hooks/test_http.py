@@ -668,6 +668,7 @@ class TestHttpAsyncHook:
                 "verify": False,
                 "allow_redirects": False,
                 "max_redirects": 3,
+                "trust_env": False,
             }
         )()
 
@@ -679,6 +680,7 @@ class TestHttpAsyncHook:
             "verify_ssl": False,
             "allow_redirects": False,
             "max_redirects": 3,
+            "trust_env": False,
         }
         assert actual == {"bearer": "test"}
 
