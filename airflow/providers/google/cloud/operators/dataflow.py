@@ -41,6 +41,7 @@ from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.links.dataflow import DataflowJobLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.dataflow import TemplateJobStartTrigger
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.version import version
 
 if TYPE_CHECKING:
@@ -142,7 +143,7 @@ class DataflowConfiguration:
         *,
         job_name: str = "{{task.task_id}}",
         append_job_name: bool = True,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str | None = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
         poll_sleep: int = 10,
@@ -348,7 +349,7 @@ class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
         job_name: str = "{{task.task_id}}",
         dataflow_default_options: dict | None = None,
         options: dict | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
         poll_sleep: int = 10,
@@ -606,7 +607,7 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
         self,
         *,
         template: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         job_name: str = "{{task.task_id}}",
         options: dict[str, Any] | None = None,
         dataflow_default_options: dict[str, Any] | None = None,
@@ -811,7 +812,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         self,
         body: dict,
         location: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         drain_pipeline: bool = False,
         cancel_timeout: int | None = 10 * 60,
@@ -982,7 +983,7 @@ class DataflowStartSqlJobOperator(GoogleCloudBaseOperator):
         query: str,
         options: dict[str, Any],
         location: str = DEFAULT_DATAFLOW_LOCATION,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         drain_pipeline: bool = False,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -1150,7 +1151,7 @@ class DataflowCreatePythonJobOperator(GoogleCloudBaseOperator):
         py_options: list[str] | None = None,
         py_requirements: list[str] | None = None,
         py_system_site_packages: bool = False,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
         poll_sleep: int = 10,
@@ -1297,7 +1298,7 @@ class DataflowStopJobOperator(GoogleCloudBaseOperator):
         self,
         job_name_prefix: str | None = None,
         job_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
         poll_sleep: int = 10,

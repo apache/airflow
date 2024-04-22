@@ -37,6 +37,7 @@ from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransf
 from airflow.providers.google.cloud.links.bigquery_dts import BigQueryDataTransferConfigLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.bigquery_dts import BigQueryDataTransferRunTrigger
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
@@ -94,7 +95,7 @@ class BigQueryCreateDataTransferOperator(GoogleCloudBaseOperator):
         self,
         *,
         transfer_config: dict,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str | None = None,
         authorization_code: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -187,7 +188,7 @@ class BigQueryDeleteDataTransferConfigOperator(GoogleCloudBaseOperator):
         self,
         *,
         transfer_config_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
@@ -273,7 +274,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(GoogleCloudBaseOperat
         self,
         *,
         transfer_config_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str | None = None,
         requested_time_range: dict | None = None,
         requested_run_time: dict | None = None,
