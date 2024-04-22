@@ -925,7 +925,7 @@ we can also provide and override these configuration from DAG argument:
 
 - ``max_consecutive_failed_dag_runs``: Overrides :ref:`config:core__max_consecutive_failed_dag_runs_per_dag`.
 
-Disalbe deletion of stale dags
+Disable deletion of stale dags
 ------------------------------
 
 In a versioned DAG context, there may be a need to run two versions of DAGs in parallel in two versions of workers.
