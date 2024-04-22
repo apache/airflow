@@ -927,6 +927,10 @@ class DatabricksNotebookOperator(BaseOperator):
         new_cluster: dict[str, Any] | None = None,
         existing_cluster_id: str | None = None,
         job_cluster_key: str | None = None,
+        polling_period_seconds: int = 5,
+        databricks_retry_limit: int = 3,
+        databricks_retry_delay: int = 1,
+        databricks_retry_args: dict[Any, Any] | None = None,
         databricks_conn_id: str = "databricks_default",
         **kwargs: Any,
     ):
@@ -937,9 +941,26 @@ class DatabricksNotebookOperator(BaseOperator):
         self.new_cluster = new_cluster or {}
         self.existing_cluster_id = existing_cluster_id or ""
         self.job_cluster_key = job_cluster_key or ""
+        self.polling_period_seconds = polling_period_seconds
+        self.databricks_retry_limit = databricks_retry_limit
+        self.databricks_retry_delay = databricks_retry_delay
+        self.databricks_retry_args = databricks_retry_args
         self.databricks_conn_id = databricks_conn_id
         self.databricks_run_id = ""
         super().__init__(**kwargs)
+
+    @cached_property
+    def _hook(self):
+        return self._get_hook(caller="DatabricksNotebookOperator")
+
+    def _get_hook(self, caller: str) -> DatabricksHook:
+        return DatabricksHook(
+            self.databricks_conn_id,
+            retry_limit=self.databricks_retry_limit,
+            retry_delay=self.databricks_retry_delay,
+            retry_args=self.databricks_retry_args,
+            caller=caller,
+        )
 
     def _get_task_base_json(self) -> dict[str, Any]:
         """Get task base json to be used for task submissions."""
@@ -978,21 +999,19 @@ class DatabricksNotebookOperator(BaseOperator):
         return run_json
 
     def launch_notebook_job(self):
-        hook = DatabricksHook(databricks_conn_id=self.databricks_conn_id)
         run_json = self._get_run_json()
-        self.databricks_run_id = hook.submit_run(run_json)
-        url = hook.get_run_page_url(self.databricks_run_id)
+        self.databricks_run_id = self._hook.submit_run(run_json)
+        url = self._hook.get_run_page_url(self.databricks_run_id)
         self.log.info("Check the job run in Databricks: %s", url)
         return self.databricks_run_id
 
     def monitor_databricks_job(self):
-        hook = DatabricksHook(databricks_conn_id=self.databricks_conn_id)
-        run = hook.get_run(self.databricks_run_id)
+        run = self._hook.get_run(self.databricks_run_id)
         run_state = RunState(**run["state"])
         self.log.info("Current state of the job: %s", run_state.life_cycle_state)
         while not run_state.is_terminal:
-            time.sleep(5)
-            run = hook.get_run(self.databricks_run_id)
+            time.sleep(self.polling_period_seconds)
+            run = self._hook.get_run(self.databricks_run_id)
             run_state = RunState(**run["state"])
             self.log.info(
                 "task %s %s", self._get_databricks_task_id(self.task_id), run_state.life_cycle_state
