@@ -892,3 +892,125 @@ class DatabricksRunNowDeferrableOperator(DatabricksRunNowOperator):
 
     def __init__(self, *args, **kwargs):
         super().__init__(deferrable=True, *args, **kwargs)
+
+
+class DatabricksNotebookOperator(BaseOperator):
+    """
+    Runs a notebook on Databricks using an Airflow operator.
+
+    The DatabricksNotebookOperator allows users to launch and monitor notebook
+    job runs on Databricks as Aiflow tasks.
+
+    :param notebook_path: The path to the notebook in Databricks.
+    :param source: Optional location type of the notebook. When set to WORKSPACE, the notebook will be retrieved
+            from the local Databricks workspace. When set to GIT, the notebook will be retrieved from a Git repository
+            defined in git_source. If the value is empty, the task will use GIT if git_source is defined
+            and WORKSPACE otherwise. For more information please visit
+            https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsCreate
+    :param notebook_params: A dict of key-value pairs to be passed as optional params to the notebook task.
+    :param notebook_packages: A list of the Python libraries to be installed on the cluster running the
+        notebook.
+    :param new_cluster: Specs for a new cluster on which this task will be run.
+    :param existing_cluster_id: ID for existing cluster on which to run this task.
+    :param job_cluster_key: The key for the job cluster.
+    :param databricks_conn_id: The name of the Airflow connection to use.
+    """
+
+    template_fields = ("notebook_params",)
+
+    def __init__(
+        self,
+        notebook_path: str,
+        source: str,
+        notebook_params: dict | None = None,
+        notebook_packages: list[dict[str, Any]] | None = None,
+        new_cluster: dict[str, Any] | None = None,
+        existing_cluster_id: str | None = None,
+        job_cluster_key: str | None = None,
+        databricks_conn_id: str = "databricks_default",
+        **kwargs: Any,
+    ):
+        self.notebook_path = notebook_path
+        self.source = source
+        self.notebook_params = notebook_params or {}
+        self.notebook_packages = notebook_packages or []
+        self.new_cluster = new_cluster or {}
+        self.existing_cluster_id = existing_cluster_id or ""
+        self.job_cluster_key = job_cluster_key or ""
+        self.databricks_conn_id = databricks_conn_id
+        self.databricks_run_id = ""
+        super().__init__(**kwargs)
+
+    def _get_task_base_json(self) -> dict[str, Any]:
+        """Get task base json to be used for task submissions."""
+        return {
+            # Timeout seconds value of 0 for the Databricks Jobs API means the job runs forever.
+            # That is also the default behavior of Databricks jobs to run a job forever without a default
+            # timeout value.
+            "timeout_seconds": int(self.execution_timeout.total_seconds()) if self.execution_timeout else 0,
+            "email_notifications": {},
+            "notebook_task": {
+                "notebook_path": self.notebook_path,
+                "source": self.source,
+                "base_parameters": self.notebook_params,
+            },
+            "libraries": self.notebook_packages,
+        }
+
+    def _get_databricks_task_id(self, task_id: str):
+        """Get the databricks task ID using dag_id and task_id. Removes illegal characters."""
+        return f"{self.dag_id}__" + task_id.replace(".", "__")
+
+    def _get_run_json(self):
+        """Get run json to be used for task submissions."""
+        run_json = {
+            "run_name": self._get_databricks_task_id(self.task_id),
+            **self._get_task_base_json(),
+        }
+        if self.new_cluster and self.existing_cluster_id:
+            raise ValueError("Both new_cluster and existing_cluster_id are set. Only one should be set.")
+        if self.new_cluster:
+            run_json["new_cluster"] = self.new_cluster
+        elif self.existing_cluster_id:
+            run_json["existing_cluster_id"] = self.existing_cluster_id
+        else:
+            raise ValueError("Must specify either existing_cluster_id or new_cluster.")
+        return run_json
+
+    def launch_notebook_job(self):
+        hook = DatabricksHook(databricks_conn_id=self.databricks_conn_id)
+        run_json = self._get_run_json()
+        self.databricks_run_id = hook.submit_run(run_json)
+        url = hook.get_run_page_url(self.databricks_run_id)
+        self.log.info("Check the job run in Databricks: %s", url)
+        return self.databricks_run_id
+
+    def monitor_databricks_job(self):
+        hook = DatabricksHook(databricks_conn_id=self.databricks_conn_id)
+        run = hook.get_run(self.databricks_run_id)
+        run_state = RunState(**run["state"])
+        self.log.info("Current state of the job: %s", run_state.life_cycle_state)
+        while not run_state.is_terminal:
+            time.sleep(5)
+            run = hook.get_run(self.databricks_run_id)
+            run_state = RunState(**run["state"])
+            self.log.info(
+                "task %s %s", self._get_databricks_task_id(self.task_id), run_state.life_cycle_state
+            )
+            self.log.info("Current state of the job: %s", run_state.life_cycle_state)
+        if run_state.life_cycle_state != "TERMINATED":
+            raise AirflowException(
+                f"Databricks job failed with state {run_state.life_cycle_state}. "
+                f"Message: {run_state.state_message}"
+            )
+        if not run_state.is_successful:
+            raise AirflowException(
+                "Task failed. Final state %s. Reason: %s",
+                run_state.result_state,
+                run_state.state_message,
+            )
+        self.log.info("Task succeeded. Final state %s.", run_state.result_state)
+
+    def execute(self, context: Context) -> Any:
+        self.launch_notebook_job()
+        self.monitor_databricks_job()
