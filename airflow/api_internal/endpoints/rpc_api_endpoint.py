@@ -27,6 +27,7 @@ from flask import Response
 
 from airflow.jobs.job import Job, most_recent_job
 from airflow.models.taskinstance import _get_template_context, _update_rtif
+from airflow.sensors.base import _orig_start_date
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils.session import create_session
 
@@ -56,6 +57,7 @@ def _initialize_map() -> dict[str, Callable]:
         _get_template_context,
         _get_ti_db_access,
         _update_rtif,
+        _orig_start_date,
         DagFileProcessor.update_import_errors,
         DagFileProcessor.manage_slas,
         DagFileProcessorManager.deactivate_stale_dags,
