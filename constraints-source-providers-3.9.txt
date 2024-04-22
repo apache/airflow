@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-04-20T07:32:40.052418
+# This constraints file was automatically generated on 2024-04-22T09:37:38.748873
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -18,7 +18,7 @@ Flask-Babel==2.0.0
 Flask-Bcrypt==1.0.1
 Flask-Caching==2.1.0
 Flask-JWT-Extended==4.6.0
-Flask-Limiter==3.5.1
+Flask-Limiter==3.6.0
 Flask-Login==0.6.3
 Flask-SQLAlchemy==2.5.1
 Flask-Session==0.5.0
@@ -100,7 +100,7 @@ azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==10.3.0
 azure-mgmt-core==1.4.0
 azure-mgmt-cosmosdb==9.4.0
-azure-mgmt-datafactory==6.1.0
+azure-mgmt-datafactory==7.0.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
@@ -153,7 +153,7 @@ connexion==2.14.2
 coverage==7.4.4
 crcmod==1.7
 cron-descriptor==1.4.3
-croniter==2.0.3
+croniter==2.0.5
 cryptography==41.0.7
 curlify==2.2.1
 databricks-sql-connector==2.9.6
@@ -278,7 +278,7 @@ hvac==2.1.0
 hyperframe==6.0.1
 hyperlink==21.0.0
 icdiff==2.0.7
-identify==2.5.35
+identify==2.5.36
 idna==3.7
 ijson==3.2.3
 imagesize==1.4.1
@@ -322,7 +322,7 @@ kubernetes_asyncio==29.0.0
 kylinpy==2.8.4
 lazy-object-proxy==1.10.0
 ldap3==2.9.1
-limits==3.10.1
+limits==3.11.0
 linkify-it-py==2.0.3
 lockfile==0.12.2
 loguru==0.7.2
@@ -412,7 +412,7 @@ pipdeptree==2.18.1
 pipx==1.5.0
 pkginfo==1.10.0
 platformdirs==4.2.0
-pluggy==1.4.0
+pluggy==1.5.0
 ply==3.11
 plyvel==1.5.1
 portalocker==2.8.2
@@ -474,7 +474,7 @@ python-dotenv==1.0.1
 python-http-client==3.3.7
 python-jenkins==1.8.2
 python-ldap==3.4.4
-python-nvd3==0.15.0
+python-nvd3==0.16.0
 python-slugify==8.0.4
 python-telegram-bot==20.2
 python3-saml==1.16.0
@@ -589,7 +589,7 @@ types-cffi==1.16.0.20240331
 types-croniter==2.0.0.20240321
 types-docutils==0.20.0.20240406
 types-paramiko==3.4.0.20240311
-types-protobuf==5.26.0.20240420
+types-protobuf==5.26.0.20240422
 types-pyOpenSSL==24.0.0.20240417
 types-python-dateutil==2.9.0.20240316
 types-python-slugify==8.0.2.20240310
