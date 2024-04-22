@@ -19,17 +19,15 @@ from __future__ import annotations
 import asyncio
 from contextlib import contextmanager
 from copy import deepcopy
-from datetime import datetime
 from typing import TYPE_CHECKING, Any, Iterable
 from unittest.mock import patch
 
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 
 from airflow.exceptions import TaskDeferred
-from airflow.models import Operator, TaskInstance
+from airflow.models import Operator
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
-from airflow.utils.session import NEW_SESSION
-from airflow.utils.xcom import XCOM_RETURN_KEY
+from airflow.utils.context import Context
 from tests.providers.microsoft.conftest import get_airflow_connection, mock_context
 
 if TYPE_CHECKING:
@@ -38,38 +36,58 @@ if TYPE_CHECKING:
     from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
-class MockedTaskInstance(TaskInstance):
+def mock_context(task) -> Context:
+    from datetime import datetime
+
+    from airflow.models import TaskInstance
+    from airflow.utils.session import NEW_SESSION
+    from airflow.utils.state import TaskInstanceState
+    from airflow.utils.xcom import XCOM_RETURN_KEY
+
     values = {}
 
-    def xcom_pull(
-        self,
-        task_ids: Iterable[str] | str | None = None,
-        dag_id: str | None = None,
-        key: str = XCOM_RETURN_KEY,
-        include_prior_dates: bool = False,
-        session: Session = NEW_SESSION,
-        *,
-        map_indexes: Iterable[int] | int | None = None,
-        default: Any | None = None,
-    ) -> Any:
-        self.task_id = task_ids
-        self.dag_id = dag_id
-        return self.values.get(f"{task_ids}_{dag_id}_{key}")
+    class MockedTaskInstance(TaskInstance):
+        def __init__(
+            self,
+            task,
+            execution_date: datetime | None = None,
+            run_id: str | None = "run_id",
+            state: str | None = TaskInstanceState.RUNNING,
+            map_index: int = -1,
+        ):
+            super().__init__(task=task, execution_date=execution_date, run_id=run_id, state=state, map_index=map_index)
+            self.values = {}
 
-    def xcom_push(
-        self,
-        key: str,
-        value: Any,
-        execution_date: datetime | None = None,
-        session: Session = NEW_SESSION,
-    ) -> None:
-        self.values[f"{self.task_id}_{self.dag_id}_{key}"] = value
+        def xcom_pull(
+            self,
+            task_ids: Iterable[str] | str | None = None,
+            dag_id: str | None = None,
+            key: str = XCOM_RETURN_KEY,
+            include_prior_dates: bool = False,
+            session: Session = NEW_SESSION,
+            *,
+            map_indexes: Iterable[int] | int | None = None,
+            default: Any | None = None,
+        ) -> Any:
+            return values.get(f"{task_ids or self.task_id}_{dag_id or self.dag_id}_{key}")
+
+        def xcom_push(
+            self,
+            key: str,
+            value: Any,
+            execution_date: datetime | None = None,
+            session: Session = NEW_SESSION,
+        ) -> None:
+            values[f"{self.task_id}_{self.dag_id}_{key}"] = value
+
+    values["ti"] = MockedTaskInstance(task=task)
+
+    return Context(values)
 
 
 class Base:
     def teardown_method(self, method):
         KiotaRequestAdapterHook.cached_request_adapters.clear()
-        MockedTaskInstance.values.clear()
 
     @contextmanager
     def patch_hook_and_request_adapter(self, response):
