@@ -154,6 +154,14 @@ class ExecutorLoader:
         return executor_names
 
     @classmethod
+    def get_executor_names(cls) -> list[ExecutorName]:
+        """Return the executor names from Airflow configuration.
+
+        :return: List of executor names from Airflow configuration
+        """
+        return cls._get_executor_names()
+
+    @classmethod
     def get_default_executor_name(cls) -> ExecutorName:
         """Return the default executor name from Airflow configuration.
 
