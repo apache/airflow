@@ -23,6 +23,7 @@ import asyncio
 from typing import Sequence
 
 from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLAsyncHook, CloudSqlOperationStatus
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -36,7 +37,7 @@ class CloudSQLExportTrigger(BaseTrigger):
     def __init__(
         self,
         operation_name: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         poke_interval: int = 20,
