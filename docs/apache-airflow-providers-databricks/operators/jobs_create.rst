@@ -49,6 +49,7 @@ Currently the named parameters that ``DatabricksCreateJobsOperator`` supports ar
   - ``job_clusters``
   - ``email_notifications``
   - ``webhook_notifications``
+  - ``notification_settings``
   - ``timeout_seconds``
   - ``schedule``
   - ``max_concurrent_runs``

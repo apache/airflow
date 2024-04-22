@@ -214,6 +214,7 @@ class DatabricksCreateJobsOperator(BaseOperator):
         tasks of this job. Array of objects (JobCluster).
     :param email_notifications: Object (JobEmailNotifications).
     :param webhook_notifications: Object (WebhookNotifications).
+    :param notification_settings: Optional notification settings
     :param timeout_seconds: An optional timeout applied to each run of this job.
     :param schedule: Object (CronSchedule).
     :param max_concurrent_runs: An optional maximum allowed number of concurrent runs of the job.
