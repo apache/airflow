@@ -29,6 +29,8 @@ from typing import TYPE_CHECKING, Sequence
 
 import pendulum
 
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
+
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
@@ -119,7 +121,7 @@ class GCSCreateBucketOperator(GoogleCloudBaseOperator):
         resource: dict | None = None,
         storage_class: str = "MULTI_REGIONAL",
         location: str = "US",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         labels: dict | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,

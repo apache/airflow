@@ -101,10 +101,11 @@ from airflow.hooks.base import BaseHook
 from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, Trigger, XCom, errors
+from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, Trigger, XCom
 from airflow.models.dag import get_dataset_triggered_next_run_info
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun, DagRunType
 from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.models.errors import ParseImportError
 from airflow.models.operator import needs_expansion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
@@ -945,13 +946,13 @@ class Airflow(AirflowBaseView):
             owner_links_dict = DagOwnerAttributes.get_all(session)
 
             if get_auth_manager().is_authorized_view(access_view=AccessView.IMPORT_ERRORS):
-                import_errors = select(errors.ImportError).order_by(errors.ImportError.id)
+                import_errors = select(ParseImportError).order_by(ParseImportError.id)
 
                 can_read_all_dags = get_auth_manager().is_authorized_dag(method="GET")
                 if not can_read_all_dags:
                     # if the user doesn't have access to all DAGs, only display errors from visible DAGs
                     import_errors = import_errors.where(
-                        errors.ImportError.filename.in_(
+                        ParseImportError.filename.in_(
                             select(DagModel.fileloc).distinct().where(DagModel.dag_id.in_(filter_dag_ids))
                         )
                     )

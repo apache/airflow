@@ -29,6 +29,7 @@ from google.cloud.dataproc_v1 import Batch, ClusterStatus, JobStatus
 
 from airflow.providers.google.cloud.hooks.dataproc import DataprocAsyncHook
 from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -38,7 +39,7 @@ class DataprocBaseTrigger(BaseTrigger):
     def __init__(
         self,
         region: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         polling_interval_seconds: int = 30,

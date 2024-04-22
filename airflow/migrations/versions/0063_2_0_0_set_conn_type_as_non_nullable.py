@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 
 # revision identifiers, used by Alembic.
 revision = "8f966b9c467a"

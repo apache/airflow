@@ -196,6 +196,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "The '[celery] stalled_task_timeout' config option is deprecated. "
                 "Please update your config to use '[scheduler] task_queued_timeout' instead.",
                 DeprecationWarning,
+                stacklevel=2,
             )
         task_adoption_timeout = conf.getfloat("celery", "task_adoption_timeout", fallback=0)
         if task_adoption_timeout:
@@ -204,6 +205,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "The '[celery] task_adoption_timeout' config option is deprecated. "
                 "Please update your config to use '[scheduler] task_queued_timeout' instead.",
                 DeprecationWarning,
+                stacklevel=2,
             )
         worker_pods_pending_timeout = conf.getfloat(
             "kubernetes_executor", "worker_pods_pending_timeout", fallback=0
@@ -214,6 +216,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "The '[kubernetes_executor] worker_pods_pending_timeout' config option is deprecated. "
                 "Please update your config to use '[scheduler] task_queued_timeout' instead.",
                 DeprecationWarning,
+                stacklevel=2,
             )
         task_queued_timeout = conf.getfloat("scheduler", "task_queued_timeout")
         self._task_queued_timeout = max(
@@ -1584,11 +1587,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             Stats.gauge(f"pool.queued_slots.{pool_name}", slot_stats["queued"])
             Stats.gauge(f"pool.running_slots.{pool_name}", slot_stats["running"])
             Stats.gauge(f"pool.deferred_slots.{pool_name}", slot_stats["deferred"])
+            Stats.gauge(f"pool.scheduled_slots.{pool_name}", slot_stats["scheduled"])
+
             # Same metrics with tagging
             Stats.gauge("pool.open_slots", slot_stats["open"], tags={"pool_name": pool_name})
             Stats.gauge("pool.queued_slots", slot_stats["queued"], tags={"pool_name": pool_name})
             Stats.gauge("pool.running_slots", slot_stats["running"], tags={"pool_name": pool_name})
             Stats.gauge("pool.deferred_slots", slot_stats["deferred"], tags={"pool_name": pool_name})
+            Stats.gauge("pool.scheduled_slots", slot_stats["scheduled"], tags={"pool_name": pool_name})
 
     @provide_session
     def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:
