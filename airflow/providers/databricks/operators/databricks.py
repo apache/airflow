@@ -899,7 +899,11 @@ class DatabricksNotebookOperator(BaseOperator):
     Runs a notebook on Databricks using an Airflow operator.
 
     The DatabricksNotebookOperator allows users to launch and monitor notebook
-    job runs on Databricks as Aiflow tasks.
+    job runs on Databricks as Airflow tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DatabricksNotebookOperator`
 
     :param notebook_path: The path to the notebook in Databricks.
     :param source: Optional location type of the notebook. When set to WORKSPACE, the notebook will be retrieved
