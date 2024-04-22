@@ -587,8 +587,7 @@ class TestDagProcessorJobRunner:
     ):
         from airflow.models.dagbag import DagPriorityParsingRequests
 
-        request_1 = DagPriorityParsingRequests()
-        request_1.fileloc = "file_1.py"
+        request_1 = DagPriorityParsingRequests(fileloc="file_1.py")
         request_1.id = 1
 
         """Test dag files are sorted by priority"""
