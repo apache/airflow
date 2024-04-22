@@ -144,13 +144,36 @@ The ``self.defer`` call raises the ``TaskDeferred`` exception, so it can work an
 Triggering Deferral from Start
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If you want to defer your task directly to the triggerer without going into the worker, you can add the attributes ``_start_trigger`` and ``_next_method`` in the ``__init__`` method of your deferrable operator.
+If you want to defer your task directly to the triggerer without going into the worker, you can add the class level attributes ``_start_trigger`` and ``_next_method`` to your deferrable operator.
 
 * ``_start_trigger``: An instance of a trigger you want to defer to. It will be serialized into the database.
 * ``_next_method``: The method name on your operator that you want Airflow to call when it resumes.
 
 
 This is particularly useful when deferring is the only thing the ``execute`` method does. Here's a basic refinement of the previous example.
+
+.. code-block:: python
+
+    from datetime import timedelta
+    from typing import Any
+
+    from airflow.sensors.base import BaseSensorOperator
+    from airflow.triggers.temporal import TimeDeltaTrigger
+    from airflow.utils.context import Context
+
+
+    class WaitOneHourSensor(BaseSensorOperator):
+        _start_trigger = TimeDeltaTrigger(timedelta(hours=1))
+        _next_method = "execute_complete"
+
+        def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+            # We have no more work to do here. Mark as complete.
+            return
+
+``_start_trigger`` and ``_next_method`` can also be set at the instance level for more flexible configuration.
+
+.. warning::
+    Dynamic task mapping is not supported when ``_start_trigger`` and ``_next_method`` are assigned in instance level.
 
 .. code-block:: python
 
@@ -171,7 +194,6 @@ This is particularly useful when deferring is the only thing the ``execute`` met
         def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
             # We have no more work to do here. Mark as complete.
             return
-
 
 Writing Triggers
 ~~~~~~~~~~~~~~~~
