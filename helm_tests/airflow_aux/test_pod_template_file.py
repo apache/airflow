@@ -911,3 +911,30 @@ class TestPodTemplateFile:
         )
 
         assert ["test", "command", "to", "run"] == jmespath.search("spec.containers[0].command", docs[0])
+
+    def test_should_not_add_command_by_default(self):
+        docs = render_chart(
+            values={},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert None is jmespath.search("spec.containers[0].command", docs[0])
+
+    def test_should_not_add_command_if_value_none(self):
+        docs = render_chart(
+            values={"workers": {"command": None}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert None is jmespath.search("spec.containers[0].command", docs[0])
+
+    def test_should_not_add_command_if_value_empty(self):
+        docs = render_chart(
+            values={"workers": {"command": []}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert None is jmespath.search("spec.containers[0].command", docs[0])
