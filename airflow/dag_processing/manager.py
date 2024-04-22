@@ -599,7 +599,10 @@ class DagFileProcessorManager(LoggingMixin):
 
             if self.standalone_dag_processor:
                 self._fetch_callbacks(max_callbacks_per_loop)
-            self._scan_stale_dags()
+
+            # this variable gives us flexibility to purge stale dags or not.
+            if not conf.get("core", "disable_scan_stale_dags", fallback=None):
+                self._scan_stale_dags()
             DagWarning.purge_inactive_dag_warnings()
             refreshed_dag_dir = self._refresh_dag_dir()
 
