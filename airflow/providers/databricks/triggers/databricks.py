@@ -84,13 +84,30 @@ class DatabricksExecutionTrigger(BaseTrigger):
         async with self.hook:
             while True:
                 run_state = await self.hook.a_get_run_state(self.run_id)
+                notebook_error = None
                 if run_state.is_terminal:
+                    if run_state.result_state == "FAILED":
+                        run_info = await self.hook.a_get_run(self.run_id)
+                        task_run_id = None
+                        if "tasks" in run_info:
+                            for task in run_info["tasks"]:
+                                if task.get("state", {}).get("result_state", "") == "FAILED":
+                                    task_run_id = task["run_id"]
+                        if task_run_id is not None:
+                            run_output = await self.hook.a_get_run_output(task_run_id)
+                            if "error" in run_output:
+                                notebook_error = run_output["error"]
+                            else:
+                                notebook_error = run_state.state_message
+                        else:
+                            notebook_error = run_state.state_message
                     yield TriggerEvent(
                         {
                             "run_id": self.run_id,
                             "run_page_url": self.run_page_url,
                             "run_state": run_state.to_json(),
                             "repair_run": self.repair_run,
+                            "notebook_error": notebook_error
                         }
                     )
                     return

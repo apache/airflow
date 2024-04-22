@@ -156,31 +156,16 @@ def _handle_deferrable_databricks_operator_execution(operator, hook, log, contex
                 log.info("%s completed successfully.", operator.task_id)
 
 
-def _handle_deferrable_databricks_operator_completion(event: dict, log: Logger, hook: DatabricksHook) -> None:
+def _handle_deferrable_databricks_operator_completion(event: dict, log: Logger) -> None:
     validate_trigger_event(event)
     run_state = RunState.from_json(event["run_state"])
     run_page_url = event["run_page_url"]
-    run_id = event["run_id"]
+    notebook_error = event["notebook_error"]
     log.info("View run status, Spark UI, and logs at %s", run_page_url)
 
     if run_state.is_successful:
         log.info("Job run completed successfully.")
         return
-
-    run_info = await hook.a_get_run(run_id)
-    task_run_id = None
-    if "tasks" in run_info:
-        for task in run_info["tasks"]:
-            if task.get("state", {}).get("result_state", "") == "FAILED":
-                task_run_id = task["run_id"]
-    if task_run_id is not None:
-        run_output = await hook.a_get_run_output(task_run_id)
-        if "error" in run_output:
-            notebook_error = run_output["error"]
-        else:
-            notebook_error = run_state.state_message
-    else:
-        notebook_error = run_state.state_message
 
     error_message = f"Job run failed with terminal state: {run_state} and with the error {notebook_error}"
 
@@ -590,7 +575,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
             self.log.error("Error: Task: %s with invalid run_id was requested to be cancelled.", self.task_id)
 
     def execute_complete(self, context: dict | None, event: dict):
-        _handle_deferrable_databricks_operator_completion(event, self.log, self._hook)
+        _handle_deferrable_databricks_operator_completion(event, self.log)
 
 
 @deprecated(
@@ -867,7 +852,7 @@ class DatabricksRunNowOperator(BaseOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         if event:
-            _handle_deferrable_databricks_operator_completion(event, self.log, self._hook)
+            _handle_deferrable_databricks_operator_completion(event, self.log)
             if event["repair_run"]:
                 self.repair_run = False
                 self.run_id = event["run_id"]
