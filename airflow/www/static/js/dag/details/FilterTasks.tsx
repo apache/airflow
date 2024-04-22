@@ -28,9 +28,11 @@ import {
 } from "@chakra-ui/react";
 import useFilters from "src/dag/useFilters";
 import { MdArrowDropDown } from "react-icons/md";
+import { useGridData } from "src/api";
+import { getTask } from "src/utils";
 
 interface Props {
-  taskId: string;
+  taskId: string | null;
 }
 
 const FilterTasks = ({ taskId }: Props) => {
@@ -40,34 +42,48 @@ const FilterTasks = ({ taskId }: Props) => {
     resetRoot,
   } = useFilters();
 
-  const onFilterUpstream = () =>
-    onFilterTasksChange({
-      root: taskId,
-      filterUpstream: true,
-      filterDownstream: false,
-    });
-
-  const onFilterDownstream = () =>
-    onFilterTasksChange({
-      root: taskId,
-      filterUpstream: false,
-      filterDownstream: true,
-    });
-
-  const onFilterAll = () =>
-    onFilterTasksChange({
-      root: taskId,
-      filterUpstream: true,
-      filterDownstream: true,
-    });
+  const {
+    data: { groups },
+  } = useGridData();
 
   const label = "Filter upstream and/or downstream of a task";
+
+  if (!root && !taskId) return null;
+
+  const onFilterUpstream = () => {
+    if (taskId)
+      onFilterTasksChange({
+        root: taskId,
+        filterUpstream: true,
+        filterDownstream: false,
+      });
+  };
+
+  const onFilterDownstream = () => {
+    if (taskId)
+      onFilterTasksChange({
+        root: taskId,
+        filterUpstream: false,
+        filterDownstream: true,
+      });
+  };
+
+  const onFilterAll = () => {
+    if (taskId)
+      onFilterTasksChange({
+        root: taskId,
+        filterUpstream: true,
+        filterDownstream: true,
+      });
+  };
+
+  const task = root ? getTask({ taskId: root, task: groups }) : undefined;
 
   return (
     <Menu>
       <MenuButton
         as={Button}
-        variant="outline"
+        variant={root ? "solid" : "outline"}
         colorScheme="blue"
         transition="all 0.2s"
         title={label}
@@ -75,15 +91,23 @@ const FilterTasks = ({ taskId }: Props) => {
         mt={2}
       >
         <Flex>
-          {!root ? "Filter Tasks " : "Clear Task Filter "}
+          {root
+            ? `Filtered on ${task?.label || "unknown"}`
+            : "Filter DAG by task"}
           <MdArrowDropDown size="16px" />
         </Flex>
       </MenuButton>
       <MenuList>
-        <MenuItem onClick={onFilterUpstream}>Filter Upstream</MenuItem>
-        <MenuItem onClick={onFilterDownstream}>Filter Downstream</MenuItem>
-        <MenuItem onClick={onFilterAll}>Filter Upstream & Downstream</MenuItem>
-        {!!root && <MenuItem onClick={resetRoot}>Reset Root</MenuItem>}
+        {!!root && <MenuItem onClick={resetRoot}>Reset</MenuItem>}
+        {!!taskId && (
+          <>
+            <MenuItem onClick={onFilterUpstream}>Only upstream</MenuItem>
+            <MenuItem onClick={onFilterDownstream}>Only downstream</MenuItem>
+            <MenuItem onClick={onFilterAll}>
+              Both upstream & downstream
+            </MenuItem>
+          </>
+        )}
       </MenuList>
     </Menu>
   );
