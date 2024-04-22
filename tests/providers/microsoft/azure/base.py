@@ -56,7 +56,7 @@ def mock_context(task) -> Context:
             map_index: int = -1,
         ):
             super().__init__(
-                task = task, execution_date = execution_date, run_id = run_id, state = state, map_index = map_index
+                task=task, execution_date=execution_date, run_id=run_id, state=state, map_index=map_index
             )
             self.values = {}
 
