@@ -503,7 +503,7 @@ core:
     disalble_scan_stale_dags:
       description: |
         Stale dags are deleted by default, [core] disalble_scan_stale_dags is True if you want to keep them.
-      version_added: 2.9.0
+      version_added: 2.10.0
       type: boolean
       example: ~
       default: "False"
