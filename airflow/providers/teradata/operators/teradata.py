@@ -17,10 +17,10 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Sequence, TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
-from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.models import BaseOperator
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.teradata.hooks.teradata import TeradataHook
 
 if TYPE_CHECKING:

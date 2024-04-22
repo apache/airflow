@@ -20,6 +20,7 @@
 This DAG assumes Airflow Connection with connection id `teradata_sp_call` already exists in locally. It
 shows how to trigger downstream DAG using TriggerDagRunOperator and how to pass parameters to downstream
 DAG from upstream DAG. Upstream DAG will continue run and does not wait for downstream DAG run finish"""
+
 from __future__ import annotations
 
 from pendulum import datetime
@@ -52,19 +53,24 @@ with DAG(
         task_id="t2",
         conn_id=CONN_ID,
         procedure="examplestoredproc",
-        parameters=[3, int],    # Input parameter and Output parameter
+        parameters=[3, int],  # Input parameter and Output parameter
     )
 
     example_trigger = TriggerDagRunOperator(
         task_id="upstream_dag_task",
-        trigger_dag_id="example_downstream_dag", # Downstream DAG DAG_ID
-        allowed_states=["success", "failed"],   # Trigger upstream DAG if downstream tag either success or fail.
-        conf={"input_param1": "{{ ti.xcom_pull(task_ids='t2')[0][0] }}"}    # Parameters from upstream DAG to downstream DAG
+        trigger_dag_id="example_downstream_dag",  # Downstream DAG DAG_ID
+        allowed_states=[
+            "success",
+            "failed",
+        ],  # Trigger upstream DAG if downstream tag either success or fail.
+        conf={
+            "input_param1": "{{ ti.xcom_pull(task_ids='t2')[0][0] }}"
+        },  # Parameters from upstream DAG to downstream DAG
     )
 
     t1 >> t2 >> example_trigger
-    
-        from tests.system.utils.watcher import watcher
+
+    from tests.system.utils.watcher import watcher
 
     # This test needs watcher in order to properly mark success/failure
     # when "tearDown" task with trigger rule is part of the DAG

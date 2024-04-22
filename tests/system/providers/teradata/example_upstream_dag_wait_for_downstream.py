@@ -20,6 +20,7 @@
 This DAG assumes Airflow Connection with connection id `teradata_sp_call` already exists in locally. It
 shows how to trigger downstream DAG using TriggerDagRunOperator and how to pass parameters to downstream
 DAG from upstream DAG. Upstream DAG will pause and resume only once the downstream DAG has finished running"""
+
 from __future__ import annotations
 
 from pendulum import datetime
@@ -52,15 +53,26 @@ with DAG(
         task_id="t2",
         conn_id=CONN_ID,
         procedure="examplestoredproc",
-        parameters=[3, int],    # Input parameter and Output parameter
+        parameters=[3, int],  # Input parameter and Output parameter
     )
 
     example_trigger = TriggerDagRunOperator(
         task_id="upstream_dag_task",
-        trigger_dag_id="example_downstream_dag", # Downstream DAG DAG_ID
+        trigger_dag_id="example_downstream_dag",  # Downstream DAG DAG_ID
         wait_for_completion=True,  # Upstream DAG will wait for downstream DAG Completion.
-        allowed_states=["success", "failed"],   # Trigger upstream DAG if downstream tag either success or fail.
-        conf={"input_param1": "{{ ti.xcom_pull(task_ids='t2')[0][0] }}"}    # Parameters from upstream DAG to downstream DAG
+        allowed_states=[
+            "success",
+            "failed",
+        ],  # Trigger upstream DAG if downstream tag either success or fail.
+        conf={
+            "input_param1": "{{ ti.xcom_pull(task_ids='t2')[0][0] }}"
+        },  # Parameters from upstream DAG to downstream DAG
     )
 
     t1 >> t2 >> example_trigger
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

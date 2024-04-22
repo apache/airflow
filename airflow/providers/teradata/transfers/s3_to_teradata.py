@@ -23,8 +23,6 @@ from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.teradata.hooks.teradata import TeradataHook
 
-import os
-
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
@@ -32,9 +30,11 @@ if TYPE_CHECKING:
 class S3ToTeradataOperator(BaseOperator):
     """
     Loads CSV, JSON and Parquet format data from Amazon S3 to Teradata.
+
     .. seealso::
     For more information on how to use this operator, take a look at the guide:
     :ref:`howto/operator:S3ToTeradataOperator`
+
     :param s3_source_key: The path to the file (S3 key) that will be loaded into Teradata.
     :param teradata_table: destination table to insert rows.
     :param aws_conn_id: reference to a specific S3 connection.
@@ -67,10 +67,6 @@ class S3ToTeradataOperator(BaseOperator):
         self.aws_access_secret = aws_access_secret
 
     def execute(self, context: Context) -> None:
-        """
-        Executes the transfer operation from S3 to Teradata.
-        :param context: The context that is being provided when executing.
-        """
         self.log.info("Loading %s to Teradata table %s...", self.s3_source_key, self.teradata_table)
 
         access_key = self.aws_access_key
@@ -78,12 +74,16 @@ class S3ToTeradataOperator(BaseOperator):
 
         if not access_key or not access_secret:
             s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
-            access_key = s3_hook.conn_config.aws_access_key_id
-            access_secret = s3_hook.conn_config.aws_secret_access_key
-
-        if access_key is None or access_secret is None:
-            access_key = ""
-            access_secret = ""
+            access_key = (
+                s3_hook.conn_config.aws_access_key_id
+                if s3_hook.conn_config.aws_access_key_id is not None
+                else ""
+            )
+            access_secret = (
+                s3_hook.conn_config.aws_secret_access_key
+                if s3_hook.conn_config.aws_secret_access_key is not None
+                else ""
+            )
 
         teradata_hook = TeradataHook(teradata_conn_id=self.teradata_conn_id)
         sql = f"""

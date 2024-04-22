@@ -21,6 +21,7 @@ TeradataStoredProcedureOperator
 This DAG assumes Airflow Connection with connection id `teradata_sp_call` already exists in locally. It
 shows how to create and execute Stored Procedure as tasks in airflow dags using
 TeradataStoredProcedureOperator.."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -30,8 +31,10 @@ import pytest
 from airflow import DAG
 
 try:
-    from airflow.providers.teradata.operators.teradata import TeradataOperator, \
-        TeradataStoredProcedureOperator
+    from airflow.providers.teradata.operators.teradata import (
+        TeradataOperator,
+        TeradataStoredProcedureOperator,
+    )
 except ImportError:
     pytest.skip("Teradata provider pache-airflow-provider-teradata not available", allow_module_level=True)
 

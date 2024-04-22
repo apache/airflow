@@ -23,14 +23,13 @@ teradata tables. The example DAG below assumes Airflow Connections with connecti
 and `wasb_default` exists already. It creates tables with data from Azure blob location, returns
 numbers of rows inserted into table and then drops this table.
 """
+
 from __future__ import annotations
 
 import datetime
 import os
 
 import pytest
-
-from airflow.providers.teradata.transfers.s3_to_teradata import S3ToTeradataOperator
 
 from airflow import DAG
 
@@ -69,73 +68,12 @@ with DAG(
                     SELECT * from example_blob_teradata_csv;
                 """,
     )
-    drop_table_csv = TeradataOperator(
-        task_id="drop_table_csv",
-        conn_id=CONN_ID,
-        sql="""
-                DROP TABLE example_blob_teradata_csv;
-            """,
-    )
     # [END azure_blob_to_teradata_transfer_operator_howto_guide_transfer_csv_data_azure_blob_to_teradata]
-    # [START azure_blob_to_teradata_transfer_operator_howto_guide_transfer_json_data_azure_blob_to_teradata]
-    transfer_data_json = S3ToTeradataOperator(
-        task_id="transfer_data_azure_blob_to_teradata_json",
-        blob_source_key="/az/akiaxox5jikeotfww4ul.blob.core.windows.net/td-usgs/JSONDATA/",
-        teradata_table="example_azure_blob_teradata_json",
-        aws_conn_id="aws_default",
-        teradata_conn_id="teradata_default",
-        trigger_rule="all_done",
-    )
-    read_data_table_json = TeradataOperator(
-        task_id="read_data_table_json",
-        conn_id=CONN_ID,
-        sql="""
-                    SELECT * from example_azure_blob_teradata_json;
-                """,
-    )
 
-    drop_table_json = TeradataOperator(
-        task_id="drop_table_json",
-        conn_id=CONN_ID,
-        sql="""
-                    DROP TABLE example_azure_blob_teradata_json;
-                """,
-    )
-    # [END azure_blob_to_teradata_transfer_operator_howto_guide_transfer_json_data_azure_blob_to_teradata]
-    # [START azure_blob_to_teradata_transfer_operator_howto_guide_transfer_parquet_data_azure_blob_to_teradata]
-    transfer_data_parquet = S3ToTeradataOperator(
-        task_id="transfer_data_azure_blob_to_teradata_parquet",
-        blob_source_key="/az/akiaxox5jikeotfww4ul.blob.core.windows.net/td-usgs/PARQUETDATA/",
-        teradata_table="example_azure_blob_teradata_parquet",
-        aws_conn_id="aws_default",
-        teradata_conn_id="teradata_default",
-        trigger_rule="all_done",
-    )
-    read_data_table_parquet = TeradataOperator(
-        task_id="read_data_table_parquet",
-        conn_id=CONN_ID,
-        sql="""
-                    SELECT * from example_azure_blob_teradata_parquet;
-                """,
-    )
-    drop_table_parquet = TeradataOperator(
-        task_id="drop_table_parquet",
-        conn_id=CONN_ID,
-        sql="""
-                    DROP TABLE example_azure_blob_teradata_parquet;
-                """,
-    )
     # [END azure_blob_to_teradata_transfer_operator_howto_guide_transfer_parquet_data_azure_blob_to_teradata]
     (
         transfer_data_csv,
-        transfer_data_json,
-        transfer_data_parquet,
         read_data_table_csv,
-        read_data_table_json,
-        read_data_table_parquet,
-        drop_table_csv,
-        drop_table_json,
-        drop_table_parquet
     )
     # [END azure_blob_to_teradata_transfer_operator_howto_guide]
 

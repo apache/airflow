@@ -24,12 +24,32 @@ from boto3.session import Session
 
 from airflow.models.connection import Connection
 from airflow.providers.teradata.transfers.s3_to_teradata import S3ToTeradataOperator
-from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 DEFAULT_DATE = datetime(2024, 1, 1)
 
+AWS_CONN_ID = "aws_default"
+TERADATA_CONN_ID = "teradata_default"
+S3_SOURCE_KEY = "aws/test"
+TERADATA_TABLE = "test"
+TASK_ID = "transfer_file"
+
 
 class TestS3ToTeradataTransfer:
+    def test_init(self):
+        operator = S3ToTeradataOperator(
+            s3_source_key=S3_SOURCE_KEY,
+            teradata_table=TERADATA_TABLE,
+            aws_conn_id=AWS_CONN_ID,
+            teradata_conn_id=TERADATA_CONN_ID,
+            task_id=TASK_ID,
+            dag=None,
+        )
+
+        assert operator.aws_conn_id == AWS_CONN_ID
+        assert operator.s3_source_key == S3_SOURCE_KEY
+        assert operator.teradata_conn_id == TERADATA_CONN_ID
+        assert operator.teradata_table == TERADATA_TABLE
+        assert operator.task_id == TASK_ID
 
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
@@ -46,46 +66,14 @@ class TestS3ToTeradataTransfer:
         mock_connection.return_value = Connection()
         mock_hook.return_value = Connection()
 
-        s3_source_key = "s3_source_key"
-        teradata_table = "table"
-
         op = S3ToTeradataOperator(
-            s3_source_key=s3_source_key,
-            teradata_table=teradata_table,
-            aws_conn_id="aws_conn_id",
-            teradata_conn_id="teradata_conn_id",
-            task_id="task_id",
+            s3_source_key=S3_SOURCE_KEY,
+            teradata_table=TERADATA_TABLE,
+            aws_conn_id=AWS_CONN_ID,
+            teradata_conn_id=TERADATA_CONN_ID,
+            task_id=TASK_ID,
             dag=None,
         )
         op.execute(None)
 
-        assert mock_run.call_count == 1
-
-    @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
-    @mock.patch("airflow.models.connection.Connection")
-    @mock.patch("boto3.session.Session")
-    @mock.patch("airflow.providers.teradata.hooks.teradata.TeradataHook.run")
-    def test_upsert(self, mock_run, mock_session, mock_connection, mock_hook):
-        access_key = "aws_access_key_id"
-        access_secret = "aws_secret_access_key"
-        mock_session.return_value = Session(access_key, access_secret)
-        mock_session.return_value.access_key = access_key
-        mock_session.return_value.secret_key = access_secret
-        mock_session.return_value.token = None
-
-        mock_connection.return_value = Connection()
-        mock_hook.return_value = Connection()
-
-        s3_source_key = "s3_source_key"
-        teradata_table = "table"
-
-        op = S3ToTeradataOperator(
-            s3_source_key=s3_source_key,
-            teradata_table=teradata_table,
-            aws_conn_id="aws_conn_id",
-            teradata_conn_id="teradata_conn_id",
-            task_id="task_id",
-            dag=None,
-        )
-        op.execute(None)
         assert mock_run.call_count == 1

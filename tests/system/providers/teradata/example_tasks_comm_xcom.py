@@ -18,7 +18,7 @@
 
 """Example Airflow DAG to show how values can pass from one task to another task using xcom
 
-This DAG assumes Airflow Connection with connection id `teradata_sp_call` already exists in locally. """
+This DAG assumes Airflow Connection with connection id `teradata_sp_call` already exists in locally."""
 
 from __future__ import annotations
 
@@ -72,13 +72,16 @@ with DAG(
         task_id="opr_sp_in_inout_xcom",
         conn_id=CONN_ID,
         procedure="examplestoredproc",
-        parameters=["{{ ti.xcom_pull(task_ids='opr_sp_in_inout')[0][0] }}", "{{ ti.xcom_pull(task_ids='opr_sp_in_inout')[0][1] }}", int],
+        parameters=[
+            "{{ ti.xcom_pull(task_ids='opr_sp_in_inout')[0][0] }}",
+            "{{ ti.xcom_pull(task_ids='opr_sp_in_inout')[0][1] }}",
+            int,
+        ],
         # Accessing previous task opr_sp_in_inout output parameter 1 and parameter 2
         dag=dag,
     )
 
     create_sp_in_inout >> opr_sp_in_inout >> create_sp_two_in >> opr_sp_in_inout_xcom
-
 
     from tests.system.utils.watcher import watcher
 
