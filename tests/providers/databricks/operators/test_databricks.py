@@ -203,10 +203,7 @@ WEBHOOK_NOTIFICATIONS = {
         }
     ],
 }
-NOTIFICATION_SETTINGS = {
-    "no_alert_for_canceled_runs": True,
-    "no_alert_for_skipped_runs": True
-}
+NOTIFICATION_SETTINGS = {"no_alert_for_canceled_runs": True, "no_alert_for_skipped_runs": True}
 TIMEOUT_SECONDS = 86400
 SCHEDULE = {
     "quartz_cron_expression": "20 30 * * * ?",
