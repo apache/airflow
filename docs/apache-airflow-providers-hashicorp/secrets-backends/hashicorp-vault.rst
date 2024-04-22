@@ -226,7 +226,7 @@ Add parameter "arn_role": "The AWS ARN of the role to assume"
 
     [secrets]
     backend = airflow.providers.hashicorp.secrets.vault.VaultBackend
-    backend_kwargs = {"connections_path": "airflow-connections", "variables_path": null, "mount_point": "airflow", "url": "http://127.0.0.1:8200", "auth_type": "aws_iam", "arn_role": "arn:aws:iam::123456789000:role/hashicorp-aws-iam-role"}
+    backend_kwargs = {"connections_path": "airflow-connections", "variables_path": null, "mount_point": "airflow", "url": "http://127.0.0.1:8200", "auth_type": "aws_iam", "role_arn": "arn:aws:iam::123456789000:role/hashicorp-aws-iam-role"}
 
 
 Using multiple mount points

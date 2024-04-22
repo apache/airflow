@@ -74,7 +74,7 @@ class _VaultClient(LoggingMixin):
     :param key_id: Key ID for Authentication (for ``aws_iam`` and ''azure`` auth_type).
     :param secret_id: Secret ID for Authentication (for ``approle``, ``aws_iam`` and ``azure`` auth_types).
     :param role_id: Role ID for Authentication (for ``approle``, ``aws_iam`` auth_types).
-    :param arn_role: AWS arn role (for ``aws_iam`` auth_type)
+    :param role_arn: AWS arn role (for ``aws_iam`` auth_type)
     :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type).
     :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, default:
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``).
@@ -104,7 +104,7 @@ class _VaultClient(LoggingMixin):
         password: str | None = None,
         key_id: str | None = None,
         secret_id: str | None = None,
-        arn_role: str | None = None,
+        role_arn: str | None = None,
         role_id: str | None = None,
         kubernetes_role: str | None = None,
         kubernetes_jwt_path: str | None = "/var/run/secrets/kubernetes.io/serviceaccount/token",
@@ -163,7 +163,7 @@ class _VaultClient(LoggingMixin):
         self.key_id = key_id
         self.secret_id = secret_id
         self.role_id = role_id
-        self.arn_role = arn_role
+        self.role_arn = role_arn
         self.kubernetes_role = kubernetes_role
         self.kubernetes_jwt_path = kubernetes_jwt_path
         self.gcp_key_path = gcp_key_path
@@ -321,22 +321,31 @@ class _VaultClient(LoggingMixin):
             )
 
     def _auth_aws_iam(self, _client: hvac.Client) -> None:
-        if self.arn_role:
-            import boto3
-
-            sts_client = boto3.client("sts")
-            temporary_credentials = sts_client.assume_role(RoleArn=self.arn_role, RoleSessionName="airflow")
-            auth_args = {
-                "access_key": temporary_credentials["Credentials"]["AccessKeyId"],
-                "secret_key": temporary_credentials["Credentials"]["SecretAccessKey"],
-                "session_token": temporary_credentials["Credentials"]["SessionToken"],
-            }
-        else:
+        if self.key_id and self.secret_id:
             auth_args = {
                 "access_key": self.key_id,
                 "secret_key": self.secret_id,
                 "role": self.role_id,
             }
+        else:
+            import boto3
+
+            if self.role_arn:
+                sts_client = boto3.client("sts")
+                credentials = sts_client.assume_role(RoleArn=self.role_arn, RoleSessionName="airflow")
+                auth_args = {
+                    "access_key": credentials["Credentials"]["AccessKeyId"],
+                    "secret_key": credentials["Credentials"]["SecretAccessKey"],
+                    "session_token": credentials["Credentials"]["SessionToken"],
+                }
+            else:
+                session = boto3.Session()
+                credentials = session.get_credentials()
+                auth_args = {
+                    "access_key": credentials.access_key,
+                    "secret_key": credentials.secret_key,
+                    "session_token": credentials.token,
+                }
 
         if self.auth_mount_point:
             auth_args["mount_point"] = self.auth_mount_point
