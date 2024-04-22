@@ -28,6 +28,7 @@ from airflow.models import DAG
 from airflow.providers.databricks.hooks.databricks import RunState
 from airflow.providers.databricks.operators.databricks import (
     DatabricksCreateJobsOperator,
+    DatabricksNotebookOperator,
     DatabricksRunNowDeferrableOperator,
     DatabricksRunNowOperator,
     DatabricksSubmitRunDeferrableOperator,
@@ -1754,3 +1755,90 @@ class TestDatabricksRunNowDeferrableOperator:
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         assert op.run_id == RUN_ID
         assert not mock_defer.called
+
+
+class TestDatabricksNotebookOperator:
+    def test_execute(self):
+        operator = DatabricksNotebookOperator(
+            task_id="test_task",
+            notebook_path="test_path",
+            source="test_source",
+            databricks_conn_id="test_conn_id",
+        )
+        operator.launch_notebook_job = MagicMock(return_value="12345")
+        operator.monitor_databricks_job = MagicMock()
+
+        operator.execute({})
+
+        operator.launch_notebook_job.assert_called_once()
+        operator.monitor_databricks_job.assert_called_once()
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_monitor_databricks_job_successful(self, mock_databricks_hook):
+        mock_databricks_hook.return_value.get_run.return_value = {
+            "state": {"life_cycle_state": "TERMINATED", "result_state": "SUCCESS"}
+        }
+
+        operator = DatabricksNotebookOperator(
+            task_id="test_task",
+            notebook_path="test_path",
+            source="test_source",
+            databricks_conn_id="test_conn_id",
+        )
+
+        operator.databricks_run_id = "12345"
+        operator.monitor_databricks_job()
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_monitor_databricks_job_failed(self, mock_databricks_hook):
+        mock_databricks_hook.return_value.get_run.return_value = {
+            "state": {"life_cycle_state": "TERMINATED", "result_state": "FAILED"}
+        }
+
+        operator = DatabricksNotebookOperator(
+            task_id="test_task",
+            notebook_path="test_path",
+            source="test_source",
+            databricks_conn_id="test_conn_id",
+        )
+
+        operator.databricks_run_id = "12345"
+        with pytest.raises(AirflowException):
+            operator.monitor_databricks_job()
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_launch_notebook_job(self, mock_databricks_hook):
+        operator = DatabricksNotebookOperator(
+            task_id="test_task",
+            notebook_path="test_path",
+            source="test_source",
+            databricks_conn_id="test_conn_id",
+            existing_cluster_id="test_cluster_id",
+        )
+        operator._hook.submit_run.return_value = "12345"
+
+        run_id = operator.launch_notebook_job()
+
+        assert run_id == "12345"
+
+    def test_both_new_and_existing_cluster_set(self):
+        operator = DatabricksNotebookOperator(
+            task_id="test_task",
+            notebook_path="test_path",
+            source="test_source",
+            new_cluster={"new_cluster_config_key": "new_cluster_config_value"},
+            existing_cluster_id="existing_cluster_id",
+            databricks_conn_id="test_conn_id",
+        )
+        with pytest.raises(ValueError):
+            operator._get_run_json()
+
+    def test_both_new_and_existing_cluster_unset(self):
+        operator = DatabricksNotebookOperator(
+            task_id="test_task",
+            notebook_path="test_path",
+            source="test_source",
+            databricks_conn_id="test_conn_id",
+        )
+        with pytest.raises(ValueError):
+            operator._get_run_json()
