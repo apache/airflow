@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Sequence
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.utils.helpers import exactly_one
+from airflow.utils.helpers import at_least_one, exactly_one
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -517,15 +517,14 @@ class S3DeleteObjectsOperator(BaseOperator):
 
         self._keys: str | list[str] = ""
 
-        if not exactly_one(keys is None, all([prefix is None, from_datetime is None, to_datetime is None])):
+        if not exactly_one(keys is not None, at_least_one(prefix, from_datetime, to_datetime)):
             raise AirflowException(
                 "Either keys or at least one of prefix, from_datetime, to_datetime should be set."
             )
 
     def execute(self, context: Context):
         if not exactly_one(
-            self.keys is None,
-            all([self.prefix is None, self.from_datetime is None, self.to_datetime is None]),
+            self.keys is not None, at_least_one(self.prefix, self.from_datetime, self.to_datetime)
         ):
             raise AirflowException(
                 "Either keys or at least one of prefix, from_datetime, to_datetime should be set."
