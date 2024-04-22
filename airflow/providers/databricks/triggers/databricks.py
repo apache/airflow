@@ -107,7 +107,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
                             "run_page_url": self.run_page_url,
                             "run_state": run_state.to_json(),
                             "repair_run": self.repair_run,
-                            "notebook_error": notebook_error
+                            "notebook_error": notebook_error,
                         }
                     )
                     return

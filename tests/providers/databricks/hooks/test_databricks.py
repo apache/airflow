@@ -1614,7 +1614,7 @@ class TestDatabricksHookAsyncMethods:
         assert run_output_error == ERROR_MESSAGE
         mock_get.assert_called_once_with(
             get_run_output_endpoint(HOST),
-            json=None,
+            json={"run_id": RUN_ID},
             auth=aiohttp.BasicAuth(LOGIN, PASSWORD),
             headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,

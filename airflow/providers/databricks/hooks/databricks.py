@@ -499,7 +499,7 @@ class DatabricksHook(BaseDatabricksHook):
         :return: output of the run
         """
         json = {"run_id": run_id}
-        run_output = await self._do_api_call(OUTPUT_RUNS_JOB_ENDPOINT, json)
+        run_output = await self._a_do_api_call(OUTPUT_RUNS_JOB_ENDPOINT, json)
         return run_output
 
     def cancel_run(self, run_id: int) -> None:
