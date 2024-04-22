@@ -27,6 +27,7 @@ from airflow.exceptions import AirflowException
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.utils import helpers, timezone
 from airflow.utils.helpers import (
+    at_least_one,
     at_most_one,
     build_airflow_url_with_query,
     exactly_one,
@@ -249,6 +250,29 @@ class TestHelpers:
                 validate_group_key(key_id)
         else:
             validate_group_key(key_id)
+
+    def test_empty_at_least_one(self):
+        with pytest.raises(
+            ValueError,
+            match=r"Not supported argument. Need to get at least one argument",
+        ):
+            at_least_one()
+
+    def test_at_least_one_should_fail(self):
+        with pytest.raises(ValueError):
+            at_least_one([True, False])
+
+    @pytest.mark.parametrize(
+        "input_args, expected_output",
+        [
+            pytest.param((True, True, True), True, id="all-values-true"),
+            pytest.param((True, False, False), True, id="only-one-true"),
+            pytest.param((True, True, False), True, id="multiple-true-and-false"),
+            pytest.param((False, False, False), False, id="all-false"),
+        ],
+    )
+    def test_at_least_one_true(self, input_args, expected_output):
+        assert at_least_one(*input_args) == expected_output
 
     def test_exactly_one(self):
         """

@@ -294,6 +294,21 @@ def render_template_as_native(template: jinja2.Template, context: Context) -> An
     return render_template(template, cast(MutableMapping[str, Any], context), native=True)
 
 
+def at_least_one(*args) -> bool:
+    """
+    Return True if at least one of the *args is "truthy", and False Otherwise.
+
+    If user supplies an iterable, we raise ValueError and force them to unpack.
+    """
+    if not args:
+        raise ValueError("Not supported argument. Need to get at least one argument")
+    if is_container(args[0]):
+        raise ValueError(
+            "Not supported for iterable args. Use `*` to unpack your iterable in the function call."
+        )
+    return any(args)
+
+
 def exactly_one(*args) -> bool:
     """
     Return True if exactly one of *args is "truthy", and False otherwise.
