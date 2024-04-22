@@ -202,6 +202,10 @@ WEBHOOK_NOTIFICATIONS = {
         }
     ],
 }
+NOTIFICATION_SETTINGS = {
+    "no_alert_for_canceled_runs": True,
+    "no_alert_for_skipped_runs": True
+}
 TIMEOUT_SECONDS = 86400
 SCHEDULE = {
     "quartz_cron_expression": "20 30 * * * ?",
@@ -414,6 +418,7 @@ class TestDatabricksCreateJobsOperator:
             "job_clusters": JOB_CLUSTERS,
             "email_notifications": EMAIL_NOTIFICATIONS,
             "webhook_notifications": WEBHOOK_NOTIFICATIONS,
+            "notification_settings": NOTIFICATION_SETTINGS,
             "timeout_seconds": TIMEOUT_SECONDS,
             "schedule": SCHEDULE,
             "max_concurrent_runs": MAX_CONCURRENT_RUNS,
@@ -436,6 +441,7 @@ class TestDatabricksCreateJobsOperator:
                 "job_clusters": JOB_CLUSTERS,
                 "email_notifications": EMAIL_NOTIFICATIONS,
                 "webhook_notifications": WEBHOOK_NOTIFICATIONS,
+                "notification_settings": NOTIFICATION_SETTINGS,
                 "timeout_seconds": TIMEOUT_SECONDS,
                 "schedule": SCHEDULE,
                 "max_concurrent_runs": MAX_CONCURRENT_RUNS,
@@ -466,6 +472,7 @@ class TestDatabricksCreateJobsOperator:
             "job_clusters": JOB_CLUSTERS,
             "email_notifications": EMAIL_NOTIFICATIONS,
             "webhook_notifications": WEBHOOK_NOTIFICATIONS,
+            "notification_settings": NOTIFICATION_SETTINGS,
             "timeout_seconds": TIMEOUT_SECONDS,
             "schedule": SCHEDULE,
             "max_concurrent_runs": MAX_CONCURRENT_RUNS,
@@ -486,6 +493,7 @@ class TestDatabricksCreateJobsOperator:
                 "job_clusters": JOB_CLUSTERS,
                 "email_notifications": EMAIL_NOTIFICATIONS,
                 "webhook_notifications": WEBHOOK_NOTIFICATIONS,
+                "notification_settings": NOTIFICATION_SETTINGS,
                 "timeout_seconds": TIMEOUT_SECONDS,
                 "schedule": SCHEDULE,
                 "max_concurrent_runs": MAX_CONCURRENT_RUNS,

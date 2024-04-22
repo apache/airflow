@@ -254,6 +254,7 @@ class DatabricksCreateJobsOperator(BaseOperator):
         job_clusters: list[dict] | None = None,
         email_notifications: dict | None = None,
         webhook_notifications: dict | None = None,
+        notification_settings: dict | None = None,
         timeout_seconds: int | None = None,
         schedule: dict | None = None,
         max_concurrent_runs: int | None = None,
@@ -286,6 +287,8 @@ class DatabricksCreateJobsOperator(BaseOperator):
             self.json["email_notifications"] = email_notifications
         if webhook_notifications is not None:
             self.json["webhook_notifications"] = webhook_notifications
+        if notification_settings:
+            self.json["notification_settings"] = notification_settings
         if timeout_seconds is not None:
             self.json["timeout_seconds"] = timeout_seconds
         if schedule is not None:
