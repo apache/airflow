@@ -454,6 +454,7 @@ class CloudDataTransferServiceRunJobOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
+    # [START gcp_transfer_job_run_template_fields]
     template_fields: Sequence[str] = (
         "job_name",
         "project_id",
@@ -461,6 +462,7 @@ class CloudDataTransferServiceRunJobOperator(GoogleCloudBaseOperator):
         "api_version",
         "google_impersonation_chain",
     )
+    # [END gcp_transfer_job_run_template_fields]
     operator_extra_links = (CloudStorageTransferJobLink(),)
 
     def __init__(
