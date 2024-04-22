@@ -197,7 +197,7 @@ class AwsAuthManager(BaseAuthManager):
         )
 
     def is_authorized_custom_view(
-        self, *, method: ResourceMethod, resource_name: str, user: BaseUser | None = None
+        self, *, method: ResourceMethod | str, resource_name: str, user: BaseUser | None = None
     ):
         return self.avp_facade.is_authorized(
             method=method,
