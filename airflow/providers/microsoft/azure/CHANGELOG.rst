@@ -26,13 +26,6 @@
 
 Changelog
 ---------
-10.0.1
-.....
-
-Features
-~~~~~~~~
-
-* ``Allow additional configurations for AzureContainerInstancesOperator (dns_config and diagnostics/log_analytics) (#39149)``
 
 10.0.0
 ......
