@@ -16,12 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example Airflow DAG to show usage of S3StorageToTeradataOperator
+Example Airflow DAG to show usage of S3StorageToTeradataOperator.
 
-The transfer operator transfers CSV, JSON and PARQUET data format files from AWS S3 to teradata tables.
-The example DAG below assumes Airflow Connections with connection ids `teradata_default`
-and `aws_default` exists already. It creates tables with data from AWS S3 location, returns
-numbers of rows inserted into table and then drops this table.
+The transfer operator moves files in CSV, JSON, and PARQUET formats from S3
+to Teradata tables. In the example Directed Acyclic Graph (DAG) below, it assumes Airflow
+Connections with the IDs `teradata_default` and `aws_default` already exist. The DAG creates
+tables using data from the S3, reports the number of rows inserted into
+the table, and subsequently drops the table.
 """
 
 from __future__ import annotations
@@ -53,7 +54,7 @@ with DAG(
     catchup=False,
     default_args={"conn_id": "teradata_default"},
 ) as dag:
-    # [START s3_to_teradata_transfer_operator_howto_guide_transfer_csv_data_s3_to_teradata]
+    # [START s3_to_teradata_transfer_operator_howto_guide_transfer_data_s3_to_teradata_csv]
     transfer_data_csv = S3ToTeradataOperator(
         task_id="transfer_data_s3_to_teradata_csv",
         s3_source_key="/s3/td-usgs-public.s3.amazonaws.com/CSVDATA/",
@@ -62,7 +63,7 @@ with DAG(
         teradata_conn_id="teradata_default",
         trigger_rule="all_done",
     )
-    # [END s3_to_teradata_transfer_operator_howto_guide_transfer_csv_data_s3_to_teradata]
+    # [END s3_to_teradata_transfer_operator_howto_guide_transfer_data_s3_to_teradata_csv]
     # [START s3_to_teradata_transfer_operator_howto_guide_read_data_table_csv]
     read_data_table_csv = TeradataOperator(
         task_id="read_data_table_csv",
@@ -81,7 +82,7 @@ with DAG(
             """,
     )
     # [END s3_to_teradata_transfer_operator_howto_guide_drop_table_csv]
-    # [START s3_to_teradata_transfer_operator_howto_guide_transfer_json_data_s3_to_teradata]
+    # [START s3_to_teradata_transfer_operator_howto_guide_transfer_data_s3_to_teradata_json]
     transfer_data_json = S3ToTeradataOperator(
         task_id="transfer_data_s3_to_teradata_json",
         s3_source_key="/s3/td-usgs-public.s3.amazonaws.com/JSONDATA/",
@@ -90,7 +91,7 @@ with DAG(
         teradata_conn_id="teradata_default",
         trigger_rule="all_done",
     )
-    # [END s3_to_teradata_transfer_operator_howto_guide_transfer_json_data_s3_to_teradata]
+    # [END s3_to_teradata_transfer_operator_howto_guide_transfer_data_s3_to_teradata_json]
     # [START s3_to_teradata_transfer_operator_howto_guide_read_data_table_json]
     read_data_table_json = TeradataOperator(
         task_id="read_data_table_json",
@@ -109,7 +110,7 @@ with DAG(
                 """,
     )
     # [END s3_to_teradata_transfer_operator_howto_guide_drop_table_json]
-    # [START s3_to_teradata_transfer_operator_howto_guide_transfer_parquet_data_s3_to_teradata]
+    # [START s3_to_teradata_transfer_operator_howto_guide_transfer_data_s3_to_teradata_parquet]
     transfer_data_parquet = S3ToTeradataOperator(
         task_id="transfer_data_s3_to_teradata_parquet",
         s3_source_key="/s3/td-usgs-public.s3.amazonaws.com/PARQUETDATA/",
@@ -118,7 +119,7 @@ with DAG(
         teradata_conn_id="teradata_default",
         trigger_rule="all_done",
     )
-    # [END s3_to_teradata_transfer_operator_howto_guide_transfer_parquet_data_s3_to_teradata]
+    # [END s3_to_teradata_transfer_operator_howto_guide_transfer_data_s3_to_teradata_parquet]
     # [START s3_to_teradata_transfer_operator_howto_guide_read_data_table_parquet]
     read_data_table_parquet = TeradataOperator(
         task_id="read_data_table_parquet",
@@ -137,48 +138,16 @@ with DAG(
                 """,
     )
     # [END s3_to_teradata_transfer_operator_howto_guide_drop_table_parquet]
-    # [START s3_to_teradata_transfer_operator_howto_guide_transfer_data_access_teradata]
-    transfer_data_access = S3ToTeradataOperator(
-        task_id="transfer_data_s3_to_teradata_access",
-        s3_source_key="/s3/td-usgs-public.s3.amazonaws.com/JSONDATA/",
-        teradata_table="example_s3_teradata_access",
-        aws_access_key="",
-        aws_access_secret="",
-        teradata_conn_id="teradata_default",
-        trigger_rule="all_done",
-    )
-    # [END s3_to_teradata_transfer_operator_howto_guide_transfer_data_access_teradata]
-    # [START s3_to_teradata_transfer_operator_howto_guide_read_data_table_access]
-    read_data_table_access = TeradataOperator(
-        task_id="read_data_table_access",
-        conn_id=CONN_ID,
-        sql="""
-                SELECT * from example_s3_teradata_access;
-                """,
-    )
-    # [END s3_to_teradata_transfer_operator_howto_guide_read_data_table_access]
-    # [START s3_to_teradata_transfer_operator_howto_guide_drop_table_access]
-    drop_table_access = TeradataOperator(
-        task_id="drop_table_access",
-        conn_id=CONN_ID,
-        sql="""
-                   DROP TABLE example_s3_teradata_access;
-               """,
-    )
-    # [END s3_to_teradata_transfer_operator_howto_guide_drop_table_access]
     (
         transfer_data_csv,
         transfer_data_json,
         transfer_data_parquet,
-        transfer_data_access,
         read_data_table_csv,
         read_data_table_json,
         read_data_table_parquet,
-        read_data_table_access,
         drop_table_csv,
         drop_table_json,
         drop_table_parquet,
-        drop_table_access,
     )
     # [END s3_to_teradata_transfer_operator_howto_guide]
 

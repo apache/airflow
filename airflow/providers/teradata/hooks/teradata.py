@@ -226,13 +226,16 @@ class TeradataHook(DbApiHook):
         def handler(cursor):
             records = cursor.fetchall()
 
+            if records is None:
+                return
+
             if isinstance(records, list):
                 return [row for row in records]
 
             if isinstance(records, dict):
                 return {n: v for (n, v) in records.items()}
-
-            raise TypeError(f"Unexpected results: {cursor.fetchall()!r}")
+            self.log.info("records  - %s", records)
+            raise TypeError(f"Unexpected results: {records}")
 
         result = self.run(
             sql,

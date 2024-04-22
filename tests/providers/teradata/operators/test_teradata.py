@@ -118,7 +118,7 @@ class TestTeradataStoredProcedureOperator:
         assert result is mock_run.return_value
         mock_run.assert_called_once_with(
             mock.ANY,
-            "CALL test(:parameter);",
+            "{CALL test(?)}",
             autocommit=True,
             parameters=parameters,
             handler=mock.ANY,

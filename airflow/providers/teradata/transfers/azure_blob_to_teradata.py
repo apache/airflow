@@ -33,21 +33,23 @@ class AzureBlobStorageToTeradataOperator(BaseOperator):
     Loads CSV, JSON and Parquet format data from Azure Blob Storage to Teradata.
 
     .. seealso::
-    For more information on how to use this operator, take a look at the guide:
-    :ref:`howto/operator:AzureBlobStorageToTeradataOperator`
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AzureBlobStorageToTeradataOperator`
 
-    :param blob_source_key: The object store URI with blob location. The URI format is /az/YOUR-STORAGE-ACCOUNT.blob.core.windows.net/YOUR-CONTAINER/YOUR-BLOB-LOCATION. Refer to
+    :param blob_source_key: The URI format specifying the location of the Azure blob object store.(templated)
+        The URI format is /az/YOUR-STORAGE-ACCOUNT.blob.core.windows.net/YOUR-CONTAINER/YOUR-BLOB-LOCATION.
+        Refer to
         https://docs.teradata.com/search/documents?query=native+object+store&sort=last_update&virtual-field=title_only&content-lang=en-US
-    :param azure_conn_id: The :ref:`Azure connection id<howto/connection:azure>`
-        which refers to the information to connect to Azure service.
-    :param teradata_table: destination table to insert rows.
-    :param teradata_conn_id: :ref:`Teradata connection <howto/connection:Teradata>`
-        which refers to the information to connect to Teradata
+    :param azure_conn_id: The Airflow WASB connection used for azure blob credentials.
+    :param teradata_table: The name of the teradata table to which the data is transferred.(templated)
+    :param teradata_conn_id: The connection ID used to connect to Teradata
+        :ref:`Teradata connection <howto/connection:Teradata>`
 
+    Note that ``blob_source_key`` and ``teradata_table`` are
+    templated, so you can use variables in them if you wish.
     """
 
     template_fields: Sequence[str] = ("blob_source_key", "teradata_table")
-    template_fields_renderers = {"blob_source_key": "sql", "teradata_table": "py"}
     ui_color = "#e07c24"
 
     def __init__(
@@ -66,13 +68,8 @@ class AzureBlobStorageToTeradataOperator(BaseOperator):
         self.teradata_conn_id = teradata_conn_id
 
     def execute(self, context: Context) -> None:
-        """
-
-        Execute the transfer operation from Azure Blob Storage to Teradata.
-
-        :param context: The context that is being provided when executing.
-
-        """
+        self.log.info("transferring data from %s to teradata table %s...", self.blob_source_key,
+                      self.teradata_table)
         azure_hook = WasbHook(wasb_conn_id=self.azure_conn_id)
         conn = azure_hook.get_connection(self.azure_conn_id)
         # Obtaining the Azure client ID and Azure secret in order to access a specified Blob container
@@ -94,8 +91,6 @@ class AzureBlobStorageToTeradataOperator(BaseOperator):
                     ) AS d
                     ) WITH DATA
                 """
-
-        self.log.info("COPYING using READ_NOS and CREATE TABLE AS feature of teradata....")
         try:
             teradata_hook.run(sql, True)
         except Exception as ex:
@@ -111,4 +106,4 @@ class AzureBlobStorageToTeradataOperator(BaseOperator):
                 raise
             self.log.error("Issue occurred at Teradata: %s", str(ex))
             raise
-        self.log.info("COPYING is completed")
+        self.log.info("The transfer of data from Azure Blob to Teradata was successful")

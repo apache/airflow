@@ -129,6 +129,7 @@ aws
 awsbatch
 awslogs
 Azkaban
+az
 Azri
 backcompat
 Backend

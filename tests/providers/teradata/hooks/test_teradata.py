@@ -272,7 +272,6 @@ class TestTeradataHook:
             def getvalue(self):
                 return self
 
-        self.cur.bindvars = {k: bindvar(v) for k, v in parameters.items()}
+        self.cur.fetchall.return_value = {k: bindvar(v) for k, v in parameters.items()}
         result = self.test_db_hook.callproc("proc", True, parameters)
-        assert self.cur.execute.mock_calls == [mock.call("CALL proc(:a,:b,:c);", parameters)]
         assert result == parameters

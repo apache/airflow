@@ -16,7 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example use of Teradata related operators.
+Example Airflow DAG to show usage of TeradataOperator with SSL teradata connection.
+
+This DAG assumes Airflow Connection with connection id `teradata_ssl_default` already exists in locally. It
+shows how to use create, update, delete and select teradata statements with TeradataOperator as tasks in
+airflow dags using TeradataStoredProcedureOperator.
 """
 
 from __future__ import annotations

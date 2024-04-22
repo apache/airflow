@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example Airflow DAG to show usage of teradata to teradata transfer operator
+Example Airflow DAG to show usage of teradata to teradata transfer operator.
 
 The transfer operator connects to source teradata server, runs query to fetch data from source
 and inserts that data into destination teradata database server. It assumes tables already exists.

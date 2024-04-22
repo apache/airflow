@@ -16,11 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """Example Airflow DAG to show Stored Procedure creation and execution on teradata database using
-TeradataStoredProcedureOperator
+TeradataStoredProcedureOperator.
 
 This DAG assumes Airflow Connection with connection id `teradata_sp_call` already exists in locally. It
 shows how to create and execute Stored Procedure as tasks in airflow dags using
-TeradataStoredProcedureOperator.."""
+TeradataStoredProcedureOperator."""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ try:
         TeradataStoredProcedureOperator,
     )
 except ImportError:
-    pytest.skip("Teradata provider pache-airflow-provider-teradata not available", allow_module_level=True)
+    pytest.skip("Teradata provider apache-airflow-provider-teradata not available", allow_module_level=True)
 
 CONN_ID = "teradata_sp_call"
 

@@ -16,32 +16,58 @@
     under the License.
 
 
-
-============================
-Azure Blob to Teradata
-============================
-
-Use the ``AzureBlobStorageToTeradataOperator`` transfer operator to copy CSV, JSON and Parquet format data from Azure Blob Storage to Teradata table.
-
-Operators
----------
-
 .. _howto/operator:AzureBlobStorageToTeradataOperator:
 
-Azure Blob To Teradata transfer operator
-==============================================
 
-This operator loads CSV, JSON and Parquet format data from Amazon S3 to Teradata table.
+==================================
+AzureBlobStorageToTeradataOperator
+==================================
 
-Using the Operator
-^^^^^^^^^^^^^^^^^^
+The purpose of ``AzureBlobStorageToTeradataOperator`` is to define tasks involving CSV, JSON and Parquet
+format data transfer from an Azure Blob Storage to Teradata table.
+Use the :class:`AzureBlobStorageToTeradataOperator <airflow.providers.teradata.transfers.azure_blob_to_teradata>`
+to transfer data from an Azure Blob Storage to Teradata.
 
-To transfer CSV, JSON and Parquet data from Azure Blob to Teradata, use the
-:class:`~airflow.providers.teradata.transfers.azure_blob_to_teradata.AzureBlobStorageToTeradataOperator`.
 
-An example usage of the AzureBlobStorageToTeradataOperator is as follows:
+Transferring data in CSV format from Azure Blob Storage to Teradata
+-------------------------------------------------------------------
 
-.. exampleinclude:: /../../tests/system/providers/teradata/example_azure_blob_to_teradata_transfer_operator.py
+An example usage of the AzureBlobStorageToTeradataOperator to transfer CSV data format from Azure Blob Storage
+to teradata table is as follows:
+
+.. exampleinclude:: /../../tests/system/providers/teradata/example_azure_blob_to_teradata_transfer.py
     :language: python
-    :start-after: [START howto_transfer_operator_azure_blob_to_teradata]
-    :end-before: [END howto_transfer_operator_azure_blob_to_teradata]
+    :start-after: [START azure_blob_to_teradata_transfer_operator_howto_guide_transfer_data_blob_to_teradata_csv]
+    :end-before: [END azure_blob_to_teradata_transfer_operator_howto_guide_transfer_data_blob_to_teradata_csv]
+
+Transferring data in JSON format from Azure Blob Storage to Teradata
+--------------------------------------------------------------------
+
+An example usage of the AzureBlobStorageToTeradataOperator to transfer JSON data format from Azure Blob Storage
+to teradata table is as follows:
+
+.. exampleinclude:: /../../tests/system/providers/teradata/example_azure_blob_to_teradata_transfer.py
+    :language: python
+    :start-after: [START azure_blob_to_teradata_transfer_operator_howto_guide_transfer_data_blob_to_teradata_json]
+    :end-before: [END azure_blob_to_teradata_transfer_operator_howto_guide_transfer_data_blob_to_teradata_json]
+
+Transferring data in PARQUET format from Azure Blob Storage to Teradata
+-----------------------------------------------------------------------
+
+An example usage of the AzureBlobStorageToTeradataOperator to transfer PARQUET data format from Azure Blob Storage
+to teradata table is as follows:
+
+.. exampleinclude:: /../../tests/system/providers/teradata/example_azure_blob_to_teradata_transfer.py
+    :language: python
+    :start-after: [START azure_blob_to_teradata_transfer_operator_howto_guide_transfer_data_blob_to_teradata_parquet]
+    :end-before: [END azure_blob_to_teradata_transfer_operator_howto_guide_transfer_data_blob_to_teradata_parquet]
+
+The complete ``AzureBlobStorageToTeradataOperator`` Operator DAG
+----------------------------------------------------------------
+
+When we put everything together, our DAG should look like this:
+
+.. exampleinclude:: /../../tests/system/providers/teradata/example_azure_blob_to_teradata_transfer.py
+    :language: python
+    :start-after: [START azure_blob_to_teradata_transfer_operator_howto_guide]
+    :end-before: [END azure_blob_to_teradata_transfer_operator_howto_guide]

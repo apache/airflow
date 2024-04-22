@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Example Airflow DAG to show how values can pass from one task to another task using xcom
+"""Example Airflow DAG to show how values can pass from one task to another task using xcom.
 
 This DAG assumes Airflow Connection with connection id `teradata_sp_call` already exists in locally."""
 

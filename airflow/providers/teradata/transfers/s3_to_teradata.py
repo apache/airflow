@@ -32,19 +32,23 @@ class S3ToTeradataOperator(BaseOperator):
     Loads CSV, JSON and Parquet format data from Amazon S3 to Teradata.
 
     .. seealso::
-    For more information on how to use this operator, take a look at the guide:
-    :ref:`howto/operator:S3ToTeradataOperator`
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3ToTeradataOperator`
 
-    :param s3_source_key: The path to the file (S3 key) that will be loaded into Teradata.
-    :param teradata_table: destination table to insert rows.
-    :param aws_conn_id: reference to a specific S3 connection.
-    :param teradata_conn_id: :ref:`Teradata connection <howto/connection:Teradata>`.
-    :param aws_access_key: S3 bucket access key.
-    :param aws_access_secret: S3 bucket access secret.
+    :param s3_source_key: The URI format specifying the location of the S3 object store.(templated)
+        The URI format is /s3/YOUR-BUCKET.s3.amazonaws.com/YOUR-BUCKET-NAME.
+        Refer to
+        https://docs.teradata.com/search/documents?query=native+object+store&sort=last_update&virtual-field=title_only&content-lang=en-US
+    :param teradata_table: The name of the teradata table to which the data is transferred.(templated)
+    :param aws_conn_id: The Airflow AWS connection used for AWS credentials.
+    :param teradata_conn_id: The connection ID used to connect to Teradata
+        :ref:`Teradata connection <howto/connection:Teradata>`.
+
+    Note that ``s3_source_key`` and ``teradata_table`` are
+    templated, so you can use variables in them if you wish.
     """
 
     template_fields: Sequence[str] = ("s3_source_key", "teradata_table")
-    template_fields_renderers = {"s3_source_key": "sql", "teradata_table": "py"}
     ui_color = "#e07c24"
 
     def __init__(
@@ -54,36 +58,28 @@ class S3ToTeradataOperator(BaseOperator):
         teradata_table: str,
         aws_conn_id: str = "aws_default",
         teradata_conn_id: str = "teradata_default",
-        aws_access_key: str = "",
-        aws_access_secret: str = "",
-        **kwargs,
+        **kwargs
     ) -> None:
         super().__init__(**kwargs)
         self.s3_source_key = s3_source_key
         self.teradata_table = teradata_table
         self.aws_conn_id = aws_conn_id
         self.teradata_conn_id = teradata_conn_id
-        self.aws_access_key = aws_access_key
-        self.aws_access_secret = aws_access_secret
 
     def execute(self, context: Context) -> None:
-        self.log.info("Loading %s to Teradata table %s...", self.s3_source_key, self.teradata_table)
+        self.log.info("transferring data from %s to teradata table %s...", self.s3_source_key, self.teradata_table)
 
-        access_key = self.aws_access_key
-        access_secret = self.aws_access_secret
-
-        if not access_key or not access_secret:
-            s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
-            access_key = (
-                s3_hook.conn_config.aws_access_key_id
-                if s3_hook.conn_config.aws_access_key_id is not None
-                else ""
-            )
-            access_secret = (
-                s3_hook.conn_config.aws_secret_access_key
-                if s3_hook.conn_config.aws_secret_access_key is not None
-                else ""
-            )
+        s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
+        access_key = (
+            s3_hook.conn_config.aws_access_key_id
+            if s3_hook.conn_config.aws_access_key_id is not None
+            else ""
+        )
+        access_secret = (
+            s3_hook.conn_config.aws_secret_access_key
+            if s3_hook.conn_config.aws_secret_access_key is not None
+            else ""
+        )
 
         teradata_hook = TeradataHook(teradata_conn_id=self.teradata_conn_id)
         sql = f"""
@@ -96,7 +92,19 @@ class S3ToTeradataOperator(BaseOperator):
                             ) AS d
                         ) WITH DATA
                         """
-        self.log.info("COPYING using READ_NOS and CREATE TABLE AS feature of teradata....")
-        self.log.info("sql : %s", sql)
-        teradata_hook.run(sql)
-        self.log.info("COPYING is completed")
+        try:
+            teradata_hook.run(sql, True)
+        except Exception as ex:
+            # Handling permission issue errors
+            if "Error 3524" in str(ex):
+                self.log.error("The user does not have CREATE TABLE access in teradata")
+                raise
+            if "Error 9134" in str(ex):
+                self.log.error(
+                    "There is an issue with the transfer operation. Please validate s3 and "
+                    "teradata connection details."
+                )
+                raise
+            self.log.error("Issue occurred at Teradata: %s", str(ex))
+            raise
+        self.log.info("The transfer of data from S3 to Teradata was successful")

@@ -18,10 +18,11 @@
 """
 Example Airflow DAG to show usage of AzureBlobStorageToTeradataOperator
 
-The transfer operator transfers CSV, JSON and PARQUET data format files from Azure Blob storage to
-teradata tables. The example DAG below assumes Airflow Connections with connection ids `teradata_default`
-and `wasb_default` exists already. It creates tables with data from Azure blob location, returns
-numbers of rows inserted into table and then drops this table.
+The transfer operator moves files in CSV, JSON, and PARQUET formats from Azure Blob storage
+to Teradata tables. In the example Directed Acyclic Graph (DAG) below, it assumes Airflow
+Connections with the IDs `teradata_default` and `wasb_default` already exist. The DAG creates
+tables using data from the Azure Blob location, reports the number of rows inserted into
+the table, and subsequently drops the table.
 """
 
 from __future__ import annotations
@@ -52,7 +53,7 @@ with DAG(
     catchup=False,
     default_args={"conn_id": "teradata_default"},
 ) as dag:
-    # [START azure_blob_to_teradata_transfer_operator_howto_guide_transfer_csv_data_azure_blob_to_teradata]
+    # [START azure_blob_to_teradata_transfer_operator_howto_guide_transfer_data_blob_to_teradata_csv]
     transfer_data_csv = AzureBlobStorageToTeradataOperator(
         task_id="transfer_data_blob_to_teradata_csv",
         blob_source_key="/az/akiaxox5jikeotfww4ul.blob.core.windows.net/td-usgs/CSVDATA/",
@@ -61,19 +62,92 @@ with DAG(
         teradata_conn_id="teradata_default",
         trigger_rule="all_done",
     )
+    # [END azure_blob_to_teradata_transfer_operator_howto_guide_transfer_data_blob_to_teradata_csv]
+    # [START azure_blob_to_teradata_transfer_operator_howto_guide_read_data_table_csv]
     read_data_table_csv = TeradataOperator(
         task_id="read_data_table_csv",
         conn_id=CONN_ID,
         sql="""
-                    SELECT * from example_blob_teradata_csv;
-                """,
+                SELECT count(1) from example_blob_teradata_csv;
+            """,
     )
-    # [END azure_blob_to_teradata_transfer_operator_howto_guide_transfer_csv_data_azure_blob_to_teradata]
+    # [END azure_blob_to_teradata_transfer_operator_howto_guide_read_data_table_csv]
+    # [START azure_blob_to_teradata_transfer_operator_howto_guide_drop_table_csv]
+    drop_table_csv = TeradataOperator(
+        task_id="drop_table_csv",
+        conn_id=CONN_ID,
+        sql="""
+                DROP TABLE example_blob_teradata_csv;
+            """,
+    )
+    # [END azure_blob_to_teradata_transfer_operator_howto_guide_drop_table_csv]
+    # [START azure_blob_to_teradata_transfer_operator_howto_guide_transfer_data_blob_to_teradata_json]
+    transfer_data_json = AzureBlobStorageToTeradataOperator(
+        task_id="transfer_data_blob_to_teradata_json",
+        blob_source_key="/az/akiaxox5jikeotfww4ul.blob.core.windows.net/td-usgs/JSONDATA/",
+        teradata_table="example_blob_teradata_json",
+        wasb_conn_id="wasb_default",
+        teradata_conn_id="teradata_default",
+        trigger_rule="all_done",
+    )
+    # [END azure_blob_to_teradata_transfer_operator_howto_guide_transfer_data_blob_to_teradata_json]
+    # [START azure_blob_to_teradata_transfer_operator_howto_guide_read_data_table_json]
+    read_data_table_json = TeradataOperator(
+        task_id="read_data_table_json",
+        conn_id=CONN_ID,
+        sql="""
+                SELECT count(1) from example_blob_teradata_json;
+            """,
+    )
+    # [END azure_blob_to_teradata_transfer_operator_howto_guide_read_data_table_json]
+    # [START azure_blob_to_teradata_transfer_operator_howto_guide_drop_table_json]
+    drop_table_json = TeradataOperator(
+        task_id="drop_table_json",
+        conn_id=CONN_ID,
+        sql="""
+                DROP TABLE example_blob_teradata_json;
+            """,
+    )
+    # [END azure_blob_to_teradata_transfer_operator_howto_guide_drop_table_json]
+    # [START azure_blob_to_teradata_transfer_operator_howto_guide_transfer_data_blob_to_teradata_parquet]
+    transfer_data_parquet = AzureBlobStorageToTeradataOperator(
+        task_id="transfer_data_blob_to_teradata_parquet",
+        blob_source_key="/az/akiaxox5jikeotfww4ul.blob.core.windows.net/td-usgs/PARQUETDATA/",
+        teradata_table="example_blob_teradata_parquet",
+        wasb_conn_id="wasb_default",
+        teradata_conn_id="teradata_default",
+        trigger_rule="all_done",
+    )
+    # [END azure_blob_to_teradata_transfer_operator_howto_guide_transfer_data_blob_to_teradata_parquet]
+    # [START azure_blob_to_teradata_transfer_operator_howto_guide_read_data_table_parquet]
+    read_data_table_parquet = TeradataOperator(
+        task_id="read_data_table_parquet",
+        conn_id=CONN_ID,
+        sql="""
+                SELECT count(1) from example_blob_teradata_parquet;
+            """,
+    )
+    # [END azure_blob_to_teradata_transfer_operator_howto_guide_read_data_table_parquet]
+    # [START azure_blob_to_teradata_transfer_operator_howto_guide_drop_table_parquet]
+    drop_table_parquet = TeradataOperator(
+        task_id="drop_table_parquet",
+        conn_id=CONN_ID,
+        sql="""
+                DROP TABLE example_blob_teradata_parquet;
+            """,
+    )
+    # [END azure_blob_to_teradata_transfer_operator_howto_guide_drop_table_parquet]
 
-    # [END azure_blob_to_teradata_transfer_operator_howto_guide_transfer_parquet_data_azure_blob_to_teradata]
     (
         transfer_data_csv,
+        transfer_data_json,
+        transfer_data_parquet,
         read_data_table_csv,
+        read_data_table_json,
+        read_data_table_parquet,
+        drop_table_csv,
+        drop_table_json,
+        drop_table_parquet
     )
     # [END azure_blob_to_teradata_transfer_operator_howto_guide]
 

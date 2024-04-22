@@ -45,8 +45,8 @@ class TeradataOperator(SQLExecuteQueryOperator):
     """
 
     template_fields: Sequence[str] = (
-        "parameters",
         "sql",
+        "parameters",
     )
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"sql": "sql"}
@@ -80,8 +80,8 @@ class TeradataStoredProcedureOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        "parameters",
         "procedure",
+        "parameters",
     )
     ui_color = "#ededed"
 

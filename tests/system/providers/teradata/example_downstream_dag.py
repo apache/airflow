@@ -15,6 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""Example Airflow DAG functions as a downstream DAG, meaning it will be activated by an upstream DAG.
+
+This DAG operates under the assumption that an Airflow Connection with the ID teradata_sp_call already exists
+locally. It demonstrates the method for accessing parameters transmitted by an upstream DAG. """
+
 from __future__ import annotations
 
 from airflow import DAG
