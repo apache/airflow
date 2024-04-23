@@ -387,7 +387,6 @@ combine-as-imports = true
 
 # All the modules which do not follow B028 yet: https://docs.astral.sh/ruff/rules/no-explicit-stacklevel/
 "airflow/providers/jdbc/hooks/jdbc.py" = ["B028"]
-"airflow/providers/microsoft/azure/hooks/synapse.py" = ["B028"]
 "helm_tests/airflow_aux/test_basic_helm_chart.py" = ["B028"]
 
 [tool.ruff.lint.flake8-tidy-imports]
