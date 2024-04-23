@@ -58,7 +58,7 @@ with DAG(
         task_id="transfer_data_blob_to_teradata_csv",
         blob_source_key="/az/akiaxox5jikeotfww4ul.blob.core.windows.net/td-usgs/CSVDATA/",
         teradata_table="example_blob_teradata_csv",
-        wasb_conn_id="wasb_default",
+        azure_conn_id="wasb_default",
         teradata_conn_id="teradata_default",
         trigger_rule="all_done",
     )
@@ -86,7 +86,7 @@ with DAG(
         task_id="transfer_data_blob_to_teradata_json",
         blob_source_key="/az/akiaxox5jikeotfww4ul.blob.core.windows.net/td-usgs/JSONDATA/",
         teradata_table="example_blob_teradata_json",
-        wasb_conn_id="wasb_default",
+        azure_conn_id="wasb_default",
         teradata_conn_id="teradata_default",
         trigger_rule="all_done",
     )
@@ -114,7 +114,7 @@ with DAG(
         task_id="transfer_data_blob_to_teradata_parquet",
         blob_source_key="/az/akiaxox5jikeotfww4ul.blob.core.windows.net/td-usgs/PARQUETDATA/",
         teradata_table="example_blob_teradata_parquet",
-        wasb_conn_id="wasb_default",
+        azure_conn_id="wasb_default",
         teradata_conn_id="teradata_default",
         trigger_rule="all_done",
     )
