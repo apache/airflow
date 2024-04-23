@@ -715,7 +715,6 @@ class BaseSerialization:
         elif type_ == DAT.RELATIVEDELTA:
             return decode_relativedelta(var)
         elif type_ == DAT.AIRFLOW_EXC_SER:
-            print(f"var={var}")
             deser = cls.deserialize(var, use_pydantic_models=use_pydantic_models)
             exc_cls_name = deser["exc_cls_name"]
             args = deser["args"]
