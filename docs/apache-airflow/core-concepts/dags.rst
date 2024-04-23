@@ -930,4 +930,4 @@ Disable deletion of stale dags
 
 In a versioned DAG context, there may be a need to run two versions of DAGs in parallel in two versions of workers.
 It can also be useful to keep the allowed DAGs if they are still in progress in the worker (n -1).
-To keep the allowed DAGs, you can change the value of the variable ``AIRFLOW__CORE__DISABLE_SCANNING_STALE_DAGS`` to ``True``. By default, it is set to ``False`` in config.yml.
+To keep the allowed DAGs, you can change the value of the variable ``AIRFLOW__CORE__ENABLE_SCANNING_STALE_DAGS`` to ``False``. By default, it is set to ``True`` in config.yml.
