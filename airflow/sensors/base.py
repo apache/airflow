@@ -53,7 +53,8 @@ from airflow.utils.decorators import apply_defaults  # noqa: F401
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
-    from airflow.settings import Session
+    from sqlalchemy.orm.session import Session
+
     from airflow.utils.context import Context
 
 # As documented in https://dev.mysql.com/doc/refman/5.7/en/datetime.html.
