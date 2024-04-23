@@ -27,6 +27,7 @@ from typing import Any, AsyncIterator, Sequence
 from google.api_core.exceptions import NotFound
 from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, JobStatus
 
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc import DataprocAsyncHook, DataprocHook
 from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
@@ -181,7 +182,7 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
                         region=self.region, cluster_name=self.cluster_name, project_id=self.project_id
                     )
                     self.log.info("Deleted cluster %s during cancellation.", self.cluster_name)
-                    self.log.info("Cluster deletion initiated, awaiting completion...")
+                    self.log.info("Cluster deletion initiated.")
                     async for event in self.wait_until_cluster_deleted():
                         if event["status"] == "success":
                             self.log.info("Cluster deletion confirmed.")
@@ -190,6 +191,7 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
                     self.log.info("Finished handling cluster deletion.")
             except Exception as e:
                 self.log.error("Error during cancellation handling: %s", e)
+                raise AirflowException("Error during cancellation handling: %s", e)
 
     async def wait_until_cluster_deleted(self):
         """Wait until the cluster is confirmed as deleted."""
@@ -246,17 +248,10 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
             await self.get_async_hook().delete_cluster(
                 region=self.region, cluster_name=self.cluster_name, project_id=self.project_id
             )
-            return TriggerEvent(
-                {
-                    "cluster_name": self.cluster_name,
-                    "cluster_state": cluster.status.state,
-                    "cluster": None,
-                    "action": "deleted",
-                }
-            )
+            self.log.info("Cluster %s has been deleted.", self.cluster_name)
         else:
-            return TriggerEvent(
-                {"cluster_name": self.cluster_name, "cluster_state": cluster.status.state, "cluster": cluster}
+            self.log.info(
+                "Cluster %s is not be deleted as delete_on_error is set to False.", self.cluster_name
             )
 
 
