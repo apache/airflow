@@ -38,6 +38,7 @@ try:
 except ImportError:
     pytest.skip("Teradata provider apache-airflow-provider-teradata not available", allow_module_level=True)
 
+# [START howto_teradata_operator_for_sp]
 CONN_ID = "teradata_sp_call"
 DAG_ID = "example_teradata_call_sp"
 
@@ -50,51 +51,32 @@ with DAG(
     schedule="@once",
     start_date=datetime(2023, 1, 1),
 ) as dag:
-    # [START howto_teradata_operator_for_sp]
-
     # [START howto_teradata_stored_procedure_operator_with_in_inout]
     create_sp_in_inout = TeradataOperator(
         task_id="create_sp_in_inout",
-        sql=r"""replace procedure examplestoredproc (in p1 integer, inout p2 integer) begin set p2 = p1 + p2 ; end ;
-        """,
+        sql=r"""REPLACE PROCEDURE TEST_PROCEDURE (IN val_in INTEGER, OUT val_out INTEGER)
+                BEGIN
+                    val_out := val_in * 2;
+                END;
+            """,
     )
 
     opr_sp_in_inout = TeradataStoredProcedureOperator(
         task_id="opr_sp_in_inout",
-        procedure="examplestoredproc",
-        parameters=[3, 5],
+        procedure="TEST_PROCEDURE",
+        parameters=[3, int],
     )
 
     # [END howto_teradata_stored_procedure_operator_with_in_inout]
-    # [START howto_teradata_stored_procedure_operator_with_out]
-    create_sp_out = TeradataOperator(
-        task_id="create_sp_out",
-        sql=r"""replace procedure examplestoredproc (out p1 varchar(100)) begin set p1 = 'foobar' ; end ;
-            """,
-    )
-    opr_sp_out = TeradataStoredProcedureOperator(
-        task_id="opr_sp_out",
-        procedure="examplestoredproc",
-        parameters=[str],
-    )
-    # [END howto_teradata_stored_procedure_operator_with_out]
+    # [START howto_teradata_stored_procedure_operator_with_dict_inout]
 
-    # [START howto_teradata_stored_procedure_operator_with_noparam_dynamic_result]
-    create_sp_noparam_dr = TeradataOperator(
-        task_id="create_sp_noparam_dr",
-        sql=r"""replace procedure examplestoredproc()
-                dynamic result sets 1
-                begin
-                    declare cur1 cursor with return for select * from dbc.dbcinfo order by 1 ;
-                    open cur1 ;
-                end ;
-                """,
+    opr_sp_dict_in_inout = TeradataStoredProcedureOperator(
+        task_id="opr_sp_dict_in_inout",
+        procedure="TEST_PROCEDURE",
+        parameters={"val_in": 3, "val_out": int},
     )
-    opr_sp_noparam_dr = TeradataStoredProcedureOperator(
-        task_id="opr_sp_noparam_dr",
-        procedure="examplestoredproc",
-    )
-    # [END howto_teradata_stored_procedure_operator_with_noparam_dynamic_result]
+
+    # [END howto_teradata_stored_procedure_operator_with_dict_inout]
 
     # [START howto_teradata_stored_procedure_operator_with_in_out_dynamic_result]
     create_sp_param_dr = TeradataOperator(
@@ -128,10 +110,7 @@ with DAG(
     (
         create_sp_in_inout
         >> opr_sp_in_inout
-        >> create_sp_out
-        >> opr_sp_out
-        >> create_sp_noparam_dr
-        >> opr_sp_noparam_dr
+        >> opr_sp_dict_in_inout
         >> create_sp_param_dr
         >> opr_sp_param_dr
         >> drop_sp
