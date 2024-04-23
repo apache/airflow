@@ -1026,10 +1026,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         serialize_op["_is_empty"] = op.inherits_from_empty_operator
 
         if bool(op.start_trigger) ^ bool(op.next_method):
-            raise AirflowException("_start_trigger and _next_method should be both set.")
+            raise AirflowException("start_trigger and next_method should both be set.")
 
-        serialize_op["_start_trigger"] = op.start_trigger.serialize() if op.start_trigger else None
-        serialize_op["_next_method"] = op.next_method
+        serialize_op["start_trigger"] = op.start_trigger.serialize() if op.start_trigger else None
+        serialize_op["next_method"] = op.next_method
 
         if op.operator_extra_links:
             serialize_op["_operator_extra_links"] = cls._serialize_operator_extra_links(
@@ -1212,15 +1212,15 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         setattr(op, "_is_empty", bool(encoded_op.get("_is_empty", False)))
 
         # Deserialize start_trigger
-        serialized_start_trigger = encoded_op.get("_start_trigger")
+        serialized_start_trigger = encoded_op.get("start_trigger")
         if serialized_start_trigger:
             trigger_cls_name, trigger_kwargs = serialized_start_trigger
             trigger_cls = import_string(trigger_cls_name)
             start_trigger = trigger_cls(**trigger_kwargs)
-            setattr(op, "_start_trigger", start_trigger)
+            setattr(op, "start_trigger", start_trigger)
         else:
-            setattr(op, "_start_trigger", None)
-        setattr(op, "_next_method", encoded_op.get("_next_method", None))
+            setattr(op, "start_trigger", None)
+        setattr(op, "next_method", encoded_op.get("next_method", None))
 
     @staticmethod
     def set_task_dag_references(task: Operator, dag: DAG) -> None:

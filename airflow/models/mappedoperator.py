@@ -237,8 +237,8 @@ class OperatorPartial:
             # For classic operators, this points to expand_input because kwargs
             # to BaseOperator.expand() contribute to operator arguments.
             expand_input_attr="expand_input",
-            start_trigger=self.operator_class._start_trigger,
-            next_method=self.operator_class._next_method,
+            start_trigger=self.operator_class.start_trigger,
+            next_method=self.operator_class.next_method,
         )
         return op
 
@@ -281,8 +281,8 @@ class MappedOperator(AbstractOperator):
     _task_module: str
     _task_type: str
     _operator_name: str
-    _start_trigger: BaseTrigger | None
-    _next_method: str | None
+    start_trigger: BaseTrigger | None
+    next_method: str | None
 
     dag: DAG | None
     task_group: TaskGroup | None
@@ -311,8 +311,8 @@ class MappedOperator(AbstractOperator):
         (
             "parse_time_mapped_ti_count",
             "operator_class",
-            "_start_trigger",
-            "_next_method",
+            "start_trigger",
+            "next_method",
         )
     )
 
@@ -383,16 +383,6 @@ class MappedOperator(AbstractOperator):
     def inherits_from_empty_operator(self) -> bool:
         """Implementing Operator."""
         return self._is_empty
-
-    @property
-    def start_trigger(self) -> BaseTrigger | None:
-        """Implementing Operator."""
-        return self._start_trigger
-
-    @property
-    def next_method(self) -> str | None:
-        """Implementing Operator."""
-        return self._next_method
 
     @property
     def roots(self) -> Sequence[AbstractOperator]:

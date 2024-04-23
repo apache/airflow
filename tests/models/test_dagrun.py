@@ -1997,8 +1997,8 @@ def test_schedule_tis_start_trigger(dag_maker, session):
     class TestOperator(BaseOperator):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
-            self._start_trigger = trigger
-            self._next_method = "execute_complete"
+            self.start_trigger = trigger
+            self.next_method = "execute_complete"
 
         def execute_complete(self):
             pass

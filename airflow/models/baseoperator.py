@@ -818,8 +818,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # Set to True for an operator instantiated by a mapped operator.
     __from_mapped = False
 
-    _start_trigger: BaseTrigger | None = None
-    _next_method: str | None = None
+    start_trigger: BaseTrigger | None = None
+    next_method: str | None = None
 
     def __init__(
         self,
@@ -1678,8 +1678,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "is_teardown",
                     "on_failure_fail_dagrun",
                     "map_index_template",
-                    "_start_trigger",
-                    "_next_method",
+                    "start_trigger",
+                    "next_method",
                 }
             )
             DagContext.pop_context_managed_dag()
@@ -1697,16 +1697,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         # needs to cope when `self` is a Serialized instance of a EmptyOperator or one
         # of its subclasses (which don't inherit from anything but BaseOperator).
         return getattr(self, "_is_empty", False)
-
-    @property
-    def start_trigger(self) -> BaseTrigger | None:
-        """Trigger when deferring task."""
-        return self._start_trigger
-
-    @property
-    def next_method(self) -> str | None:
-        """Method to execute after finish deferring."""
-        return self._next_method
 
     def defer(
         self,
