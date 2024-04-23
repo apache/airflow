@@ -1842,3 +1842,15 @@ class TestDatabricksNotebookOperator:
         )
         with pytest.raises(ValueError):
             operator._get_run_json()
+
+    def test_job_runs_forever_by_default(self):
+        operator = DatabricksNotebookOperator(
+            task_id="test_task",
+            notebook_path="test_path",
+            source="test_source",
+            databricks_conn_id="test_conn_id",
+            existing_cluster_id="existing_cluster_id",
+        )
+        run_json = operator._get_run_json()
+        assert operator.execution_timeout is None
+        assert run_json["timeout_seconds"] == 0

@@ -917,6 +917,10 @@ class DatabricksNotebookOperator(BaseOperator):
     :param new_cluster: Specs for a new cluster on which this task will be run.
     :param existing_cluster_id: ID for existing cluster on which to run this task.
     :param job_cluster_key: The key for the job cluster.
+    :param polling_period_seconds: Controls the rate which we poll for the result of this notebook job run.
+    :param databricks_retry_limit: Amount of times to retry if the Databricks backend is unreachable.
+    :param databricks_retry_delay: Number of seconds to wait between retries.
+    :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     :param databricks_conn_id: The name of the Airflow connection to use.
     """
 
@@ -968,11 +972,19 @@ class DatabricksNotebookOperator(BaseOperator):
 
     def _get_task_base_json(self) -> dict[str, Any]:
         """Get task base json to be used for task submissions."""
+        if self.execution_timeout is None:
+            # By default, tasks in Airflow have an execution_timeout set to None. In Airflow, when
+            # execution_timeout is not defined, the task continues to run indefinitely. Therefore,
+            # to mirror this behavior in the Databricks Jobs API, we set the timeout to 0, indicating
+            # that the job should run indefinitely. This aligns with the default behavior of Databricks jobs,
+            # where a timeout seconds value of 0 signifies an indefinite run duration.
+            # More details can be found in the Databricks documentation:
+            # See https://docs.databricks.com/api/workspace/jobs/submit#timeout_seconds
+            timeout_seconds = 0
+        else:
+            timeout_seconds = int(self.execution_timeout.total_seconds())
         return {
-            # Timeout seconds value of 0 for the Databricks Jobs API means the job runs forever.
-            # That is also the default behavior of Databricks jobs to run a job forever without a default
-            # timeout value.
-            "timeout_seconds": int(self.execution_timeout.total_seconds()) if self.execution_timeout else 0,
+            "timeout_seconds": timeout_seconds,
             "email_notifications": {},
             "notebook_task": {
                 "notebook_path": self.notebook_path,
