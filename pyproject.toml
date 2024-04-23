@@ -24,10 +24,10 @@
 requires = [
     "GitPython==3.1.43",
     "gitdb==4.0.11",
-    "hatchling==1.24.1",
+    "hatchling==1.24.2",
     "packaging==24.0",
     "pathspec==0.12.1",
-    "pluggy==1.4.0",
+    "pluggy==1.5.0",
     "smmap==5.0.1",
     "tomli==2.0.1; python_version < '3.11'",
     "trove-classifiers==2024.4.10",
@@ -387,7 +387,6 @@ combine-as-imports = true
 
 # All the modules which do not follow B028 yet: https://docs.astral.sh/ruff/rules/no-explicit-stacklevel/
 "airflow/providers/jdbc/hooks/jdbc.py" = ["B028"]
-"airflow/providers/microsoft/azure/hooks/synapse.py" = ["B028"]
 "helm_tests/airflow_aux/test_basic_helm_chart.py" = ["B028"]
 
 [tool.ruff.lint.flake8-tidy-imports]

@@ -1854,7 +1854,7 @@ class TaskInstance(Base, LoggingMixin):
     ) -> TaskInstance | TaskInstancePydantic | None:
         query = (
             session.query(TaskInstance)
-            .options(lazyload("dag_run"))  # lazy load dag run to avoid locking it
+            .options(lazyload(TaskInstance.dag_run))  # lazy load dag run to avoid locking it
             .filter_by(
                 dag_id=dag_id,
                 run_id=run_id,
