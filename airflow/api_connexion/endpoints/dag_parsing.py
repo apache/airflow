@@ -67,4 +67,4 @@ def reparse_dags(*, file_token: str, session: Session = NEW_SESSION) -> Response
             return Response("Duplicate request", HTTPStatus.BAD_REQUEST)
     except (BadSignature, FileNotFoundError):
         raise NotFound("File not found")
-    return Response({"fileloc": parsing_request.fileloc}, HTTPStatus.CREATED)
+    return Response(status=HTTPStatus.CREATED)

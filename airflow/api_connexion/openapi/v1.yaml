@@ -1105,10 +1105,6 @@ paths:
       responses:
         "201":
           description: Success.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/DagPriorityParsingRequest"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":

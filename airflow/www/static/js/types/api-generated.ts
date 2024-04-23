@@ -3472,11 +3472,7 @@ export interface operations {
     };
     responses: {
       /** Success. */
-      201: {
-        content: {
-          "application/json": components["schemas"]["DagPriorityParsingRequest"];
-        };
-      };
+      201: unknown;
       400: components["responses"]["BadRequest"];
       401: components["responses"]["Unauthenticated"];
       403: components["responses"]["PermissionDenied"];
