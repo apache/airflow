@@ -56,7 +56,7 @@ with DAG(
         task_id="create_sp_in_inout",
         sql=r"""REPLACE PROCEDURE TEST_PROCEDURE (IN val_in INTEGER, OUT val_out INTEGER)
                 BEGIN
-                    val_out := val_in * 2;
+                    set val_out = val_in * 2;
                 END;
             """,
     )
@@ -68,15 +68,6 @@ with DAG(
     )
 
     # [END howto_teradata_stored_procedure_operator_with_in_inout]
-    # [START howto_teradata_stored_procedure_operator_with_dict_inout]
-
-    opr_sp_dict_in_inout = TeradataStoredProcedureOperator(
-        task_id="opr_sp_dict_in_inout",
-        procedure="TEST_PROCEDURE",
-        parameters={"val_in": 3, "val_out": int},
-    )
-
-    # [END howto_teradata_stored_procedure_operator_with_dict_inout]
 
     # [START howto_teradata_stored_procedure_operator_with_in_out_dynamic_result]
     create_sp_param_dr = TeradataOperator(
@@ -107,14 +98,7 @@ with DAG(
                """,
     )
     # [END howto_teradata_stored_procedure_operator_drop]
-    (
-        create_sp_in_inout
-        >> opr_sp_in_inout
-        >> opr_sp_dict_in_inout
-        >> create_sp_param_dr
-        >> opr_sp_param_dr
-        >> drop_sp
-    )
+    (create_sp_in_inout >> opr_sp_in_inout >> create_sp_param_dr >> opr_sp_param_dr >> drop_sp)
 
     # [END howto_teradata_operator_for_sp]
 

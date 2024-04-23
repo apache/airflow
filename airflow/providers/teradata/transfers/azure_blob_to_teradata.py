@@ -74,12 +74,8 @@ class AzureBlobStorageToTeradataOperator(BaseOperator):
         azure_hook = WasbHook(wasb_conn_id=self.azure_conn_id)
         conn = azure_hook.get_connection(self.azure_conn_id)
         # Obtaining the Azure client ID and Azure secret in order to access a specified Blob container
-        access_id = (
-            conn.login if conn.login is not None else ""
-        )
-        access_secret = (
-            conn.password if conn.password is not None else ""
-        )
+        access_id = conn.login if conn.login is not None else ""
+        access_secret = conn.password if conn.password is not None else ""
         teradata_hook = TeradataHook(teradata_conn_id=self.teradata_conn_id)
         sql = f"""
                     CREATE MULTISET TABLE {self.teradata_table}  AS

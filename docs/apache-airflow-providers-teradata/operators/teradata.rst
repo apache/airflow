@@ -132,9 +132,9 @@ Assume a stored procedure exists in the database that looks like this:
 
         REPLACE PROCEDURE
         TEST_PROCEDURE (IN val_in INTEGER, OUT val_out INTEGER)
-        BEGIN
-        val_out := val_in * 2;
-        END;
+          BEGIN
+            set val_out = val_in * 2;
+          END;
         /
 
 This stored procedure accepts a single integer argument, val_in, and outputs
@@ -148,28 +148,19 @@ with parameters passed positionally as a list:
     :end-before: [END howto_teradata_stored_procedure_operator_with_in_inout]
 
 
-Alternatively, parameters can be passed as keyword arguments using a dictionary
-as well.
-
-.. exampleinclude:: /../../tests/system/providers/teradata/example_teradata_call_sp.py
-    :language: python
-    :start-after: [START howto_teradata_stored_procedure_operator_with_dict_inout]
-    :end-before: [END howto_teradata_stored_procedure_operator_with_dict_inout]
-
-
 Assume a stored procedure exists in the database that looks like this:
 
     .. code-block:: sql
 
         REPLACE PROCEDURE
         TEST_PROCEDURE (IN val_in INTEGER, OUT val_out INTEGER)
-        BEGIN
-          DECLARE cur1 CURSOR WITH RETURN FOR SELECT * from DBC.DBCINFO ORDER BY 1 ;
-          DECLARE cur2 CURSOR WITH RETURN FOR SELECT infodata, infokey from DBC.DBCINFO order by 1 ;
-          open cur1 ;
-          open cur2 ;
-          val_out := val_in * 2;
-        END;
+          BEGIN
+            DECLARE cur1 CURSOR WITH RETURN FOR SELECT * from DBC.DBCINFO ORDER BY 1 ;
+            DECLARE cur2 CURSOR WITH RETURN FOR SELECT infodata, infokey from DBC.DBCINFO order by 1 ;
+            open cur1 ;
+            open cur2 ;
+            set val_out = val_in * 2;
+          END;
         /
 
 This stored procedure accepts a single integer argument, val_in, and outputs
@@ -192,5 +183,3 @@ When we put everything together, our DAG should look like this:
     :language: python
     :start-after: [START howto_teradata_operator_for_sp]
     :end-before: [END howto_teradata_operator_for_sp]
-
-
