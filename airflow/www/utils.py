@@ -40,9 +40,9 @@ from sqlalchemy.ext.associationproxy import AssociationProxy
 
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.models import errors
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
+from airflow.models.errors import ParseImportError
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
@@ -196,7 +196,7 @@ def encode_dag_run(
 def check_import_errors(fileloc, session):
     # Check dag import errors
     import_errors = session.scalars(
-        select(errors.ImportError).where(errors.ImportError.filename == fileloc)
+        select(ParseImportError).where(ParseImportError.filename == fileloc)
     ).all()
     if import_errors:
         for import_error in import_errors:

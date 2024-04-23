@@ -51,6 +51,7 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
     convert_affinity,
     convert_configmap,
     convert_env_vars,
+    convert_env_vars_or_raise_error,
     convert_image_pull_secrets,
     convert_pod_runtime_info_env,
     convert_port,
@@ -332,8 +333,10 @@ class KubernetesPodOperator(BaseOperator):
         self.startup_check_interval_seconds = startup_check_interval_seconds
         env_vars = convert_env_vars(env_vars) if env_vars else []
         self.env_vars = env_vars
-        if pod_runtime_info_envs:
-            self.env_vars.extend([convert_pod_runtime_info_env(p) for p in pod_runtime_info_envs])
+        pod_runtime_info_envs = (
+            [convert_pod_runtime_info_env(p) for p in pod_runtime_info_envs] if pod_runtime_info_envs else []
+        )
+        self.pod_runtime_info_envs = pod_runtime_info_envs
         self.env_from = env_from or []
         if configmaps:
             self.env_from.extend([convert_configmap(c) for c in configmaps])
@@ -985,6 +988,11 @@ class KubernetesPodOperator(BaseOperator):
         template file.
         """
         self.log.debug("Creating pod for KubernetesPodOperator task %s", self.task_id)
+
+        self.env_vars = convert_env_vars_or_raise_error(self.env_vars) if self.env_vars else []
+        if self.pod_runtime_info_envs:
+            self.env_vars.extend(self.pod_runtime_info_envs)
+
         if self.pod_template_file:
             self.log.debug("Pod template file found, will parse for base pod")
             pod_template = pod_generator.PodGenerator.deserialize_model_file(self.pod_template_file)

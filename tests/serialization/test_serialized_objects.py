@@ -65,6 +65,7 @@ def test_recursive_serialize_calls_must_forward_kwargs():
     import ast
 
     valid_recursive_call_count = 0
+    skipped_recursive_calls = 0  # when another serialize method called
     file = REPO_ROOT / "airflow/serialization/serialized_objects.py"
     content = file.read_text()
     tree = ast.parse(content)
@@ -80,9 +81,11 @@ def test_recursive_serialize_calls_must_forward_kwargs():
             method_def = elem
             break
     kwonly_args = [x.arg for x in method_def.args.kwonlyargs]
-
     for elem in ast.walk(method_def):
         if isinstance(elem, ast.Call) and getattr(elem.func, "attr", "") == "serialize":
+            if not elem.func.value.id == "cls":
+                skipped_recursive_calls += 1
+                break
             kwargs = {y.arg: y.value for y in elem.keywords}
             for name in kwonly_args:
                 if name not in kwargs or getattr(kwargs[name], "id", "") != name:
@@ -95,6 +98,7 @@ def test_recursive_serialize_calls_must_forward_kwargs():
                 valid_recursive_call_count += 1
     print(f"validated calls: {valid_recursive_call_count}")
     assert valid_recursive_call_count > 0
+    assert skipped_recursive_calls == 1
 
 
 def test_strict_mode():

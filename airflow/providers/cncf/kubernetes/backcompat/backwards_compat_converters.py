@@ -76,10 +76,20 @@ def convert_env_vars(env_vars: list[k8s.V1EnvVar] | dict[str, str]) -> list[k8s.
 
     If the collection is a str-str dict, convert it into a list of ``V1EnvVar``s.
     """
-    if isinstance(env_vars, list):
-        return env_vars
     if isinstance(env_vars, dict):
         return [k8s.V1EnvVar(name=k, value=v) for k, v in env_vars.items()]
+    return env_vars
+
+
+def convert_env_vars_or_raise_error(env_vars: list[k8s.V1EnvVar] | dict[str, str]) -> list[k8s.V1EnvVar]:
+    """
+    Separate function to convert env var collection for kubernetes and then raise an error if it is still the wrong type.
+
+    This is used after the template strings have been rendered.
+    """
+    env_vars = convert_env_vars(env_vars)
+    if isinstance(env_vars, list):
+        return env_vars
     raise AirflowException(f"Expected dict or list, got {type(env_vars)}")
 
 

@@ -126,7 +126,9 @@ def _get_otel_safe_name(name: str) -> str:
     if name != otel_safe_name:
         warnings.warn(
             f"Metric name `{name}` exceeds OpenTelemetry's name length limit of "
-            f"{OTEL_NAME_MAX_LENGTH} characters and will be truncated to `{otel_safe_name}`."
+            f"{OTEL_NAME_MAX_LENGTH} characters and will be truncated to `{otel_safe_name}`.",
+            category=UserWarning,
+            stacklevel=2,
         )
     return otel_safe_name
 

@@ -116,6 +116,7 @@ def create_app(config=None, testing=False):
             "Old deprecated value found for `cookie_samesite` option in `[webserver]` section. "
             "Using `Lax` instead. Change the value to `Lax` in airflow.cfg to remove this warning.",
             RemovedInAirflow3Warning,
+            stacklevel=2,
         )
         cookie_samesite_config = "Lax"
     flask_app.config["SESSION_COOKIE_SAMESITE"] = cookie_samesite_config

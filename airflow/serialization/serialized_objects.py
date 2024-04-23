@@ -66,6 +66,7 @@ from airflow.task.priority_strategy import (
     airflow_priority_weight_strategies,
     airflow_priority_weight_strategies_classes,
 )
+from airflow.triggers.base import BaseTrigger
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.context import Context, DatasetEventAccessor, DatasetEventAccessors
 from airflow.utils.docs import get_docs_url
@@ -560,6 +561,11 @@ class BaseSerialization:
             return cls._encode(encode_timezone(var), type_=DAT.TIMEZONE)
         elif isinstance(var, relativedelta.relativedelta):
             return cls._encode(encode_relativedelta(var), type_=DAT.RELATIVEDELTA)
+        elif isinstance(var, BaseTrigger):
+            return cls._encode(
+                cls.serialize(var.serialize(), use_pydantic_models=use_pydantic_models, strict=strict),
+                type_=DAT.BASE_TRIGGER,
+            )
         elif callable(var):
             return str(get_python_source(var))
         elif isinstance(var, set):
@@ -698,6 +704,10 @@ class BaseSerialization:
             return decode_timezone(var)
         elif type_ == DAT.RELATIVEDELTA:
             return decode_relativedelta(var)
+        elif type_ == DAT.BASE_TRIGGER:
+            tr_cls_name, kwargs = cls.deserialize(var, use_pydantic_models=use_pydantic_models)
+            tr_cls = import_string(tr_cls_name)
+            return tr_cls(**kwargs)
         elif type_ == DAT.SET:
             return {cls.deserialize(v, use_pydantic_models) for v in var}
         elif type_ == DAT.TUPLE:
@@ -1261,6 +1271,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                     "Use of a custom dependency detector is deprecated. "
                     "Support will be removed in a future release.",
                     RemovedInAirflow3Warning,
+                    stacklevel=1,
                 )
                 dep = custom_dependency_detector_cls().detect_task_dependencies(op)
                 if type(dep) is DagDependency:

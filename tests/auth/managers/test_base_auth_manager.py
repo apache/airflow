@@ -95,7 +95,7 @@ class EmptyAuthManager(BaseAuthManager):
         raise NotImplementedError()
 
     def is_authorized_custom_view(
-        self, *, method: ResourceMethod, resource_name: str, user: BaseUser | None = None
+        self, *, method: ResourceMethod | str, resource_name: str, user: BaseUser | None = None
     ):
         raise NotImplementedError()
 
