@@ -25,7 +25,7 @@ import traceback
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Callable, Iterable
 
-from sqlalchemy import asc, select
+from sqlalchemy import select
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
@@ -90,7 +90,9 @@ class PokeReturnValue:
 
 @internal_api_call
 @provide_session
-def _orig_start_date(dag_id, task_id, run_id, map_index, try_number, session: Session = NEW_SESSION):
+def _orig_start_date(
+    dag_id: str, task_id: str, run_id: str, map_index: int, try_number: int, session: Session = NEW_SESSION
+):
     """
     Get the original start_date for a rescheduled task.
 
@@ -105,7 +107,7 @@ def _orig_start_date(dag_id, task_id, run_id, map_index, try_number, session: Se
             TaskReschedule.map_index == map_index,
             TaskReschedule.try_number == try_number,
         )
-        .order_by(asc(TaskReschedule.id))
+        .order_by(TaskReschedule.id.asc())
         .with_only_columns(TaskReschedule.start_date)
         .limit(1)
     )
