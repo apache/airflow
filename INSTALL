@@ -137,7 +137,7 @@ or install all Python versions that are used in Airflow:
 Airflow has some pre-defined virtualenvs that you can use to develop and test airflow.
 You can see the list of available envs with:
 
-    hatch show env
+    hatch env show
 
 This is what it shows currently:
 
@@ -154,7 +154,7 @@ This is what it shows currently:
 ├─────────────┼─────────┼───────────────────────────────────────────────────────────────┤
 │ airflow-311 │ virtual │ Environment with Python 3.11. No devel installed              │
 ├─────────────┼─────────┼───────────────────────────────────────────────────────────────┤
-│ airflow-312 │ virtual │ Environment with Python 3.11. No devel installed              │
+│ airflow-312 │ virtual │ Environment with Python 3.12. No devel installed              │
 └─────────────┴─────────┴───────────────────────────────────────────────────────────────┘
 
 The default env (if you have not used one explicitly) is `default` and it is a Python 3.8
