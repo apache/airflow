@@ -264,3 +264,14 @@ class TestTeradataHook:
         rows = []
         with pytest.raises(ValueError):
             self.test_db_hook.bulk_insert_rows("table", rows)
+
+    def test_callproc_dict(self):
+        parameters = {"a": 1, "b": 2, "c": 3}
+
+        class bindvar(int):
+            def getvalue(self):
+                return self
+
+        self.cur.fetchall.return_value = {k: bindvar(v) for k, v in parameters.items()}
+        result = self.test_db_hook.callproc("proc", True, parameters)
+        assert result == parameters
