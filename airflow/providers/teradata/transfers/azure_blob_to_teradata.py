@@ -68,8 +68,9 @@ class AzureBlobStorageToTeradataOperator(BaseOperator):
         self.teradata_conn_id = teradata_conn_id
 
     def execute(self, context: Context) -> None:
-        self.log.info("transferring data from %s to teradata table %s...", self.blob_source_key,
-                      self.teradata_table)
+        self.log.info(
+            "transferring data from %s to teradata table %s...", self.blob_source_key, self.teradata_table
+        )
         azure_hook = WasbHook(wasb_conn_id=self.azure_conn_id)
         conn = azure_hook.get_connection(self.azure_conn_id)
         # Obtaining the Azure client ID and Azure secret in order to access a specified Blob container

@@ -147,7 +147,7 @@ with DAG(
         read_data_table_parquet,
         drop_table_csv,
         drop_table_json,
-        drop_table_parquet
+        drop_table_parquet,
     )
     # [END azure_blob_to_teradata_transfer_operator_howto_guide]
 

@@ -43,7 +43,6 @@ class TestAzureBlobStorageToTeradataOperator:
         assert operator.teradata_table == TERADATA_TABLE
         assert operator.task_id == TASK_ID
 
-
     @mock.patch("airflow.providers.teradata.transfers.azure_blob_to_teradata.TeradataHook")
     @mock.patch("airflow.providers.teradata.transfers.azure_blob_to_teradata.WasbHook")
     def test_execute(self, mock_hook_wasb, mock_hook_teradata):

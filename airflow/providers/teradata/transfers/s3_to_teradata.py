@@ -58,7 +58,7 @@ class S3ToTeradataOperator(BaseOperator):
         teradata_table: str,
         aws_conn_id: str = "aws_default",
         teradata_conn_id: str = "teradata_default",
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.s3_source_key = s3_source_key
@@ -67,13 +67,13 @@ class S3ToTeradataOperator(BaseOperator):
         self.teradata_conn_id = teradata_conn_id
 
     def execute(self, context: Context) -> None:
-        self.log.info("transferring data from %s to teradata table %s...", self.s3_source_key, self.teradata_table)
+        self.log.info(
+            "transferring data from %s to teradata table %s...", self.s3_source_key, self.teradata_table
+        )
 
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
         access_key = (
-            s3_hook.conn_config.aws_access_key_id
-            if s3_hook.conn_config.aws_access_key_id is not None
-            else ""
+            s3_hook.conn_config.aws_access_key_id if s3_hook.conn_config.aws_access_key_id is not None else ""
         )
         access_secret = (
             s3_hook.conn_config.aws_secret_access_key

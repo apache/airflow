@@ -128,8 +128,8 @@ avro
 aws
 awsbatch
 awslogs
-Azkaban
 az
+Azkaban
 Azri
 backcompat
 Backend
