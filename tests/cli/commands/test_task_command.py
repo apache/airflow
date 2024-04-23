@@ -583,7 +583,7 @@ class TestCliTasks:
             run_type=DagRunType.MANUAL,
             external_trigger=True,
         )
-        ti2 = TaskInstance(task2, dagrun.execution_date)
+        ti2 = TaskInstance(task2, run_id=dagrun.run_id)
         ti2.set_state(State.SUCCESS)
         ti_start = ti2.start_date
         ti_end = ti2.end_date
