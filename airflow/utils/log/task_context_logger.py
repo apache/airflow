@@ -101,7 +101,7 @@ class TaskContextLogger:
             task_handler.set_context(ti, identifier=self.component_name)
             if hasattr(task_handler, "mark_end_on_close"):
                 task_handler.mark_end_on_close = False
-            filename, lineno, func, stackinfo = logger.findCaller()
+            filename, lineno, func, stackinfo = logger.findCaller(stacklevel=3)
             record = logging.LogRecord(
                 self.component_name, level, filename, lineno, msg, args, None, func=func
             )
