@@ -933,8 +933,8 @@ class DatabricksNotebookOperator(BaseOperator):
         notebook_params: dict | None = None,
         notebook_packages: list[dict[str, Any]] | None = None,
         new_cluster: dict[str, Any] | None = None,
-        existing_cluster_id: str | None = None,
-        job_cluster_key: str | None = None,
+        existing_cluster_id: str = "",
+        job_cluster_key: str = "",
         polling_period_seconds: int = 5,
         databricks_retry_limit: int = 3,
         databricks_retry_delay: int = 1,
@@ -947,8 +947,8 @@ class DatabricksNotebookOperator(BaseOperator):
         self.notebook_params = notebook_params or {}
         self.notebook_packages = notebook_packages or []
         self.new_cluster = new_cluster or {}
-        self.existing_cluster_id = existing_cluster_id or ""
-        self.job_cluster_key = job_cluster_key or ""
+        self.existing_cluster_id = existing_cluster_id
+        self.job_cluster_key = job_cluster_key
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
