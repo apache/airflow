@@ -74,7 +74,9 @@ const Nav = forwardRef<HTMLDivElement, Props>(
         {(!isMapped || mapIndex !== undefined) && (
           <>
             <LinkButton href={detailsLink}>More Details</LinkButton>
-            <LinkButton href={subDagLink}>Zoom into SubDag</LinkButton>
+            {isSubDag && (
+              <LinkButton href={subDagLink}>Zoom into SubDag</LinkButton>
+            )}
           </>
         )}
         <LinkButton href={allInstancesLink} title="View all">
