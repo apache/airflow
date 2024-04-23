@@ -19,6 +19,7 @@
 
 import React, { useRef } from "react";
 import { Code } from "@chakra-ui/react";
+import YAML from "json-to-pretty-yaml";
 
 import { getMetaValue, useOffsetTop } from "src/utils";
 
@@ -46,7 +47,7 @@ const RenderedK8s = () => {
       maxHeight={`calc(100% - ${offsetTop}px)`}
       overflowY="auto"
     >
-      <pre>{JSON.stringify(renderedK8s, null, 2)}</pre>
+      <pre>{YAML.stringify(renderedK8s)}</pre>
     </Code>
   );
 };
