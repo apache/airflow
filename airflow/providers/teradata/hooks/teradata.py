@@ -211,6 +211,12 @@ class TeradataHook(DbApiHook):
         Any OUT parameters must be provided with a value of either the
         expected Python type (e.g., `int`) or an instance of that type.
 
+        :param identifier: stored procedure name
+        :param autocommit: What to set the connection's autocommit setting to
+            before executing the query.
+        :param parameters: The IN, OUT and INOUT parameters for Teradata
+            stored procedure
+
         The return value is a list or mapping that includes parameters in
         both directions; the actual return type depends on the type of the
         provided `parameters` argument.
@@ -234,7 +240,6 @@ class TeradataHook(DbApiHook):
 
             if isinstance(records, dict):
                 return {n: v for (n, v) in records.items()}
-            self.log.info("records  - %s", records)
             raise TypeError(f"Unexpected results: {records}")
 
         result = self.run(
