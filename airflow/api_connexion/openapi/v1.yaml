@@ -1095,21 +1095,20 @@ paths:
     parameters:
       - $ref: "#/components/parameters/FileToken"
 
-    get:
+    post:
       summary: Request re-parsing of DAGs
       description: >
         Request re-parsing of existing DAGs
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_parsing
       operationId: reparse_dags
       tags: [ DAG ]
-
       responses:
         "201":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DagPriorityParsingRequests"
+                $ref: "#/components/schemas/DagPriorityParsingRequest"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -3187,6 +3186,18 @@ components:
             *New in version 2.5.0*
           nullable: true
 
+    DagPriorityParsingRequest:
+      description: Dag parsing requests.
+      type: object
+      properties:
+        fileloc:
+          type: string
+        id:
+          type: string
+          readOnly: true
+          description: The request ID.
+          nullable: true
+
     UpdateDagRunState:
       type: object
       description: |
@@ -3731,14 +3742,6 @@ components:
           type: string
           readOnly: true
           description: The DAG run ID.
-
-    DagPriorityParsingRequests:
-      type: object
-      properties:
-        fileloc:
-          type: string
-          readOnly: true
-          description: Path of the file
 
     TaskInstanceReferenceCollection:
       type: object

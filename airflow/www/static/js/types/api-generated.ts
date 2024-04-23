@@ -275,7 +275,7 @@ export interface paths {
   };
   "/dag/parse/{file_token}": {
     /** Request re-parsing of existing DAGs */
-    get: operations["reparse_dags"];
+    post: operations["reparse_dags"];
     parameters: {
       path: {
         /**
@@ -1166,6 +1166,12 @@ export interface components {
        */
       note?: string | null;
     };
+    /** @description Dag parsing requests. */
+    DagPriorityParsingRequest: {
+      fileloc?: string;
+      /** @description The request ID. */
+      id?: string | null;
+    };
     /**
      * @description Modify the state of a DAG run.
      *
@@ -1486,10 +1492,6 @@ export interface components {
       execution_date?: string;
       /** @description The DAG run ID. */
       dag_run_id?: string;
-    };
-    DagPriorityParsingRequests: {
-      /** @description Path of the file */
-      fileloc?: string;
     };
     TaskInstanceReferenceCollection: {
       task_instances?: components["schemas"]["TaskInstanceReference"][];
@@ -3472,7 +3474,7 @@ export interface operations {
       /** Success. */
       201: {
         content: {
-          "application/json": components["schemas"]["DagPriorityParsingRequests"];
+          "application/json": components["schemas"]["DagPriorityParsingRequest"];
         };
       };
       400: components["responses"]["BadRequest"];
@@ -5099,6 +5101,9 @@ export type DAGCollection = CamelCasedPropertiesDeep<
   components["schemas"]["DAGCollection"]
 >;
 export type DAGRun = CamelCasedPropertiesDeep<components["schemas"]["DAGRun"]>;
+export type DagPriorityParsingRequest = CamelCasedPropertiesDeep<
+  components["schemas"]["DagPriorityParsingRequest"]
+>;
 export type UpdateDagRunState = CamelCasedPropertiesDeep<
   components["schemas"]["UpdateDagRunState"]
 >;
@@ -5166,9 +5171,6 @@ export type TaskInstanceCollection = CamelCasedPropertiesDeep<
 >;
 export type TaskInstanceReference = CamelCasedPropertiesDeep<
   components["schemas"]["TaskInstanceReference"]
->;
-export type DagPriorityParsingRequests = CamelCasedPropertiesDeep<
-  components["schemas"]["DagPriorityParsingRequests"]
 >;
 export type TaskInstanceReferenceCollection = CamelCasedPropertiesDeep<
   components["schemas"]["TaskInstanceReferenceCollection"]
