@@ -970,21 +970,32 @@ class DatabricksNotebookOperator(BaseOperator):
             caller=caller,
         )
 
+    def _get_task_timeout_seconds(self) -> int:
+        """
+        Get the timeout seconds value for the Databricks job based on the execution timeout value provided for the Airflow task.
+
+        By default, tasks in Airflow have an execution_timeout set to None. In Airflow, when
+        execution_timeout is not defined, the task continues to run indefinitely. Therefore,
+        to mirror this behavior in the Databricks Jobs API, we set the timeout to 0, indicating
+        that the job should run indefinitely. This aligns with the default behavior of Databricks jobs,
+        where a timeout seconds value of 0 signifies an indefinite run duration.
+        More details can be found in the Databricks documentation:
+        See https://docs.databricks.com/api/workspace/jobs/submit#timeout_seconds
+        """
+        if self.execution_timeout is None:
+            return 0
+        execution_timeout_seconds = int(self.execution_timeout.total_seconds())
+        if execution_timeout_seconds == 0:
+            raise ValueError(
+                "If you've set an `execution_timeout` for the task, ensure it's not `0`. Set it instead to "
+                "`None` if you desire the task to run indefinitely."
+            )
+        return execution_timeout_seconds
+
     def _get_task_base_json(self) -> dict[str, Any]:
         """Get task base json to be used for task submissions."""
-        if self.execution_timeout is None:
-            # By default, tasks in Airflow have an execution_timeout set to None. In Airflow, when
-            # execution_timeout is not defined, the task continues to run indefinitely. Therefore,
-            # to mirror this behavior in the Databricks Jobs API, we set the timeout to 0, indicating
-            # that the job should run indefinitely. This aligns with the default behavior of Databricks jobs,
-            # where a timeout seconds value of 0 signifies an indefinite run duration.
-            # More details can be found in the Databricks documentation:
-            # See https://docs.databricks.com/api/workspace/jobs/submit#timeout_seconds
-            timeout_seconds = 0
-        else:
-            timeout_seconds = int(self.execution_timeout.total_seconds())
         return {
-            "timeout_seconds": timeout_seconds,
+            "timeout_seconds": self._get_task_timeout_seconds(),
             "email_notifications": {},
             "notebook_task": {
                 "notebook_path": self.notebook_path,

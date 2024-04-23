@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -1854,3 +1854,15 @@ class TestDatabricksNotebookOperator:
         run_json = operator._get_run_json()
         assert operator.execution_timeout is None
         assert run_json["timeout_seconds"] == 0
+
+    def test_zero_execution_timeout_raises_error(self):
+        operator = DatabricksNotebookOperator(
+            task_id="test_task",
+            notebook_path="test_path",
+            source="test_source",
+            databricks_conn_id="test_conn_id",
+            existing_cluster_id="existing_cluster_id",
+            execution_timeout=timedelta(seconds=0),
+        )
+        with pytest.raises(ValueError):
+            operator._get_run_json()
