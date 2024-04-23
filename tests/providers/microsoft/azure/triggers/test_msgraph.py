@@ -136,7 +136,7 @@ class TestMSGraphTrigger(Base):
         trigger = MSGraphTrigger(
             url="myorg/admin/groups",
             conn_id="msgraph_api",
-            query_parameters={"$expand": "reports,users,datasets,dataflows,dashboards", "$top": 5000}
+            query_parameters={"$expand": "reports,users,datasets,dataflows,dashboards", "$top": 5000},
         )
 
         actual = trigger.encoded_query_parameters()
