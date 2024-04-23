@@ -143,7 +143,6 @@ class TestProjectStructure:
             "tests/providers/google/cloud/operators/vertex_ai/test_model_service.py",
             "tests/providers/google/cloud/operators/vertex_ai/test_pipeline_job.py",
             "tests/providers/google/cloud/sensors/test_dataform.py",
-            "tests/providers/google/cloud/transfers/test_bigquery_to_mssql.py",
             "tests/providers/google/cloud/transfers/test_bigquery_to_sql.py",
             "tests/providers/google/cloud/transfers/test_mssql_to_gcs.py",
             "tests/providers/google/cloud/transfers/test_presto_to_gcs.py",
