@@ -505,3 +505,63 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
             )
 
         return knowledge_base_id
+
+
+class BedrockCreateDataSourceOperator(AwsBaseOperator[BedrockAgentHook]):
+    """
+    Set up an Amazon Bedrock Data Source to be added to an Amazon Bedrock Knowledge Base.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockCreateDataSourceOperator`
+
+    :param name: name for the Amazon Bedrock Data Source being created. (templated).
+    :param bucket_name: The name of the Amazon S3 bucket to use for data source storage. (templated)
+    :param knowledge_base_id: The unique identifier of the knowledge base to which to add the data source. (templated)
+
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    """
+
+    aws_hook_class = BedrockAgentHook
+
+    def __init__(
+        self,
+        name: str,
+        knowledge_base_id: str,
+        bucket_name: str | None = None,
+        create_data_source_kwargs: dict[str, Any] | None = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.name = name
+        self.knowledge_base_id = knowledge_base_id
+        self.bucket_name = bucket_name
+        self.create_data_source_kwargs = create_data_source_kwargs or {}
+
+    template_fields: Sequence[str] = aws_template_fields(
+        "name",
+        "bucket_name",
+        "knowledge_base_id",
+    )
+
+    def execute(self, context: Context) -> str:
+        create_ds_response = self.hook.conn.create_data_source(
+            name=self.name,
+            knowledgeBaseId=self.knowledge_base_id,
+            dataSourceConfiguration={
+                "type": "S3",
+                "s3Configuration": {"bucketArn": f"arn:aws:s3:::{self.bucket_name}"},
+            },
+            **self.create_data_source_kwargs,
+        )
+
+        return create_ds_response["dataSource"]["dataSourceId"]

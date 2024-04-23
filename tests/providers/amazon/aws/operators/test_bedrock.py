@@ -27,6 +27,7 @@ from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, BedrockHook, BedrockRuntimeHook
 from airflow.providers.amazon.aws.operators.bedrock import (
+    BedrockCreateDataSourceOperator,
     BedrockCreateKnowledgeBaseOperator,
     BedrockCreateProvisionedModelThroughputOperator,
     BedrockCustomizeModelOperator,
@@ -284,3 +285,32 @@ class TestBedrockCreateKnowledgeBaseOperator:
         result = self.operator.execute({})
 
         assert result == self.KNOWLEDGE_BASE_ID
+
+
+class TestBedrockCreateDataSourceOperator:
+    DATA_SOURCE_ID = "data_source_id"
+
+    @pytest.fixture
+    def mock_conn(self) -> Generator[BaseAwsConnection, None, None]:
+        with mock.patch.object(BedrockAgentHook, "conn") as _conn:
+            _conn.create_data_source.return_value = {"dataSource": {"dataSourceId": self.DATA_SOURCE_ID}}
+            yield _conn
+
+    @pytest.fixture
+    def bedrock_hook(self) -> Generator[BedrockAgentHook, None, None]:
+        with mock_aws():
+            hook = BedrockAgentHook()
+            yield hook
+
+    def setup_method(self):
+        self.operator = BedrockCreateDataSourceOperator(
+            task_id="create_data_source",
+            name=self.DATA_SOURCE_ID,
+            knowledge_base_id="test_knowledge_base_id",
+            bucket_name="test_bucket",
+        )
+
+    def test_id_returned(self, mock_conn):
+        result = self.operator.execute({})
+
+        assert result == self.DATA_SOURCE_ID
