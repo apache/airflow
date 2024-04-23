@@ -919,10 +919,18 @@ class TestPodTemplateFile:
 
         assert expected == jmespath.search("spec.containers[0].command", docs[0])
 
-    @pytest.mark.parametrize("values", [{"workers": {"command": None}}, {"workers": {"command": []}}, None])
-    def test_should_not_add_command(self, values):
+    @pytest.mark.parametrize("cmd", [None, []])
+    def test_should_not_add_command(self, cmd):
         docs = render_chart(
-            values=values,
+            values={"workers": {"command": cmd}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert None is jmespath.search("spec.containers[0].command", docs[0])
+
+    def test_should_not_add_command_by_default(self):
+        docs = render_chart(
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
