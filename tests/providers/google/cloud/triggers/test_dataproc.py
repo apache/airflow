@@ -238,16 +238,9 @@ class TestDataprocClusterTrigger:
         mock_get_cluster.return_value = async_get_cluster(
             status=ClusterStatus(state=ClusterStatus.State.RUNNING)
         )
-        cluster = await cluster_trigger.fetch_cluster_status()
+        cluster = await cluster_trigger.fetch_cluster()
 
         assert cluster.status.state == ClusterStatus.State.RUNNING, "The cluster state should be RUNNING"
-
-    def test_check_luster_state(self, cluster_trigger):
-        """Test if specific states are correctly identified."""
-        assert cluster_trigger.check_cluster_state(
-            ClusterStatus.State.RUNNING
-        ), "RUNNING should be correct state"
-        assert cluster_trigger.check_cluster_state(ClusterStatus.State.ERROR), "ERROR should be correct state"
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.diagnose_cluster")
@@ -270,7 +263,7 @@ class TestDataprocClusterTrigger:
         mock_delete_cluster.return_value = delete_future
 
         cluster = await async_get_cluster(status=ClusterStatus(state=ClusterStatus.State.ERROR))
-        event = await cluster_trigger.gather_diagnostics_and_maybe_delete(cluster)
+        event = await cluster_trigger.gather_diagnostics_and_delete_on_error(cluster)
 
         mock_delete_cluster.assert_called_once()
         assert (
