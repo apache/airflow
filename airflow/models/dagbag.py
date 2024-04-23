@@ -757,10 +757,10 @@ class DagPriorityParsingRequests(Base):
     def get_requests(session: Session = NEW_SESSION):
         return session.scalars(select(DagPriorityParsingRequests)).all()
 
-    def __repr__(self):  # noqa: D105
+    def __repr__(self):
         return self.fileloc
 
-    def __eq__(self, other):  # noqa: D105
+    def __eq__(self, other):
         if isinstance(other, (self.__class__, DagPriorityParsingRequests)):
             return self.fileloc == other.fileloc
         else:
