@@ -21,6 +21,7 @@ __version__ = "2.10.0.dev0"
 
 import os
 import sys
+import warnings
 
 if os.environ.get("_AIRFLOW_PATCH_GEVENT"):
     # If you are using gevents and start airflow webserver, you might want to run gevent monkeypatching
@@ -29,6 +30,17 @@ if os.environ.get("_AIRFLOW_PATCH_GEVENT"):
     from gevent.monkey import patch_all
 
     patch_all()
+
+if sys.platform == "win32":
+    warnings.warn(
+        "Airflow currently can be run on POSIX-compliant Operating Systems. For development, "
+        "it is regularly tested on fairly modern Linux Distros and recent versions of macOS. "
+        "On Windows you can run it via WSL2 (Windows Subsystem for Linux 2) or via Linux Containers. "
+        "The work to add Windows support is tracked via https://github.com/apache/airflow/issues/10388, "
+        "but it is not a high priority.",
+        category=RuntimeWarning,
+        stacklevel=1,
+    )
 
 # The configuration module initializes and validates the conf object as a side effect the first
 # time it is imported. If it is not imported before importing the settings module, the conf
@@ -76,19 +88,16 @@ def __getattr__(name: str):
     module_path, attr_name, deprecated = __lazy_imports.get(name, ("", "", False))
     if not module_path:
         if name.startswith("PY3") and (py_minor := name[3:]) in ("6", "7", "8", "9", "10", "11", "12"):
-            import warnings
-
             warnings.warn(
                 f"Python version constraint {name!r} is deprecated and will be removed in the future. "
                 f"Please get version info from the 'sys.version_info'.",
                 DeprecationWarning,
+                stacklevel=2,
             )
             return sys.version_info >= (3, int(py_minor))
 
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
     elif deprecated:
-        import warnings
-
         warnings.warn(
             f"Import {name!r} directly from the airflow module is deprecated and "
             f"will be removed in the future. Please import it from 'airflow{module_path}.{attr_name}'.",

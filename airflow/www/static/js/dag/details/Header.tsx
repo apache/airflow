@@ -124,7 +124,7 @@ const Header = ({ mapIndex }: Props) => {
           </BreadcrumbLink>
         </BreadcrumbItem>
       )}
-      {mapIndex !== undefined && (
+      {mapIndex !== undefined && mapIndex !== -1 && (
         <BreadcrumbItem isCurrentPage mt={4}>
           <BreadcrumbLink
             _hover={isMappedTaskDetails ? { cursor: "default" } : undefined}

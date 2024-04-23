@@ -20,9 +20,7 @@
 /* global ResizeObserver */
 
 import React, { useRef, useEffect } from "react";
-import { Table, Tbody, Box, Thead, IconButton } from "@chakra-ui/react";
-
-import { MdDoubleArrow } from "react-icons/md";
+import { Table, Tbody, Box, Thead } from "@chakra-ui/react";
 
 import { useGridData } from "src/api";
 import { useOffsetTop } from "src/utils";
@@ -32,25 +30,19 @@ import DagRuns from "./dagRuns";
 import useSelection from "../useSelection";
 
 interface Props {
-  isPanelOpen?: boolean;
-  onPanelToggle?: () => void;
   hoveredTaskState?: string | null;
   openGroupIds: string[];
   onToggleGroups: (groupIds: string[]) => void;
   isGridCollapsed?: boolean;
-  setIsGridCollapsed?: (collapsed: boolean) => void;
   gridScrollRef?: React.RefObject<HTMLDivElement>;
   ganttScrollRef?: React.RefObject<HTMLDivElement>;
 }
 
 const Grid = ({
-  isPanelOpen = false,
-  onPanelToggle,
   hoveredTaskState,
   openGroupIds,
   onToggleGroups,
   isGridCollapsed,
-  setIsGridCollapsed,
   gridScrollRef,
   ganttScrollRef,
 }: Props) => {
@@ -121,75 +113,36 @@ const Grid = ({
   }, [tableRef, isGridCollapsed, gridScrollRef]);
 
   return (
-    <Box height="100%" position="relative">
-      {(isPanelOpen || isGridCollapsed) && (
-        <IconButton
-          fontSize="2xl"
-          variant="ghost"
-          color="gray.400"
-          size="sm"
-          position="absolute"
-          right={isGridCollapsed ? -10 : 0}
-          zIndex={2}
-          top={-8}
-          onClick={() =>
-            setIsGridCollapsed && setIsGridCollapsed(!isGridCollapsed)
-          }
-          title={isGridCollapsed ? "Restore grid" : "Collapse grid"}
-          aria-label={isGridCollapsed ? "Restore grid" : "Collapse grid"}
-          icon={<MdDoubleArrow />}
-          transform={isGridCollapsed ? undefined : "rotateZ(180deg)"}
-          transitionProperty="none"
-        />
-      )}
-      {!isGridCollapsed && (
-        <IconButton
-          fontSize="2xl"
-          variant="ghost"
-          color="gray.400"
-          size="sm"
-          position="absolute"
-          right={isPanelOpen ? -10 : 0}
-          zIndex={2}
-          top={-8}
-          onClick={onPanelToggle}
-          title={`${isPanelOpen ? "Hide" : "Show"} Details Panel`}
-          aria-label={isPanelOpen ? "Show Details" : "Hide Details"}
-          icon={<MdDoubleArrow />}
-          transform={isPanelOpen ? undefined : "rotateZ(180deg)"}
-          transitionProperty="none"
-        />
-      )}
-      <Box
-        maxHeight={`calc(100% - ${offsetTop}px)`}
-        ref={gridScrollRef}
-        overflow="auto"
-        position="relative"
-        mt={8}
-        overscrollBehavior="auto"
-        pb={4}
-      >
-        <Table borderRightWidth="16px" borderColor="transparent">
-          <Thead>
-            <DagRuns
-              groups={groups}
-              openGroupIds={openGroupIds}
-              onToggleGroups={onToggleGroups}
-              isGridCollapsed={isGridCollapsed}
-            />
-          </Thead>
-          <Tbody ref={tableRef}>
-            {renderTaskRows({
-              task: groups,
-              dagRunIds,
-              openGroupIds,
-              onToggleGroups,
-              hoveredTaskState,
-              isGridCollapsed,
-            })}
-          </Tbody>
-        </Table>
-      </Box>
+    <Box
+      height="100%"
+      maxHeight={`calc(100% - ${offsetTop}px)`}
+      ref={gridScrollRef}
+      overflow="auto"
+      position="relative"
+      mt={8}
+      overscrollBehavior="auto"
+      pb={4}
+    >
+      <Table borderRightWidth="16px" borderColor="transparent">
+        <Thead>
+          <DagRuns
+            groups={groups}
+            openGroupIds={openGroupIds}
+            onToggleGroups={onToggleGroups}
+            isGridCollapsed={isGridCollapsed}
+          />
+        </Thead>
+        <Tbody ref={tableRef}>
+          {renderTaskRows({
+            task: groups,
+            dagRunIds,
+            openGroupIds,
+            onToggleGroups,
+            hoveredTaskState,
+            isGridCollapsed,
+          })}
+        </Tbody>
+      </Table>
     </Box>
   );
 };

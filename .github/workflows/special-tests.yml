@@ -230,3 +230,24 @@ jobs:
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
+
+  tests-system:
+    name: "System test"
+    uses: ./.github/workflows/run-unit-tests.yml
+    permissions:
+      contents: read
+      packages: read
+    secrets: inherit
+    with:
+      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
+      test-name: "SystemTest"
+      test-scope: "System"
+      backend: "postgres"
+      image-tag: ${{ inputs.image-tag }}
+      python-versions: "['${{ inputs.default-python-version }}']"
+      backend-versions: "['${{ inputs.default-postgres-version }}']"
+      excludes: "[]"
+      parallel-test-types-list-as-string: ${{ inputs.parallel-test-types-list-as-string }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+      run-coverage: ${{ inputs.run-coverage }}
+      debug-resources: ${{ inputs.debug-resources }}

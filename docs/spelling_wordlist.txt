@@ -256,6 +256,7 @@ cloudant
 cloudbuild
 CloudBuildClient
 cloudml
+cloudpickle
 cloudsqldatabehook
 CloudTasksClient
 Cloudwatch
@@ -1430,6 +1431,7 @@ segmentGranularity
 Sendgrid
 sendgrid
 sentimentMax
+ser
 serde
 serialise
 serializable

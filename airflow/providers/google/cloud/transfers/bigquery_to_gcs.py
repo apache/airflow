@@ -30,6 +30,7 @@ from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
 from airflow.providers.google.cloud.triggers.bigquery import BigQueryInsertJobTrigger
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
@@ -104,7 +105,7 @@ class BigQueryToGCSOperator(BaseOperator):
         *,
         source_project_dataset_table: str,
         destination_cloud_storage_uris: list[str],
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         compression: str = "NONE",
         export_format: str = "CSV",
         field_delimiter: str = ",",

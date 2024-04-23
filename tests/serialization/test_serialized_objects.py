@@ -51,6 +51,7 @@ from airflow.serialization.pydantic.tasklog import LogTemplatePydantic
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.settings import _ENABLE_AIP_44
 from airflow.utils import timezone
+from airflow.utils.context import DatasetEventAccessors
 from airflow.utils.operator_resources import Resources
 from airflow.utils.pydantic import BaseModel
 from airflow.utils.state import DagRunState, State
@@ -64,6 +65,7 @@ def test_recursive_serialize_calls_must_forward_kwargs():
     import ast
 
     valid_recursive_call_count = 0
+    skipped_recursive_calls = 0  # when another serialize method called
     file = REPO_ROOT / "airflow/serialization/serialized_objects.py"
     content = file.read_text()
     tree = ast.parse(content)
@@ -79,9 +81,11 @@ def test_recursive_serialize_calls_must_forward_kwargs():
             method_def = elem
             break
     kwonly_args = [x.arg for x in method_def.args.kwonlyargs]
-
     for elem in ast.walk(method_def):
         if isinstance(elem, ast.Call) and getattr(elem.func, "attr", "") == "serialize":
+            if not elem.func.value.id == "cls":
+                skipped_recursive_calls += 1
+                break
             kwargs = {y.arg: y.value for y in elem.keywords}
             for name in kwonly_args:
                 if name not in kwargs or getattr(kwargs[name], "id", "") != name:
@@ -94,6 +98,7 @@ def test_recursive_serialize_calls_must_forward_kwargs():
                 valid_recursive_call_count += 1
     print(f"validated calls: {valid_recursive_call_count}")
     assert valid_recursive_call_count > 0
+    assert skipped_recursive_calls == 1
 
 
 def test_strict_mode():
@@ -350,7 +355,7 @@ def test_all_pydantic_models_round_trip():
             continue
         relpath = str(p.relative_to(REPO_ROOT).stem)
         mod = import_module(f"airflow.serialization.pydantic.{relpath}")
-        for name, obj in inspect.getmembers(mod):
+        for _, obj in inspect.getmembers(mod):
             if inspect.isclass(obj) and issubclass(obj, BaseModel):
                 if obj == BaseModel:
                     continue
@@ -410,3 +415,14 @@ def test_serialized_mapped_operator_unmap(dag_maker):
 
     serialized_unmapped_task = serialized_task2.unmap(None)
     assert serialized_unmapped_task.dag is serialized_dag
+
+
+def test_ser_of_dataset_event_accessor():
+    # todo: (Airflow 3.0) we should force reserialization on upgrade
+    d = DatasetEventAccessors()
+    d["hi"].extra = "blah1"  # todo: this should maybe be forbidden?  i.e. can extra be any json or just dict?
+    d["yo"].extra = {"this": "that", "the": "other"}
+    ser = BaseSerialization.serialize(var=d)
+    deser = BaseSerialization.deserialize(ser)
+    assert deser["hi"].extra == "blah1"
+    assert d["yo"].extra == {"this": "that", "the": "other"}

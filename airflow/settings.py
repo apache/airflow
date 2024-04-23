@@ -493,6 +493,7 @@ def get_session_lifetime_config():
             "session lifetime in minutes. The `force_log_out_after` option has been removed "
             "from `[webserver]` section. Please update your configuration.",
             category=RemovedInAirflow3Warning,
+            stacklevel=2,
         )
         if session_lifetime_days:
             session_lifetime_minutes = minutes_per_day * int(session_lifetime_days)

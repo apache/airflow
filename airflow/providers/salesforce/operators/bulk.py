@@ -16,12 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable, cast
 
 from airflow.models import BaseOperator
 from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
 
 if TYPE_CHECKING:
+    from simple_salesforce.bulk import SFBulkHandler
     from typing_extensions import Literal
 
     from airflow.utils.context import Context
@@ -88,29 +89,30 @@ class SalesforceBulkOperator(BaseOperator):
         """
         sf_hook = SalesforceHook(salesforce_conn_id=self.salesforce_conn_id)
         conn = sf_hook.get_conn()
+        bulk: SFBulkHandler = cast("SFBulkHandler", conn.__getattr__("bulk"))
 
-        result = []
+        result: Iterable = []
         if self.operation == "insert":
-            result = conn.bulk.__getattr__(self.object_name).insert(
+            result = bulk.__getattr__(self.object_name).insert(
                 data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial
             )
         elif self.operation == "update":
-            result = conn.bulk.__getattr__(self.object_name).update(
+            result = bulk.__getattr__(self.object_name).update(
                 data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial
             )
         elif self.operation == "upsert":
-            result = conn.bulk.__getattr__(self.object_name).upsert(
+            result = bulk.__getattr__(self.object_name).upsert(
                 data=self.payload,
                 external_id_field=self.external_id_field,
                 batch_size=self.batch_size,
                 use_serial=self.use_serial,
             )
         elif self.operation == "delete":
-            result = conn.bulk.__getattr__(self.object_name).delete(
+            result = bulk.__getattr__(self.object_name).delete(
                 data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial
             )
         elif self.operation == "hard_delete":
-            result = conn.bulk.__getattr__(self.object_name).hard_delete(
+            result = bulk.__getattr__(self.object_name).hard_delete(
                 data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial
             )
 

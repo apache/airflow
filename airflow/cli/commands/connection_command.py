@@ -162,7 +162,9 @@ def connections_export(args):
     """Export all connections to a file."""
     file_formats = [".yaml", ".json", ".env"]
     if args.format:
-        warnings.warn("Option `--format` is deprecated.  Use `--file-format` instead.", DeprecationWarning)
+        warnings.warn(
+            "Option `--format` is deprecated. Use `--file-format` instead.", DeprecationWarning, stacklevel=3
+        )
     if args.format and args.file_format:
         raise SystemExit("Option `--format` is deprecated.  Use `--file-format` instead.")
     default_format = ".json"
@@ -223,10 +225,14 @@ def connections_add(args):
         raise SystemExit("Cannot supply both conn-uri and conn-json")
 
     if has_type and args.conn_type not in _get_connection_types():
-        warnings.warn(f"The type provided to --conn-type is invalid: {args.conn_type}")
+        warnings.warn(
+            f"The type provided to --conn-type is invalid: {args.conn_type}", UserWarning, stacklevel=4
+        )
         warnings.warn(
             f"Supported --conn-types are:{_get_connection_types()}."
-            "Hence overriding the conn-type with generic"
+            "Hence overriding the conn-type with generic",
+            UserWarning,
+            stacklevel=4,
         )
         args.conn_type = "generic"
 
