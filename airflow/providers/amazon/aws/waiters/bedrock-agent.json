@@ -37,6 +37,37 @@
           "state": "failure"
         }
       ]
+    },
+    "ingestion_job_complete": {
+      "delay": 60,
+      "maxAttempts": 10,
+      "operation": "getIngestionJob",
+      "acceptors": [
+        {
+          "matcher": "path",
+          "argument": "ingestionJob.status",
+          "expected": "COMPLETE",
+          "state": "success"
+        },
+        {
+          "matcher": "path",
+          "argument": "ingestionJob.status",
+          "expected": "STARTING",
+          "state": "retry"
+        },
+        {
+          "matcher": "path",
+          "argument": "ingestionJob.status",
+          "expected": "IN_PROGRESS",
+          "state": "retry"
+        },
+        {
+          "matcher": "path",
+          "argument": "ingestionJob.status",
+          "expected": "FAILED",
+          "state": "failure"
+        }
+      ]
     }
   }
 }

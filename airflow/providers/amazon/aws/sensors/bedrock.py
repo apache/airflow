@@ -26,6 +26,7 @@ from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, Bedrock
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.bedrock import (
     BedrockCustomizeModelCompletedTrigger,
+    BedrockIngestionJobTrigger,
     BedrockKnowledgeBaseActiveTrigger,
     BedrockProvisionModelThroughputCompletedTrigger,
 )
@@ -320,6 +321,85 @@ class BedrockKnowledgeBaseActiveSensor(BedrockAgentBaseSensor):
             self.defer(
                 trigger=BedrockKnowledgeBaseActiveTrigger(
                     knowledge_base_id=self.knowledge_base_id,
+                    waiter_delay=int(self.poke_interval),
+                    waiter_max_attempts=self.max_retries,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="poke",
+            )
+        else:
+            super().execute(context=context)
+
+
+class BedrockIngestionJobSensor(BedrockAgentBaseSensor):
+    """
+    Poll the ingestion job status until it reaches a terminal state; fails if creation fails.
+
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:BedrockIngestionJobSensor`
+
+    :param knowledge_base_id: The unique identifier of the knowledge base for which to get information. (templated)
+    :param data_source_id: The unique identifier of the data source in the ingestion job. (templated)
+    :param ingestion_job_id: The unique identifier of the ingestion job. (templated)
+
+    :param deferrable: If True, the sensor will operate in deferrable more. This mode requires aiobotocore
+        module to be installed.
+        (default: False, but can be overridden in config file by setting default_deferrable to True)
+    :param poke_interval: Polling period in seconds to check for the status of the job. (default: 60)
+    :param max_retries: Number of times before returning the current state (default: 10)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    """
+
+    INTERMEDIATE_STATES: tuple[str, ...] = ("STARTING", "IN_PROGRESS")
+    FAILURE_STATES: tuple[str, ...] = ("FAILED",)
+    SUCCESS_STATES: tuple[str, ...] = ("COMPLETE",)
+    FAILURE_MESSAGE = "Bedrock ingestion job sensor failed."
+
+    template_fields: Sequence[str] = aws_template_fields(
+        "knowledge_base_id", "data_source_id", "ingestion_job_id"
+    )
+
+    def __init__(
+        self,
+        *,
+        knowledge_base_id: str,
+        data_source_id: str,
+        ingestion_job_id: str,
+        poke_interval: int = 60,
+        max_retries: int = 10,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.poke_interval = poke_interval
+        self.max_retries = max_retries
+        self.knowledge_base_id = knowledge_base_id
+        self.data_source_id = data_source_id
+        self.ingestion_job_id = ingestion_job_id
+
+    def get_state(self) -> str:
+        return self.hook.conn.get_ingestion_job(
+            knowledgeBaseId=self.knowledge_base_id,
+            ingestionJobId=self.ingestion_job_id,
+            dataSourceId=self.data_source_id,
+        )["ingestionJob"]["status"]
+
+    def execute(self, context: Context) -> Any:
+        if self.deferrable:
+            self.defer(
+                trigger=BedrockIngestionJobTrigger(
+                    knowledge_base_id=self.knowledge_base_id,
+                    ingestion_job_id=self.ingestion_job_id,
+                    data_source_id=self.data_source_id,
                     waiter_delay=int(self.poke_interval),
                     waiter_max_attempts=self.max_retries,
                     aws_conn_id=self.aws_conn_id,

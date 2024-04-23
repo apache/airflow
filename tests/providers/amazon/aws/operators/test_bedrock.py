@@ -31,6 +31,7 @@ from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockCreateKnowledgeBaseOperator,
     BedrockCreateProvisionedModelThroughputOperator,
     BedrockCustomizeModelOperator,
+    BedrockIngestDataOperator,
     BedrockInvokeModelOperator,
 )
 
@@ -314,3 +315,34 @@ class TestBedrockCreateDataSourceOperator:
         result = self.operator.execute({})
 
         assert result == self.DATA_SOURCE_ID
+
+
+class TestBedrockIngestDataOperator:
+    INGESTION_JOB_ID = "ingestion_job_id"
+
+    @pytest.fixture
+    def mock_conn(self) -> Generator[BaseAwsConnection, None, None]:
+        with mock.patch.object(BedrockAgentHook, "conn") as _conn:
+            _conn.start_ingestion_job.return_value = {
+                "ingestionJob": {"ingestionJobId": self.INGESTION_JOB_ID}
+            }
+            yield _conn
+
+    @pytest.fixture
+    def bedrock_hook(self) -> Generator[BedrockAgentHook, None, None]:
+        with mock_aws():
+            hook = BedrockAgentHook()
+            yield hook
+
+    def setup_method(self):
+        self.operator = BedrockIngestDataOperator(
+            task_id="create_data_source",
+            data_source_id="data_source_id",
+            knowledge_base_id="knowledge_base_id",
+            wait_for_completion=False,
+        )
+
+    def test_id_returned(self, mock_conn):
+        result = self.operator.execute({})
+
+        assert result == self.INGESTION_JOB_ID

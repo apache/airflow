@@ -131,3 +131,52 @@ class BedrockProvisionModelThroughputCompletedTrigger(AwsBaseWaiterTrigger):
 
     def hook(self) -> AwsGenericHook:
         return BedrockHook(aws_conn_id=self.aws_conn_id)
+
+
+class BedrockIngestionJobTrigger(AwsBaseWaiterTrigger):
+    """
+    Trigger when a Bedrock ingestion job reaches the COMPLETE state.
+
+    :param knowledge_base_id: The unique identifier of the knowledge base for which to get information.
+    :param data_source_id: The unique identifier of the data source in the ingestion job.
+    :param ingestion_job_id: The unique identifier of the ingestion job.
+
+    :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 60)
+    :param waiter_max_attempts: The maximum number of attempts to be made. (default: 10)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    """
+
+    def __init__(
+        self,
+        *,
+        knowledge_base_id: str,
+        data_source_id: str,
+        ingestion_job_id: str,
+        waiter_delay: int = 60,
+        waiter_max_attempts: int = 10,
+        aws_conn_id: str | None = None,
+    ) -> None:
+        super().__init__(
+            serialized_fields={
+                "knowledge_base_id": knowledge_base_id,
+                "data_source_id": data_source_id,
+                "ingestion_job_id": ingestion_job_id,
+            },
+            waiter_name="ingestion_job_complete",
+            waiter_args={
+                "knowledge_base_id": knowledge_base_id,
+                "data_source_id": data_source_id,
+                "ingestion_job_id": ingestion_job_id,
+            },
+            failure_message="Bedrock ingestion job creation failed.",
+            status_message="Status of Bedrock ingestion job is",
+            status_queries=["status"],
+            return_key="ingestion_job_id",
+            return_value=ingestion_job_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return BedrockAgentHook(aws_conn_id=self.aws_conn_id)

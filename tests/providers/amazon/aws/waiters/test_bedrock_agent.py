@@ -23,12 +23,16 @@ import botocore
 import pytest
 
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook
-from airflow.providers.amazon.aws.sensors.bedrock import BedrockKnowledgeBaseActiveSensor
+from airflow.providers.amazon.aws.sensors.bedrock import (
+    BedrockIngestionJobSensor,
+    BedrockKnowledgeBaseActiveSensor,
+)
 
 
 class TestBedrockAgentCustomWaiters:
     def test_service_waiters(self):
         assert "knowledge_base_active" in BedrockAgentHook().list_waiters()
+        assert "ingestion_job_complete" in BedrockAgentHook().list_waiters()
 
 
 class TestBedrockAgentCustomWaitersBase:
@@ -70,4 +74,38 @@ class TestKnowledgeBaseActiveWaiter(TestBedrockAgentCustomWaitersBase):
         BedrockAgentHook().get_waiter(self.WAITER_NAME).wait(
             **self.WAITER_ARGS,
             WaiterConfig={"Delay": 0.01, "MaxAttempts": 3},
+        )
+
+
+class TestIngestionJobWaiter(TestBedrockAgentCustomWaitersBase):
+    WAITER_NAME = "ingestion_job_complete"
+    WAITER_ARGS = {"knowledgeBaseId": "kb_id", "dataSourceId": "ds_id", "ingestionJobId": "job_id"}
+    SENSOR = BedrockIngestionJobSensor
+
+    @pytest.fixture
+    def mock_getter(self):
+        with mock.patch.object(self.client, "get_ingestion_job") as getter:
+            yield getter
+
+    @pytest.mark.parametrize("state", SENSOR.SUCCESS_STATES)
+    def test_knowledge_base_active_complete(self, state, mock_getter):
+        mock_getter.return_value = {"ingestionJob": {"status": state}}
+
+        BedrockAgentHook().get_waiter(self.WAITER_NAME).wait(**self.WAITER_ARGS)
+
+    @pytest.mark.parametrize("state", SENSOR.FAILURE_STATES)
+    def test_knowledge_base_active_failed(self, state, mock_getter):
+        mock_getter.return_value = {"ingestionJob": {"status": state}}
+
+        with pytest.raises(botocore.exceptions.WaiterError):
+            BedrockAgentHook().get_waiter(self.WAITER_NAME).wait(**self.WAITER_ARGS)
+
+    @pytest.mark.parametrize("state", SENSOR.INTERMEDIATE_STATES)
+    def test_knowledge_base_active_wait(self, state, mock_getter):
+        wait = {"ingestionJob": {"status": state}}
+        success = {"ingestionJob": {"status": "COMPLETE"}}
+        mock_getter.side_effect = [wait, wait, success]
+
+        BedrockAgentHook().get_waiter(self.WAITER_NAME).wait(
+            **self.WAITER_ARGS, WaiterConfig={"Delay": 0.01, "MaxAttempts": 3}
         )

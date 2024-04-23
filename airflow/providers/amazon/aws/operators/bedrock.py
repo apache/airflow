@@ -565,3 +565,76 @@ class BedrockCreateDataSourceOperator(AwsBaseOperator[BedrockAgentHook]):
         )
 
         return create_ds_response["dataSource"]["dataSourceId"]
+
+
+class BedrockIngestDataOperator(AwsBaseOperator[BedrockAgentHook]):
+    """
+    Begin an ingestion job, in which an Amazon Bedrock data source is added to an Amazon Bedrock knowledge base.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockIngestDataOperator`
+
+    :param knowledge_base_id: The unique identifier of the knowledge base to which to add the data source. (templated)
+    :param data_source_id: The unique identifier of the data source to ingest. (templated)
+
+    :param wait_for_completion: Whether to wait for cluster to stop. (default: True)
+    :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
+    :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 10)
+    :param deferrable: If True, the operator will wait asynchronously for the cluster to stop.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    """
+
+    aws_hook_class = BedrockAgentHook
+
+    def __init__(
+        self,
+        knowledge_base_id: str,
+        data_source_id: str,
+        ingest_data_kwargs: dict[str, Any] | None = None,
+        wait_for_completion: bool = True,
+        waiter_delay: int = 60,
+        waiter_max_attempts: int = 10,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.knowledge_base_id = knowledge_base_id
+        self.data_source_id = data_source_id
+        self.ingest_data_kwargs = ingest_data_kwargs or {}
+
+        self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+        self.deferrable = deferrable
+
+    template_fields: Sequence[str] = aws_template_fields(
+        "knowledge_base_id",
+        "data_source_id",
+    )
+
+    def execute(self, context: Context) -> str:
+        ingestion_job_id = self.hook.conn.start_ingestion_job(
+            knowledgeBaseId=self.knowledge_base_id, dataSourceId=self.data_source_id
+        )["ingestionJob"]["ingestionJobId"]
+
+        if self.wait_for_completion:
+            self.log.info("Waiting for ingestion job %s", ingestion_job_id)
+            self.hook.get_waiter(waiter_name="ingestion_job_complete").wait(
+                knowledgeBaseId=self.knowledge_base_id,
+                dataSourceId=self.data_source_id,
+                ingestionJobId=ingestion_job_id,
+            )
+
+        return ingestion_job_id

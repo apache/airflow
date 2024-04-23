@@ -24,6 +24,7 @@ import pytest
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, BedrockHook
 from airflow.providers.amazon.aws.triggers.bedrock import (
     BedrockCustomizeModelCompletedTrigger,
+    BedrockIngestionJobTrigger,
     BedrockKnowledgeBaseActiveTrigger,
     BedrockProvisionModelThroughputCompletedTrigger,
 )
@@ -110,4 +111,41 @@ class TestBedrockKnowledgeBaseActiveTrigger:
         response = await generator.asend(None)
 
         assert response == TriggerEvent({"status": "success", "knowledge_base_id": self.KNOWLEDGE_BASE_NAME})
+        assert mock_get_waiter().wait.call_count == 1
+
+
+class TestyBedrockIngestionJobTrigger:
+    KNOWLEDGE_BASE_ID = "test_kb"
+    DATA_SOURCE_ID = "test_ds"
+    INGESTION_JOB_ID = "test_ingestion_job"
+
+    def test_serialization(self):
+        """Assert that arguments and classpath are correctly serialized."""
+        trigger = BedrockIngestionJobTrigger(
+            knowledge_base_id=self.KNOWLEDGE_BASE_ID,
+            data_source_id=self.DATA_SOURCE_ID,
+            ingestion_job_id=self.INGESTION_JOB_ID,
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == BASE_TRIGGER_CLASSPATH + "BedrockIngestionJobTrigger"
+        assert kwargs.get("knowledge_base_id") == self.KNOWLEDGE_BASE_ID
+        assert kwargs.get("data_source_id") == self.DATA_SOURCE_ID
+        assert kwargs.get("ingestion_job_id") == self.INGESTION_JOB_ID
+
+    @pytest.mark.asyncio
+    @mock.patch.object(BedrockAgentHook, "get_waiter")
+    @mock.patch.object(BedrockAgentHook, "async_conn")
+    async def test_run_success(self, mock_async_conn, mock_get_waiter):
+        mock_async_conn.__aenter__.return_value = mock.MagicMock()
+        mock_get_waiter().wait = AsyncMock()
+        trigger = BedrockIngestionJobTrigger(
+            knowledge_base_id=self.KNOWLEDGE_BASE_ID,
+            data_source_id=self.DATA_SOURCE_ID,
+            ingestion_job_id=self.INGESTION_JOB_ID,
+        )
+
+        generator = trigger.run()
+        response = await generator.asend(None)
+
+        assert response == TriggerEvent({"status": "success", "ingestion_job_id": self.INGESTION_JOB_ID})
         assert mock_get_waiter().wait.call_count == 1
