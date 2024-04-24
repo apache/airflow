@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Sequence
 from airflow.providers.google.cloud.hooks.dataprep import GoogleDataprepHook
 from airflow.providers.google.cloud.links.dataprep import DataprepFlowLink, DataprepJobGroupLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -92,7 +93,7 @@ class DataprepGetJobGroupOperator(GoogleCloudBaseOperator):
         self,
         *,
         dataprep_conn_id: str = "dataprep_default",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         job_group_id: int | str,
         embed: str,
         include_deleted: bool,
@@ -149,7 +150,7 @@ class DataprepRunJobGroupOperator(GoogleCloudBaseOperator):
     def __init__(
         self,
         *,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         dataprep_conn_id: str = "dataprep_default",
         body_request: dict,
         **kwargs,
@@ -198,7 +199,7 @@ class DataprepCopyFlowOperator(GoogleCloudBaseOperator):
     def __init__(
         self,
         *,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         dataprep_conn_id: str = "dataprep_default",
         flow_id: int | str,
         name: str = "",
@@ -280,7 +281,7 @@ class DataprepRunFlowOperator(GoogleCloudBaseOperator):
     def __init__(
         self,
         *,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         flow_id: int | str,
         body_request: dict,
         dataprep_conn_id: str = "dataprep_default",

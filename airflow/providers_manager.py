@@ -828,6 +828,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                     "of 'connection-types' in Airflow 2.2. Use **both** in case you want to "
                     "have backwards compatibility with Airflow < 2.2",
                     DeprecationWarning,
+                    stacklevel=1,
                 )
         for already_registered_connection_type in already_registered_warning_connection_types:
             log.warning(

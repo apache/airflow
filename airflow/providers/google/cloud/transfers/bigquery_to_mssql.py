@@ -91,7 +91,7 @@ class BigQueryToMsSqlOperator(BigQueryToSqlBaseOperator):
         self.source_project_dataset_table = source_project_dataset_table
 
     def get_sql_hook(self) -> MsSqlHook:
-        return MsSqlHook(schema=self.database, mysql_conn_id=self.mssql_conn_id)
+        return MsSqlHook(schema=self.database, mssql_conn_id=self.mssql_conn_id)
 
     def persist_links(self, context: Context) -> None:
         project_id, dataset_id, table_id = self.source_project_dataset_table.split(".")

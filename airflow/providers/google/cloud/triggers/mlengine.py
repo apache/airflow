@@ -20,6 +20,7 @@ import asyncio
 from typing import Any, AsyncIterator, Sequence
 
 from airflow.providers.google.cloud.hooks.mlengine import MLEngineAsyncHook
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -45,7 +46,7 @@ class MLEngineStartTrainingJobTrigger(BaseTrigger):
         runtime_version: str | None = None,
         python_version: str | None = None,
         job_dir: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         labels: dict[str, str] | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,

@@ -805,7 +805,7 @@
   "openai": {
     "deps": [
       "apache-airflow>=2.6.0",
-      "openai[datalib]>=1.0"
+      "openai[datalib]>=1.16"
     ],
     "devel-deps": [],
     "cross-providers-deps": [],

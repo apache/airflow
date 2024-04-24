@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.providers.google.firebase.hooks.firestore import CloudFirestoreHook
 
 if TYPE_CHECKING:
@@ -64,7 +65,7 @@ class CloudFirestoreExportDatabaseOperator(BaseOperator):
         *,
         body: dict,
         database_id: str = "(default)",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
         impersonation_chain: str | Sequence[str] | None = None,

@@ -21,7 +21,7 @@ from typing import NamedTuple
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
-from airflow.models.errors import ImportError
+from airflow.models.errors import ParseImportError
 
 
 class ImportErrorSchema(SQLAlchemySchema):
@@ -30,7 +30,7 @@ class ImportErrorSchema(SQLAlchemySchema):
     class Meta:
         """Meta."""
 
-        model = ImportError
+        model = ParseImportError
 
     import_error_id = auto_field("id", dump_only=True)
     timestamp = auto_field(format="iso", dump_only=True)
@@ -41,7 +41,7 @@ class ImportErrorSchema(SQLAlchemySchema):
 class ImportErrorCollection(NamedTuple):
     """List of import errors with metadata."""
 
-    import_errors: list[ImportError]
+    import_errors: list[ParseImportError]
     total_entries: int
 
 

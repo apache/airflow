@@ -900,3 +900,39 @@ class TestPodTemplateFile:
         if expected_init_containers == 1:
             assert initContainers[0]["name"] == "kerberos-init"
             assert initContainers[0]["args"] == ["kerberos", "-o"]
+
+    @pytest.mark.parametrize(
+        "cmd, expected",
+        [
+            (["test", "command", "to", "run"], ["test", "command", "to", "run"]),
+            (["cmd", "{{ .Release.Name }}"], ["cmd", "release-name"]),
+        ],
+    )
+    def test_should_add_command(self, cmd, expected):
+        docs = render_chart(
+            values={
+                "workers": {"command": cmd},
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert expected == jmespath.search("spec.containers[0].command", docs[0])
+
+    @pytest.mark.parametrize("cmd", [None, []])
+    def test_should_not_add_command(self, cmd):
+        docs = render_chart(
+            values={"workers": {"command": cmd}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert None is jmespath.search("spec.containers[0].command", docs[0])
+
+    def test_should_not_add_command_by_default(self):
+        docs = render_chart(
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert None is jmespath.search("spec.containers[0].command", docs[0])

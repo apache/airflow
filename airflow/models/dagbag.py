@@ -58,6 +58,7 @@ from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.timeout import timeout
 from airflow.utils.types import NOTSET
+from airflow.utils.warnings import capture_with_reraise
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -67,13 +68,23 @@ if TYPE_CHECKING:
 
 
 class FileLoadStat(NamedTuple):
-    """Information about single file."""
+    """
+    Information about single file.
+
+    :param file: Loaded file.
+    :param duration: Time spent on process file.
+    :param dag_num: Total number of DAGs loaded in this file.
+    :param task_num: Total number of Tasks loaded in this file.
+    :param dags: DAGs names loaded in this file.
+    :param warning_num: Total number of warnings captured from processing this file.
+    """
 
     file: str
     duration: timedelta
     dag_num: int
     task_num: int
     dags: str
+    warning_num: int
 
 
 class DagBag(LoggingMixin):
@@ -139,6 +150,7 @@ class DagBag(LoggingMixin):
         # the file's last modified timestamp when we last read it
         self.file_last_changed: dict[str, datetime] = {}
         self.import_errors: dict[str, str] = {}
+        self.captured_warnings: dict[str, tuple[str, ...]] = {}
         self.has_logged = False
         self.read_dags_from_db = read_dags_from_db
         # Only used by read_dags_from_db=True
@@ -314,10 +326,21 @@ class DagBag(LoggingMixin):
         # Ensure we don't pick up anything else we didn't mean to
         DagContext.autoregistered_dags.clear()
 
-        if filepath.endswith(".py") or not zipfile.is_zipfile(filepath):
-            mods = self._load_modules_from_file(filepath, safe_mode)
-        else:
-            mods = self._load_modules_from_zip(filepath, safe_mode)
+        self.captured_warnings.pop(filepath, None)
+        with capture_with_reraise() as captured_warnings:
+            if filepath.endswith(".py") or not zipfile.is_zipfile(filepath):
+                mods = self._load_modules_from_file(filepath, safe_mode)
+            else:
+                mods = self._load_modules_from_zip(filepath, safe_mode)
+
+        if captured_warnings:
+            formatted_warnings = []
+            for msg in captured_warnings:
+                category = msg.category.__name__
+                if (module := msg.category.__module__) != "builtins":
+                    category = f"{module}.{category}"
+                formatted_warnings.append(f"{msg.filename}:{msg.lineno}: {category}: {msg.message}")
+            self.captured_warnings[filepath] = tuple(formatted_warnings)
 
         found_dags = self._process_modules(filepath, mods, file_last_changed_on_disk)
 
@@ -566,6 +589,7 @@ class DagBag(LoggingMixin):
                         dag_num=len(found_dags),
                         task_num=sum(len(dag.tasks) for dag in found_dags),
                         dags=str([dag.dag_id for dag in found_dags]),
+                        warning_num=len(self.captured_warnings.get(filepath, [])),
                     )
                 )
             except Exception as e:

@@ -122,7 +122,7 @@ const FilterBar = () => {
 
   return (
     <Flex backgroundColor="blackAlpha.200" p={4} justifyContent="space-between">
-      <Flex ml={10}>
+      <Flex>
         <Box px={2}>
           <Input
             {...inputStyles}

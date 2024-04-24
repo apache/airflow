@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import datetime
+import logging
 import sys
 from subprocess import CalledProcessError
 
@@ -26,6 +27,8 @@ import pytest
 from airflow.decorators import setup, task, teardown
 from airflow.utils import timezone
 
+log = logging.getLogger(__name__)
+
 pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
@@ -33,11 +36,30 @@ PYTHON_VERSION = sys.version_info[0]
 
 
 class TestPythonVirtualenvDecorator:
+    def test_add_cloudpickle(self, dag_maker):
+        @task.virtualenv(use_cloudpickle=True, system_site_packages=False)
+        def f():
+            """Ensure cloudpickle is correctly installed."""
+            import cloudpickle  # noqa: F401
+
+        with dag_maker():
+            ret = f()
+
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
     def test_add_dill(self, dag_maker):
         @task.virtualenv(use_dill=True, system_site_packages=False)
         def f():
             """Ensure dill is correctly installed."""
-            import dill  # noqa: F401
+            try:
+                import dill  # noqa: F401
+            except ImportError:
+                import logging
+
+                _log = logging.getLogger(__name__)
+                _log.warning(
+                    "Dill package is required to be installed. Please install it with: pip install [dill]"
+                )
 
         with dag_maker():
             ret = f()
@@ -57,7 +79,7 @@ class TestPythonVirtualenvDecorator:
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_no_system_site_packages(self, dag_maker):
-        @task.virtualenv(system_site_packages=False, python_version=PYTHON_VERSION, use_dill=True)
+        @task.virtualenv(system_site_packages=False, python_version=PYTHON_VERSION, use_cloudpickle=True)
         def f():
             try:
                 import funcsigs  # noqa: F401
@@ -70,7 +92,22 @@ class TestPythonVirtualenvDecorator:
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    def test_system_site_packages(self, dag_maker):
+    def test_system_site_packages_cloudpickle(self, dag_maker):
+        @task.virtualenv(
+            system_site_packages=False,
+            requirements=["funcsigs"],
+            python_version=PYTHON_VERSION,
+            use_cloudpickle=True,
+        )
+        def f():
+            import funcsigs  # noqa: F401
+
+        with dag_maker():
+            ret = f()
+
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    def test_system_site_packages_dill(self, dag_maker):
         @task.virtualenv(
             system_site_packages=False,
             requirements=["funcsigs"],
@@ -85,7 +122,25 @@ class TestPythonVirtualenvDecorator:
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    def test_with_requirements_pinned(self, dag_maker):
+    def test_with_requirements_pinned_cloudpickle(self, dag_maker):
+        @task.virtualenv(
+            system_site_packages=False,
+            requirements=["funcsigs==0.4"],
+            python_version=PYTHON_VERSION,
+            use_cloudpickle=True,
+        )
+        def f():
+            import funcsigs
+
+            if funcsigs.__version__ != "0.4":
+                raise Exception
+
+        with dag_maker():
+            ret = f()
+
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    def test_with_requirements_pinned_dill(self, dag_maker):
         @task.virtualenv(
             system_site_packages=False,
             requirements=["funcsigs==0.4"],
@@ -103,7 +158,33 @@ class TestPythonVirtualenvDecorator:
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    def test_with_requirements_file(self, dag_maker, tmp_path):
+    def test_with_requirements_file_cloudpickle(self, dag_maker, tmp_path):
+        requirements_file = tmp_path / "requirements.txt"
+        requirements_file.write_text("funcsigs==0.4\nattrs==23.1.0")
+
+        @task.virtualenv(
+            system_site_packages=False,
+            requirements="requirements.txt",
+            python_version=PYTHON_VERSION,
+            use_cloudpickle=True,
+        )
+        def f():
+            import funcsigs
+
+            if funcsigs.__version__ != "0.4":
+                raise Exception
+
+            import attrs
+
+            if attrs.__version__ != "23.1.0":
+                raise Exception
+
+        with dag_maker(template_searchpath=tmp_path.as_posix()):
+            ret = f()
+
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    def test_with_requirements_file_dill(self, dag_maker, tmp_path):
         requirements_file = tmp_path / "requirements.txt"
         requirements_file.write_text("funcsigs==0.4\nattrs==23.1.0")
 
@@ -129,7 +210,22 @@ class TestPythonVirtualenvDecorator:
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    def test_unpinned_requirements(self, dag_maker):
+    def test_unpinned_requirements_cloudpickle(self, dag_maker):
+        @task.virtualenv(
+            system_site_packages=False,
+            requirements=["funcsigs", "cloudpickle"],
+            python_version=PYTHON_VERSION,
+            use_cloudpickle=True,
+        )
+        def f():
+            import funcsigs  # noqa: F401
+
+        with dag_maker():
+            ret = f()
+
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    def test_unpinned_requirements_dill(self, dag_maker):
         @task.virtualenv(
             system_site_packages=False,
             requirements=["funcsigs", "dill"],
@@ -155,7 +251,24 @@ class TestPythonVirtualenvDecorator:
         with pytest.raises(CalledProcessError):
             ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    def test_python_3(self, dag_maker):
+    def test_python_3_cloudpickle(self, dag_maker):
+        @task.virtualenv(python_version=3, use_cloudpickle=False, requirements=["cloudpickle"])
+        def f():
+            import sys
+
+            print(sys.version)
+            try:
+                {}.iteritems()
+            except AttributeError:
+                return
+            raise Exception
+
+        with dag_maker():
+            ret = f()
+
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    def test_python_3_dill(self, dag_maker):
         @task.virtualenv(python_version=3, use_dill=False, requirements=["dill"])
         def f():
             import sys
