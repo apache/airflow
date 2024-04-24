@@ -61,6 +61,7 @@ class DataprocBaseTrigger(BaseTrigger):
         )
 
     def get_sync_hook(self):
+        # The sync hook is used to delete the cluster in case of cancellation of task.
         return DataprocHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -160,8 +161,15 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
                 cluster = await self.fetch_cluster()
                 state = cluster.status.state
                 if state == ClusterStatus.State.ERROR:
-                    await self.gather_diagnostics_and_delete_on_error(cluster)
-                    break
+                    await self.delete_when_error_occurred(cluster)
+                    yield TriggerEvent(
+                        {
+                            "cluster_name": self.cluster_name,
+                            "cluster_state": state.DELETING,
+                            "cluster": cluster,
+                        }
+                    )
+                    return
                 elif state == ClusterStatus.State.RUNNING:
                     yield TriggerEvent(
                         {
@@ -170,14 +178,14 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
                             "cluster": cluster,
                         }
                     )
-                    break
-
+                    return
                 self.log.info("Sleeping for %s seconds.", self.polling_interval_seconds)
                 await asyncio.sleep(self.polling_interval_seconds)
         except asyncio.CancelledError:
             try:
                 if self.delete_on_error:
                     self.log.info("Deleting cluster %s.", self.cluster_name)
+                    # The sync hook is used to delete the cluster in case of cancellation of task.
                     self.get_sync_hook().delete_cluster(
                         region=self.region, cluster_name=self.cluster_name, project_id=self.project_id
                     )
@@ -192,26 +200,14 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
             project_id=self.project_id, region=self.region, cluster_name=self.cluster_name
         )
 
-    async def gather_diagnostics_and_delete_on_error(self, cluster: Cluster):
+    async def delete_when_error_occurred(self, cluster: Cluster):
         """
-        Gather diagnostics and maybe delete the cluster.
+        Delete the cluster on error.
 
-        :param cluster: The cluster to gather diagnostics for.
+        :param cluster: The cluster to delete.
         """
-        self.log.info("Cluster is in ERROR state. Gathering diagnostic information.")
-        try:
-            operation = await self.get_async_hook().diagnose_cluster(
-                region=self.region, cluster_name=self.cluster_name, project_id=self.project_id
-            )
-            result = await operation.result()
-            gcs_uri = str(result.response.value)
-            self.log.info(
-                "Diagnostic information for cluster %s available at: %s", self.cluster_name, gcs_uri
-            )
-        except Exception as e:
-            self.log.error("Failed to diagnose cluster: %s", e)
-
         if self.delete_on_error:
+            self.log.info("Deleting cluster %s.", self.cluster_name)
             await self.get_async_hook().delete_cluster(
                 region=self.region, cluster_name=self.cluster_name, project_id=self.project_id
             )

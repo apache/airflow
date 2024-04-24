@@ -22,9 +22,8 @@ from asyncio import Future
 from unittest import mock
 
 import pytest
-from google.cloud.dataproc_v1 import Batch, ClusterStatus
+from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus
 from google.protobuf.any_pb2 import Any
-from google.rpc.error_details_pb2 import ErrorInfo
 from google.rpc.status_pb2 import Status
 
 from airflow.providers.google.cloud.triggers.dataproc import (
@@ -208,8 +207,8 @@ class TestDataprocClusterTrigger:
         async for event in cluster_trigger.run():
             trigger_event = event
 
-        assert trigger_event is None, "Expected an event to be emitted"
-        assert "Cluster is in ERROR state. Gathering diagnostic information." in caplog.text
+        assert trigger_event.payload["cluster_name"] == TEST_CLUSTER_NAME
+        assert trigger_event.payload["cluster_state"] == ClusterStatus.State.DELETING
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_cluster")
@@ -243,36 +242,33 @@ class TestDataprocClusterTrigger:
         assert cluster.status.state == ClusterStatus.State.RUNNING, "The cluster state should be RUNNING"
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.diagnose_cluster")
     @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.delete_cluster")
-    async def test_gather_diagnostics_and_maybe_delete(
-        self, mock_delete_cluster, mock_diagnose_cluster, cluster_trigger, async_get_cluster
-    ):
-        error_info = ErrorInfo(reason="DIAGNOSTICS")
-        any_message = Any()
-        any_message.Pack(error_info)
-
-        diagnose_future = asyncio.Future()
-        status = Status()
-        status.details.add().CopyFrom(any_message)
-        diagnose_future.set_result(status)
-        mock_diagnose_cluster.return_value = diagnose_future
-
-        delete_future = asyncio.Future()
-        delete_future.set_result(None)
-        mock_delete_cluster.return_value = delete_future
-
-        cluster = await async_get_cluster(status=ClusterStatus(state=ClusterStatus.State.ERROR))
-        self.delete_on_error = True
-
-        await cluster_trigger.gather_diagnostics_and_delete_on_error(cluster)
-
-        mock_diagnose_cluster.assert_called_once_with(
-            region="region", cluster_name="cluster_name", project_id="project-id"
+    async def test_delete_when_error_occurred(self, mock_delete_cluster, cluster_trigger):
+        mock_cluster = mock.MagicMock(spec=Cluster)
+        type(mock_cluster).status = mock.PropertyMock(
+            return_value=mock.MagicMock(state=ClusterStatus.State.ERROR)
         )
+
+        mock_delete_future = asyncio.Future()
+        mock_delete_future.set_result(None)
+        mock_delete_cluster.return_value = mock_delete_future
+
+        cluster_trigger.delete_on_error = True
+
+        await cluster_trigger.delete_when_error_occurred(mock_cluster)
+
         mock_delete_cluster.assert_called_once_with(
-            region="region", cluster_name="cluster_name", project_id="project-id"
+            region=cluster_trigger.region,
+            cluster_name=cluster_trigger.cluster_name,
+            project_id=cluster_trigger.project_id,
         )
+
+        mock_delete_cluster.reset_mock()
+        cluster_trigger.delete_on_error = False
+
+        await cluster_trigger.delete_when_error_occurred(mock_cluster)
+
+        mock_delete_cluster.assert_not_called()
 
 
 @pytest.mark.db_test
