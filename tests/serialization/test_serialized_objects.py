@@ -23,13 +23,14 @@ import warnings
 from datetime import datetime, timedelta
 from importlib import import_module
 
+import pendulum
 import pytest
 from dateutil import relativedelta
 from kubernetes.client import models as k8s
 from pendulum.tz.timezone import Timezone
 
 from airflow.datasets import Dataset
-from airflow.exceptions import SerializationError
+from airflow.exceptions import AirflowRescheduleException, SerializationError, TaskDeferred
 from airflow.jobs.job import Job
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, DagModel, DagTag
@@ -50,6 +51,7 @@ from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.serialization.pydantic.tasklog import LogTemplatePydantic
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.settings import _ENABLE_AIP_44
+from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.context import DatasetEventAccessors
 from airflow.utils.operator_resources import Resources
@@ -426,3 +428,39 @@ def test_ser_of_dataset_event_accessor():
     deser = BaseSerialization.deserialize(ser)
     assert deser["hi"].extra == "blah1"
     assert d["yo"].extra == {"this": "that", "the": "other"}
+
+
+class MyTrigger(BaseTrigger):
+    def __init__(self, hi):
+        self.hi = hi
+
+    def serialize(self):
+        return "tests.serialization.test_serialized_objects.MyTrigger", {"hi": self.hi}
+
+    async def run(self):
+        yield
+
+
+def test_roundtrip_exceptions():
+    """This is for AIP-44 when we need to send certain non-error exceptions
+    as part of an RPC call e.g. TaskDeferred or AirflowRescheduleException."""
+    some_date = pendulum.now()
+    resched_exc = AirflowRescheduleException(reschedule_date=some_date)
+    ser = BaseSerialization.serialize(resched_exc)
+    deser = BaseSerialization.deserialize(ser)
+    assert isinstance(deser, AirflowRescheduleException)
+    assert deser.reschedule_date == some_date
+    del ser
+    del deser
+    exc = TaskDeferred(
+        trigger=MyTrigger(hi="yo"),
+        method_name="meth_name",
+        kwargs={"have": "pie"},
+        timeout=timedelta(seconds=30),
+    )
+    ser = BaseSerialization.serialize(exc)
+    deser = BaseSerialization.deserialize(ser)
+    assert deser.trigger.hi == "yo"
+    assert deser.method_name == "meth_name"
+    assert deser.kwargs == {"have": "pie"}
+    assert deser.timeout == timedelta(seconds=30)

@@ -138,16 +138,16 @@ class Trigger(Base):
     @provide_session
     def bulk_fetch(cls, ids: Iterable[int], session: Session = NEW_SESSION) -> dict[int, Trigger]:
         """Fetch all the Triggers by ID and return a dict mapping ID -> Trigger instance."""
-        query = session.scalars(
+        stmt = (
             select(cls)
             .where(cls.id.in_(ids))
             .options(
-                joinedload("task_instance"),
-                joinedload("task_instance.trigger"),
-                joinedload("task_instance.trigger.triggerer_job"),
+                joinedload(cls.task_instance)
+                .joinedload(TaskInstance.trigger)
+                .joinedload(Trigger.triggerer_job)
             )
         )
-        return {obj.id: obj for obj in query}
+        return {obj.id: obj for obj in session.scalars(stmt)}
 
     @classmethod
     @internal_api_call
