@@ -220,7 +220,7 @@ Add "verify": "absolute path to ca-certificate file"
 Vault authentication with AWS Assume Role STS
 """""""""""""""""""""""""""""""""""""""""""""
 
-Add parameter "arn_role": "The AWS ARN of the role to assume"
+Add parameter "role_arn": "The AWS ARN of the role to assume"
 
 .. code-block:: ini
 
