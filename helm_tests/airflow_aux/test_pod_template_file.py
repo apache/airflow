@@ -645,6 +645,18 @@ class TestPodTemplateFile:
         assert "my_annotation" in annotations
         assert "annotated!" in annotations["my_annotation"]
 
+    @pytest.mark.parametrize("safe_to_evict", [True, False])
+    def test_safe_to_evict_annotation(self, safe_to_evict: bool):
+        docs = render_chart(
+            values={"workers": {"safeToEvict": safe_to_evict}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+        annotations = jmespath.search("metadata.annotations", docs[0])
+        assert annotations == {
+            "cluster-autoscaler.kubernetes.io/safe-to-evict": "true" if safe_to_evict else "false"
+        }
+
     def test_workers_pod_annotations(self):
         docs = render_chart(
             values={"workers": {"podAnnotations": {"my_annotation": "annotated!"}}},
