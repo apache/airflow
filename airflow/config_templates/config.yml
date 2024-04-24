@@ -502,7 +502,8 @@ core:
       default: "4096"
     enable_scanning_stale_dags:
       description: |
-        Stale dags are deleted by default, [core] enable_scanning_stale_dags is False if you want to keep them.
+        Stale dags are deleted by default, [core] enable_scanning_stale_dags is False
+        if you want to keep them.
       version_added: 2.10.0
       type: boolean
       example: ~
