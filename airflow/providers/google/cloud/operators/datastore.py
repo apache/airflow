@@ -29,6 +29,7 @@ from airflow.providers.google.cloud.links.datastore import (
     CloudDatastoreImportExportLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.providers.google.common.links.storage import StorageLink
 
 if TYPE_CHECKING:
@@ -90,7 +91,7 @@ class CloudDatastoreExportEntitiesOperator(GoogleCloudBaseOperator):
         labels: dict | None = None,
         polling_interval_in_seconds: int = 10,
         overwrite_existing: bool = False,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -194,7 +195,7 @@ class CloudDatastoreImportEntitiesOperator(GoogleCloudBaseOperator):
         labels: dict | None = None,
         datastore_conn_id: str = "google_cloud_default",
         polling_interval_in_seconds: float = 10,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -268,7 +269,7 @@ class CloudDatastoreAllocateIdsOperator(GoogleCloudBaseOperator):
         self,
         *,
         partial_keys: list,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -326,7 +327,7 @@ class CloudDatastoreBeginTransactionOperator(GoogleCloudBaseOperator):
         self,
         *,
         transaction_options: dict[str, Any],
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -384,7 +385,7 @@ class CloudDatastoreCommitOperator(GoogleCloudBaseOperator):
         self,
         *,
         body: dict[str, Any],
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -442,7 +443,7 @@ class CloudDatastoreRollbackOperator(GoogleCloudBaseOperator):
         self,
         *,
         transaction: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -498,7 +499,7 @@ class CloudDatastoreRunQueryOperator(GoogleCloudBaseOperator):
         self,
         *,
         body: dict[str, Any],
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,

@@ -62,6 +62,7 @@ from airflow.providers.google.cloud.links.cloud_storage_transfer import (
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.utils.helpers import normalize_directory_path
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -234,7 +235,7 @@ class CloudDataTransferServiceCreateJobOperator(GoogleCloudBaseOperator):
         aws_conn_id: str | None = "aws_default",
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -324,7 +325,7 @@ class CloudDataTransferServiceUpdateJobOperator(GoogleCloudBaseOperator):
         aws_conn_id: str | None = "aws_default",
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -407,7 +408,7 @@ class CloudDataTransferServiceDeleteJobOperator(GoogleCloudBaseOperator):
         job_name: str,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -467,7 +468,7 @@ class CloudDataTransferServiceGetOperationOperator(GoogleCloudBaseOperator):
     def __init__(
         self,
         *,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         operation_name: str,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
@@ -541,7 +542,7 @@ class CloudDataTransferServiceListOperationsOperator(GoogleCloudBaseOperator):
     def __init__(
         self,
         request_filter: dict,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
         google_impersonation_chain: str | Sequence[str] | None = None,
@@ -839,7 +840,7 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
         gcs_bucket: str,
         s3_path: str | None = None,
         gcs_path: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         aws_conn_id: str | None = "aws_default",
         gcp_conn_id: str = "google_cloud_default",
         description: str | None = None,
@@ -1007,7 +1008,7 @@ class CloudDataTransferServiceGCSToGCSOperator(GoogleCloudBaseOperator):
         destination_bucket: str,
         source_path: str | None = None,
         destination_path: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         description: str | None = None,
         schedule: dict | None = None,

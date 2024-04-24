@@ -45,10 +45,10 @@ from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.callbacks.callback_requests import CallbackRequest, SlaCallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.processor import DagFileProcessorProcess
-from airflow.models import errors
 from airflow.models.dag import DagModel
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
+from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.secrets.cache import SecretCache
 from airflow.stats import Stats
@@ -803,12 +803,12 @@ class DagFileProcessorManager(LoggingMixin):
         :param file_paths: list of paths to DAG definition files
         :param session: session for ORM operations
         """
-        query = delete(errors.ImportError)
+        query = delete(ParseImportError)
 
         if file_paths:
             query = query.where(
-                ~errors.ImportError.filename.in_(file_paths),
-                errors.ImportError.processor_subdir == processor_subdir,
+                ~ParseImportError.filename.in_(file_paths),
+                ParseImportError.processor_subdir == processor_subdir,
             )
 
         session.execute(query.execution_options(synchronize_session="fetch"))

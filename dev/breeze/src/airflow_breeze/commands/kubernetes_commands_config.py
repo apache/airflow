@@ -73,6 +73,7 @@ KUBERNETES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--image-tag",
                 "--rebuild-base-image",
+                "--copy-local-sources",
                 "--use-uv",
             ],
         },
@@ -233,6 +234,7 @@ KUBERNETES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--image-tag",
                 "--rebuild-base-image",
+                "--copy-local-sources",
                 "--use-uv",
             ],
         },

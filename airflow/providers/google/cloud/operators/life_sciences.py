@@ -27,6 +27,7 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.providers.google.cloud.hooks.life_sciences import LifeSciencesHook
 from airflow.providers.google.cloud.links.life_sciences import LifeSciencesLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -82,7 +83,7 @@ class LifeSciencesRunPipelineOperator(GoogleCloudBaseOperator):
         *,
         body: dict,
         location: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v2beta",
         impersonation_chain: str | Sequence[str] | None = None,
