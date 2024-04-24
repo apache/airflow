@@ -43,6 +43,7 @@ class DataprocBaseTrigger(BaseTrigger):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         polling_interval_seconds: int = 30,
+        cancel_on_kill: bool = True,
     ):
         super().__init__()
         self.region = region
@@ -50,6 +51,7 @@ class DataprocBaseTrigger(BaseTrigger):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.polling_interval_seconds = polling_interval_seconds
+        self.cancel_on_kill = cancel_on_kill
 
     def get_async_hook(self):
         return DataprocAsyncHook(
@@ -91,20 +93,28 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
                 "gcp_conn_id": self.gcp_conn_id,
                 "impersonation_chain": self.impersonation_chain,
                 "polling_interval_seconds": self.polling_interval_seconds,
+                "cancel_on_kill": self.cancel_on_kill,
             },
         )
 
     async def run(self):
-        while True:
-            job = await self.get_async_hook().get_job(
-                project_id=self.project_id, region=self.region, job_id=self.job_id
-            )
-            state = job.status.state
-            self.log.info("Dataproc job: %s is in state: %s", self.job_id, state)
-            if state in (JobStatus.State.DONE, JobStatus.State.CANCELLED, JobStatus.State.ERROR):
-                break
-            await asyncio.sleep(self.polling_interval_seconds)
-        yield TriggerEvent({"job_id": self.job_id, "job_state": state, "job": job})
+        try:
+            while True:
+                job = await self.get_async_hook().get_job(
+                    project_id=self.project_id, region=self.region, job_id=self.job_id
+                )
+                state = job.status.state
+                self.log.info("Dataproc job: %s is in state: %s", self.job_id, state)
+                if state in (JobStatus.State.DONE, JobStatus.State.CANCELLED, JobStatus.State.ERROR):
+                    break
+                await asyncio.sleep(self.polling_interval_seconds)
+            yield TriggerEvent({"job_id": self.job_id, "job_state": state, "job": job})
+        except asyncio.CancelledError:
+            self.log.info("Task got cancelled.")
+            if self.job_id and self.cancel_on_kill:
+                await self.get_async_hook().cancel_job(
+                    job_id=self.job_id, project_id=self.project_id, region=self.region
+                )
 
 
 class DataprocClusterTrigger(DataprocBaseTrigger):
