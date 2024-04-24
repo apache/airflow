@@ -425,7 +425,7 @@ def test_validate_provider_info_with_schema():
 @pytest.mark.parametrize(
     "provider_id, min_version",
     [
-        ("amazon", "2.6.0"),
+        ("amazon", "2.7.0"),
         ("common.io", "2.8.0"),
     ],
 )
