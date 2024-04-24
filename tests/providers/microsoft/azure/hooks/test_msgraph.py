@@ -28,8 +28,8 @@ from airflow.providers.microsoft.azure.hooks.msgraph import CallableResponseHand
 from tests.providers.microsoft.conftest import (
     get_airflow_connection,
     load_json,
-    mock_json_response,
     mock_connection,
+    mock_json_response,
 )
 
 

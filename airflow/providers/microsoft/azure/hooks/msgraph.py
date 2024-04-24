@@ -20,12 +20,10 @@ from __future__ import annotations
 import json
 from http import HTTPStatus
 from io import BytesIO
-from typing import TYPE_CHECKING, Callable, Any
-from urllib.parse import urljoin, urlparse, quote
+from typing import TYPE_CHECKING, Any, Callable
+from urllib.parse import quote, urljoin, urlparse
 
 import httpx
-from airflow.exceptions import AirflowException, AirflowBadRequest, AirflowNotFoundException
-from airflow.hooks.base import BaseHook
 from azure.identity import ClientSecretCredential
 from httpx import Timeout
 from kiota_abstractions.api_error import APIError
@@ -40,14 +38,17 @@ from kiota_http.middleware.options import ResponseHandlerOption
 from msgraph_core import APIVersion, GraphClientFactory
 from msgraph_core._enums import NationalClouds
 
-if TYPE_CHECKING:
-    from airflow.models import Connection
+from airflow.exceptions import AirflowBadRequest, AirflowException, AirflowNotFoundException
+from airflow.hooks.base import BaseHook
 
+if TYPE_CHECKING:
     from kiota_abstractions.request_adapter import RequestAdapter
     from kiota_abstractions.request_information import QueryParams
     from kiota_abstractions.response_handler import NativeResponseType
     from kiota_abstractions.serialization import ParsableFactory
     from kiota_http.httpx_request_adapter import ResponseType
+
+    from airflow.models import Connection
 
 
 class CallableResponseHandler(ResponseHandler):
