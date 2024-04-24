@@ -39,8 +39,8 @@ airflow_version = '2.9.0'
 def upgrade():
     """Apply Added DagPriorityParsingRequests table"""
     op.create_table('dag_priority_parsing_requests',
-    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
-    sa.Column('fileloc', sa.String(length=2000), nullable=False, unique=True),
+    sa.Column('id', sa.String(length=40), nullable=False),
+    sa.Column('fileloc', sa.String(length=2000), nullable=False),
     sa.PrimaryKeyConstraint('id', name=op.f('dag_priority_parsing_requests_pkey'))
     )
 

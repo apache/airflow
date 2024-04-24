@@ -1095,7 +1095,7 @@ paths:
     parameters:
       - $ref: "#/components/parameters/FileToken"
 
-    post:
+    put:
       summary: Request re-parsing of DAGs
       description: >
         Request re-parsing of existing DAGs

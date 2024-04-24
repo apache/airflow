@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import hashlib
 import importlib
 import importlib.machinery
 import importlib.util
@@ -32,7 +33,6 @@ from typing import TYPE_CHECKING, NamedTuple
 
 from sqlalchemy import (
     Column,
-    Integer,
     String,
     select,
 )
@@ -741,16 +741,23 @@ class DagPriorityParsingRequests(Base):
 
     __tablename__ = "dag_priority_parsing_requests"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(String(40), primary_key=True)
     # The location of the file containing the DAG object
     # Note: Do not depend on fileloc pointing to a file; in the case of a
     # packaged DAG, it will point to the subpath of the DAG within the
     # associated zip.
-    fileloc = Column(String(2000), unique=True, nullable=False)
+    fileloc = Column(String(2000), nullable=False)
 
     def __init__(self, fileloc: str):
         super().__init__()
         self.fileloc = fileloc
+        # Adding a unique constraint to fileloc results in the creation of an index and we have a limitation
+        # on the size of the string we can use in the index for MySql DB. We also have to keep the fileloc
+        # size consistent with other tables. This is a workaround to enforce the unique constraint.
+        self.id = self._generate_md5_hash(fileloc)
+
+    def _generate_md5_hash(self, fileloc: str):
+        return hashlib.md5(fileloc.encode()).hexdigest()
 
     @staticmethod
     @provide_session

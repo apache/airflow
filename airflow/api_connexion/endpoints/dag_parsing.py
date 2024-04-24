@@ -37,7 +37,7 @@ if TYPE_CHECKING:
     from airflow.auth.managers.models.batch_apis import IsAuthorizedDagRequest
 
 
-@security.requires_access_dag("POST")
+@security.requires_access_dag("PUT")
 @provide_session
 def reparse_dags(*, file_token: str, session: Session = NEW_SESSION) -> Response:
     """Request re-parsing DAGs."""
@@ -51,7 +51,7 @@ def reparse_dags(*, file_token: str, session: Session = NEW_SESSION) -> Response
             raise FileNotFoundError
         requests: Sequence[IsAuthorizedDagRequest] = [
             {
-                "method": "GET",
+                "method": "PUT",
                 "details": DagDetails(id=dag_id[0]),
             }
             for dag_id in dag_ids

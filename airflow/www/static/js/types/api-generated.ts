@@ -275,7 +275,7 @@ export interface paths {
   };
   "/dag/parse/{file_token}": {
     /** Request re-parsing of existing DAGs */
-    post: operations["reparse_dags"];
+    put: operations["reparse_dags"];
     parameters: {
       path: {
         /**
