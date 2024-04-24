@@ -263,12 +263,16 @@ class TestDataprocClusterTrigger:
         mock_delete_cluster.return_value = delete_future
 
         cluster = await async_get_cluster(status=ClusterStatus(state=ClusterStatus.State.ERROR))
-        event = await cluster_trigger.gather_diagnostics_and_delete_on_error(cluster)
+        self.delete_on_error = True
 
-        mock_delete_cluster.assert_called_once()
-        assert (
-            "deleted" in event.payload["action"]
-        ), "The cluster should be deleted due to error state and delete_on_error=True"
+        await cluster_trigger.gather_diagnostics_and_delete_on_error(cluster)
+
+        mock_diagnose_cluster.assert_called_once_with(
+            region="region", cluster_name="cluster_name", project_id="project-id"
+        )
+        mock_delete_cluster.assert_called_once_with(
+            region="region", cluster_name="cluster_name", project_id="project-id"
+        )
 
 
 @pytest.mark.db_test

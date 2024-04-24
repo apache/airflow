@@ -182,42 +182,9 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
                         region=self.region, cluster_name=self.cluster_name, project_id=self.project_id
                     )
                     self.log.info("Deleted cluster %s during cancellation.", self.cluster_name)
-                    self.log.info("Cluster deletion initiated.")
-                    async for event in self.wait_until_cluster_deleted():
-                        if event["status"] == "success":
-                            self.log.info("Cluster deletion confirmed.")
-                        elif event["status"] == "error":
-                            self.log.error("Cluster deletion failed with message: %s", event["message"])
-                    self.log.info("Finished handling cluster deletion.")
             except Exception as e:
                 self.log.error("Error during cancellation handling: %s", e)
                 raise AirflowException("Error during cancellation handling: %s", e)
-
-    async def wait_until_cluster_deleted(self):
-        """Wait until the cluster is confirmed as deleted."""
-        end_time = time.time() + self.polling_interval_seconds * 10  # Set end time for loop
-        try:
-            while time.time() < end_time:
-                try:
-                    await self.get_async_hook().get_cluster(
-                        region=self.region,
-                        cluster_name=self.cluster_name,
-                        project_id=self.project_id,
-                    )
-                    self.log.info(
-                        "Cluster still exists. Sleeping for %s seconds.", self.polling_interval_seconds
-                    )
-                    await asyncio.sleep(self.polling_interval_seconds)
-                except NotFound:
-                    self.log.info("Cluster successfully deleted.")
-                    yield TriggerEvent({"status": "success", "message": "Cluster deleted successfully."})
-                    return
-        except Exception as e:
-            self.log.error("Error while checking for cluster deletion: %s", e)
-            yield TriggerEvent({"status": "error", "message": str(e)})
-        yield TriggerEvent(
-            {"status": "error", "message": "Timeout - cluster deletion not confirmed within expected time."}
-        )
 
     async def fetch_cluster(self) -> Cluster:
         """Fetch the cluster status."""
