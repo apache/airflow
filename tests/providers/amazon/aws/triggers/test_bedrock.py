@@ -21,9 +21,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from airflow.providers.amazon.aws.hooks.bedrock import BedrockHook
+from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, BedrockHook
 from airflow.providers.amazon.aws.triggers.bedrock import (
     BedrockCustomizeModelCompletedTrigger,
+    BedrockKnowledgeBaseActiveTrigger,
     BedrockProvisionModelThroughputCompletedTrigger,
 )
 from airflow.triggers.base import TriggerEvent
@@ -84,4 +85,29 @@ class TestBedrockProvisionModelThroughputCompletedTrigger:
         assert response == TriggerEvent(
             {"status": "success", "provisioned_model_id": self.PROVISIONED_MODEL_ID}
         )
+        assert mock_get_waiter().wait.call_count == 1
+
+
+class TestBedrockKnowledgeBaseActiveTrigger:
+    KNOWLEDGE_BASE_NAME = "test_kb"
+
+    def test_serialization(self):
+        """Assert that arguments and classpath are correctly serialized."""
+        trigger = BedrockKnowledgeBaseActiveTrigger(knowledge_base_id=self.KNOWLEDGE_BASE_NAME)
+        classpath, kwargs = trigger.serialize()
+        assert classpath == BASE_TRIGGER_CLASSPATH + "BedrockKnowledgeBaseActiveTrigger"
+        assert kwargs.get("knowledge_base_id") == self.KNOWLEDGE_BASE_NAME
+
+    @pytest.mark.asyncio
+    @mock.patch.object(BedrockAgentHook, "get_waiter")
+    @mock.patch.object(BedrockAgentHook, "async_conn")
+    async def test_run_success(self, mock_async_conn, mock_get_waiter):
+        mock_async_conn.__aenter__.return_value = mock.MagicMock()
+        mock_get_waiter().wait = AsyncMock()
+        trigger = BedrockKnowledgeBaseActiveTrigger(knowledge_base_id=self.KNOWLEDGE_BASE_NAME)
+
+        generator = trigger.run()
+        response = await generator.asend(None)
+
+        assert response == TriggerEvent({"status": "success", "knowledge_base_id": self.KNOWLEDGE_BASE_NAME})
         assert mock_get_waiter().wait.call_count == 1

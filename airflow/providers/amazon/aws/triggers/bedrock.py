@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.providers.amazon.aws.hooks.bedrock import BedrockHook
+from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, BedrockHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 
 if TYPE_CHECKING:
@@ -59,6 +59,42 @@ class BedrockCustomizeModelCompletedTrigger(AwsBaseWaiterTrigger):
 
     def hook(self) -> AwsGenericHook:
         return BedrockHook(aws_conn_id=self.aws_conn_id)
+
+
+class BedrockKnowledgeBaseActiveTrigger(AwsBaseWaiterTrigger):
+    """
+    Trigger when a Bedrock Knowledge Base reaches the ACTIVE state.
+
+    :param knowledge_base_id: The unique identifier of the knowledge base for which to get information.
+    :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 60)
+    :param waiter_max_attempts: The maximum number of attempts to be made. (default: 20)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    """
+
+    def __init__(
+        self,
+        *,
+        knowledge_base_id: str,
+        waiter_delay: int = 60,
+        waiter_max_attempts: int = 20,
+        aws_conn_id: str | None = None,
+    ) -> None:
+        super().__init__(
+            serialized_fields={"knowledge_base_id": knowledge_base_id},
+            waiter_name="model_customization_job_complete",
+            waiter_args={"knowledgeBaseId": knowledge_base_id},
+            failure_message="Bedrock Knowledge Base creation failed.",
+            status_message="Status of Bedrock Knowledge Base job is",
+            status_queries=["status"],
+            return_key="knowledge_base_id",
+            return_value=knowledge_base_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return BedrockAgentHook(aws_conn_id=self.aws_conn_id)
 
 
 class BedrockProvisionModelThroughputCompletedTrigger(AwsBaseWaiterTrigger):
