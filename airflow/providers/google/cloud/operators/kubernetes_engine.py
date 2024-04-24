@@ -19,7 +19,6 @@
 
 from __future__ import annotations
 
-import re
 import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
@@ -566,17 +565,10 @@ class GKEStartKueueInsideClusterOperator(GoogleCloudBaseOperator):
     def _get_yaml_content_from_file(kueue_yaml_url) -> list[dict]:
         """Download content of YAML file and separate it into several dictionaries."""
         response = requests.get(kueue_yaml_url, allow_redirects=True)
-        yaml_dicts = []
-        if response.status_code == 200:
-            yaml_data = response.text
-            documents = re.split(r"---\n", yaml_data)
-
-            for document in documents:
-                document_dict = yaml.safe_load(document)
-                yaml_dicts.append(document_dict)
-        else:
+        if response.status_code != 200:
             raise AirflowException("Was not able to read the yaml file from given URL")
-        return yaml_dicts
+
+        return list(yaml.safe_load_all(response.text))
 
     def execute(self, context: Context):
         self._cluster_url, self._ssl_ca_cert = GKEClusterAuthDetails(
