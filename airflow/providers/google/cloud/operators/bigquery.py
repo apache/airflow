@@ -203,7 +203,25 @@ class _BigQueryOpenLineageMixin:
         )
 
 
-class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
+class _BigQueryOperatorsEncryptionConfigurationMixin:
+    """A class to handle the configuration for BigQueryHook.insert_job method."""
+
+    # Note: If you want to add this feature to a new operator you can include the class name in the type
+    # annotation of the `self`. Then you can inherit this class in the target operator.
+    # e.g: BigQueryCheckOperator, BigQueryTableCheckOperator
+    def include_encryption_configuration(  # type:ignore[misc]
+        self: BigQueryCheckOperator | BigQueryTableCheckOperator,
+        configuration: dict,
+        config_key: str,
+    ) -> None:
+        """Add encryption_configuration to destinationEncryptionConfiguration key if it is not None."""
+        if self.encryption_configuration is not None:
+            configuration[config_key]["destinationEncryptionConfiguration"] = self.encryption_configuration
+
+
+class BigQueryCheckOperator(
+    _BigQueryDbHookMixin, SQLCheckOperator, _BigQueryOperatorsEncryptionConfigurationMixin
+):
     """Performs checks against BigQuery.
 
     This operator expects a SQL query that returns a single row. Each value on
@@ -248,6 +266,13 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account. (templated)
     :param labels: a dictionary containing labels for the table, passed to BigQuery.
+    :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+
+        .. code-block:: python
+
+            encryption_configuration = {
+                "kmsKeyName": "projects/PROJECT/locations/LOCATION/keyRings/KEY_RING/cryptoKeys/KEY",
+            }
     :param deferrable: Run operator in the deferrable mode.
     :param poll_interval: (Deferrable mode only) polling period in seconds to
         check for the status of job.
@@ -272,6 +297,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
+        encryption_configuration: dict | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: float = 4.0,
         **kwargs,
@@ -282,6 +308,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         self.location = location
         self.impersonation_chain = impersonation_chain
         self.labels = labels
+        self.encryption_configuration = encryption_configuration
         self.deferrable = deferrable
         self.poll_interval = poll_interval
 
@@ -292,6 +319,8 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
     ) -> BigQueryJob:
         """Submit a new job and get the job id for polling the status using Trigger."""
         configuration = {"query": {"query": self.sql, "useLegacySql": self.use_legacy_sql}}
+
+        self.include_encryption_configuration(configuration, "query")
 
         return hook.insert_job(
             configuration=configuration,
@@ -767,7 +796,9 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
         self.log.info("All tests have passed")
 
 
-class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
+class BigQueryTableCheckOperator(
+    _BigQueryDbHookMixin, SQLTableCheckOperator, _BigQueryOperatorsEncryptionConfigurationMixin
+):
     """
     Subclasses the SQLTableCheckOperator in order to provide a job id for OpenLineage to parse.
 
@@ -795,6 +826,13 @@ class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param labels: a dictionary containing labels for the table, passed to BigQuery
+    :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+
+        .. code-block:: python
+
+            encryption_configuration = {
+                "kmsKeyName": "projects/PROJECT/locations/LOCATION/keyRings/KEY_RING/cryptoKeys/KEY",
+            }
     """
 
     template_fields: Sequence[str] = tuple(set(SQLTableCheckOperator.template_fields) | {"gcp_conn_id"})
@@ -812,6 +850,7 @@ class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
+        encryption_configuration: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(table=table, checks=checks, partition_clause=partition_clause, **kwargs)
@@ -820,6 +859,7 @@ class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
         self.location = location
         self.impersonation_chain = impersonation_chain
         self.labels = labels
+        self.encryption_configuration = encryption_configuration
 
     def _submit_job(
         self,
@@ -828,6 +868,8 @@ class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
     ) -> BigQueryJob:
         """Submit a new job and get the job id for polling the status using Trigger."""
         configuration = {"query": {"query": self.sql, "useLegacySql": self.use_legacy_sql}}
+
+        self.include_encryption_configuration(configuration, "query")
 
         return hook.insert_job(
             configuration=configuration,
@@ -1222,7 +1264,7 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
         .. code-block:: python
 
             encryption_configuration = {
-                "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key",
+                "kmsKeyName": "projects/PROJECT/locations/LOCATION/keyRings/KEY_RING/cryptoKeys/KEY",
             }
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1462,7 +1504,7 @@ class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
         .. code-block:: python
 
             encryption_configuration = {
-                "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key",
+                "kmsKeyName": "projects/PROJECT/locations/LOCATION/keyRings/KEY_RING/cryptoKeys/KEY",
             }
     :param location: The location used for the operation.
     :param cluster_fields: [Optional] The fields used for clustering.
@@ -1690,7 +1732,7 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
         .. code-block:: python
 
             encryption_configuration = {
-                "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key",
+                "kmsKeyName": "projects/PROJECT/locations/LOCATION/keyRings/KEY_RING/cryptoKeys/KEY",
             }
     :param location: The location used for the operation.
     :param impersonation_chain: Optional service account to impersonate using short-term
