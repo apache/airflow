@@ -2702,7 +2702,11 @@ SOURCE_API_YAML_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "api_connexion" / "ope
 TARGET_API_YAML_PATH = PYTHON_CLIENT_DIR_PATH / "v1.yaml"
 OPENAPI_GENERATOR_CLI_VER = "5.4.0"
 
-GENERATED_CLIENT_DIRECTORIES_TO_COPY = ["airflow_client", "docs", "test"]
+GENERATED_CLIENT_DIRECTORIES_TO_COPY: list[Path] = [
+    Path("airflow_client") / "client",
+    Path("docs"),
+    Path("test"),
+]
 FILES_TO_COPY_TO_CLIENT_REPO = [
     ".gitignore",
     ".openapi-generator-ignore",
