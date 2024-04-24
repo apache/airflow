@@ -1587,11 +1587,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             Stats.gauge(f"pool.queued_slots.{pool_name}", slot_stats["queued"])
             Stats.gauge(f"pool.running_slots.{pool_name}", slot_stats["running"])
             Stats.gauge(f"pool.deferred_slots.{pool_name}", slot_stats["deferred"])
+            Stats.gauge(f"pool.scheduled_slots.{pool_name}", slot_stats["scheduled"])
+
             # Same metrics with tagging
             Stats.gauge("pool.open_slots", slot_stats["open"], tags={"pool_name": pool_name})
             Stats.gauge("pool.queued_slots", slot_stats["queued"], tags={"pool_name": pool_name})
             Stats.gauge("pool.running_slots", slot_stats["running"], tags={"pool_name": pool_name})
             Stats.gauge("pool.deferred_slots", slot_stats["deferred"], tags={"pool_name": pool_name})
+            Stats.gauge("pool.scheduled_slots", slot_stats["scheduled"], tags={"pool_name": pool_name})
 
     @provide_session
     def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:
@@ -1628,7 +1631,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                     query = (
                         select(TI)
-                        .options(lazyload("dag_run"))  # avoids double join to dag_run
+                        .options(lazyload(TI.dag_run))  # avoids double join to dag_run
                         .where(TI.state.in_(State.adoptable_states))
                         .join(TI.queued_by_job)
                         .where(Job.state.is_distinct_from(JobState.RUNNING))

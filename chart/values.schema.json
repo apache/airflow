@@ -3911,6 +3911,14 @@
                         }
                     ]
                 },
+                "priorityClassName": {
+                    "description": "Specify priority for the create user job pod.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
                 "useHelmHooks": {
                     "description": "Specify if you want to use the default Helm Hook annotations",
                     "type": "boolean",
@@ -4198,6 +4206,14 @@
                             ]
                         }
                     }
+                },
+                "priorityClassName": {
+                    "description": "Specify priority for the migrate database job pod.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
                 },
                 "useHelmHooks": {
                     "description": "Specify if you want to use the default Helm Hook annotations",
@@ -6885,6 +6901,14 @@
                         "type": "object",
                         "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
                     }
+                },
+                "priorityClassName": {
+                    "description": "Specify priority for cleanup pods.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
                 },
                 "podAnnotations": {
                     "description": "Annotations to add to cleanup pods.",

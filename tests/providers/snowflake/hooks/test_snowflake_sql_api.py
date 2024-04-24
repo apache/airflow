@@ -20,7 +20,7 @@ import unittest
 import uuid
 from typing import TYPE_CHECKING, Any
 from unittest import mock
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, PropertyMock
 
 import pytest
 import requests
@@ -168,7 +168,10 @@ class TestSnowflakeSqlApiHook:
         ],
     )
     @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.requests")
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params",
+        new_callable=PropertyMock,
+    )
     @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_headers")
     def test_execute_query(
         self,
@@ -197,7 +200,10 @@ class TestSnowflakeSqlApiHook:
         [(SINGLE_STMT, 1, {"statementHandle": "uuid"}, ["uuid"])],
     )
     @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.requests")
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params",
+        new_callable=PropertyMock,
+    )
     @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_headers")
     def test_execute_query_exception_without_statement_handle(
         self,
@@ -262,7 +268,10 @@ class TestSnowflakeSqlApiHook:
             with pytest.raises(AirflowException, match='Response: {"foo": "bar"}, Status Code: 500'):
                 hook.check_query_output(query_ids)
 
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params",
+        new_callable=PropertyMock,
+    )
     @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_headers")
     def test_get_request_url_header_params(self, mock_get_header, mock_conn_param):
         """Test get_request_url_header_params by mocking _get_conn_params and get_headers"""
@@ -274,7 +283,10 @@ class TestSnowflakeSqlApiHook:
         assert url == "https://airflow.af_region.snowflakecomputing.com/api/v2/statements/uuid"
 
     @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_private_key")
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params",
+        new_callable=PropertyMock,
+    )
     @mock.patch("airflow.providers.snowflake.utils.sql_api_generate_jwt.JWTGenerator.get_token")
     def test_get_headers_should_support_private_key(self, mock_get_token, mock_conn_param, mock_private_key):
         """Test get_headers method by mocking get_private_key and _get_conn_params method"""
@@ -285,7 +297,10 @@ class TestSnowflakeSqlApiHook:
         assert result == HEADERS
 
     @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_oauth_token")
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params",
+        new_callable=PropertyMock,
+    )
     def test_get_headers_should_support_oauth(self, mock_conn_param, mock_oauth_token):
         """Test get_headers method by mocking get_oauth_token and _get_conn_params method"""
         mock_conn_param.return_value = CONN_PARAMS_OAUTH
@@ -296,7 +311,10 @@ class TestSnowflakeSqlApiHook:
 
     @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.HTTPBasicAuth")
     @mock.patch("requests.post")
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params",
+        new_callable=PropertyMock,
+    )
     def test_get_oauth_token(self, mock_conn_param, requests_post, mock_auth):
         """Test get_oauth_token method makes the right http request"""
         BASIC_AUTH = {"Authorization": "Basic usernamepassword"}

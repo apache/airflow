@@ -35,12 +35,14 @@ def test_runtype_enum_escape():
     """
     with create_session() as session:
         dag = DAG(dag_id="test_enum_dags", start_date=DEFAULT_DATE)
+        data_interval = dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE)
         dag.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             state=State.RUNNING,
             execution_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
             session=session,
+            data_interval=data_interval,
         )
 
         query = session.query(
