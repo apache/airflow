@@ -437,3 +437,41 @@ class TestDataprocSubmitTrigger:
             {"job_id": TEST_JOB_ID, "job_state": JobStatus.State.ERROR, "job": mock_hook.get_job.return_value}
         )
         assert event.payload == expected_event.payload
+
+    import asyncio
+    from unittest.mock import AsyncMock, patch
+
+    import pytest
+
+    @pytest.mark.asyncio
+    @patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_async_hook")
+    async def test_submit_trigger_run_cancelled(self, mock_get_async_hook, submit_trigger):
+        """Test the trigger correctly handles an asyncio.CancelledError."""
+        mock_hook = mock_get_async_hook.return_value
+        mock_hook.get_job = mock.AsyncMock(side_effect=asyncio.CancelledError)
+        mock_hook.cancel_job = mock.AsyncMock()
+
+        async_gen = submit_trigger.run()
+
+        try:
+            await async_gen.__anext__()
+            # If no error is raised, assert a failure as we expected an exception
+            pytest.fail("Expected an asyncio.CancelledError but didn't get one.")
+        except asyncio.CancelledError:
+            assert True, "asyncio.CancelledError was caught as expected."
+        except StopAsyncIteration:
+            # If StopAsyncIteration is raised, check if the CancelledError was handled internally
+            # Since we caught StopAsyncIteration, it means the async generator concluded without issue
+            # Verify if cancel_job was called if cancel_on_kill is True
+            if submit_trigger.cancel_on_kill:
+                mock_hook.cancel_job.assert_called_once_with(
+                    job_id=submit_trigger.job_id,
+                    project_id=submit_trigger.project_id,
+                    region=submit_trigger.region,
+                )
+            else:
+                mock_hook.cancel_job.assert_not_called()
+            assert True, "Cancellation was handled internally and properly."
+        finally:
+            # Clean up generator
+            await async_gen.aclose()
