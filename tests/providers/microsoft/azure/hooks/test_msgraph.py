@@ -20,10 +20,10 @@ import asyncio
 from unittest.mock import patch
 
 import pytest
-from airflow.exceptions import AirflowException, AirflowBadRequest, AirflowNotFoundException
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 from msgraph_core import APIVersion, NationalClouds
 
+from airflow.exceptions import AirflowBadRequest, AirflowException, AirflowNotFoundException
 from airflow.providers.microsoft.azure.hooks.msgraph import CallableResponseHandler, KiotaRequestAdapterHook
 from tests.providers.microsoft.conftest import (
     get_airflow_connection,

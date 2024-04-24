@@ -33,6 +33,7 @@ from typing import (
 from uuid import UUID
 
 import pendulum
+
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.module_loading import import_string
