@@ -208,7 +208,7 @@ class TestDataprocClusterTrigger:
             trigger_event = event
 
         assert trigger_event.payload["cluster_name"] == TEST_CLUSTER_NAME
-        assert trigger_event.payload["cluster_state"] == ClusterStatus.State.DELETING
+        assert trigger_event.payload["cluster_state"] == ClusterStatus.State.ERROR
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_cluster")

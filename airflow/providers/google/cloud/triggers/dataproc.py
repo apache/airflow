@@ -61,7 +61,10 @@ class DataprocBaseTrigger(BaseTrigger):
         )
 
     def get_sync_hook(self):
-        # The sync hook is used to delete the cluster in case of cancellation of task.
+        # The synchronous hook is utilized to delete the cluster when a task is cancelled.
+        # This is because the asynchronous hook deletion is not awaited when the trigger task
+        # is cancelled. The call for deleting the cluster through the sync hook is not a blocking
+        # call, which means it does not wait until the cluster is deleted.
         return DataprocHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -165,7 +168,7 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
                     yield TriggerEvent(
                         {
                             "cluster_name": self.cluster_name,
-                            "cluster_state": state.DELETING,
+                            "cluster_state": state.ERROR,
                             "cluster": cluster,
                         }
                     )
@@ -185,7 +188,10 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
             try:
                 if self.delete_on_error:
                     self.log.info("Deleting cluster %s.", self.cluster_name)
-                    # The sync hook is used to delete the cluster in case of cancellation of task.
+                    # The synchronous hook is utilized to delete the cluster when a task is cancelled.
+                    # This is because the asynchronous hook deletion is not awaited when the trigger task
+                    # is cancelled. The call for deleting the cluster through the sync hook is not a blocking
+                    # call, which means it does not wait until the cluster is deleted.
                     self.get_sync_hook().delete_cluster(
                         region=self.region, cluster_name=self.cluster_name, project_id=self.project_id
                     )
