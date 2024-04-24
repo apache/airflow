@@ -974,7 +974,8 @@ def test_action_muldelete_task_instance(session, admin_client, task_search_tuple
     # add task reschedules for those tasks to make sure that the delete cascades to the required tables
     trs = [
         TaskReschedule(
-            task=task,
+            task_id=task.task_id,
+            dag_id=task.dag_id,
             run_id=task.run_id,
             try_number=1,
             start_date=timezone.datetime(2021, 1, 1),
