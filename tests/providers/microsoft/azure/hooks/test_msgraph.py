@@ -19,6 +19,8 @@ from __future__ import annotations
 import asyncio
 from unittest.mock import patch
 
+import pytest
+from airflow.exceptions import AirflowException, AirflowBadRequest, AirflowNotFoundException
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 from msgraph_core import APIVersion, NationalClouds
 
@@ -93,7 +95,7 @@ class TestKiotaRequestAdapterHook:
 
 
 class TestResponseHandler:
-    def test_handle_response_async(self):
+    def test_handle_response_async_when_ok(self):
         users = load_json("resources", "users.json")
         response = mock_json_response(200, users)
 
@@ -105,3 +107,33 @@ class TestResponseHandler:
 
         assert isinstance(actual, dict)
         assert actual == users
+
+    def test_handle_response_async_when_bad_request(self):
+        response = mock_json_response(400, {})
+
+        with pytest.raises(AirflowBadRequest):
+            asyncio.run(
+                CallableResponseHandler(lambda response, error_map: response.json()).handle_response_async(
+                    response, None
+                )
+            )
+
+    def test_handle_response_async_when_not_found(self):
+        response = mock_json_response(404, {})
+
+        with pytest.raises(AirflowNotFoundException):
+            asyncio.run(
+                CallableResponseHandler(lambda response, error_map: response.json()).handle_response_async(
+                    response, None
+                )
+            )
+
+    def test_handle_response_async_when_internal_server_error(self):
+        response = mock_json_response(500, {})
+
+        with pytest.raises(AirflowException):
+            asyncio.run(
+                CallableResponseHandler(lambda response, error_map: response.json()).handle_response_async(
+                    response, None
+                )
+            )

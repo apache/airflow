@@ -18,12 +18,13 @@
 from __future__ import annotations
 
 import json
+from http import HTTPStatus
 from io import BytesIO
 from typing import TYPE_CHECKING, Callable, Any
 from urllib.parse import urljoin, urlparse, quote
 
 import httpx
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowBadRequest, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from azure.identity import ClientSecretCredential
 from httpx import Timeout
@@ -71,7 +72,16 @@ class CallableResponseHandler(ResponseHandler):
         param response: The type of the native response object.
         param error_map: The error dict to use in case of a failed request.
         """
-        return self.callable_function(response, error_map)
+        value = self.callable_function(response, error_map)
+        if response.status_code not in {200, 201, 202, 204, 302}:
+            message = value or response.reason_phrase
+            status_code = HTTPStatus(response.status_code)
+            if status_code == HTTPStatus.BAD_REQUEST:
+                raise AirflowBadRequest(message)
+            elif status_code == HTTPStatus.NOT_FOUND:
+                raise AirflowNotFoundException(message)
+            raise AirflowException(message)
+        return value
 
 
 class KiotaRequestAdapterHook(BaseHook):
