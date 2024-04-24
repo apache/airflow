@@ -837,7 +837,8 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             "ti",
             "var",  # Accessor for Variable; var->json and var->value.
             "conn",  # Accessor for Connection.
-            "dataset_events",  # Accessor for DatasetEvent.
+            "dataset_events",  # Accessor for outlet DatasetEvent.
+            "inlet_events",  # Accessor for inlet DatasetEvent.
         ]
 
         ti = create_task_instance(dag_id=self.dag_id, task_id=self.task_id, schedule=None)
