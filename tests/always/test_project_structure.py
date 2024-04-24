@@ -147,7 +147,6 @@ class TestProjectStructure:
             "tests/providers/google/cloud/transfers/test_mssql_to_gcs.py",
             "tests/providers/google/cloud/transfers/test_presto_to_gcs.py",
             "tests/providers/google/cloud/transfers/test_trino_to_gcs.py",
-            "tests/providers/google/cloud/triggers/test_cloud_composer.py",
             "tests/providers/google/cloud/utils/test_bigquery.py",
             "tests/providers/google/cloud/utils/test_bigquery_get_data.py",
             "tests/providers/google/cloud/utils/test_dataform.py",
