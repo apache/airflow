@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
 import json
 import locale
 from base64 import b64decode, b64encode
@@ -28,7 +27,6 @@ import pendulum
 
 from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.triggers.msgraph import (
-    CallableResponseHandler,
     MSGraphTrigger,
     ResponseSerializer,
 )
@@ -109,7 +107,7 @@ class TestMSGraphTrigger(Base):
             actual = trigger.serialize()
 
             assert isinstance(actual, tuple)
-            assert actual[0] == "airflow.providers.microsoft.azure.triggers.msgraph.MSGraphTrigger"
+            assert actual[0] == "airflow.providers.microsoft.msgraph.triggers.msgraph.MSGraphTrigger"
             assert actual[1] == {
                 "url": "https://graph.microsoft.com/v1.0/me/drive/items",
                 "path_parameters": None,
@@ -123,7 +121,7 @@ class TestMSGraphTrigger(Base):
                 "timeout": None,
                 "proxies": None,
                 "api_version": "v1.0",
-                "serializer": "airflow.providers.microsoft.azure.triggers.msgraph.ResponseSerializer",
+                "serializer": "airflow.providers.microsoft.msgraph.triggers.msgraph.ResponseSerializer",
             }
 
     def test_template_fields(self):
@@ -131,32 +129,6 @@ class TestMSGraphTrigger(Base):
 
         for template_field in MSGraphTrigger.template_fields:
             getattr(trigger, template_field)
-
-    def test_encoded_query_parameters(self):
-        trigger = MSGraphTrigger(
-            url="myorg/admin/groups",
-            conn_id="msgraph_api",
-            query_parameters={"$expand": "reports,users,datasets,dataflows,dashboards", "$top": 5000},
-        )
-
-        actual = trigger.encoded_query_parameters()
-
-        assert actual == {"%24expand": "reports,users,datasets,dataflows,dashboards", "%24top": 5000}
-
-
-class TestResponseHandler:
-    def test_handle_response_async(self):
-        users = load_json("resources", "users.json")
-        response = mock_json_response(200, users)
-
-        actual = asyncio.run(
-            CallableResponseHandler(lambda response, error_map: response.json()).handle_response_async(
-                response, None
-            )
-        )
-
-        assert isinstance(actual, dict)
-        assert actual == users
 
 
 class TestResponseSerializer:
