@@ -158,7 +158,6 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        """Run the trigger."""
         try:
             while True:
                 cluster = await self.fetch_cluster()
@@ -168,7 +167,7 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
                     yield TriggerEvent(
                         {
                             "cluster_name": self.cluster_name,
-                            "cluster_state": state.ERROR,
+                            "cluster_state": ClusterStatus.State.DELETING,
                             "cluster": cluster,
                         }
                     )
