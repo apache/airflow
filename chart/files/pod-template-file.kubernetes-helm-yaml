@@ -26,6 +26,8 @@
 {{- $containerLifecycleHooksKerberosSidecar := or .Values.workers.kerberosSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.workers) }}
 {{- $containerLifecycleHooks := or .Values.workers.containerLifecycleHooks .Values.containerLifecycleHooks }}
+{{- $safeToEvict := dict "cluster-autoscaler.kubernetes.io/safe-to-evict" (.Values.workers.safeToEvict | toString) }}
+{{- $podAnnotations := mergeOverwrite .Values.airflowPodAnnotations $safeToEvict .Values.workers.podAnnotations }}
 apiVersion: v1
 kind: Pod
 metadata:
@@ -37,18 +39,11 @@ metadata:
     {{- if or (.Values.labels) (.Values.workers.labels) }}
       {{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
-  {{- if or .Values.airflowPodAnnotations .Values.workers.podAnnotations }}
   annotations:
-    {{- if .Values.airflowPodAnnotations }}
-      {{- toYaml .Values.airflowPodAnnotations | nindent 4 }}
-    {{- end }}
+    {{- toYaml $podAnnotations | nindent 4 }}
     {{- if .Values.workers.kerberosInitContainer.enabled }}
     checksum/kerberos-keytab: {{ include (print $.Template.BasePath "/secrets/kerberos-keytab-secret.yaml") . | sha256sum }}
     {{- end }}
-    {{- if .Values.workers.podAnnotations }}
-      {{- toYaml .Values.workers.podAnnotations | nindent 4 }}
-    {{- end }}
-  {{- end }}
 spec:
   initContainers:
     {{- if and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled) }}
@@ -111,6 +106,9 @@ spec:
       lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 8 }}
       {{- end }}
       name: base
+      {{- if .Values.workers.command }}
+      command: {{ tpl (toYaml .Values.workers.command) . | nindent 8 }}
+      {{- end }}
       resources: {{- toYaml .Values.workers.resources | nindent 8 }}
       volumeMounts:
         - mountPath: {{ template "airflow_logs" . }}

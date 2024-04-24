@@ -126,6 +126,9 @@ $(".typeahead").typeahead({
       success: callback,
     });
   },
+  displayText(value) {
+    return value.dag_display_name || value.name;
+  },
   autoSelect: false,
   afterSelect(value) {
     const query = new URLSearchParams(window.location.search);
