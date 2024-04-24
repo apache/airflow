@@ -4360,7 +4360,7 @@ class TestSchedulerJob:
 
     def test_start_queued_dagruns_do_follow_execution_date_order(self, dag_maker):
         session = settings.Session()
-        with dag_maker("test_dag1", max_active_runs=1) as _:
+        with dag_maker("test_dag1", max_active_runs=1):
             EmptyOperator(task_id="mytask")
         date = DEFAULT_DATE
         for i in range(30):
