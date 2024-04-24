@@ -2907,7 +2907,8 @@ class TaskInstance(Base, LoggingMixin):
         # Log reschedule request
         session.add(
             TaskReschedule(
-                self.task,
+                self.task_id,
+                self.dag_id,
                 self.run_id,
                 self._try_number,
                 actual_start_date,
