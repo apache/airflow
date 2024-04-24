@@ -447,6 +447,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=self.dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
         )
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -506,6 +507,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=self.dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
         )
 
         bigger_number.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
