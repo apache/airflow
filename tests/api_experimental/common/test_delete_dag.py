@@ -99,7 +99,8 @@ class TestDeleteDAGSuccessfulDelete:
             session.add(TaskFail(ti=ti))
             session.add(
                 TR(
-                    task=ti.task,
+                    task_id=ti.task_id,
+                    dag_id=ti.dag_id,
                     run_id=ti.run_id,
                     start_date=test_date,
                     end_date=test_date,

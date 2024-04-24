@@ -270,7 +270,7 @@ class MSGraphTrigger(BaseTrigger):
 
     def encoded_query_parameters(self) -> dict:
         if self.query_parameters:
-            return {quote(key): quote(str(value)) for key, value in self.query_parameters.items()}
+            return {quote(key): value for key, value in self.query_parameters.items()}
         return {}
 
     def request_information(self) -> RequestInformation:

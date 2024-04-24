@@ -71,7 +71,7 @@ from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from markupsafe import Markup, escape
 from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
-from sqlalchemy import and_, case, desc, func, inspect, select, union_all
+from sqlalchemy import and_, case, desc, func, inspect, or_, select, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from wtforms import BooleanField, validators
@@ -791,6 +791,9 @@ class Airflow(AirflowBaseView):
                 escaped_arg_search_query = arg_search_query.replace("_", r"\_")
                 dags_query = dags_query.where(
                     DagModel.dag_id.ilike("%" + escaped_arg_search_query + "%", escape="\\")
+                    | DagModel._dag_display_property_value.ilike(
+                        "%" + escaped_arg_search_query + "%", escape="\\"
+                    )
                     | DagModel.owners.ilike("%" + escaped_arg_search_query + "%", escape="\\")
                 )
 
@@ -5422,12 +5425,21 @@ class AutocompleteView(AirflowBaseView):
         dag_ids_query = select(
             sqla.literal("dag").label("type"),
             DagModel.dag_id.label("name"),
-        ).where(~DagModel.is_subdag, DagModel.is_active, DagModel.dag_id.ilike(f"%{query}%"))
+            DagModel._dag_display_property_value.label("dag_display_name"),
+        ).where(
+            ~DagModel.is_subdag,
+            DagModel.is_active,
+            or_(
+                DagModel.dag_id.ilike(f"%{query}%"),
+                DagModel._dag_display_property_value.ilike(f"%{query}%"),
+            ),
+        )
 
         owners_query = (
             select(
                 sqla.literal("owner").label("type"),
                 DagModel.owners.label("name"),
+                sqla.literal(None).label("dag_display_name"),
             )
             .distinct()
             .where(~DagModel.is_subdag, DagModel.is_active, DagModel.owners.ilike(f"%{query}%"))

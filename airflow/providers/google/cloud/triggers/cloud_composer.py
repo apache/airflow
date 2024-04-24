@@ -78,3 +78,71 @@ class CloudComposerExecutionTrigger(BaseTrigger):
                 "operation_done": operation.done,
             }
         )
+
+
+class CloudComposerAirflowCLICommandTrigger(BaseTrigger):
+    """The trigger wait for the Airflow CLI command result."""
+
+    def __init__(
+        self,
+        project_id: str,
+        region: str,
+        environment_id: str,
+        execution_cmd_info: dict,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        poll_interval: int = 10,
+    ):
+        super().__init__()
+        self.project_id = project_id
+        self.region = region
+        self.environment_id = environment_id
+        self.execution_cmd_info = execution_cmd_info
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.poll_interval = poll_interval
+
+        self.gcp_hook = CloudComposerAsyncHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            "airflow.providers.google.cloud.triggers.cloud_composer.CloudComposerAirflowCLICommandTrigger",
+            {
+                "project_id": self.project_id,
+                "region": self.region,
+                "environment_id": self.environment_id,
+                "execution_cmd_info": self.execution_cmd_info,
+                "gcp_conn_id": self.gcp_conn_id,
+                "impersonation_chain": self.impersonation_chain,
+                "poll_interval": self.poll_interval,
+            },
+        )
+
+    async def run(self):
+        try:
+            result = await self.gcp_hook.wait_command_execution_result(
+                project_id=self.project_id,
+                region=self.region,
+                environment_id=self.environment_id,
+                execution_cmd_info=self.execution_cmd_info,
+                poll_interval=self.poll_interval,
+            )
+        except AirflowException as ex:
+            yield TriggerEvent(
+                {
+                    "status": "error",
+                    "message": str(ex),
+                }
+            )
+            return
+
+        yield TriggerEvent(
+            {
+                "status": "success",
+                "result": result,
+            }
+        )
+        return
