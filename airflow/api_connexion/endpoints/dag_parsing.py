@@ -37,7 +37,7 @@ if TYPE_CHECKING:
     from airflow.auth.managers.models.batch_apis import IsAuthorizedDagRequest
 
 
-@security.requires_access_dag("GET")
+@security.requires_access_dag("POST")
 @provide_session
 def reparse_dags(*, file_token: str, session: Session = NEW_SESSION) -> Response:
     """Request re-parsing DAGs."""
