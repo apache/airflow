@@ -31,6 +31,7 @@ import pytest
 from kubernetes.client import models as k8s
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors import executor_loader
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
@@ -75,6 +76,13 @@ class TestFileTaskLogHandler:
     def teardown_method(self):
         self.clean_up()
 
+    def test_deprecated_filename_template(self):
+        with pytest.warns(
+            RemovedInAirflow3Warning,
+            match="Passing filename_template to a log handler is deprecated and has no effect",
+        ):
+            FileTaskHandler("", filename_template="/foo/bar")
+
     def test_default_task_logging_setup(self):
         # file task handler is used by default.
         logger = logging.getLogger(TASK_LOGGER)
@@ -92,6 +100,7 @@ class TestFileTaskLogHandler:
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             execution_date=DEFAULT_DATE,
+            data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
         )
         task = PythonOperator(
             task_id="task_for_testing_file_log_handler",
@@ -144,6 +153,7 @@ class TestFileTaskLogHandler:
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             execution_date=DEFAULT_DATE,
+            data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
         )
         task = PythonOperator(
             task_id="task_for_testing_file_log_handler",
@@ -203,6 +213,7 @@ class TestFileTaskLogHandler:
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             execution_date=DEFAULT_DATE,
+            data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
         )
         ti = TaskInstance(task=task, run_id=dagrun.run_id)
 
@@ -413,6 +424,7 @@ class TestFileTaskLogHandler:
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             execution_date=DEFAULT_DATE,
+            data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
         )
         ti = TaskInstance(task=task, run_id=dagrun.run_id)
         ti.try_number = 3

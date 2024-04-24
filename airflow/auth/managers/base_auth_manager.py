@@ -21,6 +21,7 @@ from abc import abstractmethod
 from functools import cached_property
 from typing import TYPE_CHECKING, Container, Literal, Sequence
 
+from flask_appbuilder.menu import MenuItem
 from sqlalchemy import select
 
 from airflow.auth.managers.models.resource_details import (
@@ -34,7 +35,6 @@ from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from flask import Blueprint
-    from flask_appbuilder.menu import MenuItem
     from sqlalchemy.orm import Session
 
     from airflow.auth.managers.models.base_user import BaseUser
@@ -397,13 +397,21 @@ class BaseAuthManager(LoggingMixin):
         )
         accessible_items = []
         for menu_item in items:
+            menu_item_copy = MenuItem(
+                name=menu_item.name,
+                icon=menu_item.icon,
+                label=menu_item.label,
+                childs=[],
+                baseview=menu_item.baseview,
+                cond=menu_item.cond,
+            )
             if menu_item.childs:
                 accessible_children = []
                 for child in menu_item.childs:
                     if self.security_manager.has_access(ACTION_CAN_ACCESS_MENU, child.name):
                         accessible_children.append(child)
-                menu_item.childs = accessible_children
-            accessible_items.append(menu_item)
+                menu_item_copy.childs = accessible_children
+            accessible_items.append(menu_item_copy)
         return accessible_items
 
     @abstractmethod
