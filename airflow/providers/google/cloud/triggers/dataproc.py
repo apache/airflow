@@ -27,7 +27,8 @@ from typing import Any, AsyncIterator, Sequence
 from google.api_core.exceptions import NotFound
 from google.cloud.dataproc_v1 import Batch, ClusterStatus, JobStatus
 
-from airflow.providers.google.cloud.hooks.dataproc import DataprocAsyncHook
+from airflow.exceptions import AirflowException
+from airflow.providers.google.cloud.hooks.dataproc import DataprocAsyncHook, DataprocHook
 from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -55,6 +56,16 @@ class DataprocBaseTrigger(BaseTrigger):
 
     def get_async_hook(self):
         return DataprocAsyncHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    def get_sync_hook(self):
+        # The synchronous hook is utilized to delete the cluster when a task is cancelled.
+        # This is because the asynchronous hook deletion is not awaited when the trigger task
+        # is cancelled. The call for deleting the cluster or job through the sync hook is not a blocking
+        # call, which means it does not wait until the cluster or job is deleted.
+        return DataprocHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
@@ -111,10 +122,25 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
             yield TriggerEvent({"job_id": self.job_id, "job_state": state, "job": job})
         except asyncio.CancelledError:
             self.log.info("Task got cancelled.")
-            if self.job_id and self.cancel_on_kill:
-                await self.get_async_hook().cancel_job(
-                    job_id=self.job_id, project_id=self.project_id, region=self.region
-                )
+            try:
+                if self.job_id and self.cancel_on_kill:
+                    self.log.info("Cancelling the job: %s", self.job_id)
+                    # The synchronous hook is utilized to delete the cluster when a task is cancelled. This
+                    # is because the asynchronous hook deletion is not awaited when the trigger task is
+                    # cancelled. The call for deleting the cluster or job through the sync hook is not a
+                    # blocking call, which means it does not wait until the cluster or job is deleted.
+                    self.get_sync_hook().cancel_job(
+                        job_id=self.job_id, project_id=self.project_id, region=self.region
+                    )
+                    self.log.info("Job: %s is cancelled", self.job_id)
+                    yield TriggerEvent(
+                        {"job_id": self.job_id, "job_state": ClusterStatus.State.DELETING, "job": job}
+                    )
+            except Exception as e:
+                self.log.error("Failed to cancel the job: %s with error : %s", self.job_id, str(e))
+                raise AirflowException(
+                    f"Failed to cancel the job: {self.job_id} with error : {str(e)}"
+                ) from e
 
 
 class DataprocClusterTrigger(DataprocBaseTrigger):

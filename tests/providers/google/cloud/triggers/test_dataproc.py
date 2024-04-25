@@ -438,13 +438,8 @@ class TestDataprocSubmitTrigger:
         )
         assert event.payload == expected_event.payload
 
-    import asyncio
-    from unittest.mock import AsyncMock, patch
-
-    import pytest
-
     @pytest.mark.asyncio
-    @patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_async_hook")
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_async_hook")
     async def test_submit_trigger_run_cancelled(self, mock_get_async_hook, submit_trigger):
         """Test the trigger correctly handles an asyncio.CancelledError."""
         mock_hook = mock_get_async_hook.return_value
