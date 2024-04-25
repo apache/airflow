@@ -1758,23 +1758,41 @@ class TestDatabricksRunNowDeferrableOperator:
 
 
 class TestDatabricksNotebookOperator:
-    def test_execute(self):
+    def test_execute_with_wait_for_termination(self):
         operator = DatabricksNotebookOperator(
             task_id="test_task",
             notebook_path="test_path",
             source="test_source",
             databricks_conn_id="test_conn_id",
         )
-        operator.launch_notebook_job = MagicMock(return_value="12345")
+        operator.launch_notebook_job = MagicMock(return_value=12345)
         operator.monitor_databricks_job = MagicMock()
 
         operator.execute({})
 
+        assert operator.wait_for_termination is True
         operator.launch_notebook_job.assert_called_once()
         operator.monitor_databricks_job.assert_called_once()
 
+    def test_execute_without_wait_for_termination(self):
+        operator = DatabricksNotebookOperator(
+            task_id="test_task",
+            notebook_path="test_path",
+            source="test_source",
+            databricks_conn_id="test_conn_id",
+            wait_for_termination=False,
+        )
+        operator.launch_notebook_job = MagicMock(return_value=12345)
+        operator.monitor_databricks_job = MagicMock()
+
+        operator.execute({})
+
+        assert operator.wait_for_termination is False
+        operator.launch_notebook_job.assert_called_once()
+        operator.monitor_databricks_job.assert_not_called()
+
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
-    def test_monitor_databricks_job_successful(self, mock_databricks_hook):
+    def test_monitor_databricks_job_successful_raises_no_exception(self, mock_databricks_hook):
         mock_databricks_hook.return_value.get_run.return_value = {
             "state": {"life_cycle_state": "TERMINATED", "result_state": "SUCCESS"}
         }
@@ -1786,13 +1804,13 @@ class TestDatabricksNotebookOperator:
             databricks_conn_id="test_conn_id",
         )
 
-        operator.databricks_run_id = "12345"
+        operator.databricks_run_id = 12345
         operator.monitor_databricks_job()
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_monitor_databricks_job_failed(self, mock_databricks_hook):
         mock_databricks_hook.return_value.get_run.return_value = {
-            "state": {"life_cycle_state": "TERMINATED", "result_state": "FAILED"}
+            "state": {"life_cycle_state": "TERMINATED", "result_state": "FAILED", "state_message": "FAILURE"}
         }
 
         operator = DatabricksNotebookOperator(
@@ -1802,9 +1820,12 @@ class TestDatabricksNotebookOperator:
             databricks_conn_id="test_conn_id",
         )
 
-        operator.databricks_run_id = "12345"
-        with pytest.raises(AirflowException):
+        operator.databricks_run_id = 12345
+
+        exception_message = "'Task failed. Final state %s. Reason: %s', 'FAILED', 'FAILURE'"
+        with pytest.raises(AirflowException) as exc_info:
             operator.monitor_databricks_job()
+        assert exception_message in str(exc_info.value)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_launch_notebook_job(self, mock_databricks_hook):
@@ -1815,11 +1836,11 @@ class TestDatabricksNotebookOperator:
             databricks_conn_id="test_conn_id",
             existing_cluster_id="test_cluster_id",
         )
-        operator._hook.submit_run.return_value = "12345"
+        operator._hook.submit_run.return_value = 12345
 
         run_id = operator.launch_notebook_job()
 
-        assert run_id == "12345"
+        assert run_id == 12345
 
     def test_both_new_and_existing_cluster_set(self):
         operator = DatabricksNotebookOperator(
@@ -1830,8 +1851,10 @@ class TestDatabricksNotebookOperator:
             existing_cluster_id="existing_cluster_id",
             databricks_conn_id="test_conn_id",
         )
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError) as exc_info:
             operator._get_run_json()
+        exception_message = "Both new_cluster and existing_cluster_id are set. Only one should be set."
+        assert str(exc_info.value) == exception_message
 
     def test_both_new_and_existing_cluster_unset(self):
         operator = DatabricksNotebookOperator(
@@ -1840,8 +1863,10 @@ class TestDatabricksNotebookOperator:
             source="test_source",
             databricks_conn_id="test_conn_id",
         )
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError) as exc_info:
             operator._get_run_json()
+        exception_message = "Must specify either existing_cluster_id or new_cluster."
+        assert str(exc_info.value) == exception_message
 
     def test_job_runs_forever_by_default(self):
         operator = DatabricksNotebookOperator(
@@ -1864,5 +1889,10 @@ class TestDatabricksNotebookOperator:
             existing_cluster_id="existing_cluster_id",
             execution_timeout=timedelta(seconds=0),
         )
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError) as exc_info:
             operator._get_run_json()
+        exception_message = (
+            "If you've set an `execution_timeout` for the task, ensure it's not `0`. "
+            "Set it instead to `None` if you desire the task to run indefinitely."
+        )
+        assert str(exc_info.value) == exception_message

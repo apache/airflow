@@ -921,6 +921,7 @@ class DatabricksNotebookOperator(BaseOperator):
     :param databricks_retry_limit: Amount of times to retry if the Databricks backend is unreachable.
     :param databricks_retry_delay: Number of seconds to wait between retries.
     :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
+    :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
     :param databricks_conn_id: The name of the Airflow connection to use.
     """
 
@@ -939,6 +940,7 @@ class DatabricksNotebookOperator(BaseOperator):
         databricks_retry_limit: int = 3,
         databricks_retry_delay: int = 1,
         databricks_retry_args: dict[Any, Any] | None = None,
+        wait_for_termination: bool = True,
         databricks_conn_id: str = "databricks_default",
         **kwargs: Any,
     ):
@@ -953,8 +955,9 @@ class DatabricksNotebookOperator(BaseOperator):
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
         self.databricks_retry_args = databricks_retry_args
+        self.wait_for_termination = wait_for_termination
         self.databricks_conn_id = databricks_conn_id
-        self.databricks_run_id = ""
+        self.databricks_run_id: int | None = None
         super().__init__(**kwargs)
 
     @cached_property
@@ -1025,7 +1028,7 @@ class DatabricksNotebookOperator(BaseOperator):
             raise ValueError("Must specify either existing_cluster_id or new_cluster.")
         return run_json
 
-    def launch_notebook_job(self) -> str:
+    def launch_notebook_job(self) -> int:
         run_json = self._get_run_json()
         self.databricks_run_id = self._hook.submit_run(run_json)
         url = self._hook.get_run_page_url(self.databricks_run_id)
@@ -1033,6 +1036,8 @@ class DatabricksNotebookOperator(BaseOperator):
         return self.databricks_run_id
 
     def monitor_databricks_job(self) -> None:
+        if self.databricks_run_id is None:
+            raise ValueError("Databricks job not yet launched. Please run launch_notebook_job first.")
         run = self._hook.get_run(self.databricks_run_id)
         run_state = RunState(**run["state"])
         self.log.info("Current state of the job: %s", run_state.life_cycle_state)
@@ -1059,4 +1064,5 @@ class DatabricksNotebookOperator(BaseOperator):
 
     def execute(self, context: Context) -> None:
         self.launch_notebook_job()
-        self.monitor_databricks_job()
+        if self.wait_for_termination:
+            self.monitor_databricks_job()
