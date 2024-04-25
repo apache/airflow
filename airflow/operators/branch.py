@@ -36,18 +36,17 @@ class BranchMixIn(SkipMixin):
     def do_branch(self, context: Context, branches_to_execute: str | Iterable[str]) -> str | Iterable[str]:
         """Implement the handling of branching including logging."""
         self.log.info("Branch into %s", branches_to_execute)
-        branch_task_ids = self.expand_task_group_roots(context["ti"], branches_to_execute)
+        branch_task_ids = self._expand_task_group_roots(context["ti"], branches_to_execute)
         self.skip_all_except(context["ti"], branch_task_ids)
-        return branch_task_ids
+        return branches_to_execute
 
-    def expand_task_group_roots(
+    def _expand_task_group_roots(
         self, ti: TaskInstance | TaskInstancePydantic, branches_to_execute: str | Iterable[str]
-    ) -> str | Iterable[str]:
-        """Replace any task group with the root task ids."""
+    ) -> Iterable[str]:
+        """Expand any task group into its root task ids."""
         if not (isinstance(branches_to_execute, Iterable) or isinstance(branches_to_execute, str)):
             return branches_to_execute
 
-        task_ids = []
         if TYPE_CHECKING:
             assert ti.task
 
@@ -64,14 +63,9 @@ class BranchMixIn(SkipMixin):
                 tg = dag.task_group_dict[branch]
                 root_ids = [root.task_id for root in tg.roots]
                 self.log.info("Expanding task group %s into %s", tg.group_id, root_ids)
-                task_ids.extend(root_ids)
+                yield from root_ids
             else:
-                task_ids.append(branch)
-
-        if len(task_ids) == 1:
-            return task_ids[0]
-        else:
-            return task_ids
+                yield branch
 
 
 class BaseBranchOperator(BaseOperator, BranchMixIn):
