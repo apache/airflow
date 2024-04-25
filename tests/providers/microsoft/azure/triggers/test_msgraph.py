@@ -107,7 +107,7 @@ class TestMSGraphTrigger(Base):
             actual = trigger.serialize()
 
             assert isinstance(actual, tuple)
-            assert actual[0] == "airflow.providers.microsoft.msgraph.triggers.msgraph.MSGraphTrigger"
+            assert actual[0] == "airflow.providers.microsoft.azure.triggers.msgraph.MSGraphTrigger"
             assert actual[1] == {
                 "url": "https://graph.microsoft.com/v1.0/me/drive/items",
                 "path_parameters": None,
@@ -121,7 +121,7 @@ class TestMSGraphTrigger(Base):
                 "timeout": None,
                 "proxies": None,
                 "api_version": "v1.0",
-                "serializer": "airflow.providers.microsoft.msgraph.triggers.msgraph.ResponseSerializer",
+                "serializer": "airflow.providers.microsoft.azure.triggers.msgraph.ResponseSerializer",
             }
 
     def test_template_fields(self):
