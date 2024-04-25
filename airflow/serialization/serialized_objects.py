@@ -74,7 +74,7 @@ from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 from airflow.utils.timezone import from_timestamp, parse_timezone
-from airflow.utils.types import NOTSET, ArgNotSet
+from airflow.utils.types import ELIDED_DAG, NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from inspect import Parameter
@@ -1297,7 +1297,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             )
         else:
             op = SerializedBaseOperator(task_id=encoded_op["task_id"])
-
+        op.dag = ELIDED_DAG  # type: ignore[assignment]
         cls.populate_operator(op, encoded_op)
         return op
 

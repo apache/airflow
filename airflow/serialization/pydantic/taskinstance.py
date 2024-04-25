@@ -288,8 +288,12 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         """
         from airflow.models.taskinstance import _get_template_context
 
+        if TYPE_CHECKING:
+            assert self.task
+            assert self.task.dag
         return _get_template_context(
             task_instance=self,
+            dag=self.task.dag,
             session=session,
             ignore_param_exceptions=ignore_param_exceptions,
         )
@@ -517,6 +521,20 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
             session=session,
         )
         _set_ti_attrs(self, updated_ti)  # _handle_reschedule is a remote call that mutates the TI
+
+    def get_relevant_upstream_map_indexes(
+        self,
+        upstream: Operator,
+        ti_count: int | None,
+        *,
+        session: Session | None = None,
+    ) -> int | range | None:
+        return TaskInstance.get_relevant_upstream_map_indexes(
+            self=self,  # type: ignore[arg-type]
+            upstream=upstream,
+            ti_count=ti_count,
+            session=session,
+        )
 
 
 if is_pydantic_2_installed():

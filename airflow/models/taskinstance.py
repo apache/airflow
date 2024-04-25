@@ -136,6 +136,7 @@ from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.timeout import timeout
+from airflow.utils.types import ELIDED_DAG
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 TR = TaskReschedule
@@ -902,13 +903,15 @@ def _clear_next_method_args(*, task_instance: TaskInstance | TaskInstancePydanti
 def _get_template_context(
     *,
     task_instance: TaskInstance | TaskInstancePydantic,
+    dag: DAG,
     session: Session | None = None,
     ignore_param_exceptions: bool = True,
 ) -> Context:
     """
     Return TI Context.
 
-    :param task_instance: the task instance
+    :param task_instance: the task instance for the task
+    :param dag for the task
     :param session: SQLAlchemy ORM Session
     :param ignore_param_exceptions: flag to suppress value exceptions while initializing the ParamsDict
 
@@ -928,27 +931,10 @@ def _get_template_context(
         assert task_instance.task
         assert task
         assert task.dag
-    try:
-        dag: DAG = task.dag
-    except AirflowException:
-        from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
-        if isinstance(task_instance, TaskInstancePydantic):
-            ti = session.scalar(
-                select(TaskInstance).where(
-                    TaskInstance.task_id == task_instance.task_id,
-                    TaskInstance.dag_id == task_instance.dag_id,
-                    TaskInstance.run_id == task_instance.run_id,
-                    TaskInstance.map_index == task_instance.map_index,
-                )
-            )
-            dag = ti.dag_model.serialized_dag.dag
-            if hasattr(task_instance.task, "_dag"):  # BaseOperator
-                task_instance.task._dag = dag
-            else:  # MappedOperator
-                task_instance.task.dag = dag
-        else:
-            raise
+    if task.dag is ELIDED_DAG:
+        task.dag = dag  # required after deserialization
+
     dag_run = task_instance.get_dagrun(session)
     data_interval = dag.get_run_data_interval(dag_run)
 
@@ -1278,12 +1264,8 @@ def _record_task_map_for_downstreams(
 
     :meta private:
     """
-    # when taking task over RPC, we need to add the dag back
-    if isinstance(task, MappedOperator):
-        if not task.dag:
-            task.dag = dag
-    elif not task._dag:
-        task._dag = dag
+    if task.dag is ELIDED_DAG:
+        task.dag = dag  # required after deserialization
 
     if next(task.iter_mapped_dependants(), None) is None:  # No mapped dependants, no need to validate.
         return
@@ -3313,8 +3295,12 @@ class TaskInstance(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         :param ignore_param_exceptions: flag to suppress value exceptions while initializing the ParamsDict
         """
+        if TYPE_CHECKING:
+            assert self.task
+            assert self.task.dag
         return _get_template_context(
             task_instance=self,
+            dag=self.task.dag,
             session=session,
             ignore_param_exceptions=ignore_param_exceptions,
         )
@@ -3374,8 +3360,15 @@ class TaskInstance(Base, LoggingMixin):
             context = self.get_template_context()
         original_task = self.task
 
+        ti = context["ti"]
+
         if TYPE_CHECKING:
             assert original_task
+            assert self.task
+            assert ti.task
+
+        if ti.task.dag is ELIDED_DAG:
+            ti.task.dag = self.task.dag
 
         # If self.task is mapped, this call replaces self.task to point to the
         # unmapped BaseOperator created by this function! This is because the
