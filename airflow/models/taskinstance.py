@@ -785,8 +785,14 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
                 for key, value in xcom_value.items():
                     task_instance.xcom_push(key=key, value=value, session=session_or_null)
             task_instance.xcom_push(key=XCOM_RETURN_KEY, value=xcom_value, session=session_or_null)
+        if TYPE_CHECKING:
+            assert task_orig.dag
         _record_task_map_for_downstreams(
-            task_instance=task_instance, task=task_orig, value=xcom_value, session=session_or_null
+            task_instance=task_instance,
+            task=task_orig,
+            dag=task_orig.dag,
+            value=xcom_value,
+            session=session_or_null,
         )
     return result
 
@@ -1253,25 +1259,43 @@ def _refresh_from_task(
     task_instance_mutation_hook(task_instance)
 
 
+@internal_api_call
+@provide_session
 def _record_task_map_for_downstreams(
-    *, task_instance: TaskInstance | TaskInstancePydantic, task: Operator, value: Any, session: Session
+    *,
+    task_instance: TaskInstance | TaskInstancePydantic,
+    task: Operator,
+    dag: DAG,
+    value: Any,
+    session: Session,
 ) -> None:
     """
     Record the task map for downstream tasks.
 
     :param task_instance: the task instance
     :param task: The task object
+    :param dag: the dag associated with the task
     :param value: The value
     :param session: SQLAlchemy ORM Session
 
     :meta private:
     """
+    # if not task._dag:
+    #     task._dag = dag  # required when on RPC server side
+
+    # when taking task over RPC, we need to add the dag back
+    if isinstance(task, MappedOperator):
+        if not task.dag:
+            task.dag = dag
+    elif not task._dag:
+        task._dag = dag
+
     if next(task.iter_mapped_dependants(), None) is None:  # No mapped dependants, no need to validate.
         return
     # TODO: We don't push TaskMap for mapped task instances because it's not
-    # currently possible for a downstream to depend on one individual mapped
-    # task instance. This will change when we implement task mapping inside
-    # a mapped task group, and we'll need to further analyze the case.
+    #  currently possible for a downstream to depend on one individual mapped
+    #  task instance. This will change when we implement task mapping inside
+    #  a mapped task group, and we'll need to further analyze the case.
     if isinstance(task, MappedOperator):
         return
     if value is None:
@@ -3339,6 +3363,8 @@ class TaskInstance(Base, LoggingMixin):
         # MappedOperator is useless for template rendering, and we need to be
         # able to access the unmapped task instead.
         original_task.render_template_fields(context, jinja_env)
+        if isinstance(self.task, MappedOperator):
+            self.task = context["ti"].task
 
         return original_task
 
