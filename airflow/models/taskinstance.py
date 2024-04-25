@@ -1280,9 +1280,6 @@ def _record_task_map_for_downstreams(
 
     :meta private:
     """
-    # if not task._dag:
-    #     task._dag = dag  # required when on RPC server side
-
     # when taking task over RPC, we need to add the dag back
     if isinstance(task, MappedOperator):
         if not task.dag:
