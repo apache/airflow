@@ -55,6 +55,7 @@ def _initialize_map() -> dict[str, Callable]:
         _handle_failure,
         _handle_reschedule,
         _update_rtif,
+        _xcom_pull,
     )
     from airflow.secrets.metastore import MetastoreBackend
     from airflow.utils.cli_action_loggers import _default_action_log_internal
@@ -70,6 +71,7 @@ def _initialize_map() -> dict[str, Callable]:
         _handle_failure,
         _handle_reschedule,
         _add_log,
+        _xcom_pull,
         DagFileProcessor.update_import_errors,
         DagFileProcessor.manage_slas,
         DagFileProcessorManager.deactivate_stale_dags,
@@ -92,6 +94,7 @@ def _initialize_map() -> dict[str, Callable]:
         XCom.get_one,
         XCom.get_many,
         XCom.clear,
+        XCom.set,
         Variable.set,
         Variable.update,
         Variable.delete,

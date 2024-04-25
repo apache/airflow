@@ -170,6 +170,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         dag_id: str | None = None,
         key: str = XCOM_RETURN_KEY,
         include_prior_dates: bool = False,
+        session: Session | None = None,
         *,
         map_indexes: int | Iterable[int] | None = None,
         default: Any = None,
@@ -177,17 +178,26 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         """
         Pull an XCom value for this task instance.
 
-        TODO: make it works for AIP-44
         :param task_ids: task id or list of task ids, if None, the task_id of the current task is used
         :param dag_id: dag id, if None, the dag_id of the current task is used
         :param key: the key to identify the XCom value
         :param include_prior_dates: whether to include prior execution dates
+        :param session: the sqlalchemy session
         :param map_indexes: map index or list of map indexes, if None, the map_index of the current task
             is used
         :param default: the default value to return if the XCom value does not exist
         :return: Xcom value
         """
-        return None
+        return TaskInstance.xcom_pull(
+            self=self,  # type: ignore[arg-type]
+            task_ids=task_ids,
+            dag_id=dag_id,
+            key=key,
+            include_prior_dates=include_prior_dates,
+            map_indexes=map_indexes,
+            default=default,
+            session=session,
+        )
 
     def xcom_push(
         self,
@@ -199,12 +209,17 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         """
         Push an XCom value for this task instance.
 
-        TODO: make it works for AIP-44
         :param key: the key to identify the XCom value
         :param value: the value of the XCom
         :param execution_date: the execution date to push the XCom for
         """
-        pass
+        return TaskInstance.xcom_push(
+            self=self,  # type: ignore[arg-type]
+            key=key,
+            value=value,
+            execution_date=execution_date,
+            session=session,
+        )
 
     def get_dagrun(self, session: Session | None = None) -> DagRunPydantic:
         """

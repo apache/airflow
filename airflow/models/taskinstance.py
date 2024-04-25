@@ -559,6 +559,108 @@ def clear_task_instances(
     session.flush()
 
 
+@internal_api_call
+@provide_session
+def _xcom_pull(
+    *,
+    ti,
+    task_ids: str | Iterable[str] | None = None,
+    dag_id: str | None = None,
+    key: str = XCOM_RETURN_KEY,
+    include_prior_dates: bool = False,
+    session: Session = NEW_SESSION,
+    map_indexes: int | Iterable[int] | None = None,
+    default: Any = None,
+) -> Any:
+    """Pull XComs that optionally meet certain criteria.
+
+    :param key: A key for the XCom. If provided, only XComs with matching
+        keys will be returned. The default key is ``'return_value'``, also
+        available as constant ``XCOM_RETURN_KEY``. This key is automatically
+        given to XComs returned by tasks (as opposed to being pushed
+        manually). To remove the filter, pass *None*.
+    :param task_ids: Only XComs from tasks with matching ids will be
+        pulled. Pass *None* to remove the filter.
+    :param dag_id: If provided, only pulls XComs from this DAG. If *None*
+        (default), the DAG of the calling task is used.
+    :param map_indexes: If provided, only pull XComs with matching indexes.
+        If *None* (default), this is inferred from the task(s) being pulled
+        (see below for details).
+    :param include_prior_dates: If False, only XComs from the current
+        execution_date are returned. If *True*, XComs from previous dates
+        are returned as well.
+
+    When pulling one single task (``task_id`` is *None* or a str) without
+    specifying ``map_indexes``, the return value is inferred from whether
+    the specified task is mapped. If not, value from the one single task
+    instance is returned. If the task to pull is mapped, an iterator (not a
+    list) yielding XComs from mapped task instances is returned. In either
+    case, ``default`` (*None* if not specified) is returned if no matching
+    XComs are found.
+
+    When pulling multiple tasks (i.e. either ``task_id`` or ``map_index`` is
+    a non-str iterable), a list of matching XComs is returned. Elements in
+    the list is ordered by item ordering in ``task_id`` and ``map_index``.
+    """
+    if dag_id is None:
+        dag_id = ti.dag_id
+
+    query = XCom.get_many(
+        key=key,
+        run_id=ti.run_id,
+        dag_ids=dag_id,
+        task_ids=task_ids,
+        map_indexes=map_indexes,
+        include_prior_dates=include_prior_dates,
+        session=session,
+    )
+
+    # NOTE: Since we're only fetching the value field and not the whole
+    # class, the @recreate annotation does not kick in. Therefore we need to
+    # call XCom.deserialize_value() manually.
+
+    # We are only pulling one single task.
+    if (task_ids is None or isinstance(task_ids, str)) and not isinstance(map_indexes, Iterable):
+        first = query.with_entities(
+            XCom.run_id, XCom.task_id, XCom.dag_id, XCom.map_index, XCom.value
+        ).first()
+        if first is None:  # No matching XCom at all.
+            return default
+        if map_indexes is not None or first.map_index < 0:
+            return XCom.deserialize_value(first)
+        return LazyXComSelectSequence.from_select(
+            query.with_entities(XCom.value).order_by(None).statement,
+            order_by=[XCom.map_index],
+            session=session,
+        )
+
+    # At this point either task_ids or map_indexes is explicitly multi-value.
+    # Order return values to match task_ids and map_indexes ordering.
+    ordering = []
+    if task_ids is None or isinstance(task_ids, str):
+        ordering.append(XCom.task_id)
+    elif task_id_whens := {tid: i for i, tid in enumerate(task_ids)}:
+        ordering.append(case(task_id_whens, value=XCom.task_id))
+    else:
+        ordering.append(XCom.task_id)
+    if map_indexes is None or isinstance(map_indexes, int):
+        ordering.append(XCom.map_index)
+    elif isinstance(map_indexes, range):
+        order = XCom.map_index
+        if map_indexes.step < 0:
+            order = order.desc()
+        ordering.append(order)
+    elif map_index_whens := {map_index: i for i, map_index in enumerate(map_indexes)}:
+        ordering.append(case(map_index_whens, value=XCom.map_index))
+    else:
+        ordering.append(XCom.map_index)
+    return LazyXComSelectSequence.from_select(
+        query.with_entities(XCom.value).order_by(None).statement,
+        order_by=ordering,
+        session=session,
+    )
+
+
 def _is_mappable_value(value: Any) -> TypeGuard[Collection]:
     """Whether a value can be used for task mapping.
 
@@ -1481,15 +1583,15 @@ def _defer_task(
 ) -> TaskInstancePydantic | TaskInstance:
     from airflow.models.trigger import Trigger
 
-    if TYPE_CHECKING:
-        assert ti.task
-
     # First, make the trigger entry
     trigger_row = Trigger.from_object(exception.trigger)
     session.add(trigger_row)
     session.flush()
 
     ti = _coalesce_to_orm_ti(ti=ti, session=session)  # ensure orm obj in case it's pydantic
+
+    if TYPE_CHECKING:
+        assert ti.task
 
     # Then, update ourselves so it matches the deferral request
     # Keep an eye on the logic in `check_and_change_state_before_execution()`
@@ -3389,62 +3491,15 @@ class TaskInstance(Base, LoggingMixin):
         a non-str iterable), a list of matching XComs is returned. Elements in
         the list is ordered by item ordering in ``task_id`` and ``map_index``.
         """
-        if dag_id is None:
-            dag_id = self.dag_id
-
-        query = XCom.get_many(
-            key=key,
-            run_id=self.run_id,
-            dag_ids=dag_id,
+        return _xcom_pull(
+            ti=self,
             task_ids=task_ids,
-            map_indexes=map_indexes,
+            dag_id=dag_id,
+            key=key,
             include_prior_dates=include_prior_dates,
             session=session,
-        )
-
-        # NOTE: Since we're only fetching the value field and not the whole
-        # class, the @recreate annotation does not kick in. Therefore we need to
-        # call XCom.deserialize_value() manually.
-
-        # We are only pulling one single task.
-        if (task_ids is None or isinstance(task_ids, str)) and not isinstance(map_indexes, Iterable):
-            first = query.with_entities(
-                XCom.run_id, XCom.task_id, XCom.dag_id, XCom.map_index, XCom.value
-            ).first()
-            if first is None:  # No matching XCom at all.
-                return default
-            if map_indexes is not None or first.map_index < 0:
-                return XCom.deserialize_value(first)
-            return LazyXComSelectSequence.from_select(
-                query.with_entities(XCom.value).order_by(None).statement,
-                order_by=[XCom.map_index],
-                session=session,
-            )
-
-        # At this point either task_ids or map_indexes is explicitly multi-value.
-        # Order return values to match task_ids and map_indexes ordering.
-        ordering = []
-        if task_ids is None or isinstance(task_ids, str):
-            ordering.append(XCom.task_id)
-        elif task_id_whens := {tid: i for i, tid in enumerate(task_ids)}:
-            ordering.append(case(task_id_whens, value=XCom.task_id))
-        else:
-            ordering.append(XCom.task_id)
-        if map_indexes is None or isinstance(map_indexes, int):
-            ordering.append(XCom.map_index)
-        elif isinstance(map_indexes, range):
-            order = XCom.map_index
-            if map_indexes.step < 0:
-                order = order.desc()
-            ordering.append(order)
-        elif map_index_whens := {map_index: i for i, map_index in enumerate(map_indexes)}:
-            ordering.append(case(map_index_whens, value=XCom.map_index))
-        else:
-            ordering.append(XCom.map_index)
-        return LazyXComSelectSequence.from_select(
-            query.with_entities(XCom.value).order_by(None).statement,
-            order_by=ordering,
-            session=session,
+            map_indexes=map_indexes,
+            default=default,
         )
 
     @provide_session
