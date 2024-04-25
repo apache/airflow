@@ -97,7 +97,7 @@ class TestCliDb:
     )
     @mock.patch("airflow.cli.commands.db_command.db.upgradedb")
     def test_cli_upgrade_success(self, mock_upgradedb, args, called_with):
-        db_command.upgradedb(self.parser.parse_args(["db", "upgrade", *args]))
+        db_command.migratedb(self.parser.parse_args(["db", "migrate", *args]))
         mock_upgradedb.assert_called_once_with(**called_with, reserialize_dags=True)
 
     @pytest.mark.parametrize(
@@ -124,7 +124,7 @@ class TestCliDb:
     @mock.patch("airflow.cli.commands.db_command.db.upgradedb")
     def test_cli_sync_failure(self, mock_upgradedb, args, pattern):
         with pytest.raises(SystemExit, match=pattern):
-            db_command.migratedb(self.parser.parse_args(["db", "upgrade", *args]))
+            db_command.migratedb(self.parser.parse_args(["db", "migrate", *args]))
 
     @mock.patch("airflow.cli.commands.db_command.migratedb")
     def test_cli_upgrade(self, mock_migratedb):
