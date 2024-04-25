@@ -220,7 +220,7 @@ class TestSqlToSlackApiFileOperator:
         mock_df.configure_mock(**{"empty.return_value": True})
         mock_get_query_results.return_value = mock_df
 
-        with pytest.raises(ValueError, match="output df must be non-empty\. Failing"):
+        with pytest.raises(ValueError, match=r"output df must be non-empty\. Failing"):
             op.execute(mock.MagicMock())
         mock_slack_hook_cls.assert_not_called()
 

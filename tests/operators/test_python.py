@@ -1904,7 +1904,7 @@ def test_parse_version_info(text_input, expected_tuple):
     ],
 )
 def test_parse_version_invalid_parts(text_input):
-    with pytest.raises(ValueError, match="expected 5 components separated by '\.'"):
+    with pytest.raises(ValueError, match=r"expected 5 components separated by '\.'"):
         _parse_version_info(text_input)
 
 
