@@ -600,7 +600,6 @@ class DagFileProcessorManager(LoggingMixin):
             if self.standalone_dag_processor:
                 self._fetch_callbacks(max_callbacks_per_loop)
 
-            # this variable gives us flexibility to purge stale dags or not.
             if conf.getboolean("core", "enable_scanning_stale_dags", fallback=True):
                 self._scan_stale_dags()
             DagWarning.purge_inactive_dag_warnings()
