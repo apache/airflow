@@ -166,6 +166,7 @@ def _get_ti_db_access(
     exec_date_or_run_id: str | None = None,
     pool: str | None = None,
     create_if_necessary: CreateIfNecessary = False,
+    should_expand=False,
     session: Session = NEW_SESSION,
 ) -> tuple[TaskInstance | TaskInstancePydantic, bool]:
     """Get the task instance through DagRun.run_id, if that fails, get the TI the old way."""
@@ -177,7 +178,7 @@ def _get_ti_db_access(
 
     if not exec_date_or_run_id and not create_if_necessary:
         raise ValueError("Must provide `exec_date_or_run_id` if not `create_if_necessary`.")
-    if needs_expansion(task):
+    if should_expand:
         if map_index < 0:
             raise RuntimeError("No map_index passed to mapped task")
     elif map_index >= 0:
@@ -218,6 +219,7 @@ def _get_ti(
     if dag is None:
         raise ValueError("Cannot get task instance for a task not assigned to a DAG")
 
+    should_expand = needs_expansion(task)
     ti, dr_created = _get_ti_db_access(
         dag=dag,
         task=task,
@@ -225,11 +227,13 @@ def _get_ti(
         exec_date_or_run_id=exec_date_or_run_id,
         pool=pool,
         create_if_necessary=create_if_necessary,
+        should_expand=should_expand,
     )
+
     # setting ti.task is necessary for AIP-44 since the task object does not serialize perfectly
     # if we update the serialization logic for Operator to also serialize the dag object on it,
     # then this would not be necessary;
-    ti.task = task
+    ti.refresh_from_task(task, pool_override=pool)
     return ti, dr_created
 
 
