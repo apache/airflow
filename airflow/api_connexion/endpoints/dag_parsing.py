@@ -59,12 +59,12 @@ def reparse_dags(*, file_token: str, session: Session = NEW_SESSION) -> Response
         # Check if user has read access to all the DAGs defined in the file
         if not get_auth_manager().batch_is_authorized_dag(requests):
             raise PermissionDenied()
+        session.add(parsing_request)
         try:
-            session.add(parsing_request)
             session.commit()
         except exc.IntegrityError:
             session.rollback()
-            return Response("Duplicate request", HTTPStatus.BAD_REQUEST)
+            return Response("Duplicate request", HTTPStatus.CONFLICT)
     except (BadSignature, FileNotFoundError):
         raise NotFound("File not found")
     return Response(status=HTTPStatus.CREATED)

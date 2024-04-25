@@ -3473,10 +3473,10 @@ export interface operations {
     responses: {
       /** Success. */
       201: unknown;
-      400: components["responses"]["BadRequest"];
       401: components["responses"]["Unauthenticated"];
       403: components["responses"]["PermissionDenied"];
       404: components["responses"]["NotFound"];
+      409: components["responses"]["AlreadyExists"];
     };
   };
   /**
