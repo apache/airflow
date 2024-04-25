@@ -70,10 +70,9 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
 
                 if run_state.result_state == "FAILED":
                     task_run_id = None
-                    if "tasks" in run_info:
-                        for task in run_info["tasks"]:
-                            if task.get("state", {}).get("result_state", "") == "FAILED":
-                                task_run_id = task["run_id"]
+                    for task in run_info.get("tasks", []):
+                        if task.get("state", {}).get("result_state", "") == "FAILED":
+                            task_run_id = task["run_id"]
                     if task_run_id is not None:
                         run_output = hook.get_run_output(task_run_id)
                         if "error" in run_output:
