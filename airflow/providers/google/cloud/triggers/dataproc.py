@@ -181,6 +181,7 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
                         }
                     )
                     return
+                self.log.info("Current state is %s", state)
                 self.log.info("Sleeping for %s seconds.", self.polling_interval_seconds)
                 await asyncio.sleep(self.polling_interval_seconds)
         except asyncio.CancelledError:
@@ -205,7 +206,7 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
             project_id=self.project_id, region=self.region, cluster_name=self.cluster_name
         )
 
-    async def delete_when_error_occurred(self, cluster: Cluster):
+    async def delete_when_error_occurred(self, cluster: Cluster) -> None:
         """
         Delete the cluster on error.
 
@@ -218,9 +219,7 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
             )
             self.log.info("Cluster %s has been deleted.", self.cluster_name)
         else:
-            self.log.info(
-                "Cluster %s is not be deleted as delete_on_error is set to False.", self.cluster_name
-            )
+            self.log.info("Cluster %s is not deleted as delete_on_error is set to False.", self.cluster_name)
 
 
 class DataprocBatchTrigger(DataprocBaseTrigger):
