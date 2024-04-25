@@ -16,11 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Added DagPriorityParsingRequests table
+"""add new executor field to db
 
-Revision ID: c4602ba06b4b
-Revises: 88344c1d9134
-Create Date: 2024-04-17 17:12:05.473889
+Revision ID: 677fdbb7fc54
+Revises: 1949afb29106
+Create Date: 2024-04-01 15:26:59.186579
 
 """
 
@@ -29,22 +29,18 @@ from alembic import op
 
 
 # revision identifiers, used by Alembic.
-revision = 'c4602ba06b4b'
+revision = '677fdbb7fc54'
 down_revision = '1949afb29106'
 branch_labels = None
 depends_on = None
-airflow_version = '2.9.0'
+airflow_version = '2.10.0'
 
 
 def upgrade():
-    """Apply Added DagPriorityParsingRequests table"""
-    op.create_table('dag_priority_parsing_requests',
-    sa.Column('id', sa.String(length=40), nullable=False),
-    sa.Column('fileloc', sa.String(length=2000), nullable=False),
-    sa.PrimaryKeyConstraint('id', name=op.f('dag_priority_parsing_requests_pkey'))
-    )
+    """Apply add executor field to task instance"""
+    op.add_column('task_instance', sa.Column('executor', sa.String(length=1000), default=None))
 
 
 def downgrade():
-    """Unapply Added DagPriorityParsingRequests table"""
-    op.drop_table('dag_priority_parsing_requests')
+    """Unapply add executor field to task instance"""
+    op.drop_column('task_instance', 'executor')
