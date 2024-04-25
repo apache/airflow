@@ -846,9 +846,7 @@ class Airflow(AirflowBaseView):
 
             is_paused_count = dict(
                 session.execute(
-                    all_dags.with_only_columns([DagModel.is_paused, func.count()]).group_by(
-                        DagModel.is_paused
-                    )
+                    all_dags.with_only_columns(DagModel.is_paused, func.count()).group_by(DagModel.is_paused)
                 ).all()
             )
 
@@ -3294,7 +3292,7 @@ class Airflow(AirflowBaseView):
             latest_run = dag_model.get_last_dagrun(session=session)
 
             events = [
-                dict(info)
+                dict(info._mapping)
                 for info in session.execute(
                     select(
                         DatasetModel.id,
@@ -3456,7 +3454,7 @@ class Airflow(AirflowBaseView):
             count_query = count_query.where(*filters)
 
             query = session.execute(query)
-            datasets = [dict(dataset) for dataset in query]
+            datasets = [dict(dataset._mapping) for dataset in query]
             data = {"datasets": datasets, "total_entries": session.scalar(count_query)}
 
             return (
