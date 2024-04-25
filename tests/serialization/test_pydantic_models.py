@@ -22,7 +22,7 @@ import datetime
 import pytest
 from dateutil import relativedelta
 
-from airflow.decorators import task
+from airflow.decorators import task, task_group
 from airflow.decorators.python import _PythonDecoratedOperator
 from airflow.jobs.job import Job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
@@ -265,3 +265,66 @@ def test_serializing_pydantic_dataset_event(session, create_task_instance, creat
 
     deserialized_dr = DagRunPydantic.model_validate_json(json_string_dr)
     assert len(deserialized_dr.consumed_dataset_events) == 3
+
+
+def test_needs_expansion_serialization(session, dag_maker):
+    """
+    We evaluate whether a task needs to be expanded at serialization time
+    because on roundtrip the task object loses its dag and and some knowledge
+    about its context in the dag, therefore we can't currently evaluate
+    "needs expansion" on the server side.
+    """
+    with dag_maker():
+
+        @task
+        def source():
+            return [1, 2, 3]
+
+        @task_group
+        def thing(val=None):
+            @task
+            def target(val=None):
+                print(val)
+
+            target(val)
+
+        # source() >> target()
+        s = source()
+        tg = thing.expand(val=s)  # tg is a mapped task group
+
+    # first let's look at round trip behavior when task is passed as part of a TI
+    dr = dag_maker.create_dagrun()
+    tis = dr.task_instances
+    ti = next(x for x in tis if x.task_id == "thing.target")
+    # there's no cached value for needs_expansion yet...
+    assert ti.task._needs_expansion is None
+    ser_ti = BaseSerialization.serialize(ti, use_pydantic_models=True)
+    deser_ti = BaseSerialization.deserialize(ser_ti, use_pydantic_models=True)
+    # but when we serialize, we evaluate needs expansion and store on the cache attr
+    # and when we deserialize, it's there
+    assert deser_ti.task._needs_expansion is True
+
+    with dag_maker(dag_id="second_one"):
+
+        @task
+        def source():
+            return [1, 2, 3]
+
+        @task_group
+        def thing(val=None):
+            @task
+            def target(val=None):
+                print(val)
+
+            target(val)
+
+        s = source()
+        tg = thing.expand(val=s)  # tg is a mapped task group
+
+    # now let's check what happens when task passed in isolation
+    # first let's verify that cache val is unset
+    task_obj = next(tg.iter_tasks())
+    assert task_obj._needs_expansion is None
+    ser_task = BaseSerialization.serialize(task_obj, strict=True, use_pydantic_models=True)
+    deser_task = BaseSerialization.deserialize(ser_task, use_pydantic_models=True)
+    assert deser_task._needs_expansion is True
