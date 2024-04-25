@@ -151,6 +151,7 @@ class TestHttpHook:
             assert conn.verify is True
             assert conn.cert is None
             assert conn.max_redirects == 3
+            assert conn.trust_env is True
 
     def test_hook_ignore_proxies_from_extra_field_as_header(self):
         airflow_connection = get_airflow_connection_with_extra(
@@ -167,6 +168,7 @@ class TestHttpHook:
             assert conn.verify is True
             assert conn.cert is None
             assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
+            assert conn.trust_env is True
 
     def test_hook_ignore_verify_from_extra_field_as_header(self):
         airflow_connection = get_airflow_connection_with_extra(extra={"bearer": "test", "verify": False})
@@ -181,6 +183,7 @@ class TestHttpHook:
             assert conn.verify is False
             assert conn.cert is None
             assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
+            assert conn.trust_env is True
 
     def test_hook_ignore_cert_from_extra_field_as_header(self):
         airflow_connection = get_airflow_connection_with_extra(extra={"bearer": "test", "cert": "cert.crt"})
@@ -195,6 +198,22 @@ class TestHttpHook:
             assert conn.verify is True
             assert conn.cert == "cert.crt"
             assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
+            assert conn.trust_env is True
+
+    def test_hook_ignore_trust_env_from_extra_field_as_header(self):
+        airflow_connection = get_airflow_connection_with_extra(extra={"bearer": "test", "trust_env": False})
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
+            expected_conn = airflow_connection()
+            conn = self.get_hook.get_conn()
+            assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
+            assert conn.headers.get("bearer") == "test"
+            assert conn.headers.get("cert") is None
+            assert conn.proxies == {}
+            assert conn.stream is False
+            assert conn.verify is True
+            assert conn.cert is None
+            assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
+            assert conn.trust_env is False
 
     @mock.patch("requests.Request")
     def test_hook_with_method_in_lowercase(self, mock_requests):
@@ -733,6 +752,7 @@ class TestHttpAsyncHook:
                     "verify": False,
                     "allow_redirects": False,
                     "max_redirects": 3,
+                    "trust_env": False,
                 },
             }
         )
@@ -750,26 +770,36 @@ class TestHttpAsyncHook:
                 assert mocked_function.call_args.kwargs.get("verify_ssl") is False
                 assert mocked_function.call_args.kwargs.get("allow_redirects") is False
                 assert mocked_function.call_args.kwargs.get("max_redirects") == 3
-
-    def test_load_connection_settings(self):
+                assert mocked_function.call_args.kwargs.get("trust_env") is False
+                
+    def test_process_extra_options_from_connection(self):
+        extra_options = {}
         proxy = {"http": "http://proxy:80", "https": "https://proxy:80"}
-        extra = {
-            "stream": True,
-            "cert": "cert.crt",
-            "proxies": proxy,
+        conn = get_airflow_connection_with_extra(
+            extra={
+                "bearer": "test",
+                "stream": True,
+                "cert": "cert.crt",
+                "proxies": proxy,
+                "timeout": 60,
+                "verify": False,
+                "allow_redirects": False,
+                "max_redirects": 3,
+                "trust_env": False,
+            }
+        )()
+
+        actual = HttpAsyncHook._process_extra_options_from_connection(conn=conn, extra_options=extra_options)
+
+        assert extra_options == {
+            "proxy": proxy,
             "timeout": 60,
-            "verify": False,
+            "verify_ssl": False,
             "allow_redirects": False,
             "max_redirects": 3,
+            "trust_env": False,
         }
-        airflow_connection = get_airflow_connection_with_extra(extra=extra)
-
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
-            headers, auth, session_conf = HttpAsyncHook().load_connection_settings(headers={"bearer": "test"})
-
-            assert headers == {"bearer": "test"}
-            assert auth is None
-            assert session_conf == extra
+        assert actual == {"bearer": "test"}
 
     @pytest.mark.asyncio
     async def test_build_request_url_from_connection(self):

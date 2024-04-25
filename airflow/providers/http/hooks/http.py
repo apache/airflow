@@ -182,6 +182,7 @@ class HttpHookMixin:
         session_conf["proxies"] = extra.pop("proxies", extra.pop("proxy", {}))
         session_conf["stream"] = extra.pop("stream", False)
         session_conf["verify"] = extra.pop("verify", extra.pop("verify_ssl", True))
+        session_conf["trust_env"] = extra.pop("trust_env", True)
         cert = extra.pop("cert", None)
         if cert is not None:
             session_conf["cert"] = cert
@@ -308,6 +309,7 @@ class HttpHook(HttpHookMixin, BaseHook):
         session.verify = session_conf["verify"]
         session.cert = session_conf.get("cert")
         session.max_redirects = session_conf["max_redirects"]
+        session.trust_env = session_conf["trust_env"]
 
         try:
             session.headers.update(headers)
@@ -565,6 +567,9 @@ class HttpAsyncHook(HttpHookMixin, BaseHook):
         verify = session_conf.pop("verify")
         if verify is not None:
             session_conf["verify_ssl"] = verify
+        trust_env = session_conf.pop("trust_env")
+        if trust_env is not None:
+            session_conf["trust_env"] = trust_env
         return session_conf
 
     def _retryable_error_async(self, exception: ClientResponseError) -> bool:

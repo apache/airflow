@@ -132,6 +132,17 @@ class TestMSGraphTrigger(Base):
         for template_field in MSGraphTrigger.template_fields:
             getattr(trigger, template_field)
 
+    def test_encoded_query_parameters(self):
+        trigger = MSGraphTrigger(
+            url="myorg/admin/groups",
+            conn_id="msgraph_api",
+            query_parameters={"$expand": "reports,users,datasets,dataflows,dashboards", "$top": 5000},
+        )
+
+        actual = trigger.encoded_query_parameters()
+
+        assert actual == {"%24expand": "reports,users,datasets,dataflows,dashboards", "%24top": 5000}
+
 
 class TestResponseHandler:
     def test_handle_response_async(self):
