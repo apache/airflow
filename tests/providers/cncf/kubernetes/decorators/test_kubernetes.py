@@ -92,6 +92,7 @@ def test_basic_kubernetes(dag_maker, session, mock_create_pod: mock.Mock, mock_h
     mock_hook.assert_called_once_with(
         conn_id="kubernetes_default",
         in_cluster=False,
+        kube_config=None,
         cluster_context="default",
         config_file="/tmp/fake_file",
     )
@@ -142,6 +143,7 @@ def test_kubernetes_with_input_output(
         in_cluster=False,
         cluster_context="default",
         config_file="/tmp/fake_file",
+        kube_config=None,
     )
     assert mock_create_pod.call_count == 1
     assert mock_hook.return_value.get_xcom_sidecar_container_image.call_count == 1

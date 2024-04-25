@@ -130,6 +130,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
             conn_id=self.kubernetes_conn_id,
             in_cluster=self.in_cluster,
             config_file=self.config_file,
+            kube_config=self.kube_config,
             cluster_context=self.cluster_context,
         )
         return hook
@@ -185,6 +186,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
                 kubernetes_conn_id=self.kubernetes_conn_id,
                 cluster_context=self.cluster_context,
                 config_file=self.config_file,
+                kube_config=self.kube_config,
                 in_cluster=self.in_cluster,
                 poll_interval=self.job_poll_interval,
             ),
@@ -363,6 +365,7 @@ class KubernetesDeleteJobOperator(BaseOperator):
         for the Kubernetes cluster.
     :param config_file: The path to the Kubernetes config file. (templated)
         If not specified, default value is ``~/.kube/config``
+    :param kube_config: content of kubeconfig file.
     :param in_cluster: run kubernetes client with in_cluster configuration.
     :param cluster_context: context that points to kubernetes cluster.
         Ignored when in_cluster is True. If None, current-context is used. (templated)
@@ -388,6 +391,7 @@ class KubernetesDeleteJobOperator(BaseOperator):
         namespace: str,
         kubernetes_conn_id: str | None = KubernetesHook.default_conn_name,
         config_file: str | None = None,
+        kube_config: str | None = None,
         in_cluster: bool | None = None,
         cluster_context: str | None = None,
         delete_on_status: str | None = None,
@@ -400,6 +404,7 @@ class KubernetesDeleteJobOperator(BaseOperator):
         self.namespace = namespace
         self.kubernetes_conn_id = kubernetes_conn_id
         self.config_file = config_file
+        self.kube_config = kube_config
         self.in_cluster = in_cluster
         self.cluster_context = cluster_context
         self.delete_on_status = delete_on_status
@@ -412,6 +417,7 @@ class KubernetesDeleteJobOperator(BaseOperator):
             conn_id=self.kubernetes_conn_id,
             in_cluster=self.in_cluster,
             config_file=self.config_file,
+            kube_config=self.kube_config,
             cluster_context=self.cluster_context,
         )
 
@@ -473,6 +479,7 @@ class KubernetesPatchJobOperator(BaseOperator):
         for the Kubernetes cluster.
     :param config_file: The path to the Kubernetes config file. (templated)
         If not specified, default value is ``~/.kube/config``
+    :param kube_config: content of kubeconfig file.
     :param in_cluster: run kubernetes client with in_cluster configuration.
     :param cluster_context: context that points to kubernetes cluster.
         Ignored when in_cluster is True. If None, current-context is used. (templated)
@@ -494,6 +501,7 @@ class KubernetesPatchJobOperator(BaseOperator):
         body: object,
         kubernetes_conn_id: str | None = KubernetesHook.default_conn_name,
         config_file: str | None = None,
+        kube_config: str | None = None,
         in_cluster: bool | None = None,
         cluster_context: str | None = None,
         **kwargs,
@@ -504,6 +512,7 @@ class KubernetesPatchJobOperator(BaseOperator):
         self.body = body
         self.kubernetes_conn_id = kubernetes_conn_id
         self.config_file = config_file
+        self.kube_config = kube_config
         self.in_cluster = in_cluster
         self.cluster_context = cluster_context
 
@@ -513,6 +522,7 @@ class KubernetesPatchJobOperator(BaseOperator):
             conn_id=self.kubernetes_conn_id,
             in_cluster=self.in_cluster,
             config_file=self.config_file,
+            kube_config=self.kube_config,
             cluster_context=self.cluster_context,
         )
 
