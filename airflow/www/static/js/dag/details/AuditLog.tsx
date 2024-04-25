@@ -25,7 +25,6 @@ import {
   Flex,
   FormControl,
   FormLabel,
-  Input,
   SimpleGrid,
   RadioGroup,
   Stack,
@@ -54,6 +53,7 @@ import { CodeCell, TimeCell } from "src/components/NewTable/NewCells";
 import { MdRefresh } from "react-icons/md";
 import { useTimezone } from "src/context/timezone";
 import { isoFormatWithoutTZ } from "src/datetime_utils";
+import DateTimeInput from "src/components/DateTimeInput";
 
 const configExcludedEvents = getMetaValue("excluded_audit_log_events");
 const configIncludedEvents = getMetaValue("included_audit_log_events");
@@ -218,16 +218,14 @@ const AuditLog = ({ taskId, run }: Props) => {
       <SimpleGrid columns={4} columnGap={2}>
         <FormControl>
           <FormLabel>Show Logs After</FormLabel>
-          <Input
-            type="datetime-local"
+          <DateTimeInput
             value={afterTime}
             onChange={(e) => setAfter(e.target.value)}
           />
         </FormControl>
         <FormControl>
           <FormLabel>Show Logs Before</FormLabel>
-          <Input
-            type="datetime-local"
+          <DateTimeInput
             value={beforeTime}
             onChange={(e) => setBefore(e.target.value)}
           />
