@@ -576,7 +576,7 @@ class TestDagProcessorJobRunner:
                 > (freezed_base_time - manager.processor.get_last_finish_time("file_1.py")).total_seconds()
             )
 
-    def test_scan_stale_dags(self):
+    def test_purge_stale_dags(self):
         """
         Ensure that DAGs are marked inactive when the file is parsed but the
         DagModel.last_parsed_time is not updated.
@@ -629,7 +629,7 @@ class TestDagProcessorJobRunner:
             )
             assert serialized_dag_count == 1
 
-            manager.processor._scan_stale_dags()
+            manager.processor._purge_stale_dags()
 
             active_dag_count = (
                 session.query(func.count(DagModel.dag_id))
@@ -652,7 +652,7 @@ class TestDagProcessorJobRunner:
             ("scheduler", "stale_dag_threshold"): "50",
         }
     )
-    def test_scan_stale_dags_standalone_mode(self):
+    def test_purge_stale_dags_standalone_mode(self):
         """
         Ensure only dags from current dag_directory are updated
         """
@@ -700,7 +700,7 @@ class TestDagProcessorJobRunner:
             active_dag_count = session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
             assert active_dag_count == 2
 
-            manager.processor._scan_stale_dags()
+            manager.processor._purge_stale_dags()
 
             active_dag_count = session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
             assert active_dag_count == 1
