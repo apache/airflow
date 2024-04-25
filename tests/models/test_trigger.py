@@ -388,11 +388,10 @@ def test_kwargs_not_encrypted():
     We weren't able to encrypt the kwargs in all migration paths.
     """
     trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
-    # force the `encrypted_kwargs` to be unencrypted, like they would be after an upgrade
+    # force the `encrypted_kwargs` to be unencrypted, like they would be after an offline upgrade
     trigger.encrypted_kwargs = json.dumps(
         BaseSerialization.serialize({"param1": "value1", "param2": "value2"})
     )
-    print(trigger.encrypted_kwargs)
 
     assert trigger.kwargs["param1"] == "value1"
     assert trigger.kwargs["param2"] == "value2"
