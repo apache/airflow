@@ -73,3 +73,9 @@ connection-types:
 
 secrets-backends:
   - airflow.providers.hashicorp.secrets.vault.VaultBackend
+
+additional-extras:
+  - name: boto3
+    dependencies:
+      # Require for AWS assume role authentication
+      - boto3>=1.33.0

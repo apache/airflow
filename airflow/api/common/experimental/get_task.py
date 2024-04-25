@@ -24,12 +24,13 @@ from typing import TYPE_CHECKING
 from deprecated import deprecated
 
 from airflow.api.common.experimental import check_and_get_dag
+from airflow.exceptions import RemovedInAirflow3Warning
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
 
 
-@deprecated(reason="Use DAG().get_task", version="2.2.4")
+@deprecated(reason="Use DAG().get_task", version="2.2.4", category=RemovedInAirflow3Warning)
 def get_task(dag_id: str, task_id: str) -> TaskInstance:
     """Return the task object identified by the given dag_id and task_id."""
     dag = check_and_get_dag(dag_id, task_id)
