@@ -92,7 +92,7 @@ class TestDagParsingRequest:
         response = self.client.put(
             url, headers={"Accept": "application/json"}, environ_overrides={"REMOTE_USER": "test"}
         )
-        assert 400 == response.status_code
+        assert 409 == response.status_code
         parsing_requests = DagPriorityParsingRequests.get_requests()
         assert parsing_requests == [DagPriorityParsingRequests(fileloc=test_dag.fileloc)]
 
