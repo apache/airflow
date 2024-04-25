@@ -958,7 +958,7 @@ class DatabricksNotebookOperator(BaseOperator):
         super().__init__(**kwargs)
 
     @cached_property
-    def _hook(self):
+    def _hook(self) -> DatabricksHook:
         return self._get_hook(caller="DatabricksNotebookOperator")
 
     def _get_hook(self, caller: str) -> DatabricksHook:
@@ -1005,11 +1005,11 @@ class DatabricksNotebookOperator(BaseOperator):
             "libraries": self.notebook_packages,
         }
 
-    def _get_databricks_task_id(self, task_id: str):
+    def _get_databricks_task_id(self, task_id: str) -> str:
         """Get the databricks task ID using dag_id and task_id. Removes illegal characters."""
-        return f"{self.dag_id}__" + task_id.replace(".", "__")
+        return f"{self.dag_id}__{task_id.replace('.', '__')}"
 
-    def _get_run_json(self):
+    def _get_run_json(self) -> dict[str, Any]:
         """Get run json to be used for task submissions."""
         run_json = {
             "run_name": self._get_databricks_task_id(self.task_id),
@@ -1025,14 +1025,14 @@ class DatabricksNotebookOperator(BaseOperator):
             raise ValueError("Must specify either existing_cluster_id or new_cluster.")
         return run_json
 
-    def launch_notebook_job(self):
+    def launch_notebook_job(self) -> str:
         run_json = self._get_run_json()
         self.databricks_run_id = self._hook.submit_run(run_json)
         url = self._hook.get_run_page_url(self.databricks_run_id)
         self.log.info("Check the job run in Databricks: %s", url)
         return self.databricks_run_id
 
-    def monitor_databricks_job(self):
+    def monitor_databricks_job(self) -> None:
         run = self._hook.get_run(self.databricks_run_id)
         run_state = RunState(**run["state"])
         self.log.info("Current state of the job: %s", run_state.life_cycle_state)
@@ -1057,6 +1057,6 @@ class DatabricksNotebookOperator(BaseOperator):
             )
         self.log.info("Task succeeded. Final state %s.", run_state.result_state)
 
-    def execute(self, context: Context) -> Any:
+    def execute(self, context: Context) -> None:
         self.launch_notebook_job()
         self.monitor_databricks_job()
