@@ -82,7 +82,7 @@ class BedrockKnowledgeBaseActiveTrigger(AwsBaseWaiterTrigger):
     ) -> None:
         super().__init__(
             serialized_fields={"knowledge_base_id": knowledge_base_id},
-            waiter_name="model_customization_job_complete",
+            waiter_name="knowledge_base_active",
             waiter_args={"knowledgeBaseId": knowledge_base_id},
             failure_message="Bedrock Knowledge Base creation failed.",
             status_message="Status of Bedrock Knowledge Base job is",

@@ -30,11 +30,22 @@ from airflow.providers.amazon.aws.triggers.opensearch_serverless import (
 )
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.helpers import prune_dict
+from tests.providers.amazon.aws.triggers.test_base import TestAwsBaseWaiterTrigger
 
 BASE_TRIGGER_CLASSPATH = "airflow.providers.amazon.aws.triggers.opensearch_serverless."
 
 
+class TestBaseBedrockTrigger(TestAwsBaseWaiterTrigger):
+    EXPECTED_WAITER_NAME: str | None = None
+
+    def test_setup(self):
+        # Ensure that all subclasses have an expected waiter name set.
+        if self.__class__.__name__ != "TestBaseBedrockTrigger":
+            assert isinstance(self.EXPECTED_WAITER_NAME, str)
+
+
 class TestOpenSearchServerlessCollectionActiveTrigger:
+    EXPECTED_WAITER_NAME = "collection_available"
     COLLECTION_NAME = "test_collection_name"
     COLLECTION_ID = "test_collection_id"
 
