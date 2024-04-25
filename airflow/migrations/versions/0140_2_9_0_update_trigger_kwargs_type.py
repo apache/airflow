@@ -28,6 +28,7 @@ from textwrap import dedent
 
 from alembic import context, op
 import sqlalchemy as sa
+from sqlalchemy.orm import lazyload
 
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.models.trigger import Trigger
@@ -54,7 +55,7 @@ def upgrade():
     if not context.is_offline_mode():
         session = get_session()
         try:
-            for trigger in session.query(Trigger):
+            for trigger in session.query(Trigger).options(lazyload(Trigger.task_instance)):
                 trigger.kwargs = trigger.kwargs
             session.commit()
         finally:
@@ -73,7 +74,7 @@ def downgrade():
     else:
         session = get_session()
         try:
-            for trigger in session.query(Trigger):
+            for trigger in session.query(Trigger).options(lazyload(Trigger.task_instance)):
                 trigger.encrypted_kwargs = json.dumps(BaseSerialization.serialize(trigger.kwargs))
             session.commit()
         finally:
