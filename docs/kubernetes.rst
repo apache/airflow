@@ -65,11 +65,13 @@ any type of executor.
             {
               "weight": 1,
               "preference": {
-                "matchExpressions": {
-                  "key": "disktype",
-                  "operator": "In",
-                  "values": ["ssd"]
-                }
+                "matchExpressions": [
+                  {
+                    "key": "disktype",
+                    "operator": "In",
+                    "values": ["ssd"]
+                  }
+                ]
               }
             }
           ]
