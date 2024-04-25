@@ -823,7 +823,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         [
             pytest.param("pickle", id="pickle"),
             pytest.param("dill", marks=DILL_MARKER, id="dill"),
-            pytest.param("cloudpickle", id="cloudpickle"),
+            pytest.param("cloudpickle", marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
             pytest.param(None, id="default"),
         ],
     )
