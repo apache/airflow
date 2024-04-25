@@ -387,7 +387,6 @@ combine-as-imports = true
 "tests/providers/snowflake/operators/test_snowflake_sql.py" = ["E402"]
 
 # All the modules which do not follow B028 yet: https://docs.astral.sh/ruff/rules/no-explicit-stacklevel/
-"airflow/providers/jdbc/hooks/jdbc.py" = ["B028"]
 "helm_tests/airflow_aux/test_basic_helm_chart.py" = ["B028"]
 
 # https://github.com/apache/airflow/issues/39252
