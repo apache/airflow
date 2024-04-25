@@ -295,6 +295,8 @@ def delete_data_source(knowledge_base_id: str, data_source_id: str):
     """
     log.info("Deleting data source %s from Knowledge Base %s.", data_source_id, knowledge_base_id)
     bedrock_agent_client.delete_data_source(dataSourceId=data_source_id, knowledgeBaseId=knowledge_base_id)
+
+
 # [END howto_operator_bedrock_delete_data_source]
 
 
@@ -312,6 +314,8 @@ def delete_knowledge_base(knowledge_base_id: str):
     """
     log.info("Deleting Knowledge Base %s.", knowledge_base_id)
     bedrock_agent_client.delete_knowledge_base(knowledgeBaseId=knowledge_base_id)
+
+
 # [END howto_operator_bedrock_delete_knowledge_base]
 
 

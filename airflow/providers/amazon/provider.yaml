@@ -237,7 +237,7 @@ integrations:
     logo: /integration-logos/aws/Amazon-Kinesis-Data-Firehose_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon OpenSearch Serverless
-    external-doc-url: https://aws.amazon.com/opensearch-service/
+    external-doc-url: https://aws.amazon.com/opensearchserverless/
     logo: /integration-logos/aws/Amazon-OpenSearch_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon RDS
