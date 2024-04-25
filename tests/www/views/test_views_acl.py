@@ -253,12 +253,16 @@ def test_index_failure(dag_test_client):
         (
             "flow",
             [
-                {"name": "airflow", "type": "owner"},
-                {"name": "example_dynamic_task_mapping_with_no_taskflow_operators", "type": "dag"},
-                {"name": "example_setup_teardown_taskflow", "type": "dag"},
-                {"name": "test_mapped_taskflow", "type": "dag"},
-                {"name": "tutorial_taskflow_api", "type": "dag"},
-                {"name": "tutorial_taskflow_api_virtualenv", "type": "dag"},
+                {"name": "airflow", "type": "owner", "dagDisplayName": None},
+                {
+                    "name": "example_dynamic_task_mapping_with_no_taskflow_operators",
+                    "type": "dag",
+                    "dagDisplayName": None,
+                },
+                {"name": "example_setup_teardown_taskflow", "type": "dag", "dagDisplayName": None},
+                {"name": "test_mapped_taskflow", "type": "dag", "dagDisplayName": None},
+                {"name": "tutorial_taskflow_api", "type": "dag", "dagDisplayName": None},
+                {"name": "tutorial_taskflow_api_virtualenv", "type": "dag", "dagDisplayName": None},
             ],
         ),
         (
@@ -268,16 +272,19 @@ def test_index_failure(dag_test_client):
                     "dag_id": "example_external_task_marker_child",
                     "name": "child_task1",
                     "type": "task",
+                    "dagDisplayName": "example_external_task_marker_child",
                 },
                 {
                     "dag_id": "example_external_task_marker_child",
                     "name": "child_task2",
                     "type": "task",
+                    "dagDisplayName": "example_external_task_marker_child",
                 },
                 {
                     "dag_id": "example_external_task_marker_child",
                     "name": "child_task3",
                     "type": "task",
+                    "dagDisplayName": "example_external_task_marker_child",
                 },
             ],
         ),
@@ -289,18 +296,6 @@ def test_dag_autocomplete_success(client_all_dags, query: str, expected: dict):
         f"dagmodel/autocomplete?query={query}",
         follow_redirects=False,
     )
-    expected = [
-        {"name": "airflow", "type": "owner", "dag_display_name": None},
-        {
-            "name": "example_dynamic_task_mapping_with_no_taskflow_operators",
-            "type": "dag",
-            "dag_display_name": None,
-        },
-        {"name": "example_setup_teardown_taskflow", "type": "dag", "dag_display_name": None},
-        {"name": "test_mapped_taskflow", "type": "dag", "dag_display_name": None},
-        {"name": "tutorial_taskflow_api", "type": "dag", "dag_display_name": None},
-        {"name": "tutorial_taskflow_api_virtualenv", "type": "dag", "dag_display_name": None},
-    ]
 
     assert resp.json == expected
 
@@ -329,7 +324,7 @@ def test_dag_autocomplete_dag_display_name(client_all_dags):
     url = "dagmodel/autocomplete?query=Sample"
     resp = client_all_dags.get(url, follow_redirects=False)
     assert resp.json == [
-        {"name": "example_display_name", "type": "dag", "dag_display_name": "Sample DAG with Display Name"}
+        {"name": "example_display_name", "type": "dag", "dagDisplayName": "Sample DAG with Display Name"}
     ]
 
 

@@ -136,11 +136,13 @@ $(".typeahead").typeahead({
   displayText(item) {
     if (typeof item !== "undefined" && typeof item.name !== "undefined") {
       if (item.type === "task") {
-        return `${item.type}: ${item.name} <i>in ${item.dag_id}</i>`;
+        const displayValue = item.dagDisplayName || item.dag_id;
+        return `${item.type}: ${item.name} <i>in ${displayValue}</i>`;
       }
-      return `${item.type}: ${item.name}`;
+      const displayValue = item.dagDisplayName || item.name;
+      return `${item.type}: ${displayValue}`;
     }
-    return item.dag_display_name || item.name;
+    return item;
   },
   sorter(items) {
     const beginswith = [];
@@ -170,10 +172,13 @@ $(".typeahead").typeahead({
     }
 
     let { name } = item;
+    if (item.type === "dag") {
+      name = item.dagDisplayName || item.name;
+    }
+
     query = query.replace(/[()/.*+?[\]]/g, (mat) => `\\${mat}`);
     const reg = new RegExp(query, "gi");
-    name = name.replace(name, name.replace(reg, "<strong>$&</strong>"));
-    return displayText.replace(item.name, name);
+    return displayText.replace(name, name.replace(reg, "<strong>$&</strong>"));
   },
   autoSelect: false,
   afterSelect(value) {

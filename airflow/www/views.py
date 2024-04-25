@@ -883,10 +883,9 @@ class Airflow(AirflowBaseView):
                     dags_query = dags_query.where(
                         DagModel.dag_id.ilike("%" + escaped_arg_search_query + "%", escape="\\")
                         | DagModel._dag_display_property_value.ilike(
-                            "%" + escaped_query_value + "%", escape="\\"
+                            "%" + escaped_arg_search_query + "%", escape="\\"
                         )
                         | DagModel.owners.ilike("%" + escaped_arg_search_query + "%", escape="\\")
-                        
                     )
 
             if arg_tags_filter:
@@ -5726,7 +5725,7 @@ class AutocompleteView(AirflowBaseView):
                 if re2.search(r"(?i)" + query, task.task_id)
             ]
             payload = [
-                {"type": "task", "name": task_id, "dag_id": dag_id, "dag_display_name": dag_display_name}
+                {"type": "task", "name": task_id, "dag_id": dag_id, "dagDisplayName": dag_display_name}
                 for task_id, dag_id, dag_display_name in sorted(filtered_tuples)[:10]
             ]
         else:
@@ -5734,14 +5733,14 @@ class AutocompleteView(AirflowBaseView):
             dag_ids_query = select(
                 sqla.literal("dag").label("type"),
                 DagModel.dag_id.label("name"),
-                DagModel._dag_display_property_value.label("dag_display_name"),
+                DagModel._dag_display_property_value.label("dagDisplayName"),
             )
             dag_ids_query = _filter_dags_query(dags_query=dag_ids_query)
 
             owners_query = select(
-                sqla.literal("owner").label("type"), 
+                sqla.literal("owner").label("type"),
                 DagModel.owners.label("name"),
-                sqla.literal(None).label("dag_display_name"),
+                sqla.literal(None).label("dagDisplayName"),
             ).distinct()
             owners_query = _filter_dags_query(dags_query=owners_query)
 
@@ -5756,13 +5755,11 @@ class AutocompleteView(AirflowBaseView):
                 dags_query = owners_query.where(DagModel.owners.ilike(f"%{query}%"))
             else:
                 dags_query = dag_ids_query.where(
-                        or_(
-                            DagModel.dag_id.ilike(f"%{query}%"),
-                            DagModel._dag_display_property_value.ilike(f"%{query}%"),
-                        )
-                    ).union(
-                        owners_query.where(DagModel.owners.ilike(f"%{query}%"))
+                    or_(
+                        DagModel.dag_id.ilike(f"%{query}%"),
+                        DagModel._dag_display_property_value.ilike(f"%{query}%"),
                     )
+                ).union(owners_query.where(DagModel.owners.ilike(f"%{query}%")))
 
             payload = [row._asdict() for row in session.execute(dags_query.order_by("name").limit(10))]
         return flask.json.jsonify(payload)
