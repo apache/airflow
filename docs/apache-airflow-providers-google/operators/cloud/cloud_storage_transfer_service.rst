@@ -160,7 +160,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud Transfer Service - REST Resource: transferJobs - Status
+See `Google Cloud Transfer Service - REST Resource: transferJobs - Run
 <https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs/run>`_
 
 .. _howto/operator:CloudDataTransferServiceRunJobOperator:

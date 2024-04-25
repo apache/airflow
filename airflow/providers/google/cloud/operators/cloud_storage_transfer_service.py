@@ -438,6 +438,10 @@ class CloudDataTransferServiceRunJobOperator(GoogleCloudBaseOperator):
     """
     Runs a transfer job.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudDataTransferServiceRunJobOperator`
+
     :param job_name: (Required) Name of the job to be run
     :param project_id: (Optional) the ID of the project that owns the Transfer
         Job. If set to None or missing, the default project_id from the Google Cloud
