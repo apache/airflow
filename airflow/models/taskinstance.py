@@ -878,6 +878,7 @@ def _handle_failure(
     test_mode: bool | None = None,
     context: Context | None = None,
     force_fail: bool = False,
+    fail_stop: bool = False,
 ) -> None:
     """
     Handle Failure for a task instance.
@@ -901,6 +902,7 @@ def _handle_failure(
         context=context,
         force_fail=force_fail,
         session=session,
+        fail_stop=fail_stop,
     )
 
     _log_state(task_instance=task_instance, lead_msg="Immediate failure requested. " if force_fail else "")
@@ -2964,8 +2966,13 @@ class TaskInstance(Base, LoggingMixin):
         context: Context | None = None,
         force_fail: bool = False,
         session: Session = NEW_SESSION,
+        fail_stop: bool = False,
     ):
-        """Handle Failure for the TaskInstance."""
+        """
+        Handle Failure for the TaskInstance.
+
+        :param fail_stop: if true, stop remaining tasks in dag
+        """
         get_listener_manager().hook.on_task_instance_failed(
             previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error, session=session
         )
@@ -3028,7 +3035,7 @@ class TaskInstance(Base, LoggingMixin):
             email_for_state = operator.attrgetter("email_on_failure")
             callbacks = task.on_failure_callback if task else None
 
-            if task and task.dag and task.dag.fail_stop:
+            if task and fail_stop:
                 _stop_remaining_tasks(task_instance=ti, session=session)
         else:
             if ti.state == TaskInstanceState.QUEUED:
@@ -3077,6 +3084,9 @@ class TaskInstance(Base, LoggingMixin):
         :param context: Jinja2 context
         :param force_fail: if True, task does not retry
         """
+        if TYPE_CHECKING:
+            assert self.task
+            assert self.task.dag
         _handle_failure(
             task_instance=self,
             error=error,
@@ -3084,6 +3094,7 @@ class TaskInstance(Base, LoggingMixin):
             test_mode=test_mode,
             context=context,
             force_fail=force_fail,
+            fail_stop=self.task.dag.fail_stop,
         )
 
     def is_eligible_to_retry(self):
