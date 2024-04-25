@@ -237,6 +237,8 @@ integrations:
     logo: /integration-logos/aws/Amazon-Kinesis-Data-Firehose_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon OpenSearch Serverless
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/opensearchserverless.rst
     external-doc-url: https://aws.amazon.com/opensearchserverless/
     logo: /integration-logos/aws/Amazon-OpenSearch_light-bg@4x.png
     tags: [aws]
