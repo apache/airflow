@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-04-24T18:19:46.833273
+# This constraints file was automatically generated on 2024-04-25T07:26:43.531371
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -76,7 +76,7 @@ apache-beam==2.55.1
 apispec==6.6.1
 apprise==1.7.6
 argcomplete==3.3.0
-asana==3.2.2
+asana==3.2.3
 asgiref==3.8.1
 asn1crypto==1.5.1
 astroid==2.15.8
@@ -173,6 +173,7 @@ docopt==0.6.2
 docstring_parser==0.16
 docutils==0.16
 duckdb==0.10.2
+editables==0.5
 elastic-transport==8.13.0
 elasticsearch==8.13.0
 email_validator==2.1.1
@@ -264,8 +265,8 @@ gssapi==1.8.3
 gunicorn==22.0.0
 h11==0.14.0
 h2==4.1.0
-hatch==1.9.6
-hatchling==1.24.2
+hatch==1.9.7
+hatchling==1.21.1
 hdfs==2.7.3
 hmsclient==0.1.1
 hpack==4.0.0
@@ -352,9 +353,9 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.0.5
 mypy-boto3-appflow==1.34.0
-mypy-boto3-rds==1.34.90
+mypy-boto3-rds==1.34.91
 mypy-boto3-redshift-data==1.34.0
-mypy-boto3-s3==1.34.65
+mypy-boto3-s3==1.34.91
 mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==8.3.0
@@ -369,7 +370,7 @@ nodeenv==1.8.0
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.23.3
+openai==1.23.6
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.12.0
@@ -449,7 +450,7 @@ pygraphviz==1.11
 pyiceberg==0.6.0
 pyjsparser==2.7.1
 pykerberos==1.2.4
-pymongo==4.6.3
+pymongo==4.7.0
 pymssql==2.3.0
 pyodbc==5.1.0
 pyparsing==3.1.2
@@ -580,7 +581,7 @@ twine==5.0.0
 typed-ast==1.5.5
 types-Deprecated==1.2.9.20240311
 types-Markdown==3.6.0.20240316
-types-PyMySQL==1.1.0.1
+types-PyMySQL==1.1.0.20240425
 types-PyYAML==6.0.12.20240311
 types-aiofiles==23.2.0.20240403
 types-certifi==2021.10.8.3
@@ -589,11 +590,11 @@ types-croniter==2.0.0.20240423
 types-docutils==0.21.0.20240423
 types-paramiko==3.4.0.20240423
 types-protobuf==5.26.0.20240422
-types-pyOpenSSL==24.0.0.20240417
+types-pyOpenSSL==24.1.0.20240425
 types-python-dateutil==2.9.0.20240316
 types-python-slugify==8.0.2.20240310
 types-pytz==2024.1.0.20240417
-types-redis==4.6.0.20240423
+types-redis==4.6.0.20240425
 types-requests==2.31.0.6
 types-setuptools==69.5.0.20240423
 types-tabulate==0.9.0.20240106
