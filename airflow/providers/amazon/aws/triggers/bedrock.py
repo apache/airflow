@@ -66,6 +66,7 @@ class BedrockKnowledgeBaseActiveTrigger(AwsBaseWaiterTrigger):
     Trigger when a Bedrock Knowledge Base reaches the ACTIVE state.
 
     :param knowledge_base_id: The unique identifier of the knowledge base for which to get information.
+
     :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 60)
     :param waiter_max_attempts: The maximum number of attempts to be made. (default: 20)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
@@ -102,6 +103,7 @@ class BedrockProvisionModelThroughputCompletedTrigger(AwsBaseWaiterTrigger):
     Trigger when a provisioned throughput job is complete.
 
     :param provisioned_model_id: The ARN or name of the provisioned throughput.
+
     :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 120)
     :param waiter_max_attempts: The maximum number of attempts to be made. (default: 75)
     :param aws_conn_id: The Airflow connection used for AWS credentials.

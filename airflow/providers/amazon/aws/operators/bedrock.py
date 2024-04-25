@@ -374,6 +374,7 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
         being available, the operator will wait and retry.  (default: True) (templated)
     :param indexing_error_retry_delay: Seconds between retries if an index error is encountered. (default 5) (templated)
     :param indexing_error_max_attempts: Maximum number of times to retry when encountering an index error. (default 20) (templated)
+    :param create_knowledge_base_kwargs: Any additional optional parameters to pass to the API call. (templated)
 
     :param wait_for_completion: Whether to wait for cluster to stop. (default: True)
     :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
@@ -402,6 +403,7 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
         "wait_for_indexing",
         "indexing_error_retry_delay",
         "indexing_error_max_attempts",
+        "create_knowledge_base_kwargs",
     )
 
     def __init__(
@@ -518,6 +520,7 @@ class BedrockCreateDataSourceOperator(AwsBaseOperator[BedrockAgentHook]):
     :param name: name for the Amazon Bedrock Data Source being created. (templated).
     :param bucket_name: The name of the Amazon S3 bucket to use for data source storage. (templated)
     :param knowledge_base_id: The unique identifier of the knowledge base to which to add the data source. (templated)
+    :param create_data_source_kwargs: Any additional optional parameters to pass to the API call. (templated)
 
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
@@ -532,6 +535,12 @@ class BedrockCreateDataSourceOperator(AwsBaseOperator[BedrockAgentHook]):
     """
 
     aws_hook_class = BedrockAgentHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "name",
+        "bucket_name",
+        "knowledge_base_id",
+        "create_data_source_kwargs",
+    )
 
     def __init__(
         self,
@@ -546,12 +555,6 @@ class BedrockCreateDataSourceOperator(AwsBaseOperator[BedrockAgentHook]):
         self.knowledge_base_id = knowledge_base_id
         self.bucket_name = bucket_name
         self.create_data_source_kwargs = create_data_source_kwargs or {}
-
-    template_fields: Sequence[str] = aws_template_fields(
-        "name",
-        "bucket_name",
-        "knowledge_base_id",
-    )
 
     def execute(self, context: Context) -> str:
         create_ds_response = self.hook.conn.create_data_source(
@@ -577,6 +580,7 @@ class BedrockIngestDataOperator(AwsBaseOperator[BedrockAgentHook]):
 
     :param knowledge_base_id: The unique identifier of the knowledge base to which to add the data source. (templated)
     :param data_source_id: The unique identifier of the data source to ingest. (templated)
+    :param ingest_data_kwargs: Any additional optional parameters to pass to the API call. (templated)
 
     :param wait_for_completion: Whether to wait for cluster to stop. (default: True)
     :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
@@ -597,6 +601,11 @@ class BedrockIngestDataOperator(AwsBaseOperator[BedrockAgentHook]):
     """
 
     aws_hook_class = BedrockAgentHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "knowledge_base_id",
+        "data_source_id",
+        "ingest_data_kwargs",
+    )
 
     def __init__(
         self,
@@ -618,11 +627,6 @@ class BedrockIngestDataOperator(AwsBaseOperator[BedrockAgentHook]):
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
-
-    template_fields: Sequence[str] = aws_template_fields(
-        "knowledge_base_id",
-        "data_source_id",
-    )
 
     def execute(self, context: Context) -> str:
         ingestion_job_id = self.hook.conn.start_ingestion_job(
