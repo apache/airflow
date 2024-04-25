@@ -166,9 +166,9 @@ class BedrockIngestionJobTrigger(AwsBaseWaiterTrigger):
             },
             waiter_name="ingestion_job_complete",
             waiter_args={
-                "knowledge_base_id": knowledge_base_id,
-                "data_source_id": data_source_id,
-                "ingestion_job_id": ingestion_job_id,
+                "knowledgeBaseId": knowledge_base_id,
+                "dataSourceId": data_source_id,
+                "ingestionJobId": ingestion_job_id,
             },
             failure_message="Bedrock ingestion job creation failed.",
             status_message="Status of Bedrock ingestion job is",

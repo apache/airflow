@@ -28,6 +28,7 @@ from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, Bedrock
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.bedrock import (
     BedrockCustomizeModelCompletedTrigger,
+    BedrockIngestionJobTrigger,
     BedrockKnowledgeBaseActiveTrigger,
     BedrockProvisionModelThroughputCompletedTrigger,
 )
@@ -628,11 +629,34 @@ class BedrockIngestDataOperator(AwsBaseOperator[BedrockAgentHook]):
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
 
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        event = validate_execute_complete_event(event)
+
+        if event["status"] != "success":
+            raise AirflowException(f"Error while running ingestion job: {event}")
+
+        self.log.info("Bedrock ingestion job `%s` complete.", event["ingestion_job_id"])
+
+        return event["ingestion_job_id"]
+
     def execute(self, context: Context) -> str:
         ingestion_job_id = self.hook.conn.start_ingestion_job(
             knowledgeBaseId=self.knowledge_base_id, dataSourceId=self.data_source_id
         )["ingestionJob"]["ingestionJobId"]
 
+        if self.deferrable:
+            self.log.info("Deferring for ingestion job.")
+            self.defer(
+                trigger=BedrockIngestionJobTrigger(
+                    knowledge_base_id=self.knowledge_base_id,
+                    data_source_id=self.data_source_id,
+                    ingestion_job_id=ingestion_job_id,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+            )
         if self.wait_for_completion:
             self.log.info("Waiting for ingestion job %s", ingestion_job_id)
             self.hook.get_waiter(waiter_name="ingestion_job_complete").wait(
