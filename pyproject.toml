@@ -296,6 +296,7 @@ extend-select = [
     "B019", # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
     "B028", # No explicit stacklevel keyword argument found
     "TRY002", # Prohibit use of `raise Exception`, use specific exceptions instead.
+    "W605", # Checks for invalid escape sequences which deprecated since Python 3.6
 ]
 ignore = [
     "D203",
@@ -388,6 +389,9 @@ combine-as-imports = true
 # All the modules which do not follow B028 yet: https://docs.astral.sh/ruff/rules/no-explicit-stacklevel/
 "airflow/providers/jdbc/hooks/jdbc.py" = ["B028"]
 "helm_tests/airflow_aux/test_basic_helm_chart.py" = ["B028"]
+
+# https://github.com/apache/airflow/issues/39252
+"airflow/providers/amazon/aws/hooks/eks.py" = ["W605"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.
