@@ -440,33 +440,42 @@ class TestDataprocSubmitTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_async_hook")
-    async def test_submit_trigger_run_cancelled(self, mock_get_async_hook, submit_trigger):
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_sync_hook")
+    async def test_submit_trigger_run_cancelled(
+        self, mock_get_sync_hook, mock_get_async_hook, submit_trigger
+    ):
         """Test the trigger correctly handles an asyncio.CancelledError."""
-        mock_hook = mock_get_async_hook.return_value
-        mock_hook.get_job = mock.AsyncMock(side_effect=asyncio.CancelledError)
-        mock_hook.cancel_job = mock.AsyncMock()
+        mock_async_hook = mock_get_async_hook.return_value
+        mock_async_hook.get_job.side_effect = asyncio.CancelledError
+
+        mock_sync_hook = mock_get_sync_hook.return_value
+        mock_sync_hook.cancel_job = mock.MagicMock()
 
         async_gen = submit_trigger.run()
 
         try:
-            await async_gen.__anext__()
-            # If no error is raised, assert a failure as we expected an exception
-            pytest.fail("Expected an asyncio.CancelledError but didn't get one.")
+            await async_gen.asend(None)
+            # Should raise StopAsyncIteration if no more items to yield
+            await async_gen.asend(None)
         except asyncio.CancelledError:
-            assert True, "asyncio.CancelledError was caught as expected."
+            # Handle the cancellation as expected
+            pass
         except StopAsyncIteration:
-            # If StopAsyncIteration is raised, check if the CancelledError was handled internally
-            # Since we caught StopAsyncIteration, it means the async generator concluded without issue
-            # Verify if cancel_job was called if cancel_on_kill is True
-            if submit_trigger.cancel_on_kill:
-                mock_hook.cancel_job.assert_called_once_with(
-                    job_id=submit_trigger.job_id,
-                    project_id=submit_trigger.project_id,
-                    region=submit_trigger.region,
-                )
-            else:
-                mock_hook.cancel_job.assert_not_called()
-            assert True, "Cancellation was handled internally and properly."
-        finally:
-            # Clean up generator
-            await async_gen.aclose()
+            # The generator should be properly closed after handling the cancellation
+            pass
+        except Exception as e:
+            # Catch any other exceptions that should not occur
+            pytest.fail(f"Unexpected exception raised: {e}")
+
+        # Check if cancel_job was correctly called
+        if submit_trigger.cancel_on_kill:
+            mock_sync_hook.cancel_job.assert_called_once_with(
+                job_id=submit_trigger.job_id,
+                project_id=submit_trigger.project_id,
+                region=submit_trigger.region,
+            )
+        else:
+            mock_sync_hook.cancel_job.assert_not_called()
+
+        # Clean up the generator
+        await async_gen.aclose()

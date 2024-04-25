@@ -133,9 +133,7 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
                         job_id=self.job_id, project_id=self.project_id, region=self.region
                     )
                     self.log.info("Job: %s is cancelled", self.job_id)
-                    yield TriggerEvent(
-                        {"job_id": self.job_id, "job_state": ClusterStatus.State.DELETING, "job": job}
-                    )
+                    yield TriggerEvent({"job_id": self.job_id, "job_state": ClusterStatus.State.DELETING})
             except Exception as e:
                 self.log.error("Failed to cancel the job: %s with error : %s", self.job_id, str(e))
                 raise AirflowException(
