@@ -1209,10 +1209,10 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
                 "dill",
                 marks=[
                     DILL_MARKER,
-                    pytest.mark.skipif(
+                    pytest.mark.xfail(
                         PY311,
                         reason=(
-                            "Also this test is skipped on Python 3.11 because of impact of "
+                            "Also this test is failed on Python 3.11 because of impact of "
                             "regression in Python 3.11 connected likely with CodeType behaviour "
                             "https://github.com/python/cpython/issues/100316. "
                             "That likely causes that dill is not able to serialize the `conf` correctly. "
