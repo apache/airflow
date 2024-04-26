@@ -93,7 +93,7 @@ def replace_match(file: str, line: str, provider: str, version: str) -> str | No
 def find_matches(_file: Path, provider: str, version: str):
     lines = _file.read_text().splitlines(keepends=True)
     new_lines = []
-    for index, line in enumerate(lines):
+    for line in lines:
         new_line = replace_match(str(_file), line, provider, version)
         if new_line:
             new_lines.append(new_line)

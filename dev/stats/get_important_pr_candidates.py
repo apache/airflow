@@ -350,7 +350,7 @@ def main(
     if load:
         console.print("Loading PRs from cache and recalculating scores.")
         selected_prs = pickle.load(load, encoding="bytes")
-        for issue_num, pr in enumerate(selected_prs, 1):
+        for pr in selected_prs:
             console.print(
                 f"[green]Loading PR: #{pr.pull_request.number} `{pr.pull_request.title}`.[/]"
                 f" Score: {pr.score}."

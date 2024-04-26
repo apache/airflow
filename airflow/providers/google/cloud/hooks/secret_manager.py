@@ -35,7 +35,7 @@ from google.cloud.secretmanager_v1 import (
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
@@ -94,7 +94,7 @@ class SecretsManagerHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_secret(
-        self, secret_id: str, secret_version: str = "latest", project_id: str | None = None
+        self, secret_id: str, secret_version: str = "latest", project_id: str = PROVIDE_PROJECT_ID
     ) -> str | None:
         """
         Get secret value from the Secret Manager.

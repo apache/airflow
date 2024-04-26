@@ -285,7 +285,7 @@ class TestSerDe:
     @conf_vars(
         {
             ("core", "allowed_deserialization_classes"): "",
-            ("core", "allowed_deserialization_classes_regexp"): "tests\.airflow\..",
+            ("core", "allowed_deserialization_classes_regexp"): r"tests\.airflow\..",
         }
     )
     @pytest.mark.usefixtures("recalculate_patterns")
@@ -299,7 +299,7 @@ class TestSerDe:
     @conf_vars(
         {
             ("core", "allowed_deserialization_classes"): "",
-            ("core", "allowed_deserialization_classes_regexp"): "tests\.airflow\.deep",
+            ("core", "allowed_deserialization_classes_regexp"): r"tests\.airflow\.deep",
         }
     )
     @pytest.mark.usefixtures("recalculate_patterns")

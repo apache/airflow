@@ -157,6 +157,6 @@ class TestDatabricksPartitionSensor:
         self.partition_sensor.partitions = partitions
         _check_table_partitions.return_value = False
         with pytest.raises(
-            expected_exception, match=f"Specified partition\(s\): {partitions} were not found."
+            expected_exception, match=rf"Specified partition\(s\): {partitions} were not found."
         ):
             self.partition_sensor.poke(context={})

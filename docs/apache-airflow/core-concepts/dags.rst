@@ -711,6 +711,7 @@ This SubDAG can then be referenced in your main DAG file:
 
 .. exampleinclude:: /../../airflow/example_dags/example_subdag_operator.py
     :language: python
+    :dedent: 4
     :start-after: [START example_subdag_operator]
     :end-before: [END example_subdag_operator]
 

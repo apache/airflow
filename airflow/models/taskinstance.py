@@ -117,7 +117,6 @@ from airflow.utils.context import (
 from airflow.utils.email import send_email
 from airflow.utils.helpers import prune_dict, render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.module_loading import qualname
 from airflow.utils.net import get_hostname
 from airflow.utils.operator_helpers import ExecutionCallableRunner, context_to_airflow_vars
 from airflow.utils.platform import getuser
@@ -1230,11 +1229,11 @@ def _run_finished_callback(
     if callbacks:
         callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
         for callback in callbacks:
+            log.info("Executing %s callback", callback.__name__)
             try:
                 callback(context)
             except Exception:
-                callback_name = qualname(callback).split(".")[-1]
-                log.exception("Error when executing %s callback", callback_name)  # type: ignore[attr-defined]
+                log.exception("Error when executing %s callback", callback.__name__)  # type: ignore[attr-defined]
 
 
 def _log_state(*, task_instance: TaskInstance | TaskInstancePydantic, lead_msg: str = "") -> None:
@@ -1787,15 +1786,17 @@ class TaskInstance(Base, LoggingMixin):
     @property
     def log_url(self) -> str:
         """Log URL for TaskInstance."""
-        iso = quote(self.execution_date.isoformat())
+        run_id = quote(self.run_id)
         base_url = conf.get_mandatory_value("webserver", "BASE_URL")
         return (
             f"{base_url}"
-            "/log"
-            f"?execution_date={iso}"
+            f"/dags"
+            f"/{self.dag_id}"
+            f"/grid"
+            f"?dag_run_id={run_id}"
             f"&task_id={self.task_id}"
-            f"&dag_id={self.dag_id}"
             f"&map_index={self.map_index}"
+            "&tab=logs"
         )
 
     @property
@@ -1855,7 +1856,7 @@ class TaskInstance(Base, LoggingMixin):
     ) -> TaskInstance | TaskInstancePydantic | None:
         query = (
             session.query(TaskInstance)
-            .options(lazyload("dag_run"))  # lazy load dag run to avoid locking it
+            .options(lazyload(TaskInstance.dag_run))  # lazy load dag run to avoid locking it
             .filter_by(
                 dag_id=dag_id,
                 run_id=run_id,
@@ -2731,17 +2732,28 @@ class TaskInstance(Base, LoggingMixin):
                 previous_state=TaskInstanceState.QUEUED, task_instance=self, session=session
             )
 
-            # Execute the task
+            def _render_map_index(context: Context, *, jinja_env: jinja2.Environment | None) -> str | None:
+                """Render named map index if the DAG author defined map_index_template at the task level."""
+                if jinja_env is None or (template := context.get("map_index_template")) is None:
+                    return None
+                rendered_map_index = jinja_env.from_string(template).render(context)
+                log.debug("Map index rendered as %s", rendered_map_index)
+                return rendered_map_index
+
+            # Execute the task.
             with set_current_context(context):
-                result = self._execute_task(context, task_orig)
+                try:
+                    result = self._execute_task(context, task_orig)
+                except Exception:
+                    # If the task failed, swallow rendering error so it doesn't mask the main error.
+                    with contextlib.suppress(jinja2.TemplateSyntaxError, jinja2.UndefinedError):
+                        self.rendered_map_index = _render_map_index(context, jinja_env=jinja_env)
+                    raise
+                else:  # If the task succeeded, render normally to let rendering error bubble up.
+                    self.rendered_map_index = _render_map_index(context, jinja_env=jinja_env)
 
             # Run post_execute callback
             self.task.post_execute(context=context, result=result)
-
-            # DAG authors define map_index_template at the task level
-            if jinja_env is not None and (template := context.get("map_index_template")) is not None:
-                rendered_map_index = self.rendered_map_index = jinja_env.from_string(template).render(context)
-                self.log.info("Map index rendered as %s", rendered_map_index)
 
         Stats.incr(f"operator_successes_{self.task.task_type}", tags=self.stats_tags)
         # Same metric with tagging
@@ -2897,7 +2909,8 @@ class TaskInstance(Base, LoggingMixin):
         # Log reschedule request
         session.add(
             TaskReschedule(
-                self.task,
+                self.task_id,
+                self.dag_id,
                 self.run_id,
                 self._try_number,
                 actual_start_date,

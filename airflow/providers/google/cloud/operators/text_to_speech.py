@@ -28,6 +28,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.hooks.text_to_speech import CloudTextToSpeechHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.providers.google.common.links.storage import FileDetailsLink
 
 if TYPE_CHECKING:
@@ -94,7 +95,7 @@ class CloudTextToSpeechSynthesizeOperator(GoogleCloudBaseOperator):
         audio_config: dict | AudioConfig,
         target_bucket_name: str,
         target_filename: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,

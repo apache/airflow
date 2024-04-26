@@ -291,6 +291,24 @@ Sometimes an upstream needs to specify multiple arguments to a downstream operat
 
 This produces two task instances at run-time printing ``1`` and ``2`` respectively.
 
+Also it's possible to mix ``expand_kwargs`` with most of the operators arguments like the ``op_kwargs`` of the PythonOperator
+
+.. code-block:: python
+
+    def print_args(x, y):
+        print(x)
+        print(y)
+        return x + y
+
+
+    PythonOperator.partial(task_id="task-1", python_callable=print_args).expand_kwargs(
+        [
+            {"op_kwargs": {"x": 1, "y": 2}, "show_return_value_in_logs": True},
+            {"op_kwargs": {"x": 3, "y": 4}, "show_return_value_in_logs": False},
+        ]
+    )
+
+
 Similar to ``expand``, you can also map against a XCom that returns a list of dicts, or a list of XComs each returning a dict. Re-using the S3 example above, you can use a mapped task to perform "branching" and copy files to different buckets:
 
 .. code-block:: python

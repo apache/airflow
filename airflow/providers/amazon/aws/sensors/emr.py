@@ -24,7 +24,11 @@ from typing import TYPE_CHECKING, Any, Iterable, Sequence
 from deprecated import deprecated
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import (
+    AirflowException,
+    AirflowProviderDeprecationWarning,
+    AirflowSkipException,
+)
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import EmrClusterLink, EmrLogsLink, get_log_uri
 from airflow.providers.amazon.aws.triggers.emr import (
@@ -231,7 +235,9 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
 
         if state in EmrServerlessHook.APPLICATION_FAILURE_STATES:
             # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
-            failure_message = f"EMR Serverless job failed: {self.failure_message_from_response(response)}"
+            failure_message = (
+                f"EMR Serverless application failed: {self.failure_message_from_response(response)}"
+            )
             if self.soft_fail:
                 raise AirflowSkipException(failure_message)
             raise AirflowException(failure_message)

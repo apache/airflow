@@ -57,8 +57,6 @@ python dependencies for the provided package.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | google-auth         | ``pip install 'apache-airflow[google-auth]'``       | Google auth backend                                                        |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
-| graphviz            | ``pip install 'apache-airflow[graphvis]'``          | Enables exporting DAGs to .dot graphical output                            |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | graphviz            | ``pip install 'apache-airflow[graphviz]'``          | Graphviz renderer for converting DAG to graphical output                   |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | kerberos            | ``pip install 'apache-airflow[kerberos]'``          | Kerberos integration for Kerberized services (Hadoop, Presto, Trino)       |
@@ -88,6 +86,8 @@ python dependencies for the provided package.
 | uv                  | ``pip install 'apache-airflow[uv]'``                | Install uv - fast, Rust-based package installer (experimental)             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | virtualenv          | ``pip install 'apache-airflow[virtualenv]'``        | Running python tasks in local virtualenv                                   |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| cloudpickle         | pip install apache-airflow[cloudpickle]             | Cloudpickle hooks and operators                                            |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 
 
@@ -333,7 +333,7 @@ pre-installed when Airflow is installed.
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | openlineage         | ``pip install 'apache-airflow[openlineage]'``       | Sending OpenLineage events           |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
-| opensearch         | ``pip install 'apache-airflow[opensearch]'``         | Opensearch hooks and operators       |              |
+| opensearch          | ``pip install 'apache-airflow[opensearch]'``        | Opensearch hooks and operators       |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | papermill           | ``pip install 'apache-airflow[papermill]'``         | Papermill hooks and operators        |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+

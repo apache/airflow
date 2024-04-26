@@ -763,6 +763,7 @@ class AirflowConfigParser(ConfigParser):
                 "in the running config, which is needed by the UI. Please update your config before "
                 "Apache Airflow 3.0.",
                 FutureWarning,
+                stacklevel=1,
             )
 
     def _upgrade_postgres_metastore_conn(self):
@@ -783,6 +784,7 @@ class AirflowConfigParser(ConfigParser):
                 "As of SQLAlchemy 1.4 (adopted in Airflow 2.3) this is no longer supported.  You must "
                 f"change to `{good_scheme}` before the next Airflow release.",
                 FutureWarning,
+                stacklevel=1,
             )
             self.upgraded_values[(section, key)] = old_value
             new_value = re2.sub("^" + re2.escape(f"{parsed.scheme}://"), f"{good_scheme}://", old_value)
@@ -841,6 +843,7 @@ class AirflowConfigParser(ConfigParser):
             f"This value has been changed to {new_value!r} in the running config, but "
             f"please update your config before Apache Airflow {version}.",
             FutureWarning,
+            stacklevel=3,
         )
 
     def _env_var_name(self, section: str, key: str) -> str:
@@ -2041,18 +2044,19 @@ def load_standard_airflow_configuration(airflow_config_parser: AirflowConfigPars
             "environment variable and remove the config file entry."
         )
         if "AIRFLOW_HOME" in os.environ:
-            warnings.warn(msg, category=DeprecationWarning)
+            warnings.warn(msg, category=DeprecationWarning, stacklevel=1)
         elif airflow_config_parser.get("core", "airflow_home") == AIRFLOW_HOME:
             warnings.warn(
                 "Specifying airflow_home in the config file is deprecated. As you "
                 "have left it at the default value you should remove the setting "
                 "from your airflow.cfg and suffer no change in behaviour.",
                 category=DeprecationWarning,
+                stacklevel=1,
             )
         else:
             # there
             AIRFLOW_HOME = airflow_config_parser.get("core", "airflow_home")  # type: ignore[assignment]
-            warnings.warn(msg, category=DeprecationWarning)
+            warnings.warn(msg, category=DeprecationWarning, stacklevel=1)
 
 
 def initialize_config() -> AirflowConfigParser:

@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING, Container, Sequence, cast
 from flask import session, url_for
 
 from airflow.cli.cli_config import CLICommand, DefaultHelpParser, GroupCommand
-from airflow.configuration import conf
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
 from airflow.providers.amazon.aws.auth_manager.avp.facade import (
@@ -33,10 +32,6 @@ from airflow.providers.amazon.aws.auth_manager.avp.facade import (
 )
 from airflow.providers.amazon.aws.auth_manager.cli.definition import (
     AWS_AUTH_MANAGER_COMMANDS,
-)
-from airflow.providers.amazon.aws.auth_manager.constants import (
-    CONF_ENABLE_KEY,
-    CONF_SECTION_NAME,
 )
 from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_manager_override import (
     AwsSecurityManagerOverride,
@@ -87,12 +82,7 @@ class AwsAuthManager(BaseAuthManager):
 
     def __init__(self, appbuilder: AirflowAppBuilder) -> None:
         super().__init__(appbuilder)
-        enable = conf.getboolean(CONF_SECTION_NAME, CONF_ENABLE_KEY)
         self._check_avp_schema_version()
-        if not enable:
-            raise NotImplementedError(
-                "The AWS auth manager is currently being built. It is not finalized. It is not intended to be used yet."
-            )
 
     @cached_property
     def avp_facade(self):
@@ -207,7 +197,7 @@ class AwsAuthManager(BaseAuthManager):
         )
 
     def is_authorized_custom_view(
-        self, *, method: ResourceMethod, resource_name: str, user: BaseUser | None = None
+        self, *, method: ResourceMethod | str, resource_name: str, user: BaseUser | None = None
     ):
         return self.avp_facade.is_authorized(
             method=method,

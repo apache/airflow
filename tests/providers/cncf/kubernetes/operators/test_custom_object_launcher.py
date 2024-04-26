@@ -64,6 +64,22 @@ class TestSparkJobSpec:
 
         assert spark_job_spec.spec["dynamicAllocation"]["enabled"]
 
+    def test_spark_job_spec_dynamicAllocation_enabled_with_default_initial_executors(self):
+        entries = {
+            "spec": {
+                "dynamicAllocation": {
+                    "enabled": True,
+                    "minExecutors": 1,
+                    "maxExecutors": 2,
+                },
+                "driver": {},
+                "executor": {},
+            }
+        }
+        spark_job_spec = SparkJobSpec(**entries)
+
+        assert spark_job_spec.spec["dynamicAllocation"]["enabled"]
+
     def test_spark_job_spec_dynamicAllocation_enabled_with_invalid_config(self):
         entries = {
             "spec": {
@@ -79,18 +95,10 @@ class TestSparkJobSpec:
         }
 
         cloned_entries = entries.copy()
-        cloned_entries["spec"]["dynamicAllocation"]["initialExecutors"] = None
-        with pytest.raises(
-            AirflowException,
-            match="Make sure initial/min/max value for dynamic allocation is passed",
-        ):
-            SparkJobSpec(**cloned_entries)
-
-        cloned_entries = entries.copy()
         cloned_entries["spec"]["dynamicAllocation"]["minExecutors"] = None
         with pytest.raises(
             AirflowException,
-            match="Make sure initial/min/max value for dynamic allocation is passed",
+            match="Make sure min/max value for dynamic allocation is passed",
         ):
             SparkJobSpec(**cloned_entries)
 
@@ -98,7 +106,7 @@ class TestSparkJobSpec:
         cloned_entries["spec"]["dynamicAllocation"]["maxExecutors"] = None
         with pytest.raises(
             AirflowException,
-            match="Make sure initial/min/max value for dynamic allocation is passed",
+            match="Make sure min/max value for dynamic allocation is passed",
         ):
             SparkJobSpec(**cloned_entries)
 
