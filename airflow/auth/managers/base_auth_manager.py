@@ -404,6 +404,7 @@ class BaseAuthManager(LoggingMixin):
                 childs=[],
                 baseview=menu_item.baseview,
                 cond=menu_item.cond,
+                href=menu_item.href,
             )
             if menu_item.childs:
                 accessible_children = []
