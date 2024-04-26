@@ -2592,6 +2592,7 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
                     gcp_conn_id=self.gcp_conn_id,
                     impersonation_chain=self.impersonation_chain,
                     polling_interval_seconds=self.polling_interval_seconds,
+                    cancel_on_kill=self.cancel_on_kill,
                 ),
                 method_name="execute_complete",
             )
