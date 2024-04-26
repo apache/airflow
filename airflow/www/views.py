@@ -71,7 +71,7 @@ from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from markupsafe import Markup, escape
 from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
-from sqlalchemy import and_, case, desc, func, inspect, select, union_all
+from sqlalchemy import and_, case, desc, func, inspect, or_, select, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from wtforms import BooleanField, validators
@@ -791,6 +791,9 @@ class Airflow(AirflowBaseView):
                 escaped_arg_search_query = arg_search_query.replace("_", r"\_")
                 dags_query = dags_query.where(
                     DagModel.dag_id.ilike("%" + escaped_arg_search_query + "%", escape="\\")
+                    | DagModel._dag_display_property_value.ilike(
+                        "%" + escaped_arg_search_query + "%", escape="\\"
+                    )
                     | DagModel.owners.ilike("%" + escaped_arg_search_query + "%", escape="\\")
                 )
 
@@ -843,9 +846,7 @@ class Airflow(AirflowBaseView):
 
             is_paused_count = dict(
                 session.execute(
-                    all_dags.with_only_columns([DagModel.is_paused, func.count()]).group_by(
-                        DagModel.is_paused
-                    )
+                    all_dags.with_only_columns(DagModel.is_paused, func.count()).group_by(DagModel.is_paused)
                 ).all()
             )
 
@@ -1394,6 +1395,7 @@ class Airflow(AirflowBaseView):
                     show_trigger_form_if_no_params=conf.getboolean(
                         "webserver", "show_trigger_form_if_no_params"
                     ),
+                    dag_run_id=dag_run.run_id if dag_run else "",
                     html_dict=html_dict,
                     dag=dag,
                     task_id=task_id,
@@ -1459,6 +1461,7 @@ class Airflow(AirflowBaseView):
             "airflow/ti_code.html",
             show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             html_dict=html_dict,
+            dag_run_id=dag_run.run_id if dag_run else "",
             dag=dag,
             task_id=task_id,
             task_display_name=task.task_display_name,
@@ -1523,6 +1526,7 @@ class Airflow(AirflowBaseView):
         return self.render_template(
             "airflow/ti_code.html",
             show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
+            dag_run_id=dag_run.run_id if dag_run else "",
             html_dict={"k8s": content},
             dag=dag,
             task_id=task_id,
@@ -1649,6 +1653,7 @@ class Airflow(AirflowBaseView):
             show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             logs=logs,
             dag=dag_model,
+            dag_run_id=ti.run_id if ti else "",
             title="Log by attempts",
             dag_id=dag_id,
             task_id=task_id,
@@ -1805,6 +1810,7 @@ class Airflow(AirflowBaseView):
             show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             task_attrs=task_attrs,
             ti_attrs=ti_attrs,
+            dag_run_id=ti.run_id if ti else "",
             failed_dep_reasons=failed_dep_reasons or no_failed_deps_result,
             task_id=task_id,
             execution_date=execution_date,
@@ -1857,6 +1863,7 @@ class Airflow(AirflowBaseView):
             show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             attributes=attributes,
             task_id=task_id,
+            dag_run_id=ti.run_id if ti else "",
             task_display_name=ti.task_display_name,
             execution_date=execution_date,
             map_index=map_index,
@@ -3291,7 +3298,7 @@ class Airflow(AirflowBaseView):
             latest_run = dag_model.get_last_dagrun(session=session)
 
             events = [
-                dict(info)
+                dict(info._mapping)
                 for info in session.execute(
                     select(
                         DatasetModel.id,
@@ -3453,7 +3460,7 @@ class Airflow(AirflowBaseView):
             count_query = count_query.where(*filters)
 
             query = session.execute(query)
-            datasets = [dict(dataset) for dataset in query]
+            datasets = [dict(dataset._mapping) for dataset in query]
             data = {"datasets": datasets, "total_entries": session.scalar(count_query)}
 
             return (
@@ -5422,12 +5429,21 @@ class AutocompleteView(AirflowBaseView):
         dag_ids_query = select(
             sqla.literal("dag").label("type"),
             DagModel.dag_id.label("name"),
-        ).where(~DagModel.is_subdag, DagModel.is_active, DagModel.dag_id.ilike(f"%{query}%"))
+            DagModel._dag_display_property_value.label("dag_display_name"),
+        ).where(
+            ~DagModel.is_subdag,
+            DagModel.is_active,
+            or_(
+                DagModel.dag_id.ilike(f"%{query}%"),
+                DagModel._dag_display_property_value.ilike(f"%{query}%"),
+            ),
+        )
 
         owners_query = (
             select(
                 sqla.literal("owner").label("type"),
                 DagModel.owners.label("name"),
+                sqla.literal(None).label("dag_display_name"),
             )
             .distinct()
             .where(~DagModel.is_subdag, DagModel.is_active, DagModel.owners.ilike(f"%{query}%"))

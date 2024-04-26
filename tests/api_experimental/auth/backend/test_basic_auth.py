@@ -21,6 +21,7 @@ from base64 import b64encode
 import pytest
 from flask_login import current_user
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from tests.test_utils.db import clear_db_pools
 
 pytestmark = pytest.mark.db_test
@@ -49,7 +50,10 @@ class TestBasicAuth:
         clear_db_pools()
 
         with self.app.test_client() as test_client:
-            response = test_client.get("/api/experimental/pools", headers={"Authorization": token})
+            with pytest.warns(RemovedInAirflow3Warning, match=r"Use Pool.get_pools\(\) instead"):
+                # Experimental client itself deprecated, no reason to change to actual methods
+                # It should be removed in the same time: Airflow 3.0
+                response = test_client.get("/api/experimental/pools", headers={"Authorization": token})
             assert current_user.email == "test@fab.org"
 
         assert response.status_code == 200

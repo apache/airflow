@@ -1115,8 +1115,7 @@ class DagRun(Base, LoggingMixin):
         rid of the outliers on the stats side through dashboards tooling.
 
         Note that the stat will only be emitted for scheduler-triggered DAG runs
-        (i.e. when ``external_trigger`` is *False* and ``clear_number`` is
-        greater than 0).
+        (i.e. when ``external_trigger`` is *False* and ``clear_number`` is equal to 0).
         """
         if self.state == TaskInstanceState.RUNNING:
             return

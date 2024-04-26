@@ -397,6 +397,8 @@ class BatchClientHook(AwsBaseHook):
             try:
                 response = self.get_conn().describe_jobs(jobs=[job_id])
                 return self.parse_job_description(job_id, response)
+            except AirflowException as err:
+                self.log.warning(err)
             except botocore.exceptions.ClientError as err:
                 # Allow it to retry in case of exceeded quota limit of requests to AWS API
                 if err.response.get("Error", {}).get("Code") != "TooManyRequestsException":

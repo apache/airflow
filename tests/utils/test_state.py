@@ -40,6 +40,7 @@ def test_dagrun_state_enum_escape():
             state=DagRunState.QUEUED,
             execution_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
+            data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
             session=session,
         )
 
