@@ -245,7 +245,7 @@ def mock_vector_file_store_list():
                 usage_bytes=1234,
                 vector_store_id=VECTOR_STORE_ID,
                 status="completed",
-                last_error=None
+                last_error=None,
             ),
             VectorStoreFile(
                 id="test-file-abc456",
@@ -254,7 +254,7 @@ def mock_vector_file_store_list():
                 usage_bytes=1234,
                 vector_store_id=VECTOR_STORE_ID,
                 status="completed",
-                last_error=None
+                last_error=None,
             ),
         ]
     )
