@@ -1205,7 +1205,23 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
     @pytest.mark.parametrize(
         "serializer",
         [
-            pytest.param("dill", marks=DILL_MARKER, id="dill"),
+            pytest.param(
+                "dill",
+                marks=[
+                    DILL_MARKER,
+                    pytest.mark.skipif(
+                        PY311,
+                        reason=(
+                            "Also this test is skipped on Python 3.11 because of impact of "
+                            "regression in Python 3.11 connected likely with CodeType behaviour "
+                            "https://github.com/python/cpython/issues/100316. "
+                            "That likely causes that dill is not able to serialize the `conf` correctly. "
+                            "Issue about fixing it is captured in https://github.com/apache/airflow/issues/35307"
+                        ),
+                    ),
+                ],
+                id="dill",
+            ),
             pytest.param("cloudpickle", marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
         ],
     )
