@@ -138,9 +138,7 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
                     yield TriggerEvent({"job_id": self.job_id, "job_state": ClusterStatus.State.DELETING})
             except Exception as e:
                 self.log.error("Failed to cancel the job: %s with error : %s", self.job_id, str(e))
-                raise AirflowException(
-                    f"Failed to cancel the job: {self.job_id} with error : {str(e)}"
-                ) from e
+                raise e
 
 
 class DataprocClusterTrigger(DataprocBaseTrigger):
