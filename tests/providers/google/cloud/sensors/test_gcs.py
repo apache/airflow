@@ -81,6 +81,20 @@ mock_time = mock.Mock(side_effect=next_time_side_effect)
 
 class TestGoogleCloudStorageObjectSensor:
     @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSensor.defer")
+    def test_gcs_object_existence_sensor_return_value(self, mock_defer, mock_hook):
+        task = GCSObjectExistenceSensor(
+            task_id="task-id",
+            bucket=TEST_BUCKET,
+            object=TEST_OBJECT,
+            google_cloud_conn_id=TEST_GCP_CONN_ID,
+            deferrable=True,
+        )
+        mock_hook.return_value.list.return_value = True
+        return_value = task.execute(mock.MagicMock())
+        assert return_value, True
+
+    @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
     def test_should_pass_argument_to_hook(self, mock_hook):
         task = GCSObjectExistenceSensor(
             task_id="task-id",
@@ -182,6 +196,22 @@ class TestGoogleCloudStorageObjectSensor:
         with mock.patch.object(task.log, "info") as mock_log_info:
             task.execute_complete(context=None, event={"status": "success", "message": "Job completed"})
         mock_log_info.assert_called_with("File %s was found in bucket %s.", TEST_OBJECT, TEST_BUCKET)
+
+    def test_gcs_object_existence_sensor_execute_complete_return_value(self):
+        """Asserts that logging occurs as expected when deferrable is set to True"""
+        task = GCSObjectExistenceSensor(
+            task_id="task-id",
+            bucket=TEST_BUCKET,
+            object=TEST_OBJECT,
+            google_cloud_conn_id=TEST_GCP_CONN_ID,
+            deferrable=True,
+        )
+        with mock.patch.object(task.log, "info") as mock_log_info:
+            return_value = task.execute_complete(
+                context=None, event={"status": "success", "message": "Job completed"}
+            )
+        mock_log_info.assert_called_with("File %s was found in bucket %s.", TEST_OBJECT, TEST_BUCKET)
+        assert return_value, True
 
 
 class TestGoogleCloudStorageObjectAsyncSensor:

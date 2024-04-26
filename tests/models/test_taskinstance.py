@@ -1984,14 +1984,15 @@ class TestTaskInstance:
         assert 1 == tis2[("task_3", 0)].get_num_running_task_instances(session=session, same_dagrun=True)
 
     def test_log_url(self, create_task_instance):
-        ti = create_task_instance(dag_id="dag", task_id="op", execution_date=timezone.datetime(2018, 1, 1))
+        ti = create_task_instance(dag_id="my_dag", task_id="op", execution_date=timezone.datetime(2018, 1, 1))
 
         expected_url = (
-            "http://localhost:8080/log?"
-            "execution_date=2018-01-01T00%3A00%3A00%2B00%3A00"
+            "http://localhost:8080"
+            "/dags/my_dag/grid"
+            "?dag_run_id=test"
             "&task_id=op"
-            "&dag_id=dag"
             "&map_index=-1"
+            "&tab=logs"
         )
         assert ti.log_url == expected_url
 

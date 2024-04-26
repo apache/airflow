@@ -271,7 +271,7 @@ def test_construct_tls_config(assert_hostname, ssl_version):
         tls_params["ssl_version"] = ssl_version
 
     if DOCKER_PY_7_PLUS and (assert_hostname is not None or ssl_version is not None):
-        ctx = pytest.warns(UserWarning, match="removed in `docker\.TLSConfig` constructor arguments")
+        ctx = pytest.warns(UserWarning, match=r"removed in `docker\.TLSConfig` constructor arguments")
         no_warns = False
     else:
         ctx = warnings.catch_warnings()

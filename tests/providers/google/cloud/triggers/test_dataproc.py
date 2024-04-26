@@ -22,7 +22,7 @@ from asyncio import Future
 from unittest import mock
 
 import pytest
-from google.cloud.dataproc_v1 import Batch, ClusterStatus
+from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus
 from google.protobuf.any_pb2 import Any
 from google.rpc.status_pb2 import Status
 
@@ -70,6 +70,7 @@ def batch_trigger():
         gcp_conn_id=TEST_GCP_CONN_ID,
         impersonation_chain=None,
         polling_interval_seconds=TEST_POLL_INTERVAL,
+        delete_on_error=True,
     )
     return trigger
 
@@ -96,6 +97,7 @@ def diagnose_operation_trigger():
         gcp_conn_id=TEST_GCP_CONN_ID,
         impersonation_chain=None,
         polling_interval_seconds=TEST_POLL_INTERVAL,
+        delete_on_error=True,
     )
 
 
@@ -147,6 +149,7 @@ class TestDataprocClusterTrigger:
             "gcp_conn_id": TEST_GCP_CONN_ID,
             "impersonation_chain": None,
             "polling_interval_seconds": TEST_POLL_INTERVAL,
+            "delete_on_error": True,
         }
 
     @pytest.mark.asyncio
@@ -175,27 +178,37 @@ class TestDataprocClusterTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_cluster")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.delete_cluster",
+        return_value=asyncio.Future(),
+    )
+    @mock.patch("google.auth.default")
     async def test_async_cluster_trigger_run_returns_error_event(
-        self, mock_hook, cluster_trigger, async_get_cluster
+        self, mock_auth, mock_delete_cluster, mock_get_cluster, cluster_trigger, async_get_cluster, caplog
     ):
-        mock_hook.return_value = async_get_cluster(
+        mock_credentials = mock.MagicMock()
+        mock_credentials.universe_domain = "googleapis.com"
+
+        mock_auth.return_value = (mock_credentials, "project-id")
+
+        mock_delete_cluster.return_value = asyncio.Future()
+        mock_delete_cluster.return_value.set_result(None)
+
+        mock_get_cluster.return_value = async_get_cluster(
             project_id=TEST_PROJECT_ID,
             region=TEST_REGION,
             cluster_name=TEST_CLUSTER_NAME,
             status=ClusterStatus(state=ClusterStatus.State.ERROR),
         )
 
-        actual_event = await cluster_trigger.run().asend(None)
-        await asyncio.sleep(0.5)
+        caplog.set_level(logging.INFO)
 
-        expected_event = TriggerEvent(
-            {
-                "cluster_name": TEST_CLUSTER_NAME,
-                "cluster_state": ClusterStatus.State.ERROR,
-                "cluster": actual_event.payload["cluster"],
-            }
-        )
-        assert expected_event == actual_event
+        trigger_event = None
+        async for event in cluster_trigger.run():
+            trigger_event = event
+
+        assert trigger_event.payload["cluster_name"] == TEST_CLUSTER_NAME
+        assert trigger_event.payload["cluster_state"] == ClusterStatus.State.DELETING
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_cluster")
@@ -215,8 +228,92 @@ class TestDataprocClusterTrigger:
         await asyncio.sleep(0.5)
 
         assert not task.done()
-        assert f"Current state is: {ClusterStatus.State.CREATING}"
+        assert f"Current state is: {ClusterStatus.State.CREATING}."
         assert f"Sleeping for {TEST_POLL_INTERVAL} seconds."
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.get_async_hook")
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.get_sync_hook")
+    async def test_cluster_trigger_cancellation_handling(
+        self, mock_get_sync_hook, mock_get_async_hook, caplog
+    ):
+        cluster = Cluster(status=ClusterStatus(state=ClusterStatus.State.RUNNING))
+        mock_get_async_hook.return_value.get_cluster.return_value = asyncio.Future()
+        mock_get_async_hook.return_value.get_cluster.return_value.set_result(cluster)
+
+        mock_delete_cluster = mock.MagicMock()
+        mock_get_sync_hook.return_value.delete_cluster = mock_delete_cluster
+
+        cluster_trigger = DataprocClusterTrigger(
+            cluster_name="cluster_name",
+            project_id="project-id",
+            region="region",
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
+            polling_interval_seconds=5,
+            delete_on_error=True,
+        )
+
+        cluster_trigger_gen = cluster_trigger.run()
+
+        try:
+            await cluster_trigger_gen.__anext__()
+            await cluster_trigger_gen.aclose()
+
+        except asyncio.CancelledError:
+            # Verify that cancellation was handled as expected
+            if cluster_trigger.delete_on_error:
+                mock_get_sync_hook.assert_called_once()
+                mock_delete_cluster.assert_called_once_with(
+                    region=cluster_trigger.region,
+                    cluster_name=cluster_trigger.cluster_name,
+                    project_id=cluster_trigger.project_id,
+                )
+                assert "Deleting cluster" in caplog.text
+                assert "Deleted cluster" in caplog.text
+            else:
+                mock_delete_cluster.assert_not_called()
+        except Exception as e:
+            pytest.fail(f"Unexpected exception raised: {e}")
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_cluster")
+    async def test_fetch_cluster_status(self, mock_get_cluster, cluster_trigger, async_get_cluster):
+        mock_get_cluster.return_value = async_get_cluster(
+            status=ClusterStatus(state=ClusterStatus.State.RUNNING)
+        )
+        cluster = await cluster_trigger.fetch_cluster()
+
+        assert cluster.status.state == ClusterStatus.State.RUNNING, "The cluster state should be RUNNING"
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.delete_cluster")
+    async def test_delete_when_error_occurred(self, mock_delete_cluster, cluster_trigger):
+        mock_cluster = mock.MagicMock(spec=Cluster)
+        type(mock_cluster).status = mock.PropertyMock(
+            return_value=mock.MagicMock(state=ClusterStatus.State.ERROR)
+        )
+
+        mock_delete_future = asyncio.Future()
+        mock_delete_future.set_result(None)
+        mock_delete_cluster.return_value = mock_delete_future
+
+        cluster_trigger.delete_on_error = True
+
+        await cluster_trigger.delete_when_error_occurred(mock_cluster)
+
+        mock_delete_cluster.assert_called_once_with(
+            region=cluster_trigger.region,
+            cluster_name=cluster_trigger.cluster_name,
+            project_id=cluster_trigger.project_id,
+        )
+
+        mock_delete_cluster.reset_mock()
+        cluster_trigger.delete_on_error = False
+
+        await cluster_trigger.delete_when_error_occurred(mock_cluster)
+
+        mock_delete_cluster.assert_not_called()
 
 
 @pytest.mark.db_test
