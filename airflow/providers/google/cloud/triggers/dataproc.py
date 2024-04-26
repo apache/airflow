@@ -25,9 +25,10 @@ import time
 from typing import Any, AsyncIterator, Sequence
 
 from google.api_core.exceptions import NotFound
-from google.cloud.dataproc_v1 import Batch, ClusterStatus, JobStatus
+from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, JobStatus
 
-from airflow.providers.google.cloud.hooks.dataproc import DataprocAsyncHook
+from airflow.exceptions import AirflowException
+from airflow.providers.google.cloud.hooks.dataproc import DataprocAsyncHook, DataprocHook
 from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -43,6 +44,7 @@ class DataprocBaseTrigger(BaseTrigger):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         polling_interval_seconds: int = 30,
+        delete_on_error: bool = True,
     ):
         super().__init__()
         self.region = region
@@ -50,9 +52,20 @@ class DataprocBaseTrigger(BaseTrigger):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.polling_interval_seconds = polling_interval_seconds
+        self.delete_on_error = delete_on_error
 
     def get_async_hook(self):
         return DataprocAsyncHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    def get_sync_hook(self):
+        # The synchronous hook is utilized to delete the cluster when a task is cancelled.
+        # This is because the asynchronous hook deletion is not awaited when the trigger task
+        # is cancelled. The call for deleting the cluster through the sync hook is not a blocking
+        # call, which means it does not wait until the cluster is deleted.
+        return DataprocHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
@@ -140,24 +153,73 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
                 "gcp_conn_id": self.gcp_conn_id,
                 "impersonation_chain": self.impersonation_chain,
                 "polling_interval_seconds": self.polling_interval_seconds,
+                "delete_on_error": self.delete_on_error,
             },
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        while True:
-            cluster = await self.get_async_hook().get_cluster(
-                project_id=self.project_id, region=self.region, cluster_name=self.cluster_name
+        try:
+            while True:
+                cluster = await self.fetch_cluster()
+                state = cluster.status.state
+                if state == ClusterStatus.State.ERROR:
+                    await self.delete_when_error_occurred(cluster)
+                    yield TriggerEvent(
+                        {
+                            "cluster_name": self.cluster_name,
+                            "cluster_state": ClusterStatus.State.DELETING,
+                            "cluster": cluster,
+                        }
+                    )
+                    return
+                elif state == ClusterStatus.State.RUNNING:
+                    yield TriggerEvent(
+                        {
+                            "cluster_name": self.cluster_name,
+                            "cluster_state": state,
+                            "cluster": cluster,
+                        }
+                    )
+                    return
+                self.log.info("Current state is %s", state)
+                self.log.info("Sleeping for %s seconds.", self.polling_interval_seconds)
+                await asyncio.sleep(self.polling_interval_seconds)
+        except asyncio.CancelledError:
+            try:
+                if self.delete_on_error:
+                    self.log.info("Deleting cluster %s.", self.cluster_name)
+                    # The synchronous hook is utilized to delete the cluster when a task is cancelled.
+                    # This is because the asynchronous hook deletion is not awaited when the trigger task
+                    # is cancelled. The call for deleting the cluster through the sync hook is not a blocking
+                    # call, which means it does not wait until the cluster is deleted.
+                    self.get_sync_hook().delete_cluster(
+                        region=self.region, cluster_name=self.cluster_name, project_id=self.project_id
+                    )
+                    self.log.info("Deleted cluster %s during cancellation.", self.cluster_name)
+            except Exception as e:
+                self.log.error("Error during cancellation handling: %s", e)
+                raise AirflowException("Error during cancellation handling: %s", e)
+
+    async def fetch_cluster(self) -> Cluster:
+        """Fetch the cluster status."""
+        return await self.get_async_hook().get_cluster(
+            project_id=self.project_id, region=self.region, cluster_name=self.cluster_name
+        )
+
+    async def delete_when_error_occurred(self, cluster: Cluster) -> None:
+        """
+        Delete the cluster on error.
+
+        :param cluster: The cluster to delete.
+        """
+        if self.delete_on_error:
+            self.log.info("Deleting cluster %s.", self.cluster_name)
+            await self.get_async_hook().delete_cluster(
+                region=self.region, cluster_name=self.cluster_name, project_id=self.project_id
             )
-            state = cluster.status.state
-            self.log.info("Dataproc cluster: %s is in state: %s", self.cluster_name, state)
-            if state in (
-                ClusterStatus.State.ERROR,
-                ClusterStatus.State.RUNNING,
-            ):
-                break
-            self.log.info("Sleeping for %s seconds.", self.polling_interval_seconds)
-            await asyncio.sleep(self.polling_interval_seconds)
-        yield TriggerEvent({"cluster_name": self.cluster_name, "cluster_state": state, "cluster": cluster})
+            self.log.info("Cluster %s has been deleted.", self.cluster_name)
+        else:
+            self.log.info("Cluster %s is not deleted as delete_on_error is set to False.", self.cluster_name)
 
 
 class DataprocBatchTrigger(DataprocBaseTrigger):
