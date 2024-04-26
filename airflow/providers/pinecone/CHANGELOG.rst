@@ -31,7 +31,7 @@ Breaking changes
    the migration guide from pinecone - <https://canyon-quilt-082.notion.site/Pinecone-Python-SDK-v3-0-0-Migration-Guide-056d3897d7634bf7be399676a4757c7b>
 
 * ``log_level`` field is removed from the Connections as it is not used by the provider anymore.
-* ``PineconeHook.get_conn`` now returns ``Connection`` object instead of ``PineconeConnection`` object. Use ``pc`` property to access the Pinecone client.
+* ``PineconeHook.get_conn`` is removed in favour of ``conn`` property which returns the Connection object. Use ``pinecone_client`` property to access the Pinecone client.
 *  Following ``PineconeHook`` methods are converted from static methods to instance methods. Hence, Initialization is required to use these now:
 
    + ``PineconeHook.list_indexes``
