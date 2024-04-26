@@ -816,6 +816,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
                             gcp_conn_id=self.gcp_conn_id,
                             impersonation_chain=self.impersonation_chain,
                             polling_interval_seconds=self.polling_interval_seconds,
+                            delete_on_error=self.delete_on_error,
                         ),
                         method_name="execute_complete",
                     )
