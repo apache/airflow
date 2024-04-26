@@ -67,8 +67,8 @@ class BedrockKnowledgeBaseActiveTrigger(AwsBaseWaiterTrigger):
 
     :param knowledge_base_id: The unique identifier of the knowledge base for which to get information.
 
-    :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 60)
-    :param waiter_max_attempts: The maximum number of attempts to be made. (default: 20)
+    :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 5)
+    :param waiter_max_attempts: The maximum number of attempts to be made. (default: 24)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     """
 
@@ -76,8 +76,8 @@ class BedrockKnowledgeBaseActiveTrigger(AwsBaseWaiterTrigger):
         self,
         *,
         knowledge_base_id: str,
-        waiter_delay: int = 60,
-        waiter_max_attempts: int = 20,
+        waiter_delay: int = 5,
+        waiter_max_attempts: int = 24,
         aws_conn_id: str | None = None,
     ) -> None:
         super().__init__(

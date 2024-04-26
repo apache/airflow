@@ -277,8 +277,8 @@ class BedrockKnowledgeBaseActiveSensor(BedrockAgentBaseSensor):
     :param deferrable: If True, the sensor will operate in deferrable more. This mode requires aiobotocore
         module to be installed.
         (default: False, but can be overridden in config file by setting default_deferrable to True)
-    :param poke_interval: Polling period in seconds to check for the status of the job. (default: 60)
-    :param max_retries: Number of times before returning the current state (default: 20)
+    :param poke_interval: Polling period in seconds to check for the status of the job. (default: 5)
+    :param max_retries: Number of times before returning the current state (default: 24)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -302,8 +302,8 @@ class BedrockKnowledgeBaseActiveSensor(BedrockAgentBaseSensor):
         self,
         *,
         knowledge_base_id: str,
-        poke_interval: int = 60,
-        max_retries: int = 20,
+        poke_interval: int = 5,
+        max_retries: int = 24,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

@@ -2,8 +2,8 @@
   "version": 2,
   "waiters": {
     "knowledge_base_active": {
-      "delay": 60,
-      "maxAttempts": 20,
+      "delay": 5,
+      "maxAttempts": 24,
       "operation": "getKnowledgeBase",
       "acceptors": [
         {
