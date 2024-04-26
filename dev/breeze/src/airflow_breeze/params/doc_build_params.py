@@ -49,6 +49,6 @@ class DocBuildParams:
             for filter_from_short_doc in get_long_package_names(self.short_doc_packages):
                 doc_args.extend(["--package-filter", filter_from_short_doc])
         if self.package_filter:
-            for filter in self.package_filter:
-                doc_args.extend(["--package-filter", filter])
+            for filter_ in self.package_filter:
+                doc_args.extend(["--package-filter", filter_])
         return doc_args

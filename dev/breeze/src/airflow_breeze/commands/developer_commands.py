@@ -958,7 +958,7 @@ def down(preserve_volumes: bool, cleanup_mypy_cache: bool, project_name: str):
 @option_verbose
 @option_dry_run
 @click.argument("exec_args", nargs=-1, type=click.UNPROCESSED)
-def exec(exec_args: tuple):
+def exec_(exec_args: tuple):
     perform_environment_checks()
     container_running = find_airflow_container()
     if container_running:

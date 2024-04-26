@@ -84,8 +84,8 @@ class TestEC2CreateInstanceOperator(BaseEc2TestClass):
         instance_ids = create_instances.execute(None)
         assert len(instance_ids) == 5
 
-        for id in instance_ids:
-            assert ec2_hook.get_instance_state(instance_id=id) == "running"
+        for instance_id in instance_ids:
+            assert ec2_hook.get_instance_state(instance_id=instance_id) == "running"
 
 
 class TestEC2TerminateInstanceOperator(BaseEc2TestClass):
@@ -130,15 +130,15 @@ class TestEC2TerminateInstanceOperator(BaseEc2TestClass):
         instance_ids = create_instances.execute(None)
         assert len(instance_ids) == 5
 
-        for id in instance_ids:
-            assert ec2_hook.get_instance_state(instance_id=id) == "running"
+        for instance_id in instance_ids:
+            assert ec2_hook.get_instance_state(instance_id=instance_id) == "running"
 
         terminate_instance = EC2TerminateInstanceOperator(
             task_id="test_terminate_instance", instance_ids=instance_ids
         )
         terminate_instance.execute(None)
-        for id in instance_ids:
-            assert ec2_hook.get_instance_state(instance_id=id) == "terminated"
+        for instance_id in instance_ids:
+            assert ec2_hook.get_instance_state(instance_id=instance_id) == "terminated"
 
 
 class TestEC2StartInstanceOperator(BaseEc2TestClass):
@@ -253,15 +253,15 @@ class TestEC2HibernateInstanceOperator(BaseEc2TestClass):
         instance_ids = create_instances.execute(None)
         assert len(instance_ids) == 5
 
-        for id in instance_ids:
-            assert ec2_hook.get_instance_state(instance_id=id) == "running"
+        for instance_id in instance_ids:
+            assert ec2_hook.get_instance_state(instance_id=instance_id) == "running"
 
         hibernate_instance = EC2HibernateInstanceOperator(
             task_id="test_hibernate_instance", instance_ids=instance_ids
         )
         hibernate_instance.execute(None)
-        for id in instance_ids:
-            assert ec2_hook.get_instance_state(instance_id=id) == "stopped"
+        for instance_id in instance_ids:
+            assert ec2_hook.get_instance_state(instance_id=instance_id) == "stopped"
 
     @mock_aws
     def test_cannot_hibernate_instance(self):
@@ -319,8 +319,8 @@ class TestEC2HibernateInstanceOperator(BaseEc2TestClass):
             hibernate_test.execute(None)
 
         # assert instance state is running
-        for id in instance_ids:
-            assert ec2_hook.get_instance_state(instance_id=id) == "running"
+        for instance_id in instance_ids:
+            assert ec2_hook.get_instance_state(instance_id=instance_id) == "running"
 
 
 class TestEC2RebootInstanceOperator(BaseEc2TestClass):
@@ -363,12 +363,12 @@ class TestEC2RebootInstanceOperator(BaseEc2TestClass):
         instance_ids = create_instances.execute(None)
         assert len(instance_ids) == 5
 
-        for id in instance_ids:
-            assert ec2_hook.get_instance_state(instance_id=id) == "running"
+        for instance_id in instance_ids:
+            assert ec2_hook.get_instance_state(instance_id=instance_id) == "running"
 
         terminate_instance = EC2RebootInstanceOperator(
             task_id="test_reboot_instance", instance_ids=instance_ids
         )
         terminate_instance.execute(None)
-        for id in instance_ids:
-            assert ec2_hook.get_instance_state(instance_id=id) == "running"
+        for instance_id in instance_ids:
+            assert ec2_hook.get_instance_state(instance_id=instance_id) == "running"

@@ -51,22 +51,24 @@ bash_task = BashOperator(task_id="bash-task", bash_command="ls -halt && exit 0",
 python_task_getcwd >> bash_task
 
 
-def callable():
+def sample_callable():
     print(10)
 
 
-CODE = "def callable():\n    print(10)\n"
+CODE = "def sample_callable():\n    print(10)\n"
 
 
 def test_extract_source_code():
-    code = inspect.getsource(callable)
+    code = inspect.getsource(sample_callable)
     assert code == CODE
 
 
 @patch("airflow.providers.openlineage.conf.is_source_enabled")
 def test_extract_operator_code_disabled(mocked_source_enabled):
     mocked_source_enabled.return_value = False
-    operator = PythonOperator(task_id="taskid", python_callable=callable, op_args=(1, 2), op_kwargs={"a": 1})
+    operator = PythonOperator(
+        task_id="taskid", python_callable=sample_callable, op_args=(1, 2), op_kwargs={"a": 1}
+    )
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", AirflowProviderDeprecationWarning)
         result = PythonExtractor(operator).extract()
@@ -84,7 +86,9 @@ def test_extract_operator_code_disabled(mocked_source_enabled):
 @patch("airflow.providers.openlineage.conf.is_source_enabled")
 def test_extract_operator_code_enabled(mocked_source_enabled):
     mocked_source_enabled.return_value = True
-    operator = PythonOperator(task_id="taskid", python_callable=callable, op_args=(1, 2), op_kwargs={"a": 1})
+    operator = PythonOperator(
+        task_id="taskid", python_callable=sample_callable, op_args=(1, 2), op_kwargs={"a": 1}
+    )
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", AirflowProviderDeprecationWarning)
         result = PythonExtractor(operator).extract()

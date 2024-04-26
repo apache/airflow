@@ -915,16 +915,16 @@ class CustomBuildHook(BuildHookInterface[BuilderConfig]):
 
         :param version: "standard" or "editable" build.
         """
-        for dict, _ in ALL_DYNAMIC_EXTRA_DICTS:
-            for extra, deps in dict.items():
+        for d, _ in ALL_DYNAMIC_EXTRA_DICTS:
+            for extra, deps in d.items():
                 self.all_devel_extras.add(extra)
                 self._add_devel_ci_dependencies(deps, python_exclusion="")
-                if dict not in [DEPRECATED_EXTRAS, DEVEL_EXTRAS, DOC_EXTRAS]:
+                if d not in [DEPRECATED_EXTRAS, DEVEL_EXTRAS, DOC_EXTRAS]:
                     # do not add deprecated extras to "all" extras
                     self.all_non_devel_extras.add(extra)
                 if version == "standard":
                     # for wheel builds we skip devel and doc extras
-                    if dict not in [DEVEL_EXTRAS, DOC_EXTRAS]:
+                    if d not in [DEVEL_EXTRAS, DOC_EXTRAS]:
                         self.optional_dependencies[extra] = deps
                 else:
                     # for editable builds we add all extras

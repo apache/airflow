@@ -289,6 +289,7 @@ extend-select = [
     "PGH004",  # Use specific rule codes when using noqa
     "PGH005", # Invalid unittest.mock.Mock methods/attributes/properties
     "S101", # Checks use `assert` outside the test cases, test cases should be added into the exclusions
+    "A001", # Checks for variable (and function) assignments that use the same name as a builtin.
     "B004", # Checks for use of hasattr(x, "__call__") and replaces it with callable(x)
     "B006", # Checks for uses of mutable objects as function argument defaults.
     "B007", # Checks for unused variables in the loop
@@ -391,6 +392,15 @@ combine-as-imports = true
 
 # https://github.com/apache/airflow/issues/39252
 "airflow/providers/amazon/aws/hooks/eks.py" = ["W605"]
+
+# Airflow Core / Providers modules which still shadowing a Python builtin variables/functions/classes
+"airflow/api_connexion/endpoints/task_instance_endpoint.py" = ["A001"]
+"airflow/cli/cli_config.py" = ["A001"]
+"airflow/configuration.py" = ["A001"]
+"airflow/models/dag.py" = ["A001"]
+"airflow/providers/amazon/aws/hooks/s3.py" = ["A001"]
+"airflow/providers/databricks/hooks/databricks.py" = ["A001"]
+"airflow/providers/google/cloud/operators/bigquery.py" = ["A001"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.

@@ -100,7 +100,7 @@ class TestEmrServerlessCreateApplicationOperator:
             waiter_delay=0,
         )
 
-        id = operator.execute(None)
+        result = operator.execute(None)
 
         mock_conn.create_application.assert_called_once_with(
             clientToken=client_request_token,
@@ -117,7 +117,7 @@ class TestEmrServerlessCreateApplicationOperator:
         assert mock_waiter().wait.call_count == 2
 
         mock_conn.start_application.assert_called_once_with(applicationId=application_id)
-        assert id == application_id
+        assert result == application_id
         mock_conn.get_application.call_count == 2
 
     @mock.patch.object(EmrServerlessHook, "get_waiter")
@@ -138,7 +138,7 @@ class TestEmrServerlessCreateApplicationOperator:
             config=config,
         )
 
-        id = operator.execute(None)
+        result = operator.execute(None)
 
         mock_conn.create_application.assert_called_once_with(
             clientToken=client_request_token,
@@ -149,7 +149,7 @@ class TestEmrServerlessCreateApplicationOperator:
         mock_conn.start_application.assert_called_once_with(applicationId=application_id)
 
         mock_waiter().wait.assert_called_once()
-        assert id == application_id
+        assert result == application_id
 
     @mock.patch.object(EmrServerlessHook, "conn")
     def test_failed_create_application_request(self, mock_conn):
@@ -403,12 +403,12 @@ class TestEmrServerlessStartJobOperator:
             job_driver=job_driver,
             configuration_overrides=configuration_overrides,
         )
-        id = operator.execute(self.mock_context)
+        result = operator.execute(self.mock_context)
         default_name = operator.name
 
         assert operator.wait_for_completion is True
         mock_conn.get_application.assert_called_once_with(applicationId=application_id)
-        assert id == job_run_id
+        assert result == job_run_id
         mock_conn.start_job_run.assert_called_once_with(
             clientToken=client_request_token,
             applicationId=application_id,
@@ -475,13 +475,13 @@ class TestEmrServerlessStartJobOperator:
             job_driver=job_driver,
             configuration_overrides=configuration_overrides,
         )
-        id = operator.execute(self.mock_context)
+        result = operator.execute(self.mock_context)
         default_name = operator.name
 
         assert operator.wait_for_completion is True
         mock_conn.get_application.assert_called_once_with(applicationId=application_id)
         assert mock_get_waiter().wait.call_count == 2
-        assert id == job_run_id
+        assert result == job_run_id
         mock_conn.start_job_run.assert_called_once_with(
             clientToken=client_request_token,
             applicationId=application_id,
@@ -544,12 +544,12 @@ class TestEmrServerlessStartJobOperator:
             configuration_overrides=configuration_overrides,
             wait_for_completion=False,
         )
-        id = operator.execute(self.mock_context)
+        result = operator.execute(self.mock_context)
         default_name = operator.name
 
         mock_conn.get_application.assert_called_once_with(applicationId=application_id)
         mock_get_waiter().wait.assert_called_once()
-        assert id == job_run_id
+        assert result == job_run_id
         mock_conn.start_job_run.assert_called_once_with(
             clientToken=client_request_token,
             applicationId=application_id,
@@ -578,8 +578,8 @@ class TestEmrServerlessStartJobOperator:
             configuration_overrides=configuration_overrides,
             wait_for_completion=False,
         )
-        id = operator.execute(self.mock_context)
-        assert id == job_run_id
+        result = operator.execute(self.mock_context)
+        assert result == job_run_id
         default_name = operator.name
 
         mock_conn.start_job_run.assert_called_once_with(
@@ -746,11 +746,11 @@ class TestEmrServerlessStartJobOperator:
             wait_for_completion=False,
         )
 
-        id = operator.execute(self.mock_context)
+        result = operator.execute(self.mock_context)
         operator.on_kill()
         mock_conn.cancel_job_run.assert_called_once_with(
             applicationId=application_id,
-            jobRunId=id,
+            jobRunId=result,
         )
 
     @pytest.mark.parametrize(

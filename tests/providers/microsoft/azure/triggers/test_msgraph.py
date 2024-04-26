@@ -142,9 +142,9 @@ class TestResponseSerializer:
         assert actual == content
 
     def test_serialize_when_dict_with_uuid_datatime_and_pendulum_then_json(self):
-        id = uuid4()
+        uniq_id = uuid4()
         response = {
-            "id": id,
+            "id": uniq_id,
             "creationDate": datetime(2024, 2, 5),
             "modificationTime": pendulum.datetime(2024, 2, 5),
         }
@@ -154,7 +154,7 @@ class TestResponseSerializer:
         assert isinstance(actual, str)
         assert (
             actual
-            == f'{{"id": "{id}", "creationDate": "2024-02-05T00:00:00", "modificationTime": "2024-02-05T00:00:00+00:00"}}'
+            == f'{{"id": "{uniq_id}", "creationDate": "2024-02-05T00:00:00", "modificationTime": "2024-02-05T00:00:00+00:00"}}'
         )
 
     def test_deserialize_when_json(self):

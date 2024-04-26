@@ -88,11 +88,11 @@ def test_parse_version():
 def test_safe_dict():
     assert str(SafeStrDict({"a": 1})) == str({"a": 1})
 
-    class NotImplemented:
+    class FakeNotImplemented:
         def __str__(self):
             raise NotImplementedError
 
-    assert str(SafeStrDict({"a": NotImplemented()})) == str({})
+    assert str(SafeStrDict({"a": FakeNotImplemented()})) == str({})
 
 
 def test_info_json_encodable():

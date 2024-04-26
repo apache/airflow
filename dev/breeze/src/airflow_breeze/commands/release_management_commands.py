@@ -2788,9 +2788,9 @@ def _copy_selected_sources_from_tmp_directory_to_clients_python():
         f"[info]Copying selected sources: {GENERATED_CLIENT_DIRECTORIES_TO_COPY} from "
         f"{PYTHON_CLIENT_TMP_DIR} to {PYTHON_CLIENT_DIR_PATH}[/]"
     )
-    for dir in GENERATED_CLIENT_DIRECTORIES_TO_COPY:
-        source_dir = PYTHON_CLIENT_TMP_DIR / dir
-        target_dir = PYTHON_CLIENT_DIR_PATH / dir
+    for directory in GENERATED_CLIENT_DIRECTORIES_TO_COPY:
+        source_dir = PYTHON_CLIENT_TMP_DIR / directory
+        target_dir = PYTHON_CLIENT_DIR_PATH / directory
         get_console().print(f"[info]  Copying generated sources from {source_dir} to {target_dir}[/]")
         shutil.rmtree(target_dir, ignore_errors=True)
         shutil.copytree(source_dir, target_dir)
@@ -2926,9 +2926,9 @@ def prepare_python_client(
             get_console().print(
                 f"[info]Copying generated client from {PYTHON_CLIENT_DIR_PATH} to {python_client_repo}[/]"
             )
-            for dir in GENERATED_CLIENT_DIRECTORIES_TO_COPY:
-                source_dir = PYTHON_CLIENT_DIR_PATH / dir
-                target_dir = python_client_repo / dir
+            for directory in GENERATED_CLIENT_DIRECTORIES_TO_COPY:
+                source_dir = PYTHON_CLIENT_DIR_PATH / directory
+                target_dir = python_client_repo / directory
                 get_console().print(f"[info]  Copying {source_dir} to {target_dir}[/]")
                 shutil.rmtree(target_dir, ignore_errors=True)
                 shutil.copytree(source_dir, target_dir)

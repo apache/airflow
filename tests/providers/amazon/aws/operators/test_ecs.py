@@ -309,8 +309,8 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         assert self.ecs.arn == f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
 
     def test_task_id_parsing(self):
-        id = EcsRunTaskOperator._get_ecs_task_id(f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}")
-        assert id == TASK_ID
+        task_id = EcsRunTaskOperator._get_ecs_task_id(f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}")
+        assert task_id == TASK_ID
 
     @mock.patch.object(EcsBaseOperator, "client")
     def test_execute_with_failures(self, client_mock):

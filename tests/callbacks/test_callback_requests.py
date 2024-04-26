@@ -37,7 +37,7 @@ pytestmark = pytest.mark.db_test
 
 class TestCallbackRequest:
     @pytest.mark.parametrize(
-        "input,request_class",
+        "callback_request, request_class",
         [
             (CallbackRequest(full_filepath="filepath", msg="task_failure"), CallbackRequest),
             (
@@ -64,8 +64,8 @@ class TestCallbackRequest:
             ),
         ],
     )
-    def test_from_json(self, input, request_class):
-        if input is None:
+    def test_from_json(self, callback_request, request_class):
+        if callback_request is None:
             ti = TaskInstance(
                 task=BashOperator(
                     task_id="test", bash_command="true", dag=DAG(dag_id="id"), start_date=datetime.now()
@@ -74,15 +74,15 @@ class TestCallbackRequest:
                 state=State.RUNNING,
             )
 
-            input = TaskCallbackRequest(
+            callback_request = TaskCallbackRequest(
                 full_filepath="filepath",
                 simple_task_instance=SimpleTaskInstance.from_ti(ti=ti),
                 processor_subdir="/test_dir",
                 is_failure_callback=True,
             )
-        json_str = input.to_json()
+        json_str = callback_request.to_json()
         result = request_class.from_json(json_str=json_str)
-        assert result == input
+        assert result == callback_request
 
     def test_taskcallback_to_json_with_start_date_and_end_date(self, session, create_task_instance):
         ti = create_task_instance()
@@ -90,15 +90,15 @@ class TestCallbackRequest:
         ti.end_date = timezone.utcnow()
         session.merge(ti)
         session.flush()
-        input = TaskCallbackRequest(
+        callback_request = TaskCallbackRequest(
             full_filepath="filepath",
             simple_task_instance=SimpleTaskInstance.from_ti(ti),
             processor_subdir="/test_dir",
             is_failure_callback=True,
         )
-        json_str = input.to_json()
+        json_str = callback_request.to_json()
         result = TaskCallbackRequest.from_json(json_str)
-        assert input == result
+        assert callback_request == result
 
     def test_simple_ti_roundtrip_exec_config_pod(self):
         """A callback request including a TI with an exec config with a V1Pod should safely roundtrip."""

@@ -125,18 +125,18 @@ class TestCloudBathHook:
         number_of_jobs = 3
         region = "us-central1"
         project_id = "test_project_id"
-        filter = "filter_description"
+        filter_ = "filter_description"
 
         page = self._mock_pager(number_of_jobs)
         mock_batch_service_client.return_value.list_jobs.return_value = page
 
-        jobs_list = cloud_batch_hook.list_jobs(region=region, project_id=project_id, filter=filter)
+        jobs_list = cloud_batch_hook.list_jobs(region=region, project_id=project_id, filter=filter_)
 
         for i in range(number_of_jobs):
             assert jobs_list[i].name == f"name{i}"
 
         expected_list_jobs_request: ListJobsRequest = ListJobsRequest(
-            parent=f"projects/{project_id}/locations/{region}", filter=filter
+            parent=f"projects/{project_id}/locations/{region}", filter=filter_
         )
         mock_batch_service_client.return_value.list_jobs.assert_called_once_with(
             request=expected_list_jobs_request
@@ -152,13 +152,13 @@ class TestCloudBathHook:
         limit = 2
         region = "us-central1"
         project_id = "test_project_id"
-        filter = "filter_description"
+        filter_ = "filter_description"
 
         page = self._mock_pager(number_of_jobs)
         mock_batch_service_client.return_value.list_jobs.return_value = page
 
         jobs_list = cloud_batch_hook.list_jobs(
-            region=region, project_id=project_id, filter=filter, limit=limit
+            region=region, project_id=project_id, filter=filter_, limit=limit
         )
 
         assert len(jobs_list) == limit
@@ -175,13 +175,13 @@ class TestCloudBathHook:
         limit = 0
         region = "us-central1"
         project_id = "test_project_id"
-        filter = "filter_description"
+        filter_ = "filter_description"
 
         page = self._mock_pager(number_of_jobs)
         mock_batch_service_client.return_value.list_jobs.return_value = page
 
         jobs_list = cloud_batch_hook.list_jobs(
-            region=region, project_id=project_id, filter=filter, limit=limit
+            region=region, project_id=project_id, filter=filter_, limit=limit
         )
 
         assert len(jobs_list) == 0
@@ -196,13 +196,13 @@ class TestCloudBathHook:
         limit = 5
         region = "us-central1"
         project_id = "test_project_id"
-        filter = "filter_description"
+        filter_ = "filter_description"
 
         page = self._mock_pager(number_of_jobs)
         mock_batch_service_client.return_value.list_jobs.return_value = page
 
         jobs_list = cloud_batch_hook.list_jobs(
-            region=region, project_id=project_id, filter=filter, limit=limit
+            region=region, project_id=project_id, filter=filter_, limit=limit
         )
 
         assert len(jobs_list) == number_of_jobs
@@ -219,13 +219,13 @@ class TestCloudBathHook:
         limit = -1
         region = "us-central1"
         project_id = "test_project_id"
-        filter = "filter_description"
+        filter_ = "filter_description"
 
         page = self._mock_pager(number_of_jobs)
         mock_batch_service_client.return_value.list_jobs.return_value = page
 
         with pytest.raises(expected_exception=AirflowException):
-            cloud_batch_hook.list_jobs(region=region, project_id=project_id, filter=filter, limit=limit)
+            cloud_batch_hook.list_jobs(region=region, project_id=project_id, filter=filter_, limit=limit)
 
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
@@ -237,14 +237,14 @@ class TestCloudBathHook:
         limit = 2
         region = "us-central1"
         project_id = "test_project_id"
-        filter = "filter_description"
+        filter_ = "filter_description"
         job_name = "test_job"
 
         page = self._mock_pager(number_of_tasks)
         mock_batch_service_client.return_value.list_tasks.return_value = page
 
         tasks_list = cloud_batch_hook.list_tasks(
-            region=region, project_id=project_id, job_name=job_name, filter=filter, limit=limit
+            region=region, project_id=project_id, job_name=job_name, filter=filter_, limit=limit
         )
 
         assert len(tasks_list) == limit
@@ -261,14 +261,14 @@ class TestCloudBathHook:
         limit = 5
         region = "us-central1"
         project_id = "test_project_id"
-        filter = "filter_description"
+        filter_ = "filter_description"
         job_name = "test_job"
 
         page = self._mock_pager(number_of_tasks)
         mock_batch_service_client.return_value.list_tasks.return_value = page
 
         tasks_list = cloud_batch_hook.list_tasks(
-            region=region, project_id=project_id, filter=filter, job_name=job_name, limit=limit
+            region=region, project_id=project_id, filter=filter_, job_name=job_name, limit=limit
         )
 
         assert len(tasks_list) == number_of_tasks
@@ -285,7 +285,7 @@ class TestCloudBathHook:
         limit = -1
         region = "us-central1"
         project_id = "test_project_id"
-        filter = "filter_description"
+        filter_ = "filter_description"
         job_name = "test_job"
 
         page = self._mock_pager(number_of_tasks)
@@ -293,7 +293,7 @@ class TestCloudBathHook:
 
         with pytest.raises(expected_exception=AirflowException):
             cloud_batch_hook.list_tasks(
-                region=region, project_id=project_id, job_name=job_name, filter=filter, limit=limit
+                region=region, project_id=project_id, job_name=job_name, filter=filter_, limit=limit
             )
 
     def _mock_job_with_status(self, status: JobStatus.State):

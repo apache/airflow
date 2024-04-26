@@ -41,10 +41,10 @@ added = False
 
 if __name__ == "__main__":
     for dirname, sub_dirs, _ in os.walk(ROOT_DIR / "tests"):
-        dir = Path(dirname)
+        directory = Path(dirname)
         sub_dirs[:] = [subdir for subdir in sub_dirs if subdir not in {"__pycache__", "test_logs"}]
         for sub_dir in sub_dirs:
-            init_py_path = dir / sub_dir / "__init__.py"
+            init_py_path = directory / sub_dir / "__init__.py"
             if not init_py_path.exists():
                 init_py_path.touch()
                 console.print(f"[yellow] Created {init_py_path}[/]")

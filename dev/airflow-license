@@ -76,8 +76,8 @@ if __name__ == "__main__":
 
     for notice in notices:
         notice = notice[0]
-        license = parse_license_file(notice[1])
-        print(f"{notice[1]:<30}|{notice[2][:50]:<50}||{notice[0]:<20}||{license:<10}")
+        license_type = parse_license_file(notice[1])
+        print(f"{notice[1]:<30}|{notice[2][:50]:<50}||{notice[0]:<20}||{license_type:<10}")
 
     file_count = len(os.listdir("../licenses"))
     print(f"Defined licenses: {len(notices)} Files found: {file_count}")

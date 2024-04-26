@@ -2834,7 +2834,7 @@ class TestDataprocListBatchesOperator:
     def test_execute(self, mock_hook):
         page_token = "page_token"
         page_size = 42
-        filter = 'batch_id=~"a-batch-id*" AND create_time>="2023-07-05T14:25:04.643818Z"'
+        filter_ = 'batch_id=~"a-batch-id*" AND create_time>="2023-07-05T14:25:04.643818Z"'
         order_by = "create_time desc"
 
         op = DataprocListBatchesOperator(
@@ -2848,7 +2848,7 @@ class TestDataprocListBatchesOperator:
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
-            filter=filter,
+            filter=filter_,
             order_by=order_by,
         )
         op.execute(context=MagicMock())
@@ -2861,7 +2861,7 @@ class TestDataprocListBatchesOperator:
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
-            filter=filter,
+            filter=filter_,
             order_by=order_by,
         )
 

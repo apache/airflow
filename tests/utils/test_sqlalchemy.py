@@ -188,7 +188,7 @@ class TestSqlAlchemyUtils:
 
 class TestExecutorConfigType:
     @pytest.mark.parametrize(
-        "input, expected",
+        "input_value, expected",
         [
             ("anything", "anything"),
             (
@@ -202,7 +202,7 @@ class TestExecutorConfigType:
             ),
         ],
     )
-    def test_bind_processor(self, input, expected):
+    def test_bind_processor(self, input_value, expected):
         """
         The returned bind processor should pickle the object as is, unless it is a dictionary with
         a pod_override node, in which case it should run it through BaseSerialization.
@@ -211,11 +211,11 @@ class TestExecutorConfigType:
         mock_dialect = MagicMock()
         mock_dialect.dbapi = None
         process = config_type.bind_processor(mock_dialect)
-        assert pickle.loads(process(input)) == expected
-        assert pickle.loads(process(input)) == expected, "should not mutate variable"
+        assert pickle.loads(process(input_value)) == expected
+        assert pickle.loads(process(input_value)) == expected, "should not mutate variable"
 
     @pytest.mark.parametrize(
-        "input",
+        "input_value",
         [
             pytest.param(
                 pickle.dumps("anything"),
@@ -235,7 +235,7 @@ class TestExecutorConfigType:
             ),
         ],
     )
-    def test_result_processor(self, input):
+    def test_result_processor(self, input_value):
         """
         The returned bind processor should pickle the object as is, unless it is a dictionary with
         a pod_override node whose value was serialized with BaseSerialization.
@@ -244,8 +244,8 @@ class TestExecutorConfigType:
         mock_dialect = MagicMock()
         mock_dialect.dbapi = None
         process = config_type.result_processor(mock_dialect, None)
-        result = process(input)
-        expected = pickle.loads(input)
+        result = process(input_value)
+        expected = pickle.loads(input_value)
         pod_override = isinstance(expected, dict) and expected.get("pod_override")
         if pod_override and isinstance(pod_override, dict) and pod_override.get(Encoding.TYPE):
             # We should only deserialize a pod_override with BaseSerialization if
@@ -301,7 +301,7 @@ class TestExecutorConfigType:
         with pytest.raises(AttributeError):
             test_pod.to_dict()
         # define what will be retrieved from db
-        input = pickle.dumps({"pod_override": TEST_POD})
+        ser = pickle.dumps({"pod_override": TEST_POD})
 
         # get the result processor method
         config_type = ExecutorConfigType()
@@ -310,7 +310,7 @@ class TestExecutorConfigType:
         process = config_type.result_processor(mock_dialect, None)
 
         # apply the result processor
-        result = process(input)
+        result = process(ser)
 
         # show that the pickled (bad) pod is now a good pod, and same as the copy made
         # before making it bad

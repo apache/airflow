@@ -210,7 +210,7 @@ class FakeElasticsearch(Elasticsearch):
             self.__documents_dict[index] = []
 
         if id is None:
-            id = get_random_id()
+            id = get_random_id()  # noqa: A001 id is a part of ``Elasticsearch.index`` method
 
         version = 1
 

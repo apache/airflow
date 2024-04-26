@@ -209,9 +209,11 @@ def update_issue_status(
     if not_completed_closed_issues:
         console.print("[yellow] Issues that are not completed and should be opened:[/]\n")
         for issue in not_completed_closed_issues:
-            all = per_issue_num_all[issue.id]
+            all_ = per_issue_num_all[issue.id]
             done = per_issue_num_done[issue.id]
-            console.print(f" * [[yellow]{issue.title}[/]]({issue.html_url}): {done}/{all} : {done / all:.2%}")
+            console.print(
+                f" * [[yellow]{issue.title}[/]]({issue.html_url}): {done}/{all_} : {done / all_:.2%}"
+            )
         console.print()
     if completed_open_issues:
         console.print("[yellow] Issues that are completed and should be closed:[/]\n")
@@ -221,9 +223,11 @@ def update_issue_status(
     if not_completed_opened_issues:
         console.print("[yellow] Issues that are not completed and are still opened:[/]\n")
         for issue in not_completed_opened_issues:
-            all = per_issue_num_all[issue.id]
+            all_ = per_issue_num_all[issue.id]
             done = per_issue_num_done[issue.id]
-            console.print(f" * [[yellow]{issue.title}[/]]({issue.html_url}): {done}/{all} : {done / all:.2%}")
+            console.print(
+                f" * [[yellow]{issue.title}[/]]({issue.html_url}): {done}/{all_} : {done / all_:.2%}"
+            )
         console.print()
     if completed_closed_issues:
         console.print("[green] Issues that are completed and are already closed:[/]\n")

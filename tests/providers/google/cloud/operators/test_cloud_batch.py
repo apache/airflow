@@ -119,33 +119,33 @@ class TestCloudBatchDeleteJobOperator:
 class TestCloudBatchListJobsOperator:
     @mock.patch(CLOUD_BATCH_HOOK_PATH)
     def test_execute(self, hook_mock):
-        filter = "filter_description"
+        filter_ = "filter_description"
         limit = 2
         operator = CloudBatchListJobsOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, filter=filter, limit=limit
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, filter=filter_, limit=limit
         )
 
         operator.execute(context=mock.MagicMock())
 
         hook_mock.return_value.list_jobs.assert_called_once_with(
-            region=REGION, project_id=PROJECT_ID, filter=filter, limit=limit
+            region=REGION, project_id=PROJECT_ID, filter=filter_, limit=limit
         )
 
     @mock.patch(CLOUD_BATCH_HOOK_PATH)
     def test_execute_with_invalid_limit(self, hook_mock):
-        filter = "filter_description"
+        filter_ = "filter_description"
         limit = -1
 
         with pytest.raises(expected_exception=AirflowException):
             CloudBatchListJobsOperator(
-                task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, filter=filter, limit=limit
+                task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, filter=filter_, limit=limit
             )
 
 
 class TestCloudBatchListTasksOperator:
     @mock.patch(CLOUD_BATCH_HOOK_PATH)
     def test_execute(self, hook_mock):
-        filter = "filter_description"
+        filter_ = "filter_description"
         limit = 2
         job_name = "test_job"
 
@@ -154,7 +154,7 @@ class TestCloudBatchListTasksOperator:
             project_id=PROJECT_ID,
             region=REGION,
             job_name=job_name,
-            filter=filter,
+            filter=filter_,
             limit=limit,
         )
 
@@ -163,7 +163,7 @@ class TestCloudBatchListTasksOperator:
         hook_mock.return_value.list_tasks.assert_called_once_with(
             region=REGION,
             project_id=PROJECT_ID,
-            filter=filter,
+            filter=filter_,
             job_name=job_name,
             limit=limit,
             group_name="group0",
@@ -171,7 +171,7 @@ class TestCloudBatchListTasksOperator:
 
     @mock.patch(CLOUD_BATCH_HOOK_PATH)
     def test_execute_with_invalid_limit(self, hook_mock):
-        filter = "filter_description"
+        filter_ = "filter_description"
         limit = -1
         job_name = "test_job"
 
@@ -181,6 +181,6 @@ class TestCloudBatchListTasksOperator:
                 project_id=PROJECT_ID,
                 region=REGION,
                 job_name=job_name,
-                filter=filter,
+                filter=filter_,
                 limit=limit,
             )
