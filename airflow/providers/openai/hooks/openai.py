@@ -314,7 +314,7 @@ class OpenAIHook(BaseHook):
         files = self.conn.files.list()
         return files.data
 
-    def delete_file(self, file_id) -> FileDeleted:
+    def delete_file(self, file_id: str) -> FileDeleted:
         """
         Delete a file.
 
@@ -323,12 +323,12 @@ class OpenAIHook(BaseHook):
         response = self.conn.files.delete(file_id=file_id)
         return response
 
-    def create_vector_store(self, **kwargs) -> VectorStore:
+    def create_vector_store(self, **kwargs: Any) -> VectorStore:
         """Create a vector store."""
         vector_store = self.conn.beta.vector_stores.create(**kwargs)
         return vector_store
 
-    def get_vectors_stores(self, **kwargs) -> list[VectorStore]:
+    def get_vectors_stores(self, **kwargs: Any) -> list[VectorStore]:
         """Return a list of vector stores."""
         vector_stores = self.conn.beta.vector_stores.list(**kwargs)
         return vector_stores.data
@@ -342,7 +342,7 @@ class OpenAIHook(BaseHook):
         vector_store = self.conn.beta.vector_stores.retrieve(vector_store_id=vector_store_id)
         return vector_store
 
-    def modify_vector_store(self, vector_store_id: str, **kwargs) -> VectorStore:
+    def modify_vector_store(self, vector_store_id: str, **kwargs: Any) -> VectorStore:
         """
         Modify a vector store.
 
