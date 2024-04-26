@@ -242,15 +242,19 @@ def mock_vector_file_store_list():
                 id="test-file-abc123",
                 object="vector_store.file",
                 created_at=1699061776,
+                usage_bytes=1234,
                 vector_store_id=VECTOR_STORE_ID,
                 status="completed",
+                last_error=None
             ),
             VectorStoreFile(
                 id="test-file-abc456",
                 object="vector_store.file",
                 created_at=1699061776,
+                usage_bytes=1234,
                 vector_store_id=VECTOR_STORE_ID,
                 status="completed",
+                last_error=None
             ),
         ]
     )
