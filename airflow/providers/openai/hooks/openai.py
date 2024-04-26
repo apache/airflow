@@ -296,7 +296,8 @@ class OpenAIHook(BaseHook):
         :param purpose: The intended purpose of the uploaded file. Use "fine-tune" for
             Fine-tuning and "assistants" for Assistants and Messages.
         """
-        file_object = self.conn.files.create(file=open(file, "rb"), purpose=purpose)
+        with open(file, "rb") as file_stream:
+            file_object = self.conn.files.create(file=file_stream, purpose=purpose)
         return file_object
 
     def get_file(self, file_id: str) -> FileObject:
