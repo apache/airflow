@@ -38,7 +38,7 @@ integrations:
     tags: [software]
 
 dependencies:
-  - qdrant_client>=1.7.0
+  - qdrant_client>=1.9.0
   - apache-airflow>=2.7.0
 
 hooks:
