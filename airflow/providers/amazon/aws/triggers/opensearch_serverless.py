@@ -19,11 +19,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.opensearch_serverless import OpenSearchServerlessHook
-from airflow.providers.amazon.aws.sensors.opensearch_serverless import (
-    OpenSearchServerlessCollectionActiveSensor,
-)
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
-from airflow.utils.helpers import exactly_one, prune_dict
+from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
@@ -51,19 +48,17 @@ class OpenSearchServerlessCollectionActiveTrigger(AwsBaseWaiterTrigger):
         aws_conn_id: str | None = None,
     ) -> None:
         if not exactly_one(collection_id is None, collection_name is None):
-            raise AttributeError(OpenSearchServerlessCollectionActiveSensor.INVALID_ARGS_MESSAGE)
-
-        call_args = prune_dict({"ids": [collection_id], "names": [collection_name]})
+            raise AttributeError("Either collection_ids or collection_names must be provided, not both.")
 
         super().__init__(
             serialized_fields={"collection_id": collection_id, "collection_name": collection_name},
             waiter_name="collection_available",
-            waiter_args=call_args,
+            waiter_args={"ids": [collection_id]} if collection_id else {"names": [collection_name]},
             failure_message="OpenSearch Serverless Collection creation failed.",
             status_message="Status of OpenSearch Serverless Collection is",
             status_queries=["status"],
-            return_key="collection_id" if "ids" in call_args.keys() else "collection_name",
-            return_value=collection_id if "ids" in call_args.keys() else collection_name,
+            return_key="collection_id" if collection_id else "collection_name",
+            return_value=collection_id if collection_name else collection_name,
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
