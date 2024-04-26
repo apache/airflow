@@ -1786,15 +1786,17 @@ class TaskInstance(Base, LoggingMixin):
     @property
     def log_url(self) -> str:
         """Log URL for TaskInstance."""
-        iso = quote(self.execution_date.isoformat())
+        run_id = quote(self.run_id)
         base_url = conf.get_mandatory_value("webserver", "BASE_URL")
         return (
             f"{base_url}"
-            "/log"
-            f"?execution_date={iso}"
+            f"/dags"
+            f"/{self.dag_id}"
+            f"/grid"
+            f"?dag_run_id={run_id}"
             f"&task_id={self.task_id}"
-            f"&dag_id={self.dag_id}"
             f"&map_index={self.map_index}"
+            "&tab=logs"
         )
 
     @property
@@ -1854,7 +1856,7 @@ class TaskInstance(Base, LoggingMixin):
     ) -> TaskInstance | TaskInstancePydantic | None:
         query = (
             session.query(TaskInstance)
-            .options(lazyload("dag_run"))  # lazy load dag run to avoid locking it
+            .options(lazyload(TaskInstance.dag_run))  # lazy load dag run to avoid locking it
             .filter_by(
                 dag_id=dag_id,
                 run_id=run_id,
@@ -2907,7 +2909,8 @@ class TaskInstance(Base, LoggingMixin):
         # Log reschedule request
         session.add(
             TaskReschedule(
-                self.task,
+                self.task_id,
+                self.dag_id,
                 self.run_id,
                 self._try_number,
                 actual_start_date,

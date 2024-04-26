@@ -42,7 +42,7 @@ integrations:
     tags: [software]
 
 dependencies:
-  - apache-airflow>=2.6.0
+  - apache-airflow>=2.7.0
   - cohere>=4.37,<5
 
 hooks:

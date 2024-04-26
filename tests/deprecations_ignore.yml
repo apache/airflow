@@ -56,17 +56,7 @@
 
 
 # CLI
-- tests/cli/commands/test_connection_command.py::TestCliAddConnections::test_cli_connection_add
-- tests/cli/commands/test_connection_command.py::TestCliImportConnections::test_cli_connections_import_should_load_connections
-- tests/cli/commands/test_connection_command.py::TestCliImportConnections::test_cli_connections_import_should_not_overwrite_existing_connections
-- tests/cli/commands/test_connection_command.py::TestCliImportConnections::test_cli_connections_import_should_overwrite_existing_connections
 - tests/cli/commands/test_kubernetes_command.py::TestGenerateDagYamlCommand::test_generate_dag_yaml
-- tests/cli/commands/test_task_command.py::TestCliTasks::test_parentdag_downstream_clear
-- tests/cli/commands/test_task_command.py::TestCliTasks::test_subdag_clear
-- tests/cli/commands/test_task_command.py::TestCliTasks::test_task_states_for_dag_run
-- tests/cli/commands/test_task_command.py::TestCliTasks::test_test
-- tests/cli/commands/test_task_command.py::TestCliTasks::test_test_no_execution_date
-- tests/cli/commands/test_task_command.py::TestCliTasks::test_test_with_existing_dag_run
 
 
 # Core
@@ -186,44 +176,6 @@
 - tests/models/test_timestamp.py::test_timestamp_behaviour_with_timezone
 - tests/models/test_xcom.py::TestXCom::test_set_serialize_call_old_signature
 - tests/ti_deps/deps/test_prev_dagrun_dep.py::TestPrevDagrunDep::test_first_task_run_of_new_task
-- tests/utils/log/test_log_reader.py::TestLogView::test_read_log_stream_should_read_each_try_in_turn
-- tests/utils/log/test_log_reader.py::TestLogView::test_read_log_stream_should_support_multiple_chunks
-- tests/utils/log/test_log_reader.py::TestLogView::test_supports_external_link
-- tests/utils/log/test_log_reader.py::TestLogView::test_task_log_filename_unique
-- tests/utils/log/test_log_reader.py::TestLogView::test_test_read_log_chunks_should_read_all_files
-- tests/utils/log/test_log_reader.py::TestLogView::test_test_read_log_chunks_should_read_one_try
-- tests/utils/log/test_log_reader.py::TestLogView::test_test_test_read_log_stream_should_read_all_logs
-- tests/utils/log/test_log_reader.py::TestLogView::test_test_test_read_log_stream_should_read_one_try
-- tests/utils/test_cli_util.py::TestCliUtil::test_get_dags
-- tests/utils/test_dates.py::TestDates::test_days_ago
-- tests/utils/test_dates.py::TestUtilsDatesDateRange::test_both_end_date_and_num_given
-- tests/utils/test_dates.py::TestUtilsDatesDateRange::test_delta_cron_presets
-- tests/utils/test_dates.py::TestUtilsDatesDateRange::test_end_date_before_start_date
-- tests/utils/test_dates.py::TestUtilsDatesDateRange::test_invalid_delta
-- tests/utils/test_dates.py::TestUtilsDatesDateRange::test_negative_num_given
-- tests/utils/test_dates.py::TestUtilsDatesDateRange::test_no_delta
-- tests/utils/test_dates.py::TestUtilsDatesDateRange::test_positive_num_given
-- tests/utils/test_db_cleanup.py::TestDBCleanup::test_no_models_missing
-- tests/utils/test_email.py::TestEmailSmtp::test_send_mime
-- tests/utils/test_email.py::TestEmailSmtp::test_send_mime_complete_failure
-- tests/utils/test_email.py::TestEmailSmtp::test_send_mime_custom_timeout_retrylimit
-- tests/utils/test_email.py::TestEmailSmtp::test_send_mime_dryrun
-- tests/utils/test_email.py::TestEmailSmtp::test_send_mime_noauth
-- tests/utils/test_email.py::TestEmailSmtp::test_send_mime_partial_failure
-- tests/utils/test_email.py::TestEmailSmtp::test_send_mime_ssl_complete_failure
-- tests/utils/test_email.py::TestEmailSmtp::test_send_mime_ssl_default_context_if_not_set
-- tests/utils/test_email.py::TestEmailSmtp::test_send_mime_ssl_default_context_with_value_set_to_default
-- tests/utils/test_email.py::TestEmailSmtp::test_send_mime_ssl_none_context
-- tests/utils/test_log_handlers.py::TestFileTaskLogHandler::test_file_task_handler
-- tests/utils/test_log_handlers.py::TestFileTaskLogHandler::test_file_task_handler_running
-- tests/utils/test_log_handlers.py::TestFileTaskLogHandler::test_file_task_handler_when_ti_value_is_invalid
-- tests/utils/test_log_handlers.py::TestFileTaskLogHandler::test_read_from_k8s_under_multi_namespace_mode
-- tests/utils/test_sqlalchemy.py::TestSqlAlchemyUtils::test_process_bind_param_naive
-- tests/utils/test_sqlalchemy.py::TestSqlAlchemyUtils::test_utc_transformations
-- tests/utils/test_state.py::test_dagrun_state_enum_escape
-- tests/utils/test_task_handler_with_custom_formatter.py::test_custom_formatter_custom_format_not_affected_by_config
-- tests/utils/test_task_handler_with_custom_formatter.py::test_custom_formatter_default_format
-- tests/utils/test_types.py::test_runtype_enum_escape
 
 
 # Operators

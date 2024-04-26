@@ -111,7 +111,7 @@ class TestQuickSightSensor:
             assert sensor.quicksight_hook is sensor.hook
 
         with mock.patch("airflow.providers.amazon.aws.hooks.sts.StsHook") as mocked_class, pytest.warns(
-            AirflowProviderDeprecationWarning, match="consider to use `.*hook\.account_id` instead"
+            AirflowProviderDeprecationWarning, match=r"consider to use `.*hook\.account_id` instead"
         ):
             mocked_sts_hook = mock.MagicMock(name="FakeStsHook")
             mocked_class.return_value = mocked_sts_hook

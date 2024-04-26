@@ -146,6 +146,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-cncf-k8s-only-for-executors                         | Check cncf.kubernetes imports used for executors only        |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-code-deprecations                                   | Check deprecations categories in decorators                  |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-compat-cache-on-methods                             | Check that compat cache do not use on class methods          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-core-deprecation-classes                            | Verify usage of Airflow deprecation classes in core          |         |

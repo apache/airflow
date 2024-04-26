@@ -126,3 +126,7 @@ class QdrantHook(BaseHook):
             return True, "Connection established!"
         except (UnexpectedResponse, RpcError, ValueError) as e:
             return False, str(e)
+
+    def test_connection(self) -> tuple[bool, str]:
+        """Test the connection to the Qdrant instance."""
+        return self.verify_connection()

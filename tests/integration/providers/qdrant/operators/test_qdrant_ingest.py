@@ -60,7 +60,7 @@ class TestQdrantIngestOperator:
 
         hook = operator.hook
 
-        hook.conn.recreate_collection(
+        hook.conn.create_collection(
             collection_name, vectors_config=VectorParams(size=dimensions, distance=Distance.COSINE)
         )
 
