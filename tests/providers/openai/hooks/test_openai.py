@@ -292,12 +292,6 @@ def test_get_assistants(mock_openai_hook, mock_assistant_list):
     assert isinstance(assistants, list)
 
 
-def test_get_assistant_by_name(mock_openai_hook, mock_assistant_list):
-    mock_openai_hook.conn.beta.assistants.list.return_value = mock_assistant_list
-    assistant = mock_openai_hook.get_assistant_by_name(assistant_name=ASSISTANT_NAME)
-    assert assistant.name == ASSISTANT_NAME
-
-
 def test_modify_assistant(mock_openai_hook, mock_assistant):
     new_assistant_name = "New Test Assistant"
     mock_assistant.name = new_assistant_name
@@ -422,13 +416,6 @@ def test_get_files(mock_openai_hook, mock_file_list):
     assert isinstance(files, list)
 
 
-def test_get_file_by_name(mock_openai_hook, mock_file_list):
-    mock_openai_hook.conn.files.list.return_value = mock_file_list
-    file = mock_openai_hook.get_file_by_name(file_name=FILE_NAME)
-    assert file.id == FILE_ID
-    assert file.filename == FILE_NAME
-
-
 def test_delete_file(mock_openai_hook):
     delete_response = FileDeleted(id=FILE_ID, object="file", deleted=True)
     mock_openai_hook.conn.files.delete.return_value = delete_response
@@ -454,13 +441,6 @@ def test_get_vector_stores(mock_openai_hook, mock_vector_store_list):
     mock_openai_hook.conn.beta.vector_stores.list.return_value = mock_vector_store_list
     vector_stores = mock_openai_hook.get_vectors_stores()
     assert isinstance(vector_stores, list)
-
-
-def test_get_vector_store_by_name(mock_openai_hook, mock_vector_store_list):
-    mock_openai_hook.conn.beta.vector_stores.list.return_value = mock_vector_store_list
-    vector_store = mock_openai_hook.get_vector_store_by_name(vector_store_name=VECTOR_STORE_NAME)
-    assert vector_store.id == VECTOR_STORE_ID
-    assert vector_store.name == VECTOR_STORE_NAME
 
 
 def test_modify_vector_store(mock_openai_hook, mock_vector_store):

@@ -142,15 +142,6 @@ class OpenAIHook(BaseHook):
         assistants = self.conn.beta.assistants.list(**kwargs)
         return assistants.data
 
-    def get_assistant_by_name(self, assistant_name: str) -> Assistant | None:
-        """
-        Get an OpenAI Assistant object for a given name.
-
-        :param assistant_name: The name of the assistant to retrieve
-        """
-        assistants = self.get_assistants()
-        return next((assistant for assistant in assistants if assistant.name == assistant_name), None)
-
     def modify_assistant(self, assistant_id: str, **kwargs: Any) -> Assistant:
         """
         Modify an existing Assistant object.
@@ -322,15 +313,6 @@ class OpenAIHook(BaseHook):
         files = self.conn.files.list()
         return files.data
 
-    def get_file_by_name(self, file_name: str) -> FileObject | None:
-        """
-        Get an OpenAI Assistant object for a given name.
-
-        :param file_name: The name of the file object to retrieve
-        """
-        files = self.get_files()
-        return next((file for file in files if file.filename == file_name), None)
-
     def delete_file(self, file_id) -> FileDeleted:
         """
         Delete a file.
@@ -358,17 +340,6 @@ class OpenAIHook(BaseHook):
         """
         vector_store = self.conn.beta.vector_stores.retrieve(vector_store_id=vector_store_id)
         return vector_store
-
-    def get_vector_store_by_name(self, vector_store_name: str) -> VectorStore | None:
-        """
-        Get an OpenAI Vector Store object for a given name.
-
-        :param vector_store_name: The name of the vector store to retrieve.
-        """
-        vector_stores = self.get_vectors_stores()
-        return next(
-            (vector_store for vector_store in vector_stores if vector_store.name == vector_store_name), None
-        )
 
     def modify_vector_store(self, vector_store_id: str, **kwargs) -> VectorStore:
         """
