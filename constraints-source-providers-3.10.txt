@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-04-25T12:11:38.347386
+# This constraints file was automatically generated on 2024-04-25T23:34:46.758006
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -162,7 +162,7 @@ db-dtypes==1.2.0
 debugpy==1.8.1
 decorator==5.1.1
 defusedxml==0.7.1
-deltalake==0.17.1
+deltalake==0.17.2
 diagrams==0.23.4
 dill==0.3.1.1
 distlib==0.3.8
@@ -200,7 +200,7 @@ gcsfs==2023.12.2.post1
 geomet==0.2.1.post1
 gevent==24.2.1
 gitdb==4.0.11
-google-ads==23.1.0
+google-ads==24.0.0
 google-analytics-admin==0.22.7
 google-api-core==2.18.0
 google-api-python-client==2.127.0
@@ -353,7 +353,7 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.0.5
 mypy-boto3-appflow==1.34.0
-mypy-boto3-rds==1.34.91
+mypy-boto3-rds==1.34.92
 mypy-boto3-redshift-data==1.34.0
 mypy-boto3-s3==1.34.91
 mypy-extensions==1.0.0
@@ -373,9 +373,9 @@ objsize==0.7.0
 openai==1.23.6
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
-openlineage-integration-common==1.12.0
-openlineage-python==1.12.0
-openlineage_sql==1.12.0
+openlineage-integration-common==1.13.1
+openlineage-python==1.13.1
+openlineage_sql==1.13.1
 openpyxl==3.1.2
 opensearch-py==2.4.2
 opentelemetry-api==1.24.0
@@ -561,7 +561,7 @@ sympy==1.12
 tableauserverclient==0.19.0
 tabulate==0.9.0
 tenacity==8.2.3
-teradatasql==20.0.0.10
+teradatasql==20.0.0.11
 teradatasqlalchemy==20.0.0.0
 termcolor==2.4.0
 text-unidecode==1.3
