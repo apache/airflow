@@ -58,6 +58,8 @@ from airflow.utils.operator_helpers import ExecutionCallableRunner, KeywordParam
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
 
+log = logging.getLogger(__name__)
+
 if TYPE_CHECKING:
     from pendulum.datetime import DateTime
 
@@ -352,16 +354,21 @@ def _load_pickle():
 def _load_dill():
     try:
         import dill
-    except ImportError:
-        raise AirflowException("Unable to import 'dill' make sure that it installed.")
+    except ModuleNotFoundError:
+        log.error("Unable to import `dill` module. Please please make sure that it installed.")
+        raise
     return dill
 
 
 def _load_cloudpickle():
     try:
         import cloudpickle
-    except ImportError:
-        raise AirflowException("Unable to import 'cloudpickle' make sure that it installed.")
+    except ModuleNotFoundError:
+        log.error(
+            "Unable to import `cloudpickle` module. "
+            "Please install it with: pip install 'apache-airflow[cloudpickle]'"
+        )
+        raise
     return cloudpickle
 
 

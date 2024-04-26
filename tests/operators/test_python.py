@@ -922,13 +922,14 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             ),
         ],
     )
-    def test_advanced_serializer_not_installed(self, serializer):
+    def test_advanced_serializer_not_installed(self, serializer, caplog):
         """Test case for check raising an error if dill/cloudpickle is not installed."""
 
         def f(a): ...
 
-        with pytest.raises(AirflowException, match=f"Unable to import '{serializer}'"):
-            self.run_as_task(f, op_args=[42], serializer=serializer, system_site_packages=False)
+        with pytest.raises(ModuleNotFoundError):
+            self.run_as_task(f, op_args=[42], serializer=serializer)
+        assert f"Unable to import `{serializer}` module." in caplog.text
 
 
 venv_cache_path = tempfile.mkdtemp(prefix="venv_cache_path")
@@ -1320,7 +1321,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         [
             pytest.param("pickle", id="pickle"),
             pytest.param("dill", marks=DILL_MARKER, id="dill"),
-            pytest.param("cloudpickle", id="cloudpickle"),
+            pytest.param("cloudpickle", marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
             pytest.param(None, id="default"),
         ],
     )
