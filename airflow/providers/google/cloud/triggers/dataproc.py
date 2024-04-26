@@ -44,6 +44,7 @@ class DataprocBaseTrigger(BaseTrigger):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         polling_interval_seconds: int = 30,
+        cancel_on_kill: bool = True,
         delete_on_error: bool = True,
     ):
         super().__init__()
@@ -52,6 +53,7 @@ class DataprocBaseTrigger(BaseTrigger):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.polling_interval_seconds = polling_interval_seconds
+        self.cancel_on_kill = cancel_on_kill
         self.delete_on_error = delete_on_error
 
     def get_async_hook(self):
@@ -63,8 +65,8 @@ class DataprocBaseTrigger(BaseTrigger):
     def get_sync_hook(self):
         # The synchronous hook is utilized to delete the cluster when a task is cancelled.
         # This is because the asynchronous hook deletion is not awaited when the trigger task
-        # is cancelled. The call for deleting the cluster through the sync hook is not a blocking
-        # call, which means it does not wait until the cluster is deleted.
+        # is cancelled. The call for deleting the cluster or job through the sync hook is not a blocking
+        # call, which means it does not wait until the cluster or job is deleted.
         return DataprocHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -104,20 +106,39 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
                 "gcp_conn_id": self.gcp_conn_id,
                 "impersonation_chain": self.impersonation_chain,
                 "polling_interval_seconds": self.polling_interval_seconds,
+                "cancel_on_kill": self.cancel_on_kill,
             },
         )
 
     async def run(self):
-        while True:
-            job = await self.get_async_hook().get_job(
-                project_id=self.project_id, region=self.region, job_id=self.job_id
-            )
-            state = job.status.state
-            self.log.info("Dataproc job: %s is in state: %s", self.job_id, state)
-            if state in (JobStatus.State.DONE, JobStatus.State.CANCELLED, JobStatus.State.ERROR):
-                break
-            await asyncio.sleep(self.polling_interval_seconds)
-        yield TriggerEvent({"job_id": self.job_id, "job_state": state, "job": job})
+        try:
+            while True:
+                job = await self.get_async_hook().get_job(
+                    project_id=self.project_id, region=self.region, job_id=self.job_id
+                )
+                state = job.status.state
+                self.log.info("Dataproc job: %s is in state: %s", self.job_id, state)
+                if state in (JobStatus.State.DONE, JobStatus.State.CANCELLED, JobStatus.State.ERROR):
+                    break
+                await asyncio.sleep(self.polling_interval_seconds)
+            yield TriggerEvent({"job_id": self.job_id, "job_state": state, "job": job})
+        except asyncio.CancelledError:
+            self.log.info("Task got cancelled.")
+            try:
+                if self.job_id and self.cancel_on_kill:
+                    self.log.info("Cancelling the job: %s", self.job_id)
+                    # The synchronous hook is utilized to delete the cluster when a task is cancelled. This
+                    # is because the asynchronous hook deletion is not awaited when the trigger task is
+                    # cancelled. The call for deleting the cluster or job through the sync hook is not a
+                    # blocking call, which means it does not wait until the cluster or job is deleted.
+                    self.get_sync_hook().cancel_job(
+                        job_id=self.job_id, project_id=self.project_id, region=self.region
+                    )
+                    self.log.info("Job: %s is cancelled", self.job_id)
+                    yield TriggerEvent({"job_id": self.job_id, "job_state": ClusterStatus.State.DELETING})
+            except Exception as e:
+                self.log.error("Failed to cancel the job: %s with error : %s", self.job_id, str(e))
+                raise e
 
 
 class DataprocClusterTrigger(DataprocBaseTrigger):
