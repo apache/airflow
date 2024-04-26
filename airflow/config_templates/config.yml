@@ -500,7 +500,7 @@ core:
       type: integer
       example: ~
       default: "4096"
-    enable_purging_stale_dags:
+    purge_stale_dags:
       description: |
         Stale dags are deleted by default, set this to False
         if you want to keep them.

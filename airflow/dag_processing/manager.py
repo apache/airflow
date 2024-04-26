@@ -600,7 +600,7 @@ class DagFileProcessorManager(LoggingMixin):
             if self.standalone_dag_processor:
                 self._fetch_callbacks(max_callbacks_per_loop)
 
-            if conf.getboolean("core", "enable_purging_stale_dags", fallback=True):
+            if conf.getboolean("core", "purge_stale_dags", fallback=True):
                 self._purge_stale_dags()
             DagWarning.purge_inactive_dag_warnings()
             refreshed_dag_dir = self._refresh_dag_dir()
