@@ -1001,6 +1001,13 @@ repos:
         pass_filenames: true
         files: ^airflow/.*\.py$
         exclude: ^.*/.*_vendor/
+      - id: check-code-deprecations
+        name: Check deprecations categories in decorators
+        entry: ./scripts/ci/pre_commit/check_deprecations.py
+        language: python
+        pass_filenames: true
+        files: ^airflow/.*\.py$
+        exclude: ^.*/.*_vendor/
       - id: lint-chart-schema
         name: Lint chart/values.schema.json file
         entry: ./scripts/ci/pre_commit/chart_schema.py
