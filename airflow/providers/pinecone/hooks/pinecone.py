@@ -110,7 +110,7 @@ class PineconeHook(BaseHook):
         return region
 
     @cached_property
-    def pc(self) -> Pinecone:
+    def pinecone_client(self) -> Pinecone:
         """Pinecone object to interact with Pinecone."""
         pinecone_host = self.conn.host
         extras = self.conn.extra_dejson
@@ -125,14 +125,14 @@ class PineconeHook(BaseHook):
 
     def test_connection(self) -> tuple[bool, str]:
         try:
-            self.pc.list_indexes()
+            self.pinecone_client.list_indexes()
             return True, "Connection established"
         except Exception as e:
             return False, str(e)
 
     def list_indexes(self) -> Any:
         """Retrieve a list of all indexes in your project."""
-        return self.pc.list_indexes()
+        return self.pinecone_client.list_indexes()
 
     def upsert(
         self,
@@ -161,7 +161,7 @@ class PineconeHook(BaseHook):
         :param show_progress: Whether to show a progress bar using tqdm. Applied only
             if batch_size is provided.
         """
-        index = self.pc.Index(index_name)
+        index = self.pinecone_client.Index(index_name)
         return index.upsert(
             vectors=vectors,
             namespace=namespace,
@@ -228,7 +228,7 @@ class PineconeHook(BaseHook):
         :param metric: The metric to use.
         :param timeout: The timeout to use.
         """
-        self.pc.create_index(
+        self.pinecone_client.create_index(
             name=index_name,
             dimension=dimension,
             spec=spec,
@@ -242,7 +242,7 @@ class PineconeHook(BaseHook):
 
         :param index_name: The name of the index to describe.
         """
-        return self.pc.describe_index(name=index_name)
+        return self.pinecone_client.describe_index(name=index_name)
 
     def delete_index(self, index_name: str, timeout: int | None = None) -> None:
         """
@@ -251,7 +251,7 @@ class PineconeHook(BaseHook):
         :param index_name: the name of the index.
         :param timeout: Timeout for wait until index gets ready.
         """
-        self.pc.delete_index(name=index_name, timeout=timeout)
+        self.pinecone_client.delete_index(name=index_name, timeout=timeout)
 
     def configure_index(
         self, index_name: str, replicas: int | None = None, pod_type: str | None = ""
@@ -263,7 +263,7 @@ class PineconeHook(BaseHook):
         :param replicas: The new number of replicas.
         :param pod_type: the new pod_type for the index.
         """
-        self.pc.configure_index(name=index_name, replicas=replicas, pod_type=pod_type)
+        self.pinecone_client.configure_index(name=index_name, replicas=replicas, pod_type=pod_type)
 
     def create_collection(self, collection_name: str, index_name: str) -> None:
         """
@@ -272,7 +272,7 @@ class PineconeHook(BaseHook):
         :param collection_name: The name of the collection to create.
         :param index_name: The name of the source index.
         """
-        self.pc.create_collection(name=collection_name, source=index_name)
+        self.pinecone_client.create_collection(name=collection_name, source=index_name)
 
     def delete_collection(self, collection_name: str) -> None:
         """
@@ -280,7 +280,7 @@ class PineconeHook(BaseHook):
 
         :param collection_name: The name of the collection to delete.
         """
-        self.pc.delete_collection(collection_name)
+        self.pinecone_client.delete_collection(collection_name)
 
     def describe_collection(self, collection_name: str) -> Any:
         """
@@ -288,11 +288,11 @@ class PineconeHook(BaseHook):
 
         :param collection_name: The name of the collection to describe.
         """
-        return self.pc.describe_collection(collection_name)
+        return self.pinecone_client.describe_collection(collection_name)
 
     def list_collections(self) -> Any:
         """Retrieve a list of all collections in the current project."""
-        return self.pc.list_collections()
+        return self.pinecone_client.list_collections()
 
     def query_vector(
         self,
@@ -323,7 +323,7 @@ class PineconeHook(BaseHook):
         :param sparse_vector: sparse values of the query vector. Expected to be either a SparseValues object or a dict
          of the form: {'indices': List[int], 'values': List[float]}, where the lists each have the same length.
         """
-        index = self.pc.Index(index_name)
+        index = self.pinecone_client.Index(index_name)
         return index.query(
             vector=vector,
             id=query_id,
@@ -361,7 +361,7 @@ class PineconeHook(BaseHook):
         :param pool_threads: Number of threads for parallel upserting. If async_req is True, this must be provided.
         """
         responses = []
-        with self.pc.Index(index_name, pool_threads=pool_threads) as index:
+        with self.pinecone_client.Index(index_name, pool_threads=pool_threads) as index:
             if async_req and pool_threads:
                 async_results = [index.upsert(vectors=chunk, async_req=True) for chunk in self._chunks(data)]
                 responses = [async_result.get() for async_result in async_results]
@@ -388,5 +388,5 @@ class PineconeHook(BaseHook):
         :param stats_filter: If this parameter is present, the operation only returns statistics for vectors that
          satisfy the filter. See https://www.pinecone.io/docs/metadata-filtering/
         """
-        index = self.pc.Index(index_name)
+        index = self.pinecone_client.Index(index_name)
         return index.describe_index_stats(filter=stats_filter, **kwargs)
