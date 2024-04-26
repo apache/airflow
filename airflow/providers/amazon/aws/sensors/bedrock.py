@@ -70,7 +70,7 @@ class BedrockBaseSensor(AwsBaseSensor[BedrockHook]):
         super().__init__(**kwargs)
         self.deferrable = deferrable
 
-    def poke(self, context: Context) -> bool:
+    def poke(self, context: Context, **kwargs) -> bool:
         state = self.get_state()
         if state in self.FAILURE_STATES:
             # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
@@ -119,7 +119,7 @@ class BedrockAgentBaseSensor(AwsBaseSensor[BedrockAgentHook]):
         super().__init__(**kwargs)
         self.deferrable = deferrable
 
-    def poke(self, context: Context) -> bool:
+    def poke(self, context: Context, **kwargs) -> bool:
         state = self.get_state()
         if state in self.FAILURE_STATES:
             # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1

@@ -449,9 +449,7 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
             raise AirflowException(f"Error while running job: {event}")
 
         self.log.info("Bedrock knowledge base creation job `%s` complete.", self.name)
-        return self.hook.conn.get_knowledge_base(knowledgeBaseId=event["knowledge_base_id"])["knowledgeBase"][
-            "status"
-        ]
+        return event["knowledge_base_id"]
 
     def execute(self, context: Context) -> str:
         def _create_kb():
