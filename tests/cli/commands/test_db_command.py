@@ -103,7 +103,18 @@ class TestCliDb:
     @pytest.mark.parametrize(
         "args, pattern",
         [
-            pytest.param(["--to-version", "2.1.25"], "not supported", id="bad version"),
+            pytest.param(
+                ["--to-revision", "abc", "--to-version", "2.2.0"],
+                "Cannot supply both",
+                id="to both version and revision",
+            ),
+            pytest.param(
+                ["--from-revision", "abc", "--from-version", "2.2.0"],
+                "Cannot supply both",
+                id="from both version and revision",
+            ),
+            pytest.param(["--to-version", "2.1.25"], "Unknown version '2.1.25'", id="unknown to version"),
+            pytest.param(["--to-version", "abc"], "Invalid version 'abc'", id="invalid to version"),
             pytest.param(
                 ["--to-revision", "abc", "--from-revision", "abc123"],
                 "used with `--show-sql-only`",
@@ -115,9 +126,14 @@ class TestCliDb:
                 id="requires offline",
             ),
             pytest.param(
-                ["--to-revision", "abc", "--from-version", "2.1.25", "--show-sql-only"],
-                "Unknown version",
-                id="bad version",
+                ["--to-revision", "2.2.0", "--from-version", "2.1.25", "--show-sql-only"],
+                "Unknown version '2.1.25'",
+                id="unknown from version",
+            ),
+            pytest.param(
+                ["--to-revision", "2.9.0", "--from-version", "abc", "--show-sql-only"],
+                "Invalid version 'abc'",
+                id="invalid from version",
             ),
         ],
     )
