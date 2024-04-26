@@ -3480,34 +3480,20 @@ class TestTaskInstance:
 
     def test_rendered_map_index_on_dry_run(self, dag_maker, session):
         from airflow.utils.task_instance_session import set_current_task_instance_session
-        from airflow.operators.python import get_current_context
 
         with dag_maker(dag_id="example", session=session) as dag:
             @dag.task
             def emit():
                 return ["a", "b"]
 
-            @dag.task(map_index_template="instance-map-index-{{ task.my_variable }}")
+            @dag.task(map_index_template="instance-map-index-{{ task.op_kwargs['value'] * 3 }}")
             def example(value: str):
-                context = get_current_context()
-                context["my_variable"] = value * 3
+                # Whatever lies here won't be executed as we trigger a `dry_run()` only.
+                assert value
 
             example.expand(value=emit())
 
         dag_run = dag_maker.create_dagrun()
-
-        # kwargs = {
-        #         "state": State.RUNNING,
-        #         "start_date": pendulum.yesterday("UTC"),
-        #         "session": session,
-        #         "run_type": DagRunType.MANUAL,
-        #         "data_interval": (
-        #                              pendulum.yesterday("UTC"),
-        #             pendulum.now("UTC")
-        #                          ),
-        #         "execution_date": pendulum.now("UTC"),
-        #     }
-        # dag_run = dag.create_dagrun(**kwargs)
         emit_ti = dag_run.get_task_instance("emit", session=session)
         emit_ti.refresh_from_task(dag.get_task("emit"))
         emit_ti.run()
@@ -3520,6 +3506,7 @@ class TestTaskInstance:
 
         with set_current_task_instance_session(session):
             for ti in mapped_tis:
+                ti.task = example_task
                 ti.refresh_from_task(example_task)
                 ti.dry_run()
 

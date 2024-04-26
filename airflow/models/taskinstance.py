@@ -31,7 +31,6 @@ from collections import defaultdict
 from contextlib import nullcontext
 from datetime import timedelta
 from enum import Enum
-from pprint import pprint
 from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, Mapping, Tuple
 from urllib.parse import quote
 
@@ -2759,10 +2758,6 @@ class TaskInstance(Base, LoggingMixin):
         if jinja_env is None or (template := context.get("map_index_template")) is None:
             return None
 
-        pprint(self.task)
-        print()
-        pprint(context)
-
         rendered_map_index = self.task.render_template(template, context, jinja_env)
         self.log.debug("Map index rendered as %s", rendered_map_index)
         return rendered_map_index
@@ -2888,11 +2883,10 @@ class TaskInstance(Base, LoggingMixin):
         self.render_templates(context=context, jinja_env=jinja_env)
         self.task.dry_run()
 
-        with set_current_context(context):
-            self.rendered_map_index = self._render_map_index(
-                context,
-                jinja_env=jinja_env,
-            )
+        self.rendered_map_index = self._render_map_index(
+            context,
+            jinja_env=jinja_env,
+        )
 
     @provide_session
     def _handle_reschedule(
