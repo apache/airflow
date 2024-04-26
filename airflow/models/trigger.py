@@ -116,7 +116,15 @@ class Trigger(Base):
         from airflow.models.crypto import get_fernet
         from airflow.serialization.serialized_objects import BaseSerialization
 
-        decrypted_kwargs = json.loads(get_fernet().decrypt(encrypted_kwargs.encode("utf-8")).decode("utf-8"))
+        # We weren't able to encrypt the kwargs in all migration paths,
+        # so we need to handle the case where they are not encrypted.
+        # Triggers aren't long lasting, so we can skip encrypting them now.
+        if encrypted_kwargs.startswith("{"):
+            decrypted_kwargs = json.loads(encrypted_kwargs)
+        else:
+            decrypted_kwargs = json.loads(
+                get_fernet().decrypt(encrypted_kwargs.encode("utf-8")).decode("utf-8")
+            )
 
         return BaseSerialization.deserialize(decrypted_kwargs)
 

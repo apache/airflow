@@ -25,7 +25,7 @@ import warnings
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 
-from packaging.version import parse as parse_version
+from packaging.version import InvalidVersion, parse as parse_version
 from tenacity import Retrying, stop_after_attempt, wait_fixed
 
 from airflow import settings
@@ -111,16 +111,24 @@ def migratedb(args):
     if args.from_revision:
         from_revision = args.from_revision
     elif args.from_version:
-        if parse_version(args.from_version) < parse_version("2.0.0"):
+        try:
+            parsed_version = parse_version(args.from_version)
+        except InvalidVersion:
+            raise SystemExit(f"Invalid version {args.from_version!r} supplied as `--from-version`.")
+        if parsed_version < parse_version("2.0.0"):
             raise SystemExit("--from-version must be greater or equal to than 2.0.0")
         from_revision = get_version_revision(args.from_version)
         if not from_revision:
             raise SystemExit(f"Unknown version {args.from_version!r} supplied as `--from-version`.")
 
     if args.to_version:
+        try:
+            parse_version(args.to_version)
+        except InvalidVersion:
+            raise SystemExit(f"Invalid version {args.to_version!r} supplied as `--to-version`.")
         to_revision = get_version_revision(args.to_version)
         if not to_revision:
-            raise SystemExit(f"Upgrading to version {args.to_version} is not supported.")
+            raise SystemExit(f"Unknown version {args.to_version!r} supplied as `--to-version`.")
     elif args.to_revision:
         to_revision = args.to_revision
 
