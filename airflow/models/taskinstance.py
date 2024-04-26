@@ -31,6 +31,7 @@ from collections import defaultdict
 from contextlib import nullcontext
 from datetime import timedelta
 from enum import Enum
+from pprint import pprint
 from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, Mapping, Tuple
 from urllib.parse import quote
 
@@ -2752,9 +2753,15 @@ class TaskInstance(Base, LoggingMixin):
 
     def _render_map_index(self, context: Context, *, jinja_env: jinja2.Environment | None) -> str | None:
         """Render named map index if the DAG author defined map_index_template at the task level."""
+
         if jinja_env is None or (template := context.get("map_index_template")) is None:
             return None
-        rendered_map_index = jinja_env.from_string(template).render(context)
+
+        pprint(self.task)
+        print()
+        pprint(context)
+
+        rendered_map_index = self.task.render_template(template, context, jinja_env)
         self.log.debug("Map index rendered as %s", rendered_map_index)
         return rendered_map_index
 
@@ -2867,11 +2874,23 @@ class TaskInstance(Base, LoggingMixin):
             assert self.task
 
         self.task = self.task.prepare_for_execution()
-        self.render_templates()
+        context = self.get_template_context(ignore_param_exceptions=False)
+
+        jinja_env = None
+        dag = self.task.get_dag()
+        if dag is not None:
+            jinja_env = dag.get_template_env()
+
         if TYPE_CHECKING:
             assert isinstance(self.task, BaseOperator)
+        self.render_templates(context=context, jinja_env=jinja_env)
         self.task.dry_run()
-        self.rendered_map_index = self._render_map_index(self.get_template_context(), jinja_env=None)
+
+        with set_current_context(context):
+            self.rendered_map_index = self._render_map_index(
+                context,
+                jinja_env=jinja_env,
+            )
 
     @provide_session
     def _handle_reschedule(

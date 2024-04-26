@@ -93,6 +93,7 @@ from airflow.utils.module_loading import qualname
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
+
 from airflow.utils.types import DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.models import DEFAULT_DATE, TEST_DAGS_FOLDER
@@ -3477,26 +3478,47 @@ class TestTaskInstance:
         assert callback_function.called
 
     def test_rendered_map_index_on_dry_run(self, dag_maker, session):
-        from airflow.operators.python import get_current_context
         from airflow.utils.task_instance_session import set_current_task_instance_session
+        from airflow.operators.python import get_current_context
 
-        with dag_maker():
+        with dag_maker(dag_id="example", session=session) as dag:
+            @dag.task
+            def emit():
+                return ["a", "b"]
 
-            @task(map_index_template="instance-map-index-{{ variable }}")
-            def example(param: str):
+            @dag.task(map_index_template="instance-map-index-{{ task.my_variable }}")
+            def example(value: str):
                 context = get_current_context()
-                context["variable"] = param * 3
+                context["my_variable"] = value * 3
 
-            example.expand(param=["a", "b"])
+            example.expand(value=emit())
 
-        dr = dag_maker.create_dagrun()
-        example_task = dr.dag.get_task("example")
-        tis, _ = example_task.expand_mapped_task(dr.run_id, session=session)
+        dag_run = dag_maker.create_dagrun()
+
+        # kwargs = {
+        #         "state": State.RUNNING,
+        #         "start_date": pendulum.yesterday("UTC"),
+        #         "session": session,
+        #         "run_type": DagRunType.MANUAL,
+        #         "data_interval": (
+        #                              pendulum.yesterday("UTC"),
+        #             pendulum.now("UTC")
+        #                          ),
+        #         "execution_date": pendulum.now("UTC"),
+        #     }
+        # dag_run = dag.create_dagrun(**kwargs)
+        emit_ti = dag_run.get_task_instance("emit", session=session)
+        emit_ti.refresh_from_task(dag.get_task("emit"))
+        emit_ti.run()
+
+        example_task = dag.get_task("example")
+
+        mapped_tis, _ = example_task.expand_mapped_task(dag_run.run_id, session=session)
 
         rendered_map_index = []
+
         with set_current_task_instance_session(session):
-            for ti in tis:
-                ti.task = example_task
+            for ti in mapped_tis:
                 ti.refresh_from_task(example_task)
                 ti.dry_run()
 
@@ -4141,9 +4163,17 @@ class TestMappedTaskInstanceReceiveValue:
         mapped_tis, max_map_index = show_task.expand_mapped_task(dag_run.run_id, session=session)
         assert max_map_index + 1 == len(mapped_tis) == len(upstream_return)
 
-        for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
-            ti.refresh_from_task(show_task)
-            ti.run()
+        # for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
+        #     ti.refresh_from_task(show_task)
+        #     ti.dry_run()
+
+        from airflow.utils.task_instance_session import set_current_task_instance_session
+
+        with set_current_task_instance_session(session):
+            for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
+                ti.refresh_from_task(show_task)
+                ti.dry_run()
+
         assert outputs == expected_outputs
 
     def test_map_product(self, dag_maker, session):
