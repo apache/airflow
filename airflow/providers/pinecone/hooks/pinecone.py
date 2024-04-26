@@ -82,7 +82,6 @@ class PineconeHook(BaseHook):
         self.conn_id = conn_id
         self._environment = environment
         self._region = region
-        self.conn = self.get_conn()
 
     @property
     def api_key(self) -> str:
@@ -120,7 +119,8 @@ class PineconeHook(BaseHook):
             os.environ["PINECONE_DEBUG_CURL"] = "true"
         return Pinecone(api_key=self.api_key, host=pinecone_host, project_id=pinecone_project_id)
 
-    def get_conn(self) -> Connection:
+    @cached_property
+    def conn(self) -> Connection:
         return self.get_connection(self.conn_id)
 
     def test_connection(self) -> tuple[bool, str]:
