@@ -1370,7 +1370,7 @@ class TestDagProcessorJobRunner:
             dag1_req2,
         ]
 
-    @conf_vars({("core", "enable_purging_stale_dags"): "False"})
+    @conf_vars({("core", "purge_stale_dags"): "False"})
     @conf_vars({("core", "load_examples"): "False"})
     def test_disable_purge_stale_dags(self):
         """
@@ -1391,7 +1391,7 @@ class TestDagProcessorJobRunner:
         test_dag_path = str(TEST_DAG_FOLDER / "test_example_bash_operator.py")
         dagbag = DagBag(test_dag_path, read_dags_from_db=False, include_examples=False)
 
-        assert  conf.getboolean("core", "enable_purging_stale_dags") == False
+        assert  conf.getboolean("core", "purge_stale_dags") == False
 
         with create_session() as session:
             # Add stale DAG to the DB
@@ -1461,7 +1461,7 @@ class TestDagProcessorJobRunner:
         test_dag_path = str(TEST_DAG_FOLDER / "test_example_bash_operator.py")
         dagbag = DagBag(test_dag_path, read_dags_from_db=False, include_examples=False)
 
-        assert  conf.getboolean("core", "enable_purging_stale_dags") == True
+        assert  conf.getboolean("core", "purge_stale_dags") == True
 
         with create_session() as session:
             # Add stale DAG to the DB
