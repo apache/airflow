@@ -39,7 +39,7 @@ from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.serialization.pydantic.dataset import DatasetEventPydantic
 from airflow.serialization.pydantic.job import JobPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
-from airflow.serialization.serialized_objects import BaseSerialization
+from airflow.serialization.serialized_objects import BaseSerialization, SerializedBaseOperator
 from airflow.settings import _ENABLE_AIP_44
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -74,9 +74,19 @@ def test_serializing_pydantic_task_instance(session, create_task_instance):
 
 @pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 def test_deserialize_ti_mapped_op_reserialized_with_refresh_from_task(session, dag_maker):
+    """
+    Making sure that MappedOperator deserializes "properly" when passed along with a TI
+
+    Properly is in quotes cus it doesn't necessarily return to exactly the same object
+    in all aspects but it should have the functionality we need.  Some of the asserts
+    here explore what actually happens and should not be taken to assume that we depend
+    on all the asserts -- some of it is implementation detail.  We should be able
+    to round trip the ti without error and refresh from task.
+    """
     op_class_dict_expected = {
         "_needs_expansion": True,
         "_task_type": "_PythonDecoratedOperator",
+        "_needs_expansion": True,
         "downstream_task_ids": [],
         "next_method": None,
         "start_trigger": None,
@@ -107,8 +117,7 @@ def test_deserialize_ti_mapped_op_reserialized_with_refresh_from_task(session, d
     # roundtrip task
     ser_task = BaseSerialization.serialize(ti.task, use_pydantic_models=True)
     deser_task = BaseSerialization.deserialize(ser_task, use_pydantic_models=True)
-    ti.task.operator_class
-    # this is part of the problem!
+
     assert isinstance(ti.task.operator_class, type)
     assert isinstance(deser_task.operator_class, dict)
 
@@ -133,6 +142,47 @@ def test_deserialize_ti_mapped_op_reserialized_with_refresh_from_task(session, d
     resered = BaseSerialization.serialize(desered, use_pydantic_models=True)
     deresered = BaseSerialization.deserialize(resered, use_pydantic_models=True)
     assert deresered.task.operator_class == desered.task.operator_class == op_class_dict_expected
+
+
+@pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
+def test_deserialize_ti_nonmapped_op_reserialized_with_refresh_from_task(session, dag_maker):
+    """Adding similar for non-mapped along with the mapped case for this change.
+
+    We should be able to round trip the ti without error and refresh from task.
+    """
+    with dag_maker():
+
+        @task
+        def source():
+            return [1, 2, 3]
+
+        @task
+        def target(val=None):
+            print(val)
+
+        target(source())
+    dr = dag_maker.create_dagrun()
+    ti = dr.task_instances[1]
+
+    # roundtrip task
+    ser_task = BaseSerialization.serialize(ti.task, use_pydantic_models=True)
+    deser_task = BaseSerialization.deserialize(ser_task, use_pydantic_models=True)
+    ti.task.operator_class
+    assert isinstance(ti.task.operator_class, type)
+    assert ti.task.operator_class == _PythonDecoratedOperator
+    ti.refresh_from_task(deser_task)
+    # roundtrip ti
+    sered = BaseSerialization.serialize(ti, use_pydantic_models=True)
+    desered = BaseSerialization.deserialize(sered, use_pydantic_models=True)
+    assert "operator_class" not in sered["__var"]["task"]
+    assert desered.task.__class__ == SerializedBaseOperator
+    # assert desered.task.dag is ELIDED_DAG
+    assert desered.task.operator_class == SerializedBaseOperator
+    assert desered.task.__class__ == SerializedBaseOperator
+    desered.refresh_from_task(deser_task)
+    resered = BaseSerialization.serialize(desered, use_pydantic_models=True)
+    deresered = BaseSerialization.deserialize(resered, use_pydantic_models=True)
+    assert deresered.task.operator_class == desered.task.operator_class == SerializedBaseOperator
 
 
 @pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
