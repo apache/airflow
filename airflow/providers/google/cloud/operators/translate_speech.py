@@ -27,6 +27,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.speech_to_text import CloudSpeechToTextHook
 from airflow.providers.google.cloud.hooks.translate import CloudTranslateHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.providers.google.common.links.storage import FileDetailsLink
 
 if TYPE_CHECKING:
@@ -126,7 +127,7 @@ class CloudTranslateSpeechOperator(GoogleCloudBaseOperator):
         format_: str,
         source_language: str | None,
         model: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,

@@ -22,7 +22,7 @@ from typing import Any, Sequence
 from googleapiclient.discovery import Resource, build
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 
 class GoogleDeploymentManagerHook(GoogleBaseHook):
@@ -56,7 +56,7 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def list_deployments(
         self,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         deployment_filter: str | None = None,
         order_by: str | None = None,
     ) -> list[dict[str, Any]]:

@@ -95,8 +95,8 @@ class TestSqsPublishOperator:
 
         op = SqsPublishOperator(**self.default_op_kwargs, sqs_queue=FIFO_QUEUE_NAME)
         error_message = (
-            "An error occurred \(MissingParameter\) when calling the SendMessage operation: "
-            "The request must contain the parameter MessageGroupId."
+            r"An error occurred \(MissingParameter\) when calling the SendMessage operation: "
+            r"The request must contain the parameter MessageGroupId."
         )
         with pytest.raises(ClientError, match=error_message):
             op.execute(mocked_context)

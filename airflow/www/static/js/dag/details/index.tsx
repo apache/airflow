@@ -278,7 +278,7 @@ const Details = ({
               />
             </>
           )}
-          {taskId && runId && <FilterTasks taskId={taskId} />}
+          <FilterTasks taskId={taskId} />
         </Flex>
       </Flex>
       <Divider my={2} />
