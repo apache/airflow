@@ -45,6 +45,25 @@ NOTSET = ArgNotSet()
 """Sentinel value for argument default. See ``ArgNotSet``."""
 
 
+class ElidedDag:
+    """
+    Sentinel type to signal when dag elided on serialization.
+
+    :meta private:
+    """
+
+    def __getattr__(self, item):
+        raise RuntimeError("Dag was elided on serialization and must be set again.")
+
+
+ELIDED_DAG = ElidedDag()
+"""
+Sentinel value for dag elided on serialization. See ``ElidedDag``.
+
+:meta private:
+"""
+
+
 class DagRunType(str, enum.Enum):
     """Class with DagRun types."""
 

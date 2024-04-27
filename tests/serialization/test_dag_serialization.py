@@ -2472,13 +2472,20 @@ def test_operator_expand_deserialized_unmap():
 @pytest.mark.db_test
 def test_sensor_expand_deserialized_unmap():
     """Unmap a deserialized mapped sensor should be similar to deserializing a non-mapped sensor"""
-    normal = BashSensor(task_id="a", bash_command=[1, 2], mode="reschedule")
-    mapped = BashSensor.partial(task_id="a", mode="reschedule").expand(bash_command=[1, 2])
-
-    serialize = SerializedBaseOperator.serialize
-
-    deserialize = SerializedBaseOperator.deserialize
-    assert deserialize(serialize(mapped)).unmap(None) == deserialize(serialize(normal))
+    dag = DAG(dag_id="hello", start_date=None)
+    with dag:
+        normal = BashSensor(task_id="a", bash_command=[1, 2], mode="reschedule")
+        mapped = BashSensor.partial(task_id="b", mode="reschedule").expand(bash_command=[1, 2])
+    ser_mapped = SerializedBaseOperator.serialize(mapped)
+    deser_mapped = SerializedBaseOperator.deserialize(ser_mapped)
+    deser_mapped.dag = dag
+    deser_unmapped = deser_mapped.unmap(None)
+    ser_normal = SerializedBaseOperator.serialize(normal)
+    deser_normal = SerializedBaseOperator.deserialize(ser_normal)
+    deser_normal.dag = dag
+    comps = set(BashSensor._comps)
+    comps.remove("task_id")
+    assert all(getattr(deser_unmapped, c, None) == getattr(deser_normal, c, None) for c in comps)
 
 
 def test_task_resources_serde():

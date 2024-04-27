@@ -288,8 +288,12 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         """
         from airflow.models.taskinstance import _get_template_context
 
+        if TYPE_CHECKING:
+            assert self.task
+            assert self.task.dag
         return _get_template_context(
             task_instance=self,
+            dag=self.task.dag,
             session=session,
             ignore_param_exceptions=ignore_param_exceptions,
         )
