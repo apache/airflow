@@ -151,7 +151,10 @@ class TestCliTasks:
         args = self.parser.parse_args(["tasks", "test", self.dag_id, task_id, DEFAULT_DATE.isoformat()])
         with caplog.at_level("INFO", logger="airflow.task"):
             task_command.task_test(args)
-        assert f"Marking task as SUCCESS. dag_id={self.dag_id}, task_id={task_id}" in caplog.text
+        assert (
+            f"Marking task as SUCCESS. dag_id={self.dag_id}, task_id={task_id}, run_id={self.run_id}, "
+            in caplog.text
+        )
 
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_test_filters_secrets(self, capsys):
@@ -829,7 +832,7 @@ class TestLogsfromTaskRunCommand:
 
         assert (
             f"INFO - Marking task as SUCCESS. dag_id={self.dag_id}, "
-            f"task_id={self.task_id}, execution_date=20170101T000000" in logs
+            f"task_id={self.task_id}, run_id={self.run_id}, execution_date=20170101T000000" in logs
         )
 
     @unittest.skipIf(not hasattr(os, "fork"), "Forking not available")
@@ -869,7 +872,7 @@ class TestLogsfromTaskRunCommand:
         assert f"INFO - Running: ['airflow', 'tasks', 'run', '{self.dag_id}', '{self.task_id}'," in logs
         assert (
             f"INFO - Marking task as SUCCESS. dag_id={self.dag_id}, "
-            f"task_id={self.task_id}, execution_date=20170101T000000" in logs
+            f"task_id={self.task_id}, run_id={self.run_id}, execution_date=20170101T000000" in logs
         )
 
     def test_log_file_template_with_run_task(self):
