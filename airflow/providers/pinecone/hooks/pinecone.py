@@ -225,7 +225,7 @@ class PineconeHook(BaseHook):
         :param index_name: The name of the index.
         :param dimension: The dimension of the vectors to be indexed.
         :param spec: Pass a `ServerlessSpec` object to create a serverless index or a `PodSpec` object to create a pod index.
-        ``get_serverless_spec_obj`` and ``get_pod_spec_obj`` can be used to create the Spec objects.
+            ``get_serverless_spec_obj`` and ``get_pod_spec_obj`` can be used to create the Spec objects.
         :param metric: The metric to use.
         :param timeout: The timeout to use.
         """
