@@ -3087,6 +3087,10 @@ class TaskInstance(Base, LoggingMixin):
         if TYPE_CHECKING:
             assert self.task
             assert self.task.dag
+        try:
+            fail_stop = self.task.dag.fail_stop
+        except Exception:
+            fail_stop = False
         _handle_failure(
             task_instance=self,
             error=error,
@@ -3094,7 +3098,7 @@ class TaskInstance(Base, LoggingMixin):
             test_mode=test_mode,
             context=context,
             force_fail=force_fail,
-            fail_stop=self.task.dag.fail_stop,
+            fail_stop=fail_stop,
         )
 
     def is_eligible_to_retry(self):
