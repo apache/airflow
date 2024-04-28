@@ -135,12 +135,12 @@ class TestLambdaCreateFunctionOperator:
                               "LogFormat": "Text",
                               "LogGroup": "/custom/log-group/"
                           }
-                          }, id="with-config-parameters"),
+                          }, id="with-config-argument"),
         ],
     )
-    def test_create_lambda_with_using_config_argument(self,
-                                                      mock_hook_conn,
-                                                      mock_hook_create_lambda, config):
+    def test_create_lambda_using_config_argument(self,
+                                                 mock_hook_conn,
+                                                 mock_hook_create_lambda, config):
         operator = LambdaCreateFunctionOperator(
             task_id="task_test",
             function_name=FUNCTION_NAME,
