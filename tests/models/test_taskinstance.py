@@ -1484,8 +1484,8 @@ class TestTaskInstance:
         ti.map_index = 0
         for map_index in range(1, 5):
             ti = TaskInstance(ti.task, run_id=dr.run_id, map_index=map_index)
-            ti.dag_run = dr
             session.add(ti)
+            ti.dag_run = dr
         session.flush()
         downstream = ti.task
         ti = dr.get_task_instance(task_id="do_something_else", map_index=3, session=session)
