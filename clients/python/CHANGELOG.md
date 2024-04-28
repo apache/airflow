@@ -17,6 +17,25 @@
  under the License.
  -->
 
+# v2.9.0
+
+## Major changes:
+
+   - Allow users to write dag_id and task_id in their national characters, added display name for dag / task (v2) ([#38446](https://github.com/apache/airflow/pull/38446))
+   - Add dataset_expression to grid dag details ([#38121](https://github.com/apache/airflow/pull/38121))
+   - Adding run_id column to log table ([#37731](https://github.com/apache/airflow/pull/37731))
+   - Show custom instance names for a mapped task in UI ([#36797](https://github.com/apache/airflow/pull/36797))
+   - Add excluded/included events to get_event_logs api ([#37641](https://github.com/apache/airflow/pull/37641))
+   - Filter Datasets by associated dag_ids (GET /datasets) ([#37512](https://github.com/apache/airflow/pull/37512))
+   - Add data_interval_start and data_interval_end in dagrun create API endpoint ([#36630](https://github.com/apache/airflow/pull/36630))
+   - Return the specified field when get dag/dagRun ([#36641](https://github.com/apache/airflow/pull/36641))
+
+## NEW API supported
+
+   - Add post endpoint for dataset events ([#37570](https://github.com/apache/airflow/pull/37570))
+   - Add "queuedEvent" endpoint to get/delete DatasetDagRunQueue ([#37176](https://github.com/apache/airflow/pull/37176))
+
+
 # v2.8.0
 
 ## Major changes:

@@ -24,6 +24,7 @@ import os
 from contextlib import suppress
 from typing import TYPE_CHECKING
 
+from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.executors.executor_constants import (
     CELERY_EXECUTOR,
@@ -120,10 +121,11 @@ class ExecutorLoader:
                 # complicated. Multiple Executors of the same type will be supported by a future multitenancy
                 # AIP.
                 # The module component should always be a module or plugin path.
-                if not split_name[1] or split_name[1] in CORE_EXECUTOR_NAMES:
+                module_path = split_name[1]
+                if not module_path or module_path in CORE_EXECUTOR_NAMES or "." not in module_path:
                     raise AirflowConfigException(
-                        f"Incorrectly formatted executor configuration: {name}\n"
-                        "second portion of an executor configuration must be a module path"
+                        "Incorrectly formatted executor configuration. Second portion of an executor "
+                        f"configuration must be a module path or plugin but received: {module_path}"
                     )
                 else:
                     executor_names.append(ExecutorName(alias=split_name[0], module_path=split_name[1]))
@@ -151,6 +153,14 @@ class ExecutorLoader:
             _executor_names.append(executor_name)
 
         return executor_names
+
+    @classmethod
+    def get_executor_names(cls) -> list[ExecutorName]:
+        """Return the executor names from Airflow configuration.
+
+        :return: List of executor names from Airflow configuration
+        """
+        return cls._get_executor_names()
 
     @classmethod
     def get_default_executor_name(cls) -> ExecutorName:
@@ -310,6 +320,9 @@ class ExecutorLoader:
 
         # This is set in tests when we want to be able to use SQLite.
         if os.environ.get("_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK") == "1":
+            return
+
+        if InternalApiConfig.get_use_internal_api():
             return
 
         from airflow.settings import engine

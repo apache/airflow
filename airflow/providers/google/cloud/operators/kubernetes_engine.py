@@ -35,7 +35,7 @@ from packaging.version import parse as parse_version
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.providers.cncf.kubernetes.operators.job import KubernetesDeleteJobOperator, KubernetesJobOperator
+from airflow.providers.cncf.kubernetes.operators.job import KubernetesJobOperator
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.operators.resource import (
     KubernetesCreateResourceOperator,
@@ -62,8 +62,19 @@ from airflow.providers.google.cloud.triggers.kubernetes_engine import (
     GKEOperationTrigger,
     GKEStartPodTrigger,
 )
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.timezone import utcnow
+
+try:
+    from airflow.providers.cncf.kubernetes.operators.job import KubernetesDeleteJobOperator
+except ImportError:
+    from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+    raise AirflowOptionalProviderFeatureException(
+        "Failed to import KubernetesDeleteJobOperator. This operator is only available in cncf-kubernetes "
+        "provider version >=8.1.0"
+    )
 
 if TYPE_CHECKING:
     from kubernetes.client.models import V1Job, V1Pod
@@ -167,7 +178,7 @@ class GKEDeleteClusterOperator(GoogleCloudBaseOperator):
         *,
         name: str,
         location: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v2",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -311,7 +322,7 @@ class GKECreateClusterOperator(GoogleCloudBaseOperator):
         *,
         location: str,
         body: dict | Cluster,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v2",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -497,7 +508,7 @@ class GKEStartKueueInsideClusterOperator(GoogleCloudBaseOperator):
         cluster_name: str,
         kueue_version: str,
         use_internal_ip: bool = False,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -659,7 +670,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         location: str,
         cluster_name: str,
         use_internal_ip: bool = False,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         regional: bool | None = None,
@@ -857,7 +868,7 @@ class GKEStartJobOperator(KubernetesJobOperator):
         location: str,
         cluster_name: str,
         use_internal_ip: bool = False,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
@@ -994,7 +1005,7 @@ class GKEDescribeJobOperator(GoogleCloudBaseOperator):
         location: str,
         namespace: str,
         cluster_name: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         use_internal_ip: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -1095,7 +1106,7 @@ class GKEListJobsOperator(GoogleCloudBaseOperator):
         location: str,
         cluster_name: str,
         namespace: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         use_internal_ip: bool = False,
         do_xcom_push: bool = True,
         gcp_conn_id: str = "google_cloud_default",
@@ -1195,7 +1206,7 @@ class GKECreateCustomResourceOperator(KubernetesCreateResourceOperator):
         location: str,
         cluster_name: str,
         use_internal_ip: bool = False,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -1297,7 +1308,7 @@ class GKEDeleteCustomResourceOperator(KubernetesDeleteResourceOperator):
         location: str,
         cluster_name: str,
         use_internal_ip: bool = False,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -1436,7 +1447,7 @@ class GKEDeleteJobOperator(KubernetesDeleteJobOperator):
         location: str,
         cluster_name: str,
         use_internal_ip: bool = False,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -1541,7 +1552,7 @@ class GKESuspendJobOperator(GoogleCloudBaseOperator):
         location: str,
         namespace: str,
         cluster_name: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         use_internal_ip: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -1645,7 +1656,7 @@ class GKEResumeJobOperator(GoogleCloudBaseOperator):
         location: str,
         namespace: str,
         cluster_name: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         use_internal_ip: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,

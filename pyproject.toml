@@ -24,10 +24,10 @@
 requires = [
     "GitPython==3.1.43",
     "gitdb==4.0.11",
-    "hatchling==1.22.5",
+    "hatchling==1.24.2",
     "packaging==24.0",
     "pathspec==0.12.1",
-    "pluggy==1.4.0",
+    "pluggy==1.5.0",
     "smmap==5.0.1",
     "tomli==2.0.1; python_version < '3.11'",
     "trove-classifiers==2024.4.10",
@@ -59,6 +59,7 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: System :: Monitoring",
 ]
 
@@ -77,9 +78,9 @@ dynamic = ["version", "optional-dependencies", "dependencies"]
 #
 # START CORE EXTRAS HERE
 #
-# aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, deprecated-api, github-enterprise,
-# google-auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, pydantic, rabbitmq, s3fs,
-# saml, sentry, statsd, uv, virtualenv
+# aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, cloudpickle, deprecated-api, github-
+# enterprise, google-auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, pydantic,
+# rabbitmq, s3fs, saml, sentry, statsd, uv, virtualenv
 #
 # END CORE EXTRAS HERE
 #
@@ -124,7 +125,7 @@ dynamic = ["version", "optional-dependencies", "dependencies"]
 #
 # END DEPRECATED EXTRAS HERE
 #
-# !!!!!! Those provuders are defined in the `airflow/providers/<provider>/provider.yaml` files  !!!!!!!
+# !!!!!! Those providers are defined in the `airflow/providers/<provider>/provider.yaml` files  !!!!!!!
 #
 # Those extras are available as regular Airflow extras, they install provider packages in standard builds
 # or dependencies that are necessary to enable the feature in editable build.
@@ -270,6 +271,9 @@ extend-select = [
     "PT", # flake8-pytest-style rules
     "TID25", # flake8-tidy-imports rules
     # Per rule enables
+    "RUF006", # Checks for asyncio dangling task
+    "RUF015", # Checks for unnecessary iterable allocation for first element
+    "RUF019", # Checks for unnecessary key check
     "RUF100", # Unused noqa (auto-fixable)
     # We ignore more pydocstyle than we enable, so be more selective at what we enable
     "D101",
@@ -287,10 +291,12 @@ extend-select = [
     "S101", # Checks use `assert` outside the test cases, test cases should be added into the exclusions
     "B004", # Checks for use of hasattr(x, "__call__") and replaces it with callable(x)
     "B006", # Checks for uses of mutable objects as function argument defaults.
+    "B007", # Checks for unused variables in the loop
     "B017", # Checks for pytest.raises context managers that catch Exception or BaseException.
     "B019", # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
+    "B028", # No explicit stacklevel keyword argument found
     "TRY002", # Prohibit use of `raise Exception`, use specific exceptions instead.
-    "RUF006", # Checks for asyncio dangling task
+    "W605", # Checks for invalid escape sequences which deprecated since Python 3.6
 ]
 ignore = [
     "D203",
@@ -380,6 +386,12 @@ combine-as-imports = true
 "tests/providers/qdrant/operators/test_qdrant.py" = ["E402"]
 "tests/providers/snowflake/operators/test_snowflake_sql.py" = ["E402"]
 
+# All the modules which do not follow B028 yet: https://docs.astral.sh/ruff/rules/no-explicit-stacklevel/
+"helm_tests/airflow_aux/test_basic_helm_chart.py" = ["B028"]
+
+# https://github.com/apache/airflow/issues/39252
+"airflow/providers/amazon/aws/hooks/eks.py" = ["W605"]
+
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.
 ban-relative-imports = "all"
@@ -400,6 +412,8 @@ banned-module-level-imports = ["numpy", "pandas"]
 "airflow.PY312".msg = "Use sys.version_info >= (3, 12) instead."
 # Deprecated imports
 "airflow.models.baseoperator.BaseOperatorLink".msg = "Use airflow.models.baseoperatorlink.BaseOperatorLink"
+"airflow.models.errors.ImportError".msg = "Use airflow.models.errors.ParseImportError"
+"airflow.models.ImportError".msg = "Use airflow.models.errors.ParseImportError"
 # Deprecated in Python 3.11, Pending Removal in Python 3.15: https://github.com/python/cpython/issues/90817
 # Deprecation warning in Python 3.11 also recommends using locale.getencoding but it available in Python 3.11
 "locale.getdefaultlocale".msg = "Use locale.setlocale() and locale.getlocale() instead."
@@ -427,8 +441,17 @@ banned-module-level-imports = ["numpy", "pandas"]
 "logging.fatal".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
 "logging.critical".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
 "logging.log".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
-# Some specific cases
-"unittest.TestCase".msg = "Use pytest compatible classes"
+# unittest related restrictions
+"unittest.TestCase".msg = "Use pytest compatible classes: https://docs.pytest.org/en/stable/getting-started.html#group-multiple-tests-in-a-class"
+"unittest.skip".msg = "Use `pytest.mark.skip` instead: https://docs.pytest.org/en/stable/reference/reference.html#marks"
+"unittest.skipIf".msg = "Use `pytest.mark.skipif` instead: https://docs.pytest.org/en/stable/reference/reference.html#marks"
+"unittest.skipUnless".msg = "Use `pytest.mark.skipif` instead: https://docs.pytest.org/en/stable/reference/reference.html#marks"
+"unittest.expectedFailure".msg = "Use `pytest.mark.xfail` instead: https://docs.pytest.org/en/stable/reference/reference.html#marks"
+# Moved in SQLAlchemy 2.0
+"sqlalchemy.ext.declarative.declarative_base".msg = "Use `sqlalchemy.orm.declarative_base`. Moved in SQLAlchemy 2.0"
+"sqlalchemy.ext.declarative.as_declarative".msg = "Use `sqlalchemy.orm.as_declarative`. Moved in SQLAlchemy 2.0"
+"sqlalchemy.ext.declarative.has_inherited_table".msg = "Use `sqlalchemy.orm.has_inherited_table`. Moved in SQLAlchemy 2.0"
+"sqlalchemy.ext.declarative.synonym_for".msg = "Use `sqlalchemy.orm.synonym_for`. Moved in SQLAlchemy 2.0"
 
 [tool.ruff.lint.flake8-type-checking]
 exempt-modules = ["typing", "typing_extensions"]
@@ -455,6 +478,7 @@ addopts = [
 norecursedirs = [
     ".eggs",
     "airflow",
+    "tests/_internals",
     "tests/dags_with_system_exit",
     "tests/test_utils",
     "tests/dags_corrupted",
@@ -469,6 +493,7 @@ filterwarnings = [
     # Avoid building cartesian product which might impact performance
     "error:SELECT statement has a cartesian product between FROM:sqlalchemy.exc.SAWarning:airflow",
     'error:Coercing Subquery object into a select\(\) for use in IN\(\):sqlalchemy.exc.SAWarning:airflow',
+    'error:Class.*will not make use of SQL compilation caching',
     "ignore::DeprecationWarning:flask_appbuilder.filemanager",
     "ignore::DeprecationWarning:flask_appbuilder.widgets",
     # FAB do not support SQLAclhemy 2

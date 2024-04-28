@@ -61,8 +61,8 @@ class LivyOperator(BaseOperator):
         depends on the option that's being modified.
     :param extra_headers: A dictionary of headers passed to the HTTP request to livy.
     :param retry_args: Arguments which define the retry behaviour.
+        See Tenacity documentation at https://github.com/jd/tenacity
     :param deferrable: Run operator in the deferrable mode
-            See Tenacity documentation at https://github.com/jd/tenacity
     """
 
     template_fields: Sequence[str] = ("spark_params",)
@@ -124,7 +124,7 @@ class LivyOperator(BaseOperator):
         self._extra_options = extra_options or {}
         self._extra_headers = extra_headers or {}
 
-        self._batch_id: int | str
+        self._batch_id: int | str | None = None
         self.retry_args = retry_args
         self.deferrable = deferrable
 
@@ -170,6 +170,7 @@ class LivyOperator(BaseOperator):
                     polling_interval=self._polling_interval,
                     extra_options=self._extra_options,
                     extra_headers=self._extra_headers,
+                    execution_timeout=self.execution_timeout,
                 ),
                 method_name="execute_complete",
             )
@@ -217,8 +218,12 @@ class LivyOperator(BaseOperator):
             for log_line in event["log_lines"]:
                 self.log.info(log_line)
 
-        if event["status"] == "error":
+        if event["status"] == "timeout":
+            self.hook.delete_batch(event["batch_id"])
+
+        if event["status"] in ["error", "timeout"]:
             raise AirflowException(event["response"])
+
         self.log.info(
             "%s completed with response %s",
             self.task_id,

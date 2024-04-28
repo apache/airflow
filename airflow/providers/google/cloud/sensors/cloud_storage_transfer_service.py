@@ -28,6 +28,7 @@ from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import 
     CloudDataTransferServiceHook,
 )
 from airflow.providers.google.cloud.links.cloud_storage_transfer import CloudStorageTransferJobLink
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -73,7 +74,7 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
         *,
         job_name: str,
         expected_statuses: set[str] | str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,

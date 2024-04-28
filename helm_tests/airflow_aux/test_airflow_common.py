@@ -405,6 +405,9 @@ class TestAirflowCommon:
                 "dagProcessor": {"priorityClassName": "low-priority-dag-processor"},
                 "webserver": {"priorityClassName": "low-priority-webserver"},
                 "workers": {"priorityClassName": "low-priority-worker"},
+                "cleanup": {"enabled": True, "priorityClassName": "low-priority-airflow-cleanup-pods"},
+                "migrateDatabaseJob": {"priorityClassName": "low-priority-run-airflow-migrations"},
+                "createUserJob": {"priorityClassName": "low-priority-create-user-job"},
             },
             show_only=[
                 "templates/flower/flower-deployment.yaml",
@@ -415,12 +418,18 @@ class TestAirflowCommon:
                 "templates/dag-processor/dag-processor-deployment.yaml",
                 "templates/webserver/webserver-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
+                "templates/cleanup/cleanup-cronjob.yaml",
+                "templates/jobs/migrate-database-job.yaml",
+                "templates/jobs/create-user-job.yaml",
             ],
         )
 
-        assert 7 == len(docs)
+        assert 10 == len(docs)
         for doc in docs:
             component = doc["metadata"]["labels"]["component"]
-            priority = doc["spec"]["template"]["spec"]["priorityClassName"]
+            if component == "airflow-cleanup-pods":
+                priority = doc["spec"]["jobTemplate"]["spec"]["template"]["spec"]["priorityClassName"]
+            else:
+                priority = doc["spec"]["template"]["spec"]["priorityClassName"]
 
             assert priority == f"low-priority-{component}"

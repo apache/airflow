@@ -529,7 +529,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         self,
         dataset_id: str,
         location: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         filter_: str | None = None,
         page_size: int | None = None,
         retry: Retry | _MethodDefault = DEFAULT,

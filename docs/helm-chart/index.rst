@@ -59,7 +59,7 @@ deployment on a `Kubernetes <http://kubernetes.io>`__ cluster using the
 Requirements
 ------------
 
--  Kubernetes 1.25+ cluster
+-  Kubernetes 1.26+ cluster
 -  Helm 3.0+
 -  PV provisioner support in the underlying infrastructure (optionally)
 
@@ -155,7 +155,7 @@ To run database migrations with Argo CD automatically, you will need to add:
 
 This will run database migrations every time there is a ``Sync`` event in Argo CD. While it is not ideal to run the migrations on every sync, it is a trade-off that allows them to be run automatically.
 
-If you use the Celery(Kubernetes)Executor with the built-in Redis, it is recommended that you set up a static Redis password either by supplying ``redis.passwordSecretName`` and ``redis.data.brokerUrlSecretName`` or ``redis.password``.
+If you use the Celery(Kubernetes)Executor with the built-in Redis, it is recommended that you set up a static Redis password either by supplying ``redis.passwordSecretName`` and ``data.brokerUrlSecretName`` or ``redis.password``.
 
 
 Naming Conventions

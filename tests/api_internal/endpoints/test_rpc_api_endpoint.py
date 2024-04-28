@@ -149,7 +149,7 @@ class TestRpcApiEndpoint:
             "/internal_api/v1/rpcapi", headers={"Content-Type": "application/json"}, data=json.dumps(data)
         )
         assert response.status_code == 400
-        assert response.data == b"Unrecognized method: i-bet-it-does-not-exist."
+        assert response.data.startswith(b"Unrecognized method: i-bet-it-does-not-exist.")
         mock_test_method.assert_not_called()
 
     def test_invalid_jsonrpc(self):
@@ -159,5 +159,5 @@ class TestRpcApiEndpoint:
             "/internal_api/v1/rpcapi", headers={"Content-Type": "application/json"}, data=json.dumps(data)
         )
         assert response.status_code == 400
-        assert response.data == b"Expected jsonrpc 2.0 request."
+        assert response.data.startswith(b"Expected jsonrpc 2.0 request.")
         mock_test_method.assert_not_called()

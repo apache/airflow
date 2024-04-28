@@ -53,7 +53,12 @@ from airflow.models import Connection
 from airflow.providers.google.cloud.hooks.secret_manager import (
     GoogleCloudSecretManagerHook,
 )
-from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook, get_field
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseAsyncHook,
+    GoogleBaseHook,
+    get_field,
+)
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -510,7 +515,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         path_prefix: str,
         instance_specification: str,
         gcp_conn_id: str = "google_cloud_default",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         sql_proxy_version: str | None = None,
         sql_proxy_binary_path: str | None = None,
     ) -> None:
