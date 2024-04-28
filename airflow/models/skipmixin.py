@@ -181,7 +181,7 @@ class SkipMixin(LoggingMixin):
         elif isinstance(branch_task_ids, Iterable):
             branch_task_id_set = set(branch_task_ids)
             invalid_task_ids_type = {
-                (bti, type(bti).__name__) for bti in branch_task_ids if not isinstance(bti, str)
+                (bti, type(bti).__name__) for bti in branch_task_id_set if not isinstance(bti, str)
             }
             if invalid_task_ids_type:
                 raise AirflowException(
