@@ -56,6 +56,7 @@ class OdbcHook(DbApiHook):
     conn_type = "odbc"
     hook_name = "ODBC"
     supports_autocommit = True
+    supports_executemany = True
 
     default_driver: str | None = None
 

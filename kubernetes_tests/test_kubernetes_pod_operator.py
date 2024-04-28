@@ -1171,7 +1171,7 @@ class TestKubernetesPodOperatorSystem:
         # `create_pod` should be called because though there's still a pod to be found,
         # it will be `already_checked`
         with mock.patch(f"{POD_MANAGER_CLASS}.create_pod") as create_mock:
-            with pytest.raises(Exception):
+            with pytest.raises(ApiException, match=r'pods \\"test.[a-z0-9]+\\" not found'):
                 k.execute(context)
             create_mock.assert_called_once()
 

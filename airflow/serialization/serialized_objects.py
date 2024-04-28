@@ -38,7 +38,7 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.datasets import Dataset, DatasetAll, DatasetAny
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, SerializationError
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, SerializationError, TaskDeferred
 from airflow.jobs.job import Job
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
@@ -66,8 +66,9 @@ from airflow.task.priority_strategy import (
     airflow_priority_weight_strategies,
     airflow_priority_weight_strategies_classes,
 )
+from airflow.triggers.base import BaseTrigger
 from airflow.utils.code_utils import get_python_source
-from airflow.utils.context import Context
+from airflow.utils.context import Context, DatasetEventAccessor, DatasetEventAccessors
 from airflow.utils.docs import get_docs_url
 from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.operator_resources import Resources
@@ -534,14 +535,24 @@ class BaseSerialization:
         elif var.__class__.__name__ == "V1Pod" and _has_kubernetes() and isinstance(var, k8s.V1Pod):
             json_pod = PodGenerator.serialize_pod(var)
             return cls._encode(json_pod, type_=DAT.POD)
+        elif isinstance(var, DatasetEventAccessors):
+            return cls._encode(
+                cls.serialize(var._dict, strict=strict, use_pydantic_models=use_pydantic_models),  # type: ignore[attr-defined]
+                type_=DAT.DATASET_EVENT_ACCESSORS,
+            )
+        elif isinstance(var, DatasetEventAccessor):
+            return cls._encode(
+                cls.serialize(var.extra, strict=strict, use_pydantic_models=use_pydantic_models),
+                type_=DAT.DATASET_EVENT_ACCESSOR,
+            )
         elif isinstance(var, DAG):
             return cls._encode(SerializedDAG.serialize_dag(var), type_=DAT.DAG)
         elif isinstance(var, Resources):
             return var.to_dict()
         elif isinstance(var, MappedOperator):
-            return SerializedBaseOperator.serialize_mapped_operator(var)
+            return cls._encode(SerializedBaseOperator.serialize_mapped_operator(var), type_=DAT.OP)
         elif isinstance(var, BaseOperator):
-            return SerializedBaseOperator.serialize_operator(var)
+            return cls._encode(SerializedBaseOperator.serialize_operator(var), type_=DAT.OP)
         elif isinstance(var, cls._datetime_types):
             return cls._encode(var.timestamp(), type_=DAT.DATETIME)
         elif isinstance(var, datetime.timedelta):
@@ -550,6 +561,21 @@ class BaseSerialization:
             return cls._encode(encode_timezone(var), type_=DAT.TIMEZONE)
         elif isinstance(var, relativedelta.relativedelta):
             return cls._encode(encode_relativedelta(var), type_=DAT.RELATIVEDELTA)
+        elif isinstance(var, (AirflowException, TaskDeferred)) and hasattr(var, "serialize"):
+            exc_cls_name, args, kwargs = var.serialize()
+            return cls._encode(
+                cls.serialize(
+                    {"exc_cls_name": exc_cls_name, "args": args, "kwargs": kwargs},
+                    use_pydantic_models=use_pydantic_models,
+                    strict=strict,
+                ),
+                type_=DAT.AIRFLOW_EXC_SER,
+            )
+        elif isinstance(var, BaseTrigger):
+            return cls._encode(
+                cls.serialize(var.serialize(), use_pydantic_models=use_pydantic_models, strict=strict),
+                type_=DAT.BASE_TRIGGER,
+            )
         elif callable(var):
             return str(get_python_source(var))
         elif isinstance(var, set):
@@ -663,8 +689,14 @@ class BaseSerialization:
                 d[k] = cls.deserialize(v, use_pydantic_models=True)
             d["task"] = d["task_instance"].task  # todo: add `_encode` of Operator so we don't need this
             return Context(**d)
-        if type_ == DAT.DICT:
+        elif type_ == DAT.DICT:
             return {k: cls.deserialize(v, use_pydantic_models) for k, v in var.items()}
+        elif type_ == DAT.DATASET_EVENT_ACCESSORS:
+            d = DatasetEventAccessors()  # type: ignore[assignment]
+            d._dict = cls.deserialize(var)  # type: ignore[attr-defined]
+            return d
+        elif type_ == DAT.DATASET_EVENT_ACCESSOR:
+            return DatasetEventAccessor(extra=cls.deserialize(var))
         elif type_ == DAT.DAG:
             return SerializedDAG.deserialize_dag(var)
         elif type_ == DAT.OP:
@@ -682,6 +714,18 @@ class BaseSerialization:
             return decode_timezone(var)
         elif type_ == DAT.RELATIVEDELTA:
             return decode_relativedelta(var)
+        elif type_ == DAT.AIRFLOW_EXC_SER:
+            deser = cls.deserialize(var, use_pydantic_models=use_pydantic_models)
+            exc_cls_name = deser["exc_cls_name"]
+            args = deser["args"]
+            kwargs = deser["kwargs"]
+            del deser
+            exc_cls = import_string(f"airflow.exceptions.{exc_cls_name}")
+            return exc_cls(*args, **kwargs)
+        elif type_ == DAT.BASE_TRIGGER:
+            tr_cls_name, kwargs = cls.deserialize(var, use_pydantic_models=use_pydantic_models)
+            tr_cls = import_string(tr_cls_name)
+            return tr_cls(**kwargs)
         elif type_ == DAT.SET:
             return {cls.deserialize(v, use_pydantic_models) for v in var}
         elif type_ == DAT.TUPLE:
@@ -702,17 +746,17 @@ class BaseSerialization:
             return Connection(**var)
         elif use_pydantic_models and _ENABLE_AIP_44:
             if type_ == DAT.BASE_JOB:
-                return JobPydantic.parse_obj(var)
+                return JobPydantic.model_validate(var)
             elif type_ == DAT.TASK_INSTANCE:
-                return TaskInstancePydantic.parse_obj(var)
+                return TaskInstancePydantic.model_validate(var)
             elif type_ == DAT.DAG_RUN:
-                return DagRunPydantic.parse_obj(var)
+                return DagRunPydantic.model_validate(var)
             elif type_ == DAT.DAG_MODEL:
-                return DagModelPydantic.parse_obj(var)
+                return DagModelPydantic.model_validate(var)
             elif type_ == DAT.DATA_SET:
-                return DatasetPydantic.parse_obj(var)
+                return DatasetPydantic.model_validate(var)
             elif type_ == DAT.LOG_TEMPLATE:
-                return LogTemplatePydantic.parse_obj(var)
+                return LogTemplatePydantic.model_validate(var)
         elif type_ == DAT.ARG_NOT_SET:
             return NOTSET
         else:
@@ -1245,6 +1289,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                     "Use of a custom dependency detector is deprecated. "
                     "Support will be removed in a future release.",
                     RemovedInAirflow3Warning,
+                    stacklevel=1,
                 )
                 dep = custom_dependency_detector_cls().detect_task_dependencies(op)
                 if type(dep) is DagDependency:
@@ -1476,9 +1521,15 @@ class SerializedDAG(DAG, BaseSerialization):
                 v = set(v)
             elif k == "tasks":
                 SerializedBaseOperator._load_operator_extra_links = cls._load_operator_extra_links
-
-                v = {task["task_id"]: SerializedBaseOperator.deserialize_operator(task) for task in v}
+                tasks = {}
+                for obj in v:
+                    if obj.get(Encoding.TYPE) == DAT.OP:
+                        deser = SerializedBaseOperator.deserialize_operator(obj[Encoding.VAR])
+                        tasks[deser.task_id] = deser
+                    else:  # todo: remove in Airflow 3.0 (backcompat for pre-2.10)
+                        tasks[obj["task_id"]] = SerializedBaseOperator.deserialize_operator(obj)
                 k = "task_dict"
+                v = tasks
             elif k == "timezone":
                 v = cls._deserialize_timezone(v)
             elif k == "dagrun_timeout":

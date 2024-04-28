@@ -20,6 +20,32 @@
 Changelog
 ---------
 
+1.0.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove button for reset my password when we have reset password (#38957)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Activate RUF019 that checks for unnecessary key check (#38950)``
+
+
+1.0.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Rename 'allowed_filter_attrs' to 'allowed_sort_attrs' (#38626)``
+* ``Fix azure authentication when no email is set (#38872)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``fix: try002 for provider fab (#38801)``
+
 1.0.2
 .....
 

@@ -253,12 +253,16 @@ def test_dag_autocomplete_success(client_all_dags):
         follow_redirects=False,
     )
     expected = [
-        {"name": "airflow", "type": "owner"},
-        {"name": "example_dynamic_task_mapping_with_no_taskflow_operators", "type": "dag"},
-        {"name": "example_setup_teardown_taskflow", "type": "dag"},
-        {"name": "test_mapped_taskflow", "type": "dag"},
-        {"name": "tutorial_taskflow_api", "type": "dag"},
-        {"name": "tutorial_taskflow_api_virtualenv", "type": "dag"},
+        {"name": "airflow", "type": "owner", "dag_display_name": None},
+        {
+            "name": "example_dynamic_task_mapping_with_no_taskflow_operators",
+            "type": "dag",
+            "dag_display_name": None,
+        },
+        {"name": "example_setup_teardown_taskflow", "type": "dag", "dag_display_name": None},
+        {"name": "test_mapped_taskflow", "type": "dag", "dag_display_name": None},
+        {"name": "tutorial_taskflow_api", "type": "dag", "dag_display_name": None},
+        {"name": "tutorial_taskflow_api_virtualenv", "type": "dag", "dag_display_name": None},
     ]
 
     assert resp.json == expected
@@ -279,6 +283,14 @@ def test_dag_autocomplete_empty(client_all_dags, query, expected):
         url = f"{url}?query={query}"
     resp = client_all_dags.get(url, follow_redirects=False)
     assert resp.json == expected
+
+
+def test_dag_autocomplete_dag_display_name(client_all_dags):
+    url = "dagmodel/autocomplete?query=Sample"
+    resp = client_all_dags.get(url, follow_redirects=False)
+    assert resp.json == [
+        {"name": "example_display_name", "type": "dag", "dag_display_name": "Sample DAG with Display Name"}
+    ]
 
 
 @pytest.fixture

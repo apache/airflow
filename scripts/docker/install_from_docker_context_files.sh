@@ -86,6 +86,10 @@ function install_airflow_and_providers_from_docker_context_files(){
                 ${ADDITIONAL_PIP_INSTALL_FLAGS} --constraint "${local_constraints_file}" \
                 "${install_airflow_package[@]}" "${installing_providers_packages[@]}"
             set +x
+            echo
+            echo "${COLOR_BLUE}Copying ${local_constraints_file} to ${HOME}/constraints.txt${COLOR_RESET}"
+            echo
+            cp "${local_constraints_file}" "${HOME}/constraints.txt"
         else
             echo
             echo "${COLOR_BLUE}Installing docker-context-files packages with constraints from GitHub${COLOR_RESET}"

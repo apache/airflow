@@ -60,12 +60,11 @@ class SparkJobSpec:
         if self.spec.get("dynamicAllocation", {}).get("enabled"):
             if not all(
                 [
-                    self.spec["dynamicAllocation"].get("initialExecutors"),
                     self.spec["dynamicAllocation"].get("minExecutors"),
                     self.spec["dynamicAllocation"].get("maxExecutors"),
                 ]
             ):
-                raise AirflowException("Make sure initial/min/max value for dynamic allocation is passed")
+                raise AirflowException("Make sure min/max value for dynamic allocation is passed")
 
     def update_resources(self):
         if self.spec["driver"].get("container_resources"):

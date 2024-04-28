@@ -35,14 +35,41 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.0.4
+.....
+
+Latest change: 2024-04-15
+
+=================================================================================================  ===========  ============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ============================================================================
+`f8104325b7 <https://github.com/apache/airflow/commit/f8104325b7a66d4e98ff3a6c3555f90c796071c6>`_  2024-04-15   ``Activate RUF019 that checks for unnecessary key check (#38950)``
+`c3bb80da93 <https://github.com/apache/airflow/commit/c3bb80da939025dd49b646a819f5e984faf9ddfc>`_  2024-04-12   ``Remove button for reset my password when we have reset password (#38957)``
+=================================================================================================  ===========  ============================================================================
+
+1.0.3
+.....
+
+Latest change: 2024-04-10
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
+`53cd7173b4 <https://github.com/apache/airflow/commit/53cd7173b4781e8cd46fd96b1e107b2d1bcf4966>`_  2024-04-10   ``Fix azure authentication when no email is set (#38872)``
+`6d3d2075ae <https://github.com/apache/airflow/commit/6d3d2075ae782104b7840779c91fb2be5a61cf24>`_  2024-04-07   ``fix: try002 for provider fab (#38801)``
+`e700f4150a <https://github.com/apache/airflow/commit/e700f4150a60fd019e20cfd650ab397c6276dd77>`_  2024-03-30   ``Rename 'allowed_filter_attrs' to 'allowed_sort_attrs' (#38626)``
+=================================================================================================  ===========  ==================================================================
+
 1.0.2
 .....
 
-Latest change: 2024-03-20
+Latest change: 2024-03-25
 
 =================================================================================================  ===========  ===================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================
+`256911aa62 <https://github.com/apache/airflow/commit/256911aa62ecbc5be1fe4eeefd9c965077feb357>`_  2024-03-25   ``Prepare fab provider RC1 (#38451)``
 `7776e9154d <https://github.com/apache/airflow/commit/7776e9154d6f3577100b534b08f4131321360a0f>`_  2024-03-20   ``Upgrade FAB to 4.4.1 (#38319)``
 `0a74928894 <https://github.com/apache/airflow/commit/0a74928894fb57b0160208262ccacad12da23fc7>`_  2024-03-18   ``Bump ruff to 0.3.3 (#38240)``
 `2e35854a05 <https://github.com/apache/airflow/commit/2e35854a052a13206cb1475973e039fbe394254c>`_  2024-03-15   ``Make the method 'BaseAuthManager.is_authorized_custom_view' abstract (#37915)``

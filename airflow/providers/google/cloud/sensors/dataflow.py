@@ -19,14 +19,23 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, Sequence
+from functools import cached_property
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
     DataflowHook,
     DataflowJobStatus,
 )
+from airflow.providers.google.cloud.triggers.dataflow import (
+    DataflowJobAutoScalingEventTrigger,
+    DataflowJobMessagesTrigger,
+    DataflowJobMetricsTrigger,
+    DataflowJobStatusTrigger,
+)
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -42,7 +51,7 @@ class DataflowJobStatusSensor(BaseSensorOperator):
         :ref:`howto/operator:DataflowJobStatusSensor`
 
     :param job_id: ID of the job to be checked.
-    :param expected_statuses: The expected state of the operation.
+    :param expected_statuses: The expected state(s) of the operation.
         See:
         https://cloud.google.com/dataflow/docs/reference/rest/v1b3/projects.jobs#Job.JobState
     :param project_id: Optional, the Google Cloud project ID in which to start a job.
@@ -58,6 +67,8 @@ class DataflowJobStatusSensor(BaseSensorOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param deferrable: If True, run the sensor in the deferrable mode.
+    :param poll_interval: Time (seconds) to wait between two consecutive calls to check the job.
     """
 
     template_fields: Sequence[str] = ("job_id",)
@@ -67,10 +78,12 @@ class DataflowJobStatusSensor(BaseSensorOperator):
         *,
         job_id: str,
         expected_statuses: set[str] | str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        poll_interval: int = 10,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -82,17 +95,14 @@ class DataflowJobStatusSensor(BaseSensorOperator):
         self.location = location
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-        self.hook: DataflowHook | None = None
+        self.deferrable = deferrable
+        self.poll_interval = poll_interval
 
     def poke(self, context: Context) -> bool:
         self.log.info(
             "Waiting for job %s to be in one of the states: %s.",
             self.job_id,
             ", ".join(self.expected_statuses),
-        )
-        self.hook = DataflowHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
         )
 
         job = self.hook.get_job(
@@ -115,10 +125,51 @@ class DataflowJobStatusSensor(BaseSensorOperator):
 
         return False
 
+    def execute(self, context: Context) -> None:
+        """Airflow runs this method on the worker and defers using the trigger."""
+        if not self.deferrable:
+            super().execute(context)
+        elif not self.poke(context=context):
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=DataflowJobStatusTrigger(
+                    job_id=self.job_id,
+                    expected_statuses=self.expected_statuses,
+                    project_id=self.project_id,
+                    location=self.location,
+                    gcp_conn_id=self.gcp_conn_id,
+                    poll_sleep=self.poll_interval,
+                    impersonation_chain=self.impersonation_chain,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context: Context, event: dict[str, str | list]) -> bool:
+        """
+        Execute this method when the task resumes its execution on the worker after deferral.
+
+        Returns True if the trigger returns an event with the success status, otherwise raises
+        an exception.
+        """
+        if event["status"] == "success":
+            self.log.info(event["message"])
+            return True
+        # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+        if self.soft_fail:
+            raise AirflowSkipException(f"Sensor failed with the following message: {event['message']}.")
+        raise AirflowException(f"Sensor failed with the following message: {event['message']}")
+
+    @cached_property
+    def hook(self) -> DataflowHook:
+        return DataflowHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
 
 class DataflowJobMetricsSensor(BaseSensorOperator):
     """
-    Checks the metrics of a job in Google Cloud Dataflow.
+    Checks for metrics associated with a single job in Google Cloud Dataflow.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -143,6 +194,9 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param deferrable: If True, run the sensor in the deferrable mode.
+    :param poll_interval: Time (seconds) to wait between two consecutive calls to check the job.
+
     """
 
     template_fields: Sequence[str] = ("job_id",)
@@ -151,12 +205,14 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
         self,
         *,
         job_id: str,
-        callback: Callable[[dict], bool],
+        callback: Callable | None = None,
         fail_on_terminal_state: bool = True,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        poll_interval: int = 10,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -167,14 +223,10 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
         self.location = location
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-        self.hook: DataflowHook | None = None
+        self.deferrable = deferrable
+        self.poll_interval = poll_interval
 
     def poke(self, context: Context) -> bool:
-        self.hook = DataflowHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
-
         if self.fail_on_terminal_state:
             job = self.hook.get_job(
                 job_id=self.job_id,
@@ -194,27 +246,73 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
             project_id=self.project_id,
             location=self.location,
         )
+        return result["metrics"] if self.callback is None else self.callback(result["metrics"])
 
-        return self.callback(result["metrics"])
+    def execute(self, context: Context) -> Any:
+        """Airflow runs this method on the worker and defers using the trigger."""
+        if not self.deferrable:
+            super().execute(context)
+        else:
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=DataflowJobMetricsTrigger(
+                    job_id=self.job_id,
+                    project_id=self.project_id,
+                    location=self.location,
+                    gcp_conn_id=self.gcp_conn_id,
+                    poll_sleep=self.poll_interval,
+                    impersonation_chain=self.impersonation_chain,
+                    fail_on_terminal_state=self.fail_on_terminal_state,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context: Context, event: dict[str, str | list]) -> Any:
+        """
+        Execute this method when the task resumes its execution on the worker after deferral.
+
+        If the trigger returns an event with success status - passes the event result to the callback function.
+        Returns the event result if no callback function is provided.
+
+        If the trigger returns an event with error status - raises an exception.
+        """
+        if event["status"] == "success":
+            self.log.info(event["message"])
+            return event["result"] if self.callback is None else self.callback(event["result"])
+        # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+        if self.soft_fail:
+            raise AirflowSkipException(f"Sensor failed with the following message: {event['message']}.")
+        raise AirflowException(f"Sensor failed with the following message: {event['message']}")
+
+    @cached_property
+    def hook(self) -> DataflowHook:
+        return DataflowHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
 
 
 class DataflowJobMessagesSensor(BaseSensorOperator):
     """
-    Checks for the job message in Google Cloud Dataflow.
+    Checks for job messages associated with a single job in Google Cloud Dataflow.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:DataflowJobMessagesSensor`
 
-    :param job_id: ID of the job to be checked.
-    :param callback: callback which is called with list of read job metrics
-        See:
-        https://cloud.google.com/dataflow/docs/reference/rest/v1b3/MetricUpdate
-    :param fail_on_terminal_state: If set to true sensor will raise Exception when
-        job is in terminal state
+    :param job_id: ID of the Dataflow job to be checked.
+    :param callback: a function that can accept a list of serialized job messages.
+        It can do whatever you want it to do. If the callback function is not provided,
+        then on successful completion the task will exit with True value.
+        For more info about the job message content see:
+        https://cloud.google.com/python/docs/reference/dataflow/latest/google.cloud.dataflow_v1beta3.types.JobMessage
+    :param fail_on_terminal_state: If set to True the sensor will raise an exception when the job reaches a terminal state.
+        No job messages will be returned.
     :param project_id: Optional, the Google Cloud project ID in which to start a job.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
-    :param location: Job location.
+    :param location: The location of the Dataflow job (for example europe-west1).
+        If set to None then the value of DEFAULT_DATAFLOW_LOCATION will be used.
+        See: https://cloud.google.com/dataflow/docs/concepts/regional-endpoints
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -224,6 +322,8 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param deferrable: If True, run the sensor in the deferrable mode.
+    :param poll_interval: Time (seconds) to wait between two consecutive calls to check the job.
     """
 
     template_fields: Sequence[str] = ("job_id",)
@@ -232,12 +332,14 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
         self,
         *,
         job_id: str,
-        callback: Callable,
+        callback: Callable | None = None,
         fail_on_terminal_state: bool = True,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        poll_interval: int = 10,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -248,14 +350,10 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
         self.location = location
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-        self.hook: DataflowHook | None = None
+        self.deferrable = deferrable
+        self.poll_interval = poll_interval
 
     def poke(self, context: Context) -> bool:
-        self.hook = DataflowHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
-
         if self.fail_on_terminal_state:
             job = self.hook.get_job(
                 job_id=self.job_id,
@@ -276,26 +374,73 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
             location=self.location,
         )
 
-        return self.callback(result)
+        return result if self.callback is None else self.callback(result)
+
+    def execute(self, context: Context) -> Any:
+        """Airflow runs this method on the worker and defers using the trigger."""
+        if not self.deferrable:
+            super().execute(context)
+        else:
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=DataflowJobMessagesTrigger(
+                    job_id=self.job_id,
+                    project_id=self.project_id,
+                    location=self.location,
+                    gcp_conn_id=self.gcp_conn_id,
+                    poll_sleep=self.poll_interval,
+                    impersonation_chain=self.impersonation_chain,
+                    fail_on_terminal_state=self.fail_on_terminal_state,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context: Context, event: dict[str, str | list]) -> Any:
+        """
+        Execute this method when the task resumes its execution on the worker after deferral.
+
+        If the trigger returns an event with success status - passes the event result to the callback function.
+        Returns the event result if no callback function is provided.
+
+        If the trigger returns an event with error status - raises an exception.
+        """
+        if event["status"] == "success":
+            self.log.info(event["message"])
+            return event["result"] if self.callback is None else self.callback(event["result"])
+        # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+        if self.soft_fail:
+            raise AirflowSkipException(f"Sensor failed with the following message: {event['message']}.")
+        raise AirflowException(f"Sensor failed with the following message: {event['message']}")
+
+    @cached_property
+    def hook(self) -> DataflowHook:
+        return DataflowHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
 
 
 class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
     """
-    Checks for the job autoscaling event in Google Cloud Dataflow.
+    Checks for autoscaling events associated with a single job in Google Cloud Dataflow.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:DataflowJobAutoScalingEventsSensor`
 
-    :param job_id: ID of the job to be checked.
-    :param callback: callback which is called with list of read job metrics
-        See:
-        https://cloud.google.com/dataflow/docs/reference/rest/v1b3/MetricUpdate
-    :param fail_on_terminal_state: If set to true sensor will raise Exception when
-        job is in terminal state
+    :param job_id: ID of the Dataflow job to be checked.
+    :param callback: a function that can accept a list of serialized autoscaling events.
+        It can do whatever you want it to do. If the callback function is not provided,
+        then on successful completion the task will exit with True value.
+        For more info about the autoscaling event content see:
+        https://cloud.google.com/python/docs/reference/dataflow/latest/google.cloud.dataflow_v1beta3.types.AutoscalingEvent
+    :param fail_on_terminal_state: If set to True the sensor will raise an exception when the job reaches a terminal state.
+        No autoscaling events will be returned.
     :param project_id: Optional, the Google Cloud project ID in which to start a job.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
-    :param location: Job location.
+    :param location: The location of the Dataflow job (for example europe-west1).
+        If set to None then the value of DEFAULT_DATAFLOW_LOCATION will be used.
+        See: https://cloud.google.com/dataflow/docs/concepts/regional-endpoints
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -305,6 +450,8 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param deferrable: If True, run the sensor in the deferrable mode.
+    :param poll_interval: Time (seconds) to wait between two consecutive calls to check the job.
     """
 
     template_fields: Sequence[str] = ("job_id",)
@@ -313,12 +460,14 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
         self,
         *,
         job_id: str,
-        callback: Callable,
+        callback: Callable | None = None,
         fail_on_terminal_state: bool = True,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        poll_interval: int = 60,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -329,14 +478,10 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
         self.location = location
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-        self.hook: DataflowHook | None = None
+        self.deferrable = deferrable
+        self.poll_interval = poll_interval
 
     def poke(self, context: Context) -> bool:
-        self.hook = DataflowHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
-
         if self.fail_on_terminal_state:
             job = self.hook.get_job(
                 job_id=self.job_id,
@@ -357,4 +502,46 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
             location=self.location,
         )
 
-        return self.callback(result)
+        return result if self.callback is None else self.callback(result)
+
+    def execute(self, context: Context) -> Any:
+        """Airflow runs this method on the worker and defers using the trigger."""
+        if not self.deferrable:
+            super().execute(context)
+        else:
+            self.defer(
+                trigger=DataflowJobAutoScalingEventTrigger(
+                    job_id=self.job_id,
+                    project_id=self.project_id,
+                    location=self.location,
+                    gcp_conn_id=self.gcp_conn_id,
+                    poll_sleep=self.poll_interval,
+                    impersonation_chain=self.impersonation_chain,
+                    fail_on_terminal_state=self.fail_on_terminal_state,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context: Context, event: dict[str, str | list]) -> Any:
+        """
+        Execute this method when the task resumes its execution on the worker after deferral.
+
+        If the trigger returns an event with success status - passes the event result to the callback function.
+        Returns the event result if no callback function is provided.
+
+        If the trigger returns an event with error status - raises an exception.
+        """
+        if event["status"] == "success":
+            self.log.info(event["message"])
+            return event["result"] if self.callback is None else self.callback(event["result"])
+        # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+        if self.soft_fail:
+            raise AirflowSkipException(f"Sensor failed with the following message: {event['message']}.")
+        raise AirflowException(f"Sensor failed with the following message: {event['message']}")
+
+    @cached_property
+    def hook(self) -> DataflowHook:
+        return DataflowHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )

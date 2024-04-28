@@ -70,7 +70,7 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-samba
+apache-airflow-providers-samba package
 ------------------------------------------------------
 
 `Samba <https://www.samba.org/>`__
@@ -81,15 +81,15 @@ Release: 4.6.0
 Provider package
 ----------------
 
-This is a provider package for ``samba`` provider. All classes for this provider package
-are in ``airflow.providers.samba`` python package.
+This package is for the ``samba`` provider.
+All classes for this package are included in the ``airflow.providers.samba`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-samba``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-samba``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------

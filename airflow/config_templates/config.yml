@@ -528,7 +528,7 @@ database:
       version_added: 2.3.0
       type: string
       sensitive: true
-      example: '{"arg1": True}'
+      example: '{"arg1": true}'
       default: ~
     sql_engine_encoding:
       description: |

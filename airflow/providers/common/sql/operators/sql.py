@@ -309,6 +309,14 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
 
         hook = self.get_db_hook()
 
+        try:
+            from airflow.providers.openlineage.utils.utils import should_use_external_connection
+
+            use_external_connection = should_use_external_connection(hook)
+        except ImportError:
+            # OpenLineage provider release < 1.8.0 - we always use connection
+            use_external_connection = True
+
         connection = hook.get_connection(getattr(hook, hook.conn_name_attr))
         try:
             database_info = hook.get_openlineage_database_info(connection)
@@ -334,6 +342,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
             database_info=database_info,
             database=self.database,
             sqlalchemy_engine=hook.get_sqlalchemy_engine(),
+            use_connection=use_external_connection,
         )
 
         return operator_lineage

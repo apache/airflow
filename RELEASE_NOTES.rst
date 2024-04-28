@@ -111,6 +111,14 @@ Xcom table column ``value`` type has changed from ``blob`` to ``longblob``. This
 
 To downgrade from revision: ``b4078ac230a1``, ensure that you don't have Xcom values larger than 65,535 bytes. Otherwise, you'll need to clean those rows or run ``airflow db clean xcom`` to clean the Xcom table.
 
+Stronger validation for key parameter defaults in taskflow context variables (#38015)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+As for the taskflow implementation in conjunction with context variable defaults invalid parameter orders can be
+generated, it is now not accepted anymore (and validated) that taskflow functions are defined with defaults
+other than ``None``. If you have done this before you most likely will see a broken DAG and a error message like
+``Error message: Context key parameter my_param can't have a default other than None``.
+
 New Features
 """"""""""""
 - Allow users to write dag_id and task_id in their national characters, added display name for dag / task (v2) (#38446)
@@ -127,7 +135,6 @@ New Features
 - Introduce mechanism to support multiple executor configuration (#37635)
 - Add color formatting for ANSI chars in logs from task executions (#37985)
 - Add the dataset_expression as part of DagModel and DAGDetailSchema (#37826)
-- Add TaskFail entries to Gantt chart (#37918)
 - Allow longer rendered_map_index (#37798)
 - Inherit the run_ordering from DatasetTriggeredTimetable for DatasetOrTimeSchedule (#37775)
 - Implement AIP-60 Dataset URI formats (#37005)
@@ -150,7 +157,6 @@ New Features
 - Create new Metrics with Tagging (#36528)
 - Add support for openlineage to AFS and common.io (#36410)
 - Introduce ``@task.bash`` TaskFlow decorator (#30176, #37875)
-- Added functionality to automatically ingest custom airflow.cfg file upon startup (#36289)
 
 Improvements
 """"""""""""

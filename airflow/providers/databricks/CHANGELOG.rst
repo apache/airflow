@@ -26,6 +26,42 @@
 Changelog
 ---------
 
+6.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add cancel_previous_run to DatabricksRunNowOperator (#38702)``
+* ``add repair_run support to DatabricksRunNowOperator in deferrable mode (#38619)``
+* ``Adds job_id as path param in update permission (#38962)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix remaining D401 checks (#37434)``
+* ``Update ACL during job reset (#38741)``
+* ``Remove extra slash from update permission endpoint (#38918)``
+* ``DatabricksRunNowOperator: fix typo in latest_repair_id (#39050)``
+
+Misc
+~~~~
+
+* ``refactor(databricks): remove redundant else block (#38397)``
+* ``Rename 'DatabricksSqlOperator''s fields' names to comply with templated fields validation (#38052)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update yanked versions in providers changelogs (#38262)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``Restore Python 3.12 support for Databricks (#38207)``
+   * ``Add comment about versions updated by release manager (#37488)``
+   * ``Exclude Python 3.12 for Databricks provider (#38070)``
+   * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+   * ``update pre-commit (#37665)``
+   * ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
+   * ``Prepare docs 1st wave (RC2) April 2024 (#38995)``
+
 6.2.0
 .....
 

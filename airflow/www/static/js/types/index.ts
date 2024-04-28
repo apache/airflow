@@ -143,6 +143,7 @@ interface DepNode {
     labelStyle?: string;
     style?: string;
     setupTeardownType?: "setup" | "teardown";
+    isMapped?: boolean;
   };
   children?: DepNode[];
   edges?: MidEdge[];

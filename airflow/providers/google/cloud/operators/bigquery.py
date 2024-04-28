@@ -56,6 +56,7 @@ from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryValueCheckTrigger,
 )
 from airflow.providers.google.cloud.utils.bigquery import convert_job_id
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
@@ -322,7 +323,25 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
                     ),
                     method_name="execute_complete",
                 )
+            self._handle_job_error(job)
+            # job.result() returns a RowIterator. Mypy expects an instance of SupportsNext[Any] for
+            # the next() call which the RowIterator does not resemble to. Hence, ignore the arg-type error.
+            # Row passed to _validate_records is a collection of values only, without column names.
+            self._validate_records(next(iter(job.result()), []))  # type: ignore[arg-type]
             self.log.info("Current state of job %s is %s", job.job_id, job.state)
+
+    @staticmethod
+    def _handle_job_error(job: BigQueryJob | UnknownJob) -> None:
+        if job.error_result:
+            raise AirflowException(f"BigQuery job {job.job_id} failed: {job.error_result}")
+
+    def _validate_records(self, records) -> None:
+        if not records:
+            raise AirflowException(f"The following query returned zero rows: {self.sql}")
+        elif not all(records):
+            self._raise_exception(  # type: ignore[attr-defined]
+                f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}"
+            )
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
         """Act as a callback for when the trigger fires.
@@ -333,13 +352,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         if event["status"] == "error":
             raise AirflowException(event["message"])
 
-        records = event["records"]
-        if not records:
-            raise AirflowException("The query returned empty results")
-        elif not all(records):
-            self._raise_exception(  # type: ignore[attr-defined]
-                f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}"
-            )
+        self._validate_records(event["records"])
         self.log.info("Record: %s", event["records"])
         self.log.info("Success.")
 
@@ -454,8 +467,8 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
             self._handle_job_error(job)
             # job.result() returns a RowIterator. Mypy expects an instance of SupportsNext[Any] for
             # the next() call which the RowIterator does not resemble to. Hence, ignore the arg-type error.
-            records = next(job.result())  # type: ignore[arg-type]
-            self.check_value(records)  # type: ignore[attr-defined]
+            # Row passed to check_value is a collection of values only, without column names.
+            self.check_value(next(iter(job.result()), []))  # type: ignore[arg-type]
             self.log.info("Current state of job %s is %s", job.job_id, job.state)
 
     @staticmethod
@@ -542,7 +555,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         labels: dict | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: float = 4.0,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -946,7 +959,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         table_id: str,
         table_project_id: str | None = None,
         job_project_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         max_results: int = 100,
         selected_fields: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -1447,7 +1460,7 @@ class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
         dataset_id: str,
         table_id: str,
         table_resource: dict[str, Any] | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         schema_fields: list | None = None,
         gcs_schema_object: str | None = None,
         time_partitioning: dict | None = None,
@@ -1907,7 +1920,7 @@ class BigQueryDeleteDatasetOperator(GoogleCloudBaseOperator):
         self,
         *,
         dataset_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         delete_contents: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -1987,7 +2000,7 @@ class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
         self,
         *,
         dataset_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         dataset_reference: dict | None = None,
         location: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -2091,7 +2104,7 @@ class BigQueryGetDatasetOperator(GoogleCloudBaseOperator):
         self,
         *,
         dataset_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -2154,7 +2167,7 @@ class BigQueryGetDatasetTablesOperator(GoogleCloudBaseOperator):
         self,
         *,
         dataset_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         max_results: int | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -2223,7 +2236,7 @@ class BigQueryPatchDatasetOperator(GoogleCloudBaseOperator):
         *,
         dataset_id: str,
         dataset_resource: dict,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -2296,7 +2309,7 @@ class BigQueryUpdateTableOperator(GoogleCloudBaseOperator):
         fields: list[str] | None = None,
         dataset_id: str | None = None,
         table_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -2380,7 +2393,7 @@ class BigQueryUpdateDatasetOperator(GoogleCloudBaseOperator):
         dataset_resource: dict[str, Any],
         fields: list[str] | None = None,
         dataset_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -2516,7 +2529,7 @@ class BigQueryUpsertTableOperator(GoogleCloudBaseOperator):
         *,
         dataset_id: str,
         table_resource: dict,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -2623,7 +2636,7 @@ class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
         dataset_id: str,
         table_id: str,
         include_policy_tags: bool = False,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -2732,7 +2745,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
     def __init__(
         self,
         configuration: dict[str, Any],
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str | None = None,
         job_id: str | None = None,
         force_rerun: bool = True,
@@ -2903,6 +2916,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
                         location=self.location or hook.location,
                         poll_interval=self.poll_interval,
                         impersonation_chain=self.impersonation_chain,
+                        cancel_on_kill=self.cancel_on_kill,
                     ),
                     method_name="execute_complete",
                 )

@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+4.10.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(http): add return statement to yield within a while loop in triggers (#38392)``
+* ``Consolidate HttpOperator http request between sync and async mode (#37293)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update yanked versions in providers changelogs (#38262)``
+
 4.10.0
 ......
 

@@ -26,6 +26,36 @@
 Changelog
 ---------
 
+1.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add lineage_job_namespace and lineage_job_name OpenLineage macros (#38829)``
+* ``openlineage: add 'opt-in' option (#37725)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Remove redundant operator information from facets (#38264)``
+* ``fix: disabled_for_operators now stops whole event emission (#38033)``
+* ``fix: Add fallbacks when retrieving Airflow configuration to avoid errors being raised (#37994)``
+* ``fix: Fix parent id macro and remove unused utils (#37877)``
+
+Misc
+~~~~
+
+* ``Avoid use of 'assert' outside of the tests (#37718)``
+* ``Add default for 'task' on TaskInstance / fix attrs on TaskInstancePydantic (#37854)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Brings back mypy-checks (#38597)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``Resolve G004: Logging statement uses f-string (#37873)``
+   * ``fix: try002 for provider openlineage (#38806)``
+
 1.6.0
 .....
 

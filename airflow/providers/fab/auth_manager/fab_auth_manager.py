@@ -268,11 +268,14 @@ class FabAuthManager(BaseAuthManager):
         )
 
     def is_authorized_custom_view(
-        self, *, method: ResourceMethod, resource_name: str, user: BaseUser | None = None
+        self, *, method: ResourceMethod | str, resource_name: str, user: BaseUser | None = None
     ):
         if not user:
             user = self.get_user()
-        fab_action_name = get_fab_action_from_method_map()[method]
+        if method in get_fab_action_from_method_map():
+            fab_action_name = get_fab_action_from_method_map()[method]
+        else:
+            fab_action_name = method
         return (fab_action_name, resource_name) in self._get_user_permissions(user)
 
     @provide_session
@@ -350,8 +353,8 @@ class FabAuthManager(BaseAuthManager):
         """Return the login page url."""
         if not self.security_manager.auth_view:
             raise AirflowException("`auth_view` not defined in the security manager.")
-        if "next_url" in kwargs and kwargs["next_url"]:
-            return url_for(f"{self.security_manager.auth_view.endpoint}.login", next=kwargs["next_url"])
+        if next_url := kwargs.get("next_url"):
+            return url_for(f"{self.security_manager.auth_view.endpoint}.login", next=next_url)
         else:
             return url_for(f"{self.security_manager.auth_view.endpoint}.login")
 

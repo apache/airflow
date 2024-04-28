@@ -218,6 +218,7 @@ Currently, **officially** using Airflow:
 1. [Gentner Lab](https://github.com/gentnerlab) [[@neuromusic](https://github.com/neuromusic)]
 1. [Get Simpl](https://getsimpl.com/) [[@rootcss](https://github.com/rootcss)]
 1. [Getir](https://www.getir.com/) [[@mpolatcan](https://github.com/mpolatcan)]
+1. [Giant Steps Capital](https://www.gscap.com.br/) [[@flaviokr](https://github.com/flaviokr) & [@giant-steps](https://github.com/giant-steps) & [@mateuslatrova](https://github.com/mateuslatrova) & [@NataliaGodot](https://github.com/NataliaGodot)]
 1. [GitLab](https://about.gitlab.com/) [[@tayloramurphy](https://gitlab.com/tayloramurphy) & [@m_walker](https://gitlab.com/m_walker)]
 1. [Glassdoor](https://github.com/Glassdoor) [[@syvineckruyk](https://github.com/syvineckruyk) & [@sid88in](https://github.com/sid88in)]
 1. [Global Fashion Group](http://global-fashion-group.com) [[@GFG](https://github.com/GFG)]

@@ -142,6 +142,7 @@ class ShellParams:
     executor: str = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR
     extra_args: tuple = ()
     force_build: bool = False
+    force_sa_warnings: bool = True
     forward_credentials: bool = False
     forward_ports: bool = True
     github_actions: str = os.environ.get("GITHUB_ACTIONS", "false")
@@ -490,6 +491,7 @@ class ShellParams:
         _set_var(_env, "DOWNGRADE_PENDULUM", self.downgrade_pendulum)
         _set_var(_env, "ENABLED_SYSTEMS", None, "")
         _set_var(_env, "FLOWER_HOST_PORT", None, FLOWER_HOST_PORT)
+        _set_var(_env, "SQLALCHEMY_WARN_20", self.force_sa_warnings)
         _set_var(_env, "GITHUB_ACTIONS", self.github_actions)
         _set_var(_env, "HELM_TEST_PACKAGE", self.helm_test_package, "")
         _set_var(_env, "HOST_GROUP_ID", self.host_group_id)
@@ -529,6 +531,7 @@ class ShellParams:
         _set_var(_env, "STANDALONE_DAG_PROCESSOR", self.standalone_dag_processor)
         _set_var(_env, "START_AIRFLOW", self.start_airflow)
         _set_var(_env, "SUSPENDED_PROVIDERS_FOLDERS", self.suspended_providers_folders)
+        _set_var(_env, "SYSTEM_TESTS_ENV_ID", None, "")
         _set_var(_env, "TEST_TYPE", self.test_type, "")
         _set_var(_env, "UPGRADE_BOTO", self.upgrade_boto)
         _set_var(_env, "PYDANTIC", self.pydantic)
