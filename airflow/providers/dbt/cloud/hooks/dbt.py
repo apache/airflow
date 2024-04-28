@@ -429,12 +429,12 @@ class DbtCloudHook(HttpHook):
 
         if retry_from_failure:
             return self.retry_failed_job_run(job_id, account_id)
-        else:
-            return self._run_and_get_response(
-                method="POST",
-                endpoint=f"{account_id}/jobs/{job_id}/run/",
-                payload=json.dumps(payload),
-            )
+
+        return self._run_and_get_response(
+            method="POST",
+            endpoint=f"{account_id}/jobs/{job_id}/run/",
+            payload=json.dumps(payload),
+        )
 
     @fallback_to_default_account
     def list_job_runs(

@@ -251,6 +251,7 @@ class TestDbtCloudRunJobOperator:
                 cause=f"Triggered via Apache Airflow by task {TASK_ID!r} in the {self.dag.dag_id} DAG.",
                 steps_override=self.config["steps_override"],
                 schema_override=self.config["schema_override"],
+                retry_from_failure=False,
                 additional_run_config=self.config["additional_run_config"],
             )
 
@@ -299,6 +300,7 @@ class TestDbtCloudRunJobOperator:
                 cause=f"Triggered via Apache Airflow by task {TASK_ID!r} in the {self.dag.dag_id} DAG.",
                 steps_override=self.config["steps_override"],
                 schema_override=self.config["schema_override"],
+                retry_from_failure=False,
                 additional_run_config=self.config["additional_run_config"],
             )
 
@@ -363,6 +365,56 @@ class TestDbtCloudRunJobOperator:
 
     @patch.object(DbtCloudHook, "trigger_job_run")
     @pytest.mark.parametrize(
+        "try_number, expected_retry_from_failure",
+        [
+            (1, False),
+            (2, True),
+            (3, True),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "conn_id, account_id",
+        [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        ids=["default_account", "explicit_account"],
+    )
+    def test_execute_retry_from_failure(
+        self, mock_run_job, try_number, expected_retry_from_failure, conn_id, account_id
+    ):
+        operator = DbtCloudRunJobOperator(
+            task_id=TASK_ID,
+            dbt_cloud_conn_id=conn_id,
+            account_id=account_id,
+            trigger_reason=None,
+            dag=self.dag,
+            retry_from_failure=True,
+            **self.config,
+        )
+
+        assert operator.dbt_cloud_conn_id == conn_id
+        assert operator.job_id == self.config["job_id"]
+        assert operator.account_id == account_id
+        assert operator.check_interval == self.config["check_interval"]
+        assert operator.timeout == self.config["timeout"]
+        assert operator.retry_from_failure
+        assert operator.steps_override == self.config["steps_override"]
+        assert operator.schema_override == self.config["schema_override"]
+        assert operator.additional_run_config == self.config["additional_run_config"]
+
+        self.mock_ti.try_number = try_number
+        operator.execute(context={"ti": self.mock_ti})
+
+        mock_run_job.assert_called_once_with(
+            account_id=account_id,
+            job_id=JOB_ID,
+            cause=f"Triggered via Apache Airflow by task {TASK_ID!r} in the {self.dag.dag_id} DAG.",
+            steps_override=self.config["steps_override"],
+            schema_override=self.config["schema_override"],
+            retry_from_failure=expected_retry_from_failure,
+            additional_run_config=self.config["additional_run_config"],
+        )
+
+    @patch.object(DbtCloudHook, "trigger_job_run")
+    @pytest.mark.parametrize(
         "conn_id, account_id",
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
@@ -393,6 +445,7 @@ class TestDbtCloudRunJobOperator:
                 cause=custom_trigger_reason,
                 steps_override=self.config["steps_override"],
                 schema_override=self.config["schema_override"],
+                retry_from_failure=False,
                 additional_run_config=self.config["additional_run_config"],
             )
 
