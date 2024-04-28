@@ -36,6 +36,7 @@ import kubernetes
 from deprecated import deprecated
 from kubernetes.client import CoreV1Api, V1Pod, models as k8s
 from kubernetes.stream import stream
+from kubernetes.client.exceptions import ApiException
 from urllib3.exceptions import HTTPError
 
 from airflow.configuration import conf
@@ -766,9 +767,15 @@ class KubernetesPodOperator(BaseOperator):
         # Skip await_pod_completion when the event is 'timeout' due to the pod can hang
         # on the ErrImagePull or ContainerCreating step and it will never complete
         if event["status"] != "timeout":
-            self.pod = self.pod_manager.await_pod_completion(
-                self.pod, istio_enabled, self.base_container_name
-            )
+            try:
+                self.pod = self.pod_manager.await_pod_completion(
+                    self.pod, istio_enabled, self.base_container_name
+                )
+            except ApiException as e:
+                if e.status == 404:
+                    self.pod = None
+                else:
+                    raise e
         if self.pod is not None:
             self.post_complete_action(
                 pod=self.pod,
@@ -796,11 +803,11 @@ class KubernetesPodOperator(BaseOperator):
                 line = raw_line.decode("utf-8", errors="backslashreplace").rstrip("\n")
                 if line:
                     self.log.info("Container logs: %s", line)
-        except HTTPError as e:
+        except (HTTPError, ApiException) as e:
             self.log.warning(
                 "Reading of logs interrupted with error %r; will retry. "
                 "Set log level to DEBUG for traceback.",
-                e,
+                e if not isinstance(e, ApiException) else e.reason,
             )
 
     def post_complete_action(self, *, pod, remote_pod, **kwargs):
