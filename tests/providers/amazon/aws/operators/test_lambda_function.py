@@ -125,6 +125,38 @@ class TestLambdaCreateFunctionOperator:
         with pytest.raises(TaskDeferred):
             operator.execute(None)
 
+    @mock.patch.object(LambdaHook, "create_lambda")
+    @mock.patch.object(LambdaHook, "conn")
+    @pytest.mark.parametrize(
+        "config",
+        [
+            pytest.param({"architectures": ["arm64"],
+                          "logging_config": {
+                              "LogFormat": "Text",
+                              "LogGroup": "/custom/log-group/"
+                          }
+                          }, id="with-config-parameters"),
+        ],
+    )
+    def test_create_lambda_with_using_config_argument(self,
+                                                      mock_hook_conn,
+                                                      mock_hook_create_lambda, config):
+        operator = LambdaCreateFunctionOperator(
+            task_id="task_test",
+            function_name=FUNCTION_NAME,
+            role=ROLE_ARN,
+            code={
+                "ImageUri": IMAGE_URI,
+            },
+            config=config
+        )
+        operator.execute(None)
+
+        mock_hook_create_lambda.assert_called_once()
+        mock_hook_conn.get_waiter.assert_not_called()
+        assert operator.config.get("logging_config") == config.get("logging_config")
+        assert operator.config.get("architectures") == config.get("architectures")
+
 
 class TestLambdaInvokeFunctionOperator:
     @pytest.mark.parametrize("payload", PAYLOADS)
