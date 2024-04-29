@@ -30,8 +30,8 @@ from alembic import op
 from contextlib import suppress
 
 # revision identifiers, used by Alembic.
-revision = 'bff083ad727d'
-down_revision = '677fdbb7fc54'
+revision = "bff083ad727d"
+down_revision = "1949afb29106"
 branch_labels = None
 depends_on = None
 airflow_version = "2.9.1"
