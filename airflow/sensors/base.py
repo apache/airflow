@@ -237,7 +237,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             def run_duration() -> float:
                 return time.monotonic() - start_monotonic
 
-        try_number = 1
+        poke_count = 1
         log_dag_id = self.dag.dag_id if self.has_dag() else ""
 
         xcom_value = None
@@ -280,7 +280,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 else:
                     raise AirflowSensorTimeout(message)
             if self.reschedule:
-                next_poke_interval = self._get_next_poke_interval(started_at, run_duration, try_number)
+                next_poke_interval = self._get_next_poke_interval(started_at, run_duration, poke_count)
                 reschedule_date = timezone.utcnow() + timedelta(seconds=next_poke_interval)
                 if _is_metadatabase_mysql() and reschedule_date > _MYSQL_TIMESTAMP_MAX:
                     raise AirflowSensorTimeout(
@@ -289,8 +289,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                     )
                 raise AirflowRescheduleException(reschedule_date)
             else:
-                time.sleep(self._get_next_poke_interval(started_at, run_duration, try_number))
-                try_number += 1
+                time.sleep(self._get_next_poke_interval(started_at, run_duration, poke_count))
+                poke_count += 1
         self.log.info("Success criteria met. Exiting.")
         return xcom_value
 
@@ -306,17 +306,17 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         self,
         started_at: datetime.datetime | float,
         run_duration: Callable[[], float],
-        try_number: int,
+        poke_count: int,
     ) -> float:
         """Use similar logic which is used for exponential backoff retry delay for operators."""
         if not self.exponential_backoff:
             return self.poke_interval
 
         # The value of min_backoff should always be greater than or equal to 1.
-        min_backoff = max(int(self.poke_interval * (2 ** (try_number - 2))), 1)
+        min_backoff = max(int(self.poke_interval * (2 ** (poke_count - 2))), 1)
 
         run_hash = int(
-            hashlib.sha1(f"{self.dag_id}#{self.task_id}#{started_at}#{try_number}".encode()).hexdigest(),
+            hashlib.sha1(f"{self.dag_id}#{self.task_id}#{started_at}#{poke_count}".encode()).hexdigest(),
             16,
         )
         modded_hash = min_backoff + run_hash % min_backoff
