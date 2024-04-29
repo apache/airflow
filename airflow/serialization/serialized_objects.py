@@ -70,6 +70,7 @@ from airflow.triggers.base import BaseTrigger
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.context import Context, DatasetEventAccessor, DatasetEventAccessors
 from airflow.utils.docs import get_docs_url
+from airflow.utils.helpers import exactly_one
 from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import MappedTaskGroup, TaskGroup
@@ -1025,7 +1026,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         # Used to determine if an Operator is inherited from EmptyOperator
         serialize_op["_is_empty"] = op.inherits_from_empty_operator
 
-        if bool(op.start_trigger) ^ bool(op.next_method):
+        if exactly_one(op.start_trigger is not None, op.next_method is not None):
             raise AirflowException("start_trigger and next_method should both be set.")
 
         serialize_op["start_trigger"] = op.start_trigger.serialize() if op.start_trigger else None
