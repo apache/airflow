@@ -58,7 +58,7 @@ class OpenSearchServerlessCollectionActiveTrigger(AwsBaseWaiterTrigger):
             status_message="Status of OpenSearch Serverless Collection is",
             status_queries=["status"],
             return_key="collection_id" if collection_id else "collection_name",
-            return_value=collection_id if collection_name else collection_name,
+            return_value=collection_id if collection_id else collection_name,
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,

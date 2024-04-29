@@ -79,7 +79,7 @@ class TestOpenSearchServerlessCollectionActiveSensor:
             assert op.collection_name == collection_name
         if not expected_pass:
             with pytest.raises(
-                AttributeError, match=OpenSearchServerlessCollectionActiveSensor.INVALID_ARGS_MESSAGE
+                AttributeError, match="Either collection_ids or collection_names must be provided, not both."
             ):
                 OpenSearchServerlessCollectionActiveSensor(**call_args)
 

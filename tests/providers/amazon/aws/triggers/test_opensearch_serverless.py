@@ -22,9 +22,6 @@ from unittest.mock import AsyncMock
 import pytest
 
 from airflow.providers.amazon.aws.hooks.opensearch_serverless import OpenSearchServerlessHook
-from airflow.providers.amazon.aws.sensors.opensearch_serverless import (
-    OpenSearchServerlessCollectionActiveSensor,
-)
 from airflow.providers.amazon.aws.triggers.opensearch_serverless import (
     OpenSearchServerlessCollectionActiveTrigger,
 )
@@ -72,7 +69,7 @@ class TestOpenSearchServerlessCollectionActiveTrigger:
 
         if not expected_pass:
             with pytest.raises(
-                AttributeError, match=OpenSearchServerlessCollectionActiveSensor.INVALID_ARGS_MESSAGE
+                AttributeError, match="Either collection_ids or collection_names must be provided, not both."
             ):
                 OpenSearchServerlessCollectionActiveTrigger(**call_args)
 
