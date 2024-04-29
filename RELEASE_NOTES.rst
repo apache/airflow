@@ -27,12 +27,12 @@ Airflow 2.9.1 (2024-05-03)
 Significant Changes
 ^^^^^^^^^^^^^^^^^^^
 
-Stackdriver logging bugfix requires Google provider `10.17.0` or later (#38071)
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+Stackdriver logging bugfix requires Google provider ``10.17.0`` or later (#38071)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-If you use Stackdriver logging, you must use Google provider version `10.17.0` or later. Airflow `2.9.1` now passes `gcp_log_name` to the `StackdriverTaskHandler` instead of `name`, and this will fail on earlier provider versions.
+If you use Stackdriver logging, you must use Google provider version ``10.17.0`` or later. Airflow ``2.9.1`` now passes ``gcp_log_name`` to the ``StackdriverTaskHandler`` instead of ``name``, and this will fail on earlier provider versions.
 
-This fixes a bug where the log name configured in `[logging] remove_base_log_folder` was overridden when Airflow configured logging, resulting in task logs going to the wrong destination.
+This fixes a bug where the log name configured in ``[logging] remove_base_log_folder`` was overridden when Airflow configured logging, resulting in task logs going to the wrong destination.
 
 
 
@@ -70,7 +70,7 @@ Bug Fixes
 
 Miscellaneous
 """""""""""""
-- ``TriggerDagRunOperator`` deprecate ``exection_date`` in favor of ``logical_date`` (#39285)
+- ``TriggerDagRunOperator`` deprecate ``execution_date`` in favor of ``logical_date`` (#39285)
 - Force to use Airflow Deprecation warnings categories on ``@deprecated`` decorator (#39205)
 - Add warning about run/import Airflow under the Windows (#39196)
 - Update ``is_authorized_custom_view`` from auth manager to handle custom actions (#39167)
