@@ -167,7 +167,7 @@ class MSGraphAsyncOperator(BaseOperator):
         self.log.debug("context: %s", context)
 
         if event:
-            self.log.info("%s completed with %s: %s", self.task_id, event.get("status"), event)
+            self.log.debug("%s completed with %s: %s", self.task_id, event.get("status"), event)
 
             if event.get("status") == "failure":
                 raise AirflowException(event.get("message"))
