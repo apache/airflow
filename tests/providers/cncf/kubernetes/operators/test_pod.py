@@ -2003,9 +2003,7 @@ class TestKubernetesPodOperatorAsync:
     @patch(KUB_OP_PATH.format("extract_xcom"))
     @patch(HOOK_CLASS)
     @patch(KUB_OP_PATH.format("pod_manager"))
-    def test_async_write_logs_handler_api_exception(
-        self, mock_manager, mocked_hook, mock_extract_xcom
-    ):
+    def test_async_write_logs_handler_api_exception(self, mock_manager, mocked_hook, mock_extract_xcom):
         mock_manager.read_pod_logs.return_value = ApiException(status=404)
         mocked_hook.return_value.get_pod.return_value = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE)
@@ -2018,7 +2016,7 @@ class TestKubernetesPodOperatorAsync:
         )
         self.run_pod_async(k)
         mock_k = k
-        mock_k.log.warning = MagicMock(return_value='test')
+        mock_k.log.warning = MagicMock(return_value="test")
 
         mock_k.log.warning.assert_called_once()
 

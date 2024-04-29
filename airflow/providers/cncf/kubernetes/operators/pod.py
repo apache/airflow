@@ -35,8 +35,8 @@ from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence
 import kubernetes
 from deprecated import deprecated
 from kubernetes.client import CoreV1Api, V1Pod, models as k8s
-from kubernetes.stream import stream
 from kubernetes.client.exceptions import ApiException
+from kubernetes.stream import stream
 from urllib3.exceptions import HTTPError
 
 from airflow.configuration import conf
@@ -774,6 +774,9 @@ class KubernetesPodOperator(BaseOperator):
             except ApiException as e:
                 if e.status == 404:
                     self.pod = None
+                    self.log.info(
+                        "Pod not found while waiting for completion. The last status was %r", event["status"]
+                    )
                 else:
                     raise e
         if self.pod is not None:
