@@ -48,9 +48,7 @@ def upgrade():
 
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.add_column(sa.Column("last_scheduling_decision", TIMESTAMP, nullable=True))
-        # Earlier we had here an index created on the last_scheduling_decision column.
-        # But we don't add it anymore since it's not useful.
-
+        batch_op.create_index("idx_last_scheduling_decision", ["last_scheduling_decision"], unique=False)
         batch_op.add_column(sa.Column("dag_hash", sa.String(32), nullable=True))
 
     with op.batch_alter_table("dag", schema=None) as batch_op:
@@ -97,14 +95,8 @@ def downgrade():
     if is_sqlite:
         op.execute("PRAGMA foreign_keys=off")
 
-    # At 2.9.1 we removed idx_last_scheduling_decision index as it is not used, and changed this migration
-    # not to add it. So we use drop if exists (because it might not be there)
-    from contextlib import suppress
-
-    with suppress(sa.exc.DatabaseError):  # mysql does not support drop if exists index
-        op.drop_index("idx_last_scheduling_decision", table_name="dag_run", if_exists=True)
-
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
+        batch_op.drop_index("idx_last_scheduling_decision")
         batch_op.drop_column("last_scheduling_decision")
         batch_op.drop_column("dag_hash")
 
