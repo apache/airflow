@@ -149,7 +149,7 @@ def create_opensearch_policies(bedrock_role_arn: str, collection_name: str):
                         "ResourceType": "index",
                     },
                 ],
-                "Principal": [(sts_hook.conn.get_caller_identity()["Arn"]), bedrock_role_arn],
+                "Principal": [(StsHook().conn.get_caller_identity()["Arn"]), bedrock_role_arn],
             }
         ],
     )
@@ -253,7 +253,7 @@ def copy_data_to_s3(bucket: str):
     for source in sources:
         with tempfile.NamedTemporaryFile(mode="w", prefix="") as data_file:
             urlretrieve(source, data_file.name)
-            s3_hook.conn.upload_file(
+            S3Hook().conn.upload_file(
                 Filename=data_file.name, Bucket=bucket, Key=os.path.basename(data_file.name)
             )
 
@@ -385,9 +385,6 @@ with DAG(dag_id=DAG_ID, schedule_interval=None, start_date=days_ago(1)) as dag:
 
     aoss_client = OpenSearchServerlessHook().conn
     bedrock_agent_client = BedrockAgentHook().conn
-    iam_client = boto3.client("iam")
-    sts_hook = StsHook()
-    s3_hook = S3Hook()
 
     region_name = boto3.session.Session().region_name
 
