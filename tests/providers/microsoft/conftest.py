@@ -89,6 +89,7 @@ def mock_connection(schema: str | None = None, host: str | None = None) -> Conne
 def mock_json_response(status_code, *contents) -> Response:
     response = MagicMock(spec=Response)
     response.status_code = status_code
+    response.content = b""
     if contents:
         response.json.side_effect = list(contents)
     else:

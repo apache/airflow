@@ -58,7 +58,7 @@ def default_response_handler(
 ) -> Any:
     with suppress(JSONDecodeError):
         return response.json()
-    return response
+    return response.content
 
 
 class CallableResponseHandler(ResponseHandler):

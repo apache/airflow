@@ -118,7 +118,7 @@ class TestResponseHandler:
             CallableResponseHandler(default_response_handler).handle_response_async(response, None)
         )
 
-        assert actual == response
+        assert actual == b""
 
     def test_handle_response_async_when_bad_request(self):
         response = mock_json_response(400, {})
