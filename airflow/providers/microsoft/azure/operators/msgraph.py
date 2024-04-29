@@ -27,7 +27,7 @@ from typing import (
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import BaseOperator
-from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
+from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook, default_response_handler
 from airflow.providers.microsoft.azure.triggers.msgraph import (
     MSGraphTrigger,
     ResponseSerializer,
@@ -96,7 +96,7 @@ class MSGraphAsyncOperator(BaseOperator):
         response_type: ResponseType | None = None,
         response_handler: Callable[
             [NativeResponseType, dict[str, ParsableFactory | None] | None], Any
-        ] = lambda response, error_map: response.json(),
+        ] = default_response_handler,
         path_parameters: dict[str, Any] | None = None,
         url_template: str | None = None,
         method: str = "GET",

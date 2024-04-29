@@ -91,7 +91,11 @@ def mock_json_response(status_code, *contents) -> Response:
     response.status_code = status_code
     if contents:
         contents = list(contents)
-        response.json.side_effect = lambda: contents.pop(0)
+        side_effect = contents.pop(0)
+        if isinstance(side_effect, Exception):
+            response.json.side_effect = side_effect
+        else:
+            response.json.side_effect = lambda: side_effect
     else:
         response.json.return_value = None
     return response

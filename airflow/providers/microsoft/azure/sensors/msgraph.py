@@ -21,7 +21,7 @@ import asyncio
 import json
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
-from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
+from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook, default_response_handler
 from airflow.providers.microsoft.azure.triggers.msgraph import MSGraphTrigger, ResponseSerializer
 from airflow.sensors.base import BaseSensorOperator, PokeReturnValue
 
@@ -87,7 +87,7 @@ class MSGraphSensor(BaseSensorOperator):
         response_type: ResponseType | None = None,
         response_handler: Callable[
             [NativeResponseType, dict[str, ParsableFactory | None] | None], Any
-        ] = lambda response, error_map: response.json(),
+        ] = default_response_handler,
         path_parameters: dict[str, Any] | None = None,
         url_template: str | None = None,
         method: str = "GET",

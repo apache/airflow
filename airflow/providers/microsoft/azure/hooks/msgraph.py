@@ -18,8 +18,10 @@
 from __future__ import annotations
 
 import json
+from contextlib import suppress
 from http import HTTPStatus
 from io import BytesIO
+from json import JSONDecodeError
 from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import quote, urljoin, urlparse
 
@@ -49,6 +51,12 @@ if TYPE_CHECKING:
     from kiota_http.httpx_request_adapter import ResponseType
 
     from airflow.models import Connection
+
+
+def default_response_handler(response: NativeResponseType, error_map: dict[str, ParsableFactory | None] | None) -> Any:
+    with suppress(JSONDecodeError):
+        return response.json()
+    return response
 
 
 class CallableResponseHandler(ResponseHandler):
@@ -271,7 +279,7 @@ class KiotaRequestAdapterHook(BaseHook):
         response_type: ResponseType | None = None,
         response_handler: Callable[
             [NativeResponseType, dict[str, ParsableFactory | None] | None], Any
-        ] = lambda response, error_map: response.json(),
+        ] = default_response_handler,
         path_parameters: dict[str, Any] | None = None,
         method: str = "GET",
         query_parameters: dict[str, QueryParams] | None = None,
