@@ -443,7 +443,7 @@ def test_get_vector_store(mock_openai_hook, mock_vector_store):
 
 def test_get_vector_stores(mock_openai_hook, mock_vector_store_list):
     mock_openai_hook.conn.beta.vector_stores.list.return_value = mock_vector_store_list
-    vector_stores = mock_openai_hook.get_vectors_stores()
+    vector_stores = mock_openai_hook.get_vector_stores()
     assert isinstance(vector_stores, list)
 
 

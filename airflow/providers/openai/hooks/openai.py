@@ -328,7 +328,7 @@ class OpenAIHook(BaseHook):
         vector_store = self.conn.beta.vector_stores.create(**kwargs)
         return vector_store
 
-    def get_vectors_stores(self, **kwargs: Any) -> list[VectorStore]:
+    def get_vector_stores(self, **kwargs: Any) -> list[VectorStore]:
         """Return a list of vector stores."""
         vector_stores = self.conn.beta.vector_stores.list(**kwargs)
         return vector_stores.data
