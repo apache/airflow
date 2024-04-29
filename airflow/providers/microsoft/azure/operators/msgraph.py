@@ -174,7 +174,7 @@ class MSGraphAsyncOperator(BaseOperator):
 
             response = event.get("response")
 
-            self.log.info("response: %s", response)
+            self.log.debug("response: %s", response)
 
             if response:
                 response = self.serializer.deserialize(response)
