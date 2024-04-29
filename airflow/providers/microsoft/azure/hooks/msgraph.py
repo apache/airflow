@@ -53,7 +53,9 @@ if TYPE_CHECKING:
     from airflow.models import Connection
 
 
-def default_response_handler(response: NativeResponseType, error_map: dict[str, ParsableFactory | None] | None) -> Any:
+def default_response_handler(
+    response: NativeResponseType, error_map: dict[str, ParsableFactory | None] | None
+) -> Any:
     with suppress(JSONDecodeError):
         return response.json()
     return response

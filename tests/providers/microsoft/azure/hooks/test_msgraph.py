@@ -21,13 +21,15 @@ from json import JSONDecodeError
 from unittest.mock import patch
 
 import pytest
-from httpx import Response
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 from msgraph_core import APIVersion, NationalClouds
 
 from airflow.exceptions import AirflowBadRequest, AirflowException, AirflowNotFoundException
-from airflow.providers.microsoft.azure.hooks.msgraph import CallableResponseHandler, KiotaRequestAdapterHook, \
-    default_response_handler
+from airflow.providers.microsoft.azure.hooks.msgraph import (
+    CallableResponseHandler,
+    KiotaRequestAdapterHook,
+    default_response_handler,
+)
 from tests.providers.microsoft.conftest import (
     get_airflow_connection,
     load_json,
@@ -103,9 +105,7 @@ class TestResponseHandler:
         response = mock_json_response(200, users)
 
         actual = asyncio.run(
-            CallableResponseHandler(default_response_handler).handle_response_async(
-                response, None
-            )
+            CallableResponseHandler(default_response_handler).handle_response_async(response, None)
         )
 
         assert isinstance(actual, dict)
@@ -115,9 +115,7 @@ class TestResponseHandler:
         response = mock_json_response(200, JSONDecodeError("", "", 0))
 
         actual = asyncio.run(
-            CallableResponseHandler(default_response_handler).handle_response_async(
-                response, None
-            )
+            CallableResponseHandler(default_response_handler).handle_response_async(response, None)
         )
 
         assert actual == response
