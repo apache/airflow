@@ -1580,6 +1580,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 time.sleep(5)
 
     @GoogleBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.refresh_credentials_retry()
     def get_job(
         self,
         job_id: str,

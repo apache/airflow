@@ -40,6 +40,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
+from airflow.triggers.testing import SuccessTrigger
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
@@ -1986,6 +1987,33 @@ def test_schedule_tis_map_index(dag_maker, session):
     assert ti2.state == TaskInstanceState.SUCCESS
 
 
+def test_schedule_tis_start_trigger(dag_maker, session):
+    """
+    Test that an operator with _start_trigger and _next_method set can be directly
+    deferred during scheduling.
+    """
+    trigger = SuccessTrigger()
+
+    class TestOperator(BaseOperator):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.start_trigger = trigger
+            self.next_method = "execute_complete"
+
+        def execute_complete(self):
+            pass
+
+    with dag_maker(session=session):
+        task = TestOperator(task_id="test_task")
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    ti = TI(task=task, run_id=dr.run_id, state=None)
+    assert ti.state is None
+    dr.schedule_tis((ti,), session=session)
+    assert ti.state == TaskInstanceState.DEFERRED
+
+
 def test_mapped_expand_kwargs(dag_maker):
     with dag_maker():
 
@@ -2322,7 +2350,8 @@ def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
     ti = session.query(TaskInstance).filter_by(**filter_kwargs).one()
 
     tr = TaskReschedule(
-        task=ti,
+        task_id=ti.task_id,
+        dag_id=ti.dag_id,
         run_id=ti.run_id,
         try_number=ti.try_number,
         start_date=timezone.datetime(2017, 1, 1),
