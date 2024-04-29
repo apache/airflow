@@ -148,7 +148,7 @@ class MSGraphSensor(BaseSensorOperator):
 
             self.log.debug("is_done: %s", is_done)
 
-            response = self.serializer.deserialize(event.payload["response"])
+            response = self.serializer.deserialize(event.payload.get("response"))
 
             self.log.debug("deserialize event: %s", response)
 
