@@ -21,6 +21,7 @@ import asyncio
 import json
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
+from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook, default_response_handler
 from airflow.providers.microsoft.azure.triggers.msgraph import MSGraphTrigger, ResponseSerializer
 from airflow.sensors.base import BaseSensorOperator, PokeReturnValue
@@ -143,6 +144,9 @@ class MSGraphSensor(BaseSensorOperator):
 
         async for event in self.trigger.run():
             self.log.debug("event: %s", event)
+
+            if event.payload.get("status") == "failure":
+                raise AirflowException(event.payload.get("message"))
 
             is_done = self.event_processor(context, event)
 
