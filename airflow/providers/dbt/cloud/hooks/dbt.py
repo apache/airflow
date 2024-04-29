@@ -298,11 +298,11 @@ class DbtCloudHook(HttpHook):
 
     def _run_and_get_response(
         self,
+        *,
         method: str = "GET",
         endpoint: str | None = None,
         payload: str | dict[str, Any] | None = None,
         paginate: bool = False,
-        *,
         api_version: str = "v2",
     ) -> Any:
         self.method = method
