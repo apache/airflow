@@ -1052,6 +1052,34 @@ class TestDataflowTemplateHook:
         )
         mock_uuid.assert_called_once_with()
 
+    @mock.patch(DATAFLOW_STRING.format("uuid.uuid4"), return_value=MOCK_UUID)
+    @mock.patch(DATAFLOW_STRING.format("DataflowHook.get_conn"))
+    def test_launch_job_with_template(self, mock_conn, mock_uuid):
+        launch_method = (
+            mock_conn.return_value.projects.return_value.locations.return_value.templates.return_value.launch
+        )
+        launch_method.return_value.execute.return_value = {"job": {"id": TEST_JOB_ID}}
+        variables = {"zone": "us-central1-f", "tempLocation": "gs://test/temp"}
+        result = self.dataflow_hook.launch_job_with_template(
+            job_name=JOB_NAME,
+            variables=copy.deepcopy(variables),
+            parameters=PARAMETERS,
+            dataflow_template=TEST_TEMPLATE,
+            project_id=TEST_PROJECT,
+        )
+
+        launch_method.assert_called_once_with(
+            body={
+                "jobName": f"test-dataflow-pipeline-{MOCK_UUID_PREFIX}",
+                "parameters": PARAMETERS,
+                "environment": variables,
+            },
+            gcsPath="gs://dataflow-templates/wordcount/template_file",
+            projectId=TEST_PROJECT,
+            location=DEFAULT_DATAFLOW_LOCATION,
+        )
+        assert result == {"id": TEST_JOB_ID}
+
     @mock.patch(DATAFLOW_STRING.format("_DataflowJobsController"))
     @mock.patch(DATAFLOW_STRING.format("DataflowHook.get_conn"))
     def test_start_flex_template(self, mock_conn, mock_controller):
@@ -1086,6 +1114,26 @@ class TestDataflowTemplateHook:
             wait_until_finished=self.dataflow_hook.wait_until_finished,
         )
         mock_controller.return_value.get_jobs.assert_called_once_with(refresh=True)
+        assert result == {"id": TEST_JOB_ID}
+
+    @mock.patch(DATAFLOW_STRING.format("DataflowHook.get_conn"))
+    def test_launch_job_with_flex_template(self, mock_conn):
+        expected_job = {"id": TEST_JOB_ID}
+
+        mock_locations = mock_conn.return_value.projects.return_value.locations
+        launch_method = mock_locations.return_value.flexTemplates.return_value.launch
+        launch_method.return_value.execute.return_value = {"job": expected_job}
+
+        result = self.dataflow_hook.launch_job_with_flex_template(
+            body={"launchParameter": TEST_FLEX_PARAMETERS},
+            location=TEST_LOCATION,
+            project_id=TEST_PROJECT_ID,
+        )
+        launch_method.assert_called_once_with(
+            projectId="test-project-id",
+            body={"launchParameter": TEST_FLEX_PARAMETERS},
+            location=TEST_LOCATION,
+        )
         assert result == {"id": TEST_JOB_ID}
 
     @mock.patch(DATAFLOW_STRING.format("_DataflowJobsController"))
@@ -1176,6 +1224,10 @@ class TestDataflowTemplateHook:
                 project_id=TEST_PROJECT,
                 on_new_job_callback=mock.MagicMock(),
             )
+
+    def test_extract_job_id_raises_exception(self):
+        with pytest.raises(AirflowException):
+            self.dataflow_hook.extract_job_id({"not_id": True})
 
 
 class TestDataflowJob:
