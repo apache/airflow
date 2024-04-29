@@ -66,7 +66,20 @@ with models.DAG(
     ).expand(path_parameters=workspaces_info_task.output)
     # [END howto_sensor_powerbi_scan_status]
 
-    workspaces_task >> workspaces_info_task >> check_workspace_status_task
+    # [START howto_operator_powerbi_refresh_dataset]
+    refresh_dataset_task = MSGraphSensor(
+        task_id="refresh_dataset",
+        conn_id="powerbi_api",
+        url="myorg/groups/{workspaceId}/datasets/{datasetId}/refreshes",
+        method="POST",
+        path_parameters={
+            "workspaceId": "9a7e14c6-9a7d-4b4c-b0f2-799a85e60a51",
+            "datasetId": "ffb6096e-d409-4826-aaeb-b5d4b165dc4d",
+        },
+    )
+    # [END howto_operator_powerbi_refresh_dataset]
+
+    workspaces_task >> workspaces_info_task >> check_workspace_status_task >> refresh_dataset_task
 
     from tests.system.utils.watcher import watcher
 
