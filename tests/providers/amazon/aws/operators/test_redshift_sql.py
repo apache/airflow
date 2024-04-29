@@ -158,7 +158,8 @@ class TestRedshiftSQLOpenLineage:
                 "SVV_REDSHIFT_COLUMNS.data_type, "
                 "SVV_REDSHIFT_COLUMNS.database_name \n"
                 "FROM SVV_REDSHIFT_COLUMNS \n"
-                "WHERE SVV_REDSHIFT_COLUMNS.table_name IN ('little_table') "
+                "WHERE SVV_REDSHIFT_COLUMNS.schema_name = 'database.public' "
+                "AND SVV_REDSHIFT_COLUMNS.table_name IN ('little_table') "
                 "OR SVV_REDSHIFT_COLUMNS.database_name = 'another_db' "
                 "AND SVV_REDSHIFT_COLUMNS.schema_name = 'another_schema' AND "
                 "SVV_REDSHIFT_COLUMNS.table_name IN ('popular_orders_day_of_week')"
@@ -171,7 +172,8 @@ class TestRedshiftSQLOpenLineage:
                 "SVV_REDSHIFT_COLUMNS.data_type, "
                 "SVV_REDSHIFT_COLUMNS.database_name \n"
                 "FROM SVV_REDSHIFT_COLUMNS \n"
-                "WHERE SVV_REDSHIFT_COLUMNS.table_name IN ('Test_table')"
+                "WHERE SVV_REDSHIFT_COLUMNS.schema_name = 'database.public' "
+                "AND SVV_REDSHIFT_COLUMNS.table_name IN ('Test_table')"
             ),
         ]
 

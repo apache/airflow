@@ -24,12 +24,13 @@ from typing import TYPE_CHECKING
 from deprecated import deprecated
 
 from airflow.api.common.experimental import check_and_get_dag, check_and_get_dagrun
+from airflow.exceptions import RemovedInAirflow3Warning
 
 if TYPE_CHECKING:
     from datetime import datetime
 
 
-@deprecated(reason="Use DagRun().get_state() instead", version="2.2.4")
+@deprecated(reason="Use DagRun().get_state() instead", version="2.2.4", category=RemovedInAirflow3Warning)
 def get_dag_run_state(dag_id: str, execution_date: datetime) -> dict[str, str]:
     """Return the Dag Run state identified by the given dag_id and execution_date.
 

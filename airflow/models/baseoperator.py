@@ -936,7 +936,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if executor:
             warnings.warn(
                 "Specifying executors for operators is not yet"
-                f"supported, the value {executor!r} will have no effect"
+                f"supported, the value {executor!r} will have no effect",
+                category=UserWarning,
+                stacklevel=2,
             )
         self.executor = executor
         self.executor_config = executor_config or {}

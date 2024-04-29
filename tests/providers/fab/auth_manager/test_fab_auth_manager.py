@@ -392,10 +392,21 @@ class TestFabAuthManager:
                 [(ACTION_CAN_READ, "custom_resource2")],
                 False,
             ),
+            (
+                "DUMMY",
+                "custom_resource",
+                [("DUMMY", "custom_resource")],
+                True,
+            ),
         ],
     )
     def test_is_authorized_custom_view(
-        self, method: ResourceMethod, resource_name: str, user_permissions, expected_result, auth_manager
+        self,
+        method: ResourceMethod | str,
+        resource_name: str,
+        user_permissions,
+        expected_result,
+        auth_manager,
     ):
         user = Mock()
         user.perms = user_permissions

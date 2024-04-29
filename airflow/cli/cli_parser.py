@@ -56,19 +56,21 @@ if TYPE_CHECKING:
 airflow_commands = core_commands.copy()  # make a copy to prevent bad interactions in tests
 
 log = logging.getLogger(__name__)
-try:
-    executor, _ = ExecutorLoader.import_default_executor_cls(validate=False)
-    airflow_commands.extend(executor.get_cli_commands())
-except Exception:
-    executor_name = ExecutorLoader.get_default_executor_name()
-    log.exception("Failed to load CLI commands from executor: %s", executor_name)
-    log.error(
-        "Ensure all dependencies are met and try again. If using a Celery based executor install "
-        "a 3.3.0+ version of the Celery provider. If using a Kubernetes executor, install a "
-        "7.4.0+ version of the CNCF provider"
-    )
-    # Do not re-raise the exception since we want the CLI to still function for
-    # other commands.
+
+
+for executor_name in ExecutorLoader.get_executor_names():
+    try:
+        executor, _ = ExecutorLoader.import_executor_cls(executor_name)
+        airflow_commands.extend(executor.get_cli_commands())
+    except Exception:
+        log.exception("Failed to load CLI commands from executor: %s", executor_name)
+        log.error(
+            "Ensure all dependencies are met and try again. If using a Celery based executor install "
+            "a 3.3.0+ version of the Celery provider. If using a Kubernetes executor, install a "
+            "7.4.0+ version of the CNCF provider"
+        )
+        # Do not re-raise the exception since we want the CLI to still function for
+        # other commands.
 
 try:
     auth_mgr = get_auth_manager_cls()
@@ -90,8 +92,7 @@ if len(ALL_COMMANDS_DICT) < len(airflow_commands):
     dup = {k for k, v in Counter([c.name for c in airflow_commands]).items() if v > 1}
     raise CliConflictError(
         f"The following CLI {len(dup)} command(s) are defined more than once: {sorted(dup)}\n"
-        f"This can be due to the executor '{ExecutorLoader.get_default_executor_name()}' "
-        f"redefining core airflow CLI commands."
+        f"This can be due to an Executor or Auth Manager redefining core airflow CLI commands."
     )
 
 

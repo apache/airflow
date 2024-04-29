@@ -50,7 +50,7 @@ CONN_ID_MAX_LEN: int = 250
 
 def parse_netloc_to_hostname(*args, **kwargs):
     """Do not use, this method is deprecated."""
-    warnings.warn("This method is deprecated.", RemovedInAirflow3Warning)
+    warnings.warn("This method is deprecated.", RemovedInAirflow3Warning, stacklevel=2)
     return _parse_netloc_to_hostname(*args, **kwargs)
 
 
@@ -219,6 +219,7 @@ class Connection(Base, LoggingMixin):
         warnings.warn(
             "This method is deprecated. Please use uri parameter in constructor.",
             RemovedInAirflow3Warning,
+            stacklevel=2,
         )
         self._parse_from_uri(**uri)
 

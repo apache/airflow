@@ -49,6 +49,7 @@ from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
     from pandas import DataFrame
+    from sqlalchemy.engine import URL
 
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
@@ -208,6 +209,22 @@ class DbApiHook(BaseHook):
         conn = self.get_connection(getattr(self, self.conn_name_attr))
         conn.schema = self.__schema or conn.schema
         return conn.get_uri()
+
+    @property
+    def sqlalchemy_url(self) -> URL:
+        """
+        Return a Sqlalchemy.engine.URL object from the connection.
+
+        Needs to be implemented in the provider subclass to return the sqlalchemy.engine.URL object.
+
+        :return: the extracted sqlalchemy.engine.URL object.
+        """
+        qualname = f"{self.__class__.__module__}.{self.__class__.__qualname__}"
+        if qualname != "airflow.providers.common.sql.hooks.sql.DbApiHook":
+            msg = f"{qualname!r} does not implement/support built SQLAlchemy URL."
+        else:
+            msg = "`sqlalchemy_url` property should be implemented in the provider subclass."
+        raise NotImplementedError(msg)
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
         """

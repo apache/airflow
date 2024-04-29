@@ -36,7 +36,7 @@ versions:
 
 dependencies:
   - impyla>=0.18.0,<1.0
-  - apache-airflow>=2.6.0
+  - apache-airflow>=2.7.0
 
 additional-extras:
   - name: kerberos

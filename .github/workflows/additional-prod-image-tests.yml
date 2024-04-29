@@ -93,7 +93,7 @@ jobs:
 
   test-examples-of-prod-image-building:
     timeout-minutes: 60
-    name: "Test examples of POD image building"
+    name: "Test examples of PROD image building"
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}

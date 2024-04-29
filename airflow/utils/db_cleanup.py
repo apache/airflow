@@ -196,8 +196,8 @@ def _do_delete(*, query, orm_model, skip_archive, session):
     session.execute(delete)
     session.commit()
     if skip_archive:
-        metadata.bind = session.get_bind()
-        target_table.drop()
+        bind = session.get_bind()
+        target_table.drop(bind=bind)
     session.commit()
     print("Finished Performing Delete")
 
@@ -217,6 +217,8 @@ def _subquery_keep_last(*, recency_column, keep_last_filters, group_by_columns, 
 
 class CreateTableAs(Executable, ClauseElement):
     """Custom sqlalchemy clause element for CTAS operations."""
+
+    inherit_cache = False
 
     def __init__(self, name, query):
         self.name = name

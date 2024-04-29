@@ -23,7 +23,7 @@ from airflow.api.common.delete_dag import delete_dag
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagrun import DagRun as DR
-from airflow.models.errors import ImportError as IE
+from airflow.models.errors import ParseImportError as IE
 from airflow.models.log import Log
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstance import TaskInstance as TI
@@ -99,7 +99,8 @@ class TestDeleteDAGSuccessfulDelete:
             session.add(TaskFail(ti=ti))
             session.add(
                 TR(
-                    task=ti.task,
+                    task_id=ti.task_id,
+                    dag_id=ti.dag_id,
                     run_id=ti.run_id,
                     start_date=test_date,
                     end_date=test_date,

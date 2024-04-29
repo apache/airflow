@@ -74,6 +74,9 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     :param key_id: Key ID for Authentication (for ``aws_iam`` and ''azure`` auth_type).
     :param secret_id: Secret ID for Authentication (for ``approle``, ``aws_iam`` and ``azure`` auth_types).
     :param role_id: Role ID for Authentication (for ``approle``, ``aws_iam`` auth_types).
+    :param assume_role_kwargs: AWS assume role param.
+        See AWS STS Docs:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sts/client/assume_role.html
     :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type).
     :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, default:
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``).
@@ -107,6 +110,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         key_id: str | None = None,
         secret_id: str | None = None,
         role_id: str | None = None,
+        assume_role_kwargs: dict | None = None,
         kubernetes_role: str | None = None,
         kubernetes_jwt_path: str = "/var/run/secrets/kubernetes.io/serviceaccount/token",
         gcp_key_path: str | None = None,
@@ -147,6 +151,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
             key_id=key_id,
             secret_id=secret_id,
             role_id=role_id,
+            assume_role_kwargs=assume_role_kwargs,
             kubernetes_role=kubernetes_role,
             kubernetes_jwt_path=kubernetes_jwt_path,
             gcp_key_path=gcp_key_path,

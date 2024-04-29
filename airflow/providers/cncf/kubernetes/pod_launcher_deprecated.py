@@ -33,7 +33,7 @@ from requests.exceptions import HTTPError
 
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
-from airflow.providers.cncf.kubernetes.pod_generator import PodDefaults
+from airflow.providers.cncf.kubernetes.pod_generator import PodDefaultsDeprecated
 from airflow.settings import pod_mutation_hook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
@@ -272,7 +272,7 @@ class PodLauncher(LoggingMixin):
             self._client.connect_get_namespaced_pod_exec,
             pod.metadata.name,
             pod.metadata.namespace,
-            container=PodDefaults.SIDECAR_CONTAINER_NAME,
+            container=PodDefaultsDeprecated.SIDECAR_CONTAINER_NAME,
             command=["/bin/sh"],
             stdin=True,
             stdout=True,
@@ -281,7 +281,7 @@ class PodLauncher(LoggingMixin):
             _preload_content=False,
         )
         try:
-            result = self._exec_pod_command(resp, f"cat {PodDefaults.XCOM_MOUNT_PATH}/return.json")
+            result = self._exec_pod_command(resp, f"cat {PodDefaultsDeprecated.XCOM_MOUNT_PATH}/return.json")
             self._exec_pod_command(resp, "kill -s SIGINT 1")
         finally:
             resp.close()

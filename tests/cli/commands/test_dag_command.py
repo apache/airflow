@@ -1023,4 +1023,4 @@ class TestCliDags:
             dr = dag.test()
             assert mock_run.call_args_list[0] == ((trigger,), {})
             tis = dr.get_task_instances()
-            assert [x for x in tis if x.task_id == "abc"][0].state == "success"
+            assert next(x for x in tis if x.task_id == "abc").state == "success"
