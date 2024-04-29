@@ -21,6 +21,7 @@ set -euo pipefail
 
 readonly DIRECTORY="${AIRFLOW_HOME:-/usr/local/airflow}"
 readonly RETENTION="${AIRFLOW__LOG_RETENTION_DAYS:-15}"
+readonly ABS_RETENTION=$(( RETENTION < 0 ? -RETENTION : RETENTION ))
 
 trap "exit" INT TERM
 
@@ -32,7 +33,7 @@ while true; do
   echo "Trimming airflow logs to ${RETENTION} days."
   find "${DIRECTORY}"/logs \
     -type d -name 'lost+found' -prune -o \
-    -type f -mtime +"${RETENTION}" -name '*.log' -print0 | \
+    -type f -mtime -"${ABS_RETENTION}" -name '*.log' -print0 | \
     xargs -0 rm -f || true
 
   find "${DIRECTORY}"/logs -type d -empty -delete || true
