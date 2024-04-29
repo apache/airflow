@@ -390,7 +390,6 @@ with DAG(dag_id=DAG_ID, schedule_interval=None, start_date=days_ago(1)) as dag:
     s3_hook = S3Hook()
 
     region_name = boto3.session.Session().region_name
-    account_id = sts_hook.get_account_number()
 
     naming_prefix = "bedrock-kb-sample-"
     bucket_name = f"{naming_prefix}{env_id}"
