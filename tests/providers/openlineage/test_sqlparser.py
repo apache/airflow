@@ -32,13 +32,64 @@ from openlineage.client.run import Dataset
 from openlineage.common.sql import DbTableMeta
 
 from airflow.providers.openlineage.extractors import OperatorLineage
-from airflow.providers.openlineage.sqlparser import DatabaseInfo, SQLParser
+from airflow.providers.openlineage.sqlparser import DatabaseInfo, GetTableSchemasParams, SQLParser
 
 DB_NAME = "FOOD_DELIVERY"
 DB_SCHEMA_NAME = "PUBLIC"
 DB_TABLE_NAME = DbTableMeta("DISCOUNTS")
 
 NAMESPACE = "test_namespace"
+
+
+def test_get_table_schemas_params():
+    def _inner(x: str) -> str:
+        return x
+
+    result = GetTableSchemasParams(
+        normalize_name=_inner,
+        is_cross_db=False,
+        information_schema_columns=["col1", "col2"],
+        information_schema_table="table",
+        use_flat_cross_db_query=True,
+        is_uppercase_names=False,
+        database="db",
+    )
+
+    assert result["normalize_name"] == _inner
+    assert result["is_cross_db"] is False
+    assert result["information_schema_columns"] == ["col1", "col2"]
+    assert result["information_schema_table"] == "table"
+    assert result["use_flat_cross_db_query"] is True
+    assert result["is_uppercase_names"] is False
+    assert result["database"] == "db"
+
+
+def test_database_info():
+    def _inner(x: str) -> str:
+        return x
+
+    result = DatabaseInfo(
+        scheme="scheme",
+        authority="authority",
+        database="database",
+        information_schema_columns=["col1", "col2"],
+        information_schema_table_name="table",
+        use_flat_cross_db_query=True,
+        is_information_schema_cross_db=True,
+        is_uppercase_names=False,
+        normalize_name_method=_inner,
+    )
+
+    assert result.scheme == "scheme"
+    assert result.authority == "authority"
+    assert result.database == "database"
+    assert result.information_schema_columns == ["col1", "col2"]
+    assert result.information_schema_table_name == "table"
+    assert result.use_flat_cross_db_query is True
+    assert result.is_information_schema_cross_db is True
+    assert result.is_uppercase_names is False
+    assert result.is_uppercase_names is False
+    assert result.normalize_name_method == _inner
 
 
 def normalize_name_lower(name: str) -> str:

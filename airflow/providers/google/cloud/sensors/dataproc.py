@@ -27,6 +27,7 @@ from google.cloud.dataproc_v1.types import Batch, JobStatus
 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -53,7 +54,7 @@ class DataprocJobSensor(BaseSensorOperator):
         *,
         dataproc_job_id: str,
         region: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         wait_timeout: int | None = None,
         **kwargs,
@@ -144,7 +145,7 @@ class DataprocBatchSensor(BaseSensorOperator):
         *,
         batch_id: str,
         region: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         wait_timeout: int | None = None,
         **kwargs,

@@ -27,6 +27,7 @@ from flask import Response
 
 from airflow.jobs.job import Job, most_recent_job
 from airflow.models.taskinstance import _get_template_context, _update_rtif
+from airflow.sensors.base import _orig_start_date
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils.session import create_session
 
@@ -56,6 +57,7 @@ def _initialize_map() -> dict[str, Callable]:
         _get_template_context,
         _get_ti_db_access,
         _update_rtif,
+        _orig_start_date,
         DagFileProcessor.update_import_errors,
         DagFileProcessor.manage_slas,
         DagFileProcessorManager.deactivate_stale_dags,
@@ -107,19 +109,25 @@ def _initialize_map() -> dict[str, Callable]:
     return {f"{func.__module__}.{func.__qualname__}": func for func in functions}
 
 
+def log_and_build_error_response(message, status):
+    error_id = uuid4()
+    server_message = message + f" error_id={error_id}"
+    log.exception(server_message)
+    client_message = message + f" The server side traceback may be identified with error_id={error_id}"
+    return Response(response=client_message, status=status)
+
+
 def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     """Handle Internal API /internal_api/v1/rpcapi endpoint."""
     log.debug("Got request")
     json_rpc = body.get("jsonrpc")
     if json_rpc != "2.0":
-        log.error("Not jsonrpc-2.0 request.")
-        return Response(response="Expected jsonrpc 2.0 request.", status=400)
+        return log_and_build_error_response(message="Expected jsonrpc 2.0 request.", status=400)
 
     methods_map = _initialize_map()
     method_name = body.get("method")
     if method_name not in methods_map:
-        log.error("Unrecognized method: %s.", method_name)
-        return Response(response=f"Unrecognized method: {method_name}.", status=400)
+        return log_and_build_error_response(message=f"Unrecognized method: {method_name}.", status=400)
 
     handler = methods_map[method_name]
     params = {}
@@ -127,12 +135,10 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
         if body.get("params"):
             params_json = body.get("params")
             params = BaseSerialization.deserialize(params_json, use_pydantic_models=True)
-    except Exception as e:
-        log.error("Error when deserializing parameters for method: %s.", method_name)
-        log.exception(e)
-        return Response(response="Error deserializing parameters.", status=400)
+    except Exception:
+        return log_and_build_error_response(message="Error deserializing parameters.", status=400)
 
-    log.debug("Calling method %s.", method_name)
+    log.debug("Calling method %s\nparams: %s", method_name, params)
     try:
         # Session must be created there as it may be needed by serializer for lazy-loaded fields.
         with create_session() as session:
@@ -141,10 +147,4 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
             response = json.dumps(output_json) if output_json is not None else None
             return Response(response=response, headers={"Content-Type": "application/json"})
     except Exception:
-        error_id = uuid4()
-        log.exception("Error executing method '%s'; error_id=%s.", method_name, error_id)
-        return Response(
-            response=f"Error executing method '{method_name}'. "
-            f"The server side traceback may be identified with error_id={error_id}",
-            status=500,
-        )
+        return log_and_build_error_response(message=f"Error executing method '{method_name}'.", status=500)

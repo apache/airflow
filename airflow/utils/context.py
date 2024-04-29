@@ -237,7 +237,10 @@ class Context(MutableMapping[str, Any]):
 
     def __getitem__(self, key: str) -> Any:
         with contextlib.suppress(KeyError):
-            warnings.warn(_create_deprecation_warning(key, self._deprecation_replacements[key]))
+            warnings.warn(
+                _create_deprecation_warning(key, self._deprecation_replacements[key]),
+                stacklevel=2,
+            )
         with contextlib.suppress(KeyError):
             return self._context[key]
         raise KeyError(key)
@@ -345,7 +348,7 @@ def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]:
 
     def _deprecated_proxy_factory(k: str, v: Any) -> Any:
         replacements = source._deprecation_replacements[k]
-        warnings.warn(_create_deprecation_warning(k, replacements))
+        warnings.warn(_create_deprecation_warning(k, replacements), stacklevel=2)
         return v
 
     def _create_value(k: str, v: Any) -> Any:

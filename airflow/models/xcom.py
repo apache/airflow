@@ -842,6 +842,7 @@ def _patch_outdated_serializer(clazz: type[BaseXCom], params: Iterable[str]) -> 
             f"must be updated to accept all params in `BaseXCom.set` except `session`. Support will be "
             f"removed in a future release.",
             RemovedInAirflow3Warning,
+            stacklevel=1,
         )
         return old_serializer(**kwargs)
 

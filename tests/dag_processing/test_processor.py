@@ -31,7 +31,8 @@ from airflow.callbacks.callback_requests import TaskCallbackRequest
 from airflow.configuration import TEST_DAGS_FOLDER, conf
 from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.dag_processing.processor import DagFileProcessor, DagFileProcessorProcess
-from airflow.models import DagBag, DagModel, SlaMiss, TaskInstance, errors
+from airflow.models import DagBag, DagModel, SlaMiss, TaskInstance
+from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.operators.empty import EmptyOperator
@@ -604,7 +605,7 @@ class TestDagFileProcessor:
 
         with create_session() as session:
             self._process_file(unparseable_filename, dag_directory=tmp_path, session=session)
-            import_errors = session.query(errors.ImportError).all()
+            import_errors = session.query(ParseImportError).all()
 
             assert len(import_errors) == 1
             import_error = import_errors[0]
@@ -621,7 +622,7 @@ class TestDagFileProcessor:
 
         with create_session() as session:
             self._process_file(zip_filename, dag_directory=tmp_path, session=session)
-            import_errors = session.query(errors.ImportError).all()
+            import_errors = session.query(ParseImportError).all()
 
             assert len(import_errors) == 1
             import_error = import_errors[0]
@@ -646,7 +647,7 @@ class TestDagFileProcessor:
             file.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
 
         self._process_file(temp_dagfile, dag_directory=tmp_path, session=session)
-        import_errors = session.query(errors.ImportError).all()
+        import_errors = session.query(ParseImportError).all()
 
         assert len(import_errors) == 1
         import_error = import_errors[0]
@@ -661,7 +662,7 @@ class TestDagFileProcessor:
 
         with create_session() as session:
             self._process_file(parseable_filename.as_posix(), dag_directory=tmp_path, session=session)
-            import_errors = session.query(errors.ImportError).all()
+            import_errors = session.query(ParseImportError).all()
 
             assert len(import_errors) == 0
 
@@ -674,7 +675,7 @@ class TestDagFileProcessor:
 
         with create_session() as session:
             self._process_file(zip_filename, dag_directory=tmp_path, session=session)
-            import_errors = session.query(errors.ImportError).all()
+            import_errors = session.query(ParseImportError).all()
 
             assert len(import_errors) == 0
 
@@ -695,7 +696,7 @@ class TestDagFileProcessor:
         )
         self._process_file(unparseable_filename.as_posix(), dag_directory=tmp_path, session=session)
 
-        import_errors = session.query(errors.ImportError).all()
+        import_errors = session.query(ParseImportError).all()
 
         assert len(import_errors) == 1
         import_error = import_errors[0]
@@ -717,7 +718,7 @@ class TestDagFileProcessor:
         self._process_file(filename_to_parse, dag_directory=tmp_path, session=session)
 
         import_error_1 = (
-            session.query(errors.ImportError).filter(errors.ImportError.filename == filename_to_parse).one()
+            session.query(ParseImportError).filter(ParseImportError.filename == filename_to_parse).one()
         )
 
         # process the file multiple times
@@ -725,7 +726,7 @@ class TestDagFileProcessor:
             self._process_file(filename_to_parse, dag_directory=tmp_path, session=session)
 
         import_error_2 = (
-            session.query(errors.ImportError).filter(errors.ImportError.filename == filename_to_parse).one()
+            session.query(ParseImportError).filter(ParseImportError.filename == filename_to_parse).one()
         )
 
         # assert that the ID of the import error did not change
@@ -745,7 +746,7 @@ class TestDagFileProcessor:
             file_to_parse.writelines(PARSEABLE_DAG_FILE_CONTENTS)
         self._process_file(filename_to_parse, dag_directory=tmp_path, session=session)
 
-        import_errors = session.query(errors.ImportError).all()
+        import_errors = session.query(ParseImportError).all()
 
         assert len(import_errors) == 0
 
@@ -760,7 +761,7 @@ class TestDagFileProcessor:
             zip_file.writestr(TEMP_DAG_FILENAME, UNPARSEABLE_DAG_FILE_CONTENTS)
         self._process_file(zip_filename, dag_directory=tmp_path, session=session)
 
-        import_errors = session.query(errors.ImportError).all()
+        import_errors = session.query(ParseImportError).all()
         assert len(import_errors) == 1
 
         # Remove the import error from the file
@@ -768,7 +769,7 @@ class TestDagFileProcessor:
             zip_file.writestr(TEMP_DAG_FILENAME, "import os # airflow DAG")
         self._process_file(zip_filename, dag_directory=tmp_path, session=session)
 
-        import_errors = session.query(errors.ImportError).all()
+        import_errors = session.query(ParseImportError).all()
         assert len(import_errors) == 0
 
         session.rollback()
@@ -780,7 +781,7 @@ class TestDagFileProcessor:
 
         with create_session() as session:
             self._process_file(unparseable_filename, dag_directory=tmp_path, session=session)
-            import_errors = session.query(errors.ImportError).all()
+            import_errors = session.query(ParseImportError).all()
 
             assert len(import_errors) == 1
             import_error = import_errors[0]
@@ -817,7 +818,7 @@ class TestDagFileProcessor:
 
         with create_session() as session:
             self._process_file(unparseable_filename, dag_directory=tmp_path, session=session)
-            import_errors = session.query(errors.ImportError).all()
+            import_errors = session.query(ParseImportError).all()
 
             assert len(import_errors) == 1
             import_error = import_errors[0]
@@ -849,7 +850,7 @@ class TestDagFileProcessor:
 
         with create_session() as session:
             self._process_file(invalid_zip_filename, dag_directory=tmp_path, session=session)
-            import_errors = session.query(errors.ImportError).all()
+            import_errors = session.query(ParseImportError).all()
 
             assert len(import_errors) == 1
             import_error = import_errors[0]
@@ -887,7 +888,7 @@ class TestDagFileProcessor:
 
         with create_session() as session:
             self._process_file(invalid_zip_filename, dag_directory=tmp_path, session=session)
-            import_errors = session.query(errors.ImportError).all()
+            import_errors = session.query(ParseImportError).all()
 
             assert len(import_errors) == 1
             import_error = import_errors[0]

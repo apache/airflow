@@ -22,6 +22,7 @@ import os
 import pathlib
 import sys
 import textwrap
+import warnings
 import zipfile
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
@@ -35,7 +36,7 @@ from sqlalchemy.exc import OperationalError
 
 import airflow.example_dags
 from airflow import settings
-from airflow.exceptions import SerializationError
+from airflow.exceptions import RemovedInAirflow3Warning, SerializationError
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
@@ -1145,3 +1146,49 @@ class TestDagBag:
         # test that dagbag.dags is not empty if collect_dags is True
         dagbag = DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False)
         assert dagbag.dags
+
+    @pytest.mark.filterwarnings("default::airflow.exceptions.RemovedInAirflow3Warning")
+    def test_dabgag_captured_warnings(self):
+        dag_file = os.path.join(TEST_DAGS_FOLDER, "test_dag_warnings.py")
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False, collect_dags=False)
+        assert dag_file not in dagbag.captured_warnings
+
+        dagbag.collect_dags(dag_folder=dagbag.dag_folder, include_examples=False, only_if_updated=False)
+        assert len(dagbag.dag_ids) == 1
+        assert dag_file in dagbag.captured_warnings
+        captured_warnings = dagbag.captured_warnings[dag_file]
+        assert len(captured_warnings) == 2
+        assert dagbag.dagbag_stats[0].warning_num == 2
+
+        assert captured_warnings[0] == (
+            f"{dag_file}:48: airflow.exceptions.RemovedInAirflow3Warning: Deprecated Parameter"
+        )
+        assert captured_warnings[1] == f"{dag_file}:50: UserWarning: Some Warning"
+
+        with warnings.catch_warnings():
+            # Disable capture RemovedInAirflow3Warning, and it should be reflected in captured warnings
+            warnings.simplefilter("ignore", RemovedInAirflow3Warning)
+            dagbag.collect_dags(dag_folder=dagbag.dag_folder, include_examples=False, only_if_updated=False)
+            assert dag_file in dagbag.captured_warnings
+            assert len(dagbag.captured_warnings[dag_file]) == 1
+            assert dagbag.dagbag_stats[0].warning_num == 1
+
+            # Disable all warnings, no captured warnings expected
+            warnings.simplefilter("ignore")
+            dagbag.collect_dags(dag_folder=dagbag.dag_folder, include_examples=False, only_if_updated=False)
+            assert dag_file not in dagbag.captured_warnings
+            assert dagbag.dagbag_stats[0].warning_num == 0
+
+    @pytest.mark.filterwarnings("default::airflow.exceptions.RemovedInAirflow3Warning")
+    def test_dabgag_captured_warnings_zip(self):
+        dag_file = os.path.join(TEST_DAGS_FOLDER, "test_dag_warnings.zip")
+        in_zip_dag_file = f"{dag_file}/test_dag_warnings.py"
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
+        assert len(dagbag.dag_ids) == 1
+        assert dag_file in dagbag.captured_warnings
+        captured_warnings = dagbag.captured_warnings[dag_file]
+        assert len(captured_warnings) == 2
+        assert captured_warnings[0] == (
+            f"{in_zip_dag_file}:48: airflow.exceptions.RemovedInAirflow3Warning: Deprecated Parameter"
+        )
+        assert captured_warnings[1] == f"{in_zip_dag_file}:50: UserWarning: Some Warning"

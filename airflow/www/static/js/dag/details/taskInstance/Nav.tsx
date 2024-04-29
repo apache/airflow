@@ -29,7 +29,6 @@ const dagId = getMetaValue("dag_id");
 const isK8sExecutor = getMetaValue("k8s_or_k8scelery_executor") === "True";
 const taskInstancesUrl = getMetaValue("task_instances_list_url");
 const renderedK8sUrl = getMetaValue("rendered_k8s_url");
-const renderedTemplatesUrl = getMetaValue("rendered_templates_url");
 const taskUrl = getMetaValue("task_url");
 const gridUrl = getMetaValue("grid_url");
 
@@ -50,7 +49,6 @@ const Nav = forwardRef<HTMLDivElement, Props>(
       map_index: mapIndex ?? -1,
     });
     const detailsLink = `${taskUrl}&${params}`;
-    const renderedLink = `${renderedTemplatesUrl}&${params}`;
     const k8sLink = `${renderedK8sUrl}&${params}`;
     const listParams = new URLSearchParamsWrapper({
       _flt_3_dag_id: dagId,
@@ -79,7 +77,6 @@ const Nav = forwardRef<HTMLDivElement, Props>(
         {(!isMapped || mapIndex !== undefined) && (
           <>
             <LinkButton href={detailsLink}>More Details</LinkButton>
-            <LinkButton href={renderedLink}>Rendered Template</LinkButton>
             {isK8sExecutor && (
               <LinkButton href={k8sLink}>K8s Pod Spec</LinkButton>
             )}
@@ -88,11 +85,8 @@ const Nav = forwardRef<HTMLDivElement, Props>(
             )}
           </>
         )}
-        <LinkButton
-          href={allInstancesLink}
-          title="View all instances across all DAG runs"
-        >
-          List Instances, all runs
+        <LinkButton href={allInstancesLink} title="View all">
+          List All Instances
         </LinkButton>
       </Flex>
     );

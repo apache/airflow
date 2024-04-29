@@ -262,6 +262,7 @@ class KubernetesPodTrigger(BaseTrigger):
                         "last_log_time": self.last_log_time,
                     }
                 )
+            self.log.debug("Container is not completed and still working.")
             if time_get_more_logs and datetime.datetime.now(tz=datetime.timezone.utc) > time_get_more_logs:
                 return TriggerEvent(
                     {
@@ -271,6 +272,7 @@ class KubernetesPodTrigger(BaseTrigger):
                         "name": self.pod_name,
                     }
                 )
+            self.log.debug("Sleeping for %s seconds.", self.poll_interval)
             await asyncio.sleep(self.poll_interval)
 
     def _get_async_hook(self) -> AsyncKubernetesHook:
