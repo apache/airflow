@@ -227,7 +227,7 @@ class MSGraphAsyncOperator(BaseOperator):
     def push_xcom(self, context: Context, value) -> None:
         self.log.debug("do_xcom_push: %s", self.do_xcom_push)
         if self.do_xcom_push:
-            self.log.info("Pushing XCom with key '%s': %s", self.key, value)
+            self.log.debug("Pushing XCom with key '%s': %s", self.key, value)
             self.xcom_push(context=context, key=self.key, value=value)
 
     def pull_execute_complete(self, context: Context, event: dict[Any, Any] | None = None) -> Any:
@@ -240,7 +240,7 @@ class MSGraphAsyncOperator(BaseOperator):
             )
             or []
         )
-        self.log.info(
+        self.log.debug(
             "Pulled XCom with task_id '%s' and dag_id '%s' and key '%s': %s",
             self.task_id,
             self.dag_id,

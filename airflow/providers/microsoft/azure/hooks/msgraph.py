@@ -338,7 +338,6 @@ class KiotaRequestAdapterHook(BaseHook):
         headers = {**self.DEFAULT_HEADERS, **headers} if headers else self.DEFAULT_HEADERS
         for header_name, header_value in headers.items():
             request_information.headers.try_add(header_name=header_name, header_value=header_value)
-        self.log.info("data: %s", data)
         if isinstance(data, BytesIO) or isinstance(data, bytes) or isinstance(data, str):
             request_information.content = data
         elif data:
