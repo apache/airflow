@@ -154,10 +154,10 @@ class LambdaHook(AwsBaseHook):
             A code-signing configuration includes a set of signing profiles,
             which define the trusted publishers for this function.
         :param architectures: The instruction set architecture that the function supports.
-        :param ephemeral_storage: The size of the function’s /tmp directory in MB.
+        :param ephemeral_storage: The size of the function's /tmp directory in MB.
             The default value is 512, but can be any whole number between 512 and 10,240 MB
-        :param snap_start: The function’s SnapStart setting
-        :param logging_config: The function’s Amazon CloudWatch Logs configuration settings
+        :param snap_start: The function's SnapStart setting
+        :param logging_config: The function's Amazon CloudWatch Logs configuration settings
         """
         if package_type == "Zip":
             if handler is None:
@@ -190,7 +190,7 @@ class LambdaHook(AwsBaseHook):
             "Architectures": architectures,
             "EphemeralStorage": ephemeral_storage,
             "SnapStart": snap_start,
-            "LoggingConfig": logging_config
+            "LoggingConfig": logging_config,
         }
         return self.conn.create_function(**trim_none_values(create_function_args))
 
