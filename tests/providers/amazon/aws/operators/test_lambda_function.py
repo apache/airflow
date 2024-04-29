@@ -134,6 +134,12 @@ class TestLambdaCreateFunctionOperator:
                           "logging_config": {
                               "LogFormat": "Text",
                               "LogGroup": "/custom/log-group/"
+                          },
+                          "snap_start": {
+                              "ApplyOn": "PublishedVersions"
+                          },
+                          "ephemeral_storage": {
+                              "Size": 1024
                           }
                           }, id="with-config-argument"),
         ],
@@ -156,6 +162,8 @@ class TestLambdaCreateFunctionOperator:
         mock_hook_conn.get_waiter.assert_not_called()
         assert operator.config.get("logging_config") == config.get("logging_config")
         assert operator.config.get("architectures") == config.get("architectures")
+        assert operator.config.get("snap_start") == config.get("snap_start")
+        assert operator.config.get("ephemeral_storage") == config.get("ephemeral_storage")
 
 
 class TestLambdaInvokeFunctionOperator:
