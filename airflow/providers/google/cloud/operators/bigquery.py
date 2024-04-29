@@ -2945,3 +2945,76 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
             )
         else:
             self.log.info("Skipping to cancel job: %s:%s.%s", self.project_id, self.location, self.job_id)
+
+
+class BigQueryGetJobResultsOperator(GoogleCloudBaseOperator):
+    """
+    Fetches results from a BigQuery query job given a job id.
+
+    :param project_id: Google Cloud Project where the job ran (templated)
+    :param job_id: The ID of the job.
+        The ID must contain only letters (a-z, A-Z), numbers (0-9), underscores (_), or
+        dashes (-). The maximum length is 1,024 characters. (templated)
+    :param max_results: The maximum number of records (rows) to be fetched
+        from the table. (templated)
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
+    :param location: The location used for the operation.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :param deferrable: Run operator in the deferrable mode
+    :param poll_interval: (Deferrable mode only) polling period in seconds to check for the status of job.
+        Defaults to 4 seconds.
+    """
+
+    template_fields: Sequence[str] = (
+        "project_id",
+        "job_id",
+        "max_results",
+        "impersonation_chain",
+    )
+
+    def __init__(
+        self,
+        project_id: str = PROVIDE_PROJECT_ID,
+        job_id: str | None = None,
+        max_results: int | None = None,
+        as_dict: bool = False,
+        location: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        poll_interval: float = 4.0,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.job_id = job_id
+        self.max_results = max_results
+        self.location = location
+        self.impersonation_chain = impersonation_chain
+        self.gcp_conn_id = gcp_conn_id
+        self.deferrable = deferrable
+        self.poll_interval = poll_interval
+        self.as_dict = as_dict
+
+    def execute(self, context: Context):
+        bq_hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        rows = bq_hook.get_query_results(
+            job_id=self.job_id,
+            project_id=self.project_id,
+            location=self.location,
+            max_results=self.max_results,
+        )
+
+        if self.as_dict:
+            table_data = [dict(row) for row in rows]
+        else:
+            table_data = [row.values() for row in rows]
+
+        return table_data

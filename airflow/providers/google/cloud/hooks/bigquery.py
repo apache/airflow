@@ -46,6 +46,7 @@ from google.cloud.bigquery import (
     UnknownJob,
 )
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem, DatasetReference
+from google.cloud.bigquery.retry import DEFAULT_JOB_RETRY
 from google.cloud.bigquery.table import EncryptionConfiguration, Row, RowIterator, Table, TableReference
 from google.cloud.exceptions import NotFound
 from googleapiclient.discovery import Resource, build
@@ -2389,6 +2390,12 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             project_id = default_project_id
 
         return project_id, dataset_id, table_id
+
+    def get_query_results(self, job_id, project_id, location, max_results, retry: Retry = DEFAULT_JOB_RETRY):
+        job = self.get_job(job_id=job_id, project_id=project_id, location=location)
+        if not isinstance(job, QueryJob):
+            raise AirflowException(f"Job {job_id} is not a query job")
+        return job.result(max_results=max_results, job_retry=retry)
 
     @property
     def scopes(self) -> Sequence[str]:
