@@ -41,8 +41,8 @@ if TYPE_CHECKING:
 
 def default_event_processor(context: Context, event: TriggerEvent) -> bool:
     if event.payload["status"] == "success":
-        return json.loads(event.payload["response"])["status"] == "Succeeded"
-        return json.loads(event.payload["response"])["status"] == "Succeeded"
+        response = json.loads(event.payload["response"])
+        return response.get("status") == "Succeeded"
     return False
 
 
