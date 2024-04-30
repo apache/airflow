@@ -142,31 +142,31 @@ class MSGraphSensor(BaseSensorOperator):
 
         This method gets executed automatically when MSGraphTrigger completes its execution.
         """
-        self.log.info("context: %s", context)
+        self.log.debug("context: %s", context)
 
         if event:
-            self.log.info("%s completed with %s: %s", self.task_id, event.get("status"), event)
+            self.log.debug("%s completed with %s: %s", self.task_id, event.get("status"), event)
 
             if event.get("status") == "failure":
                 raise AirflowException(event.get("message"))
 
             response = event.get("response")
 
-            self.log.info("response: %s", response)
+            self.log.debug("response: %s", response)
 
             if response:
                 response = self.serializer.deserialize(response)
 
-                self.log.info("deserialize response: %s", response)
+                self.log.debug("deserialize response: %s", response)
 
                 is_done = self.event_processor(context, response)
 
-                self.log.info("is_done: %s", is_done)
+                self.log.debug("is_done: %s", is_done)
 
                 if is_done:
                     result = self.result_processor(context, response)
 
-                    self.log.info("processed response: %s", result)
+                    self.log.debug("processed response: %s", result)
 
                     return result
 
