@@ -78,6 +78,7 @@ with models.DAG(
             "datasetId": "ffb6096e-d409-4826-aaeb-b5d4b165dc4d",
         },
         data={"type": "full"},  # Needed for enhanced refresh
+        result_processor=lambda context, response: response["requestid"],
     )
 
     refresh_dataset_history_task = MSGraphSensor(
@@ -87,7 +88,7 @@ with models.DAG(
         path_parameters={
             "workspaceId": "9a7e14c6-9a7d-4b4c-b0f2-799a85e60a51",
             "datasetId": "ffb6096e-d409-4826-aaeb-b5d4b165dc4d",
-            "refreshId": refresh_dataset_task.output["RequestId"],
+            "refreshId": refresh_dataset_task.output,
         },
         timeout=350.0,
         event_processor=lambda context, event: json.loads(event.payload["response"])["status"] == "Completed",
