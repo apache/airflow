@@ -169,7 +169,7 @@
   },
   "apache.iceberg": {
     "deps": [
-      "apache-airflow>=2.6.0"
+      "apache-airflow>=2.7.0"
     ],
     "devel-deps": [
       "pyiceberg>=0.5.0"
@@ -1120,23 +1120,15 @@
   },
   "tabular": {
     "deps": [
-<<<<<<< HEAD
-      "apache-airflow>=2.7.0"
-=======
       "apache-airflow-providers-apache-iceberg",
-      "apache-airflow>=2.6.0"
->>>>>>> 6a75b87b4b (add tabular deprecation)
+      "apache-airflow>=2.7.0"
     ],
     "devel-deps": [
       "pyiceberg>=0.5.0"
     ],
-<<<<<<< HEAD
-    "cross-providers-deps": [],
-=======
     "cross-providers-deps": [
       "apache.iceberg"
     ],
->>>>>>> 6a75b87b4b (add tabular deprecation)
     "excluded-python-versions": [],
     "state": "ready"
   },

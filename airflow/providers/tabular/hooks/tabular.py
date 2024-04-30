@@ -21,10 +21,11 @@ from __future__ import annotations
 
 import warnings
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.apache.iceberg.hooks.iceberg import IcebergHook  # noqa: F401
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.iceberg.hooks.iceberg`.",
-    DeprecationWarning,
+    AirflowProviderDeprecationWarning,
     stacklevel=2,
 )
