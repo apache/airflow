@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any, Iterable, TypeVar
 from unittest.mock import MagicMock
 
 import pytest
-from httpx import Response, Headers
+from httpx import Headers, Response
 from msgraph_core import APIVersion
 
 from airflow.models import Connection
