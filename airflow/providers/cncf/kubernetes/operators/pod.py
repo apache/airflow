@@ -742,7 +742,7 @@ class KubernetesPodOperator(BaseOperator):
             if event["status"] in ("error", "failed", "timeout"):
                 # fetch some logs when pod is failed
                 if self.get_logs:
-                    self.write_logs(self.pod, follow=follow, since_time=last_log_time)
+                    self._write_logs(self.pod, follow=follow, since_time=last_log_time)
 
                 if self.do_xcom_push:
                     _ = self.extract_xcom(pod=self.pod)
@@ -770,7 +770,7 @@ class KubernetesPodOperator(BaseOperator):
             elif event["status"] == "success":
                 # fetch some logs when pod is executed successfully
                 if self.get_logs:
-                    self.write_logs(self.pod, follow=follow, since_time=last_log_time)
+                    self._write_logs(self.pod, follow=follow, since_time=last_log_time)
 
                 if self.do_xcom_push:
                     xcom_sidecar_output = self.extract_xcom(pod=self.pod)
@@ -797,7 +797,7 @@ class KubernetesPodOperator(BaseOperator):
                 remote_pod=self.pod,
             )
 
-    def write_logs(self, pod: k8s.V1Pod, follow: bool = False, since_time: DateTime | None = None) -> None:
+    def _write_logs(self, pod: k8s.V1Pod, follow: bool = False, since_time: DateTime | None = None) -> None:
         try:
             since_seconds = (
                 math.ceil((datetime.datetime.now(tz=datetime.timezone.utc) - since_time).total_seconds())
