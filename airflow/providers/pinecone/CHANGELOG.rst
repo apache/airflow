@@ -20,6 +20,36 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+   This release of provider has breaking changes from previous versions. Changes are based on
+   the migration guide from pinecone - <https://canyon-quilt-082.notion.site/Pinecone-Python-SDK-v3-0-0-Migration-Guide-056d3897d7634bf7be399676a4757c7b>
+
+* ``log_level`` field is removed from the Connections as it is not used by the provider anymore.
+* ``PineconeHook.get_conn`` is removed in favor of ``conn`` property which returns the Connection object. Use ``pinecone_client`` property to access the Pinecone client.
+*  Following ``PineconeHook`` methods are converted from static methods to instance methods. Hence, Initialization is required to use these now:
+
+   + ``PineconeHook.list_indexes``
+   + ``PineconeHook.upsert``
+   + ``PineconeHook.create_index``
+   + ``PineconeHook.describe_index``
+   + ``PineconeHook.delete_index``
+   + ``PineconeHook.configure_index``
+   + ``PineconeHook.create_collection``
+   + ``PineconeHook.delete_collection``
+   + ``PineconeHook.describe_collection``
+   + ``PineconeHook.list_collections``
+   + ``PineconeHook.query_vector``
+   + ``PineconeHook.describe_index_stats``
+
+* ``PineconeHook.create_index`` is updated to accept a ``ServerlessSpec`` or ``PodSpec`` instead of directly accepting index related configurations
+* To initialize ``PineconeHook`` object, API key needs to be passed via argument or the connection.
+
 1.1.2
 .....
 

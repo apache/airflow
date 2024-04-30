@@ -300,7 +300,15 @@ class TestBaseAuthManager:
         mock_security_manager.has_access.side_effect = [True, False, True, True, False]
 
         menu = Menu()
-        menu.add_link("item1")
+        menu.add_link(
+            # These may not all be valid types, but it does let us check each attr is copied
+            name="item1",
+            href="h1",
+            icon="i1",
+            label="l1",
+            baseview="b1",
+            cond="c1",
+        )
         menu.add_link("item2")
         menu.add_link("item3")
         menu.add_link("item3.1", category="item3")
@@ -313,6 +321,12 @@ class TestBaseAuthManager:
         assert result[1].name == "item3"
         assert len(result[1].childs) == 1
         assert result[1].childs[0].name == "item3.1"
+        # check we've copied every attr
+        assert result[0].href == "h1"
+        assert result[0].icon == "i1"
+        assert result[0].label == "l1"
+        assert result[0].baseview == "b1"
+        assert result[0].cond == "c1"
 
     @patch.object(EmptyAuthManager, "security_manager")
     def test_filter_permitted_menu_items_twice(self, mock_security_manager, auth_manager):
