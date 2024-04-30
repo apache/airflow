@@ -128,7 +128,6 @@ class MSGraphSensor(BaseSensorOperator):
     def retry_execute(
         self,
         context: Context,
-
     ) -> Any:
         self.execute(context=context)
 
