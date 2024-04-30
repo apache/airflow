@@ -91,17 +91,17 @@ class OpenSearchServerlessCollectionActiveSensor(AwsBaseSensor[OpenSearchServerl
         self.collection_id = collection_id
         self.collection_name = collection_name
 
-        self.call_args = (
-            {"ids": [str(self.collection_id)]}
-            if self.collection_id
-            else {"names": [str(self.collection_name)]}
-        )
         self.poke_interval = poke_interval
         self.max_retries = max_retries
         self.deferrable = deferrable
 
     def poke(self, context: Context, **kwargs) -> bool:
-        state = self.hook.conn.batch_get_collection(**self.call_args)["collectionDetails"][0]["status"]
+        call_args = (
+            {"ids": [str(self.collection_id)]}
+            if self.collection_id
+            else {"names": [str(self.collection_name)]}
+        )
+        state = self.hook.conn.batch_get_collection(**call_args)["collectionDetails"][0]["status"]
 
         if state in self.FAILURE_STATES:
             # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1

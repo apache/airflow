@@ -72,17 +72,18 @@ log = logging.getLogger(__name__)
 
 
 @task
-def create_opensearch_policies(bedrock_role_arn: str, collection_name: str):
+def create_opensearch_policies(bedrock_role_arn: str, collection_name: str, policy_name_suffix: str) -> None:
     """
     Create security, network and data access policies within Amazon OpenSearch Serverless.
 
     :param bedrock_role_arn: Arn of the Bedrock Knowledge Base Execution Role.
     :param collection_name: Name of the OpenSearch collection to apply the policies to.
+    :param policy_name_suffix: EnvironmentID or other unique suffix to append to the policy name.
     """
 
-    encryption_policy_name = f"{naming_prefix}rag-sp-{env_id}"
-    network_policy_name = f"{naming_prefix}rag-np-{env_id}"
-    access_policy_name = f"{naming_prefix}rag-ap-{env_id}"
+    encryption_policy_name = f"{naming_prefix}sp-{policy_name_suffix}"
+    network_policy_name = f"{naming_prefix}np-{policy_name_suffix}"
+    access_policy_name = f"{naming_prefix}ap-{policy_name_suffix}"
 
     def _create_security_policy(name, policy_type, policy):
         try:
@@ -169,10 +170,11 @@ def create_collection(collection_name: str):
 
 
 @task
-def create_vector_index(collection_id: str, region: str):
+def create_vector_index(index_name: str, collection_id: str, region: str):
     """
     Use the OpenSearchPy client to create the vector index for the Amazon Open Search Serverless Collection.
 
+    :param index_name: The vector index name to create.
     :param collection_id: ID of the collection to be indexed.
     :param region: Name of the AWS region the collection resides in.
     """
@@ -320,10 +322,11 @@ def delete_knowledge_base(knowledge_base_id: str):
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
-def delete_vector_index(collection_id: str):
+def delete_vector_index(index_name: str, collection_id: str):
     """
     Delete the vector index created earlier.
 
+    :param index_name: The name of the vector index to delete.
     :param collection_id: ID of the collection to be indexed.
     """
     host = f"{collection_id}.{region_name}.aoss.amazonaws.com"
@@ -354,28 +357,32 @@ def delete_collection(collection_id: str):
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
-def delete_opensearch_policies():
-    """Delete the security, network and data access policies created earlier."""
+def delete_opensearch_policies(collection_name: str):
+    """
+    Delete the security, network and data access policies created earlier.
+
+    :param collection_name: All policies in the given collection name will be deleted.
+    """
 
     access_policies = aoss_client.list_access_policies(
-        type="data", resource=[f"collection/{vector_store_name}"]
+        type="data", resource=[f"collection/{collection_name}"]
     )["accessPolicySummaries"]
-    log.info("Found access policies for %s: %s", vector_store_name, access_policies)
+    log.info("Found access policies for %s: %s", collection_name, access_policies)
     if not access_policies:
         raise Exception("No access policies found?")
     for policy in access_policies:
-        log.info("Deleting access policy for %s: %s", vector_store_name, policy["name"])
+        log.info("Deleting access policy for %s: %s", collection_name, policy["name"])
         aoss_client.delete_access_policy(name=policy["name"], type="data")
 
     for policy_type in ["encryption", "network"]:
         policies = aoss_client.list_security_policies(
-            type=policy_type, resource=[f"collection/{vector_store_name}"]
+            type=policy_type, resource=[f"collection/{collection_name}"]
         )["securityPolicySummaries"]
         if not policies:
             raise Exception("No security policies found?")
-        log.info("Found %s security policies for %s: %s", policy_type, vector_store_name, policies)
+        log.info("Found %s security policies for %s: %s", policy_type, collection_name, policies)
         for policy in policies:
-            log.info("Deleting %s security policy for %s: %s", policy_type, vector_store_name, policy["name"])
+            log.info("Deleting %s security policy for %s: %s", policy_type, collection_name, policy["name"])
             aoss_client.delete_security_policy(name=policy["name"], type=policy_type)
 
 
@@ -394,18 +401,19 @@ with DAG(
 
     region_name = boto3.session.Session().region_name
 
-    naming_prefix = "bedrock-kb-sample-"
+    naming_prefix = "bedrock-kb-"
     bucket_name = f"{naming_prefix}{env_id}"
-    index_name = f"{naming_prefix}rag-index-{env_id}"
-    knowledge_base_name = f"{naming_prefix}knowledge-base-{env_id}"
-    sample_index_name = f"{naming_prefix}index-{env_id}"
-    vector_store_name = f"{naming_prefix}rag-{env_id}"
-    data_source_name = f"{naming_prefix}data-source-{env_id}"
+    index_name = f"{naming_prefix}index-{env_id}"
+    knowledge_base_name = f"{naming_prefix}{env_id}"
+    vector_store_name = f"{naming_prefix}{env_id}"
+    data_source_name = f"{naming_prefix}ds-{env_id}"
 
     create_bucket = S3CreateBucketOperator(task_id="create_bucket", bucket_name=bucket_name)
 
     create_opensearch_policies = create_opensearch_policies(
-        bedrock_role_arn=test_context[ROLE_ARN_KEY], collection_name=vector_store_name
+        bedrock_role_arn=test_context[ROLE_ARN_KEY],
+        collection_name=vector_store_name,
+        policy_name_suffix=env_id,
     )
 
     collection = create_collection(collection_name=vector_store_name)
@@ -486,7 +494,7 @@ with DAG(
         create_opensearch_policies,
         collection,
         await_collection,
-        create_vector_index(collection_id=collection, region=region_name),
+        create_vector_index(index_name=index_name, collection_id=collection, region=region_name),
         copy_data_to_s3(bucket=bucket_name),
         # TEST BODY
         create_knowledge_base,
@@ -500,8 +508,8 @@ with DAG(
         ),
         delete_knowledge_base(knowledge_base_id=create_knowledge_base.output),
         # TEST TEARDOWN
-        delete_vector_index(collection_id=collection),
-        delete_opensearch_policies(),
+        delete_vector_index(index_name=index_name, collection_id=collection),
+        delete_opensearch_policies(collection_name=vector_store_name),
         delete_collection(collection_id=collection),
         delete_bucket,
     )
