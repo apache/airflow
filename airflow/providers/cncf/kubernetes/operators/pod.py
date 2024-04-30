@@ -804,11 +804,15 @@ class KubernetesPodOperator(BaseOperator):
                 if since_time
                 else None
             )
-            logs = self.pod_manager.read_pod_logs(
+            logs = self.client.read_namespaced_pod_log(
+                name=pod.metadata.name,
+                namespace=pod.metadata.namespace,
                 pod=pod,
                 container_name=self.base_container_name,
                 follow=follow,
+                timestamps=False,
                 since_seconds=since_seconds,
+                _preload_content=False,
             )
             for raw_line in logs:
                 line = raw_line.decode("utf-8", errors="backslashreplace").rstrip("\n")
