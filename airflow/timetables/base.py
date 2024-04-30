@@ -16,15 +16,45 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, NamedTuple, Sequence
+from typing import TYPE_CHECKING, Any, Iterator, NamedTuple, Sequence
 from warnings import warn
 
+from airflow.datasets import BaseDataset
 from airflow.typing_compat import Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from pendulum import DateTime
 
+    from airflow.datasets import Dataset
     from airflow.utils.types import DagRunType
+
+
+class _NullDataset(BaseDataset):
+    """Sentinel type that represents "no datasets".
+
+    This is only implemented to make typing easier in timetables, and not
+    expected to be used anywhere else.
+
+    :meta private:
+    """
+
+    def __bool__(self) -> bool:
+        return False
+
+    def __or__(self, other: BaseDataset) -> BaseDataset:
+        return NotImplemented
+
+    def __and__(self, other: BaseDataset) -> BaseDataset:
+        return NotImplemented
+
+    def as_expression(self) -> Any:
+        return None
+
+    def evaluate(self, statuses: dict[str, bool]) -> bool:
+        return False
+
+    def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
+        return iter(())
 
 
 class DataInterval(NamedTuple):
@@ -127,6 +157,12 @@ class Timetable(Protocol):
 
     @property
     def can_be_scheduled(self):
+        """Whether this timetable can actually schedule runs in an automated manner.
+
+        This defaults to and should generally be *True* (including non periodic
+        execution types like *@once* and data triggered tables), but
+        ``NullTimetable`` sets this to *False*.
+        """
         if hasattr(self, "can_run"):
             warn(
                 'can_run class variable is deprecated. Use "can_be_scheduled" instead.',
@@ -136,13 +172,6 @@ class Timetable(Protocol):
             return self.can_run
         return self._can_be_scheduled
 
-    """Whether this timetable can actually schedule runs in an automated manner.
-
-    This defaults to and should generally be *True* (including non periodic
-    execution types like *@once* and data triggered tables), but
-    ``NullTimetable`` sets this to *False*.
-    """
-
     run_ordering: Sequence[str] = ("data_interval_end", "execution_date")
     """How runs triggered from this timetable should be ordered in UI.
 
@@ -150,11 +179,19 @@ class Timetable(Protocol):
     """
 
     active_runs_limit: int | None = None
-    """Override the max_active_runs parameter of any DAGs using this timetable.
-    This is called during DAG initializing, and will set the max_active_runs if
-    it returns a value. In most cases this should return None, but in some cases
-    (for example, the ContinuousTimetable) there are good reasons for limiting
-    the DAGRun parallelism.
+    """Maximum active runs that can be active at one time for a DAG.
+
+    This is called during DAG initialization, and the return value is used as
+    the DAG's default ``max_active_runs``. This should generally return *None*,
+    but there are good reasons to limit DAG run parallelism in some cases, such
+    as for :class:`~airflow.timetable.simple.ContinuousTimetable`.
+    """
+
+    dataset_condition: BaseDataset = _NullDataset()
+    """The dataset condition that triggers a DAG using this timetable.
+
+    If this is not *None*, this should be a dataset, or a combination of, that
+    controls the DAG's dataset triggers.
     """
 
     @classmethod
