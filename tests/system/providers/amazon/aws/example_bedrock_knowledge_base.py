@@ -389,8 +389,8 @@ with DAG(
     test_context = sys_test_context_task()
     env_id = test_context["ENV_ID"]
 
-    aoss_client = OpenSearchServerlessHook().conn
-    bedrock_agent_client = BedrockAgentHook().conn
+    aoss_client = OpenSearchServerlessHook(aws_conn_id=None).conn
+    bedrock_agent_client = BedrockAgentHook(aws_conn_id=None).conn
 
     region_name = boto3.session.Session().region_name
 
