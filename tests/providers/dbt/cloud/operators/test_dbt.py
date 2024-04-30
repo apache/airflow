@@ -312,9 +312,9 @@ class TestDbtCloudRunJobOperator:
         ids=["default_account", "explicit_account"],
     )
     def test_execute_no_wait_for_termination_and_reuse_existing_run(
-        self, mock_run_job, mock_get_jobs_run, conn_id, account_id
+        self, mock_run_job, mock_get_job_runs, conn_id, account_id
     ):
-        mock_get_jobs_run.return_value.json.return_value = {
+        mock_get_job_runs.return_value.json.return_value = {
             "data": [
                 {
                     "id": 10000,
@@ -354,12 +354,17 @@ class TestDbtCloudRunJobOperator:
         assert operator.schema_override == self.config["schema_override"]
         assert operator.additional_run_config == self.config["additional_run_config"]
 
-        with patch.object(DbtCloudHook, "get_job_run") as mock_get_job_run:
-            operator.execute(context=self.mock_context)
+        operator.execute(context=self.mock_context)
 
-            mock_run_job.assert_not_called()
-
-            mock_get_job_run.assert_not_called()
+        mock_run_job.assert_not_called()
+        mock_get_job_runs.assert_called_with(
+            account_id=account_id,
+            payload={
+                "job_definition_id": self.config["job_id"],
+                "status__in": DbtCloudJobRunStatus.NON_TERMINAL_STATUSES,
+                "order_by": "-created_at",
+            },
+        )
 
     @patch.object(DbtCloudHook, "trigger_job_run")
     @pytest.mark.parametrize(

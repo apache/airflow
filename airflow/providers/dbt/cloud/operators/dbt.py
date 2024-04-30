@@ -135,7 +135,7 @@ class DbtCloudRunJobOperator(BaseOperator):
                 account_id=self.account_id,
                 payload={
                     "job_definition_id": self.job_id,
-                    "status": DbtCloudJobRunStatus.NON_TERMINAL_STATUSES,
+                    "status__in": DbtCloudJobRunStatus.NON_TERMINAL_STATUSES,
                     "order_by": "-created_at",
                 },
             ).json()["data"]
