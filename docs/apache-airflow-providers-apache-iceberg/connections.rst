@@ -20,7 +20,7 @@
 Connecting to Iceberg
 =====================
 
-The Iceberg connection type enables connection to Tabular to request a short lived token to access the Apache Iceberg tables. This token can be injected as an environment variable, to be used with Trino, Spark, Flink or your favorite query engine that supports Apache Iceberg.
+The Iceberg connection type enables connecting to an Iceberg REST catalog to request a short-lived token to access the Apache Iceberg tables. This token can be injected as an environment variable, to be used with Trino, Spark, Flink, or your favorite query engine that supports Apache Iceberg.
 
 After installing the Iceberg provider in your Airflow environment, the corresponding connection type of ``iceberg`` will be made available.
 
@@ -33,10 +33,10 @@ Configuring the Connection
 --------------------------
 
 Client ID
-    The Client ID from Tabular
+    The OAuth2 Client ID
 
 Client Secret
-    The Client Secret from Tabular
+    The OAuth2 Client Secret
 
 Host
     Sets the URL to the Tabular environment. By default `https://api.tabulardata.io/ws/v1`
