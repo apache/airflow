@@ -22,7 +22,7 @@ import json
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from airflow.exceptions import AirflowException
-from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook, default_response_handler
+from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.providers.microsoft.azure.triggers.msgraph import MSGraphTrigger, ResponseSerializer
 from airflow.sensors.base import BaseSensorOperator, PokeReturnValue
 
@@ -30,8 +30,6 @@ if TYPE_CHECKING:
     from io import BytesIO
 
     from kiota_abstractions.request_information import QueryParams
-    from kiota_abstractions.response_handler import NativeResponseType
-    from kiota_abstractions.serialization import ParsableFactory
     from kiota_http.httpx_request_adapter import ResponseType
     from msgraph_core import APIVersion
 
@@ -53,9 +51,6 @@ class MSGraphSensor(BaseSensorOperator):
     :param url: The url being executed on the Microsoft Graph API (templated).
     :param response_type: The expected return type of the response as a string. Possible value are: `bytes`,
         `str`, `int`, `float`, `bool` and `datetime` (default is None).
-    :param response_handler: Function to convert the native HTTPX response returned by the hook (default is
-        lambda response, error_map: response.json()).  The default expression will convert the native response
-        to JSON.  If response_type parameter is specified, then the response_handler will be ignored.
     :param method: The HTTP method being used to do the REST call (default is GET).
     :param conn_id: The HTTP Connection ID to run the operator against (templated).
     :param proxies: A dict defining the HTTP proxies to be used (default is None).
@@ -87,9 +82,6 @@ class MSGraphSensor(BaseSensorOperator):
         self,
         url: str,
         response_type: ResponseType | None = None,
-        response_handler: Callable[
-            [NativeResponseType, dict[str, ParsableFactory | None] | None], Any
-        ] = default_response_handler,
         path_parameters: dict[str, Any] | None = None,
         url_template: str | None = None,
         method: str = "GET",
@@ -107,7 +99,6 @@ class MSGraphSensor(BaseSensorOperator):
         super().__init__(**kwargs)
         self.url = url
         self.response_type = response_type
-        self.response_handler = response_handler
         self.path_parameters = path_parameters
         self.url_template = url_template
         self.method = method
@@ -126,7 +117,6 @@ class MSGraphSensor(BaseSensorOperator):
         return MSGraphTrigger(
             url=self.url,
             response_type=self.response_type,
-            response_handler=self.response_handler,
             path_parameters=self.path_parameters,
             url_template=self.url_template,
             method=self.method,

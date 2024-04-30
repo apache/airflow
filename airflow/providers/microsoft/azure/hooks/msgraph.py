@@ -22,7 +22,7 @@ from contextlib import suppress
 from http import HTTPStatus
 from io import BytesIO
 from json import JSONDecodeError
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 from urllib.parse import quote, urljoin, urlparse
 
 import httpx
@@ -53,26 +53,20 @@ if TYPE_CHECKING:
     from airflow.models import Connection
 
 
-def default_response_handler(
-    response: NativeResponseType, error_map: dict[str, ParsableFactory | None] | None
-) -> Any:
-    with suppress(JSONDecodeError):
-        return response.json()
-    return response.content
-
-
-class CallableResponseHandler(ResponseHandler):
+class DefaultResponseHandler(ResponseHandler):
     """
-    CallableResponseHandler executes the passed callable_function with response as parameter.
-
-    param callable_function: Function that is applied to the response.
+    DefaultResponseHandler returns JSON payload or content in bytes, if no content is available it returns
+    the response headers.
     """
 
-    def __init__(
-        self,
-        callable_function: Callable[[NativeResponseType, dict[str, ParsableFactory | None] | None], Any],
-    ):
-        self.callable_function = callable_function
+    @staticmethod
+    def get_value(response: NativeResponseType) -> Any:
+        with suppress(JSONDecodeError):
+            return response.json()
+        content = response.content
+        if not content:
+            return {key: value for key, value in response.headers.items()}
+        return content
 
     async def handle_response_async(
         self, response: NativeResponseType, error_map: dict[str, ParsableFactory | None] | None = None
@@ -83,7 +77,7 @@ class CallableResponseHandler(ResponseHandler):
         param response: The type of the native response object.
         param error_map: The error dict to use in case of a failed request.
         """
-        value = self.callable_function(response, error_map)
+        value = self.get_value(response)
         if response.status_code not in {200, 201, 202, 204, 302}:
             message = value or response.reason_phrase
             status_code = HTTPStatus(response.status_code)
@@ -279,9 +273,6 @@ class KiotaRequestAdapterHook(BaseHook):
         self,
         url: str = "",
         response_type: ResponseType | None = None,
-        response_handler: Callable[
-            [NativeResponseType, dict[str, ParsableFactory | None] | None], Any
-        ] = default_response_handler,
         path_parameters: dict[str, Any] | None = None,
         method: str = "GET",
         query_parameters: dict[str, QueryParams] | None = None,
@@ -292,7 +283,6 @@ class KiotaRequestAdapterHook(BaseHook):
             request_info=self.request_information(
                 url=url,
                 response_type=response_type,
-                response_handler=response_handler,
                 path_parameters=path_parameters,
                 method=method,
                 query_parameters=query_parameters,
@@ -311,9 +301,6 @@ class KiotaRequestAdapterHook(BaseHook):
         self,
         url: str,
         response_type: ResponseType | None = None,
-        response_handler: Callable[
-            [NativeResponseType, dict[str, ParsableFactory | None] | None], Any
-        ] = lambda response, error_map: response.json(),
         path_parameters: dict[str, Any] | None = None,
         method: str = "GET",
         query_parameters: dict[str, QueryParams] | None = None,
@@ -333,7 +320,7 @@ class KiotaRequestAdapterHook(BaseHook):
             request_information.url_template = f"{{+baseurl}}/{self.normalize_url(url)}"
         if not response_type:
             request_information.request_options[ResponseHandlerOption.get_key()] = ResponseHandlerOption(
-                response_handler=CallableResponseHandler(response_handler)
+                response_handler=DefaultResponseHandler()
             )
         headers = {**self.DEFAULT_HEADERS, **headers} if headers else self.DEFAULT_HEADERS
         for header_name, header_value in headers.items():

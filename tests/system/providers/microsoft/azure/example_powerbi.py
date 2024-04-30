@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from datetime import datetime
 
 from airflow import models
@@ -67,7 +68,7 @@ with models.DAG(
     # [END howto_sensor_powerbi_scan_status]
 
     # [START howto_operator_powerbi_refresh_dataset]
-    refresh_dataset_task = MSGraphSensor(
+    refresh_dataset_task = MSGraphAsyncOperator(
         task_id="refresh_dataset",
         conn_id="powerbi_api",
         url="myorg/groups/{workspaceId}/datasets/{datasetId}/refreshes",
@@ -76,10 +77,25 @@ with models.DAG(
             "workspaceId": "9a7e14c6-9a7d-4b4c-b0f2-799a85e60a51",
             "datasetId": "ffb6096e-d409-4826-aaeb-b5d4b165dc4d",
         },
+        data={"type": "full"},  # Needed for enhanced refresh
+    )
+
+    refresh_dataset_history_task = MSGraphSensor(
+        task_id="refresh_dataset_history",
+        conn_id="powerbi_api",
+        url="myorg/groups/{workspaceId}/datasets/{datasetId}/refreshes/{refreshId}",
+        path_parameters={
+            "workspaceId": "9a7e14c6-9a7d-4b4c-b0f2-799a85e60a51",
+            "datasetId": "ffb6096e-d409-4826-aaeb-b5d4b165dc4d",
+            "refreshId": refresh_dataset_task.output["RequestId"],
+        },
+        timeout=350.0,
+        event_processor=lambda context, event: json.loads(event.payload["response"])["status"] == "Completed",
     )
     # [END howto_operator_powerbi_refresh_dataset]
 
-    workspaces_task >> workspaces_info_task >> check_workspace_status_task >> refresh_dataset_task
+    workspaces_task >> workspaces_info_task >> check_workspace_status_task
+    refresh_dataset_task >> refresh_dataset_history_task
 
     from tests.system.utils.watcher import watcher
 
