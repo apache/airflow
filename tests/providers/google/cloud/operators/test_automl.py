@@ -139,12 +139,13 @@ class TestAutoMLTrainModelOperator:
 
 
 class TestAutoMLBatchPredictOperator:
+    @mock.patch("airflow.providers.google.cloud.links.translate.TranslationLegacyModelPredictLink.persist")
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
-    def test_execute(self, mock_hook):
+    def test_execute(self, mock_hook, mock_link_persist):
         mock_hook.return_value.batch_predict.return_value.result.return_value = BatchPredictResult()
         mock_hook.return_value.extract_object_id = extract_object_id
         mock_hook.return_value.wait_for_operation.return_value = BatchPredictResult()
-
+        mock_context = {"ti": mock.MagicMock()}
         op = AutoMLBatchPredictOperator(
             model_id=MODEL_ID,
             location=GCP_LOCATION,
@@ -154,7 +155,7 @@ class TestAutoMLBatchPredictOperator:
             task_id=TASK_ID,
             prediction_params={},
         )
-        op.execute(context=mock.MagicMock())
+        op.execute(context=mock_context)
         mock_hook.return_value.batch_predict.assert_called_once_with(
             input_config=INPUT_CONFIG,
             location=GCP_LOCATION,
@@ -165,6 +166,12 @@ class TestAutoMLBatchPredictOperator:
             project_id=GCP_PROJECT_ID,
             retry=DEFAULT,
             timeout=None,
+        )
+        mock_link_persist.assert_called_once_with(
+            context=mock_context,
+            task_instance=op,
+            model_id=MODEL_ID,
+            project_id=GCP_PROJECT_ID,
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
@@ -226,10 +233,11 @@ class TestAutoMLBatchPredictOperator:
 
 
 class TestAutoMLPredictOperator:
+    @mock.patch("airflow.providers.google.cloud.links.translate.TranslationLegacyModelPredictLink.persist")
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
-    def test_execute(self, mock_hook):
+    def test_execute(self, mock_hook, mock_link_persist):
         mock_hook.return_value.predict.return_value = PredictResponse()
-
+        mock_context = {"ti": mock.MagicMock()}
         op = AutoMLPredictOperator(
             model_id=MODEL_ID,
             location=GCP_LOCATION,
@@ -238,7 +246,7 @@ class TestAutoMLPredictOperator:
             task_id=TASK_ID,
             operation_params={"TEST_KEY": "TEST_VALUE"},
         )
-        op.execute(context=mock.MagicMock())
+        op.execute(context=mock_context)
         mock_hook.return_value.predict.assert_called_once_with(
             location=GCP_LOCATION,
             metadata=(),
@@ -248,6 +256,12 @@ class TestAutoMLPredictOperator:
             project_id=GCP_PROJECT_ID,
             retry=DEFAULT,
             timeout=None,
+        )
+        mock_link_persist.assert_called_once_with(
+            context=mock_context,
+            task_instance=op,
+            model_id=MODEL_ID,
+            project_id=GCP_PROJECT_ID,
         )
 
     @pytest.mark.db_test
