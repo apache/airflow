@@ -38,7 +38,12 @@ POLLING_INTERVAL_SECONDS = 30
 RETRY_DELAY = 10
 RETRY_LIMIT = 3
 RUN_ID = 1
-TASK_RUN_ID = 11
+TASK_RUN_ID1 = 11
+TASK_RUN_ID1_KEY = "first_task"
+TASK_RUN_ID2 = 22
+TASK_RUN_ID2_KEY = "second_task"
+TASK_RUN_ID3 = 33
+TASK_RUN_ID3_KEY = "third_task"
 JOB_ID = 42
 RUN_PAGE_URL = "https://XX.cloud.databricks.com/#jobs/1/runs/1"
 ERROR_MESSAGE = "error message from databricks API"
@@ -80,13 +85,32 @@ GET_RUN_RESPONSE_TERMINATED_WITH_FAILED = {
     },
     "tasks": [
         {
-            "run_id": TASK_RUN_ID,
+            "run_id": TASK_RUN_ID1,
+            "task_key": TASK_RUN_ID1_KEY,
             "state": {
                 "life_cycle_state": "TERMINATED",
                 "result_state": "FAILED",
                 "state_message": "Workload failed, see run output for details",
             },
-        }
+        },
+        {
+            "run_id": TASK_RUN_ID2,
+            "task_key": TASK_RUN_ID2_KEY,
+            "state": {
+                "life_cycle_state": "TERMINATED",
+                "result_state": "SUCCESS",
+                "state_message": None,
+            },
+        },
+        {
+            "run_id": TASK_RUN_ID3,
+            "task_key": TASK_RUN_ID3_KEY,
+            "state": {
+                "life_cycle_state": "TERMINATED",
+                "result_state": "FAILED",
+                "state_message": "Workload failed, see run output for details",
+            },
+        },
     ],
 }
 
@@ -150,7 +174,7 @@ class TestDatabricksExecutionTrigger:
                     ).to_json(),
                     "run_page_url": RUN_PAGE_URL,
                     "repair_run": False,
-                    "notebook_error": None,
+                    "errors": [],
                 }
             )
 
@@ -181,7 +205,10 @@ class TestDatabricksExecutionTrigger:
                     ).to_json(),
                     "run_page_url": RUN_PAGE_URL,
                     "repair_run": False,
-                    "notebook_error": ERROR_MESSAGE,
+                    "errors": [
+                        {"task_key": TASK_RUN_ID1_KEY, "run_id": TASK_RUN_ID1, "error": ERROR_MESSAGE},
+                        {"task_key": TASK_RUN_ID3_KEY, "run_id": TASK_RUN_ID3, "error": ERROR_MESSAGE},
+                    ],
                 }
             )
 
@@ -218,7 +245,7 @@ class TestDatabricksExecutionTrigger:
                     ).to_json(),
                     "run_page_url": RUN_PAGE_URL,
                     "repair_run": False,
-                    "notebook_error": None,
+                    "errors": [],
                 }
             )
         mock_sleep.assert_called_once()

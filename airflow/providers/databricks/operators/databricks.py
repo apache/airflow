@@ -159,14 +159,14 @@ def _handle_deferrable_databricks_operator_completion(event: dict, log: Logger) 
     validate_trigger_event(event)
     run_state = RunState.from_json(event["run_state"])
     run_page_url = event["run_page_url"]
-    notebook_error = event["notebook_error"]
+    errors = event["errors"]
     log.info("View run status, Spark UI, and logs at %s", run_page_url)
 
     if run_state.is_successful:
         log.info("Job run completed successfully.")
         return
 
-    error_message = f"Job run failed with terminal state: {run_state} and with the error {notebook_error}"
+    error_message = f"Job run failed with terminal state: {run_state} and with the errors {errors}"
 
     if event["repair_run"]:
         log.warning(
