@@ -2949,6 +2949,7 @@ class DAG(LoggingMixin):
                 schedulable_tis, _ = dr.update_state(session=session)
                 for s in schedulable_tis:
                     s.state = TaskInstanceState.SCHEDULED
+                    # s.try_number += 1  # todo: should we increase try number?
                 session.commit()
                 # triggerer may mark tasks scheduled so we read from DB
                 all_tis = set(dr.get_task_instances(session=session))

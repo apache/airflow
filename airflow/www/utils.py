@@ -147,7 +147,7 @@ def get_mapped_summary(parent_instance, task_instances):
         "start_date": group_start_date,
         "end_date": group_end_date,
         "mapped_states": mapped_states,
-        "try_number": get_try_count(parent_instance._try_number, parent_instance.state),
+        "try_number": get_try_count(parent_instance.try_number, parent_instance.state),
         "execution_date": parent_instance.execution_date,
     }
 

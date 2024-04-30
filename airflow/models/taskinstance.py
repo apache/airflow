@@ -288,7 +288,7 @@ def clear_task_instances(
                 # task are not found since database records could be
                 # outdated. We make max_tries the maximum value of its
                 # original max_tries or the last attempted try number.
-                ti.max_tries = max(ti.max_tries, ti.prev_attempted_tries)
+                ti.max_tries = max(ti.max_tries, ti.try_number)
             ti.state = None
             ti.external_executor_id = None
             ti.clear_next_method_args()
@@ -539,7 +539,7 @@ def _refresh_from_db(
         task_instance.end_date = ti.end_date
         task_instance.duration = ti.duration
         task_instance.state = ti.state
-        task_instance.try_number = _get_private_try_number(task_instance=ti)
+        task_instance.try_number = ti.try_number
         task_instance.max_tries = ti.max_tries
         task_instance.hostname = ti.hostname
         task_instance.unixname = ti.unixname
@@ -928,53 +928,6 @@ def _handle_failure(
         TaskInstance.save_to_db(failure_context["ti"], session)
 
 
-def _get_try_number(*, task_instance: TaskInstance):
-    """
-    Return the try number that a task number will be when it is actually run.
-
-    If the TaskInstance is currently running, this will match the column in the
-    database, in all other cases this will be incremented.
-
-    This is designed so that task logs end up in the right file.
-
-    :param task_instance: the task instance
-
-    :meta private:
-    """
-    if task_instance.state == TaskInstanceState.RUNNING:
-        return task_instance._try_number
-    return task_instance._try_number + 1
-
-
-def _get_private_try_number(*, task_instance: TaskInstance | TaskInstancePydantic):
-    """
-    Opposite of _get_try_number.
-
-    Given the value returned by try_number, return the value of _try_number that
-    should produce the same result.
-    This is needed for setting _try_number on TaskInstance from the value on PydanticTaskInstance, which has no private attrs.
-
-    :param task_instance: the task instance
-
-    :meta private:
-    """
-    if task_instance.state == TaskInstanceState.RUNNING:
-        return task_instance.try_number
-    return task_instance.try_number - 1
-
-
-def _set_try_number(*, task_instance: TaskInstance | TaskInstancePydantic, value: int) -> None:
-    """
-    Set a task try number.
-
-    :param task_instance: the task instance
-    :param value: the try number
-
-    :meta private:
-    """
-    task_instance._try_number = value  # type: ignore[union-attr]
-
-
 def _refresh_from_task(
     *, task_instance: TaskInstance | TaskInstancePydantic, task: Operator, pool_override: str | None = None
 ) -> None:
@@ -1020,6 +973,8 @@ def _record_task_map_for_downstreams(
 
     :meta private:
     """
+    # todo: when sering task then be smarter than just setting dag to None. use sentinel
+    #  to indicate it was attached and when re-setting .dag, skip the extra stuff
     if next(task.iter_mapped_dependants(), None) is None:  # No mapped dependants, no need to validate.
         return
     # TODO: We don't push TaskMap for mapped task instances because it's not
@@ -1164,13 +1119,10 @@ def _get_email_subject_content(
         'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
     )
 
-    # This function is called after changing the state from RUNNING,
-    # so we need to subtract 1 from self.try_number here.
-    current_try_number = task_instance.try_number - 1
     additional_context: dict[str, Any] = {
         "exception": exception,
         "exception_html": exception_html,
-        "try_number": current_try_number,
+        "try_number": task_instance.try_number,
         "max_tries": task_instance.max_tries,
     }
 
@@ -1343,7 +1295,7 @@ class TaskInstance(Base, LoggingMixin):
     end_date = Column(UtcDateTime)
     duration = Column(Float)
     state = Column(String(20))
-    _try_number = Column("try_number", Integer, default=0)
+    try_number = Column(Integer, default=0)
     max_tries = Column(Integer, server_default=text("-1"))
     hostname = Column(String(1000))
     unixname = Column(String(1000))
@@ -1527,7 +1479,7 @@ class TaskInstance(Base, LoggingMixin):
             "dag_id": task.dag_id,
             "task_id": task.task_id,
             "run_id": run_id,
-            "_try_number": 0,
+            "try_number": 0,
             "hostname": "",
             "unixname": getuser(),
             "queue": task.queue,
@@ -1549,39 +1501,6 @@ class TaskInstance(Base, LoggingMixin):
         """Initialize the attributes that aren't stored in the DB."""
         self.test_mode = False  # can be changed when calling 'run'
 
-    @hybrid_property
-    def try_number(self):
-        """
-        Return the try number that a task number will be when it is actually run.
-
-        If the TaskInstance is currently running, this will match the column in the
-        database, in all other cases this will be incremented.
-
-        This is designed so that task logs end up in the right file.
-        """
-        return _get_try_number(task_instance=self)
-
-    @try_number.expression
-    def try_number(cls):
-        """
-        Return the expression to be used by SQLAlchemy when filtering on try_number.
-
-        This is required because the override in the get_try_number function causes
-        try_number values to be off by one when listing tasks in the UI.
-
-        :meta private:
-        """
-        return cls._try_number
-
-    @try_number.setter
-    def try_number(self, value: int) -> None:
-        """
-        Set a task try number.
-
-        :param value: the try number
-        """
-        _set_try_number(task_instance=self, value=value)
-
     @property
     def prev_attempted_tries(self) -> int:
         """
@@ -1591,11 +1510,11 @@ class TaskInstance(Base, LoggingMixin):
         Using `try_number` throws off the counts for non-running tasks.
         Also useful in error logging contexts to get the try number for the last try that was attempted.
         """
-        return self._try_number
+        return self.try_number
 
     @property
     def next_try_number(self) -> int:
-        return self._try_number + 1
+        return self.try_number + 1
 
     @property
     def operator_name(self) -> str | None:
@@ -2336,6 +2255,7 @@ class TaskInstance(Base, LoggingMixin):
             # If the task continues after being deferred (next_method is set), use the original start_date
             ti.start_date = ti.start_date if ti.next_method else timezone.utcnow()
             if ti.state == TaskInstanceState.UP_FOR_RESCHEDULE:
+                log.info("in state up_for_reschedule: task_id=%s", ti.task_id)
                 tr_start_date = session.scalar(
                     TR.stmt_for_task_instance(ti, descending=False).with_only_columns(TR.start_date).limit(1)
                 )
@@ -2372,7 +2292,6 @@ class TaskInstance(Base, LoggingMixin):
             cls.logger().info("Resuming after deferral")
         else:
             cls.logger().info("Starting attempt %s of %s", ti.try_number, ti.max_tries + 1)
-        ti._try_number += 1
 
         if not test_mode:
             session.add(Log(TaskInstanceState.RUNNING.value, ti))
@@ -2791,9 +2710,6 @@ class TaskInstance(Base, LoggingMixin):
         self.next_method = defer.method_name
         self.next_kwargs = defer.kwargs or {}
 
-        # Decrement try number so the next one is the same try
-        self._try_number -= 1
-
         # Calculate timeout too if it was passed
         if defer.timeout is not None:
             self.trigger_timeout = timezone.utcnow() + defer.timeout
@@ -2910,7 +2826,7 @@ class TaskInstance(Base, LoggingMixin):
                 self.task_id,
                 self.dag_id,
                 self.run_id,
-                self._try_number,
+                self.try_number,
                 actual_start_date,
                 self.end_date,
                 reschedule_exception.reschedule_date,
@@ -2920,10 +2836,6 @@ class TaskInstance(Base, LoggingMixin):
 
         # set state
         self.state = TaskInstanceState.UP_FOR_RESCHEDULE
-
-        # Decrement try_number so subsequent runs will use the same try number and write
-        # to same log file.
-        self._try_number -= 1
 
         self.clear_next_method_args()
 
@@ -3040,7 +2952,6 @@ class TaskInstance(Base, LoggingMixin):
                     #  e.g. we could make refresh_from_db return a TI and replace ti with that
                     raise RuntimeError("Expected TaskInstance here. Further AIP-44 work required.")
                 # We increase the try_number to fail the task if it fails to start after sometime
-                ti._try_number += 1
             ti.state = State.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")
             callbacks = task.on_retry_callback if task else None

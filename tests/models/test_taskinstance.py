@@ -29,7 +29,7 @@ import urllib
 from traceback import format_exception
 from typing import cast
 from unittest import mock
-from unittest.mock import MagicMock, call, mock_open, patch
+from unittest.mock import call, mock_open, patch
 from uuid import uuid4
 
 import pendulum
@@ -66,8 +66,6 @@ from airflow.models.taskinstance import (
     TaskInstance,
     TaskInstance as TI,
     TaskInstanceNote,
-    _get_private_try_number,
-    _get_try_number,
     _run_finished_callback,
 )
 from airflow.models.taskmap import TaskMap
@@ -668,13 +666,13 @@ class TestTaskInstance:
         # first run -- up for retry
         run_with_error(ti)
         assert ti.state == State.UP_FOR_RETRY
-        assert ti._try_number == 1
+        assert ti.try_number == 1
         assert ti.try_number == 2
 
         # second run -- fail
         run_with_error(ti)
         assert ti.state == State.FAILED
-        assert ti._try_number == 2
+        assert ti.try_number == 2
         assert ti.try_number == 3
 
         # Clear the TI state since you can't run a task with a FAILED state without
@@ -684,14 +682,14 @@ class TestTaskInstance:
         # third run -- up for retry
         run_with_error(ti)
         assert ti.state == State.UP_FOR_RETRY
-        assert ti._try_number == 3
+        assert ti.try_number == 3
         assert ti.try_number == 4
 
         # fourth run -- fail
         run_with_error(ti)
         ti.refresh_from_db()
         assert ti.state == State.FAILED
-        assert ti._try_number == 4
+        assert ti.try_number == 4
         assert ti.try_number == 5
         assert RenderedTaskInstanceFields.get_templated_fields(ti) == expected_rendered_ti_fields
 
@@ -783,7 +781,7 @@ class TestTaskInstance:
 
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
-        assert ti._try_number == 0
+        assert ti.try_number == 0
         assert ti.try_number == 1
 
         def run_ti_and_assert(
@@ -803,7 +801,7 @@ class TestTaskInstance:
                         raise
             ti.refresh_from_db()
             assert ti.state == expected_state
-            assert ti._try_number == expected_try_number
+            assert ti.try_number == expected_try_number
             assert ti.try_number == expected_try_number + 1
             assert ti.start_date == expected_start_date
             assert ti.end_date == expected_end_date
@@ -837,7 +835,7 @@ class TestTaskInstance:
         dag.clear()
         ti.refresh_from_db()
         assert ti.state == State.NONE
-        assert ti._try_number == 1
+        assert ti.try_number == 1
 
         # Run again after clearing with reschedules and a retry.
         # The retry increments the try number, and for that try no reschedule is expected.
@@ -880,7 +878,7 @@ class TestTaskInstance:
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
 
         ti.task = task
-        assert ti._try_number == 0
+        assert ti.try_number == 0
         assert ti.try_number == 1
 
         def run_ti_and_assert(
@@ -901,7 +899,7 @@ class TestTaskInstance:
                         raise
             ti.refresh_from_db()
             assert ti.state == expected_state
-            assert ti._try_number == expected_try_number
+            assert ti.try_number == expected_try_number
             assert ti.try_number == expected_try_number + 1
             assert ti.start_date == expected_start_date
             assert ti.end_date == expected_end_date
@@ -935,7 +933,7 @@ class TestTaskInstance:
         dag.clear()
         ti.refresh_from_db()
         assert ti.state == State.NONE
-        assert ti._try_number == 1
+        assert ti.try_number == 1
 
         # Run again after clearing with reschedules and a retry.
         # The retry increments the try number, and for that try no reschedule is expected.
@@ -978,7 +976,7 @@ class TestTaskInstance:
             ).expand(poke_interval=[0])
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
-        assert ti._try_number == 0
+        assert ti.try_number == 0
         assert ti.try_number == 1
 
         def run_ti_and_assert(
@@ -999,7 +997,7 @@ class TestTaskInstance:
                         raise
             ti.refresh_from_db()
             assert ti.state == expected_state
-            assert ti._try_number == expected_try_number
+            assert ti.try_number == expected_try_number
             assert ti.try_number == expected_try_number + 1
             assert ti.start_date == expected_start_date
             assert ti.end_date == expected_end_date
@@ -1015,7 +1013,7 @@ class TestTaskInstance:
         dag.clear()
         ti.refresh_from_db()
         assert ti.state == State.NONE
-        assert ti._try_number == 0
+        assert ti.try_number == 0
         # Check that reschedules for ti have also been cleared.
         assert not task_reschedules_for_ti(ti)
 
@@ -1045,7 +1043,7 @@ class TestTaskInstance:
             )
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
-        assert ti._try_number == 0
+        assert ti.try_number == 0
         assert ti.try_number == 1
 
         def run_ti_and_assert(
@@ -1065,7 +1063,7 @@ class TestTaskInstance:
                         raise
             ti.refresh_from_db()
             assert ti.state == expected_state
-            assert ti._try_number == expected_try_number
+            assert ti.try_number == expected_try_number
             assert ti.try_number == expected_try_number + 1
             assert ti.start_date == expected_start_date
             assert ti.end_date == expected_end_date
@@ -1081,7 +1079,7 @@ class TestTaskInstance:
         dag.clear()
         ti.refresh_from_db()
         assert ti.state == State.NONE
-        assert ti._try_number == 0
+        assert ti.try_number == 0
         # Check that reschedules for ti have also been cleared.
         assert not task_reschedules_for_ti(ti)
 
@@ -1803,12 +1801,12 @@ class TestTaskInstance:
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
         ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
 
-        assert ti_from_deserialized_task._try_number == 0
+        assert ti_from_deserialized_task.try_number == 0
         assert ti_from_deserialized_task.check_and_change_state_before_execution()
         # State should be running, and try_number column should be incremented
         assert ti_from_deserialized_task.external_executor_id == expected_external_executor_id
         assert ti_from_deserialized_task.state == State.RUNNING
-        assert ti_from_deserialized_task._try_number == 1
+        assert ti_from_deserialized_task.try_number == 1
 
     def test_check_and_change_state_before_execution_provided_id_overrides(self, create_task_instance):
         expected_external_executor_id = "banana"
@@ -1822,14 +1820,14 @@ class TestTaskInstance:
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
         ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
 
-        assert ti_from_deserialized_task._try_number == 0
+        assert ti_from_deserialized_task.try_number == 0
         assert ti_from_deserialized_task.check_and_change_state_before_execution(
             external_executor_id=expected_external_executor_id
         )
         # State should be running, and try_number column should be incremented
         assert ti_from_deserialized_task.external_executor_id == expected_external_executor_id
         assert ti_from_deserialized_task.state == State.RUNNING
-        assert ti_from_deserialized_task._try_number == 1
+        assert ti_from_deserialized_task.try_number == 1
 
     def test_check_and_change_state_before_execution_with_exec_id(self, create_task_instance):
         expected_external_executor_id = "minions"
@@ -1840,14 +1838,14 @@ class TestTaskInstance:
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
         ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
 
-        assert ti_from_deserialized_task._try_number == 0
+        assert ti_from_deserialized_task.try_number == 0
         assert ti_from_deserialized_task.check_and_change_state_before_execution(
             external_executor_id=expected_external_executor_id
         )
         # State should be running, and try_number column should be incremented
         assert ti_from_deserialized_task.external_executor_id == expected_external_executor_id
         assert ti_from_deserialized_task.state == State.RUNNING
-        assert ti_from_deserialized_task._try_number == 1
+        assert ti_from_deserialized_task.try_number == 1
 
     def test_check_and_change_state_before_execution_dep_not_met(self, create_task_instance):
         ti = create_task_instance(dag_id="test_check_and_change_state_before_execution")
@@ -3031,8 +3029,8 @@ class TestTaskInstance:
         assert ti.try_number == 1
         ti.handle_failure("test queued ti", test_mode=True)
         assert ti.state == State.UP_FOR_RETRY
-        # Assert that 'ti._try_number' is bumped from 0 to 1. This is the last/current try
-        assert ti._try_number == 1
+        # Assert that 'ti.try_number' is bumped from 0 to 1. This is the last/current try
+        assert ti.try_number == 1
         # Check 'ti.try_number' is bumped to 2. This is try_number for next run
         assert ti.try_number == 2
 
@@ -3060,8 +3058,8 @@ class TestTaskInstance:
 
         ti.handle_failure("test queued ti", test_mode=False)
         assert ti.state == State.UP_FOR_RETRY
-        # Assert that 'ti._try_number' is bumped from 0 to 1. This is the last/current try
-        assert ti._try_number == 1
+        # Assert that 'ti.try_number' is bumped from 0 to 1. This is the last/current try
+        assert ti.try_number == 1
         # Check 'ti.try_number' is bumped to 2. This is try_number for next run
         assert ti.try_number == 2
 
@@ -4693,14 +4691,3 @@ def test__refresh_from_db_should_not_increment_try_number(dag_maker, session):
     assert ti.try_number == 1  # stays 1
     ti.refresh_from_db()
     assert ti.try_number == 1  # stays 1
-
-
-@pytest.mark.parametrize("state", list(TaskInstanceState))
-def test_get_private_try_number(state: str):
-    mock_ti = MagicMock()
-    mock_ti.state = state
-    private_try_number = 2
-    mock_ti._try_number = private_try_number
-    mock_ti.try_number = _get_try_number(task_instance=mock_ti)
-    delattr(mock_ti, "_try_number")
-    assert _get_private_try_number(task_instance=mock_ti) == private_try_number
