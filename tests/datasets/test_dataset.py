@@ -24,7 +24,7 @@ from typing import Callable
 import pytest
 from sqlalchemy.sql import select
 
-from airflow.datasets import BaseDatasetEventInput, Dataset, DatasetAll, DatasetAny
+from airflow.datasets import BaseDataset, Dataset, DatasetAll, DatasetAny
 from airflow.models.dataset import DatasetDagRunQueue, DatasetModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
@@ -346,7 +346,7 @@ def test_dag_with_complex_dataset_triggers(session, dag_maker):
     ), "Serialized 'dataset_triggers' should be a dict"
 
 
-def datasets_equal(d1: BaseDatasetEventInput, d2: BaseDatasetEventInput) -> bool:
+def datasets_equal(d1: BaseDataset, d2: BaseDataset) -> bool:
     if type(d1) != type(d2):
         return False
 
