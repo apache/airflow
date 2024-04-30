@@ -24,8 +24,7 @@ from unittest.mock import MagicMock, patch
 
 import pendulum
 import pytest
-from kubernetes.client import ApiClient, V1Pod, V1PodSecurityContext, V1PodStatus
-from kubernetes.client import models as k8s
+from kubernetes.client import ApiClient, V1Pod, V1PodSecurityContext, V1PodStatus, models as k8s
 from kubernetes.client.rest import ApiException
 from urllib3 import HTTPResponse
 

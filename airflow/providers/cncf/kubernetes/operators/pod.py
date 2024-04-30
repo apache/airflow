@@ -35,8 +35,9 @@ from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence
 import kubernetes
 import tenacity
 from deprecated import deprecated
-from kubernetes.client import CoreV1Api, V1Pod
-from kubernetes.client import models as k8s
+from kubernetes.client import CoreV1Api, V1Pod, models as k8s
+from kubernetes.stream import stream
+from urllib3.exceptions import HTTPError
 
 from airflow.configuration import conf
 from airflow.exceptions import (
