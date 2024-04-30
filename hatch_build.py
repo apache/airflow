@@ -75,6 +75,9 @@ CORE_EXTRAS: dict[str, list[str]] = {
         # Cgroupspy 0.2.2 added Python 3.10 compatibility
         "cgroupspy>=0.2.2",
     ],
+    "cloudpickle": [
+        "cloudpickle",
+    ],
     "deprecated-api": [
         "requests>=2.27.0,<3",
     ],
@@ -140,7 +143,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "statsd>=3.3.0",
     ],
     "uv": [
-        "uv>=0.1.29",
+        "uv>=0.1.32",
     ],
     "virtualenv": [
         "virtualenv",
@@ -182,6 +185,7 @@ DOC_EXTRAS: dict[str, list[str]] = {
     ],
     "doc-gen": [
         "apache-airflow[doc]",
+        "diagrams>=0.23.4",
         "eralchemy2>=1.3.8",
     ],
     # END OF doc extras
@@ -273,8 +277,6 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
     "devel": [
         "apache-airflow[celery]",
         "apache-airflow[cncf-kubernetes]",
-        "apache-airflow[common-io]",
-        "apache-airflow[common-sql]",
         "apache-airflow[devel-debuggers]",
         "apache-airflow[devel-devscripts]",
         "apache-airflow[devel-duckdb]",
@@ -282,11 +284,6 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "apache-airflow[devel-sentry]",
         "apache-airflow[devel-static-checks]",
         "apache-airflow[devel-tests]",
-        "apache-airflow[fab]",
-        "apache-airflow[ftp]",
-        "apache-airflow[http]",
-        "apache-airflow[imap]",
-        "apache-airflow[sqlite]",
     ],
     "devel-all-dbs": [
         "apache-airflow[apache-cassandra]",
@@ -550,11 +547,35 @@ ALL_DYNAMIC_EXTRAS: list[str] = sorted(
 
 
 def get_provider_id(provider_spec: str) -> str:
-    # in case provider_spec is "<provider_id>=<version>"
-    return provider_spec.split(">=")[0]
+    """
+    Extract provider id from provider specification.
+
+    :param provider_spec: provider specification can be in the form of the "PROVIDER_ID" or
+           "apache-airflow-providers-PROVIDER", optionally followed by ">=VERSION".
+
+    :return: short provider_id with `.` instead of `-` in case of `apache` and other providers with
+             `-` in the name.
+    """
+    _provider_id = provider_spec.split(">=")[0]
+    if _provider_id.startswith("apache-airflow-providers-"):
+        _provider_id = _provider_id.replace("apache-airflow-providers-", "").replace("-", ".")
+    return _provider_id
 
 
 def get_provider_requirement(provider_spec: str) -> str:
+    """
+    Convert provider specification with provider_id to provider requirement.
+
+    The requirement can be used when constructing dependencies. It automatically adds pre-release specifier
+    in case we are building pre-release version of Airflow. This way we can handle the case when airflow
+    depends on specific version of the provider that has not yet been released - then we release the
+    pre-release version of provider to PyPI and airflow built in CI, or Airflow pre-release version will
+    automatically depend on that pre-release version of the provider.
+
+    :param provider_spec: provider specification can be in the form of the "PROVIDER_ID" optionally followed
+       by >=VERSION.
+    :return: requirement for the provider that can be used as dependency.
+    """
     if ">=" in provider_spec:
         # we cannot import `airflow` here directly as it would pull re2 and a number of airflow
         # dependencies so we need to read airflow version by matching a regexp
@@ -577,29 +598,48 @@ def get_provider_requirement(provider_spec: str) -> str:
         return f"apache-airflow-providers-{provider_spec.replace('.', '-')}"
 
 
-# if providers are ready, we can preinstall them
-PREINSTALLED_PROVIDERS = [
+# if providers are ready, we build provider requirements for them
+PREINSTALLED_PROVIDER_REQUIREMENTS = [
     get_provider_requirement(provider_spec)
     for provider_spec in PRE_INSTALLED_PROVIDERS
     if PROVIDER_DEPENDENCIES[get_provider_id(provider_spec)]["state"] == "ready"
 ]
 
-# if provider is in not-ready or pre-release, we need to install its dependencies
-# however we need to skip apache-airflow itself and potentially any providers that are
-PREINSTALLED_NOT_READY_DEPS = []
+# Here we keep all pre-installed provider dependencies, so that we can add them as requirements in
+# editable build to make sure that all dependencies are installed when we install Airflow in editable mode
+# We need to skip apache-airflow min-versions and flag (exit) when pre-installed provider has
+# dependency to another provider
+ALL_PREINSTALLED_PROVIDER_DEPS: list[str] = []
+
+# We very rarely - and only for the time when we plan to release a new preinstalled provider in next release
+# we have the preinstalled provider that is in non-ready state.
+# If provider is in not-ready state, we need to install its dependencies in editable mode as well as
+# when we are building the wheel in CI. In pre-release branch we should never have a non-ready provider
+# added, so this will only be used in main branch for CI builds.
+PREINSTALLED_NOT_READY_PROVIDER_DEPS: list[str] = []
+
 for provider_spec in PRE_INSTALLED_PROVIDERS:
     provider_id = get_provider_id(provider_spec)
-    if PROVIDER_DEPENDENCIES[provider_id]["state"] not in ["ready", "suspended", "removed"]:
-        for dependency in PROVIDER_DEPENDENCIES[provider_id]["deps"]:
-            if dependency.startswith("apache-airflow-providers"):
-                msg = (
-                    f"The provider {provider_id} is pre-installed and it has as dependency "
-                    f"to another provider {dependency}. This is not allowed. Pre-installed"
-                    f"providers should only have 'apache-airflow' and regular dependencies."
-                )
-                raise SystemExit(msg)
-            if not dependency.startswith("apache-airflow"):
-                PREINSTALLED_NOT_READY_DEPS.append(dependency)
+    for dependency in PROVIDER_DEPENDENCIES[provider_id]["deps"]:
+        if (
+            dependency.startswith("apache-airflow-providers")
+            and get_provider_id(dependency) not in PRE_INSTALLED_PROVIDERS
+        ):
+            msg = (
+                f"The provider {provider_id} is pre-installed and it has a dependency "
+                f"to another provider {dependency} which is not preinstalled. This is not allowed. "
+                f"Pre-installed providers should only have 'apache-airflow', other preinstalled providers"
+                f"and regular non-airflow dependencies."
+            )
+            raise SystemExit(msg)
+        if not dependency.startswith("apache-airflow"):
+            if PROVIDER_DEPENDENCIES[provider_id]["state"] not in ["suspended", "removed"]:
+                ALL_PREINSTALLED_PROVIDER_DEPS.append(dependency)
+                if PROVIDER_DEPENDENCIES[provider_id]["state"] in ["not-ready"]:
+                    PREINSTALLED_NOT_READY_PROVIDER_DEPS.append(dependency)
+
+ALL_PREINSTALLED_PROVIDER_DEPS = sorted(set(ALL_PREINSTALLED_PROVIDER_DEPS))
+PREINSTALLED_NOT_READY_PROVIDER_DEPS = sorted(set(PREINSTALLED_NOT_READY_PROVIDER_DEPS))
 
 
 class CustomBuild(BuilderInterface[BuilderConfig, PluginManager]):
@@ -608,7 +648,6 @@ class CustomBuild(BuilderInterface[BuilderConfig, PluginManager]):
     # Note that this name of the plugin MUST be `custom` - as long as we use it from custom
     # hatch_build.py file and not from external plugin. See note in the:
     # https://hatch.pypa.io/latest/plugins/build-hook/custom/#example
-    #
     PLUGIN_NAME = "custom"
 
     def clean(self, directory: str, versions: Iterable[str]) -> None:
@@ -689,16 +728,29 @@ GENERATED_DEPENDENCIES_START = "# START OF GENERATED DEPENDENCIES"
 GENERATED_DEPENDENCIES_END = "# END OF GENERATED DEPENDENCIES"
 
 
-def convert_to_extra_dependency(dependency: str) -> str:
+def convert_to_extra_dependency(provider_requirement: str) -> str:
+    """
+    Convert provider specification to extra dependency.
+
+    :param provider_requirement: requirement of the provider in the form of apache-airflow-provider-*,
+        optionally followed by >=VERSION.
+    :return: extra dependency in the form of apache-airflow[extra]
+    """
     # if there is version in dependency - remove it as we do not need it in extra specification
     # for editable installation
-    if ">=" in dependency:
-        dependency = dependency.split(">=")[0]
-    extra = dependency.replace("apache-airflow-providers-", "").replace("-", "_").replace(".", "_")
+    if ">=" in provider_requirement:
+        provider_requirement = provider_requirement.split(">=")[0]
+    extra = provider_requirement.replace("apache-airflow-providers-", "").replace("-", "_").replace(".", "_")
     return f"apache-airflow[{extra}]"
 
 
 def get_python_exclusion(excluded_python_versions: list[str]):
+    """
+    Produce the Python exclusion that should be used - converted from the list of python versions.
+
+    :param excluded_python_versions: list of python versions to exclude the dependency for.
+    :return: python version exclusion string that can be added to dependency in specification.
+    """
     exclusion = ""
     if excluded_python_versions:
         separator = ";"
@@ -709,6 +761,12 @@ def get_python_exclusion(excluded_python_versions: list[str]):
 
 
 def skip_for_editable_build(excluded_python_versions: list[str]) -> bool:
+    """
+    Whether the dependency should be skipped for editable build for current python version.
+
+    :param excluded_python_versions: list of excluded python versions.
+    :return: True if the dependency should be skipped for editable build for the current python version.
+    """
     current_python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
     if current_python_version in excluded_python_versions:
         return True
@@ -716,7 +774,23 @@ def skip_for_editable_build(excluded_python_versions: list[str]) -> bool:
 
 
 class CustomBuildHook(BuildHookInterface[BuilderConfig]):
-    """Custom build hook for Airflow - remove devel extras and adds preinstalled providers."""
+    """
+    Custom build hook for Airflow.
+
+    Generates required and optional dependencies depends on the build `version`.
+
+    - standard: Generates all dependencies for the standard (.whl) package:
+       * devel and doc extras not included
+       * core extras and "production" bundle extras included
+       * provider optional dependencies resolve to "apache-airflow-providers-{provider}"
+       * pre-installed providers added as required dependencies
+
+    - editable: Generates all dependencies for the editable installation:
+       * devel and doc extras (including devel bundle extras are included)
+       * core extras and "production" bundles included
+       * provider optional dependencies resolve to provider dependencies including devel dependencies
+       * pre-installed providers not included - their dependencies included in devel extras
+    """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         # Stores all dependencies that that any of the airflow extras (including devel) use
@@ -734,6 +808,9 @@ class CustomBuildHook(BuildHookInterface[BuilderConfig]):
         Initialize hook immediately before each build.
 
         Any modifications to the build data will be seen by the build target.
+
+        :param version: "standard" or "editable" build.
+        :param build_data: build data dictionary.
         """
         self._process_all_built_in_extras(version)
         self._process_all_provider_extras(version)
@@ -759,10 +836,10 @@ class CustomBuildHook(BuildHookInterface[BuilderConfig]):
 
         if version == "standard":
             # Inject preinstalled providers into the dependencies for standard packages
-            for provider in PREINSTALLED_PROVIDERS:
-                self._dependencies.append(provider)
-            for not_ready_provider_dependency in PREINSTALLED_NOT_READY_DEPS:
-                self._dependencies.append(not_ready_provider_dependency)
+            self._dependencies.extend(PREINSTALLED_PROVIDER_REQUIREMENTS)
+            self._dependencies.extend(PREINSTALLED_NOT_READY_PROVIDER_DEPS)
+        else:
+            self._dependencies.extend(ALL_PREINSTALLED_PROVIDER_DEPS)
 
         # with hatchling, we can modify dependencies dynamically by modifying the build_data
         build_data["dependencies"] = self._dependencies
@@ -777,11 +854,10 @@ class CustomBuildHook(BuildHookInterface[BuilderConfig]):
         Add devel_ci_dependencies.
 
         Adds all external dependencies which are not apache-airflow deps to the list of dependencies
-        that are going to be added to `devel-ci` extra.
+        that are going to be added to `devel-ci` extra. Optionally exclude dependencies for specific
+        python versions.
 
         :param deps: list of dependencies to add
-        :param version: "standard" or "editable" build.
-        :param excluded_python_versions: List of python versions to exclude
         :param python_exclusion: Python version exclusion string.
         """
         for dep in deps:
@@ -796,7 +872,6 @@ class CustomBuildHook(BuildHookInterface[BuilderConfig]):
         and providers for wheel builds.
 
         :param version: "standard" or "editable" build.
-        :return:
         """
         for dependency_id in PROVIDER_DEPENDENCIES.keys():
             if PROVIDER_DEPENDENCIES[dependency_id]["state"] != "ready":
@@ -839,7 +914,6 @@ class CustomBuildHook(BuildHookInterface[BuilderConfig]):
         used to produce "all" extra.
 
         :param version: "standard" or "editable" build.
-        :return:
         """
         for dict, _ in ALL_DYNAMIC_EXTRA_DICTS:
             for extra, deps in dict.items():

@@ -20,6 +20,7 @@ from __future__ import annotations
 from unittest import mock
 
 import boto3
+import botocore.exceptions
 import pytest
 from botocore.exceptions import ClientError
 from moto import mock_aws
@@ -115,8 +116,9 @@ class TestGlueCatalogHook:
         self.client.create_database(DatabaseInput={"Name": DB_NAME})
         self.client.create_table(DatabaseName=DB_NAME, TableInput=TABLE_INPUT)
 
-        with pytest.raises(Exception):
+        with pytest.raises(botocore.exceptions.ClientError) as err_ctx:
             self.hook.get_table(DB_NAME, "dummy_table")
+        assert err_ctx.value.response["Error"]["Code"] == "EntityNotFoundException"
 
     def test_get_table_location(self):
         self.client.create_database(DatabaseInput={"Name": DB_NAME})

@@ -729,7 +729,7 @@ class TestBigQueryOperator:
             sql="SELECT * FROM test_table",
         )
         serialized_dag = dag_maker.get_serialized_data()
-        assert "sql" in serialized_dag["dag"]["tasks"][0]
+        assert "sql" in serialized_dag["dag"]["tasks"][0]["__var"]
 
         dag = SerializedDAG.from_dict(serialized_dag)
         simple_task = dag.task_dict[TASK_ID]
@@ -740,7 +740,7 @@ class TestBigQueryOperator:
         #########################################################
 
         # Check Serialized version of operator link
-        assert serialized_dag["dag"]["tasks"][0]["_operator_extra_links"] == [
+        assert serialized_dag["dag"]["tasks"][0]["__var"]["_operator_extra_links"] == [
             {"airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink": {}}
         ]
 
@@ -766,7 +766,7 @@ class TestBigQueryOperator:
             sql=["SELECT * FROM test_table", "SELECT * FROM test_table2"],
         )
         serialized_dag = dag_maker.get_serialized_data()
-        assert "sql" in serialized_dag["dag"]["tasks"][0]
+        assert "sql" in serialized_dag["dag"]["tasks"][0]["__var"]
 
         dag = SerializedDAG.from_dict(serialized_dag)
         simple_task = dag.task_dict[TASK_ID]
@@ -777,7 +777,7 @@ class TestBigQueryOperator:
         #########################################################
 
         # Check Serialized version of operator link
-        assert serialized_dag["dag"]["tasks"][0]["_operator_extra_links"] == [
+        assert serialized_dag["dag"]["tasks"][0]["__var"]["_operator_extra_links"] == [
             {"airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink": {"index": 0}},
             {"airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink": {"index": 1}},
         ]
@@ -2046,17 +2046,19 @@ class TestBigQueryIntervalCheckOperator:
 
 class TestBigQueryCheckOperator:
     @pytest.mark.db_test
-    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryCheckOperator.execute")
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryCheckOperator._validate_records")
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryCheckOperator.defer")
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_bigquery_check_operator_async_finish_before_deferred(
-        self, mock_hook, mock_defer, mock_execute, create_task_instance_of_operator
+        self, mock_hook, mock_defer, mock_validate_records, create_task_instance_of_operator
     ):
         job_id = "123456"
         hash_ = "hash"
         real_job_id = f"{job_id}_{hash_}"
 
-        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
+        mocked_job = MagicMock(job_id=real_job_id, error_result=False)
+        mocked_job.result.return_value = iter([(1, 2, 3)])  # mock rows generator
+        mock_hook.return_value.insert_job.return_value = mocked_job
         mock_hook.return_value.insert_job.return_value.running.return_value = False
 
         ti = create_task_instance_of_operator(
@@ -2069,8 +2071,34 @@ class TestBigQueryCheckOperator:
         )
 
         ti.task.execute(MagicMock())
-        assert not mock_defer.called
-        assert mock_execute.called
+        mock_defer.assert_not_called()
+        mock_validate_records.assert_called_once_with((1, 2, 3))
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_bigquery_check_operator_async_finish_with_error_before_deferred(
+        self, mock_hook, create_task_instance_of_operator
+    ):
+        job_id = "123456"
+        hash_ = "hash"
+        real_job_id = f"{job_id}_{hash_}"
+
+        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=True)
+        mock_hook.return_value.insert_job.return_value.running.return_value = False
+
+        ti = create_task_instance_of_operator(
+            BigQueryCheckOperator,
+            dag_id="dag_id",
+            task_id="bq_check_operator_job",
+            sql="SELECT * FROM any",
+            location=TEST_DATASET_LOCATION,
+            deferrable=True,
+        )
+
+        with pytest.raises(AirflowException) as exc:
+            ti.task.execute(MagicMock())
+
+        assert str(exc.value) == f"BigQuery job {real_job_id} failed: True"
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
@@ -2124,12 +2152,8 @@ class TestBigQueryCheckOperator:
             deferrable=True,
         )
 
-        with pytest.raises(AirflowException) as exc:
+        with pytest.raises(AirflowException, match="The following query returned zero rows:"):
             operator.execute_complete(context=None, event={"status": "success", "records": None})
-
-        expected_exception_msg = "The query returned empty results"
-
-        assert str(exc.value) == expected_exception_msg
 
     def test_bigquery_check_op_execute_complete_with_non_boolean_records(self):
         """Executing a sql which returns a non-boolean value should raise exception"""
@@ -2204,7 +2228,9 @@ class TestBigQueryValueCheckOperator:
         hash_ = "hash"
         real_job_id = f"{job_id}_{hash_}"
 
-        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
+        mocked_job = MagicMock(job_id=real_job_id, error_result=False)
+        mocked_job.result.return_value = iter([(1, 2, 3)])  # mock rows generator
+        mock_hook.return_value.insert_job.return_value = mocked_job
         mock_hook.return_value.insert_job.return_value.running.return_value = False
 
         ti = create_task_instance_of_operator(
@@ -2219,7 +2245,34 @@ class TestBigQueryValueCheckOperator:
 
         ti.task.execute(MagicMock())
         assert not mock_defer.called
-        assert mock_check_value.called
+        mock_check_value.assert_called_once_with((1, 2, 3))
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_bigquery_value_check_operator_async_finish_with_error_before_deferred(
+        self, mock_hook, create_task_instance_of_operator
+    ):
+        job_id = "123456"
+        hash_ = "hash"
+        real_job_id = f"{job_id}_{hash_}"
+
+        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=True)
+        mock_hook.return_value.insert_job.return_value.running.return_value = False
+
+        ti = create_task_instance_of_operator(
+            BigQueryValueCheckOperator,
+            dag_id="dag_id",
+            task_id="check_value",
+            sql="SELECT COUNT(*) FROM Any",
+            pass_value=2,
+            use_legacy_sql=True,
+            deferrable=True,
+        )
+
+        with pytest.raises(AirflowException) as exc:
+            ti.task.execute(MagicMock())
+
+        assert str(exc.value) == f"BigQuery job {real_job_id} failed: True"
 
     @pytest.mark.parametrize(
         "kwargs, expected",

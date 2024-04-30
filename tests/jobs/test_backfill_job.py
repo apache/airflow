@@ -21,7 +21,6 @@ import datetime
 import json
 import logging
 import threading
-import warnings
 from collections import defaultdict
 from unittest import mock
 from unittest.mock import patch
@@ -36,7 +35,6 @@ from airflow.exceptions import (
     BackfillUnfinished,
     DagConcurrencyLimitReached,
     NoAvailablePoolSlot,
-    RemovedInAirflow3Warning,
     TaskConcurrencyLimitReached,
 )
 from airflow.executors.executor_constants import MOCK_EXECUTOR
@@ -77,11 +75,7 @@ DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 @pytest.fixture(scope="module")
 def dag_bag():
-    with warnings.catch_warnings():
-        # Some dags use deprecated operators, e.g SubDagOperator
-        # if it is not imported, then it might have side effects for the other tests
-        warnings.simplefilter("ignore", category=RemovedInAirflow3Warning)
-        return DagBag(include_examples=True)
+    return DagBag(include_examples=True)
 
 
 # Patch the MockExecutor into the dict of known executors in the Loader
@@ -1742,7 +1736,7 @@ class TestBackfillJob:
         # create taskinstances and set states
         dr1_tis = []
         dr2_tis = []
-        for i, (task, state) in enumerate(zip(tasks, states)):
+        for task, state in zip(tasks, states):
             ti1 = TI(task, dr1.execution_date)
             ti2 = TI(task, dr2.execution_date)
             ti1.refresh_from_db()

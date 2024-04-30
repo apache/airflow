@@ -29,7 +29,7 @@ from openlineage.client.facet import (
 )
 from openlineage.client.run import Dataset
 
-from airflow.exceptions import TaskDeferred
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.providers.amazon.aws.operators.athena import AthenaOperator
@@ -180,7 +180,7 @@ class TestAthenaOperator:
         mock_check_query_status,
         mock_get_state_change_reason,
     ):
-        with pytest.raises(Exception):
+        with pytest.raises(AirflowException):
             self.athena.execute({})
         mock_run_query.assert_called_once_with(
             MOCK_DATA["query"],
@@ -195,7 +195,7 @@ class TestAthenaOperator:
     @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
     @mock.patch.object(AthenaHook, "get_conn")
     def test_hook_run_cancelled_query(self, mock_conn, mock_run_query, mock_check_query_status):
-        with pytest.raises(Exception):
+        with pytest.raises(AirflowException):
             self.athena.execute({})
         mock_run_query.assert_called_once_with(
             MOCK_DATA["query"],
@@ -209,7 +209,7 @@ class TestAthenaOperator:
     @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
     @mock.patch.object(AthenaHook, "get_conn")
     def test_hook_run_failed_query_with_max_tries(self, mock_conn, mock_run_query, mock_check_query_status):
-        with pytest.raises(Exception):
+        with pytest.raises(AirflowException):
             self.athena.execute({})
         mock_run_query.assert_called_once_with(
             MOCK_DATA["query"],

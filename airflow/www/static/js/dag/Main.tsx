@@ -32,8 +32,7 @@ import {
   AccordionPanel,
 } from "@chakra-ui/react";
 import { isEmpty, debounce } from "lodash";
-import { MdDoubleArrow } from "react-icons/md";
-import { useSearchParams } from "react-router-dom";
+import { FaExpandArrowsAlt, FaCompressArrowsAlt } from "react-icons/fa";
 
 import { useGridData } from "src/api";
 import { hoverDelay } from "src/utils";
@@ -41,15 +40,13 @@ import { hoverDelay } from "src/utils";
 import ShortcutCheatSheet from "src/components/ShortcutCheatSheet";
 import { useKeysPress } from "src/utils/useKeysPress";
 
-import Details, { TAB_PARAM } from "./details";
+import Details from "./details";
 import Grid from "./grid";
 import FilterBar from "./nav/FilterBar";
 import LegendRow from "./nav/LegendRow";
 import useToggleGroups from "./useToggleGroups";
 import keyboardShortcutIdentifier from "./keyboardShortcutIdentifier";
-import { DagRunSelectionContext, RUN_ID } from "./useSelection";
 
-const detailsPanelKey = "hideDetailsPanel";
 const minPanelWidth = 300;
 const collapsedWidth = "32px";
 
@@ -74,7 +71,7 @@ const headerHeight =
     10
   ) || 0;
 
-const MainInContext = () => {
+const Main = () => {
   const {
     data: { groups },
     isLoading,
@@ -83,21 +80,12 @@ const MainInContext = () => {
 
   const [accordionIndexes, setAccordionIndexes] = useState<Array<number>>([0]);
   const isFilterCollapsed = !accordionIndexes.length;
-  const toggleFilterCollapsed = () => {
-    if (isFilterCollapsed) setAccordionIndexes([0]);
-    else setAccordionIndexes([]);
-  };
 
-  const [searchParams] = useSearchParams();
   const resizeRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const gridScrollRef = useRef<HTMLDivElement>(null);
   const ganttScrollRef = useRef<HTMLDivElement>(null);
 
-  const isPanelOpen =
-    localStorage.getItem(detailsPanelKey) !== "true" ||
-    !!searchParams.get(TAB_PARAM);
-  const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });
   const [hoveredTaskState, setHoveredTaskState] = useState<
     string | null | undefined
   >();
@@ -123,29 +111,23 @@ const MainInContext = () => {
 
   const gridWidth = localStorage.getItem(gridWidthKey) || undefined;
 
-  const onPanelToggle = () => {
-    if (!isOpen) {
-      localStorage.setItem(detailsPanelKey, "false");
-    } else {
-      localStorage.setItem(detailsPanelKey, "true");
-      if (isGridCollapsed) {
-        setIsGridCollapsed(!isGridCollapsed);
-      }
-    }
-    onToggle();
-  };
-
-  const onToggleGridCollapse = useCallback(() => {
-    const gridElement = gridRef.current;
-    if (gridElement) {
-      if (isGridCollapsed) {
-        gridElement.style.width = localStorage.getItem(gridWidthKey) || "";
-      } else {
-        gridElement.style.width = collapsedWidth;
-      }
-      setIsGridCollapsed(!isGridCollapsed);
-    }
-  }, [isGridCollapsed]);
+  const onToggleGridCollapse = useCallback(
+    (collapseNext?: boolean) => {
+      const gridElement = gridRef.current;
+      const collapse =
+        collapseNext !== undefined ? collapseNext : !isGridCollapsed;
+      if (collapse !== undefined)
+        if (gridElement) {
+          if (!collapse) {
+            gridElement.style.width = localStorage.getItem(gridWidthKey) || "";
+          } else {
+            gridElement.style.width = collapsedWidth;
+          }
+          setIsGridCollapsed(collapse);
+        }
+    },
+    [isGridCollapsed]
+  );
 
   const resize = useCallback(
     (e: MouseEvent) => {
@@ -196,7 +178,7 @@ const MainInContext = () => {
       };
     }
     return () => {};
-  }, [resize, isLoading, isOpen]);
+  }, [resize, isLoading]);
 
   useKeysPress(
     keyboardShortcutIdentifier.toggleShortcutCheatSheet,
@@ -207,10 +189,10 @@ const MainInContext = () => {
   const toggleFullScreen = () => {
     if (!isFullScreen) {
       setAccordionIndexes([]);
-      setIsGridCollapsed(true);
+      onToggleGridCollapse(true);
     } else {
       setAccordionIndexes([0]);
-      setIsGridCollapsed(false);
+      onToggleGridCollapse(false);
     }
   };
 
@@ -223,18 +205,6 @@ const MainInContext = () => {
       overflow="hidden"
       position="relative"
     >
-      <IconButton
-        position="absolute"
-        variant="ghost"
-        color="gray.400"
-        top={0}
-        left={0}
-        onClick={toggleFilterCollapsed}
-        icon={<MdDoubleArrow />}
-        aria-label="Toggle filters bar"
-        transform={isFilterCollapsed ? "rotateZ(90deg)" : "rotateZ(270deg)"}
-        transition="all 0.2s"
-      />
       <Accordion allowToggle index={accordionIndexes} borderTopWidth={0}>
         <AccordionItem
           sx={{
@@ -260,52 +230,58 @@ const MainInContext = () => {
         ) : (
           <>
             <Box
-              flex={isOpen ? undefined : 1}
               minWidth={isGridCollapsed ? collapsedWidth : minPanelWidth}
               ref={gridRef}
               height="100%"
               width={isGridCollapsed ? collapsedWidth : gridWidth}
+              position="relative"
             >
+              <IconButton
+                icon={
+                  isFullScreen ? <FaExpandArrowsAlt /> : <FaCompressArrowsAlt />
+                }
+                fontSize="xl"
+                position="absolute"
+                right={0}
+                top={0}
+                variant="ghost"
+                color="gray.400"
+                size="sm"
+                aria-label="Toggle full screen details"
+                title="Toggle full screen details"
+                onClick={toggleFullScreen}
+              />
               <Grid
-                isPanelOpen={isOpen}
-                onPanelToggle={onPanelToggle}
                 hoveredTaskState={hoveredTaskState}
                 openGroupIds={openGroupIds}
                 onToggleGroups={onToggleGroups}
                 isGridCollapsed={isGridCollapsed}
-                setIsGridCollapsed={onToggleGridCollapse}
                 gridScrollRef={gridScrollRef}
                 ganttScrollRef={ganttScrollRef}
               />
             </Box>
-            {isOpen && (
-              <>
-                <Box
-                  width={2}
-                  cursor="ew-resize"
-                  bg="gray.200"
-                  ref={resizeRef}
-                  zIndex={1}
-                />
-                <Box
-                  flex={1}
-                  minWidth={minPanelWidth}
-                  zIndex={1}
-                  bg="white"
-                  height="100%"
-                >
-                  <Details
-                    openGroupIds={openGroupIds}
-                    onToggleGroups={onToggleGroups}
-                    hoveredTaskState={hoveredTaskState}
-                    gridScrollRef={gridScrollRef}
-                    ganttScrollRef={ganttScrollRef}
-                    isFullScreen={isFullScreen}
-                    toggleFullScreen={toggleFullScreen}
-                  />
-                </Box>
-              </>
-            )}
+            <Box
+              width={2}
+              cursor="ew-resize"
+              bg="gray.200"
+              ref={resizeRef}
+              zIndex={1}
+            />
+            <Box
+              flex={1}
+              minWidth={minPanelWidth}
+              zIndex={1}
+              bg="white"
+              height="100%"
+            >
+              <Details
+                openGroupIds={openGroupIds}
+                onToggleGroups={onToggleGroups}
+                hoveredTaskState={hoveredTaskState}
+                gridScrollRef={gridScrollRef}
+                ganttScrollRef={ganttScrollRef}
+              />
+            </Box>
           </>
         )}
       </Flex>
@@ -316,17 +292,6 @@ const MainInContext = () => {
         keyboardShortcutIdentifier={keyboardShortcutIdentifier}
       />
     </Box>
-  );
-};
-
-const Main = () => {
-  const [searchParams] = useSearchParams();
-  const [firstRunIdSetByUrl] = useState(searchParams.get(RUN_ID));
-
-  return (
-    <DagRunSelectionContext.Provider value={firstRunIdSetByUrl}>
-      <MainInContext />
-    </DagRunSelectionContext.Provider>
   );
 };
 

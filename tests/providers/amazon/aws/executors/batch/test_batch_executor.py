@@ -834,3 +834,8 @@ class TestBatchExecutorConfig:
         final_run_task_kwargs = executor._submit_job_kwargs(mock_ti_key, command, "queue", exec_config)
 
         assert final_run_task_kwargs == expected_result
+
+    def test_short_import_path(self):
+        from airflow.providers.amazon.aws.executors.batch import AwsBatchExecutor as AwsBatchExecutorShortPath
+
+        assert AwsBatchExecutor is AwsBatchExecutorShortPath

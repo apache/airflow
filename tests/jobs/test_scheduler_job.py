@@ -25,12 +25,12 @@ from collections import deque
 from datetime import timedelta
 from typing import Generator
 from unittest import mock
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import psutil
 import pytest
 import time_machine
-from sqlalchemy import func
+from sqlalchemy import func, select, update
 
 import airflow.example_dags
 from airflow import settings
@@ -39,6 +39,7 @@ from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.datasets import Dataset
+from airflow.datasets.manager import DatasetManager
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import MOCK_EXECUTOR
@@ -552,6 +553,23 @@ class TestSchedulerJob:
 
         assert isinstance(scheduler_job.executor.callback_sink, PipeCallbackSink)
 
+    @mock.patch("airflow.executors.executor_loader.ExecutorLoader.init_executors")
+    @mock.patch("airflow.executors.executor_loader.ExecutorLoader.get_default_executor")
+    @conf_vars({("scheduler", "standalone_dag_processor"): "False"})
+    def test_setup_callback_sink_not_standalone_dag_processor_multiple_executors(
+        self, get_default_executor_mock, init_executors_mock
+    ):
+        default_executor = mock.MagicMock(slots_available=8)
+        second_executor = mock.MagicMock(slots_available=8)
+        init_executors_mock.return_value = [default_executor, second_executor]
+        get_default_executor_mock.return_value = default_executor
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull, num_runs=1)
+        self.job_runner._execute()
+
+        for executor in scheduler_job.executors:
+            assert isinstance(executor.callback_sink, PipeCallbackSink)
+
     @conf_vars({("scheduler", "standalone_dag_processor"): "True"})
     def test_setup_callback_sink_standalone_dag_processor(self):
         scheduler_job = Job()
@@ -559,6 +577,68 @@ class TestSchedulerJob:
         self.job_runner._execute()
 
         assert isinstance(scheduler_job.executor.callback_sink, DatabaseCallbackSink)
+
+    @mock.patch("airflow.jobs.job.Job.executors", new_callable=PropertyMock)
+    @mock.patch("airflow.jobs.job.Job.executor", new_callable=PropertyMock)
+    @conf_vars({("scheduler", "standalone_dag_processor"): "True"})
+    def test_setup_callback_sink_standalone_dag_processor_multiple_executors(
+        self, executor_mock, executors_mock
+    ):
+        default_executor = mock.MagicMock(slots_available=8)
+        second_executor = mock.MagicMock(slots_available=8)
+        executor_mock.return_value = default_executor
+        executors_mock.return_value = [default_executor, second_executor]
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull, num_runs=1)
+        self.job_runner._execute()
+
+        for executor in scheduler_job.executors:
+            assert isinstance(executor.callback_sink, DatabaseCallbackSink)
+
+    @mock.patch("airflow.jobs.job.Job.executors", new_callable=PropertyMock)
+    @mock.patch("airflow.jobs.job.Job.executor", new_callable=PropertyMock)
+    @conf_vars({("scheduler", "standalone_dag_processor"): "True"})
+    def test_executor_start_called(self, executor_mock, executors_mock):
+        default_executor = mock.MagicMock(slots_available=8)
+        second_executor = mock.MagicMock(slots_available=8)
+        executor_mock.return_value = default_executor
+        executors_mock.return_value = [default_executor, second_executor]
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull, num_runs=1)
+        self.job_runner._execute()
+
+        scheduler_job.executor.start.assert_called_once()
+        for executor in scheduler_job.executors:
+            executor.start.assert_called_once()
+
+    @mock.patch("airflow.jobs.job.Job.executors", new_callable=PropertyMock)
+    @mock.patch("airflow.jobs.job.Job.executor", new_callable=PropertyMock)
+    def test_executor_job_id_assigned(self, executor_mock, executors_mock):
+        default_executor = mock.MagicMock(slots_available=8)
+        second_executor = mock.MagicMock(slots_available=8)
+        executor_mock.return_value = default_executor
+        executors_mock.return_value = [default_executor, second_executor]
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull, num_runs=1)
+        self.job_runner._execute()
+
+        assert scheduler_job.executor.job_id == scheduler_job.id
+        for executor in scheduler_job.executors:
+            assert executor.job_id == scheduler_job.id
+
+    @mock.patch("airflow.jobs.job.Job.executors", new_callable=PropertyMock)
+    @mock.patch("airflow.jobs.job.Job.executor", new_callable=PropertyMock)
+    def test_executor_debug_dump(self, executor_mock, executors_mock):
+        default_executor = mock.MagicMock(slots_available=8)
+        second_executor = mock.MagicMock(slots_available=8)
+        executor_mock.return_value = default_executor
+        executors_mock.return_value = [default_executor, second_executor]
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull, num_runs=1)
+        self.job_runner._debug_dump(1, mock.MagicMock())
+
+        for executor in scheduler_job.executors:
+            executor.debug_dump.assert_called_once()
 
     def test_find_executable_task_instances_backfill(self, dag_maker):
         dag_id = "SchedulerJobTest.test_find_executable_task_instances_backfill"
@@ -1705,6 +1785,31 @@ class TestSchedulerJob:
         scheduler_job.executor.end.assert_called_once()
         self.job_runner.processor_agent.end.assert_called_once()
 
+    @mock.patch("airflow.jobs.job.Job.executors", new_callable=PropertyMock)
+    @mock.patch("airflow.jobs.job.Job.executor", new_callable=PropertyMock)
+    @mock.patch("airflow.dag_processing.manager.DagFileProcessorAgent")
+    def test_executor_end_called_multiple_executors(
+        self, mock_processor_agent, executor_mock, executors_mock
+    ):
+        """
+        Test to make sure executor.end gets called on all executors with a successful scheduler loop run
+        """
+        default_executor = mock.MagicMock(slots_available=8)
+        second_executor = mock.MagicMock(slots_available=8)
+        executor_mock.return_value = default_executor
+        executors_mock.return_value = [default_executor, second_executor]
+        scheduler_job = Job()
+        assert scheduler_job.executor is default_executor
+        assert scheduler_job.executors == [default_executor, second_executor]
+
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull, num_runs=1)
+        run_job(scheduler_job, execute_callable=self.job_runner._execute)
+        scheduler_job.executor.end.assert_called_once()
+        for executor in scheduler_job.executors:
+            executor.end.assert_called_once()
+
+        self.job_runner.processor_agent.end.assert_called_once()
+
     @mock.patch("airflow.dag_processing.manager.DagFileProcessorAgent")
     def test_cleanup_methods_all_called(self, mock_processor_agent):
         """
@@ -1712,15 +1817,44 @@ class TestSchedulerJob:
         """
         scheduler_job = Job(executor=mock.MagicMock(slots_available=8))
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull, num_runs=1)
-        self.job_runner._run_scheduler_loop = mock.MagicMock(side_effect=Exception("oops"))
-        mock_processor_agent.return_value.end.side_effect = Exception("double oops")
-        scheduler_job.executor.end = mock.MagicMock(side_effect=Exception("triple oops"))
+        self.job_runner._run_scheduler_loop = mock.MagicMock(side_effect=RuntimeError("oops"))
+        mock_processor_agent.return_value.end.side_effect = RuntimeError("double oops")
+        scheduler_job.executor.end = mock.MagicMock(side_effect=RuntimeError("triple oops"))
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="oops"):
             run_job(scheduler_job, execute_callable=self.job_runner._execute)
 
         self.job_runner.processor_agent.end.assert_called_once()
         scheduler_job.executor.end.assert_called_once()
+        mock_processor_agent.return_value.end.reset_mock(side_effect=True)
+
+    @mock.patch("airflow.jobs.job.Job.executors", new_callable=PropertyMock)
+    @mock.patch("airflow.jobs.job.Job.executor", new_callable=PropertyMock)
+    @mock.patch("airflow.dag_processing.manager.DagFileProcessorAgent")
+    def test_cleanup_methods_all_called_multiple_executors(
+        self, mock_processor_agent, executor_mock, executors_mock
+    ):
+        """
+        Test to make sure all cleanup methods are called when the scheduler loop has an exception
+        """
+        default_executor = mock.MagicMock(slots_available=8)
+        second_executor = mock.MagicMock(slots_available=8)
+        executor_mock.return_value = default_executor
+        executors_mock.return_value = [default_executor, second_executor]
+        scheduler_job = Job()
+        assert scheduler_job.executor is default_executor
+        assert scheduler_job.executors == [default_executor, second_executor]
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull, num_runs=1)
+        self.job_runner._run_scheduler_loop = mock.MagicMock(side_effect=RuntimeError("oops"))
+        mock_processor_agent.return_value.end.side_effect = RuntimeError("double oops")
+        scheduler_job.executor.end = mock.MagicMock(side_effect=RuntimeError("triple oops"))
+
+        with pytest.raises(RuntimeError, match="oops"):
+            run_job(scheduler_job, execute_callable=self.job_runner._execute)
+
+        self.job_runner.processor_agent.end.assert_called_once()
+        for executor in scheduler_job.executors:
+            executor.end.assert_called_once()
         mock_processor_agent.return_value.end.reset_mock(side_effect=True)
 
     def test_queued_dagruns_stops_creating_when_max_active_is_reached(self, dag_maker):
@@ -3650,6 +3784,55 @@ class TestSchedulerJob:
         assert session.query(DatasetDagRunQueue).filter_by(target_dag_id=dag3.dag_id).one_or_none() is None
 
         assert dag3.get_last_dagrun().creating_job_id == scheduler_job.id
+
+    @pytest.mark.need_serialized_dag
+    @pytest.mark.parametrize(
+        "disable, enable",
+        [
+            pytest.param({"is_active": False}, {"is_active": True}, id="active"),
+            pytest.param({"is_paused": True}, {"is_paused": False}, id="paused"),
+        ],
+    )
+    def test_no_create_dag_runs_when_dag_disabled(self, session, dag_maker, disable, enable):
+        ds = Dataset("ds")
+        with dag_maker(dag_id="consumer", schedule=[ds], session=session):
+            pass
+        with dag_maker(dag_id="producer", schedule="@daily", session=session):
+            BashOperator(task_id="task", bash_command="echo 1", outlets=ds)
+        dsm = DatasetManager()
+
+        ds_id = session.scalars(select(DatasetModel.id).filter_by(uri=ds.uri)).one()
+
+        dse_q = select(DatasetEvent).where(DatasetEvent.dataset_id == ds_id).order_by(DatasetEvent.timestamp)
+        ddrq_q = select(DatasetDagRunQueue).where(
+            DatasetDagRunQueue.dataset_id == ds_id, DatasetDagRunQueue.target_dag_id == "consumer"
+        )
+
+        # Simulate the consumer DAG being disabled.
+        session.execute(update(DagModel).where(DagModel.dag_id == "consumer").values(**disable))
+
+        # A DDRQ is not scheduled although an event is emitted.
+        dr1: DagRun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        dsm.register_dataset_change(
+            task_instance=dr1.get_task_instance("task", session=session),
+            dataset=ds,
+            session=session,
+        )
+        assert session.scalars(dse_q).one().source_run_id == dr1.run_id
+        assert session.scalars(ddrq_q).one_or_none() is None
+
+        # Simulate the consumer DAG being enabled.
+        session.execute(update(DagModel).where(DagModel.dag_id == "consumer").values(**enable))
+
+        # A DDRQ should be scheduled for the new event, but not the previous one.
+        dr2: DagRun = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
+        dsm.register_dataset_change(
+            task_instance=dr2.get_task_instance("task", session=session),
+            dataset=ds,
+            session=session,
+        )
+        assert [e.source_run_id for e in session.scalars(dse_q)] == [dr1.run_id, dr2.run_id]
+        assert session.scalars(ddrq_q).one().target_dag_id == "consumer"
 
     @time_machine.travel(DEFAULT_DATE + datetime.timedelta(days=1, seconds=9), tick=False)
     @mock.patch("airflow.jobs.scheduler_job_runner.Stats.timing")

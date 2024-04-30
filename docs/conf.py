@@ -382,7 +382,7 @@ html_theme_options["navbar_links"] = [
     {"href": "/community/", "text": "Community"},
     {"href": "/meetups/", "text": "Meetups"},
     {"href": "/docs/", "text": "Documentation"},
-    {"href": "/use-cases/", "text": "Use-cases"},
+    {"href": "/use-cases/", "text": "Use Cases"},
     {"href": "/announcements/", "text": "Announcements"},
     {"href": "/blog/", "text": "Blog"},
     {"href": "/ecosystem/", "text": "Ecosystem"},
@@ -454,7 +454,7 @@ def get_configs_and_deprecations(
     # the config has been templated, not before
     # e.g. {{dag_id}} in default_config.cfg -> {dag_id} in airflow.cfg, and what we want in docs
     keys_to_format = ["default", "example"]
-    for conf_name, conf_section in configs.items():
+    for conf_section in configs.values():
         for option_name, option in list(conf_section["options"].items()):
             for key in keys_to_format:
                 if option[key] and "{{" in option[key]:
@@ -464,7 +464,7 @@ def get_configs_and_deprecations(
                 del conf_section["options"][option_name]
 
     # Sort options, config and deprecated options for JINJA variables to display
-    for section_name, config in configs.items():
+    for config in configs.values():
         config["options"] = {k: v for k, v in sorted(config["options"].items())}
     configs = {k: v for k, v in sorted(configs.items())}
     for section in deprecated_options:

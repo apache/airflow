@@ -645,6 +645,18 @@ class TestPodTemplateFile:
         assert "my_annotation" in annotations
         assert "annotated!" in annotations["my_annotation"]
 
+    @pytest.mark.parametrize("safe_to_evict", [True, False])
+    def test_safe_to_evict_annotation(self, safe_to_evict: bool):
+        docs = render_chart(
+            values={"workers": {"safeToEvict": safe_to_evict}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+        annotations = jmespath.search("metadata.annotations", docs[0])
+        assert annotations == {
+            "cluster-autoscaler.kubernetes.io/safe-to-evict": "true" if safe_to_evict else "false"
+        }
+
     def test_workers_pod_annotations(self):
         docs = render_chart(
             values={"workers": {"podAnnotations": {"my_annotation": "annotated!"}}},
@@ -845,3 +857,94 @@ class TestPodTemplateFile:
         )
 
         assert jmespath.search("spec.runtimeClassName", docs[0]) == "nvidia"
+
+    def test_airflow_local_settings_kerberos_sidecar(self):
+        docs = render_chart(
+            values={
+                "airflowLocalSettings": "# Well hello!",
+                "workers": {"kerberosSidecar": {"enabled": True}},
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+        jmespath.search("spec.containers[1].name", docs[0]) == "worker-kerberos"
+
+        assert {
+            "name": "config",
+            "mountPath": "/opt/airflow/config/airflow_local_settings.py",
+            "subPath": "airflow_local_settings.py",
+            "readOnly": True,
+        } in jmespath.search("spec.containers[1].volumeMounts", docs[0])
+
+    @pytest.mark.parametrize(
+        "airflow_version, init_container_enabled, expected_init_containers",
+        [
+            ("1.9.0", True, 0),
+            ("1.9.0", False, 0),
+            ("1.10.14", True, 0),
+            ("1.10.14", False, 0),
+            ("2.0.2", True, 0),
+            ("2.0.2", False, 0),
+            ("2.1.0", True, 0),
+            ("2.1.0", False, 0),
+            ("2.8.0", True, 1),
+            ("2.8.0", False, 0),
+        ],
+    )
+    def test_airflow_kerberos_init_container(
+        self, airflow_version, init_container_enabled, expected_init_containers
+    ):
+        docs = render_chart(
+            values={
+                "airflowVersion": airflow_version,
+                "workers": {
+                    "kerberosInitContainer": {"enabled": init_container_enabled},
+                },
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        initContainers = jmespath.search("spec.initContainers", docs[0])
+        if expected_init_containers == 0:
+            assert initContainers is None
+
+        if expected_init_containers == 1:
+            assert initContainers[0]["name"] == "kerberos-init"
+            assert initContainers[0]["args"] == ["kerberos", "-o"]
+
+    @pytest.mark.parametrize(
+        "cmd, expected",
+        [
+            (["test", "command", "to", "run"], ["test", "command", "to", "run"]),
+            (["cmd", "{{ .Release.Name }}"], ["cmd", "release-name"]),
+        ],
+    )
+    def test_should_add_command(self, cmd, expected):
+        docs = render_chart(
+            values={
+                "workers": {"command": cmd},
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert expected == jmespath.search("spec.containers[0].command", docs[0])
+
+    @pytest.mark.parametrize("cmd", [None, []])
+    def test_should_not_add_command(self, cmd):
+        docs = render_chart(
+            values={"workers": {"command": cmd}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert None is jmespath.search("spec.containers[0].command", docs[0])
+
+    def test_should_not_add_command_by_default(self):
+        docs = render_chart(
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert None is jmespath.search("spec.containers[0].command", docs[0])

@@ -1625,7 +1625,7 @@ class TestKubernetesJobWatcher:
                                 "state": {
                                     "waiting": {
                                         "reason": "CreateContainerError",
-                                        "message": 'Error: Error response from daemon: create \invalid\path: "\\invalid\path" includes invalid characters for a local volume name, only "[a-zA-Z0-9][a-zA-Z0-9_.-]" are allowed. If you intended to pass a host directory, use absolute path',
+                                        "message": r'Error: Error response from daemon: create \invalid\path: "\invalid\path" includes invalid characters for a local volume name, only "[a-zA-Z0-9][a-zA-Z0-9_.-]" are allowed. If you intended to pass a host directory, use absolute path',
                                     }
                                 },
                                 "lastState": {},

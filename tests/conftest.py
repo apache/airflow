@@ -23,7 +23,6 @@ import platform
 import re
 import subprocess
 import sys
-import warnings
 from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -32,11 +31,13 @@ from typing import TYPE_CHECKING
 import pytest
 import time_machine
 import yaml
+from itsdangerous import URLSafeSerializer
+
+if TYPE_CHECKING:
+    from tests._internals.capture_warnings import CaptureWarningsPlugin  # noqa: F401
 
 # We should set these before loading _any_ of the rest of airflow so that the
 # unit test mode config is set as early as possible.
-from itsdangerous import URLSafeSerializer
-
 assert "airflow" not in sys.modules, "No airflow module can be imported before these lines"
 
 # Clear all Environment Variables that might have side effect,
@@ -68,8 +69,6 @@ for env_key in os.environ.copy():
         if not (ko := _KEEP_CONFIGS.get(section)) or not ("*" in ko or option in ko):
             del os.environ[env_key]
 
-DEFAULT_WARNING_OUTPUT_PATH = Path("warnings.txt")
-warning_output_path = DEFAULT_WARNING_OUTPUT_PATH
 SUPPORTED_DB_BACKENDS = ("sqlite", "postgres", "mysql")
 
 # A bit of a Hack - but we need to check args before they are parsed by pytest in order to
@@ -89,8 +88,6 @@ if skip_db_tests:
     # Make sure sqlalchemy will not be usable for pure unit tests even if initialized
     os.environ["AIRFLOW__CORE__SQL_ALCHEMY_CONN"] = "bad_schema:///"
     os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = "bad_schema:///"
-    # Force database isolation mode for pure unit tests
-    os.environ["AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION"] = "True"
     os.environ["_IN_UNIT_TESTS"] = "true"
     # Set it here to pass the flag to python-xdist spawned processes
     os.environ["_AIRFLOW_SKIP_DB_TESTS"] = "true"
@@ -121,6 +118,9 @@ collect_ignore = [
     "tests/dags_corrupted/test_impersonation_custom.py",
     "tests/test_utils/perf/dags/elastic_dag.py",
 ]
+
+# https://docs.pytest.org/en/stable/reference/reference.html#stash
+capture_warnings_key = pytest.StashKey["CaptureWarningsPlugin"]()
 
 
 @pytest.fixture
@@ -298,10 +298,21 @@ def pytest_addoption(parser):
         help="Disable DB clear before each test module.",
     )
     group.addoption(
+        "--disable-capture-warnings",
+        action="store_true",
+        dest="disable_capture_warnings",
+        help="Disable internal capture warnings.",
+    )
+    group.addoption(
         "--warning-output-path",
         action="store",
         dest="warning_output_path",
-        default=DEFAULT_WARNING_OUTPUT_PATH.resolve().as_posix(),
+        metavar="PATH",
+        help=(
+            "Path for resulting captured warnings. Absolute or relative to the `tests` directory. "
+            "If not provided or environment variable `CAPTURE_WARNINGS_OUTPUT` not set "
+            "then 'warnings.txt' will be used."
+        ),
     )
 
 
@@ -405,11 +416,26 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "enable_redact: do not mock redact secret masker")
 
     os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
-    configure_warning_output(config)
+
+    # Setup capture warnings
+    if "ignore" in sys.warnoptions:
+        config.option.disable_capture_warnings = True
+    if not config.option.disable_capture_warnings:
+        from tests._internals.capture_warnings import CaptureWarningsPlugin
+
+        plugin = CaptureWarningsPlugin(
+            config=config, output_path=config.getoption("warning_output_path", default=None)
+        )
+        config.pluginmanager.register(plugin)
+        config.stash[capture_warnings_key] = plugin
 
 
-def pytest_unconfigure(config):
+def pytest_unconfigure(config: pytest.Config) -> None:
     os.environ.pop("_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK", None)
+    capture_warnings = config.stash.get(capture_warnings_key, None)
+    if capture_warnings:
+        del config.stash[capture_warnings_key]
+        config.pluginmanager.unregister(capture_warnings)
 
 
 def skip_if_not_marked_with_integration(selected_integrations, item):
@@ -1135,6 +1161,17 @@ def reset_logging_config():
     logging.config.dictConfig(logging_config)
 
 
+@pytest.fixture(scope="session", autouse=True)
+def suppress_info_logs_for_dag_and_fab():
+    import logging
+
+    dag_logger = logging.getLogger("airflow.models.dag")
+    dag_logger.setLevel(logging.WARNING)
+
+    fab_logger = logging.getLogger("airflow.providers.fab.auth_manager.security_manager.override")
+    fab_logger.setLevel(logging.WARNING)
+
+
 @pytest.fixture(scope="module", autouse=True)
 def _clear_db(request):
     from tests.test_utils.db import clear_all
@@ -1188,7 +1225,7 @@ def clear_lru_cache():
 @pytest.fixture(autouse=True)
 def refuse_to_run_test_from_wrongly_named_files(request: pytest.FixtureRequest):
     filepath = request.node.path
-    is_system_test: bool = "tests/system/" in os.fspath(filepath.parent)
+    is_system_test: bool = "tests/system/" in os.fspath(filepath)
     test_name = request.node.name
     if request.node.cls:
         test_name = f"{request.node.cls.__name__}.{test_name}"
@@ -1253,140 +1290,6 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
         yield
     return
 
-
-# The code below is a modified version of capture-warning code from
-# https://github.com/athinkingape/pytest-capture-warnings
-
-# MIT License
-#
-# Portions Copyright (c) 2022 A Thinking Ape Entertainment Ltd.
-# Portions Copyright (c) 2022 Pyschojoker (Github)
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
-
-captured_warnings: dict[tuple[str, int, type[Warning], str], warnings.WarningMessage] = {}
-captured_warnings_count: dict[tuple[str, int, type[Warning], str], int] = {}
-# By set ``_ispytest=True`` in WarningsRecorder we suppress annoying warnings:
-# PytestDeprecationWarning: A private pytest class or function was used.
-warnings_recorder = pytest.WarningsRecorder(_ispytest=True)
-default_formatwarning = warnings_recorder._module.formatwarning  # type: ignore[attr-defined]
-default_showwarning = warnings_recorder._module.showwarning  # type: ignore[attr-defined]
-
-
-@pytest.hookimpl(hookwrapper=True)
-def pytest_runtest_call(item):
-    """
-    Needed to grab the item.location information
-    """
-    if os.environ.get("PYTHONWARNINGS") == "ignore":
-        yield
-        return
-
-    with warnings.catch_warnings(record=True) as records:
-        yield
-    for record in records:
-        quadruplet: tuple[str, int, type[Warning], str] = (
-            record.filename,
-            record.lineno,
-            record.category,
-            str(record.message),
-        )
-        if quadruplet in captured_warnings:
-            captured_warnings_count[quadruplet] += 1
-            continue
-        else:
-            captured_warnings[quadruplet] = record
-            captured_warnings_count[quadruplet] = 1
-
-
-@pytest.hookimpl(hookwrapper=True)
-def pytest_terminal_summary(terminalreporter, exitstatus, config=None):
-    pwd = os.path.realpath(os.curdir)
-
-    def cut_path(path):
-        if path.startswith(pwd):
-            path = path[len(pwd) + 1 :]
-        if "/site-packages/" in path:
-            path = path.split("/site-packages/")[1]
-        return path
-
-    def format_test_function_location(item):
-        return f"{item.location[0]}::{item.location[2]}:{item.location[1]}"
-
-    yield
-
-    if captured_warnings:
-        terminalreporter.section(
-            f"Warning summary. Total: {sum(captured_warnings_count.values())}, "
-            f"Unique: {len(captured_warnings.values())}",
-            yellow=True,
-            bold=True,
-        )
-        warnings_as_json = []
-
-        for warning in captured_warnings.values():
-            serialized_warning = {
-                x: str(getattr(warning.message, x)) for x in dir(warning.message) if not x.startswith("__")
-            }
-
-            serialized_warning.update(
-                {
-                    "path": cut_path(warning.filename),
-                    "lineno": warning.lineno,
-                    "count": 1,
-                    "warning_message": str(warning.message),
-                }
-            )
-
-            # How we format the warnings: pylint parseable format
-            # {path}:{line}: [{msg_id}({symbol}), {obj}] {msg}
-            # Always:
-            # {path}:{line}: [W0513(warning), ] {msg}
-
-            if "with_traceback" in serialized_warning:
-                del serialized_warning["with_traceback"]
-            warnings_as_json.append(serialized_warning)
-
-        with warning_output_path.open("w") as f:
-            for i in warnings_as_json:
-                f.write(f'{i["path"]}:{i["lineno"]}: [W0513(warning), ] {i["warning_message"]}')
-                f.write("\n")
-        terminalreporter.write("Warnings saved into ")
-        terminalreporter.write(os.fspath(warning_output_path), yellow=True)
-        terminalreporter.write(" file.\n")
-    else:
-        # nothing, clear file
-        with warning_output_path.open("w") as f:
-            pass
-
-
-def configure_warning_output(config):
-    global warning_output_path
-    warning_output_path = Path(config.getoption("warning_output_path"))
-    if (
-        "CAPTURE_WARNINGS_OUTPUT" in os.environ
-        and warning_output_path.resolve() != DEFAULT_WARNING_OUTPUT_PATH.resolve()
-    ):
-        warning_output_path = os.environ["CAPTURE_WARNINGS_OUTPUT"]
-
-
-# End of modified code from  https://github.com/athinkingape/pytest-capture-warnings
 
 if TYPE_CHECKING:
     # Static checkers do not know about pytest fixtures' types and return,

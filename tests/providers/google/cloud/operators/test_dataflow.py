@@ -102,6 +102,7 @@ TEST_SQL_JOB = {"id": "test-job-id"}
 GCP_CONN_ID = "test_gcp_conn_id"
 IMPERSONATION_CHAIN = ["impersonate", "this"]
 CANCEL_TIMEOUT = 10 * 420
+DATAFLOW_PATH = "airflow.providers.google.cloud.operators.dataflow"
 
 
 class TestDataflowCreatePythonJobOperator:
@@ -488,11 +489,12 @@ class TestDataflowTemplatedJobStartOperator:
             cancel_timeout=CANCEL_TIMEOUT,
         )
 
-    @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
-    def test_exec(self, dataflow_mock, sync_operator):
-        start_template_hook = dataflow_mock.return_value.start_template_dataflow
+    @mock.patch(f"{DATAFLOW_PATH}.DataflowTemplatedJobStartOperator.xcom_push")
+    @mock.patch(f"{DATAFLOW_PATH}.DataflowHook")
+    def test_execute(self, hook_mock, mock_xcom_push, sync_operator):
+        start_template_hook = hook_mock.return_value.start_template_dataflow
         sync_operator.execute(None)
-        assert dataflow_mock.called
+        assert hook_mock.called
         expected_options = {
             "project": "test",
             "stagingLocation": "gs://test/staging",
@@ -512,10 +514,27 @@ class TestDataflowTemplatedJobStartOperator:
             append_job_name=True,
         )
 
-    @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowTemplatedJobStartOperator.defer")
-    @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowTemplatedJobStartOperator.hook")
+    @mock.patch(f"{DATAFLOW_PATH}.DataflowTemplatedJobStartOperator.defer")
+    @mock.patch(f"{DATAFLOW_PATH}.DataflowHook")
     def test_execute_with_deferrable_mode(self, mock_hook, mock_defer_method, deferrable_operator):
         deferrable_operator.execute(mock.MagicMock())
+        expected_variables = {
+            "project": "test",
+            "stagingLocation": "gs://test/staging",
+            "tempLocation": "gs://test/temp",
+            "zone": "us-central1-f",
+            "EXTRA_OPTION": "TEST_A",
+        }
+        mock_hook.return_value.launch_job_with_template.assert_called_once_with(
+            job_name=JOB_NAME,
+            variables=expected_variables,
+            parameters=PARAMETERS,
+            dataflow_template=TEMPLATE,
+            project_id=TEST_PROJECT,
+            append_job_name=True,
+            location=TEST_LOCATION,
+            environment={"maxWorkers": 2},
+        )
         mock_defer_method.assert_called_once()
 
     def test_validation_deferrable_params_raises_error(self):
@@ -540,8 +559,9 @@ class TestDataflowTemplatedJobStartOperator:
             DataflowTemplatedJobStartOperator(**init_kwargs)
 
     @pytest.mark.db_test
-    @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook.start_template_dataflow")
-    def test_start_with_custom_region(self, dataflow_mock):
+    @mock.patch(f"{DATAFLOW_PATH}.DataflowTemplatedJobStartOperator.xcom_push")
+    @mock.patch(f"{DATAFLOW_PATH}.DataflowHook.start_template_dataflow")
+    def test_start_with_custom_region(self, dataflow_mock, mock_xcom_push):
         init_kwargs = {
             "task_id": TASK_ID,
             "template": TEMPLATE,
@@ -560,8 +580,9 @@ class TestDataflowTemplatedJobStartOperator:
         assert kwargs["location"] == DEFAULT_DATAFLOW_LOCATION
 
     @pytest.mark.db_test
-    @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook.start_template_dataflow")
-    def test_start_with_location(self, dataflow_mock):
+    @mock.patch(f"{DATAFLOW_PATH}.DataflowTemplatedJobStartOperator.xcom_push")
+    @mock.patch(f"{DATAFLOW_PATH}.DataflowHook.start_template_dataflow")
+    def test_start_with_location(self, dataflow_mock, mock_xcom_push):
         init_kwargs = {
             "task_id": TASK_ID,
             "template": TEMPLATE,
@@ -601,7 +622,7 @@ class TestDataflowStartFlexTemplateOperator:
             deferrable=True,
         )
 
-    @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
+    @mock.patch(f"{DATAFLOW_PATH}.DataflowHook")
     def test_execute(self, mock_dataflow, sync_operator):
         sync_operator.execute(mock.MagicMock())
         mock_dataflow.assert_called_once_with(
@@ -640,16 +661,15 @@ class TestDataflowStartFlexTemplateOperator:
         with pytest.raises(ValueError):
             DataflowStartFlexTemplateOperator(**init_kwargs)
 
-    @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowStartFlexTemplateOperator.defer")
-    @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
+    @mock.patch(f"{DATAFLOW_PATH}.DataflowStartFlexTemplateOperator.defer")
+    @mock.patch(f"{DATAFLOW_PATH}.DataflowHook")
     def test_execute_with_deferrable_mode(self, mock_hook, mock_defer_method, deferrable_operator):
         deferrable_operator.execute(mock.MagicMock())
 
-        mock_hook.return_value.start_flex_template.assert_called_once_with(
+        mock_hook.return_value.launch_job_with_flex_template.assert_called_once_with(
             body={"launchParameter": TEST_FLEX_PARAMETERS},
             location=TEST_LOCATION,
             project_id=TEST_PROJECT,
-            on_new_job_callback=mock.ANY,
         )
         mock_defer_method.assert_called_once()
 

@@ -39,7 +39,7 @@ from typing import (
 import attrs
 import lazy_object_proxy
 
-from airflow.datasets import Dataset, sanitize_uri
+from airflow.datasets import Dataset, coerce_to_uri
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.types import NOTSET
 
@@ -169,13 +169,7 @@ class DatasetEventAccessors(Mapping[str, DatasetEventAccessor]):
         return len(self._dict)
 
     def __getitem__(self, key: str | Dataset) -> DatasetEventAccessor:
-        if isinstance(key, str):
-            uri = sanitize_uri(key)
-        elif isinstance(key, Dataset):
-            uri = key.uri
-        else:
-            return NotImplemented
-        if uri not in self._dict:
+        if (uri := coerce_to_uri(key)) not in self._dict:
             self._dict[uri] = DatasetEventAccessor({})
         return self._dict[uri]
 
@@ -243,7 +237,10 @@ class Context(MutableMapping[str, Any]):
 
     def __getitem__(self, key: str) -> Any:
         with contextlib.suppress(KeyError):
-            warnings.warn(_create_deprecation_warning(key, self._deprecation_replacements[key]))
+            warnings.warn(
+                _create_deprecation_warning(key, self._deprecation_replacements[key]),
+                stacklevel=2,
+            )
         with contextlib.suppress(KeyError):
             return self._context[key]
         raise KeyError(key)
@@ -351,7 +348,7 @@ def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]:
 
     def _deprecated_proxy_factory(k: str, v: Any) -> Any:
         replacements = source._deprecation_replacements[k]
-        warnings.warn(_create_deprecation_warning(k, replacements))
+        warnings.warn(_create_deprecation_warning(k, replacements), stacklevel=2)
         return v
 
     def _create_value(k: str, v: Any) -> Any:
@@ -361,3 +358,10 @@ def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]:
         return lazy_object_proxy.Proxy(factory)
 
     return {k: _create_value(k, v) for k, v in source._context.items()}
+
+
+def context_get_dataset_events(context: Context) -> DatasetEventAccessors:
+    try:
+        return context["dataset_events"]
+    except KeyError:
+        return DatasetEventAccessors()

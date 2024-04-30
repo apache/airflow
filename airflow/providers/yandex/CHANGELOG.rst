@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+3.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Yandex Query support from Yandex.Cloud (#37458)``
+
+Misc
+~~~~
+
+* ``support iam token from metadata, simplify code (#38411)``
+* ``Avoid use of 'assert' outside of the tests (#37718)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
+   * ``docs: yandex provider grammatical improvements (#38589)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+   * ``Add comment about versions updated by release manager (#37488)``
+
 3.9.0
 .....
 

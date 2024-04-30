@@ -235,13 +235,13 @@ class TestDbtCloudRunJobOperator:
                 assert mock_run_job.return_value.data["id"] == RUN_ID
             elif expected_output == "exception":
                 # The operator should fail if the job run fails or is cancelled.
-                error_message = "has failed or has been cancelled\.$"
+                error_message = r"has failed or has been cancelled\.$"
                 with pytest.raises(DbtCloudJobRunException, match=error_message):
                     operator.execute(context=self.mock_context)
             else:
                 # Demonstrating the operator timing out after surpassing the configured timeout value.
                 timeout = self.config["timeout"]
-                error_message = f"has not reached a terminal status after {timeout} seconds\.$"
+                error_message = rf"has not reached a terminal status after {timeout} seconds\.$"
                 with pytest.raises(DbtCloudJobRunException, match=error_message):
                     operator.execute(context=self.mock_context)
 
@@ -312,9 +312,9 @@ class TestDbtCloudRunJobOperator:
         ids=["default_account", "explicit_account"],
     )
     def test_execute_no_wait_for_termination_and_reuse_existing_run(
-        self, mock_run_job, mock_get_jobs_run, conn_id, account_id
+        self, mock_run_job, mock_get_job_runs, conn_id, account_id
     ):
-        mock_get_jobs_run.return_value.json.return_value = {
+        mock_get_job_runs.return_value.json.return_value = {
             "data": [
                 {
                     "id": 10000,
@@ -354,12 +354,17 @@ class TestDbtCloudRunJobOperator:
         assert operator.schema_override == self.config["schema_override"]
         assert operator.additional_run_config == self.config["additional_run_config"]
 
-        with patch.object(DbtCloudHook, "get_job_run") as mock_get_job_run:
-            operator.execute(context=self.mock_context)
+        operator.execute(context=self.mock_context)
 
-            mock_run_job.assert_not_called()
-
-            mock_get_job_run.assert_not_called()
+        mock_run_job.assert_not_called()
+        mock_get_job_runs.assert_called_with(
+            account_id=account_id,
+            payload={
+                "job_definition_id": self.config["job_id"],
+                "status__in": DbtCloudJobRunStatus.NON_TERMINAL_STATUSES,
+                "order_by": "-created_at",
+            },
+        )
 
     @patch.object(DbtCloudHook, "trigger_job_run")
     @pytest.mark.parametrize(

@@ -24,7 +24,6 @@ import os
 import re
 import shutil
 import sys
-import unittest
 from argparse import ArgumentParser
 from contextlib import contextmanager, redirect_stdout
 from io import StringIO
@@ -151,7 +150,10 @@ class TestCliTasks:
         args = self.parser.parse_args(["tasks", "test", self.dag_id, task_id, DEFAULT_DATE.isoformat()])
         with caplog.at_level("INFO", logger="airflow.task"):
             task_command.task_test(args)
-        assert f"Marking task as SUCCESS. dag_id={self.dag_id}, task_id={task_id}" in caplog.text
+        assert (
+            f"Marking task as SUCCESS. dag_id={self.dag_id}, task_id={task_id}, run_id={self.run_id}, "
+            in caplog.text
+        )
 
     @pytest.mark.enable_redact
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
@@ -386,7 +388,6 @@ class TestCliTasks:
         assert "foo=bar" in output
         assert "AIRFLOW_TEST_MODE=True" in output
 
-    @pytest.mark.asyncio
     @mock.patch("airflow.triggers.file.os.path.getmtime", return_value=0)
     @mock.patch("airflow.triggers.file.glob", return_value=["/tmp/test"])
     @mock.patch("airflow.triggers.file.os.path.isfile", return_value=True)
@@ -585,7 +586,7 @@ class TestCliTasks:
             run_type=DagRunType.MANUAL,
             external_trigger=True,
         )
-        ti2 = TaskInstance(task2, dagrun.execution_date)
+        ti2 = TaskInstance(task2, run_id=dagrun.run_id)
         ti2.set_state(State.SUCCESS)
         ti_start = ti2.start_date
         ti_end = ti2.end_date
@@ -805,7 +806,7 @@ class TestLogsfromTaskRunCommand:
             # when not k8s executor pod, most output is redirected to logs
             assert len(lines) == 1
 
-    @unittest.skipIf(not hasattr(os, "fork"), "Forking not available")
+    @pytest.mark.skipif(not hasattr(os, "fork"), reason="Forking not available")
     def test_logging_with_run_task(self):
         with conf_vars({("core", "dags_folder"): self.dag_path}):
             task_command.task_run(self.parser.parse_args(self.task_args))
@@ -830,10 +831,10 @@ class TestLogsfromTaskRunCommand:
 
         assert (
             f"INFO - Marking task as SUCCESS. dag_id={self.dag_id}, "
-            f"task_id={self.task_id}, execution_date=20170101T000000" in logs
+            f"task_id={self.task_id}, run_id={self.run_id}, execution_date=20170101T000000" in logs
         )
 
-    @unittest.skipIf(not hasattr(os, "fork"), "Forking not available")
+    @pytest.mark.skipif(not hasattr(os, "fork"), reason="Forking not available")
     def test_run_task_with_pool(self):
         pool_name = "test_pool_run"
 
@@ -870,7 +871,7 @@ class TestLogsfromTaskRunCommand:
         assert f"INFO - Running: ['airflow', 'tasks', 'run', '{self.dag_id}', '{self.task_id}'," in logs
         assert (
             f"INFO - Marking task as SUCCESS. dag_id={self.dag_id}, "
-            f"task_id={self.task_id}, execution_date=20170101T000000" in logs
+            f"task_id={self.task_id}, run_id={self.run_id}, execution_date=20170101T000000" in logs
         )
 
     def test_log_file_template_with_run_task(self):

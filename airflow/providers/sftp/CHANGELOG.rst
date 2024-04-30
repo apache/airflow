@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+4.9.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(sftp): add return statement to yield within a while loop in triggers (#38391)``
+* ``Close open connections for deferrable SFTPSensor (#38881)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Resolve 'PT012' in 'SFTP' provider tests (#38518)``
+   * ``Update yanked versions in providers changelogs (#38262)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``Resolve G004: Logging statement uses f-string (#37873)``
+   * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+   * ``Add comment about versions updated by release manager (#37488)``
+
 4.9.0
 .....
 

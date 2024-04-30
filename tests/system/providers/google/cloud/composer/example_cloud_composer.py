@@ -28,6 +28,7 @@ from airflow.providers.google.cloud.operators.cloud_composer import (
     CloudComposerGetEnvironmentOperator,
     CloudComposerListEnvironmentsOperator,
     CloudComposerListImageVersionsOperator,
+    CloudComposerRunAirflowCLICommandOperator,
     CloudComposerUpdateEnvironmentOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
@@ -58,6 +59,8 @@ UPDATED_ENVIRONMENT = {
 }
 UPDATE_MASK = {"paths": ["labels.label"]}
 # [END howto_operator_composer_update_environment]
+
+COMMAND = "dags list -o json --verbose"
 
 
 with DAG(
@@ -134,6 +137,27 @@ with DAG(
     )
     # [END howto_operator_update_composer_environment_deferrable_mode]
 
+    # [START howto_operator_run_airflow_cli_command]
+    run_airflow_cli_cmd = CloudComposerRunAirflowCLICommandOperator(
+        task_id="run_airflow_cli_cmd",
+        project_id=PROJECT_ID,
+        region=REGION,
+        environment_id=ENVIRONMENT_ID,
+        command=COMMAND,
+    )
+    # [END howto_operator_run_airflow_cli_command]
+
+    # [START howto_operator_run_airflow_cli_command_deferrable_mode]
+    defer_run_airflow_cli_cmd = CloudComposerRunAirflowCLICommandOperator(
+        task_id="defer_run_airflow_cli_cmd",
+        project_id=PROJECT_ID,
+        region=REGION,
+        environment_id=ENVIRONMENT_ID_ASYNC,
+        command=COMMAND,
+        deferrable=True,
+    )
+    # [END howto_operator_run_airflow_cli_command_deferrable_mode]
+
     # [START howto_operator_delete_composer_environment]
     delete_env = CloudComposerDeleteEnvironmentOperator(
         task_id="delete_env",
@@ -161,6 +185,7 @@ with DAG(
         list_envs,
         get_env,
         [update_env, defer_update_env],
+        [run_airflow_cli_cmd, defer_run_airflow_cli_cmd],
         [delete_env, defer_delete_env],
     )
 

@@ -51,7 +51,7 @@ from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskNotFound
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskDeferred, TaskNotFound
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import Log
 from airflow.models.abstractoperator import NotMapped
@@ -650,7 +650,6 @@ class DagRun(Base, LoggingMixin):
         )
 
     @staticmethod
-    @internal_api_call
     @provide_session
     def fetch_task_instance(
         dag_id: str,
@@ -906,9 +905,11 @@ class DagRun(Base, LoggingMixin):
                 self.run_id,
                 self.start_date,
                 self.end_date,
-                (self.end_date - self.start_date).total_seconds()
-                if self.start_date and self.end_date
-                else None,
+                (
+                    (self.end_date - self.start_date).total_seconds()
+                    if self.start_date and self.end_date
+                    else None
+                ),
                 self._state,
                 self.external_trigger,
                 self.run_type,
@@ -1116,8 +1117,7 @@ class DagRun(Base, LoggingMixin):
         rid of the outliers on the stats side through dashboards tooling.
 
         Note that the stat will only be emitted for scheduler-triggered DAG runs
-        (i.e. when ``external_trigger`` is *False* and ``clear_number`` is
-        greater than 0).
+        (i.e. when ``external_trigger`` is *False* and ``clear_number`` is equal to 0).
         """
         if self.state == TaskInstanceState.RUNNING:
             return
@@ -1539,6 +1539,18 @@ class DagRun(Base, LoggingMixin):
                 and not ti.task.outlets
             ):
                 dummy_ti_ids.append((ti.task_id, ti.map_index))
+            elif (
+                ti.task.start_trigger is not None
+                and ti.task.next_method is not None
+                and not ti.task.on_execute_callback
+                and not ti.task.on_success_callback
+                and not ti.task.outlets
+            ):
+                ti._try_number += 1
+                ti.defer_task(
+                    defer=TaskDeferred(trigger=ti.task.start_trigger, method_name=ti.task.next_method),
+                    session=session,
+                )
             else:
                 schedulable_ti_ids.append((ti.task_id, ti.map_index))
 

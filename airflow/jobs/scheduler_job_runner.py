@@ -196,6 +196,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "The '[celery] stalled_task_timeout' config option is deprecated. "
                 "Please update your config to use '[scheduler] task_queued_timeout' instead.",
                 DeprecationWarning,
+                stacklevel=2,
             )
         task_adoption_timeout = conf.getfloat("celery", "task_adoption_timeout", fallback=0)
         if task_adoption_timeout:
@@ -204,6 +205,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "The '[celery] task_adoption_timeout' config option is deprecated. "
                 "Please update your config to use '[scheduler] task_queued_timeout' instead.",
                 DeprecationWarning,
+                stacklevel=2,
             )
         worker_pods_pending_timeout = conf.getfloat(
             "kubernetes_executor", "worker_pods_pending_timeout", fallback=0
@@ -214,6 +216,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "The '[kubernetes_executor] worker_pods_pending_timeout' config option is deprecated. "
                 "Please update your config to use '[scheduler] task_queued_timeout' instead.",
                 DeprecationWarning,
+                stacklevel=2,
             )
         task_queued_timeout = conf.getfloat("scheduler", "task_queued_timeout")
         self._task_queued_timeout = max(
@@ -270,8 +273,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         self.log.info("%s\n%s received, printing debug\n%s", "-" * 80, sig_name, "-" * 80)
 
-        self.job.executor.debug_dump()
-        self.log.info("-" * 80)
+        for executor in self.job.executors:
+            self.log.info("Debug dump for the executor %s", executor)
+            executor.debug_dump()
+            self.log.info("-" * 80)
 
     def __get_concurrency_maps(self, states: Iterable[TaskInstanceState], session: Session) -> ConcurrencyMap:
         """
@@ -819,19 +824,21 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
         try:
-            self.job.executor.job_id = self.job.id
+            callback_sink: PipeCallbackSink | DatabaseCallbackSink
+
             if self.processor_agent:
                 self.log.debug("Using PipeCallbackSink as callback sink.")
-                self.job.executor.callback_sink = PipeCallbackSink(
-                    get_sink_pipe=self.processor_agent.get_callbacks_pipe
-                )
+                callback_sink = PipeCallbackSink(get_sink_pipe=self.processor_agent.get_callbacks_pipe)
             else:
                 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 
                 self.log.debug("Using DatabaseCallbackSink as callback sink.")
-                self.job.executor.callback_sink = DatabaseCallbackSink()
+                callback_sink = DatabaseCallbackSink()
 
-            self.job.executor.start()
+            for executor in self.job.executors:
+                executor.job_id = self.job.id
+                executor.callback_sink = callback_sink
+                executor.start()
 
             self.register_signals()
 
@@ -860,10 +867,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.exception("Exception when executing SchedulerJob._run_scheduler_loop")
             raise
         finally:
-            try:
-                self.job.executor.end()
-            except Exception:
-                self.log.exception("Exception when executing Executor.end")
+            for executor in self.job.executors:
+                try:
+                    executor.end()
+                except Exception:
+                    self.log.exception("Exception when executing Executor.end on %s", executor)
             if self.processor_agent:
                 try:
                     self.processor_agent.end()
@@ -1579,11 +1587,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             Stats.gauge(f"pool.queued_slots.{pool_name}", slot_stats["queued"])
             Stats.gauge(f"pool.running_slots.{pool_name}", slot_stats["running"])
             Stats.gauge(f"pool.deferred_slots.{pool_name}", slot_stats["deferred"])
+            Stats.gauge(f"pool.scheduled_slots.{pool_name}", slot_stats["scheduled"])
+
             # Same metrics with tagging
             Stats.gauge("pool.open_slots", slot_stats["open"], tags={"pool_name": pool_name})
             Stats.gauge("pool.queued_slots", slot_stats["queued"], tags={"pool_name": pool_name})
             Stats.gauge("pool.running_slots", slot_stats["running"], tags={"pool_name": pool_name})
             Stats.gauge("pool.deferred_slots", slot_stats["deferred"], tags={"pool_name": pool_name})
+            Stats.gauge("pool.scheduled_slots", slot_stats["scheduled"], tags={"pool_name": pool_name})
 
     @provide_session
     def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:
@@ -1620,7 +1631,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                     query = (
                         select(TI)
-                        .options(lazyload("dag_run"))  # avoids double join to dag_run
+                        .options(lazyload(TI.dag_run))  # avoids double join to dag_run
                         .where(TI.state.in_(State.adoptable_states))
                         .join(TI.queued_by_job)
                         .where(Job.state.is_distinct_from(JobState.RUNNING))

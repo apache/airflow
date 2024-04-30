@@ -28,12 +28,12 @@ import collections.abc
 import contextlib
 import copy
 import functools
+import inspect
 import logging
 import sys
 import warnings
 from datetime import datetime, timedelta
 from functools import total_ordering, wraps
-from inspect import signature
 from types import FunctionType
 from typing import (
     TYPE_CHECKING,
@@ -91,10 +91,11 @@ from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkipped
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
-from airflow.utils.context import Context
+from airflow.utils.context import Context, context_get_dataset_events
 from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.helpers import validate_key
+from airflow.utils.operator_helpers import ExecutionCallableRunner
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
@@ -423,7 +424,7 @@ class BaseOperatorMeta(abc.ABCMeta):
         # at every decorated invocation. This is separate sig_cache created
         # per decoration, i.e. each function decorated using apply_defaults will
         # have a different sig_cache.
-        sig_cache = signature(func)
+        sig_cache = inspect.signature(func)
         non_variadic_params = {
             name: param
             for (name, param) in sig_cache.parameters.items()
@@ -817,6 +818,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # Set to True for an operator instantiated by a mapped operator.
     __from_mapped = False
 
+    start_trigger: BaseTrigger | None = None
+    next_method: str | None = None
+
     def __init__(
         self,
         task_id: str,
@@ -935,7 +939,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if executor:
             warnings.warn(
                 "Specifying executors for operators is not yet"
-                f"supported, the value {executor!r} will have no effect"
+                f"supported, the value {executor!r} will have no effect",
+                category=UserWarning,
+                stacklevel=2,
             )
         self.executor = executor
         self.executor_config = executor_config or {}
@@ -1269,8 +1275,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     @prepare_lineage
     def pre_execute(self, context: Any):
         """Execute right before self.execute() is called."""
-        if self._pre_execute_hook is not None:
-            self._pre_execute_hook(context)
+        if self._pre_execute_hook is None:
+            return
+        ExecutionCallableRunner(
+            self._pre_execute_hook,
+            context_get_dataset_events(context),
+            logger=self.log,
+        ).run(context)
 
     def execute(self, context: Context) -> Any:
         """
@@ -1289,8 +1300,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         It is passed the execution context and any results returned by the operator.
         """
-        if self._post_execute_hook is not None:
-            self._post_execute_hook(context, result)
+        if self._post_execute_hook is None:
+            return
+        ExecutionCallableRunner(
+            self._post_execute_hook,
+            context_get_dataset_events(context),
+            logger=self.log,
+        ).run(context, result)
 
     def on_kill(self) -> None:
         """
@@ -1662,6 +1678,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "is_teardown",
                     "on_failure_fail_dagrun",
                     "map_index_template",
+                    "start_trigger",
+                    "next_method",
                 }
             )
             DagContext.pop_context_managed_dag()

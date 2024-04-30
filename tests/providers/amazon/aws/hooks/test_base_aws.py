@@ -1055,7 +1055,7 @@ class ThrowErrorUntilCount:
         """
         if self.counter < self.count:
             self.counter += 1
-            raise Exception()
+            raise RuntimeError("Fake Unexpected Error")
         return True
 
 
@@ -1109,12 +1109,12 @@ class TestRetryDecorator:  # ptlint: disable=invalid-name
             count=2,
             quota_retry=quota_retry,
         )
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="Fake Unexpected Error"):
             _non_retryable_test(custom_fn)
 
     def test_raise_exception_when_no_retry_args(self):
         custom_fn = ThrowErrorUntilCount(count=2, quota_retry=None)
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="Fake Unexpected Error"):
             _retryable_test(custom_fn)
 
 

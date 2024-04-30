@@ -35,14 +35,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.3.4
+.....
+
+Latest change: 2024-03-26
+
+=================================================================================================  ===========  ========================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================================
+`f4bd0b3828 <https://github.com/apache/airflow/commit/f4bd0b3828afb3da8424767439bbf38c573b2ae5>`_  2024-03-26   ``Fix 'WeaviateIngestOperator'/'WeaviateDocumentIngestOperator' arguments in 'MappedOperator' (#38402)``
+`8e7b1add43 <https://github.com/apache/airflow/commit/8e7b1add435164112b80b9319ec0b2f2df94fa12>`_  2024-03-20   ``Remove unused loop variable from airflow package (#38308)``
+=================================================================================================  ===========  ========================================================================================================
+
 1.3.3
 .....
 
-Latest change: 2024-02-27
+Latest change: 2024-03-04
 
 =================================================================================================  ===========  ==================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================
+`83316b8158 <https://github.com/apache/airflow/commit/83316b81584c9e516a8142778fc509f19d95cc3e>`_  2024-03-04   ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
 `9e4bdc9e45 <https://github.com/apache/airflow/commit/9e4bdc9e457c275eb2cead5d80c2f79c3b9a0085>`_  2024-02-27   ``Limit 'pandas' to '<2.2' (#37748)``
 `5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
 `e346253760 <https://github.com/apache/airflow/commit/e3462537608854368b04f58c25835c8097dec51c>`_  2024-02-15   ``Fix remaining D401 checks (#37434)``

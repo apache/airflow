@@ -36,8 +36,6 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, NamedTuple, Sequence, cast
 
-import dill
-
 from airflow.compat.functools import cache
 from airflow.exceptions import (
     AirflowConfigException,
@@ -52,11 +50,20 @@ from airflow.models.taskinstance import _CURRENT_CONTEXT
 from airflow.models.variable import Variable
 from airflow.operators.branch import BranchMixIn
 from airflow.utils import hashlib_wrapper
-from airflow.utils.context import context_copy_partial, context_merge
+from airflow.utils.context import context_copy_partial, context_get_dataset_events, context_merge
 from airflow.utils.file import get_unique_dag_module_name
-from airflow.utils.operator_helpers import KeywordParameters
+from airflow.utils.operator_helpers import ExecutionCallableRunner, KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
+
+log = logging.getLogger(__name__)
+
+if shutil.which("cloudpickle") or importlib.util.find_spec("cloudpickle"):
+    import cloudpickle as serialization_library
+elif shutil.which("dill") or importlib.util.find_spec("dill"):
+    import dill as serialization_library
+else:
+    log.debug("Neither dill and cloudpickle are installed. Please install one with: pip install [name]")
 
 if TYPE_CHECKING:
     from pendulum.datetime import DateTime
@@ -231,6 +238,7 @@ class PythonOperator(BaseOperator):
     def execute(self, context: Context) -> Any:
         context_merge(context, self.op_kwargs, templates_dict=self.templates_dict)
         self.op_kwargs = self.determine_kwargs(context)
+        self._dataset_events = context_get_dataset_events(context)
 
         return_value = self.execute_callable()
         if self.show_return_value_in_logs:
@@ -249,7 +257,8 @@ class PythonOperator(BaseOperator):
 
         :return: the return value of the call.
         """
-        return self.python_callable(*self.op_args, **self.op_kwargs)
+        runner = ExecutionCallableRunner(self.python_callable, self._dataset_events, logger=self.log)
+        return runner.run(*self.op_args, **self.op_kwargs)
 
 
 class BranchPythonOperator(PythonOperator, BranchMixIn):
@@ -392,6 +401,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         *,
         python_callable: Callable,
         use_dill: bool = False,
+        use_cloudpickle: bool = False,
         op_args: Collection[Any] | None = None,
         op_kwargs: Mapping[str, Any] | None = None,
         string_args: Iterable[str] | None = None,
@@ -406,7 +416,9 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             or isinstance(python_callable, types.LambdaType)
             and python_callable.__name__ == "<lambda>"
         ):
-            raise AirflowException("PythonVirtualenvOperator only supports functions for python_callable arg")
+            raise ValueError(f"{type(self).__name__} only supports functions for python_callable arg")
+        if inspect.isgeneratorfunction(python_callable):
+            raise ValueError(f"{type(self).__name__} does not support using 'yield' in python_callable")
         super().__init__(
             python_callable=python_callable,
             op_args=op_args,
@@ -416,8 +428,15 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             **kwargs,
         )
         self.string_args = string_args or []
-        self.use_dill = use_dill
-        self.pickling_library = dill if self.use_dill else pickle
+        if use_dill and use_cloudpickle:
+            raise AirflowException(
+                "Both 'use_dill' and 'use_cloudpickle' parameters are set to True. Please,"
+                " choose only one."
+            )
+        if use_dill:
+            use_cloudpickle = use_dill
+        self.use_cloudpickle = use_cloudpickle
+        self.pickling_library = serialization_library if self.use_cloudpickle else pickle
         self.expect_airflow = expect_airflow
         self.skip_on_exit_code = (
             skip_on_exit_code
@@ -551,6 +570,9 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
     :param use_dill: Whether to use dill to serialize
         the args and result (pickle is default). This allow more complex types
         but requires you to include dill in your requirements.
+    :param use_cloudpickle: Whether to use cloudpickle to serialize
+        the args and result (pickle is default). This allows more complex types
+        but requires you to include cloudpickle in your requirements.
     :param system_site_packages: Whether to include
         system_site_packages in your virtual environment.
         See virtualenv documentation for more information.
@@ -593,6 +615,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         requirements: None | Iterable[str] | str = None,
         python_version: str | None = None,
         use_dill: bool = False,
+        use_cloudpickle: bool = False,
         system_site_packages: bool = True,
         pip_install_options: list[str] | None = None,
         op_args: Collection[Any] | None = None,
@@ -623,6 +646,13 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
                 RemovedInAirflow3Warning,
                 stacklevel=2,
             )
+        if use_dill and use_cloudpickle:
+            raise AirflowException(
+                "Both 'use_dill' and 'use_cloudpickle' parameters are set to True. Please, "
+                "choose only one."
+            )
+        if use_dill:
+            use_cloudpickle = use_dill
         if not is_venv_installed():
             raise AirflowException("PythonVirtualenvOperator requires virtualenv, please install it.")
         if not requirements:
@@ -643,7 +673,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         self.venv_cache_path = venv_cache_path
         super().__init__(
             python_callable=python_callable,
-            use_dill=use_dill,
+            use_cloudpickle=use_cloudpickle,
             op_args=op_args,
             op_kwargs=op_kwargs,
             string_args=string_args,
@@ -654,11 +684,12 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             **kwargs,
         )
 
-    def _requirements_list(self) -> list[str]:
+    def _requirements_list(self, exclude_cloudpickle: bool = False) -> list[str]:
         """Prepare a list of requirements that need to be installed for the virtual environment."""
         requirements = [str(dependency) for dependency in self.requirements]
-        if not self.system_site_packages and self.use_dill and "dill" not in requirements:
-            requirements.append("dill")
+        if not exclude_cloudpickle:
+            if not self.system_site_packages and self.use_cloudpickle and "cloudpickle" not in requirements:
+                requirements.append("cloudpickle")
         requirements.sort()  # Ensure a hash is stable
         return requirements
 
@@ -675,7 +706,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             index_urls=self.index_urls,
         )
 
-    def _calculate_cache_hash(self) -> tuple[str, str]:
+    def _calculate_cache_hash(self, exclude_cloudpickle: bool = False) -> tuple[str, str]:
         """Generate the hash of the cache folder to use.
 
         The following factors are used as input for the hash:
@@ -689,7 +720,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         Returns a hash and the data dict which is the base for the hash as text.
         """
         hash_dict = {
-            "requirements_list": self._requirements_list(),
+            "requirements_list": self._requirements_list(exclude_cloudpickle=exclude_cloudpickle),
             "pip_install_options": self.pip_install_options,
             "index_urls": self.index_urls,
             "cache_key": str(Variable.get("PythonVirtualenvOperator.cache_key", "")),
@@ -720,14 +751,22 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
                             self.log.info("Re-using cached Python virtual environment in %s", venv_path)
                             return venv_path
 
-                        self.log.error(
-                            "Unicorn alert: Found a previous virtual environment in %s "
-                            "with the same hash but different parameters. Previous setup: '%s' / "
-                            "Requested venv setup: '%s'. Please report a bug to airflow!",
-                            venv_path,
-                            previous_hash_data,
-                            hash_data,
-                        )
+                        _, hash_data_before_upgrade = self._calculate_cache_hash(exclude_cloudpickle=True)
+                        if previous_hash_data == hash_data_before_upgrade:
+                            self.log.warning(
+                                "Found a previous virtual environment in  with outdated dependencies %s, "
+                                "deleting and re-creating.",
+                                venv_path,
+                            )
+                        else:
+                            self.log.error(
+                                "Unicorn alert: Found a previous virtual environment in %s "
+                                "with the same hash but different parameters. Previous setup: '%s' / "
+                                "Requested venv setup: '%s'. Please report a bug to airflow!",
+                                venv_path,
+                                previous_hash_data,
+                                hash_data,
+                            )
                     else:
                         self.log.warning(
                             "Found a previous (probably partial installed) virtual environment in %s, "
@@ -816,10 +855,14 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
         a virtual environment that should be used (in ``VENV/bin`` folder). Should be absolute path
         (so usually start with "/" or "X:/" depending on the filesystem/os used).
     :param python_callable: A python function with no references to outside variables,
-        defined with def, which will be run in a virtual environment
+        defined with def, which will be run in a virtual environment.
     :param use_dill: Whether to use dill to serialize
         the args and result (pickle is default). This allow more complex types
-        but if dill is not preinstalled in your virtual environment, the task will fail with use_dill enabled.
+        but requires you to include dill in your requirements.
+    :param use_cloudpickle: Whether to use cloudpickle to serialize
+        the args and result (pickle is default). This allows more complex types
+        but if cloudpickle is not preinstalled in your virtual environment, the task will fail
+        with use_cloudpickle enabled.
     :param op_args: A list of positional arguments to pass to python_callable.
     :param op_kwargs: A dict of keyword arguments to pass to python_callable.
     :param string_args: Strings that are present in the global var virtualenv_string_args,
@@ -847,6 +890,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
         python: str,
         python_callable: Callable,
         use_dill: bool = False,
+        use_cloudpickle: bool = False,
         op_args: Collection[Any] | None = None,
         op_kwargs: Mapping[str, Any] | None = None,
         string_args: Iterable[str] | None = None,
@@ -859,11 +903,17 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
     ):
         if not python:
             raise ValueError("Python Path must be defined in ExternalPythonOperator")
+        if use_dill and use_cloudpickle:
+            raise AirflowException(
+                "Both 'use_dill' and 'use_cloudpickle' parameters are set to True. Please, choose only one."
+            )
+        if use_dill:
+            use_cloudpickle = use_dill
         self.python = python
         self.expect_pendulum = expect_pendulum
         super().__init__(
             python_callable=python_callable,
-            use_dill=use_dill,
+            use_cloudpickle=use_cloudpickle,
             op_args=op_args,
             op_kwargs=op_kwargs,
             string_args=string_args,

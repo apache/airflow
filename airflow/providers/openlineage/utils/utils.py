@@ -56,7 +56,7 @@ def get_operator_class(task: BaseOperator) -> type:
     return task.__class__
 
 
-def get_job_name(task):
+def get_job_name(task: TaskInstance) -> str:
     return f"{task.dag_id}.{task.task_id}"
 
 
@@ -384,3 +384,8 @@ def normalize_sql(sql: str | Iterable[str]):
         sql = [stmt for stmt in sql.split(";") if stmt != ""]
     sql = [obj for stmt in sql for obj in stmt.split(";") if obj != ""]
     return ";\n".join(sql)
+
+
+def should_use_external_connection(hook) -> bool:
+    # TODO: Add checking overrides
+    return hook.__class__.__name__ not in ["SnowflakeHook", "SnowflakeSqlApiHook"]
