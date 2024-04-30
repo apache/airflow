@@ -20,6 +20,7 @@ import json
 import logging
 import os.path
 import tempfile
+from datetime import datetime
 from time import sleep
 from urllib.request import urlretrieve
 
@@ -51,7 +52,6 @@ from airflow.providers.amazon.aws.sensors.bedrock import (
 from airflow.providers.amazon.aws.sensors.opensearch_serverless import (
     OpenSearchServerlessCollectionActiveSensor,
 )
-from airflow.utils.dates import days_ago
 from airflow.utils.helpers import chain
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
@@ -379,7 +379,13 @@ def delete_opensearch_policies():
             aoss_client.delete_security_policy(name=policy["name"], type=policy_type)
 
 
-with DAG(dag_id=DAG_ID, schedule_interval=None, start_date=days_ago(1)) as dag:
+with DAG(
+    dag_id=DAG_ID,
+    schedule="@once",
+    start_date=datetime(2021, 1, 1),
+    tags=["example"],
+    catchup=False,
+) as dag:
     test_context = sys_test_context_task()
     env_id = test_context["ENV_ID"]
 
