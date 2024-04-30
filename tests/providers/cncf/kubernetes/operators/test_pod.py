@@ -1711,7 +1711,7 @@ class TestKubernetesPodOperatorAsync:
         remote_pod_mock.metadata.namespace = TEST_NAMESPACE
         self.await_pod_mock.return_value = remote_pod_mock
 
-        operator.execute_complete(
+        operator.trigger_reentry(
             context=context,
             event={
                 "status": "success",
@@ -1999,12 +1999,15 @@ class TestKubernetesPodOperatorAsync:
         else:
             mock_manager.return_value.read_pod_logs.assert_not_called()
 
-    @patch(KUB_OP_PATH.format("post_complete_action"))
+    @pytest.mark.parametrize("evaluate_status", [404, None])
     @patch(KUB_OP_PATH.format("extract_xcom"))
     @patch(HOOK_CLASS)
     @patch(KUB_OP_PATH.format("pod_manager"))
-    def test_async_write_logs_handler_api_exception(self, mock_manager, mocked_hook, mock_extract_xcom):
-        mock_manager.read_pod_logs.return_value = ApiException(status=404)
+    def test_async_write_logs_handler_api_exception(
+        self, mock_manager, mocked_hook, mock_extract_xcom, evaluate_status
+    ):
+        mock_manager.read_pod_logs.return_value = ApiException(status=evaluate_status)
+        mock_manager.await_pod_completion.return_value = ApiException(status=404)
         mocked_hook.return_value.get_pod.return_value = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE)
         )
