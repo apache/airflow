@@ -91,7 +91,7 @@ with models.DAG(
             "refreshId": refresh_dataset_task.output,
         },
         timeout=350.0,
-        event_processor=lambda context, event: json.loads(event.payload["response"])["status"] == "Completed",
+        event_processor=lambda context, event: event["status"] == "Completed",
     )
     # [END howto_operator_powerbi_refresh_dataset]
 
