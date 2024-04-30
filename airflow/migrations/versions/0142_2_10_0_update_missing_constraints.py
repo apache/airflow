@@ -43,9 +43,32 @@ def upgrade():
         # SQLite does not support DROP CONSTRAINT
         return
     if conn.dialect.name == "mysql":
-        op.drop_index('unique_conn_id', table_name='connection', if_exists=True)
-        # Dropping and recreating cause there's no IF NOT EXISTS
-        op.drop_index('connection_conn_id_uq', table_name='connection', if_exists=True)
+        # TODO: Rewrite these queries to use alembic when lowest MYSQL version supports IF EXISTS
+        conn.execute(sa.text("""
+        set @var=if((SELECT true FROM information_schema.TABLE_CONSTRAINTS WHERE
+            CONSTRAINT_SCHEMA = DATABASE() AND
+            TABLE_NAME        = 'connection' AND
+            CONSTRAINT_NAME   = 'unique_conn_id' AND
+            CONSTRAINT_TYPE   = 'UNIQUE') = true,'ALTER TABLE connection
+            drop constraint unique_conn_id','select 1');
+
+        prepare stmt from @var;
+        execute stmt;
+        deallocate prepare stmt;
+        """))
+        # Dropping the below and recreating cause there's no IF NOT EXISTS in mysql
+        conn.execute(sa.text("""
+                set @var=if((SELECT true FROM information_schema.TABLE_CONSTRAINTS WHERE
+                    CONSTRAINT_SCHEMA = DATABASE() AND
+                    TABLE_NAME        = 'connection' AND
+                    CONSTRAINT_NAME   = 'connection_conn_id_uq' AND
+                    CONSTRAINT_TYPE   = 'UNIQUE') = true,'ALTER TABLE connection
+                    drop constraint connection_conn_id_uq','select 1');
+
+                prepare stmt from @var;
+                execute stmt;
+                deallocate prepare stmt;
+                """))
     else:
         op.execute("ALTER TABLE connection DROP CONSTRAINT IF EXISTS unique_conn_id")
         # Dropping and recreating cause there's no IF NOT EXISTS
@@ -64,11 +87,55 @@ def upgrade():
         batch_op.drop_constraint("task_reschedule_dr_fkey", type_="foreignkey")
 
     if conn.dialect.name == "mysql":
-        op.drop_index('dag_run_dag_id_execution_date_uq', table_name='dag_run', if_exists=True)
-        op.drop_index('dag_run_dag_id_run_id_uq', table_name='dag_run', if_exists=True)
+        conn.execute(sa.text("""
+                        set @var=if((SELECT true FROM information_schema.TABLE_CONSTRAINTS WHERE
+                            CONSTRAINT_SCHEMA = DATABASE() AND
+                            TABLE_NAME        = 'dag_run' AND
+                            CONSTRAINT_NAME   = 'dag_run_dag_id_execution_date_uq' AND
+                            CONSTRAINT_TYPE   = 'UNIQUE') = true,'ALTER TABLE dag_run
+                            drop constraint dag_run_dag_id_execution_date_uq','select 1');
+
+                        prepare stmt from @var;
+                        execute stmt;
+                        deallocate prepare stmt;
+                        """))
+        conn.execute(sa.text("""
+                        set @var=if((SELECT true FROM information_schema.TABLE_CONSTRAINTS WHERE
+                            CONSTRAINT_SCHEMA = DATABASE() AND
+                            TABLE_NAME        = 'dag_run' AND
+                            CONSTRAINT_NAME   = 'dag_run_dag_id_run_id_uq' AND
+                            CONSTRAINT_TYPE   = 'UNIQUE') = true,'ALTER TABLE dag_run
+                            drop constraint dag_run_dag_id_run_id_uq','select 1');
+
+                        prepare stmt from @var;
+                        execute stmt;
+                        deallocate prepare stmt;
+                        """))
         # below we drop and recreate the constraints because there's no IF NOT EXISTS
-        op.drop_index('dag_run_dag_id_execution_date_key', table_name='dag_run', if_exists=True)
-        op.drop_index('dag_run_dag_id_run_id_key', table_name='dag_run', if_exists=True)
+        conn.execute(sa.text("""
+                                set @var=if((SELECT true FROM information_schema.TABLE_CONSTRAINTS WHERE
+                                    CONSTRAINT_SCHEMA = DATABASE() AND
+                                    TABLE_NAME        = 'dag_run' AND
+                                    CONSTRAINT_NAME   = 'dag_run_dag_id_execution_date_key' AND
+                                    CONSTRAINT_TYPE   = 'UNIQUE') = true,'ALTER TABLE dag_run
+                                    drop constraint dag_run_dag_id_execution_date_key','select 1');
+
+                                prepare stmt from @var;
+                                execute stmt;
+                                deallocate prepare stmt;
+                                """))
+        conn.execute(sa.text("""
+                            set @var=if((SELECT true FROM information_schema.TABLE_CONSTRAINTS WHERE
+                                CONSTRAINT_SCHEMA = DATABASE() AND
+                                TABLE_NAME        = 'dag_run' AND
+                                CONSTRAINT_NAME   = 'dag_run_dag_id_run_id_key' AND
+                                CONSTRAINT_TYPE   = 'UNIQUE') = true,'ALTER TABLE dag_run
+                                drop constraint dag_run_dag_id_run_id_key','select 1');
+
+                            prepare stmt from @var;
+                            execute stmt;
+                            deallocate prepare stmt;
+                            """))
     else:
         op.execute("ALTER TABLE dag_run DROP CONSTRAINT IF EXISTS dag_run_dag_id_execution_date_uq")
         op.execute("ALTER TABLE dag_run DROP CONSTRAINT IF EXISTS dag_run_dag_id_run_id_uq")
