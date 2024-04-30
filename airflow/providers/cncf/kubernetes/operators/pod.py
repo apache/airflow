@@ -35,7 +35,8 @@ from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence
 import kubernetes
 import tenacity
 from deprecated import deprecated
-from kubernetes.client import CoreV1Api, V1Pod, models as k8s
+from kubernetes.client import CoreV1Api, V1Pod
+from kubernetes.client import models as k8s
 
 from airflow.configuration import conf
 from airflow.exceptions import (
@@ -651,7 +652,7 @@ class KubernetesPodOperator(BaseOperator):
         except kubernetes.client.exceptions.ApiException as e:
             if str(e.status) == "401":
                 self._refresh_cached_properties()
-                raise e
+            raise e
 
     def _refresh_cached_properties(self):
         del self.hook

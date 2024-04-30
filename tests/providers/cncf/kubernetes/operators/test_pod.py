@@ -24,7 +24,9 @@ from unittest.mock import MagicMock, patch
 
 import pendulum
 import pytest
-from kubernetes.client import ApiClient, V1Pod, V1PodSecurityContext, V1PodStatus, models as k8s
+from kubernetes.client import ApiClient, V1Pod, V1PodSecurityContext, V1PodStatus
+from kubernetes.client import models as k8s
+from kubernetes.client.rest import ApiException
 from urllib3 import HTTPResponse
 
 from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
@@ -38,10 +40,7 @@ from airflow.providers.cncf.kubernetes.operators.pod import (
 )
 from airflow.providers.cncf.kubernetes.secret import Secret
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
-from airflow.providers.cncf.kubernetes.utils.pod_manager import (
-    PodLoggingStatus,
-    PodPhase,
-)
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodLoggingStatus, PodPhase
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -1613,6 +1612,26 @@ class TestKubernetesPodOperator:
             "mode": ExecutionMode.SYNC,
             "pod": remote_pod_mock,
         }
+
+    @patch(f"{POD_MANAGER_CLASS}.await_container_completion")
+    def test_await_container_completion_refreshes_properties_on_error(self, mock_await_container_completion):
+        container_name = "base"
+        k = KubernetesPodOperator(
+            task_id="task",
+        )
+        pod = self.run_pod(k)
+        client, hook, pod_manager = k.client, k.hook, k.pod_manager
+        mock_await_container_completion.side_effect = [ApiException(status=401), mock.DEFAULT]
+        k.await_container_completion(pod, container_name=container_name)
+        mock_await_container_completion.assert_has_calls(
+            [
+                mock.call(pod=pod, container_name=container_name),
+                mock.call(pod=pod, container_name=container_name),
+            ]
+        )
+        assert client != k.client
+        assert hook != k.hook
+        assert pod_manager != k.pod_manager
 
 
 class TestSuppress:
