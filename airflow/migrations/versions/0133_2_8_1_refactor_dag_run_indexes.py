@@ -26,6 +26,9 @@ Create Date: 2024-01-11 11:54:48.232030
 
 from __future__ import annotations
 
+from contextlib import suppress
+
+import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -39,11 +42,8 @@ airflow_version = "2.8.1"
 def upgrade():
     """Apply refactor dag run indexes."""
     # This index may have been created in 2.7 but we've since removed it from migrations
-    from contextlib import suppress
 
-    import sqlalchemy
-
-    with suppress(sqlalchemy.exc.DatabaseError):  # mysql does not support drop if exists index
+    with suppress(sa.exc.DatabaseError):  # mysql does not support drop if exists index
         op.drop_index("ti_state_incl_start_date", table_name="task_instance", if_exists=True)
 
 
