@@ -279,6 +279,8 @@ class KiotaRequestAdapterHook(BaseHook):
         headers: dict[str, str] | None = None,
         data: dict[str, Any] | str | BytesIO | None = None,
     ):
+        self.log.info("Executing url '%s' as '%s'", url, method)
+
         response = await self.get_conn().send_primitive_async(
             request_info=self.request_information(
                 url=url,
@@ -293,7 +295,7 @@ class KiotaRequestAdapterHook(BaseHook):
             error_map=self.error_mapping(),
         )
 
-        self.log.debug("response: %s", response)
+        self.log.info("response: %s", response)
 
         return response
 
