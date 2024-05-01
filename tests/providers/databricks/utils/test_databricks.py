@@ -53,6 +53,7 @@ class TestDatabricksOperatorSharedFunctions:
             "run_id": RUN_ID,
             "run_page_url": RUN_PAGE_URL,
             "run_state": RunState("TERMINATED", "SUCCESS", "").to_json(),
+            "errors": [],
         }
         assert validate_trigger_event(event) is None
 

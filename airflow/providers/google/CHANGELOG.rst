@@ -27,6 +27,53 @@
 Changelog
 ---------
 
+10.18.0
+.......
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+
+Features
+~~~~~~~~
+
+* ``add templated fields for google llm operators (#39174)``
+* ``Add logic to handle on_kill for BigQueryInsertJobOperator when deferrable=True (#38912)``
+* ``Create 'CloudComposerRunAirflowCLICommandOperator' operator (#38965)``
+* ``Deferrable mode for Dataflow sensors (#37693)``
+* ``Deferrable mode for Custom Training Job operators (#38584)``
+* ``Enhancement for SSL-support in CloudSQLExecuteQueryOperator (#38894)``
+* ``Create GKESuspendJobOperator and GKEResumeJobOperator operators (#38677)``
+* ``Add support for role arn for aws creds in Google Transfer Service operator (#38911)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix deferrable mode for DataflowTemplatedJobStartOperator and DataflowStartFlexTemplateOperator (#39018)``
+* ``Fix batching for BigQueryToPostgresOperator (#39233)``
+* ``Fix DataprocSubmitJobOperator in deferrable mode=True when task is marked as failed. (#39230)``
+* ``Fix GCSObjectExistenceSensor operator to return the same XCOM value in deferrable and non-deferrable mode (#39206)``
+* ``Bugfix conn_id BigQueryToMsSqlOperator (#39171)``
+* ``fix: add retry logic in case of google auth refresh credential error (#38961)``
+* ``fix: BigQueryCheckOperator skipped value and error check in deferrable mode (#38408)``
+* ``fix: Use prefixes instead of all file paths for OpenLineage datasets in GCSDeleteObjectsOperator (#39059)``
+* ``fix: Use prefixes instead of full file paths for OpenLineage datasets in GCSToGCSOperator (#39058)``
+* ``fix: OpenLineage datasets in GCSTimeSpanFileTransformOperator (#39064)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+* ``Improve 'DataprocCreateClusterOperator' Triggers for Better Error Handling and Resource Cleanup (#39130)``
+* ``Adding MSGraphOperator in Microsoft Azure provider (#38111)``
+* ``Apply PROVIDE_PROJECT_ID mypy workaround across Google provider (#39129)``
+* ``handle KubernetesDeleteJobOperator import (#39036)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Activate RUF019 that checks for unnecessary key check (#38950)``
+
 10.17.0
 .......
 

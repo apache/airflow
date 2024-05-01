@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Increase length for connection password
+"""Increase length for connection password.
 
 Revision ID: fe461863935f
 Revises: 08364691d074
 Create Date: 2019-12-08 09:47:09.033009
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -36,7 +37,7 @@ airflow_version = "1.10.7"
 
 
 def upgrade():
-    """Apply Increase length for connection password"""
+    """Apply Increase length for connection password."""
     with op.batch_alter_table("connection", schema=None) as batch_op:
         batch_op.alter_column(
             "password",
@@ -47,7 +48,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Increase length for connection password"""
+    """Unapply Increase length for connection password."""
     with op.batch_alter_table("connection", schema=None) as batch_op:
         batch_op.alter_column(
             "password",

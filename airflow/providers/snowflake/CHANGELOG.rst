@@ -27,6 +27,27 @@
 Changelog
 ---------
 
+5.5.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``openlineage, snowflake: do not run external queries for Snowflake (#39113)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Activate RUF019 that checks for unnecessary key check (#38950)``
+
 5.4.0
 .....
 
