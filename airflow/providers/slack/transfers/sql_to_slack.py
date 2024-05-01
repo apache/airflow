@@ -90,7 +90,7 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
         slack_initial_comment: str | None = None,
         slack_title: str | None = None,
         slack_base_url: str | None = None,
-        slack_method_version: Literal["v1", "v2"] = "v1",
+        slack_method_version: Literal["v1", "v2"] = "v2",
         df_kwargs: dict | None = None,
         action_on_empty_df: Literal["send", "skip", "error"] = "send",
         **kwargs,

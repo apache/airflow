@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+.. note::
+  Due to future discontinue of `files.upload <https://api.slack.com/changelog/2024-04-a-better-way-to-upload-files-is-here-to-stay>`__
+  Slack API method the default value of ``SlackAPIFileOperator.method_version`` and ``SqlToSlackApiFileOperator.slack_method_version``
+  changed from ``v1`` to ``v2``
+
+  If you previously use ``v1`` you should check that your application has appropriate scopes:
+
+  * **files:write** - for write files.
+  * **files:read** - for read files (not required if you use Slack SDK >= 3.23.0).
+  * **channels:read** - get list of public channels, for convert Channel Name to Channel ID.
+  * **groups:read** - get list of private channels, for convert Channel Name to Channel ID
+  * **mpim:read** - additional permission for API method **conversations.list**
+  * **im:read** - additional permission for API method **conversations.list**
+
+  If you use ``SlackHook.send_file`` please consider switch to ``SlackHook.send_file_v2``
+  or ``SlackHook.send_file_v1_to_v2`` methods.
+
 8.6.2
 .....
 
