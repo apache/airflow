@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 8.21.0
 ......
 
-Latest change: 2024-04-29
+Latest change: 2024-04-30
 
-=================================================================================================  ===========  ====================================================================================================
+=================================================================================================  ===========  ============================================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ====================================================================================================
+=================================================================================================  ===========  ============================================================================================================
+`91490fb054 <https://github.com/apache/airflow/commit/91490fb054e1b86846ab6ab33fe79384d2de3751>`_  2024-04-30   ``Added logging_config,snapstart,ephemeral_storage parameters to aws lambdacreatefunctionoperator (#39300)``
 `4fa9fe119e <https://github.com/apache/airflow/commit/4fa9fe119e5aae639c942668f40a15a6ef0f7f67>`_  2024-04-29   ``Rename "try_number" increments that are unrelated to the airflow concept (#39317)``
 `6d09adf992 <https://github.com/apache/airflow/commit/6d09adf99262144c71bd15c09bc18f956667ccae>`_  2024-04-26   ``Add tests for 'EmrServerlessJobSensor' and 'EmrServerlessApplicationSensor' (#39099)``
 `ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
@@ -55,7 +56,7 @@ Commit                                                                          
 `1c9a6609f3 <https://github.com/apache/airflow/commit/1c9a6609f36a6fabddfd6d3858cca049d4088668>`_  2024-04-14   ``Adding MSGraphOperator in Microsoft Azure provider (#38111)``
 `d946d7b013 <https://github.com/apache/airflow/commit/d946d7b01368aac4697d2cab0a667e0e3c0fa467>`_  2024-04-13   ``Fix bug in GlueJobOperator where consecutive runs fail when a local script file is used (#38960)``
 `c25d346adf <https://github.com/apache/airflow/commit/c25d346adf2e9bc7314c73ed47ce00200cc6cd30>`_  2024-04-11   ``Amazon Bedrock - Model Throughput Provisioning (#38850)``
-=================================================================================================  ===========  ====================================================================================================
+=================================================================================================  ===========  ============================================================================================================
 
 8.20.0
 ......

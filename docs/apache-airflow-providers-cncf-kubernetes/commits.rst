@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 8.2.0
 .....
 
-Latest change: 2024-04-25
+Latest change: 2024-05-01
 
 =================================================================================================  ===========  =========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =========================================================================================
+`97871a0378 <https://github.com/apache/airflow/commit/97871a0378be7b89e8a4aef6ede31c9a884413e8>`_  2024-05-01   ``Fix SparkKubernetesOperator when using initContainers (#38119)``
 `ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
 `4920ab25b3 <https://github.com/apache/airflow/commit/4920ab25b3062c04222823f3c47b8d4d8be7bd97>`_  2024-04-25   ``Remove unnecessary validation from cncf provider. (#39238)``
 `84f1ae23cc <https://github.com/apache/airflow/commit/84f1ae23cc817c4e1e8066702938aeccc0a0d826>`_  2024-04-24   ``Add missing informative logs in KPO trigger until container has not finished (#37546)``

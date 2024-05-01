@@ -43,10 +43,8 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Add comment about versions updated by release manager (#37488)``
    * ``Fix remaining D401 checks (#37434)``
-   * ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
    * ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
    * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
-   * ``Fix remaining D401 checks (#37434)``
 
 3.9.2
 .....

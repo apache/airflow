@@ -45,6 +45,7 @@ Features
 * ``Deferrable mode for Custom Training Job operators (#38584)``
 * ``Enhancement for SSL-support in CloudSQLExecuteQueryOperator (#38894)``
 * ``Create GKESuspendJobOperator and GKEResumeJobOperator operators (#38677)``
+* ``Add support for role arn for aws creds in Google Transfer Service operator (#38911)``
 
 Bug Fixes
 ~~~~~~~~~

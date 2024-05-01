@@ -44,6 +44,7 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``fixes templated env vars for k8s pod operator (#39139)``
+* ``Fix SparkKubernetesOperator when using initContainers (#38119)``
 
 Misc
 ~~~~
