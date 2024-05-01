@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Adding ``extra`` column to ``Log`` table
+"""Adding ``extra`` column to ``Log`` table.
 
 Revision ID: 502898887f84
 Revises: 52d714495f0
 Create Date: 2015-11-03 22:50:49.794097
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa

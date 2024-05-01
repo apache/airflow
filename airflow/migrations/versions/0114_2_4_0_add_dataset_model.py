@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add Dataset model
+"""Add Dataset model.
 
 Revision ID: 0038cd0c28b4
 Revises: 44b7034f6bdc
 Create Date: 2022-06-22 14:37:20.880672
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -171,7 +172,7 @@ def _create_dataset_event_dag_run_table():
 
 
 def upgrade():
-    """Apply Add Dataset model"""
+    """Apply Add Dataset model."""
     _create_dataset_table()
     _create_dag_schedule_dataset_reference_table()
     _create_task_outlet_dataset_reference_table()
@@ -181,7 +182,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Add Dataset model"""
+    """Unapply Add Dataset model."""
     op.drop_table("dag_schedule_dataset_reference")
     op.drop_table("task_outlet_dataset_reference")
     op.drop_table("dataset_dag_run_queue")
