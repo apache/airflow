@@ -37,6 +37,10 @@ from airflow.providers.cncf.kubernetes.operators.pod import (
     PodEventType,
     _optionally_suppress,
 )
+from airflow.providers.cncf.kubernetes.secret import Secret
+from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodLoggingStatus, PodPhase
+from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
