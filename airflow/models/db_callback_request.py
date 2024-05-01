@@ -20,7 +20,7 @@ from __future__ import annotations
 from importlib import import_module
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, Text
 
 from airflow.models.base import Base
 from airflow.utils import timezone
@@ -40,7 +40,7 @@ class DbCallbackRequest(Base):
     priority_weight = Column(Integer(), nullable=False)
     callback_data = Column(ExtendedJSON, nullable=False)
     callback_type = Column(String(20), nullable=False)
-    processor_subdir = Column(String(2000), nullable=True)
+    processor_subdir = Column(String(2000).with_variant(Text(length=2000), "mysql"), nullable=True)
 
     def __init__(self, priority_weight: int, callback: CallbackRequest):
         self.created_at = timezone.utcnow()

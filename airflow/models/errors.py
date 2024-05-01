@@ -34,7 +34,7 @@ class ParseImportError(Base):
     timestamp = Column(UtcDateTime)
     filename = Column(String(1024))
     stacktrace = Column(Text)
-    processor_subdir = Column(String(2000), nullable=True)
+    processor_subdir = Column(String(2000).with_variant(Text(length=2000), "mysql"), nullable=True)
 
 
 def __getattr__(name: str):
