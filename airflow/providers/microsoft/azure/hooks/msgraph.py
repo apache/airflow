@@ -55,8 +55,7 @@ if TYPE_CHECKING:
 
 class DefaultResponseHandler(ResponseHandler):
     """
-    DefaultResponseHandler returns JSON payload or content in bytes, if no content is available it returns
-    the response headers.
+    DefaultResponseHandler returns JSON payload or content in bytes or response headers.
     """
 
     @staticmethod
