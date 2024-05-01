@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``task_fail`` table
+"""Add ``task_fail`` table.
 
 Revision ID: 64de9cddf6c9
 Revises: 211e584da130
 Create Date: 2016-08-03 14:02:59.203021
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa

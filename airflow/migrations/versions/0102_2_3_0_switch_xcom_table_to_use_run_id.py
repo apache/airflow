@@ -21,6 +21,7 @@ Revision ID: c306b5b5ae4a
 Revises: a3bcd0914482
 Create Date: 2022-01-19 03:20:35.329037
 """
+
 from __future__ import annotations
 
 from typing import Sequence

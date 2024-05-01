@@ -76,7 +76,7 @@ apache-airflow-providers-fab package
 `Flask App Builder <https://flask-appbuilder.readthedocs.io/>`__
 
 
-Release: 1.0.4
+Release: 1.1.0
 
 Provider package
 ----------------
