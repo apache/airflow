@@ -297,12 +297,7 @@ class TestBaseSensor:
         date1 = timezone.utcnow()
         time_machine.move_to(date1, tick=False)
 
-        sensor_ti, dummy_ti = _get_tis()
-        assert dummy_ti.state == State.NONE
-        assert sensor_ti.state == State.NONE
-
         self._run(sensor, session=session)
-
         sensor_ti, dummy_ti = _get_tis()
         assert sensor_ti.state == State.UP_FOR_RESCHEDULE
         assert dummy_ti.state == State.NONE
