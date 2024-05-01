@@ -140,7 +140,7 @@ def send_email_smtp(
 
     # Raise Exception if neither user provide mail nor there is one defined in config
     if not mail_from:
-        raise Exception(
+        raise ValueError(
             "You should set from email - either by smtp/smtp_mail_from config or `from_email` parameter"
         )
 
