@@ -289,6 +289,7 @@ class TestBaseSensor:
 
         def _get_tis():
             tis = dr.get_task_instances(session=session)
+            assert len(tis) == 2
             yield next(x for x in tis if x.task_id == SENSOR_OP)
             yield next(x for x in tis if x.task_id == DUMMY_OP)
 
@@ -318,6 +319,7 @@ class TestBaseSensor:
 
         def _get_tis():
             tis = dr.get_task_instances(session=session)
+            assert len(tis) == 2
             yield next(x for x in tis if x.task_id == SENSOR_OP)
             yield next(x for x in tis if x.task_id == DUMMY_OP)
 
@@ -348,6 +350,7 @@ class TestBaseSensor:
 
         def _get_tis():
             tis = dr.get_task_instances(session=session)
+            assert len(tis) == 2
             yield next(x for x in tis if x.task_id == SENSOR_OP)
             yield next(x for x in tis if x.task_id == DUMMY_OP)
 
