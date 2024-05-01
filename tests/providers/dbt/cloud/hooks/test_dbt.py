@@ -453,7 +453,9 @@ class TestDbtCloudHook:
             assert hook.method == "POST"
 
             _account_id = account_id or DEFAULT_ACCOUNT_ID
-            hook.run.assert_called_once_with(endpoint=f"{_account_id}/jobs/{JOB_ID}/rerun/", data=None)
+            hook.run.assert_called_once_with(
+                endpoint=f"api/v2/accounts/{_account_id}/jobs/{JOB_ID}/rerun/", data=None
+            )
             hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
