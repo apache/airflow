@@ -23,8 +23,6 @@ from requests import HTTPError
 
 from airflow.hooks.base import BaseHook
 
-DEFAULT_ICEBERG_URL = "https://api.tabulardata.io/ws/v1"
-
 TOKENS_ENDPOINT = "oauth/tokens"
 
 
@@ -55,7 +53,6 @@ class IcebergHook(BaseHook):
                 "password": "Client Secret",
             },
             "placeholders": {
-                "host": DEFAULT_ICEBERG_URL,
                 "login": "client_id (token credentials auth)",
                 "password": "secret (token credentials auth)",
             },
@@ -78,7 +75,7 @@ class IcebergHook(BaseHook):
     def get_conn(self) -> str:
         """Obtain a short-lived access token via a client_id and client_secret."""
         conn = self.get_connection(self.conn_id)
-        base_url = conn.host if conn.host else DEFAULT_ICEBERG_URL
+        base_url = conn.host
         base_url = base_url.rstrip("/")
         client_id = conn.login
         client_secret = conn.password
