@@ -636,32 +636,41 @@ def prepare_provider_documentation(
     for provider_id in provider_packages:
         provider_metadata = basic_provider_checks(provider_id)
         if os.environ.get("GITHUB_ACTIONS", "false") != "true":
-            get_console().print("-" * get_console().width)
+            if not only_min_version_update:
+                get_console().print("-" * get_console().width)
         try:
             with_breaking_changes = False
             maybe_with_new_features = False
-            with ci_group(f"Update release notes for package '{provider_id}' "):
-                get_console().print("Updating documentation for the latest release version.")
+            with ci_group(
+                f"Update release notes for package '{provider_id}' ",
+                skip_printing_title=only_min_version_update,
+            ):
                 if not only_min_version_update:
+                    get_console().print("Updating documentation for the latest release version.")
                     with_breaking_changes, maybe_with_new_features = update_release_notes(
                         provider_id,
                         reapply_templates_only=reapply_templates_only,
                         base_branch=base_branch,
                         regenerate_missing_docs=reapply_templates_only,
                         non_interactive=non_interactive,
+                        only_min_version_update=only_min_version_update,
                     )
                 update_min_airflow_version(
                     provider_package_id=provider_id,
                     with_breaking_changes=with_breaking_changes,
                     maybe_with_new_features=maybe_with_new_features,
                 )
-            with ci_group(f"Updates changelog for last release of package '{provider_id}'"):
+            with ci_group(
+                f"Updates changelog for last release of package '{provider_id}'",
+                skip_printing_title=only_min_version_update,
+            ):
                 update_changelog(
                     package_id=provider_id,
                     base_branch=base_branch,
                     reapply_templates_only=reapply_templates_only,
                     with_breaking_changes=with_breaking_changes,
                     maybe_with_new_features=maybe_with_new_features,
+                    only_min_version_update=only_min_version_update,
                 )
         except PrepareReleaseDocsNoChangesException:
             no_changes_packages.append(provider_id)
@@ -682,10 +691,18 @@ def prepare_provider_documentation(
                 success_packages.append(provider_id)
     get_console().print()
     get_console().print("\n[info]Summary of prepared documentation:\n")
-    provider_action_summary("Success", MessageType.SUCCESS, success_packages)
+    provider_action_summary(
+        "Success" if not only_min_version_update else "Min Version Bumped",
+        MessageType.SUCCESS,
+        success_packages,
+    )
     provider_action_summary("Scheduled for removal", MessageType.SUCCESS, removed_packages)
     provider_action_summary("Docs only", MessageType.SUCCESS, doc_only_packages)
-    provider_action_summary("Skipped on no changes", MessageType.WARNING, no_changes_packages)
+    provider_action_summary(
+        "Skipped on no changes" if not only_min_version_update else "Min Version Not Bumped",
+        MessageType.WARNING,
+        no_changes_packages,
+    )
     provider_action_summary("Suspended", MessageType.WARNING, suspended_packages)
     provider_action_summary("Skipped by user", MessageType.SPECIAL, user_skipped_packages)
     provider_action_summary("Errors", MessageType.ERROR, error_packages)
