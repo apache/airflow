@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-04-30T20:54:59.255337
+# This constraints file was automatically generated on 2024-05-01T06:23:04.566038
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -481,7 +481,7 @@ nodeenv==1.8.0
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.24.1
+openai==1.25.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.13.1
@@ -501,7 +501,7 @@ opentelemetry-semantic-conventions==0.45b0
 opsgenie-sdk==2.1.5
 oracledb==2.1.2
 ordered-set==4.1.0
-orjson==3.10.1
+orjson==3.10.2
 oss2==2.18.5
 packaging==24.0
 pandas-gbq==0.22.0
@@ -558,7 +558,7 @@ pydruid==0.6.8
 pyenchant==3.2.2
 pyexasol==0.25.2
 pygraphviz==1.11
-pyiceberg==0.6.0
+pyiceberg==0.6.1
 pyjsparser==2.7.1
 pykerberos==1.2.4
 pymongo==4.7.1
