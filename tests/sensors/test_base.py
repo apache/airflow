@@ -334,7 +334,7 @@ class TestBaseSensor:
         self._run(sensor)
         sensor_ti, dummy_ti = _get_tis()
         assert sensor_ti.state == State.SKIPPED
-        dummy_ti.state == State.NONE
+        assert dummy_ti.state == State.NONE
 
     def test_ok_with_reschedule_and_retry(self, make_sensor, time_machine, task_reschedules_for_ti, session):
         sensor, dr = make_sensor(
