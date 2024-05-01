@@ -1077,6 +1077,7 @@ class DagRun(Base, LoggingMixin):
         if tis_filter is not None:
             fresh_tis = session.scalars(select(TI).where(tis_filter)).all()
             changed_tis = any(ti.state != old_states[ti.key] for ti in fresh_tis)
+
         return ready_tis, changed_tis, expansion_happened
 
     def _are_premature_tis(
