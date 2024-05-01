@@ -99,7 +99,7 @@ alphanum_lower = string.ascii_lowercase + string.digits
 KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
 
 
-def check_exception_is_kubernetes_api_unauthorized(exc: Exception):
+def check_exception_is_kubernetes_api_unauthorized(exc: BaseException):
     return (
         isinstance(exc, kubernetes.client.exceptions.ApiException) and exc.status and str(exc.status) == "401"
     )

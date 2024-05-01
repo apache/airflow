@@ -24,7 +24,8 @@ from unittest.mock import MagicMock, patch
 
 import pendulum
 import pytest
-from kubernetes.client import ApiClient, V1Pod, V1PodSecurityContext, V1PodStatus, models as k8s
+from kubernetes.client import ApiClient, V1Pod, V1PodSecurityContext, V1PodStatus
+from kubernetes.client import models as k8s
 from kubernetes.client.rest import ApiException
 from urllib3 import HTTPResponse
 
@@ -1622,49 +1623,52 @@ class TestKubernetesPodOperator:
         )
         pod = self.run_pod(k)
         client, hook, pod_manager = k.client, k.hook, k.pod_manager
+
+        # no exception doesn't update properties
+        k.await_container_completion(pod, container_name=container_name)
+        assert client == k.client
+        assert hook == k.hook
+        assert pod_manager == k.pod_manager
+
+        # exception refreshes properties
         mock_await_container_completion.side_effect = [ApiException(status=401), mock.DEFAULT]
         k.await_container_completion(pod, container_name=container_name)
         mock_await_container_completion.assert_has_calls(
-            [
-                mock.call(pod=pod, container_name=container_name),
-                mock.call(pod=pod, container_name=container_name),
-            ]
+            [mock.call(pod=pod, container_name=container_name)] * 3
         )
         assert client != k.client
         assert hook != k.hook
         assert pod_manager != k.pod_manager
 
     @pytest.mark.parametrize(
-        "side_effect, exception_type, expect_retry",
+        "side_effect, exception_type, expect_exc",
         [
-            (ApiException(401), ApiException, True),
-            (ApiException(402), ApiException, False),
-            (ApiException(500), ApiException, False),
-            (Exception, Exception, False),
+            ([ApiException(401), mock.DEFAULT], ApiException, True),  # works after one 401
+            ([ApiException(401)] * 10, ApiException, False),  # exc after 3 retries on 401
+            ([ApiException(402)], ApiException, False),  # exc on non-401
+            ([ApiException(500)], ApiException, False),  # exc on non-401
+            ([Exception], Exception, False),  # exc on different exception
         ],
     )
     @patch(f"{POD_MANAGER_CLASS}.await_container_completion")
     def test_await_container_completion_retries_on_specific_exception(
-        self, mock_await_container_completion, side_effect, exception_type, expect_retry
+        self, mock_await_container_completion, side_effect, exception_type, expect_exc
     ):
         container_name = "base"
         k = KubernetesPodOperator(
             task_id="task",
         )
         pod = self.run_pod(k)
-        mock_await_container_completion.side_effect = [side_effect, mock.DEFAULT]
-        if expect_retry:
+        mock_await_container_completion.side_effect = side_effect
+        if expect_exc:
             k.await_container_completion(pod, container_name=container_name)
-            mock_await_container_completion.assert_has_calls(
-                [
-                    mock.call(pod=pod, container_name=container_name),
-                    mock.call(pod=pod, container_name=container_name),
-                ]
-            )
         else:
             with pytest.raises(exception_type):
                 k.await_container_completion(pod, container_name=container_name)
-            mock_await_container_completion.assert_called_once_with(pod=pod, container_name=container_name)
+        expected_call_count = min(len(side_effect), 3)  # retry max 3 times
+        mock_await_container_completion.assert_has_calls(
+            [mock.call(pod=pod, container_name=container_name)] * expected_call_count
+        )
 
 
 class TestSuppress:
