@@ -55,6 +55,7 @@ Misc
 ~~~~
 
 * ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+* ``Use 'upload_files_v2' Slack SDK method by default in Slack Operators (#39340)``
 
 8.6.2
 .....
