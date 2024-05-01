@@ -281,8 +281,7 @@ def clear_task_instances(
                 ti.refresh_from_task(task)
                 if TYPE_CHECKING:
                     assert ti.task
-                task_retries = task.retries
-                ti.max_tries = ti.try_number + task_retries - 1
+                ti.max_tries = ti.try_number + task.retries
             else:
                 # Ignore errors when updating max_tries if the DAG or
                 # task are not found since database records could be
@@ -2255,7 +2254,6 @@ class TaskInstance(Base, LoggingMixin):
             # If the task continues after being deferred (next_method is set), use the original start_date
             ti.start_date = ti.start_date if ti.next_method else timezone.utcnow()
             if ti.state == TaskInstanceState.UP_FOR_RESCHEDULE:
-                log.info("in state up_for_reschedule: task_id=%s", ti.task_id)
                 tr_start_date = session.scalar(
                     TR.stmt_for_task_instance(ti, descending=False).with_only_columns(TR.start_date).limit(1)
                 )
