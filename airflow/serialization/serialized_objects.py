@@ -551,12 +551,8 @@ class BaseSerialization:
         elif isinstance(var, Resources):
             return var.to_dict()
         elif isinstance(var, MappedOperator):
-            # todo: try to determine should_expand here
-            # todo: try to determine fail_stop here
             return cls._encode(SerializedBaseOperator.serialize_mapped_operator(var), type_=DAT.OP)
         elif isinstance(var, BaseOperator):
-            # todo: try to determine should_expand here
-            # todo: try to determine fail_stop here
             return cls._encode(SerializedBaseOperator.serialize_operator(var), type_=DAT.OP)
         elif isinstance(var, cls._datetime_types):
             return cls._encode(var.timestamp(), type_=DAT.DATETIME)

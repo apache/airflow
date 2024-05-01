@@ -972,8 +972,6 @@ def _record_task_map_for_downstreams(
 
     :meta private:
     """
-    # todo: when sering task then be smarter than just setting dag to None. use sentinel
-    #  to indicate it was attached and when re-setting .dag, skip the extra stuff
     if next(task.iter_mapped_dependants(), None) is None:  # No mapped dependants, no need to validate.
         return
     # TODO: We don't push TaskMap for mapped task instances because it's not
