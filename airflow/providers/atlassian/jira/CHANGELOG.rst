@@ -30,9 +30,6 @@ Changelog
 2.6.0
 .....
 
-2.5.0
-.....
-
 .. note::
   This release of provider is only available for Airflow 2.7+ as explained in the
   `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
