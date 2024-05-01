@@ -103,6 +103,7 @@ dependencies:
   # We should investigate if we can upgrade to a newer version of lxml and xmlsec
   # Tracked in https://github.com/apache/airflow/issues/39103
   - xmlsec<1.3.14
+  - jmespath
 
 additional-extras:
   - name: pandas
