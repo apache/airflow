@@ -301,11 +301,6 @@ class TestBaseSensor:
         assert dummy_ti.state == State.NONE
         assert sensor_ti.state == State.NONE
 
-        # prepare for first run
-        sensor_ti.state = State.SCHEDULED
-
-        session.commit()
-
         self._run(sensor, session=session)
 
         sensor_ti, dummy_ti = _get_tis()
