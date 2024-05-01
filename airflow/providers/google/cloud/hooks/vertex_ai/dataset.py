@@ -16,26 +16,29 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Vertex AI hook."""
+
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.operation import Operation
-from google.api_core.retry import Retry
 from google.cloud.aiplatform_v1 import DatasetServiceClient
-from google.cloud.aiplatform_v1.services.dataset_service.pagers import (
-    ListAnnotationsPager,
-    ListDataItemsPager,
-    ListDatasetsPager,
-)
-from google.cloud.aiplatform_v1.types import AnnotationSpec, Dataset, ExportDataConfig, ImportDataConfig
-from google.protobuf.field_mask_pb2 import FieldMask
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.operation import Operation
+    from google.api_core.retry import Retry
+    from google.cloud.aiplatform_v1.services.dataset_service.pagers import (
+        ListAnnotationsPager,
+        ListDataItemsPager,
+        ListDatasetsPager,
+    )
+    from google.cloud.aiplatform_v1.types import AnnotationSpec, Dataset, ExportDataConfig, ImportDataConfig
+    from google.protobuf.field_mask_pb2 import FieldMask
 
 
 class DatasetHook(GoogleBaseHook):
@@ -50,7 +53,7 @@ class DatasetHook(GoogleBaseHook):
         super().__init__(**kwargs)
 
     def get_dataset_service_client(self, region: str | None = None) -> DatasetServiceClient:
-        """Returns DatasetServiceClient."""
+        """Return DatasetServiceClient."""
         if region and region != "global":
             client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
         else:
@@ -61,7 +64,7 @@ class DatasetHook(GoogleBaseHook):
         )
 
     def wait_for_operation(self, operation: Operation, timeout: float | None = None):
-        """Waits for long-lasting operation to complete."""
+        """Wait for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
         except Exception:
@@ -70,7 +73,7 @@ class DatasetHook(GoogleBaseHook):
 
     @staticmethod
     def extract_dataset_id(obj: dict) -> str:
-        """Returns unique id of the dataset."""
+        """Return unique id of the dataset."""
         return obj["name"].rpartition("/")[-1]
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -84,7 +87,7 @@ class DatasetHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
-        Creates a Dataset.
+        Create a Dataset.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -118,7 +121,7 @@ class DatasetHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
-        Deletes a Dataset.
+        Delete a Dataset.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -152,7 +155,7 @@ class DatasetHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
-        Exports data from a Dataset.
+        Export data from a Dataset.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -189,7 +192,7 @@ class DatasetHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AnnotationSpec:
         """
-        Gets an AnnotationSpec.
+        Get an AnnotationSpec.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -226,7 +229,7 @@ class DatasetHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Dataset:
         """
-        Gets a Dataset.
+        Get a Dataset.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -262,7 +265,7 @@ class DatasetHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
-        Imports data into a Dataset.
+        Import data into a Dataset.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -304,7 +307,7 @@ class DatasetHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ListAnnotationsPager:
         """
-        Lists Annotations belongs to a data item.
+        List Annotations belongs to a data item.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -354,7 +357,7 @@ class DatasetHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ListDataItemsPager:
         """
-        Lists DataItems in a Dataset.
+        List DataItems in a Dataset.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -402,7 +405,7 @@ class DatasetHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ListDatasetsPager:
         """
-        Lists Datasets in a Location.
+        List Datasets in a Location.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -446,7 +449,7 @@ class DatasetHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Dataset:
         """
-        Updates a Dataset.
+        Update a Dataset.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.

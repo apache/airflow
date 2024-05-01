@@ -16,15 +16,18 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module allows to connect to a Neo4j database."""
+
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
 from neo4j import Driver, GraphDatabase
 
 from airflow.hooks.base import BaseHook
-from airflow.models import Connection
+
+if TYPE_CHECKING:
+    from airflow.models import Connection
 
 
 class Neo4jHook(BaseHook):
@@ -48,7 +51,7 @@ class Neo4jHook(BaseHook):
         self.client: Driver | None = None
 
     def get_conn(self) -> Driver:
-        """Function that initiates a new Neo4j connection with username, password and database schema."""
+        """Initiate a new Neo4j connection with username, password and database schema."""
         if self.client is not None:
             return self.client
 
@@ -65,7 +68,7 @@ class Neo4jHook(BaseHook):
 
     def get_client(self, conn: Connection, encrypted: bool, uri: str) -> Driver:
         """
-        Function to determine that relevant driver based on extras.
+        Determine that relevant driver based on extras.
 
         :param conn: Connection object.
         :param encrypted: boolean if encrypted connection or not.
@@ -109,7 +112,7 @@ class Neo4jHook(BaseHook):
 
     def run(self, query) -> list[Any]:
         """
-        Function to create a neo4j session and execute the query in the session.
+        Create a neo4j session and execute the query in the session.
 
         :param query: Neo4j query
         :return: Result

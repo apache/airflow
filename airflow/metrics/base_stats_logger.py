@@ -17,14 +17,19 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from airflow.metrics.protocols import DeltaType, Timer, TimerProtocol
+from airflow.metrics.protocols import Timer
 from airflow.typing_compat import Protocol
+
+if TYPE_CHECKING:
+    from airflow.metrics.protocols import DeltaType, TimerProtocol
 
 
 class StatsLogger(Protocol):
     """This class is only used for TypeChecking (for IDEs, mypy, etc)."""
+
+    instance: StatsLogger | NoStatsLogger | None = None
 
     @classmethod
     def incr(

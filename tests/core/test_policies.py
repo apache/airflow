@@ -42,7 +42,7 @@ def test_local_settings_plain_function(plugin_manager: pluggy.PluginManager):
 
     mod = Namespace(dag_policy=dag_policy)
 
-    policies.make_plugin_from_local_settings(plugin_manager, mod, ["dag_policy"])
+    policies.make_plugin_from_local_settings(plugin_manager, mod, {"dag_policy"})
 
     plugin_manager.hook.dag_policy(dag="a")
 
@@ -64,7 +64,7 @@ def test_local_settings_misnamed_argument(plugin_manager: pluggy.PluginManager):
 
     mod = Namespace(dag_policy=dag_policy)
 
-    policies.make_plugin_from_local_settings(plugin_manager, mod, ["dag_policy"])
+    policies.make_plugin_from_local_settings(plugin_manager, mod, {"dag_policy"})
 
     plugin_manager.hook.dag_policy(dag="passed_dag_value")
 

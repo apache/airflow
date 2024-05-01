@@ -17,11 +17,15 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
 from pendulum import datetime
 
 from airflow.decorators import task
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
+
+pytestmark = pytest.mark.db_test
+
 
 DEFAULT_DATE = datetime(2022, 8, 17)
 
@@ -30,8 +34,7 @@ def test_short_circuit_decorator(dag_maker):
     with dag_maker():
 
         @task
-        def empty():
-            ...
+        def empty(): ...
 
         @task.short_circuit()
         def short_circuit(condition):

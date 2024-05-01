@@ -19,8 +19,7 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest import mock
 
 import pytest
@@ -30,7 +29,9 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 
 from airflow.models import Connection
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
-from tests.test_utils.providers import get_provider_min_airflow_version, object_exists
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 _PASSWORD = "snowflake42"
 
@@ -49,7 +50,7 @@ BASE_CONNECTION_KWARGS: dict = {
 }
 
 
-@pytest.fixture()
+@pytest.fixture
 def non_encrypted_temporary_private_key(tmp_path: Path) -> Path:
     key = rsa.generate_private_key(backend=default_backend(), public_exponent=65537, key_size=2048)
     private_key = key.private_bytes(
@@ -60,7 +61,7 @@ def non_encrypted_temporary_private_key(tmp_path: Path) -> Path:
     return test_key_file
 
 
-@pytest.fixture()
+@pytest.fixture
 def encrypted_temporary_private_key(tmp_path: Path) -> Path:
     key = rsa.generate_private_key(backend=default_backend(), public_exponent=65537, key_size=2048)
     private_key = key.private_bytes(
@@ -269,7 +270,7 @@ class TestPytestSnowflakeHook:
     ):
         with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
             assert SnowflakeHook(snowflake_conn_id="test_conn").get_uri() == expected_uri
-            assert SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params() == expected_conn_params
+            assert SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params == expected_conn_params
 
     def test_get_conn_params_should_support_private_auth_in_connection(
         self, encrypted_temporary_private_key: Path
@@ -287,7 +288,7 @@ class TestPytestSnowflakeHook:
             },
         }
         with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
-            assert "private_key" in SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
+            assert "private_key" in SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params
 
     @pytest.mark.parametrize("include_params", [True, False])
     def test_hook_param_beats_extra(self, include_params):
@@ -310,7 +311,7 @@ class TestPytestSnowflakeHook:
             assert hook_params != extras
             assert SnowflakeHook(
                 snowflake_conn_id="test_conn", **(hook_params if include_params else {})
-            )._get_conn_params() == {
+            )._get_conn_params == {
                 "user": None,
                 "password": "",
                 "application": "AIRFLOW",
@@ -339,7 +340,7 @@ class TestPytestSnowflakeHook:
             ).get_uri(),
         ):
             assert list(extras.values()) != list(extras_prefixed.values())
-            assert SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params() == {
+            assert SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params == {
                 "user": None,
                 "password": "",
                 "application": "AIRFLOW",
@@ -365,7 +366,7 @@ class TestPytestSnowflakeHook:
             },
         }
         with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
-            assert "private_key" in SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
+            assert "private_key" in SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params
 
     def test_get_conn_params_should_support_private_auth_with_unencrypted_key(
         self, non_encrypted_temporary_private_key
@@ -383,15 +384,15 @@ class TestPytestSnowflakeHook:
             },
         }
         with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
-            assert "private_key" in SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
+            assert "private_key" in SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params
         connection_kwargs["password"] = ""
         with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
-            assert "private_key" in SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
+            assert "private_key" in SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params
         connection_kwargs["password"] = _PASSWORD
         with mock.patch.dict(
             "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
         ), pytest.raises(TypeError, match="Password was given but private key is not encrypted."):
-            SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
+            SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params
 
     def test_get_conn_params_should_fail_on_invalid_key(self):
         connection_kwargs = {
@@ -418,8 +419,7 @@ class TestPytestSnowflakeHook:
             AIRFLOW_SNOWFLAKE_PARTNER="PARTNER_NAME",
         ):
             assert (
-                SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()["application"]
-                == "PARTNER_NAME"
+                SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params["application"] == "PARTNER_NAME"
             )
 
     def test_get_conn_should_call_connect(self):
@@ -428,7 +428,7 @@ class TestPytestSnowflakeHook:
         ), mock.patch("airflow.providers.snowflake.hooks.snowflake.connector") as mock_connector:
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
             conn = hook.get_conn()
-            mock_connector.connect.assert_called_once_with(**hook._get_conn_params())
+            mock_connector.connect.assert_called_once_with(**hook._get_conn_params)
             assert mock_connector.connect.return_value == conn
 
     def test_get_sqlalchemy_engine_should_support_pass_auth(self):
@@ -515,7 +515,7 @@ class TestPytestSnowflakeHook:
                 "session_parameters": {"AA": "AAA"},
                 "user": "user",
                 "warehouse": "TEST_WAREHOUSE",
-            } == hook._get_conn_params()
+            } == hook._get_conn_params
             assert (
                 "snowflake://user:pw@TEST_ACCOUNT.TEST_REGION/TEST_DATABASE/TEST_SCHEMA"
                 "?application=AIRFLOW&authenticator=TEST_AUTH&role=TEST_ROLE&warehouse=TEST_WAREHOUSE"
@@ -586,58 +586,14 @@ class TestPytestSnowflakeHook:
                 hook.run(sql=empty_statement)
             assert err.value.args[0] == "List of SQL statements is empty"
 
-    def test__ensure_prefixes_removal(self):
-        """Ensure that _ensure_prefixes is removed from snowflake when airflow min version >= 2.5.0."""
-        path = "airflow.providers.snowflake.hooks.snowflake._ensure_prefixes"
-        if not object_exists(path):
-            raise Exception(
-                "You must remove this test. It only exists to "
-                "remind us to remove decorator `_ensure_prefixes`."
-            )
-
-        if get_provider_min_airflow_version("apache-airflow-providers-snowflake") >= (2, 5):
-            raise Exception(
-                "You must now remove `_ensure_prefixes` from SnowflakeHook.  The functionality is now taken"
-                "care of by providers manager."
-            )
-
-    def test___ensure_prefixes(self):
-        """
-        Check that ensure_prefixes decorator working properly
-
-        Note: remove this test when removing ensure_prefixes (after min airflow version >= 2.5.0
-        """
-        assert list(SnowflakeHook.get_ui_field_behaviour()["placeholders"].keys()) == [
-            "extra",
-            "schema",
-            "login",
-            "password",
-            "extra__snowflake__account",
-            "extra__snowflake__warehouse",
-            "extra__snowflake__database",
-            "extra__snowflake__region",
-            "extra__snowflake__role",
-            "extra__snowflake__private_key_file",
-            "extra__snowflake__private_key_content",
-            "extra__snowflake__insecure_mode",
-        ]
-
-    @pytest.mark.parametrize(
-        "returned_schema,expected_schema",
-        [([None], ""), (["DATABASE.SCHEMA"], "SCHEMA")],
-    )
-    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.get_first")
-    def test_get_openlineage_default_schema_with_no_schema_set(
-        self, mock_get_first, returned_schema, expected_schema
-    ):
+    def test_get_openlineage_default_schema_with_no_schema_set(self):
         connection_kwargs = {
             **BASE_CONNECTION_KWARGS,
-            "schema": None,
+            "schema": "PUBLIC",
         }
         with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
-            mock_get_first.return_value = returned_schema
-            assert hook.get_openlineage_default_schema() == expected_schema
+            assert hook.get_openlineage_default_schema() == "PUBLIC"
 
     @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.get_first")
     def test_get_openlineage_default_schema_with_schema_set(self, mock_get_first):

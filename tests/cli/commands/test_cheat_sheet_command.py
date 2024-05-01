@@ -17,11 +17,11 @@
 from __future__ import annotations
 
 import contextlib
-import io
+from io import StringIO
 from unittest import mock
 
 from airflow.cli import cli_parser
-from airflow.cli.cli_parser import ActionCommand, CLICommand, GroupCommand
+from airflow.cli.cli_config import ActionCommand, CLICommand, GroupCommand
 
 
 def noop():
@@ -74,17 +74,17 @@ MOCK_COMMANDS: list[CLICommand] = [
 ]
 
 ALL_COMMANDS = """\
-airflow cmd_b                             | Help text D
+airflow cmd_b                                   | Help text D
 """
 
 SECTION_A = """\
-airflow cmd_a cmd_b                       | Help text B
-airflow cmd_a cmd_c                       | Help text C
+airflow cmd_a cmd_b                             | Help text B
+airflow cmd_a cmd_c                             | Help text C
 """
 
 SECTION_E = """\
-airflow cmd_e cmd_f                       | Help text F
-airflow cmd_e cmd_g                       | Help text G
+airflow cmd_e cmd_f                             | Help text F
+airflow cmd_e cmd_g                             | Help text G
 """
 
 
@@ -95,7 +95,7 @@ class TestCheatSheetCommand:
 
     @mock.patch("airflow.cli.cli_parser.airflow_commands", MOCK_COMMANDS)
     def test_should_display_index(self):
-        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             args = self.parser.parse_args(["cheat-sheet"])
             args.func(args)
         output = temp_stdout.getvalue()

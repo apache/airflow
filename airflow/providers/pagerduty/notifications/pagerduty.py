@@ -20,15 +20,7 @@ from __future__ import annotations
 from functools import cached_property
 from typing import Any
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
-
-try:
-    from airflow.notifications.basenotifier import BaseNotifier
-except ImportError:
-    raise AirflowOptionalProviderFeatureException(
-        "Failed to import BaseNotifier. This feature is only available in Airflow versions >= 2.6.0"
-    )
-
+from airflow.notifications.basenotifier import BaseNotifier
 from airflow.providers.pagerduty.hooks.pagerduty_events import PagerdutyEventsHook
 
 
@@ -92,7 +84,7 @@ class PagerdutyNotifier(BaseNotifier):
         class_type: str | None = None,
         images: list[Any] | None = None,
         links: list[Any] | None = None,
-        pagerduty_events_conn_id: str = "pagerduty_events_default",
+        pagerduty_events_conn_id: str | None = "pagerduty_events_default",
         integration_key: str | None = None,
     ):
         super().__init__()
@@ -104,10 +96,8 @@ class PagerdutyNotifier(BaseNotifier):
         self.action = action
         self.dedup_key = dedup_key
         self.custom_details = custom_details
-        self.custom_details = custom_details
         self.group = group
         self.component = component
-        self.class_type = class_type
         self.class_type = class_type
         self.images = images
         self.links = links

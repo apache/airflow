@@ -1,0 +1,36 @@
+{
+    "version": 2,
+    "waiters": {
+        "job_complete": {
+            "operation": "DescribeJobRun",
+            "delay": 30,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "State",
+                    "expected": "STOPPED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "State",
+                    "expected": "SUCCEEDED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "State",
+                    "expected": "FAILED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "State",
+                    "expected": "TIMEOUT",
+                    "state": "success"
+                }
+            ]
+        }
+    }
+}

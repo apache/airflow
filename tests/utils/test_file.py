@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import os
-import os.path
 import zipfile
 from pathlib import Path
 from unittest import mock
@@ -89,7 +88,7 @@ class TestOpenMaybeZipped:
 
 
 class TestListPyFilesPath:
-    @pytest.fixture()
+    @pytest.fixture
     def test_dir(self, tmp_path):
         # create test tree with symlinks
         source = os.path.join(tmp_path, "folder")
@@ -135,7 +134,7 @@ class TestListPyFilesPath:
 
         assert files
         assert all(os.path.basename(file) not in should_ignore for file in files)
-        assert len(list(filter(lambda file: os.path.basename(file) in should_not_ignore, files))) == len(
+        assert sum(1 for file in files if os.path.basename(file) in should_not_ignore) == len(
             should_not_ignore
         )
 
@@ -162,14 +161,12 @@ class TestListPyFilesPath:
 
         ignore_list_file = ".airflowignore"
 
-        try:
+        error_message = (
+            f"Detected recursive loop when walking DAG directory {test_dir}: "
+            f"{Path(recursing_tgt).resolve()} has appeared more than once."
+        )
+        with pytest.raises(RuntimeError, match=error_message):
             list(find_path_from_directory(test_dir, ignore_list_file, ignore_file_syntax="glob"))
-            assert False, "Walking a self-recursive tree should fail"
-        except RuntimeError as err:
-            assert str(err) == (
-                f"Detected recursive loop when walking DAG directory {test_dir}: "
-                f"{Path(recursing_tgt).resolve()} has appeared more than once."
-            )
 
     def test_might_contain_dag_with_default_callable(self):
         file_path_with_dag = os.path.join(TEST_DAGS_FOLDER, "test_scheduler_dags.py")

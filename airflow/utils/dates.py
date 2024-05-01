@@ -79,9 +79,9 @@ def date_range(
         return []
     if end_date:
         if start_date > end_date:
-            raise Exception("Wait. start_date needs to be before end_date")
+            raise ValueError("Wait. start_date needs to be before end_date")
         if num:
-            raise Exception("Wait. Either specify end_date OR num")
+            raise ValueError("Wait. Either specify end_date OR num")
     if not end_date and not num:
         end_date = timezone.utcnow()
 
@@ -99,7 +99,7 @@ def date_range(
     elif isinstance(delta, relativedelta):
         abs_delta = abs(delta)
     else:
-        raise Exception("Wait. delta must be either datetime.timedelta or cron expression as str")
+        raise TypeError("Wait. delta must be either datetime.timedelta or cron expression as str")
 
     dates = []
     if end_date:
@@ -140,7 +140,7 @@ def round_time(
     delta: str | timedelta | relativedelta,
     start_date: datetime = timezone.make_aware(datetime.min),
 ):
-    """Returns ``start_date + i * delta`` for given ``i`` where the result is closest to ``dt``.
+    """Return ``start_date + i * delta`` for given ``i`` where the result is closest to ``dt``.
 
     .. code-block:: pycon
 
@@ -227,7 +227,7 @@ def infer_time_unit(time_seconds_arr: Collection[float]) -> TimeUnit:
 
     e.g. 5400 seconds => 'minutes', 36000 seconds => 'hours'
     """
-    if len(time_seconds_arr) == 0:
+    if not time_seconds_arr:
         return "hours"
     max_time_seconds = max(time_seconds_arr)
     if max_time_seconds <= 60 * 2:
@@ -243,12 +243,14 @@ def infer_time_unit(time_seconds_arr: Collection[float]) -> TimeUnit:
 def scale_time_units(time_seconds_arr: Collection[float], unit: TimeUnit) -> Collection[float]:
     """Convert an array of time durations in seconds to the specified time unit."""
     if unit == "minutes":
-        return list(map(lambda x: x / 60, time_seconds_arr))
+        factor = 60
     elif unit == "hours":
-        return list(map(lambda x: x / (60 * 60), time_seconds_arr))
+        factor = 60 * 60
     elif unit == "days":
-        return list(map(lambda x: x / (24 * 60 * 60), time_seconds_arr))
-    return time_seconds_arr
+        factor = 24 * 60 * 60
+    else:
+        factor = 1
+    return [x / factor for x in time_seconds_arr]
 
 
 def days_ago(n, hour=0, minute=0, second=0, microsecond=0):

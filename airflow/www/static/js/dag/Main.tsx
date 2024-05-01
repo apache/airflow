@@ -20,14 +20,26 @@
 /* global localStorage */
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Box, Flex, Divider, Spinner, useDisclosure } from "@chakra-ui/react";
+import {
+  Box,
+  Flex,
+  Spinner,
+  useDisclosure,
+  IconButton,
+  Accordion,
+  AccordionItem,
+  AccordionButton,
+  AccordionPanel,
+} from "@chakra-ui/react";
 import { isEmpty, debounce } from "lodash";
+import { FaExpandArrowsAlt, FaCompressArrowsAlt } from "react-icons/fa";
 
 import { useGridData } from "src/api";
 import { hoverDelay } from "src/utils";
 
 import ShortcutCheatSheet from "src/components/ShortcutCheatSheet";
 import { useKeysPress } from "src/utils/useKeysPress";
+
 import Details from "./details";
 import Grid from "./grid";
 import FilterBar from "./nav/FilterBar";
@@ -35,9 +47,8 @@ import LegendRow from "./nav/LegendRow";
 import useToggleGroups from "./useToggleGroups";
 import keyboardShortcutIdentifier from "./keyboardShortcutIdentifier";
 
-const detailsPanelKey = "hideDetailsPanel";
 const minPanelWidth = 300;
-const collapsedWidth = "28px";
+const collapsedWidth = "32px";
 
 const gridWidthKey = "grid-width";
 const saveWidth = debounce(
@@ -66,12 +77,15 @@ const Main = () => {
     isLoading,
   } = useGridData();
   const [isGridCollapsed, setIsGridCollapsed] = useState(false);
+
+  const [accordionIndexes, setAccordionIndexes] = useState<Array<number>>([0]);
+  const isFilterCollapsed = !accordionIndexes.length;
+
   const resizeRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const gridScrollRef = useRef<HTMLDivElement>(null);
   const ganttScrollRef = useRef<HTMLDivElement>(null);
-  const isPanelOpen = localStorage.getItem(detailsPanelKey) !== "true";
-  const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });
+
   const [hoveredTaskState, setHoveredTaskState] = useState<
     string | null | undefined
   >();
@@ -97,29 +111,23 @@ const Main = () => {
 
   const gridWidth = localStorage.getItem(gridWidthKey) || undefined;
 
-  const onPanelToggle = () => {
-    if (!isOpen) {
-      localStorage.setItem(detailsPanelKey, "false");
-    } else {
-      localStorage.setItem(detailsPanelKey, "true");
-      if (isGridCollapsed) {
-        setIsGridCollapsed(!isGridCollapsed);
-      }
-    }
-    onToggle();
-  };
-
-  const onToggleGridCollapse = useCallback(() => {
-    const gridElement = gridRef.current;
-    if (gridElement) {
-      if (isGridCollapsed) {
-        gridElement.style.width = localStorage.getItem(gridWidthKey) || "";
-      } else {
-        gridElement.style.width = collapsedWidth;
-      }
-      setIsGridCollapsed(!isGridCollapsed);
-    }
-  }, [isGridCollapsed]);
+  const onToggleGridCollapse = useCallback(
+    (collapseNext?: boolean) => {
+      const gridElement = gridRef.current;
+      const collapse =
+        collapseNext !== undefined ? collapseNext : !isGridCollapsed;
+      if (collapse !== undefined)
+        if (gridElement) {
+          if (!collapse) {
+            gridElement.style.width = localStorage.getItem(gridWidthKey) || "";
+          } else {
+            gridElement.style.width = collapsedWidth;
+          }
+          setIsGridCollapsed(collapse);
+        }
+    },
+    [isGridCollapsed]
+  );
 
   const resize = useCallback(
     (e: MouseEvent) => {
@@ -170,12 +178,23 @@ const Main = () => {
       };
     }
     return () => {};
-  }, [resize, isLoading, isOpen]);
+  }, [resize, isLoading]);
 
   useKeysPress(
     keyboardShortcutIdentifier.toggleShortcutCheatSheet,
     onToggleShortcut
   );
+
+  const isFullScreen = isFilterCollapsed && isGridCollapsed;
+  const toggleFullScreen = () => {
+    if (!isFullScreen) {
+      setAccordionIndexes([]);
+      onToggleGridCollapse(true);
+    } else {
+      setAccordionIndexes([0]);
+      onToggleGridCollapse(false);
+    }
+  };
 
   return (
     <Box
@@ -186,59 +205,83 @@ const Main = () => {
       overflow="hidden"
       position="relative"
     >
-      <FilterBar />
-      <LegendRow onStatusHover={onStatusHover} onStatusLeave={onStatusLeave} />
-      <Divider mb={5} borderBottomWidth={2} />
+      <Accordion allowToggle index={accordionIndexes} borderTopWidth={0}>
+        <AccordionItem
+          sx={{
+            // Override chakra-collapse so our dropdowns still work
+            ".chakra-collapse": {
+              overflow: "visible !important",
+            },
+          }}
+        >
+          <AccordionButton display="none" />
+          <AccordionPanel p={0}>
+            <FilterBar />
+            <LegendRow
+              onStatusHover={onStatusHover}
+              onStatusLeave={onStatusLeave}
+            />
+          </AccordionPanel>
+        </AccordionItem>
+      </Accordion>
       <Flex height="100%">
         {isLoading || isEmpty(groups) ? (
           <Spinner />
         ) : (
           <>
             <Box
-              flex={isOpen ? undefined : 1}
               minWidth={isGridCollapsed ? collapsedWidth : minPanelWidth}
               ref={gridRef}
               height="100%"
               width={isGridCollapsed ? collapsedWidth : gridWidth}
+              position="relative"
             >
+              <IconButton
+                icon={
+                  isFullScreen ? <FaExpandArrowsAlt /> : <FaCompressArrowsAlt />
+                }
+                fontSize="xl"
+                position="absolute"
+                right={0}
+                top={0}
+                variant="ghost"
+                color="gray.400"
+                size="sm"
+                aria-label="Toggle full screen details"
+                title="Toggle full screen details"
+                onClick={toggleFullScreen}
+              />
               <Grid
-                isPanelOpen={isOpen}
-                onPanelToggle={onPanelToggle}
                 hoveredTaskState={hoveredTaskState}
                 openGroupIds={openGroupIds}
                 onToggleGroups={onToggleGroups}
                 isGridCollapsed={isGridCollapsed}
-                setIsGridCollapsed={onToggleGridCollapse}
                 gridScrollRef={gridScrollRef}
                 ganttScrollRef={ganttScrollRef}
               />
             </Box>
-            {isOpen && (
-              <>
-                <Box
-                  width={2}
-                  cursor="ew-resize"
-                  bg="gray.200"
-                  ref={resizeRef}
-                  zIndex={1}
-                />
-                <Box
-                  flex={1}
-                  minWidth={minPanelWidth}
-                  zIndex={1}
-                  bg="white"
-                  height="100%"
-                >
-                  <Details
-                    openGroupIds={openGroupIds}
-                    onToggleGroups={onToggleGroups}
-                    hoveredTaskState={hoveredTaskState}
-                    gridScrollRef={gridScrollRef}
-                    ganttScrollRef={ganttScrollRef}
-                  />
-                </Box>
-              </>
-            )}
+            <Box
+              width={2}
+              cursor="ew-resize"
+              bg="gray.200"
+              ref={resizeRef}
+              zIndex={1}
+            />
+            <Box
+              flex={1}
+              minWidth={minPanelWidth}
+              zIndex={1}
+              bg="white"
+              height="100%"
+            >
+              <Details
+                openGroupIds={openGroupIds}
+                onToggleGroups={onToggleGroups}
+                hoveredTaskState={hoveredTaskState}
+                gridScrollRef={gridScrollRef}
+                ganttScrollRef={ganttScrollRef}
+              />
+            </Box>
           </>
         )}
       </Flex>

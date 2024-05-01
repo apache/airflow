@@ -29,6 +29,7 @@ DOCS_DIR = os.path.join(ROOT_PROJECT_DIR, "docs")
 AIRFLOW_DIR = os.path.join(ROOT_PROJECT_DIR, "airflow")
 
 ALL_PROVIDER_YAMLS = load_package_data()
+ALL_PROVIDER_YAMLS_WITH_SUSPENDED = load_package_data(include_suspended=True)
 AIRFLOW_SITE_DIR: str = os.environ.get("AIRFLOW_SITE_DIRECTORY") or ""
 PROCESS_TIMEOUT = 15 * 60
 
@@ -66,7 +67,7 @@ def prepare_code_snippet(file_path: str, line_no: int, context_lines_count: int 
                 code=code, formatter=TerminalFormatter(), lexer=guess_lexer_for_filename(file_path)
             )
 
-        code_lines = code.split("\n")
+        code_lines = code.splitlines()
         # Prepend line number
         code_lines = [f"{line_no:4} | {line}" for line_no, line in enumerate(code_lines, 1)]
         # # Cut out the snippet

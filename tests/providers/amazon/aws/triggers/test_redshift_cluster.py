@@ -14,68 +14,106 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
+
+import asyncio
+from unittest import mock
 
 import pytest
 
 from airflow.providers.amazon.aws.triggers.redshift_cluster import (
-    RedshiftCreateClusterSnapshotTrigger,
-    RedshiftCreateClusterTrigger,
-    RedshiftDeleteClusterTrigger,
-    RedshiftPauseClusterTrigger,
-    RedshiftResumeClusterTrigger,
+    RedshiftClusterTrigger,
 )
+from airflow.triggers.base import TriggerEvent
 
-TEST_CLUSTER_IDENTIFIER = "test-cluster"
-TEST_POLL_INTERVAL = 10
-TEST_MAX_ATTEMPT = 10
-TEST_AWS_CONN_ID = "test-aws-id"
+POLLING_PERIOD_SECONDS = 1.0
 
 
-class TestRedshiftClusterTriggers:
+class TestRedshiftClusterTrigger:
+    def test_redshift_cluster_sensor_trigger_serialization(self):
+        """
+        Asserts that the RedshiftClusterTrigger correctly serializes its arguments
+        and classpath.
+        """
+        trigger = RedshiftClusterTrigger(
+            aws_conn_id="test_redshift_conn_id",
+            cluster_identifier="mock_cluster_identifier",
+            target_status="available",
+            poke_interval=POLLING_PERIOD_SECONDS,
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.amazon.aws.triggers.redshift_cluster.RedshiftClusterTrigger"
+        assert kwargs == {
+            "aws_conn_id": "test_redshift_conn_id",
+            "cluster_identifier": "mock_cluster_identifier",
+            "target_status": "available",
+            "poke_interval": POLLING_PERIOD_SECONDS,
+        }
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.cluster_status")
+    async def test_redshift_cluster_sensor_trigger_success(self, mock_cluster_status):
+        """
+        Test RedshiftClusterTrigger with the success status
+        """
+        expected_result = {"status": "success", "cluster_state": "available"}
+
+        mock_cluster_status.return_value = expected_result
+        trigger = RedshiftClusterTrigger(
+            aws_conn_id="test_redshift_conn_id",
+            cluster_identifier="mock_cluster_identifier",
+            target_status="available",
+            poke_interval=POLLING_PERIOD_SECONDS,
+        )
+
+        generator = trigger.run()
+        actual = await generator.asend(None)
+        assert TriggerEvent(expected_result) == actual
+
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "trigger",
+        "expected_result",
         [
-            RedshiftCreateClusterTrigger(
-                cluster_identifier=TEST_CLUSTER_IDENTIFIER,
-                poll_interval=TEST_POLL_INTERVAL,
-                max_attempt=TEST_MAX_ATTEMPT,
-                aws_conn_id=TEST_AWS_CONN_ID,
-            ),
-            RedshiftPauseClusterTrigger(
-                cluster_identifier=TEST_CLUSTER_IDENTIFIER,
-                poll_interval=TEST_POLL_INTERVAL,
-                max_attempts=TEST_MAX_ATTEMPT,
-                aws_conn_id=TEST_AWS_CONN_ID,
-            ),
-            RedshiftCreateClusterSnapshotTrigger(
-                cluster_identifier=TEST_CLUSTER_IDENTIFIER,
-                poll_interval=TEST_POLL_INTERVAL,
-                max_attempts=TEST_MAX_ATTEMPT,
-                aws_conn_id=TEST_AWS_CONN_ID,
-            ),
-            RedshiftResumeClusterTrigger(
-                cluster_identifier=TEST_CLUSTER_IDENTIFIER,
-                poll_interval=TEST_POLL_INTERVAL,
-                max_attempts=TEST_MAX_ATTEMPT,
-                aws_conn_id=TEST_AWS_CONN_ID,
-            ),
-            RedshiftDeleteClusterTrigger(
-                cluster_identifier=TEST_CLUSTER_IDENTIFIER,
-                poll_interval=TEST_POLL_INTERVAL,
-                max_attempts=TEST_MAX_ATTEMPT,
-                aws_conn_id=TEST_AWS_CONN_ID,
-            ),
+            ({"status": "success", "cluster_state": "Resuming"}),
         ],
     )
-    def test_serialize_recreate(self, trigger):
-        class_path, args = trigger.serialize()
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.cluster_status")
+    async def test_redshift_cluster_sensor_trigger_resuming_status(
+        self, mock_cluster_status, expected_result
+    ):
+        """Test RedshiftClusterTrigger with the success status"""
+        mock_cluster_status.return_value = expected_result
+        trigger = RedshiftClusterTrigger(
+            aws_conn_id="test_redshift_conn_id",
+            cluster_identifier="mock_cluster_identifier",
+            target_status="available",
+            poke_interval=POLLING_PERIOD_SECONDS,
+        )
+        task = asyncio.create_task(trigger.run().__anext__())
+        await asyncio.sleep(0.5)
 
-        class_name = class_path.split(".")[-1]
-        clazz = globals()[class_name]
-        instance = clazz(**args)
+        # TriggerEvent was returned
+        assert task.done() is False
 
-        class_path2, args2 = instance.serialize()
+        # Prevents error when task is destroyed while in "pending" state
+        asyncio.get_event_loop().stop()
 
-        assert class_path == class_path2
-        assert args == args2
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.cluster_status")
+    async def test_redshift_cluster_sensor_trigger_exception(self, mock_cluster_status):
+        """Test RedshiftClusterTrigger with exception"""
+        mock_cluster_status.side_effect = Exception("Test exception")
+        trigger = RedshiftClusterTrigger(
+            aws_conn_id="test_redshift_conn_id",
+            cluster_identifier="mock_cluster_identifier",
+            target_status="available",
+            poke_interval=POLLING_PERIOD_SECONDS,
+        )
+
+        task = [i async for i in trigger.run()]
+        # since we use return as soon as we yield the trigger event
+        # at any given point there should be one trigger event returned to the task
+        # so we validate for length of task to be 1
+        assert len(task) == 1
+        assert TriggerEvent({"status": "error", "message": "Test exception"}) in task

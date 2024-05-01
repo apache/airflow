@@ -21,7 +21,7 @@ from datetime import datetime
 
 import pytest
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 
 try:
@@ -41,7 +41,7 @@ FILENAME = "test_file"
 
 SQL_QUERY = "USE airflow SELECT * FROM Country;"
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

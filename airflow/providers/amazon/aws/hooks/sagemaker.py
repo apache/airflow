@@ -17,18 +17,18 @@
 # under the License.
 from __future__ import annotations
 
-import collections
 import os
 import re
 import tarfile
 import tempfile
 import time
 import warnings
-from collections import Counter
+from collections import Counter, namedtuple
 from datetime import datetime
 from functools import partial
-from typing import Any, Callable, Generator, cast
+from typing import Any, AsyncGenerator, Callable, Generator, cast
 
+from asgiref.sync import sync_to_async
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -54,7 +54,7 @@ class LogState:
 
 # Position is a tuple that includes the last read timestamp and the number of items that were read
 # at that time. This is used to figure out which event to start with on the next read.
-Position = collections.namedtuple("Position", ["timestamp", "skip"])
+Position = namedtuple("Position", ["timestamp", "skip"])
 
 
 def argmin(arr, f: Callable) -> int | None:
@@ -81,7 +81,7 @@ def secondary_training_status_changed(current_job_description: dict, prev_job_de
     :return: Whether the secondary status message of a training job changed or not.
     """
     current_secondary_status_transitions = current_job_description.get("SecondaryStatusTransitions")
-    if current_secondary_status_transitions is None or len(current_secondary_status_transitions) == 0:
+    if not current_secondary_status_transitions:
         return False
 
     prev_job_secondary_status_transitions = (
@@ -90,8 +90,7 @@ def secondary_training_status_changed(current_job_description: dict, prev_job_de
 
     last_message = (
         prev_job_secondary_status_transitions[-1]["StatusMessage"]
-        if prev_job_secondary_status_transitions is not None
-        and len(prev_job_secondary_status_transitions) > 0
+        if prev_job_secondary_status_transitions
         else ""
     )
 
@@ -111,7 +110,7 @@ def secondary_training_status_message(
     :return: Job status string to be printed.
     """
     current_transitions = job_description.get("SecondaryStatusTransitions")
-    if current_transitions is None or len(current_transitions) == 0:
+    if not current_transitions:
         return ""
 
     prev_transitions_num = 0
@@ -128,10 +127,8 @@ def secondary_training_status_message(
     status_strs = []
     for transition in transitions_to_print:
         message = transition["StatusMessage"]
-        time_str = timezone.convert_to_utc(cast(datetime, job_description["LastModifiedTime"])).strftime(
-            "%Y-%m-%d %H:%M:%S"
-        )
-        status_strs.append(f"{time_str} {transition['Status']} - {message}")
+        time_utc = timezone.convert_to_utc(cast(datetime, job_description["LastModifiedTime"]))
+        status_strs.append(f"{time_utc:%Y-%m-%d %H:%M:%S} {transition['Status']} - {message}")
 
     return "\n".join(status_strs)
 
@@ -255,12 +252,12 @@ class SageMakerHook(AwsBaseHook):
         ]
         events: list[Any | None] = []
         for event_stream in event_iters:
-            if not event_stream:
-                events.append(None)
-                continue
-            try:
-                events.append(next(event_stream))
-            except StopIteration:
+            if event_stream:
+                try:
+                    events.append(next(event_stream))
+                except StopIteration:
+                    events.append(None)
+            else:
                 events.append(None)
 
         while any(events):
@@ -314,10 +311,12 @@ class SageMakerHook(AwsBaseHook):
                 max_ingestion_time,
             )
 
-            billable_time = (
-                describe_response["TrainingEndTime"] - describe_response["TrainingStartTime"]
-            ) * describe_response["ResourceConfig"]["InstanceCount"]
-            self.log.info("Billable seconds: %d", int(billable_time.total_seconds()) + 1)
+            billable_seconds = SageMakerHook.count_billable_seconds(
+                training_start_time=describe_response["TrainingStartTime"],
+                training_end_time=describe_response["TrainingEndTime"],
+                instance_count=describe_response["ResourceConfig"]["InstanceCount"],
+            )
+            self.log.info("Billable seconds: %d", billable_seconds)
 
         return response
 
@@ -586,7 +585,7 @@ class SageMakerHook(AwsBaseHook):
                 # the container starts logging, so ignore any errors thrown about that
                 pass
 
-        if len(stream_names) > 0:
+        if stream_names:
             for idx, event in self.multi_stream_iter(log_group, stream_names, positions):
                 self.log.info(event["message"])
                 ts, count = positions[stream_names[idx]]
@@ -815,10 +814,12 @@ class SageMakerHook(AwsBaseHook):
             if status in failed_states:
                 reason = last_description.get("FailureReason", "(No reason provided)")
                 raise AirflowException(f"Error training {job_name}: {status} Reason: {reason}")
-            billable_time = (
-                last_description["TrainingEndTime"] - last_description["TrainingStartTime"]
-            ) * instance_count
-            self.log.info("Billable seconds: %d", int(billable_time.total_seconds()) + 1)
+            billable_seconds = SageMakerHook.count_billable_seconds(
+                training_start_time=last_description["TrainingStartTime"],
+                training_end_time=last_description["TrainingEndTime"],
+                instance_count=instance_count,
+            )
+            self.log.info("Billable seconds: %d", billable_seconds)
 
     def list_training_jobs(
         self, name_contains: str | None = None, max_results: int | None = None, **kwargs
@@ -982,8 +983,7 @@ class SageMakerHook(AwsBaseHook):
         found_name: str,
         job_name_suffix: str | None = None,
     ) -> bool:
-        pattern = re.compile(f"^{processing_job_name}({job_name_suffix})?$")
-        return pattern.fullmatch(found_name) is not None
+        return re.fullmatch(f"{processing_job_name}({job_name_suffix})?", found_name) is not None
 
     def count_processing_jobs_by_name(
         self,
@@ -1143,7 +1143,7 @@ class SageMakerHook(AwsBaseHook):
         if check_interval is None:
             check_interval = 10
 
-        for retries in (2, 1, 0):
+        for retries in reversed(range(5)):
             try:
                 self.conn.stop_pipeline_execution(PipelineExecutionArn=pipeline_exec_arn)
             except ClientError as ce:
@@ -1305,3 +1305,125 @@ class SageMakerHook(AwsBaseHook):
             if "BestCandidate" in res:
                 return res["BestCandidate"]
         return None
+
+    @staticmethod
+    def count_billable_seconds(
+        training_start_time: datetime, training_end_time: datetime, instance_count: int
+    ) -> int:
+        billable_time = (training_end_time - training_start_time) * instance_count
+        return int(billable_time.total_seconds()) + 1
+
+    async def describe_training_job_async(self, job_name: str) -> dict[str, Any]:
+        """
+        Return the training job info associated with the name.
+
+        :param job_name: the name of the training job
+        """
+        async with self.async_conn as client:
+            response: dict[str, Any] = await client.describe_training_job(TrainingJobName=job_name)
+            return response
+
+    async def describe_training_job_with_log_async(
+        self,
+        job_name: str,
+        positions: dict[str, Any],
+        stream_names: list[str],
+        instance_count: int,
+        state: int,
+        last_description: dict[str, Any],
+        last_describe_job_call: float,
+    ) -> tuple[int, dict[str, Any], float]:
+        """
+        Return the training job info associated with job_name and print CloudWatch logs.
+
+        :param job_name: name of the job to check status
+        :param positions: A list of pairs of (timestamp, skip) which represents the last record
+            read from each stream.
+        :param stream_names: A list of the log stream names. The position of the stream in this list is
+            the stream number.
+        :param instance_count: Count of the instance created for the job initially
+        :param state: log state
+        :param last_description: Latest description of the training job
+        :param last_describe_job_call: previous job called time
+        """
+        log_group = "/aws/sagemaker/TrainingJobs"
+
+        if len(stream_names) < instance_count:
+            logs_hook = AwsLogsHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+            streams = await logs_hook.describe_log_streams_async(
+                log_group=log_group,
+                stream_prefix=job_name + "/",
+                order_by="LogStreamName",
+                count=instance_count,
+            )
+
+            stream_names = [s["logStreamName"] for s in streams["logStreams"]] if streams else []
+            positions.update([(s, Position(timestamp=0, skip=0)) for s in stream_names if s not in positions])
+
+        if len(stream_names) > 0:
+            async for idx, event in self.get_multi_stream(log_group, stream_names, positions):
+                self.log.info(event["message"])
+                ts, count = positions[stream_names[idx]]
+                if event["timestamp"] == ts:
+                    positions[stream_names[idx]] = Position(timestamp=ts, skip=count + 1)
+                else:
+                    positions[stream_names[idx]] = Position(timestamp=event["timestamp"], skip=1)
+
+        if state == LogState.COMPLETE:
+            return state, last_description, last_describe_job_call
+
+        if state == LogState.JOB_COMPLETE:
+            state = LogState.COMPLETE
+        elif time.time() - last_describe_job_call >= 30:
+            description = await self.describe_training_job_async(job_name)
+            last_describe_job_call = time.time()
+
+            if await sync_to_async(secondary_training_status_changed)(description, last_description):
+                self.log.info(
+                    await sync_to_async(secondary_training_status_message)(description, last_description)
+                )
+                last_description = description
+
+            status = description["TrainingJobStatus"]
+
+            if status not in self.non_terminal_states:
+                state = LogState.JOB_COMPLETE
+        return state, last_description, last_describe_job_call
+
+    async def get_multi_stream(
+        self, log_group: str, streams: list[str], positions: dict[str, Any]
+    ) -> AsyncGenerator[Any, tuple[int, Any | None]]:
+        """Iterate over the available events coming and interleaving the events from each stream so they're yielded in timestamp order.
+
+        :param log_group: The name of the log group.
+        :param streams: A list of the log stream names. The position of the stream in this list is
+            the stream number.
+        :param positions: A list of pairs of (timestamp, skip) which represents the last record
+            read from each stream.
+        """
+        positions = positions or {s: Position(timestamp=0, skip=0) for s in streams}
+        events: list[Any | None] = []
+
+        logs_hook = AwsLogsHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+        event_iters = [
+            logs_hook.get_log_events_async(log_group, s, positions[s].timestamp, positions[s].skip)
+            for s in streams
+        ]
+        for event_stream in event_iters:
+            if not event_stream:
+                events.append(None)
+                continue
+
+            try:
+                events.append(await event_stream.__anext__())
+            except StopAsyncIteration:
+                events.append(None)
+
+            while any(events):
+                i = argmin(events, lambda x: x["timestamp"] if x else 9999999999) or 0
+                yield i, events[i]
+
+                try:
+                    events[i] = await event_iters[i].__anext__()
+                except StopAsyncIteration:
+                    events[i] = None

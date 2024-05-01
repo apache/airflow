@@ -19,12 +19,9 @@ from __future__ import annotations
 
 from openlineage.client.facet import SourceCodeJobFacet
 
+from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors.base import BaseExtractor, OperatorLineage
-from airflow.providers.openlineage.plugins.facets import (
-    UnknownOperatorAttributeRunFacet,
-    UnknownOperatorInstance,
-)
-from airflow.providers.openlineage.utils.utils import get_filtered_unknown_operator_keys, is_source_enabled
+from airflow.providers.openlineage.utils.utils import get_unknown_source_attribute_run_facet
 
 """
 :meta private:
@@ -46,9 +43,9 @@ class BashExtractor(BaseExtractor):
     def get_operator_classnames(cls) -> list[str]:
         return ["BashOperator"]
 
-    def extract(self) -> OperatorLineage | None:
+    def _execute_extraction(self) -> OperatorLineage | None:
         job_facets: dict = {}
-        if is_source_enabled():
+        if conf.is_source_enabled():
             job_facets = {
                 "sourceCode": SourceCodeJobFacet(
                     language="bash",
@@ -59,17 +56,10 @@ class BashExtractor(BaseExtractor):
 
         return OperatorLineage(
             job_facets=job_facets,
-            run_facets={
-                # The BashOperator is recorded as an "unknownSource" even though we have an
-                # extractor, as the <i>data lineage</i> cannot be determined from the operator
-                # directly.
-                "unknownSourceAttribute": UnknownOperatorAttributeRunFacet(
-                    unknownItems=[
-                        UnknownOperatorInstance(
-                            name="BashOperator",
-                            properties=get_filtered_unknown_operator_keys(self.operator),
-                        )
-                    ]
-                )
-            },
+            # The BashOperator is recorded as an "unknownSource" even though we have an extractor,
+            # as the <i>data lineage</i> cannot be determined from the operator directly.
+            run_facets=get_unknown_source_attribute_run_facet(task=self.operator, name="BashOperator"),
         )
+
+    def extract(self) -> OperatorLineage | None:
+        return super().extract()

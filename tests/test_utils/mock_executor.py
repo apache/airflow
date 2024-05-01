@@ -69,8 +69,7 @@ class MockExecutor(BaseExecutor):
 
             open_slots = self.parallelism - len(self.running)
             sorted_queue = sorted(self.queued_tasks.items(), key=sort_by)
-            for index in range(min((open_slots, len(sorted_queue)))):
-                (key, (_, _, _, ti)) = sorted_queue[index]
+            for key, (_, _, _, ti) in sorted_queue[:open_slots]:
                 self.queued_tasks.pop(key)
                 ti._try_number += 1
                 state = self.mock_task_results[key]
@@ -95,7 +94,7 @@ class MockExecutor(BaseExecutor):
         FAILED.
 
         If the task identified by the tuple ``(dag_id, task_id, date,
-        try_number)`` is run by this executor it's state will be FAILED.
+        try_number)`` is run by this executor its state will be FAILED.
         """
         assert isinstance(run_id, str)
         self.mock_task_results[TaskInstanceKey(dag_id, task_id, run_id, try_number)] = State.FAILED

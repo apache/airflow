@@ -30,13 +30,18 @@ kind: RoleBinding
 metadata:
   {{- if not .Values.multiNamespaceMode }}
   namespace: "{{ .Release.Namespace }}"
+  name: {{ include "airflow.fullname" . }}-pod-log-reader-rolebinding
+  {{- else }}
+  name: {{ .Release.Namespace }}-{{ include "airflow.fullname" . }}-pod-log-reader-rolebinding
   {{- end }}
-  name: {{ .Release.Name }}-pod-log-reader-rolebinding
   labels:
     tier: airflow
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
+    {{- if .Values.multiNamespaceMode }}
+    namespace: "{{ .Release.Namespace }}"
+    {{- end }}
     {{- with .Values.labels }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -44,10 +49,11 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   {{- if .Values.multiNamespaceMode }}
   kind: ClusterRole
+  name: {{ .Release.Namespace }}-{{ include "airflow.fullname" . }}-pod-log-reader-role
   {{- else }}
   kind: Role
+  name: {{ include "airflow.fullname" . }}-pod-log-reader-role
   {{- end }}
-  name: {{ .Release.Name }}-pod-log-reader-role
 subjects:
   {{- if .Values.webserver.allowPodLogReading }}
   - kind: ServiceAccount

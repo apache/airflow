@@ -16,16 +16,18 @@
 # under the License.
 from __future__ import annotations
 
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 from itsdangerous import URLSafeSerializer
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
-from airflow import DAG
 from airflow.api_connexion.schemas.common_schema import ScheduleIntervalSchema, TimeDeltaSchema, TimezoneField
 from airflow.configuration import conf
 from airflow.models.dag import DagModel, DagTag
+
+if TYPE_CHECKING:
+    from airflow import DAG
 
 
 class DagTagSchema(SQLAlchemySchema):
@@ -48,6 +50,7 @@ class DAGSchema(SQLAlchemySchema):
         model = DagModel
 
     dag_id = auto_field(dump_only=True)
+    dag_display_name = fields.String(attribute="dag_display_name", dump_only=True)
     root_dag_id = auto_field(dump_only=True)
     is_paused = auto_field()
     is_active = auto_field(dump_only=True)
@@ -67,6 +70,7 @@ class DAGSchema(SQLAlchemySchema):
     tags = fields.List(fields.Nested(DagTagSchema), dump_only=True)
     max_active_tasks = auto_field(dump_only=True)
     max_active_runs = auto_field(dump_only=True)
+    max_consecutive_failed_dag_runs = auto_field(dump_only=True)
     has_task_concurrency_limits = auto_field(dump_only=True)
     has_import_errors = auto_field(dump_only=True)
     next_dagrun = auto_field(dump_only=True)
@@ -92,22 +96,23 @@ class DAGDetailSchema(DAGSchema):
     """DAG details."""
 
     owners = fields.Method("get_owners", dump_only=True)
-    timezone = TimezoneField()
-    catchup = fields.Boolean()
-    orientation = fields.String()
-    concurrency = fields.Method("get_concurrency")  # TODO: Remove in Airflow 3.0
-    max_active_tasks = fields.Integer()
-    start_date = fields.DateTime()
-    dag_run_timeout = fields.Nested(TimeDeltaSchema, attribute="dagrun_timeout")
-    doc_md = fields.String()
-    default_view = fields.String()
+    timezone = TimezoneField(dump_only=True)
+    catchup = fields.Boolean(dump_only=True)
+    orientation = fields.String(dump_only=True)
+    concurrency = fields.Method("get_concurrency", dump_only=True)  # TODO: Remove in Airflow 3.0
+    max_active_tasks = fields.Integer(dump_only=True)
+    dataset_expression = fields.Dict(allow_none=True)
+    start_date = fields.DateTime(dump_only=True)
+    dag_run_timeout = fields.Nested(TimeDeltaSchema, attribute="dagrun_timeout", dump_only=True)
+    doc_md = fields.String(dump_only=True)
+    default_view = fields.String(dump_only=True)
     params = fields.Method("get_params", dump_only=True)
     tags = fields.Method("get_tags", dump_only=True)  # type: ignore
     is_paused = fields.Method("get_is_paused", dump_only=True)
     is_active = fields.Method("get_is_active", dump_only=True)
-    is_paused_upon_creation = fields.Boolean()
+    is_paused_upon_creation = fields.Boolean(dump_only=True)
     end_date = fields.DateTime(dump_only=True)
-    template_search_path = fields.String(dump_only=True)
+    template_searchpath = fields.String(dump_only=True)
     render_template_as_native_obj = fields.Boolean(dump_only=True)
     last_loaded = fields.DateTime(dump_only=True, data_key="last_parsed")
 
@@ -117,10 +122,10 @@ class DAGDetailSchema(DAGSchema):
 
     @staticmethod
     def get_tags(obj: DAG):
-        """Dumps tags as objects."""
+        """Dump tags as objects."""
         tags = obj.tags
         if tags:
-            return [DagTagSchema().dump(dict(name=tag)) for tag in tags]
+            return [DagTagSchema().dump({"name": tag}) for tag in tags]
         return []
 
     @staticmethod
@@ -132,12 +137,12 @@ class DAGDetailSchema(DAGSchema):
 
     @staticmethod
     def get_is_paused(obj: DAG):
-        """Checks entry in DAG table to see if this DAG is paused."""
+        """Check entry in DAG table to see if this DAG is paused."""
         return obj.get_is_paused()
 
     @staticmethod
     def get_is_active(obj: DAG):
-        """Checks entry in DAG table to see if this DAG is active."""
+        """Check entry in DAG table to see if this DAG is active."""
         return obj.get_is_active()
 
     @staticmethod

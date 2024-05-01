@@ -148,6 +148,22 @@ generated using the secret key has a short expiry time though - make sure that t
 that you run airflow components on is synchronized (for example using ntpd) otherwise you might get
 "forbidden" errors when the logs are accessed.
 
+Eviction configuration
+----------------------
+When running Airflow along with the `Kubernetes Cluster Autoscaler <https://github.com/kubernetes/autoscaler>`_, it is important to configure whether pods can be safely evicted.
+This setting can be configured in the Airflow chart at different levels:
+
+.. code-block:: yaml
+
+  workers:
+    safeToEvict: true
+  scheduler:
+    safeToEvict: true
+  webserver:
+    safeToEvict: true
+
+When using ``KubernetesExecutor``, ``workers.safeToEvict`` should be set to ``false`` to avoid them being removed before finishing.
+
 Extending and customizing Airflow Image
 ---------------------------------------
 
@@ -208,10 +224,34 @@ They match, right? Good. Now, add the public key to your values. It'll look some
           github.com ssh-rsa AAAA...1/wsjk=
 
 
+External Scheduler
+^^^^^^^^^^^^^^^^^^
+
+To use an external Scheduler instance:
+
+.. code-block:: yaml
+
+  scheduler:
+    enabled: false
+
+Ensure that your external webserver/scheduler is connected to the same redis host. This will ensure the scheduler is aware of the workers deployed in the helm-chart.
+
 Accessing the Airflow UI
 ------------------------
 
 How you access the Airflow UI will depend on your environment; however, the chart does support various options:
+
+External Webserver
+^^^^^^^^^^^^^^^^^^
+
+To use an external Webserver:
+
+.. code-block:: yaml
+
+  webserver:
+    enabled: false
+
+Ensure that your external webserver/scheduler is connected to the same redis host. This will ensure the scheduler is aware of the workers deployed in the helm-chart.
 
 Ingress
 ^^^^^^^

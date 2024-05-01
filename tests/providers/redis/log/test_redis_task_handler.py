@@ -30,6 +30,8 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
 
 class TestRedisTaskHandler:
     @pytest.fixture
@@ -63,7 +65,7 @@ class TestRedisTaskHandler:
 
         key = (
             "dag_id=dag_for_testing_redis_task_handler/run_id=test"
-            + "/task_id=task_for_testing_redis_log_handler/attempt=1.log"
+            "/task_id=task_for_testing_redis_log_handler/attempt=1.log"
         )
 
         with patch("redis.Redis.pipeline") as pipeline:
@@ -83,7 +85,7 @@ class TestRedisTaskHandler:
 
         key = (
             "dag_id=dag_for_testing_redis_task_handler/run_id=test"
-            + "/task_id=task_for_testing_redis_log_handler/attempt=1.log"
+            "/task_id=task_for_testing_redis_log_handler/attempt=1.log"
         )
 
         with patch("redis.Redis.lrange") as lrange:

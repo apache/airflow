@@ -95,11 +95,6 @@ $("#dag_query").on("keypress", (e) => {
   }
 });
 
-$("#page_size").on("change", function onPageSizeChange() {
-  const pSize = $(this).val();
-  window.location = `${DAGS_INDEX}?page_size=${pSize}`;
-});
-
 $.each($("[id^=toggle]"), function toggleId() {
   const $input = $(this);
   const dagId = $input.data("dag-id");
@@ -130,6 +125,9 @@ $(".typeahead").typeahead({
       },
       success: callback,
     });
+  },
+  displayText(value) {
+    return value.dag_display_name || value.name;
   },
   autoSelect: false,
   afterSelect(value) {

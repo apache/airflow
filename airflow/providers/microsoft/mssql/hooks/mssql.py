@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Microsoft SQLServer hook module."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -92,7 +93,7 @@ class MsSqlHook(DbApiHook):
         return engine.connect(**(connect_kwargs or {}))
 
     def get_conn(self) -> pymssql.connect:
-        """Returns a mssql connection object."""
+        """Return ``pymssql`` connection object."""
         conn = self.get_connection(self.mssql_conn_id)  # type: ignore[attr-defined]
 
         conn = pymssql.connect(

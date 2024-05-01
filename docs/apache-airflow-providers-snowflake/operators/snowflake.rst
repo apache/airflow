@@ -82,13 +82,13 @@ the connection metadata is structured as follows:
    * - Parameter
      - Input
    * - Login: string
-     - Snowflake user name
+     - Snowflake user name. If using `OAuth connection <https://docs.snowflake.com/en/developer-guide/sql-api/authenticating#using-oauth>`__ this is the ``client_id``
    * - Password: string
-     - Password for Snowflake user
+     - Password for Snowflake user. If using OAuth this is the ``client_secret``
    * - Schema: string
      - Set schema to execute SQL operations on by default
    * - Extra: dictionary
-     - ``warehouse``, ``account``, ``database``, ``region``, ``role``, ``authenticator``
+     - ``warehouse``, ``account``, ``database``, ``region``, ``role``, ``authenticator``, ``refresh_token``. If using OAuth must specify ``refresh_token`` (`obtained here <https://community.snowflake.com/s/article/HOW-TO-OAUTH-TOKEN-GENERATION-USING-SNOWFLAKE-CUSTOM-OAUTH>`__)
 
 An example usage of the SnowflakeSqlApiHook is as follows:
 

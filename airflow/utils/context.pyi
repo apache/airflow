@@ -26,11 +26,12 @@
 # declare "these are defined, but don't error if others are accessed" someday.
 from __future__ import annotations
 
-from typing import Any, Collection, Container, Iterable, Mapping, overload
+from typing import Any, Collection, Container, Iterable, Iterator, Mapping, overload
 
 from pendulum import DateTime
 
 from airflow.configuration import AirflowConfigParser
+from airflow.datasets import Dataset
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
@@ -55,7 +56,18 @@ class VariableAccessor:
 class ConnectionAccessor:
     def get(self, key: str, default_conn: Any = None) -> Any: ...
 
-# NOTE: Please keep this in sync with KNOWN_CONTEXT_KEYS in airflow/utils/context.py.
+class DatasetEventAccessor:
+    def __init__(self, *, extra: dict[str, Any]) -> None: ...
+    extra: dict[str, Any]
+
+class DatasetEventAccessors(Mapping[str, DatasetEventAccessor]):
+    def __iter__(self) -> Iterator[str]: ...
+    def __len__(self) -> int: ...
+    def __getitem__(self, key: str | Dataset) -> DatasetEventAccessor: ...
+
+# NOTE: Please keep this in sync with the following:
+# * KNOWN_CONTEXT_KEYS in airflow/utils/context.py
+# * Table in docs/apache-airflow/templates-ref.rst
 class Context(TypedDict, total=False):
     conf: AirflowConfigParser
     conn: Any
@@ -63,14 +75,16 @@ class Context(TypedDict, total=False):
     dag_run: DagRun | DagRunPydantic
     data_interval_end: DateTime
     data_interval_start: DateTime
+    dataset_events: DatasetEventAccessors
     ds: str
     ds_nodash: str
-    exception: KeyboardInterrupt | Exception | str | None
+    exception: BaseException | str | None
     execution_date: DateTime
     expanded_ti_count: int | None
     inlets: list
     logical_date: DateTime
     macros: Any
+    map_index_template: str
     next_ds: str | None
     next_ds_nodash: str | None
     next_execution_date: DateTime | None
@@ -83,6 +97,8 @@ class Context(TypedDict, total=False):
     prev_execution_date: DateTime | None
     prev_execution_date_success: DateTime | None
     prev_start_date_success: DateTime | None
+    prev_end_date_success: DateTime | None
+    reason: str | None
     run_id: str
     task: BaseOperator
     task_instance: TaskInstance | TaskInstancePydantic
@@ -112,3 +128,4 @@ def context_merge(context: Context, **kwargs: Any) -> None: ...
 def context_update_for_unmapped(context: Context, task: BaseOperator) -> None: ...
 def context_copy_partial(source: Context, keys: Container[str]) -> Context: ...
 def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]: ...
+def context_get_dataset_events(context: Context) -> DatasetEventAccessors: ...

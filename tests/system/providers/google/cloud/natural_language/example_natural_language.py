@@ -18,6 +18,7 @@
 """
 Example Airflow DAG for Google Cloud Natural Language service
 """
+
 from __future__ import annotations
 
 import os
@@ -25,7 +26,7 @@ from datetime import datetime
 
 from google.cloud.language_v1 import Document
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.natural_language import (
     CloudNaturalLanguageAnalyzeEntitiesOperator,
@@ -54,7 +55,7 @@ document_gcs = Document(gcs_content_uri=GCS_CONTENT_URI, type="PLAIN_TEXT")
 # [END howto_operator_gcp_natural_language_document_gcs]
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),

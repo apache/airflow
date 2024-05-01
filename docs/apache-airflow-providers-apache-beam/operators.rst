@@ -27,7 +27,7 @@ back-ends, which include Apache Flink, Apache Spark, and Google Cloud Dataflow.
 .. note::
     This operator requires ``gcloud`` command (Google Cloud SDK) to be installed on the Airflow worker
     <https://cloud.google.com/sdk/docs/install> when the Apache Beam pipeline runs on the
-    [Dataflow service](https://cloud.google.com/dataflow/docs).
+    `Dataflow service <https://cloud.google.com/dataflow/docs>`_.
 
 
 .. _howto/operator:BeamRunPythonPipelineOperator:

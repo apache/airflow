@@ -17,18 +17,19 @@
 # under the License.
 from __future__ import annotations
 
-import os.path
+import os
 import urllib.parse
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow import AirflowException
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
 from airflow.providers.amazon.aws.triggers.glue import GlueJobCompleteTrigger
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -53,7 +54,8 @@ class GlueJobOperator(BaseOperator):
     :param num_of_dpus: Number of AWS Glue DPUs to allocate to this Job.
     :param region_name: aws region name (example: us-east-1)
     :param s3_bucket: S3 bucket where logs and local etl script will be uploaded
-    :param iam_role_name: AWS IAM Role for Glue Job Execution
+    :param iam_role_name: AWS IAM Role for Glue Job Execution. If set `iam_role_arn` must equal None.
+    :param iam_role_arn: AWS IAM ARN for Glue Job Execution. If set `iam_role_name` must equal None.
     :param create_job_kwargs: Extra arguments for Glue Job Creation
     :param run_job_kwargs: Extra arguments for Glue Job Run
     :param wait_for_completion: Whether to wait for job run completion. (default: True)
@@ -62,6 +64,7 @@ class GlueJobOperator(BaseOperator):
         (default: False)
     :param verbose: If True, Glue Job Run logs show in the Airflow Task Logs.  (default: False)
     :param update_config: If True, Operator will update job configuration.  (default: False)
+    :param replace_script_file: If True, the script file will be replaced in S3. (default: False)
     :param stop_job_run_on_kill: If True, Operator will stop the job run when task is killed.
     """
 
@@ -72,6 +75,7 @@ class GlueJobOperator(BaseOperator):
         "create_job_kwargs",
         "s3_bucket",
         "iam_role_name",
+        "iam_role_arn",
     )
     template_ext: Sequence[str] = ()
     template_fields_renderers = {
@@ -92,15 +96,17 @@ class GlueJobOperator(BaseOperator):
         script_args: dict | None = None,
         retry_limit: int = 0,
         num_of_dpus: int | float | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
         s3_bucket: str | None = None,
         iam_role_name: str | None = None,
+        iam_role_arn: str | None = None,
         create_job_kwargs: dict | None = None,
         run_job_kwargs: dict | None = None,
         wait_for_completion: bool = True,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         verbose: bool = False,
+        replace_script_file: bool = False,
         update_config: bool = False,
         job_poll_interval: int | float = 6,
         stop_job_run_on_kill: bool = False,
@@ -118,6 +124,7 @@ class GlueJobOperator(BaseOperator):
         self.region_name = region_name
         self.s3_bucket = s3_bucket
         self.iam_role_name = iam_role_name
+        self.iam_role_arn = iam_role_arn
         self.s3_protocol = "s3://"
         self.s3_artifacts_prefix = "artifacts/glue-scripts/"
         self.create_job_kwargs = create_job_kwargs
@@ -125,6 +132,7 @@ class GlueJobOperator(BaseOperator):
         self.wait_for_completion = wait_for_completion
         self.verbose = verbose
         self.update_config = update_config
+        self.replace_script_file = replace_script_file
         self.deferrable = deferrable
         self.job_poll_interval = job_poll_interval
         self.stop_job_run_on_kill = stop_job_run_on_kill
@@ -138,7 +146,10 @@ class GlueJobOperator(BaseOperator):
             s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
             script_name = os.path.basename(self.script_location)
             s3_hook.load_file(
-                self.script_location, self.s3_artifacts_prefix + script_name, bucket_name=self.s3_bucket
+                self.script_location,
+                self.s3_artifacts_prefix + script_name,
+                bucket_name=self.s3_bucket,
+                replace=self.replace_script_file,
             )
             s3_script_location = f"s3://{self.s3_bucket}/{self.s3_artifacts_prefix}{script_name}"
         else:
@@ -154,6 +165,7 @@ class GlueJobOperator(BaseOperator):
             region_name=self.region_name,
             s3_bucket=self.s3_bucket,
             iam_role_name=self.iam_role_name,
+            iam_role_arn=self.iam_role_arn,
             create_job_kwargs=self.create_job_kwargs,
             update_config=self.update_config,
             job_poll_interval=self.job_poll_interval,
@@ -210,7 +222,9 @@ class GlueJobOperator(BaseOperator):
             self.log.info("AWS Glue Job: %s. Run Id: %s", self.job_name, self._job_run_id)
         return self._job_run_id
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             raise AirflowException(f"Error in glue job: {event}")
         return event["value"]

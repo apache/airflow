@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from functools import cached_property
 
 import hvac
@@ -73,6 +74,9 @@ class _VaultClient(LoggingMixin):
     :param key_id: Key ID for Authentication (for ``aws_iam`` and ''azure`` auth_type).
     :param secret_id: Secret ID for Authentication (for ``approle``, ``aws_iam`` and ``azure`` auth_types).
     :param role_id: Role ID for Authentication (for ``approle``, ``aws_iam`` auth_types).
+    :param assume_role_kwargs: AWS assume role param.
+        See AWS STS Docs:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sts/client/assume_role.html
     :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type).
     :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, default:
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``).
@@ -102,6 +106,7 @@ class _VaultClient(LoggingMixin):
         password: str | None = None,
         key_id: str | None = None,
         secret_id: str | None = None,
+        assume_role_kwargs: dict | None = None,
         role_id: str | None = None,
         kubernetes_role: str | None = None,
         kubernetes_jwt_path: str | None = "/var/run/secrets/kubernetes.io/serviceaccount/token",
@@ -125,7 +130,7 @@ class _VaultClient(LoggingMixin):
             raise VaultError(
                 f"The auth_type is not supported: {auth_type}. It should be one of {VALID_AUTH_TYPES}"
             )
-        if auth_type == "token" and not token and not token_path:
+        if auth_type == "token" and not token and not token_path and "VAULT_TOKEN" not in os.environ:
             raise VaultError("The 'token' authentication type requires 'token' or 'token_path'")
         if auth_type == "github" and not token and not token_path:
             raise VaultError("The 'github' authentication type requires 'token' or 'token_path'")
@@ -147,11 +152,11 @@ class _VaultClient(LoggingMixin):
             if not radius_secret:
                 raise VaultError("The 'radius' authentication type requires 'radius_secret'")
 
-        self.kv_engine_version = kv_engine_version if kv_engine_version else 2
+        self.kv_engine_version = kv_engine_version or 2
         self.url = url
         self.auth_type = auth_type
         self.kwargs = kwargs
-        self.token = token
+        self.token = token or os.getenv("VAULT_TOKEN", None)
         self.token_path = token_path
         self.auth_mount_point = auth_mount_point
         self.mount_point = mount_point
@@ -160,6 +165,7 @@ class _VaultClient(LoggingMixin):
         self.key_id = key_id
         self.secret_id = secret_id
         self.role_id = role_id
+        self.assume_role_kwargs = assume_role_kwargs
         self.kubernetes_role = kubernetes_role
         self.kubernetes_jwt_path = kubernetes_jwt_path
         self.gcp_key_path = gcp_key_path
@@ -317,15 +323,36 @@ class _VaultClient(LoggingMixin):
             )
 
     def _auth_aws_iam(self, _client: hvac.Client) -> None:
-        if self.auth_mount_point:
-            _client.auth.aws.iam_login(
-                access_key=self.key_id,
-                secret_key=self.secret_id,
-                role=self.role_id,
-                mount_point=self.auth_mount_point,
-            )
+        if self.key_id and self.secret_id:
+            auth_args = {
+                "access_key": self.key_id,
+                "secret_key": self.secret_id,
+                "role": self.role_id,
+            }
         else:
-            _client.auth.aws.iam_login(access_key=self.key_id, secret_key=self.secret_id, role=self.role_id)
+            import boto3
+
+            if self.assume_role_kwargs:
+                sts_client = boto3.client("sts")
+                credentials = sts_client.assume_role(**self.assume_role_kwargs)
+                auth_args = {
+                    "access_key": credentials["Credentials"]["AccessKeyId"],
+                    "secret_key": credentials["Credentials"]["SecretAccessKey"],
+                    "session_token": credentials["Credentials"]["SessionToken"],
+                }
+            else:
+                session = boto3.Session()
+                credentials = session.get_credentials()
+                auth_args = {
+                    "access_key": credentials.access_key,
+                    "secret_key": credentials.secret_key,
+                    "session_token": credentials.token,
+                }
+
+        if self.auth_mount_point:
+            auth_args["mount_point"] = self.auth_mount_point
+
+        _client.auth.aws.iam_login(**auth_args)
 
     def _auth_approle(self, _client: hvac.Client) -> None:
         if self.auth_mount_point:
@@ -373,7 +400,10 @@ class _VaultClient(LoggingMixin):
                 response = self.client.secrets.kv.v1.read_secret(path=secret_path, mount_point=mount_point)
             else:
                 response = self.client.secrets.kv.v2.read_secret_version(
-                    path=secret_path, mount_point=mount_point, version=secret_version
+                    path=secret_path,
+                    mount_point=mount_point,
+                    version=secret_version,
+                    raise_on_deleted_version=True,
                 )
         except InvalidPath:
             self.log.debug("Secret not found %s with mount point %s", secret_path, mount_point)
@@ -384,7 +414,7 @@ class _VaultClient(LoggingMixin):
 
     def get_secret_metadata(self, secret_path: str) -> dict | None:
         """
-        Reads secret metadata (including versions) from the engine. It is only valid for KV version 2.
+        Read secret metadata (including versions) from the engine. It is only valid for KV version 2.
 
         :param secret_path: The path of the secret.
         :return: secret metadata. This is a Dict containing metadata for the secret.
@@ -406,7 +436,7 @@ class _VaultClient(LoggingMixin):
         self, secret_path: str, secret_version: int | None = None
     ) -> dict | None:
         """
-        Reads secret including metadata. It is only valid for KV version 2.
+        Read secret including metadata. It is only valid for KV version 2.
 
         See https://hvac.readthedocs.io/en/stable/usage/secrets_engines/kv_v2.html for details.
 
@@ -422,7 +452,10 @@ class _VaultClient(LoggingMixin):
         try:
             mount_point, secret_path = self._parse_secret_path(secret_path)
             return self.client.secrets.kv.v2.read_secret_version(
-                path=secret_path, mount_point=mount_point, version=secret_version
+                path=secret_path,
+                mount_point=mount_point,
+                version=secret_version,
+                raise_on_deleted_version=True,
             )
         except InvalidPath:
             self.log.debug(
@@ -437,7 +470,7 @@ class _VaultClient(LoggingMixin):
         self, secret_path: str, secret: dict, method: str | None = None, cas: int | None = None
     ) -> Response:
         """
-        Creates or updates secret.
+        Create or updates secret.
 
         :param secret_path: The path of the secret.
         :param secret: Secret to create or update for the path specified
@@ -461,10 +494,10 @@ class _VaultClient(LoggingMixin):
         mount_point, secret_path = self._parse_secret_path(secret_path)
         if self.kv_engine_version == 1:
             response = self.client.secrets.kv.v1.create_or_update_secret(
-                secret_path=secret_path, secret=secret, mount_point=mount_point, method=method
+                path=secret_path, secret=secret, mount_point=mount_point, method=method
             )
         else:
             response = self.client.secrets.kv.v2.create_or_update_secret(
-                secret_path=secret_path, secret=secret, mount_point=mount_point, cas=cas
+                path=secret_path, secret=secret, mount_point=mount_point, cas=cas
             )
         return response

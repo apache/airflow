@@ -1,0 +1,8 @@
+.travis.yml
+git_push.sh
+.gitlab-ci.yml
+requirements.txt
+setup.cfg
+setup.py
+test-requirements.txt
+tox.ini

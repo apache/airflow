@@ -19,15 +19,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.callbacks.base_callback_sink import BaseCallbackSink
-from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
-from airflow.executors.local_executor import LocalExecutor
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from airflow.callbacks.base_callback_sink import BaseCallbackSink
+    from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.executors.base_executor import CommandType, EventBufferValueType, QueuedTaskInstanceType
+    from airflow.executors.local_executor import LocalExecutor
     from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
 
 
@@ -156,7 +156,7 @@ class LocalKubernetesExecutor(LoggingMixin):
 
     def has_task(self, task_instance: TaskInstance) -> bool:
         """
-        Checks if a task is either queued or running in either local or kubernetes executor.
+        Check if a task is either queued or running in either local or kubernetes executor.
 
         :param task_instance: TaskInstance
         :return: True if the task is known to this executor
@@ -226,14 +226,15 @@ class LocalKubernetesExecutor(LoggingMixin):
         return self.local_executor
 
     def debug_dump(self) -> None:
-        """Called in response to SIGUSR2 by the scheduler."""
+        """Debug dump; called in response to SIGUSR2 by the scheduler."""
         self.log.info("Dumping LocalExecutor state")
         self.local_executor.debug_dump()
         self.log.info("Dumping KubernetesExecutor state")
         self.kubernetes_executor.debug_dump()
 
     def send_callback(self, request: CallbackRequest) -> None:
-        """Sends callback for execution.
+        """
+        Send callback for execution.
 
         :param request: Callback request to be executed.
         """

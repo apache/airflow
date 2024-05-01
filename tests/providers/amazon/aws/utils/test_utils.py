@@ -16,9 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
-
-import pytz
+import datetime
 
 from airflow.providers.amazon.aws.utils import (
     _StringCompareEnum,
@@ -28,7 +26,7 @@ from airflow.providers.amazon.aws.utils import (
     get_airflow_version,
 )
 
-DT = datetime(2000, 1, 1, tzinfo=pytz.UTC)
+DT = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
 EPOCH = 946_684_800
 
 

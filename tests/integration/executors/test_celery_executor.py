@@ -140,7 +140,7 @@ class TestCeleryExecutor:
                 ]
 
                 # "Enqueue" them. We don't have a real SimpleTaskInstance, so directly edit the dict
-                for key, command, queue, task in task_tuples_to_send:
+                for key, command, queue, _ in task_tuples_to_send:
                     executor.queued_tasks[key] = (command, 1, queue, None)
                     executor.task_publish_retries[key] = 1
 
@@ -311,7 +311,7 @@ class TestBulkStateFetcher:
             ):
                 caplog.clear()
                 mock_session = mock_backend.ResultSession.return_value
-                mock_session.query.return_value.filter.return_value.all.return_value = [
+                mock_session.scalars.return_value.all.return_value = [
                     mock.MagicMock(**{"to_dict.return_value": {"status": "SUCCESS", "task_id": "123"}})
                 ]
 
@@ -340,7 +340,7 @@ class TestBulkStateFetcher:
             ):
                 caplog.clear()
                 mock_session = mock_backend.ResultSession.return_value
-                mock_retry_db_result = mock_session.query.return_value.filter.return_value.all
+                mock_retry_db_result = mock_session.scalars.return_value.all
                 mock_retry_db_result.return_value = [
                     mock.MagicMock(**{"to_dict.return_value": {"status": "SUCCESS", "task_id": "123"}})
                 ]

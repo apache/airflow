@@ -31,18 +31,18 @@ except AirflowOptionalProviderFeatureException:
 
 class TestLevelDBHook:
     @mock.patch.dict("os.environ", AIRFLOW_CONN_LEVELDB_DEFAULT="test")
-    def test_get_conn_db_is_not_none(self):
+    def test_get_conn_db_is_not_none(self, tmp_path):
         """Test get_conn method of hook"""
         hook = LevelDBHook(leveldb_conn_id="leveldb_default")
-        hook.get_conn(name="/tmp/testdb/", create_if_missing=True)
+        hook.get_conn(name=tmp_path.as_posix(), create_if_missing=True)
         assert hook.db is not None, "Check existence of DB object in connection creation"
         hook.close_conn()
 
     @mock.patch.dict("os.environ", AIRFLOW_CONN_LEVELDB_DEFAULT="test")
-    def test_run(self):
+    def test_run(self, tmp_path):
         """Test run method of hook"""
         hook = LevelDBHook(leveldb_conn_id="leveldb_default")
-        hook.get_conn(name="/tmp/testdb/", create_if_missing=True)
+        hook.get_conn(name=tmp_path.as_posix(), create_if_missing=True)
         assert hook.run("get", b"test_key0") is None, "Initially, this key in LevelDB is empty"
         hook.run("put", b"test_key0", b"test_value0")
         assert (
@@ -53,38 +53,38 @@ class TestLevelDBHook:
         hook.close_conn()
 
     @mock.patch.dict("os.environ", AIRFLOW_CONN_LEVELDB_DEFAULT="test")
-    def test_get(self):
+    def test_get(self, tmp_path):
         """Test get method of hook"""
         hook = LevelDBHook(leveldb_conn_id="leveldb_default")
-        db = hook.get_conn(name="/tmp/testdb/", create_if_missing=True)
+        db = hook.get_conn(name=tmp_path.as_posix(), create_if_missing=True)
         db.put(b"test_key", b"test_value")
         assert hook.get(b"test_key") == b"test_value"
         hook.close_conn()
 
     @mock.patch.dict("os.environ", AIRFLOW_CONN_LEVELDB_DEFAULT="test")
-    def test_put(self):
+    def test_put(self, tmp_path):
         """Test put method of hook"""
         hook = LevelDBHook(leveldb_conn_id="leveldb_default")
-        db = hook.get_conn(name="/tmp/testdb/", create_if_missing=True)
+        db = hook.get_conn(name=tmp_path.as_posix(), create_if_missing=True)
         hook.put(b"test_key2", b"test_value2")
         assert db.get(b"test_key2") == b"test_value2"
         hook.close_conn()
 
     @mock.patch.dict("os.environ", AIRFLOW_CONN_LEVELDB_DEFAULT="test")
-    def test_delete(self):
+    def test_delete(self, tmp_path):
         """Test delete method of hook"""
         hook = LevelDBHook(leveldb_conn_id="leveldb_default")
-        db = hook.get_conn(name="/tmp/testdb/", create_if_missing=True)
+        db = hook.get_conn(name=tmp_path.as_posix(), create_if_missing=True)
         db.put(b"test_key3", b"test_value3")
         hook.delete(b"test_key3")
         assert db.get(b"test_key3") is None
         hook.close_conn()
 
     @mock.patch.dict("os.environ", AIRFLOW_CONN_LEVELDB_DEFAULT="test")
-    def test_write_batch(self):
+    def test_write_batch(self, tmp_path):
         """Test write batch method of hook"""
         hook = LevelDBHook(leveldb_conn_id="leveldb_default")
-        db = hook.get_conn(name="/tmp/testdb/", create_if_missing=True)
+        db = hook.get_conn(name=tmp_path.as_posix(), create_if_missing=True)
         keys = [b"key", b"another-key"]
         values = [b"value", b"another-value"]
         hook.write_batch(keys, values)
@@ -93,15 +93,15 @@ class TestLevelDBHook:
         hook.close_conn()
 
     @mock.patch.dict("os.environ", AIRFLOW_CONN_LEVELDB_DEFAULT="test")
-    def test_exception(self):
+    def test_exception(self, tmp_path):
         """Test raising exception of hook in run method if we have unknown command in input"""
         hook = LevelDBHook(leveldb_conn_id="leveldb_default")
-        hook.get_conn(name="/tmp/testdb/", create_if_missing=True)
+        hook.get_conn(name=tmp_path.as_posix(), create_if_missing=True)
         with pytest.raises(LevelDBHookException):
             hook.run(command="other_command", key=b"key", value=b"value")
 
     @mock.patch.dict("os.environ", AIRFLOW_CONN_LEVELDB_DEFAULT="test")
-    def test_comparator(self):
+    def test_comparator(self, tmp_path):
         """Test comparator"""
 
         def comparator(a, b):
@@ -121,7 +121,7 @@ class TestLevelDBHook:
 
         hook = LevelDBHook(leveldb_conn_id="leveldb_default")
         hook.get_conn(
-            name="/tmp/testdb2/",
+            name=tmp_path.as_posix(),
             create_if_missing=True,
             comparator=comparator,
             comparator_name=b"CaseInsensitiveComparator",

@@ -23,13 +23,14 @@ AWS Batch service waiters.
     - https://boto3.amazonaws.com/v1/documentation/api/latest/guide/clients.html#waiters
     - https://github.com/boto/botocore/blob/develop/botocore/waiter.py
 """
+
 from __future__ import annotations
 
 import json
 import sys
 from copy import deepcopy
 from pathlib import Path
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 import botocore.client
 import botocore.exceptions
@@ -37,7 +38,9 @@ import botocore.waiter
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
-from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
+
+if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 
 
 class BatchWaitersHook(BatchClientHook):
@@ -99,7 +102,6 @@ class BatchWaitersHook(BatchClientHook):
     """
 
     def __init__(self, *args, waiter_config: dict | None = None, **kwargs) -> None:
-
         super().__init__(*args, **kwargs)
 
         self._default_config: dict | None = None

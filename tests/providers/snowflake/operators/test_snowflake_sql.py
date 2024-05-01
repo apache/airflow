@@ -17,11 +17,29 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import pytest
-from databricks.sql.types import Row
-from openlineage.client.facet import SchemaDatasetFacet, SchemaField, SqlJobFacet
+from _pytest.outcomes import importorskip
+
+databricks = importorskip("databricks")
+
+try:
+    from databricks.sql.types import Row
+except ImportError:
+    # Row is used in the parametrize so it's parsed during collection and we need to have a viable
+    # replacement for the collection time when databricks is not installed (Python 3.12 for now)
+    def Row(*args, **kwargs):
+        return MagicMock()
+
+
+from openlineage.client.facet import (
+    ColumnLineageDatasetFacet,
+    ColumnLineageDatasetFacetFieldsAdditional,
+    ColumnLineageDatasetFacetFieldsAdditionalInputFields,
+    SqlJobFacet,
+)
 from openlineage.client.run import Dataset
 
 from airflow.models.connection import Connection
@@ -144,16 +162,18 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
         )
 
 
-def test_execute_openlineage_events():
+@mock.patch("airflow.providers.openlineage.utils.utils.should_use_external_connection")
+def test_execute_openlineage_events(should_use_external_connection):
+    should_use_external_connection.return_value = False
     DB_NAME = "DATABASE"
     DB_SCHEMA_NAME = "PUBLIC"
+
+    ANOTHER_DB_NAME = "ANOTHER_DB"
+    ANOTHER_DB_SCHEMA = "ANOTHER_SCHEMA"
 
     class SnowflakeHookForTests(SnowflakeHook):
         get_conn = MagicMock(name="conn")
         get_connection = MagicMock()
-
-        def get_first(self, *_):
-            return [f"{DB_NAME}.{DB_SCHEMA_NAME}"]
 
     dbapi_hook = SnowflakeHookForTests()
 
@@ -161,21 +181,47 @@ def test_execute_openlineage_events():
         def get_db_hook(self):
             return dbapi_hook
 
-    sql = """CREATE TABLE IF NOT EXISTS popular_orders_day_of_week (
-        order_day_of_week VARCHAR(64) NOT NULL,
-        order_placed_on   TIMESTAMP NOT NULL,
-        orders_placed     INTEGER NOT NULL
-    );
-FORGOT TO COMMENT"""
+    sql = (
+        "INSERT INTO Test_table\n"
+        "SELECT t1.*, t2.additional_constant FROM ANOTHER_DB.ANOTHER_SCHEMA.popular_orders_day_of_week t1\n"
+        "JOIN little_table t2 ON t1.order_day_of_week = t2.order_day_of_week;\n"
+        "FORGOT TO COMMENT"
+    )
+
     op = SnowflakeOperatorForTest(task_id="snowflake-operator", sql=sql)
     rows = [
-        (DB_SCHEMA_NAME, "POPULAR_ORDERS_DAY_OF_WEEK", "ORDER_DAY_OF_WEEK", 1, "TEXT"),
-        (DB_SCHEMA_NAME, "POPULAR_ORDERS_DAY_OF_WEEK", "ORDER_PLACED_ON", 2, "TIMESTAMP_NTZ"),
-        (DB_SCHEMA_NAME, "POPULAR_ORDERS_DAY_OF_WEEK", "ORDERS_PLACED", 3, "NUMBER"),
+        [
+            (
+                ANOTHER_DB_SCHEMA,
+                "POPULAR_ORDERS_DAY_OF_WEEK",
+                "ORDER_DAY_OF_WEEK",
+                1,
+                "TEXT",
+                ANOTHER_DB_NAME,
+            ),
+            (
+                ANOTHER_DB_SCHEMA,
+                "POPULAR_ORDERS_DAY_OF_WEEK",
+                "ORDER_PLACED_ON",
+                2,
+                "TIMESTAMP_NTZ",
+                ANOTHER_DB_NAME,
+            ),
+            (ANOTHER_DB_SCHEMA, "POPULAR_ORDERS_DAY_OF_WEEK", "ORDERS_PLACED", 3, "NUMBER", ANOTHER_DB_NAME),
+            (DB_SCHEMA_NAME, "LITTLE_TABLE", "ORDER_DAY_OF_WEEK", 1, "TEXT", DB_NAME),
+            (DB_SCHEMA_NAME, "LITTLE_TABLE", "ADDITIONAL_CONSTANT", 2, "TEXT", DB_NAME),
+        ],
+        [
+            (DB_SCHEMA_NAME, "TEST_TABLE", "ORDER_DAY_OF_WEEK", 1, "TEXT", DB_NAME),
+            (DB_SCHEMA_NAME, "TEST_TABLE", "ORDER_PLACED_ON", 2, "TIMESTAMP_NTZ", DB_NAME),
+            (DB_SCHEMA_NAME, "TEST_TABLE", "ORDERS_PLACED", 3, "NUMBER", DB_NAME),
+            (DB_SCHEMA_NAME, "TEST_TABLE", "ADDITIONAL_CONSTANT", 4, "TEXT", DB_NAME),
+        ],
     ]
     dbapi_hook.get_connection.return_value = Connection(
         conn_id="snowflake_default",
         conn_type="snowflake",
+        schema="PUBLIC",
         extra={
             "account": "test_account",
             "region": "us-east",
@@ -183,22 +229,42 @@ FORGOT TO COMMENT"""
             "database": DB_NAME,
         },
     )
-    dbapi_hook.get_conn.return_value.cursor.return_value.fetchall.side_effect = [rows, []]
+    dbapi_hook.get_conn.return_value.cursor.return_value.fetchall.side_effect = rows
 
     lineage = op.get_openlineage_facets_on_start()
-    assert len(lineage.inputs) == 0
+    # Not calling Snowflake
+    assert dbapi_hook.get_conn.return_value.cursor.return_value.execute.mock_calls == []
+
+    assert lineage.inputs == [
+        Dataset(
+            namespace="snowflake://test_account.us-east.aws",
+            name=f"{DB_NAME}.{DB_SCHEMA_NAME}.LITTLE_TABLE",
+        ),
+        Dataset(
+            namespace="snowflake://test_account.us-east.aws",
+            name=f"{ANOTHER_DB_NAME}.{ANOTHER_DB_SCHEMA}.POPULAR_ORDERS_DAY_OF_WEEK",
+        ),
+    ]
     assert lineage.outputs == [
         Dataset(
             namespace="snowflake://test_account.us-east.aws",
-            name=f"{DB_NAME}.{DB_SCHEMA_NAME}.POPULAR_ORDERS_DAY_OF_WEEK",
+            name=f"{DB_NAME}.{DB_SCHEMA_NAME}.TEST_TABLE",
             facets={
-                "schema": SchemaDatasetFacet(
-                    fields=[
-                        SchemaField(name="ORDER_DAY_OF_WEEK", type="TEXT"),
-                        SchemaField(name="ORDER_PLACED_ON", type="TIMESTAMP_NTZ"),
-                        SchemaField(name="ORDERS_PLACED", type="NUMBER"),
-                    ]
-                )
+                "columnLineage": ColumnLineageDatasetFacet(
+                    fields={
+                        "additional_constant": ColumnLineageDatasetFacetFieldsAdditional(
+                            inputFields=[
+                                ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                                    namespace="snowflake://test_account.us-east.aws",
+                                    name="DATABASE.PUBLIC.little_table",
+                                    field="additional_constant",
+                                )
+                            ],
+                            transformationDescription="",
+                            transformationType="",
+                        )
+                    }
+                ),
             },
         )
     ]

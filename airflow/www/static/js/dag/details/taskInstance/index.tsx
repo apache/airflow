@@ -22,19 +22,21 @@ import { Box } from "@chakra-ui/react";
 
 import { useGridData, useTaskInstance } from "src/api";
 import { getMetaValue, getTask, useOffsetTop } from "src/utils";
-import type { DagRun, TaskInstance as TaskInstanceType } from "src/types";
+import type { DagRun, TaskInstance as GridTaskInstance } from "src/types";
 import NotesAccordion from "src/dag/details/NotesAccordion";
 
 import TaskNav from "./Nav";
 import ExtraLinks from "./ExtraLinks";
 import Details from "./Details";
+import DatasetUpdateEvents from "./DatasetUpdateEvents";
+import TriggererInfo from "./TriggererInfo";
 
 const dagId = getMetaValue("dag_id")!;
 
 interface Props {
   taskId: string;
   runId: DagRun["runId"];
-  mapIndex: TaskInstanceType["mapIndex"];
+  mapIndex: GridTaskInstance["mapIndex"];
 }
 
 const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
@@ -56,21 +58,15 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
   const isGroup = !!children;
   const isGroupOrMappedTaskSummary = isGroup || isMappedTaskSummary;
 
-  const { data: mappedTaskInstance } = useTaskInstance({
+  const { data: taskInstance } = useTaskInstance({
     dagId,
     dagRunId: runId,
     taskId,
     mapIndex,
-    enabled: isMapIndexDefined,
+    enabled: (!isGroup && !isMapped) || isMapIndexDefined,
   });
 
-  const instance = isMapIndexDefined
-    ? mappedTaskInstance
-    : group?.instances.find((ti) => ti.runId === runId);
-
-  if (!group || !run || !instance) return null;
-
-  const { executionDate } = run;
+  const gridInstance = group?.instances.find((ti) => ti.runId === runId);
 
   return (
     <Box
@@ -80,12 +76,12 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
       ref={taskInstanceRef}
       overflowY="auto"
     >
-      {!isGroup && (
+      {!isGroup && run?.executionDate && (
         <TaskNav
           taskId={taskId}
           isMapped={isMapped}
           mapIndex={mapIndex}
-          executionDate={executionDate}
+          executionDate={run?.executionDate}
           operator={operator}
         />
       )}
@@ -94,29 +90,33 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
           dagId={dagId}
           runId={runId}
           taskId={taskId}
-          mapIndex={instance.mapIndex}
-          initialValue={instance.note}
-          key={dagId + runId + taskId + instance.mapIndex}
-        />
-      )}
-      {isMapped && group.extraLinks && isMapIndexDefined && (
-        <ExtraLinks
-          taskId={taskId}
-          dagId={dagId}
           mapIndex={mapIndex}
-          executionDate={executionDate}
-          extraLinks={group?.extraLinks}
+          initialValue={gridInstance?.note || taskInstance?.note}
+          key={dagId + runId + taskId + mapIndex}
+          isAbandonedTask={!!taskId && !group}
         />
       )}
-      {!isMapped && group.extraLinks && (
-        <ExtraLinks
-          taskId={taskId}
-          dagId={dagId}
-          executionDate={executionDate}
-          extraLinks={group?.extraLinks}
-        />
+      {!!group?.extraLinks?.length &&
+        !isGroupOrMappedTaskSummary &&
+        run?.executionDate && (
+          <ExtraLinks
+            taskId={taskId}
+            dagId={dagId}
+            mapIndex={isMapped && isMapIndexDefined ? mapIndex : undefined}
+            executionDate={run.executionDate}
+            extraLinks={group.extraLinks}
+            tryNumber={taskInstance?.tryNumber || gridInstance?.tryNumber || 1}
+          />
+        )}
+      {group?.hasOutletDatasets && (
+        <DatasetUpdateEvents taskId={taskId} runId={runId} />
       )}
-      <Details instance={instance} group={group} dagId={dagId} />
+      <TriggererInfo taskInstance={taskInstance} />
+      <Details
+        gridInstance={gridInstance}
+        taskInstance={taskInstance}
+        group={group}
+      />
     </Box>
   );
 };

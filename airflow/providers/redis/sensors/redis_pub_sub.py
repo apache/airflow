@@ -64,7 +64,6 @@ class RedisPubSubSensor(BaseSensorOperator):
 
         # Process only message types
         if message and message["type"] == "message":
-
             context["ti"].xcom_push(key="message", value=message)
             self.pubsub.unsubscribe(self.channels)
 

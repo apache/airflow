@@ -21,14 +21,15 @@ import json
 from typing import TYPE_CHECKING, Any, Iterable, Sequence, cast
 
 from bson import json_util
-from pymongo.command_cursor import CommandCursor
-from pymongo.cursor import Cursor
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.mongo.hooks.mongo import MongoHook
 
 if TYPE_CHECKING:
+    from pymongo.command_cursor import CommandCursor
+    from pymongo.cursor import Cursor
+
     from airflow.utils.context import Context
 
 
@@ -63,7 +64,7 @@ class MongoToS3Operator(BaseOperator):
         self,
         *,
         mongo_conn_id: str = "mongo_default",
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         mongo_collection: str,
         mongo_query: list | dict,
         s3_bucket: str,

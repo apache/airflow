@@ -17,8 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest import mock
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -29,6 +29,9 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerStopPipelineOperator,
 )
 from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerPipelineTrigger
+
+if TYPE_CHECKING:
+    from unittest.mock import MagicMock
 
 
 class TestSageMakerStartPipelineOperator:

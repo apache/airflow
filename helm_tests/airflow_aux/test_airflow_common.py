@@ -24,11 +24,9 @@ from tests.charts.helm_template_generator import render_chart
 
 class TestAirflowCommon:
     """
-    This class holds tests that apply to more than 1 Airflow component so
-    we don't have to repeat tests everywhere.
+    Tests that apply to more than 1 Airflow component so we don't have to repeat tests everywhere.
 
-    The one general exception will be the KubernetesExecutor PodTemplateFile,
-    as it requires extra test setup.
+    The one general exception will be the KubernetesExecutor PodTemplateFile, as it requires extra test setup.
     """
 
     @pytest.mark.parametrize(
@@ -66,6 +64,22 @@ class TestAirflowCommon:
                 {
                     "subPath": "test/dags",
                     "mountPath": "/opt/airflow/dags",
+                    "name": "dags",
+                    "readOnly": False,
+                },
+            ),
+            (
+                {"mountPath": "/opt/airflow/dags/custom", "gitSync": {"enabled": True}},
+                {
+                    "mountPath": "/opt/airflow/dags/custom",
+                    "name": "dags",
+                    "readOnly": True,
+                },
+            ),
+            (
+                {"mountPath": "/opt/airflow/dags/custom", "persistence": {"enabled": True}},
+                {
+                    "mountPath": "/opt/airflow/dags/custom",
                     "name": "dags",
                     "readOnly": False,
                 },
@@ -126,8 +140,9 @@ class TestAirflowCommon:
 
     def test_annotations(self):
         """
-        Test Annotations are correctly applied on all pods created Scheduler, Webserver & Worker
-        deployments.
+        Test Annotations are correctly applied.
+
+        Verifies all pods created Scheduler, Webserver & Worker deployments.
         """
         release_name = "test-basic"
         k8s_objects = render_chart(
@@ -316,6 +331,7 @@ class TestAirflowCommon:
         )
         expected_vars = [
             "AIRFLOW__CORE__FERNET_KEY",
+            "AIRFLOW_HOME",
             "AIRFLOW_CONN_AIRFLOW_DB",
             "AIRFLOW__CELERY__BROKER_URL",
         ]
@@ -340,6 +356,7 @@ class TestAirflowCommon:
         )
         expected_vars = [
             "AIRFLOW__CORE__FERNET_KEY",
+            "AIRFLOW_HOME",
             "AIRFLOW__CORE__SQL_ALCHEMY_CONN",
             "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
             "AIRFLOW_CONN_AIRFLOW_DB",
@@ -388,6 +405,9 @@ class TestAirflowCommon:
                 "dagProcessor": {"priorityClassName": "low-priority-dag-processor"},
                 "webserver": {"priorityClassName": "low-priority-webserver"},
                 "workers": {"priorityClassName": "low-priority-worker"},
+                "cleanup": {"enabled": True, "priorityClassName": "low-priority-airflow-cleanup-pods"},
+                "migrateDatabaseJob": {"priorityClassName": "low-priority-run-airflow-migrations"},
+                "createUserJob": {"priorityClassName": "low-priority-create-user-job"},
             },
             show_only=[
                 "templates/flower/flower-deployment.yaml",
@@ -398,12 +418,18 @@ class TestAirflowCommon:
                 "templates/dag-processor/dag-processor-deployment.yaml",
                 "templates/webserver/webserver-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
+                "templates/cleanup/cleanup-cronjob.yaml",
+                "templates/jobs/migrate-database-job.yaml",
+                "templates/jobs/create-user-job.yaml",
             ],
         )
 
-        assert 7 == len(docs)
+        assert 10 == len(docs)
         for doc in docs:
             component = doc["metadata"]["labels"]["component"]
-            priority = doc["spec"]["template"]["spec"]["priorityClassName"]
+            if component == "airflow-cleanup-pods":
+                priority = doc["spec"]["jobTemplate"]["spec"]["template"]["spec"]["priorityClassName"]
+            else:
+                priority = doc["spec"]["template"]["spec"]["priorityClassName"]
 
             assert priority == f"low-priority-{component}"

@@ -304,7 +304,7 @@ def result(
 @cli.command("announce")
 @click.option(
     "--receiver_email",
-    default=",".join(list(MAILING_LIST.values())),
+    default=",".join(MAILING_LIST.values()),
     prompt="The receiver email (To:)",
     help="Receiver's email address. If more than 1, separate them by comma",
 )

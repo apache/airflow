@@ -30,13 +30,10 @@ Authenticating to Slack
 Authenticate to Slack using a `Slack API token
 <https://slack.com/help/articles/215770388-Create-and-regenerate-API-tokens>`_.
 
-Default Connection IDs
+Default Connection ID
 ----------------------
 
-.. warning::
-
-  The SlackHook and community provided operators not intend to use any Slack API Connection by default right now.
-  It might change in the future to ``slack_api_default``.
+  The default Slack API Connection ID is ``slack_api_default``.
 
 Configuring the Connection
 --------------------------

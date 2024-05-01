@@ -15,12 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains ODBC hook."""
+
 from __future__ import annotations
 
-from typing import Any
+from collections import namedtuple
+from typing import Any, List, Sequence, cast
 from urllib.parse import quote_plus
 
-import pyodbc
+from pyodbc import Connection, Row, connect
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.helpers import merge_dicts
@@ -54,6 +56,7 @@ class OdbcHook(DbApiHook):
     conn_type = "odbc"
     hook_name = "ODBC"
     supports_autocommit = True
+    supports_executemany = True
 
     default_driver: str | None = None
 
@@ -161,7 +164,7 @@ class OdbcHook(DbApiHook):
             if self.connection.port:
                 conn_str += f"PORT={self.connection.port};"
 
-            extra_exclude = {"driver", "dsn", "connect_kwargs", "sqlalchemy_scheme"}
+            extra_exclude = {"driver", "dsn", "connect_kwargs", "sqlalchemy_scheme", "placeholder"}
             extra_params = {
                 k: v for k, v in self.connection.extra_dejson.items() if k.lower() not in extra_exclude
             }
@@ -193,9 +196,9 @@ class OdbcHook(DbApiHook):
 
         return merged_connect_kwargs
 
-    def get_conn(self) -> pyodbc.Connection:
-        """Returns a pyodbc connection object."""
-        conn = pyodbc.connect(self.odbc_connection_string, **self.connect_kwargs)
+    def get_conn(self) -> Connection:
+        """Return ``pyodbc`` connection object."""
+        conn = connect(self.odbc_connection_string, **self.connect_kwargs)
         return conn
 
     def get_uri(self) -> str:
@@ -211,3 +214,18 @@ class OdbcHook(DbApiHook):
         engine = self.get_sqlalchemy_engine(engine_kwargs=engine_kwargs)
         cnx = engine.connect(**(connect_kwargs or {}))
         return cnx
+
+    def _make_common_data_structure(self, result: Sequence[Row] | Row) -> list[tuple] | tuple:
+        """Transform the pyodbc.Row objects returned from an SQL command into namedtuples."""
+        # Below ignored lines respect namedtuple docstring, but mypy do not support dynamically
+        # instantiated namedtuple, and will never do: https://github.com/python/mypy/issues/848
+        field_names: list[tuple[str, type]] | None = None
+        if not result:
+            return []
+        if isinstance(result, Sequence):
+            field_names = [col[0] for col in result[0].cursor_description]
+            row_object = namedtuple("Row", field_names, rename=True)  # type: ignore
+            return cast(List[tuple], [row_object(*row) for row in result])
+        else:
+            field_names = [col[0] for col in result.cursor_description]
+            return cast(tuple, namedtuple("Row", field_names, rename=True)(*result))  # type: ignore

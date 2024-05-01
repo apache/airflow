@@ -1,0 +1,9 @@
+/airflow_client
+/docs
+/dist
+/test
+/tmp
+/v1.yaml
+/.coverage
+/apache_airflow_client.egg-info/
+/.idea

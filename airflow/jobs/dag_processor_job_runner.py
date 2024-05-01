@@ -17,19 +17,21 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from airflow.dag_processing.manager import DagFileProcessorManager
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, perform_heartbeat
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from airflow.dag_processing.manager import DagFileProcessorManager
 
 
 def empty_callback(_: Any) -> None:
     pass
 
 
-class DagProcessorJobRunner(BaseJobRunner[Job], LoggingMixin):
+class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
     """
     DagProcessorJobRunner is a job runner that runs a DagFileProcessorManager processor.
 

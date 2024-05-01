@@ -71,13 +71,13 @@ class TestBaseChartTest:
             ("ServiceAccount", "test-basic-triggerer"),
             ("ServiceAccount", "test-basic-webserver"),
             ("ServiceAccount", "test-basic-worker"),
-            ("Secret", "test-basic-airflow-metadata"),
+            ("Secret", "test-basic-metadata"),
             ("Secret", "test-basic-broker-url"),
             ("Secret", "test-basic-fernet-key"),
             ("Secret", "test-basic-webserver-secret-key"),
             ("Secret", "test-basic-postgresql"),
             ("Secret", "test-basic-redis-password"),
-            ("ConfigMap", "test-basic-airflow-config"),
+            ("ConfigMap", "test-basic-config"),
             ("ConfigMap", "test-basic-statsd"),
             ("Role", "test-basic-pod-launcher-role"),
             ("Role", "test-basic-pod-log-reader-role"),
@@ -100,7 +100,7 @@ class TestBaseChartTest:
             ("Job", "test-basic-run-airflow-migrations"),
         }
         if version == "2.3.2":
-            expected.add(("Secret", "test-basic-airflow-result-backend"))
+            expected.add(("Secret", "test-basic-result-backend"))
         if version == "default":
             expected.add(("Service", "test-basic-triggerer"))
         assert list_of_kind_names_tuples == expected
@@ -117,6 +117,54 @@ class TestBaseChartTest:
             assert "TEST-VALUE" == labels.get(
                 "test-label"
             ), f"Missing label test-label on {k8s_name}. Current labels: {labels}"
+
+    def test_basic_deployments_with_standard_naming(self):
+        k8s_objects = render_chart(
+            "test-basic",
+            {"useStandardNaming": True},
+        )
+        list_of_kind_names_tuples = {
+            (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
+        }
+        expected = {
+            ("ServiceAccount", "test-basic-airflow-create-user-job"),
+            ("ServiceAccount", "test-basic-airflow-migrate-database-job"),
+            ("ServiceAccount", "test-basic-airflow-redis"),
+            ("ServiceAccount", "test-basic-airflow-scheduler"),
+            ("ServiceAccount", "test-basic-airflow-statsd"),
+            ("ServiceAccount", "test-basic-airflow-triggerer"),
+            ("ServiceAccount", "test-basic-airflow-webserver"),
+            ("ServiceAccount", "test-basic-airflow-worker"),
+            ("Secret", "test-basic-airflow-metadata"),
+            ("Secret", "test-basic-broker-url"),
+            ("Secret", "test-basic-fernet-key"),
+            ("Secret", "test-basic-airflow-webserver-secret-key"),
+            ("Secret", "test-basic-redis-password"),
+            ("Secret", "test-basic-postgresql"),
+            ("ConfigMap", "test-basic-airflow-config"),
+            ("ConfigMap", "test-basic-airflow-statsd"),
+            ("Role", "test-basic-airflow-pod-launcher-role"),
+            ("Role", "test-basic-airflow-pod-log-reader-role"),
+            ("RoleBinding", "test-basic-airflow-pod-launcher-rolebinding"),
+            ("RoleBinding", "test-basic-airflow-pod-log-reader-rolebinding"),
+            ("Service", "test-basic-airflow-redis"),
+            ("Service", "test-basic-airflow-statsd"),
+            ("Service", "test-basic-airflow-triggerer"),
+            ("Service", "test-basic-airflow-webserver"),
+            ("Service", "test-basic-airflow-worker"),
+            ("Service", "test-basic-postgresql"),
+            ("Service", "test-basic-postgresql-hl"),
+            ("Deployment", "test-basic-airflow-scheduler"),
+            ("Deployment", "test-basic-airflow-statsd"),
+            ("Deployment", "test-basic-airflow-webserver"),
+            ("StatefulSet", "test-basic-airflow-redis"),
+            ("StatefulSet", "test-basic-airflow-worker"),
+            ("StatefulSet", "test-basic-airflow-triggerer"),
+            ("StatefulSet", "test-basic-postgresql"),
+            ("Job", "test-basic-airflow-create-user"),
+            ("Job", "test-basic-airflow-run-airflow-migrations"),
+        }
+        assert list_of_kind_names_tuples == expected
 
     @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
     def test_basic_deployment_with_standalone_dag_processor(self, version):
@@ -150,13 +198,13 @@ class TestBaseChartTest:
             ("ServiceAccount", "test-basic-dag-processor"),
             ("ServiceAccount", "test-basic-webserver"),
             ("ServiceAccount", "test-basic-worker"),
-            ("Secret", "test-basic-airflow-metadata"),
+            ("Secret", "test-basic-metadata"),
             ("Secret", "test-basic-broker-url"),
             ("Secret", "test-basic-fernet-key"),
             ("Secret", "test-basic-webserver-secret-key"),
             ("Secret", "test-basic-postgresql"),
             ("Secret", "test-basic-redis-password"),
-            ("ConfigMap", "test-basic-airflow-config"),
+            ("ConfigMap", "test-basic-config"),
             ("ConfigMap", "test-basic-statsd"),
             ("Role", "test-basic-pod-launcher-role"),
             ("Role", "test-basic-pod-log-reader-role"),
@@ -180,7 +228,7 @@ class TestBaseChartTest:
             ("Job", "test-basic-run-airflow-migrations"),
         }
         if version == "2.3.2":
-            expected.add(("Secret", "test-basic-airflow-result-backend"))
+            expected.add(("Secret", "test-basic-result-backend"))
         if version == "default":
             expected.add(("Service", "test-basic-triggerer"))
         assert list_of_kind_names_tuples == expected
@@ -294,13 +342,13 @@ class TestBaseChartTest:
 
         kind_names_tuples = [
             (f"{release_name}-airflow-cleanup", "ServiceAccount", None),
-            (f"{release_name}-airflow-config", "ConfigMap", "config"),
+            (f"{release_name}-config", "ConfigMap", "config"),
             (f"{release_name}-airflow-create-user-job", "ServiceAccount", "create-user-job"),
             (f"{release_name}-airflow-flower", "ServiceAccount", "flower"),
-            (f"{release_name}-airflow-metadata", "Secret", None),
+            (f"{release_name}-metadata", "Secret", None),
             (f"{release_name}-airflow-migrate-database-job", "ServiceAccount", "run-airflow-migrations"),
             (f"{release_name}-airflow-pgbouncer", "ServiceAccount", "pgbouncer"),
-            (f"{release_name}-airflow-result-backend", "Secret", None),
+            (f"{release_name}-result-backend", "Secret", None),
             (f"{release_name}-airflow-redis", "ServiceAccount", "redis"),
             (f"{release_name}-airflow-scheduler", "ServiceAccount", "scheduler"),
             (f"{release_name}-airflow-statsd", "ServiceAccount", "statsd"),
@@ -341,7 +389,7 @@ class TestBaseChartTest:
             (f"{release_name}-webserver-secret-key", "Secret", "webserver"),
             (f"{release_name}-webserver", "Service", "webserver"),
             (f"{release_name}-webserver-policy", "NetworkPolicy", "airflow-webserver-policy"),
-            (f"{release_name}-airflow-ingress", "Ingress", "airflow-ingress"),
+            (f"{release_name}-ingress", "Ingress", "airflow-ingress"),
             (f"{release_name}-worker", "Service", "worker"),
             (f"{release_name}-worker", "StatefulSet", "worker"),
             (f"{release_name}-worker-policy", "NetworkPolicy", "airflow-worker-policy"),
@@ -408,8 +456,9 @@ class TestBaseChartTest:
 
     def test_annotations_on_airflow_pods_in_deployment(self):
         """
-        Test Annotations are correctly applied on all pods created Scheduler, Webserver & Worker
-        deployments.
+        Test Annotations are correctly applied.
+
+        Verifies all pods created Scheduler, Webserver & Worker deployments.
         """
         release_name = "test-basic"
         k8s_objects = render_chart(
@@ -441,10 +490,7 @@ class TestBaseChartTest:
 
     def test_chart_is_consistent_with_official_airflow_image(self):
         def get_k8s_objs_with_image(obj: list[Any] | dict[str, Any]) -> list[dict[str, Any]]:
-            """
-            Recursive helper to retrieve all the k8s objects that have an "image" key
-            inside k8s obj or list of k8s obj.
-            """
+            """Retrieve all the k8s objects that have an "image" key inside k8s obj or list of k8s obj."""
             out = []
             if isinstance(obj, list):
                 for item in obj:
@@ -527,6 +573,32 @@ class TestBaseChartTest:
             == base64.b64decode(doc["data"]["connection"]).decode("utf-8")
         )
 
+    def test_postgres_connection_url_pgbouncer(self):
+        # no nameoverride, pgbouncer
+        doc = render_chart(
+            "my-release",
+            show_only=["templates/secrets/metadata-connection-secret.yaml"],
+            values={"pgbouncer": {"enabled": True}},
+        )[0]
+        assert (
+            "postgresql://postgres:postgres@my-release-pgbouncer.default:6543/"
+            "my-release-metadata?sslmode=disable"
+            == base64.b64decode(doc["data"]["connection"]).decode("utf-8")
+        )
+
+    def test_postgres_connection_url_pgbouncer_use_standard_naming(self):
+        # no nameoverride, pgbouncer and useStandardNaming
+        doc = render_chart(
+            "my-release",
+            show_only=["templates/secrets/metadata-connection-secret.yaml"],
+            values={"useStandardNaming": True, "pgbouncer": {"enabled": True}},
+        )[0]
+        assert (
+            "postgresql://postgres:postgres@my-release-airflow-pgbouncer.default:6543/"
+            "my-release-metadata?sslmode=disable"
+            == base64.b64decode(doc["data"]["connection"]).decode("utf-8")
+        )
+
     def test_postgres_connection_url_name_override(self):
         # nameoverride provided
         doc = render_chart(
@@ -559,6 +631,7 @@ class TestBaseChartTest:
             assert objs[i]["metadata"]["name"] == ("my-release" + "-" + pc[i]["name"])
             assert objs[i]["preemptionPolicy"] == pc[i]["preemptionPolicy"]
             assert objs[i]["value"] == pc[i]["value"]
+            assert objs[i]["description"] == "This priority class will not cause other pods to be preempted."
 
     def test_priority_classes_default_preemption(self):
         obj = render_chart(
@@ -572,6 +645,29 @@ class TestBaseChartTest:
         )[0]
 
         assert obj["preemptionPolicy"] == "PreemptLowerPriority"
+        assert obj["description"] == "This priority class will not cause other pods to be preempted."
+
+    def test_redis_broker_connection_url(self):
+        # no nameoverride, redis
+        doc = render_chart(
+            "my-release",
+            show_only=["templates/secrets/redis-secrets.yaml"],
+            values={"redis": {"enabled": True, "password": "test1234"}},
+        )[1]
+        assert "redis://:test1234@my-release-redis:6379/0" == base64.b64decode(
+            doc["data"]["connection"]
+        ).decode("utf-8")
+
+    def test_redis_broker_connection_url_use_standard_naming(self):
+        # no nameoverride, redis and useStandardNaming
+        doc = render_chart(
+            "my-release",
+            show_only=["templates/secrets/redis-secrets.yaml"],
+            values={"useStandardNaming": True, "redis": {"enabled": True, "password": "test1234"}},
+        )[1]
+        assert "redis://:test1234@my-release-airflow-redis:6379/0" == base64.b64decode(
+            doc["data"]["connection"]
+        ).decode("utf-8")
 
     @staticmethod
     def default_trigger_obj(version):

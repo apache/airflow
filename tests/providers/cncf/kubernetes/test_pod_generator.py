@@ -16,9 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-import os
 import re
-import sys
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -26,13 +24,12 @@ import pendulum
 import pytest
 from dateutil import parser
 from kubernetes.client import ApiClient, models as k8s
-from pytest import param
 
 from airflow import __version__
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import PodReconciliationError
 from airflow.providers.cncf.kubernetes.pod_generator import (
-    PodDefaults,
+    PodDefaultsDeprecated,
     PodGenerator,
     datetime_to_label_safe_datestring,
     extend_object_field,
@@ -164,20 +161,20 @@ class TestPodGenerator:
         )
 
     @mock.patch("airflow.providers.cncf.kubernetes.kubernetes_helper_functions.rand_str")
-    def test_gen_pod_extract_xcom(self, mock_rand_str):
+    def test_gen_pod_extract_xcom(self, mock_rand_str, data_file):
         """
         Method gen_pod is used nowhere in codebase and is deprecated.
         This test is only retained for backcompat.
         """
         mock_rand_str.return_value = self.rand_str
-        path = sys.path[0] + "/tests/providers/cncf/kubernetes/pod_generator_base_with_secrets.yaml"
+        template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
 
-        pod_generator = PodGenerator(pod_template_file=path, extract_xcom=True)
+        pod_generator = PodGenerator(pod_template_file=template_file, extract_xcom=True)
         result = pod_generator.gen_pod()
         container_two = {
             "name": "airflow-xcom-sidecar",
             "image": "alpine",
-            "command": ["sh", "-c", PodDefaults.XCOM_CMD],
+            "command": ["sh", "-c", PodDefaultsDeprecated.XCOM_CMD],
             "volumeMounts": [{"name": "xcom", "mountPath": "/airflow/xcom"}],
             "resources": {"requests": {"cpu": "1m"}},
         }
@@ -327,9 +324,9 @@ class TestPodGenerator:
             },
         } == result
 
-    def test_reconcile_pods_empty_mutator_pod(self):
-        path = sys.path[0] + "/tests/providers/cncf/kubernetes/pod_generator_base_with_secrets.yaml"
-        pod_generator = PodGenerator(pod_template_file=path, extract_xcom=True)
+    def test_reconcile_pods_empty_mutator_pod(self, data_file):
+        template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
+        pod_generator = PodGenerator(pod_template_file=template_file, extract_xcom=True)
         base_pod = pod_generator.ud_pod
         mutator_pod = None
         result = PodGenerator.reconcile_pods(base_pod, mutator_pod)
@@ -340,11 +337,10 @@ class TestPodGenerator:
         assert base_pod == result
 
     @mock.patch("airflow.providers.cncf.kubernetes.kubernetes_helper_functions.rand_str")
-    def test_reconcile_pods(self, mock_rand_str):
+    def test_reconcile_pods(self, mock_rand_str, data_file):
         mock_rand_str.return_value = self.rand_str
-        path = sys.path[0] + "/tests/providers/cncf/kubernetes/pod_generator_base_with_secrets.yaml"
-
-        base_pod = PodGenerator(pod_template_file=path, extract_xcom=False).ud_pod
+        template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
+        base_pod = PodGenerator(pod_template_file=template_file, extract_xcom=False).ud_pod
 
         mutator_pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
@@ -398,21 +394,33 @@ class TestPodGenerator:
     @pytest.mark.parametrize(
         "config_image, expected_image",
         [
-            param("my_image:my_tag", "my_image:my_tag", id="image_in_cfg"),
-            param(None, "busybox", id="no_image_in_cfg"),
+            pytest.param("my_image:my_tag", "my_image:my_tag", id="image_in_cfg"),
+            pytest.param(None, "busybox", id="no_image_in_cfg"),
         ],
     )
-    def test_construct_pod(self, config_image, expected_image):
-        template_file = sys.path[0] + "/tests/providers/cncf/kubernetes/pod_generator_base_with_secrets.yaml"
+    @pytest.mark.parametrize(
+        "pod_override_object_namespace, expected_namespace",
+        [
+            ("new_namespace", "new_namespace"),  # pod_override_object namespace should be used
+            (None, "test_namespace"),  # if it is not provided, we use default one
+        ],
+    )
+    def test_construct_pod(
+        self, config_image, expected_image, pod_override_object_namespace, expected_namespace, data_file
+    ):
+        template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
         worker_config = PodGenerator.deserialize_model_file(template_file)
         executor_config = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                namespace=pod_override_object_namespace,
+            ),
             spec=k8s.V1PodSpec(
                 containers=[
                     k8s.V1Container(
                         name="", resources=k8s.V1ResourceRequirements(limits={"cpu": "1m", "memory": "1G"})
                     )
                 ]
-            )
+            ),
         )
 
         result = PodGenerator.construct_pod(
@@ -433,7 +441,7 @@ class TestPodGenerator:
         expected.metadata.labels["app"] = "myapp"
         expected.metadata.annotations = self.annotations
         expected.metadata.name = "pod_id"
-        expected.metadata.namespace = "test_namespace"
+        expected.metadata.namespace = expected_namespace
         expected.spec.containers[0].args = ["command"]
         expected.spec.containers[0].image = expected_image
         expected.spec.containers[0].resources = {"limits": {"cpu": "1m", "memory": "1G"}}
@@ -448,8 +456,8 @@ class TestPodGenerator:
 
         assert expected_dict == result_dict
 
-    def test_construct_pod_mapped_task(self):
-        template_file = sys.path[0] + "/tests/providers/cncf/kubernetes/pod_generator_base.yaml"
+    def test_construct_pod_mapped_task(self, data_file):
+        template_file = data_file("pods/generator_base.yaml").as_posix()
         worker_config = PodGenerator.deserialize_model_file(template_file)
         result = PodGenerator.construct_pod(
             dag_id=self.dag_id,
@@ -482,9 +490,9 @@ class TestPodGenerator:
 
         assert result_dict == expected_dict
 
-    def test_construct_pod_empty_executor_config(self):
-        path = sys.path[0] + "/tests/providers/cncf/kubernetes/pod_generator_base_with_secrets.yaml"
-        worker_config = PodGenerator.deserialize_model_file(path)
+    def test_construct_pod_empty_executor_config(self, data_file):
+        template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
+        worker_config = PodGenerator.deserialize_model_file(template_file)
         executor_config = None
 
         result = PodGenerator.construct_pod(
@@ -515,13 +523,13 @@ class TestPodGenerator:
         assert sanitized_result == worker_config_result
 
     @mock.patch("airflow.providers.cncf.kubernetes.kubernetes_helper_functions.rand_str")
-    def test_construct_pod_attribute_error(self, mock_rand_str):
+    def test_construct_pod_attribute_error(self, mock_rand_str, data_file):
         """
         After upgrading k8s library we might get attribute error.
         In this case it should raise PodReconciliationError
         """
-        path = sys.path[0] + "/tests/providers/cncf/kubernetes/pod_generator_base_with_secrets.yaml"
-        worker_config = PodGenerator.deserialize_model_file(path)
+        template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
+        worker_config = PodGenerator.deserialize_model_file(template_file)
         mock_rand_str.return_value = self.rand_str
         executor_config = MagicMock()
         executor_config.side_effect = AttributeError("error")
@@ -542,10 +550,10 @@ class TestPodGenerator:
             )
 
     @mock.patch("airflow.providers.cncf.kubernetes.kubernetes_helper_functions.rand_str")
-    def test_ensure_max_identifier_length(self, mock_rand_str):
+    def test_ensure_max_identifier_length(self, mock_rand_str, data_file):
         mock_rand_str.return_value = self.rand_str
-        path = os.path.join(os.path.dirname(__file__), "pod_generator_base_with_secrets.yaml")
-        worker_config = PodGenerator.deserialize_model_file(path)
+        pod_template = data_file("pods/generator_base_with_secrets.yaml")
+        worker_config = PodGenerator.deserialize_model_file(pod_template.as_posix())
 
         result = PodGenerator.construct_pod(
             dag_id="a" * 512,
@@ -561,8 +569,8 @@ class TestPodGenerator:
             base_worker_pod=worker_config,
         )
 
-        assert result.metadata.name == "a" * 244 + "-" + self.rand_str
-        for _, v in result.metadata.labels.items():
+        assert result.metadata.name == "a" * 54 + "-" + self.rand_str
+        for v in result.metadata.labels.values():
             assert len(v) <= 63
 
         assert "a" * 512 == result.metadata.annotations["dag_id"]
@@ -703,28 +711,28 @@ class TestPodGenerator:
         res = PodGenerator.reconcile_specs(base_spec, client_spec)
         assert res.init_containers == base_spec.init_containers + client_spec.init_containers
 
-    def test_deserialize_model_file(self, caplog):
-        path = sys.path[0] + "/tests/providers/cncf/kubernetes/pod.yaml"
-        result = PodGenerator.deserialize_model_file(path)
+    def test_deserialize_model_file(self, caplog, data_file):
+        template_file = data_file("pods/template.yaml").as_posix()
+        result = PodGenerator.deserialize_model_file(template_file)
         sanitized_res = self.k8s_client.sanitize_for_serialization(result)
         assert sanitized_res == self.deserialize_result
         assert len(caplog.records) == 0
 
-    def test_deserialize_non_existent_model_file(self, caplog):
-        path = sys.path[0] + "/tests/providers/cncf/kubernetes/non_existent.yaml"
-        result = PodGenerator.deserialize_model_file(path)
+    def test_deserialize_non_existent_model_file(self, caplog, tmp_path):
+        template_file = (tmp_path / "non_existent.yaml").absolute().as_posix()
+        result = PodGenerator.deserialize_model_file(template_file)
         sanitized_res = self.k8s_client.sanitize_for_serialization(result)
         assert sanitized_res == {}
         assert len(caplog.records) == 1
-        assert "does not exist" in caplog.text
+        assert "non_existent.yaml does not exist" in caplog.text
 
     @pytest.mark.parametrize(
         "input",
         (
-            param("a" * 70, id="max_label_length"),
-            param("a" * 253, id="max_subdomain_length"),
-            param("a" * 95, id="close to max"),
-            param("aaa", id="tiny"),
+            pytest.param("a" * 70, id="max_label_length"),
+            pytest.param("a" * 253, id="max_subdomain_length"),
+            pytest.param("a" * 95, id="close to max"),
+            pytest.param("aaa", id="tiny"),
         ),
     )
     def test_pod_name_confirm_to_max_length(self, input):
@@ -769,27 +777,27 @@ class TestPodGenerator:
         # verify ends with 8 char lowercase alphanum string
         assert re.match(rf"^{expected_starts_with}-[a-z0-9]{{8}}$", actual), "doesn't match expected pattern"
 
-    def test_validate_pod_generator(self):
+    def test_validate_pod_generator(self, data_file):
         with pytest.raises(AirflowConfigException):
             PodGenerator(pod=k8s.V1Pod(), pod_template_file="k")
         with pytest.raises(AirflowConfigException):
             PodGenerator()
-        PodGenerator(pod_template_file="tests/kubernetes/pod.yaml")
+        PodGenerator(pod_template_file=data_file("pods/template.yaml").as_posix())
         PodGenerator(pod=k8s.V1Pod())
 
     @pytest.mark.parametrize(
         "extra, extra_expected",
         [
-            param(dict(), {}, id="base"),
-            param(dict(airflow_worker=2), {"airflow-worker": "2"}, id="worker"),
-            param(dict(map_index=2), {"map_index": "2"}, id="map_index"),
-            param(dict(run_id="2"), {"run_id": "2"}, id="run_id"),
-            param(
+            pytest.param(dict(), {}, id="base"),
+            pytest.param(dict(airflow_worker=2), {"airflow-worker": "2"}, id="worker"),
+            pytest.param(dict(map_index=2), {"map_index": "2"}, id="map_index"),
+            pytest.param(dict(run_id="2"), {"run_id": "2"}, id="run_id"),
+            pytest.param(
                 dict(execution_date=now),
                 {"execution_date": datetime_to_label_safe_datestring(now)},
                 id="date",
             ),
-            param(
+            pytest.param(
                 dict(airflow_worker=2, map_index=2, run_id="2", execution_date=now),
                 {
                     "airflow-worker": "2",
@@ -818,7 +826,8 @@ class TestPodGenerator:
         )
         labels = PodGenerator.build_labels_for_k8s_executor_pod(**kwargs, **extra)
         assert labels == {**expected, **extra_expected}
-        exp_selector = ",".join([f"{k}={v}" for k, v in sorted(labels.items())])
+        items = [f"{k}={v}" for k, v in sorted(labels.items())]
         if "airflow_worker" not in extra:
-            exp_selector += ",airflow-worker"
+            items.append("airflow-worker")
+        exp_selector = ",".join(items)
         assert PodGenerator.build_selector_for_k8s_executor_pod(**kwargs, **extra) == exp_selector

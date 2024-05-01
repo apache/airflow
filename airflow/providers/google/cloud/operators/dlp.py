@@ -23,7 +23,6 @@ from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.exceptions import AlreadyExists, InvalidArgument, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.dlp_v2.types import (
     ByteContentItem,
     ContentItem,
@@ -44,7 +43,6 @@ from google.cloud.dlp_v2.types import (
     StoredInfoType,
     StoredInfoTypeConfig,
 )
-from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.providers.google.cloud.hooks.dlp import CloudDLPHook
 from airflow.providers.google.cloud.links.data_loss_prevention import (
@@ -61,8 +59,12 @@ from airflow.providers.google.cloud.links.data_loss_prevention import (
     CloudDLPPossibleInfoTypesListLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+    from google.protobuf.field_mask_pb2 import FieldMask
+
     from airflow.utils.context import Context
 
 
@@ -107,7 +109,7 @@ class CloudDLPCancelDLPJobOperator(GoogleCloudBaseOperator):
         self,
         *,
         dlp_job_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -194,7 +196,7 @@ class CloudDLPCreateDeidentifyTemplateOperator(GoogleCloudBaseOperator):
         self,
         *,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         deidentify_template: dict | DeidentifyTemplate | None = None,
         template_id: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -303,7 +305,7 @@ class CloudDLPCreateDLPJobOperator(GoogleCloudBaseOperator):
     def __init__(
         self,
         *,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         inspect_job: dict | InspectJobConfig | None = None,
         risk_job: dict | RiskAnalysisJobConfig | None = None,
         job_id: str | None = None,
@@ -415,7 +417,7 @@ class CloudDLPCreateInspectTemplateOperator(GoogleCloudBaseOperator):
         self,
         *,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         inspect_template: InspectTemplate | None = None,
         template_id: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -521,7 +523,7 @@ class CloudDLPCreateJobTriggerOperator(GoogleCloudBaseOperator):
     def __init__(
         self,
         *,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         job_trigger: dict | JobTrigger | None = None,
         trigger_id: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -630,7 +632,7 @@ class CloudDLPCreateStoredInfoTypeOperator(GoogleCloudBaseOperator):
         self,
         *,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         config: StoredInfoTypeConfig | None = None,
         stored_info_type_id: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -751,7 +753,7 @@ class CloudDLPDeidentifyContentOperator(GoogleCloudBaseOperator):
     def __init__(
         self,
         *,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         deidentify_config: dict | DeidentifyConfig | None = None,
         inspect_config: dict | InspectConfig | None = None,
         item: dict | ContentItem | None = None,
@@ -841,7 +843,7 @@ class CloudDLPDeleteDeidentifyTemplateOperator(GoogleCloudBaseOperator):
         *,
         template_id: str,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -928,7 +930,7 @@ class CloudDLPDeleteDLPJobOperator(GoogleCloudBaseOperator):
         self,
         *,
         dlp_job_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -1016,7 +1018,7 @@ class CloudDLPDeleteInspectTemplateOperator(GoogleCloudBaseOperator):
         *,
         template_id: str,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -1102,7 +1104,7 @@ class CloudDLPDeleteJobTriggerOperator(GoogleCloudBaseOperator):
         self,
         *,
         job_trigger_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -1190,7 +1192,7 @@ class CloudDLPDeleteStoredInfoTypeOperator(GoogleCloudBaseOperator):
         *,
         stored_info_type_id: str,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -1280,7 +1282,7 @@ class CloudDLPGetDeidentifyTemplateOperator(GoogleCloudBaseOperator):
         *,
         template_id: str,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -1363,7 +1365,7 @@ class CloudDLPGetDLPJobOperator(GoogleCloudBaseOperator):
         self,
         *,
         dlp_job_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -1451,7 +1453,7 @@ class CloudDLPGetInspectTemplateOperator(GoogleCloudBaseOperator):
         *,
         template_id: str,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -1537,7 +1539,7 @@ class CloudDLPGetDLPJobTriggerOperator(GoogleCloudBaseOperator):
         self,
         *,
         job_trigger_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -1625,7 +1627,7 @@ class CloudDLPGetStoredInfoTypeOperator(GoogleCloudBaseOperator):
         *,
         stored_info_type_id: str,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -1715,7 +1717,7 @@ class CloudDLPInspectContentOperator(GoogleCloudBaseOperator):
     def __init__(
         self,
         *,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         inspect_config: dict | InspectConfig | None = None,
         item: dict | ContentItem | None = None,
         inspect_template_name: str | None = None,
@@ -1801,7 +1803,7 @@ class CloudDLPListDeidentifyTemplatesOperator(GoogleCloudBaseOperator):
         self,
         *,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         page_size: int | None = None,
         order_by: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -1893,7 +1895,7 @@ class CloudDLPListDLPJobsOperator(GoogleCloudBaseOperator):
     def __init__(
         self,
         *,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         results_filter: str | None = None,
         page_size: int | None = None,
         job_type: str | None = None,
@@ -1985,7 +1987,7 @@ class CloudDLPListInfoTypesOperator(GoogleCloudBaseOperator):
     def __init__(
         self,
         *,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         language_code: str | None = None,
         results_filter: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -2076,7 +2078,7 @@ class CloudDLPListInspectTemplatesOperator(GoogleCloudBaseOperator):
         self,
         *,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         page_size: int | None = None,
         order_by: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -2167,7 +2169,7 @@ class CloudDLPListJobTriggersOperator(GoogleCloudBaseOperator):
     def __init__(
         self,
         *,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         page_size: int | None = None,
         order_by: str | None = None,
         results_filter: str | None = None,
@@ -2262,7 +2264,7 @@ class CloudDLPListStoredInfoTypesOperator(GoogleCloudBaseOperator):
         self,
         *,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         page_size: int | None = None,
         order_by: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -2358,7 +2360,7 @@ class CloudDLPRedactImageOperator(GoogleCloudBaseOperator):
     def __init__(
         self,
         *,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         inspect_config: dict | InspectConfig | None = None,
         image_redaction_configs: None | (list[dict] | list[RedactImageRequest.ImageRedactionConfig]) = None,
         include_findings: bool | None = None,
@@ -2452,7 +2454,7 @@ class CloudDLPReidentifyContentOperator(GoogleCloudBaseOperator):
     def __init__(
         self,
         *,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         reidentify_config: dict | DeidentifyConfig | None = None,
         inspect_config: dict | InspectConfig | None = None,
         item: dict | ContentItem | None = None,
@@ -2547,7 +2549,7 @@ class CloudDLPUpdateDeidentifyTemplateOperator(GoogleCloudBaseOperator):
         *,
         template_id: str,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         deidentify_template: dict | DeidentifyTemplate | None = None,
         update_mask: dict | FieldMask | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -2647,7 +2649,7 @@ class CloudDLPUpdateInspectTemplateOperator(GoogleCloudBaseOperator):
         *,
         template_id: str,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         inspect_template: dict | InspectTemplate | None = None,
         update_mask: dict | FieldMask | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -2743,7 +2745,7 @@ class CloudDLPUpdateJobTriggerOperator(GoogleCloudBaseOperator):
         self,
         *,
         job_trigger_id,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         job_trigger: dict | JobTrigger | None = None,
         update_mask: dict | FieldMask | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -2842,7 +2844,7 @@ class CloudDLPUpdateStoredInfoTypeOperator(GoogleCloudBaseOperator):
         *,
         stored_info_type_id,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         config: dict | StoredInfoTypeConfig | None = None,
         update_mask: dict | FieldMask | None = None,
         retry: Retry | _MethodDefault = DEFAULT,

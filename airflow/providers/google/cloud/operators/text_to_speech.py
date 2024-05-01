@@ -16,22 +16,25 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Text to Speech operator."""
+
 from __future__ import annotations
 
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
-from google.cloud.texttospeech_v1.types import AudioConfig, SynthesisInput, VoiceSelectionParams
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.hooks.text_to_speech import CloudTextToSpeechHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.providers.google.common.links.storage import FileDetailsLink
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+    from google.cloud.texttospeech_v1.types import AudioConfig, SynthesisInput, VoiceSelectionParams
+
     from airflow.utils.context import Context
 
 
@@ -92,7 +95,7 @@ class CloudTextToSpeechSynthesizeOperator(GoogleCloudBaseOperator):
         audio_config: dict | AudioConfig,
         target_bucket_name: str,
         target_filename: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,

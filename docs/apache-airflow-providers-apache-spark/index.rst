@@ -33,7 +33,8 @@
     :maxdepth: 1
     :caption: Guides
 
-    Connection types <connections/spark>
+    Connection types <connections/index>
+    Decorators <decorators/pyspark>
     Operators <operators>
 
 .. toctree::
@@ -70,37 +71,38 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-apache-spark
+apache-airflow-providers-apache-spark package
 ------------------------------------------------------
 
 `Apache Spark <https://spark.apache.org/>`__
 
 
-Release: 4.1.3
+Release: 4.7.2
 
 Provider package
 ----------------
 
-This is a provider package for ``apache.spark`` provider. All classes for this provider package
-are in ``airflow.providers.apache.spark`` python package.
+This package is for the ``apache.spark`` provider.
+All classes for this package are included in the ``airflow.providers.apache.spark`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-apache-spark``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-apache-spark``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.4.0``
+``apache-airflow``  ``>=2.6.0``
 ``pyspark``
+``grpcio-status``   ``>=1.59.0``
 ==================  ==================
 
 Cross provider package dependencies
@@ -128,5 +130,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-apache-spark 4.1.3 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-spark-4.1.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-spark-4.1.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-spark-4.1.3.tar.gz.sha512>`__)
-* `The apache-airflow-providers-apache-spark 4.1.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-4.1.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-4.1.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-4.1.3-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-apache-spark 4.7.2 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-spark-4.7.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-spark-4.7.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-spark-4.7.2.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-spark 4.7.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-4.7.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-4.7.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-4.7.2-py3-none-any.whl.sha512>`__)

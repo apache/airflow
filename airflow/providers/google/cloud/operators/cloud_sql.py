@@ -16,8 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud SQL operators."""
+
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence
 
 from googleapiclient.errors import HttpError
@@ -25,18 +27,18 @@ from googleapiclient.errors import HttpError
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models import Connection
 from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLDatabaseHook, CloudSQLHook
 from airflow.providers.google.cloud.links.cloud_sql import CloudSQLInstanceDatabaseLink, CloudSQLInstanceLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.cloud_sql import CloudSQLExportTrigger
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
-from airflow.providers.google.common.hooks.base_google import get_field
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, get_field
 from airflow.providers.google.common.links.storage import FileDetailsLink
-from airflow.providers.mysql.hooks.mysql import MySqlHook
-from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 if TYPE_CHECKING:
+    from airflow.models import Connection
+    from airflow.providers.mysql.hooks.mysql import MySqlHook
+    from airflow.providers.postgres.hooks.postgres import PostgresHook
     from airflow.utils.context import Context
 
 
@@ -44,175 +46,180 @@ SETTINGS = "settings"
 SETTINGS_VERSION = "settingsVersion"
 
 CLOUD_SQL_CREATE_VALIDATION: Sequence[dict] = [
-    dict(name="name", allow_empty=False),
-    dict(
-        name="settings",
-        type="dict",
-        fields=[
-            dict(name="tier", allow_empty=False),
-            dict(
-                name="backupConfiguration",
-                type="dict",
-                fields=[
-                    dict(name="binaryLogEnabled", optional=True),
-                    dict(name="enabled", optional=True),
-                    dict(name="replicationLogArchivingEnabled", optional=True),
-                    dict(name="startTime", allow_empty=False, optional=True),
+    {"name": "name", "allow_empty": False},
+    {
+        "name": "settings",
+        "type": "dict",
+        "fields": [
+            {"name": "tier", "allow_empty": False},
+            {
+                "name": "backupConfiguration",
+                "type": "dict",
+                "fields": [
+                    {"name": "binaryLogEnabled", "optional": True},
+                    {"name": "enabled", "optional": True},
+                    {"name": "replicationLogArchivingEnabled", "optional": True},
+                    {"name": "startTime", "allow_empty": False, "optional": True},
                 ],
-                optional=True,
-            ),
-            dict(name="activationPolicy", allow_empty=False, optional=True),
-            dict(name="authorizedGaeApplications", type="list", optional=True),
-            dict(name="crashSafeReplicationEnabled", optional=True),
-            dict(name="dataDiskSizeGb", optional=True),
-            dict(name="dataDiskType", allow_empty=False, optional=True),
-            dict(name="databaseFlags", type="list", optional=True),
-            dict(
-                name="ipConfiguration",
-                type="dict",
-                fields=[
-                    dict(
-                        name="authorizedNetworks",
-                        type="list",
-                        fields=[
-                            dict(name="expirationTime", optional=True),
-                            dict(name="name", allow_empty=False, optional=True),
-                            dict(name="value", allow_empty=False, optional=True),
+                "optional": True,
+            },
+            {"name": "activationPolicy", "allow_empty": False, "optional": True},
+            {"name": "authorizedGaeApplications", "type": "list", "optional": True},
+            {"name": "crashSafeReplicationEnabled", "optional": True},
+            {"name": "dataDiskSizeGb", "optional": True},
+            {"name": "dataDiskType", "allow_empty": False, "optional": True},
+            {"name": "databaseFlags", "type": "list", "optional": True},
+            {
+                "name": "ipConfiguration",
+                "type": "dict",
+                "fields": [
+                    {
+                        "name": "authorizedNetworks",
+                        "type": "list",
+                        "fields": [
+                            {"name": "expirationTime", "optional": True},
+                            {"name": "name", "allow_empty": False, "optional": True},
+                            {"name": "value", "allow_empty": False, "optional": True},
                         ],
-                        optional=True,
-                    ),
-                    dict(name="ipv4Enabled", optional=True),
-                    dict(name="privateNetwork", allow_empty=False, optional=True),
-                    dict(name="requireSsl", optional=True),
+                        "optional": True,
+                    },
+                    {"name": "ipv4Enabled", "optional": True},
+                    {"name": "privateNetwork", "allow_empty": False, "optional": True},
+                    {"name": "requireSsl", "optional": True},
                 ],
-                optional=True,
-            ),
-            dict(
-                name="locationPreference",
-                type="dict",
-                fields=[
-                    dict(name="followGaeApplication", allow_empty=False, optional=True),
-                    dict(name="zone", allow_empty=False, optional=True),
+                "optional": True,
+            },
+            {
+                "name": "locationPreference",
+                "type": "dict",
+                "fields": [
+                    {"name": "followGaeApplication", "allow_empty": False, "optional": True},
+                    {"name": "zone", "allow_empty": False, "optional": True},
                 ],
-                optional=True,
-            ),
-            dict(
-                name="maintenanceWindow",
-                type="dict",
-                fields=[
-                    dict(name="hour", optional=True),
-                    dict(name="day", optional=True),
-                    dict(name="updateTrack", allow_empty=False, optional=True),
+                "optional": True,
+            },
+            {
+                "name": "maintenanceWindow",
+                "type": "dict",
+                "fields": [
+                    {"name": "hour", "optional": True},
+                    {"name": "day", "optional": True},
+                    {"name": "updateTrack", "allow_empty": False, "optional": True},
                 ],
-                optional=True,
-            ),
-            dict(name="pricingPlan", allow_empty=False, optional=True),
-            dict(name="replicationType", allow_empty=False, optional=True),
-            dict(name="storageAutoResize", optional=True),
-            dict(name="storageAutoResizeLimit", optional=True),
-            dict(name="userLabels", type="dict", optional=True),
+                "optional": True,
+            },
+            {"name": "pricingPlan", "allow_empty": False, "optional": True},
+            {"name": "replicationType", "allow_empty": False, "optional": True},
+            {"name": "storageAutoResize", "optional": True},
+            {"name": "storageAutoResizeLimit", "optional": True},
+            {"name": "userLabels", "type": "dict", "optional": True},
         ],
-    ),
-    dict(name="databaseVersion", allow_empty=False, optional=True),
-    dict(name="failoverReplica", type="dict", fields=[dict(name="name", allow_empty=False)], optional=True),
-    dict(name="masterInstanceName", allow_empty=False, optional=True),
-    dict(name="onPremisesConfiguration", type="dict", optional=True),
-    dict(name="region", allow_empty=False, optional=True),
-    dict(
-        name="replicaConfiguration",
-        type="dict",
-        fields=[
-            dict(name="failoverTarget", optional=True),
-            dict(
-                name="mysqlReplicaConfiguration",
-                type="dict",
-                fields=[
-                    dict(name="caCertificate", allow_empty=False, optional=True),
-                    dict(name="clientCertificate", allow_empty=False, optional=True),
-                    dict(name="clientKey", allow_empty=False, optional=True),
-                    dict(name="connectRetryInterval", optional=True),
-                    dict(name="dumpFilePath", allow_empty=False, optional=True),
-                    dict(name="masterHeartbeatPeriod", optional=True),
-                    dict(name="password", allow_empty=False, optional=True),
-                    dict(name="sslCipher", allow_empty=False, optional=True),
-                    dict(name="username", allow_empty=False, optional=True),
-                    dict(name="verifyServerCertificate", optional=True),
+    },
+    {"name": "databaseVersion", "allow_empty": False, "optional": True},
+    {
+        "name": "failoverReplica",
+        "type": "dict",
+        "fields": [{"name": "name", "allow_empty": False}],
+        "optional": True,
+    },
+    {"name": "masterInstanceName", "allow_empty": False, "optional": True},
+    {"name": "onPremisesConfiguration", "type": "dict", "optional": True},
+    {"name": "region", "allow_empty": False, "optional": True},
+    {
+        "name": "replicaConfiguration",
+        "type": "dict",
+        "fields": [
+            {"name": "failoverTarget", "optional": True},
+            {
+                "name": "mysqlReplicaConfiguration",
+                "type": "dict",
+                "fields": [
+                    {"name": "caCertificate", "allow_empty": False, "optional": True},
+                    {"name": "clientCertificate", "allow_empty": False, "optional": True},
+                    {"name": "clientKey", "allow_empty": False, "optional": True},
+                    {"name": "connectRetryInterval", "optional": True},
+                    {"name": "dumpFilePath", "allow_empty": False, "optional": True},
+                    {"name": "masterHeartbeatPeriod", "optional": True},
+                    {"name": "password", "allow_empty": False, "optional": True},
+                    {"name": "sslCipher", "allow_empty": False, "optional": True},
+                    {"name": "username", "allow_empty": False, "optional": True},
+                    {"name": "verifyServerCertificate", "optional": True},
                 ],
-                optional=True,
-            ),
+                "optional": True,
+            },
         ],
-        optional=True,
-    ),
+        "optional": True,
+    },
 ]
 CLOUD_SQL_EXPORT_VALIDATION = [
-    dict(
-        name="exportContext",
-        type="dict",
-        fields=[
-            dict(name="fileType", allow_empty=False),
-            dict(name="uri", allow_empty=False),
-            dict(name="databases", optional=True, type="list"),
-            dict(
-                name="sqlExportOptions",
-                type="dict",
-                optional=True,
-                fields=[
-                    dict(name="tables", optional=True, type="list"),
-                    dict(name="schemaOnly", optional=True),
-                    dict(
-                        name="mysqlExportOptions",
-                        type="dict",
-                        optional=True,
-                        fields=[dict(name="masterData")],
-                    ),
+    {
+        "name": "exportContext",
+        "type": "dict",
+        "fields": [
+            {"name": "fileType", "allow_empty": False},
+            {"name": "uri", "allow_empty": False},
+            {"name": "databases", "optional": True, "type": "list"},
+            {
+                "name": "sqlExportOptions",
+                "type": "dict",
+                "optional": True,
+                "fields": [
+                    {"name": "tables", "optional": True, "type": "list"},
+                    {"name": "schemaOnly", "optional": True},
+                    {
+                        "name": "mysqlExportOptions",
+                        "type": "dict",
+                        "optional": True,
+                        "fields": [{"name": "masterData"}],
+                    },
                 ],
-            ),
-            dict(
-                name="csvExportOptions",
-                type="dict",
-                optional=True,
-                fields=[
-                    dict(name="selectQuery"),
-                    dict(name="escapeCharacter", optional=True),
-                    dict(name="quoteCharacter", optional=True),
-                    dict(name="fieldsTerminatedBy", optional=True),
-                    dict(name="linesTerminatedBy", optional=True),
+            },
+            {
+                "name": "csvExportOptions",
+                "type": "dict",
+                "optional": True,
+                "fields": [
+                    {"name": "selectQuery"},
+                    {"name": "escapeCharacter", "optional": True},
+                    {"name": "quoteCharacter", "optional": True},
+                    {"name": "fieldsTerminatedBy", "optional": True},
+                    {"name": "linesTerminatedBy", "optional": True},
                 ],
-            ),
-            dict(name="offload", optional=True),
+            },
+            {"name": "offload", "optional": True},
         ],
-    )
+    }
 ]
 CLOUD_SQL_IMPORT_VALIDATION = [
-    dict(
-        name="importContext",
-        type="dict",
-        fields=[
-            dict(name="fileType", allow_empty=False),
-            dict(name="uri", allow_empty=False),
-            dict(name="database", optional=True, allow_empty=False),
-            dict(name="importUser", optional=True),
-            dict(
-                name="csvImportOptions",
-                type="dict",
-                optional=True,
-                fields=[dict(name="table"), dict(name="columns", type="list", optional=True)],
-            ),
+    {
+        "name": "importContext",
+        "type": "dict",
+        "fields": [
+            {"name": "fileType", "allow_empty": False},
+            {"name": "uri", "allow_empty": False},
+            {"name": "database", "optional": True, "allow_empty": False},
+            {"name": "importUser", "optional": True},
+            {
+                "name": "csvImportOptions",
+                "type": "dict",
+                "optional": True,
+                "fields": [{"name": "table"}, {"name": "columns", "type": "list", "optional": True}],
+            },
         ],
-    )
+    }
 ]
 CLOUD_SQL_DATABASE_CREATE_VALIDATION = [
-    dict(name="instance", allow_empty=False),
-    dict(name="name", allow_empty=False),
-    dict(name="project", allow_empty=False),
+    {"name": "instance", "allow_empty": False},
+    {"name": "name", "allow_empty": False},
+    {"name": "project", "allow_empty": False},
 ]
 CLOUD_SQL_DATABASE_PATCH_VALIDATION = [
-    dict(name="instance", optional=True),
-    dict(name="name", optional=True),
-    dict(name="project", optional=True),
-    dict(name="etag", optional=True),
-    dict(name="charset", optional=True),
-    dict(name="collation", optional=True),
+    {"name": "instance", "optional": True},
+    {"name": "name", "optional": True},
+    {"name": "project", "optional": True},
+    {"name": "etag", "optional": True},
+    {"name": "charset", "optional": True},
+    {"name": "collation", "optional": True},
 ]
 
 
@@ -238,7 +245,7 @@ class CloudSQLBaseOperator(GoogleCloudBaseOperator):
         self,
         *,
         instance: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1beta4",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -331,7 +338,7 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
         *,
         body: dict,
         instance: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1beta4",
         validate_body: bool = True,
@@ -434,7 +441,7 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
         *,
         body: dict,
         instance: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1beta4",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -566,7 +573,7 @@ class CloudSQLCloneInstanceOperator(CloudSQLBaseOperator):
         instance: str,
         destination_instance_name: str,
         clone_context: dict | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1beta4",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -657,7 +664,7 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
         *,
         instance: str,
         body: dict,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1beta4",
         validate_body: bool = True,
@@ -765,7 +772,7 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
         instance: str,
         database: str,
         body: dict,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1beta4",
         validate_body: bool = True,
@@ -861,7 +868,7 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
         *,
         instance: str,
         database: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1beta4",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -951,7 +958,7 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
         *,
         instance: str,
         body: dict,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1beta4",
         validate_body: bool = True,
@@ -1026,7 +1033,7 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
 
     def execute_complete(self, context, event=None) -> None:
         """
-        Callback for when the trigger fires - returns immediately.
+        Act as a callback for when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
@@ -1098,7 +1105,7 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
         *,
         instance: str,
         body: dict,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1beta4",
         validate_body: bool = True,
@@ -1175,10 +1182,35 @@ class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
        details on how to define ``gcpcloudsql://`` connection.
     :param sql_proxy_binary_path: (optional) Path to the cloud-sql-proxy binary.
           is not specified or the binary is not present, it is automatically downloaded.
+    :param ssl_cert: (optional) Path to client certificate to authenticate when SSL is used. Overrides the
+        connection field ``sslcert``.
+    :param ssl_key: (optional) Path to client private key to authenticate when SSL is used. Overrides the
+        connection field ``sslkey``.
+    :param ssl_root_cert: (optional) Path to server's certificate to authenticate when SSL is used. Overrides
+        the connection field ``sslrootcert``.
+    :param ssl_secret_id: (optional) ID of the secret in Google Cloud Secret Manager that stores SSL
+        certificate in the format below:
+
+        {'sslcert': '',
+         'sslkey': '',
+         'sslrootcert': ''}
+
+        Overrides the connection fields ``sslcert``, ``sslkey``, ``sslrootcert``.
+        Note that according to the Secret Manager requirements, the mentioned dict should be saved as a
+        string, and encoded with base64.
+        Note that this parameter is incompatible with parameters ``ssl_cert``, ``ssl_key``, ``ssl_root_cert``.
     """
 
     # [START gcp_sql_query_template_fields]
-    template_fields: Sequence[str] = ("sql", "gcp_cloudsql_conn_id", "gcp_conn_id")
+    template_fields: Sequence[str] = (
+        "sql",
+        "gcp_cloudsql_conn_id",
+        "gcp_conn_id",
+        "ssl_server_cert",
+        "ssl_client_cert",
+        "ssl_client_key",
+        "ssl_secret_id",
+    )
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"sql": "sql"}
     # [END gcp_sql_query_template_fields]
@@ -1193,6 +1225,10 @@ class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         gcp_cloudsql_conn_id: str = "google_cloud_sql_default",
         sql_proxy_binary_path: str | None = None,
+        ssl_server_cert: str | None = None,
+        ssl_client_cert: str | None = None,
+        ssl_client_key: str | None = None,
+        ssl_secret_id: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1203,6 +1239,10 @@ class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
         self.parameters = parameters
         self.gcp_connection: Connection | None = None
         self.sql_proxy_binary_path = sql_proxy_binary_path
+        self.ssl_server_cert = ssl_server_cert
+        self.ssl_client_cert = ssl_client_cert
+        self.ssl_client_key = ssl_client_key
+        self.ssl_secret_id = ssl_secret_id
 
     def _execute_query(self, hook: CloudSQLDatabaseHook, database_hook: PostgresHook | MySqlHook) -> None:
         cloud_sql_proxy_runner = None
@@ -1222,12 +1262,8 @@ class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
 
     def execute(self, context: Context):
         self.gcp_connection = BaseHook.get_connection(self.gcp_conn_id)
-        hook = CloudSQLDatabaseHook(
-            gcp_cloudsql_conn_id=self.gcp_cloudsql_conn_id,
-            gcp_conn_id=self.gcp_conn_id,
-            default_gcp_project_id=get_field(self.gcp_connection.extra_dejson, "project"),
-            sql_proxy_binary_path=self.sql_proxy_binary_path,
-        )
+
+        hook = self.hook
         hook.validate_ssl_certs()
         connection = hook.create_connection()
         hook.validate_socket_path_length()
@@ -1236,3 +1272,16 @@ class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
             self._execute_query(hook, database_hook)
         finally:
             hook.cleanup_database_hook()
+
+    @cached_property
+    def hook(self):
+        return CloudSQLDatabaseHook(
+            gcp_cloudsql_conn_id=self.gcp_cloudsql_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
+            default_gcp_project_id=get_field(self.gcp_connection.extra_dejson, "project"),
+            sql_proxy_binary_path=self.sql_proxy_binary_path,
+            ssl_root_cert=self.ssl_server_cert,
+            ssl_cert=self.ssl_client_cert,
+            ssl_key=self.ssl_client_key,
+            ssl_secret_id=self.ssl_secret_id,
+        )

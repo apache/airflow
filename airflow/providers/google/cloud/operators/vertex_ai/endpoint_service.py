@@ -15,26 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains Google Vertex AI operators.
 
-.. spelling:word-list::
+"""This module contains Google Vertex AI operators."""
 
-    undeployed
-    undeploy
-    Undeploys
-    aiplatform
-    FieldMask
-    unassigns
-"""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.aiplatform_v1.types import DeployedModel, Endpoint, endpoint_service
-from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.providers.google.cloud.hooks.vertex_ai.endpoint_service import EndpointServiceHook
 from airflow.providers.google.cloud.links.vertex_ai import (
@@ -45,6 +35,9 @@ from airflow.providers.google.cloud.links.vertex_ai import (
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+    from google.protobuf.field_mask_pb2 import FieldMask
+
     from airflow.utils.context import Context
 
 
@@ -462,8 +455,7 @@ class UndeployModelOperator(GoogleCloudBaseOperator):
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
-    :param endpoint_id:  Required. The name of the Endpoint resource from which to undeploy a Model. Format:
-        ``projects/{project}/locations/{location}/endpoints/{endpoint}``
+    :param endpoint_id:  Required. The ID of the Endpoint resource from which to undeploy a Model.
     :param deployed_model_id:  Required. The ID of the DeployedModel to be undeployed from the Endpoint.
     :param traffic_split: If this field is provided, then the Endpoint's
         [traffic_split][google.cloud.aiplatform.v1.Endpoint.traffic_split] will be overwritten with it. If

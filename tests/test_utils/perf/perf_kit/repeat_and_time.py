@@ -117,7 +117,7 @@ if __name__ == "__main__":
         """Monte Carlo"""
         inside = 0
 
-        for _ in range(0, total):
+        for _ in range(total):
             x_val = random.random() ** 2
             y_val = random.random() ** 2
             if math.sqrt(x_val + y_val) < 1:

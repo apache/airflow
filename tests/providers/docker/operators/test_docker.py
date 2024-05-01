@@ -24,10 +24,12 @@ from unittest.mock import call
 import pytest
 from docker import APIClient
 from docker.errors import APIError
-from docker.types import DeviceRequest, LogConfig, Mount
+from docker.types import DeviceRequest, LogConfig, Mount, Ulimit
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.providers.docker.exceptions import DockerContainerFailedException
 from airflow.providers.docker.operators.docker import DockerOperator
+from airflow.utils.task_instance_session import set_current_task_instance_session
 
 TEST_CONN_ID = "docker_test_connection"
 TEST_DOCKER_URL = "unix://var/run/docker.test.sock"
@@ -137,7 +139,7 @@ def test_on_kill_client_not_created(docker_api_client_patcher):
 
 
 class TestDockerOperator:
-    @pytest.fixture(autouse=True, scope="function")
+    @pytest.fixture(autouse=True)
     def setup_patchers(self, docker_api_client_patcher):
         self.tempdir_patcher = mock.patch("airflow.providers.docker.operators.docker.TemporaryDirectory")
         self.tempdir_mock = self.tempdir_patcher.start()
@@ -164,9 +166,9 @@ class TestDockerOperator:
         def dotenv_mock_return_value(**kwargs):
             env_dict = {}
             env_str = kwargs["stream"]
-            for env_var in env_str.split("\n"):
-                kv = env_var.split("=")
-                env_dict[kv[0]] = kv[1]
+            for env_var in env_str.splitlines():
+                key, _, val = env_var.partition("=")
+                env_dict[key] = val
             return env_dict
 
         self.dotenv_patcher = mock.patch("airflow.providers.docker.operators.docker.dotenv_values")
@@ -246,6 +248,7 @@ class TestDockerOperator:
             log_config=LogConfig(config={"max-size": "10m", "max-file": "5"}),
             ipc_mode=None,
             port_bindings={},
+            ulimits=[],
         )
         self.tempdir_mock.assert_called_once_with(dir=TEST_HOST_TEMP_DIRECTORY, prefix="airflowtmp")
         self.client_mock.images.assert_called_once_with(name=TEST_IMAGE)
@@ -317,6 +320,7 @@ class TestDockerOperator:
             log_config=LogConfig(config={}),
             ipc_mode=None,
             port_bindings={},
+            ulimits=[],
         )
         self.tempdir_mock.assert_not_called()
         self.client_mock.images.assert_called_once_with(name=TEST_IMAGE)
@@ -427,6 +431,7 @@ class TestDockerOperator:
                     log_config=LogConfig(config={}),
                     ipc_mode=None,
                     port_bindings={},
+                    ulimits=[],
                 ),
                 call(
                     mounts=[
@@ -446,6 +451,7 @@ class TestDockerOperator:
                     log_config=LogConfig(config={}),
                     ipc_mode=None,
                     port_bindings={},
+                    ulimits=[],
                 ),
             ]
         )
@@ -522,27 +528,32 @@ class TestDockerOperator:
             print_exception_mock.assert_not_called()
 
     @pytest.mark.parametrize(
-        "extra_kwargs, actual_exit_code, expected_exc",
+        "kwargs, actual_exit_code, expected_exc",
         [
-            (None, 99, AirflowException),
+            ({}, 0, None),
+            ({}, 100, AirflowException),
+            ({}, 101, AirflowException),
+            ({"skip_on_exit_code": None}, 0, None),
+            ({"skip_on_exit_code": None}, 100, AirflowException),
+            ({"skip_on_exit_code": None}, 101, AirflowException),
+            ({"skip_on_exit_code": 100}, 0, None),
             ({"skip_on_exit_code": 100}, 100, AirflowSkipException),
             ({"skip_on_exit_code": 100}, 101, AirflowException),
-            ({"skip_on_exit_code": None}, 100, AirflowException),
+            ({"skip_on_exit_code": 0}, 0, AirflowSkipException),
+            ({"skip_on_exit_code": [100]}, 0, None),
             ({"skip_on_exit_code": [100]}, 100, AirflowSkipException),
-            ({"skip_on_exit_code": (100, 101)}, 100, AirflowSkipException),
-            ({"skip_on_exit_code": 100}, 101, AirflowException),
+            ({"skip_on_exit_code": [100]}, 101, AirflowException),
             ({"skip_on_exit_code": [100, 102]}, 101, AirflowException),
-            ({"skip_on_exit_code": None}, 0, None),
+            ({"skip_on_exit_code": (100,)}, 0, None),
+            ({"skip_on_exit_code": (100,)}, 100, AirflowSkipException),
+            ({"skip_on_exit_code": (100,)}, 101, AirflowException),
         ],
     )
-    def test_skip(self, extra_kwargs, actual_exit_code, expected_exc):
+    def test_skip(self, kwargs, actual_exit_code, expected_exc):
         msg = {"StatusCode": actual_exit_code}
         self.client_mock.wait.return_value = msg
 
-        kwargs = dict(image="ubuntu", owner="unittest", task_id="unittest")
-        if extra_kwargs:
-            kwargs.update(**extra_kwargs)
-        operator = DockerOperator(**kwargs)
+        operator = DockerOperator(image="ubuntu", owner="unittest", task_id="unittest", **kwargs)
 
         if expected_exc is None:
             operator.execute({})
@@ -553,19 +564,19 @@ class TestDockerOperator:
     def test_execute_container_fails(self):
         failed_msg = {"StatusCode": 1}
         log_line = ["unicode container log 😁   ", b"byte string container log"]
-        expected_message = "Docker container failed: {failed_msg} lines {expected_log_output}"
+        expected_message = "Docker container failed: {failed_msg}"
         self.client_mock.attach.return_value = log_line
         self.client_mock.wait.return_value = failed_msg
 
         operator = DockerOperator(image="ubuntu", owner="unittest", task_id="unittest")
 
-        with pytest.raises(AirflowException) as raised_exception:
+        with pytest.raises(DockerContainerFailedException) as raised_exception:
             operator.execute(None)
 
         assert str(raised_exception.value) == expected_message.format(
             failed_msg=failed_msg,
-            expected_log_output=f'{log_line[0].strip()}\n{log_line[1].decode("utf-8")}',
         )
+        assert raised_exception.value.logs == [log_line[0].strip(), log_line[1].decode("utf-8")]
 
     def test_auto_remove_container_fails(self):
         self.client_mock.wait.return_value = {"StatusCode": 1}
@@ -708,3 +719,147 @@ class TestDockerOperator:
         assert "host_config" in self.client_mock.create_container.call_args.kwargs
         assert "port_bindings" in self.client_mock.create_host_config.call_args.kwargs
         assert port_bindings == self.client_mock.create_host_config.call_args.kwargs["port_bindings"]
+
+    def test_ulimits(self):
+        ulimits = [Ulimit(name="nofile", soft=1024, hard=2048)]
+        operator = DockerOperator(task_id="test", image="test", ulimits=ulimits)
+        operator.execute(None)
+        self.client_mock.create_container.assert_called_once()
+        assert "host_config" in self.client_mock.create_container.call_args.kwargs
+        assert "ulimits" in self.client_mock.create_host_config.call_args.kwargs
+        assert ulimits == self.client_mock.create_host_config.call_args.kwargs["ulimits"]
+
+    @pytest.mark.parametrize(
+        "auto_remove, expected",
+        [
+            pytest.param(True, "success", id="true"),
+            pytest.param(False, "never", id="false"),
+        ],
+    )
+    def test_bool_auto_remove_fallback(self, auto_remove, expected):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="bool value for `auto_remove`"):
+            op = DockerOperator(task_id="test", image="test", auto_remove=auto_remove)
+        assert op.auto_remove == expected
+
+    @pytest.mark.parametrize(
+        "auto_remove",
+        ["True", "false", pytest.param(None, id="none"), pytest.param(None, id="empty"), "here-and-now"],
+    )
+    def test_auto_remove_invalid(self, auto_remove):
+        with pytest.raises(ValueError, match="Invalid `auto_remove` value"):
+            DockerOperator(task_id="test", image="test", auto_remove=auto_remove)
+
+    @pytest.mark.parametrize(
+        "skip_exit_code, skip_on_exit_code, expected",
+        [
+            pytest.param(101, None, [101], id="skip-on-exit-code-not-set"),
+            pytest.param(102, 102, [102], id="skip-on-exit-code-same"),
+        ],
+    )
+    def test_skip_exit_code_fallback(self, skip_exit_code, skip_on_exit_code, expected):
+        warning_match = "`skip_exit_code` is deprecated and will be removed in the future."
+
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match):
+            op = DockerOperator(
+                task_id="test",
+                image="test",
+                skip_exit_code=skip_exit_code,
+                skip_on_exit_code=skip_on_exit_code,
+            )
+            assert op.skip_on_exit_code == expected
+
+    @pytest.mark.parametrize(
+        "skip_exit_code, skip_on_exit_code",
+        [
+            pytest.param(103, 0, id="skip-on-exit-code-zero"),
+            pytest.param(104, 105, id="skip-on-exit-code-not-same"),
+        ],
+    )
+    def test_skip_exit_code_invalid(self, skip_exit_code, skip_on_exit_code):
+        warning_match = "`skip_exit_code` is deprecated and will be removed in the future."
+        error_match = "Conflicting `skip_on_exit_code` provided"
+
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match):
+            with pytest.raises(ValueError, match=error_match):
+                DockerOperator(task_id="test", image="test", skip_exit_code=103, skip_on_exit_code=104)
+
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match):
+            with pytest.raises(ValueError, match=error_match):
+                DockerOperator(
+                    task_id="test",
+                    image="test",
+                    skip_exit_code=skip_exit_code,
+                    skip_on_exit_code=skip_on_exit_code,
+                )
+
+    def test_respect_docker_host_env(self, monkeypatch):
+        monkeypatch.setenv("DOCKER_HOST", "tcp://docker-host-from-env:2375")
+        operator = DockerOperator(task_id="test", image="test")
+        assert operator.docker_url == "tcp://docker-host-from-env:2375"
+
+    def test_docker_host_env_empty(self, monkeypatch):
+        monkeypatch.setenv("DOCKER_HOST", "")
+        operator = DockerOperator(task_id="test", image="test")
+        # The docker CLI ignores the empty string and defaults to unix://var/run/docker.sock
+        # We want to ensure the same behavior.
+        assert operator.docker_url == "unix://var/run/docker.sock"
+
+    def test_docker_host_env_unset(self, monkeypatch):
+        monkeypatch.delenv("DOCKER_HOST", raising=False)
+        operator = DockerOperator(task_id="test", image="test")
+        assert operator.docker_url == "unix://var/run/docker.sock"
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        "skip_exit_code, skip_on_exit_code, expected",
+        [
+            pytest.param(101, None, [101], id="skip-on-exit-code-not-set"),
+            pytest.param(102, 102, [102], id="skip-on-exit-code-same"),
+        ],
+    )
+    def test_partial_deprecated_skip_exit_code(
+        self, skip_exit_code, skip_on_exit_code, expected, dag_maker, session
+    ):
+        with dag_maker(dag_id="test_partial_deprecated_skip_exit_code", session=session):
+            DockerOperator.partial(
+                task_id="fake-task-id",
+                skip_exit_code=skip_exit_code,
+                skip_on_exit_code=skip_on_exit_code,
+            ).expand(image=["test", "apache/airflow"])
+
+        dr = dag_maker.create_dagrun()
+        tis = dr.get_task_instances(session=session)
+        with set_current_task_instance_session(session=session):
+            warning_match = r"`skip_exit_code` is deprecated and will be removed"
+            for ti in tis:
+                with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match):
+                    ti.render_templates()
+                assert ti.task.skip_on_exit_code == expected
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        "skip_exit_code, skip_on_exit_code",
+        [
+            pytest.param(103, 0, id="skip-on-exit-code-zero"),
+            pytest.param(104, 105, id="skip-on-exit-code-not-same"),
+        ],
+    )
+    def test_partial_deprecated_skip_exit_code_ambiguous(
+        self, skip_exit_code, skip_on_exit_code, dag_maker, session
+    ):
+        with dag_maker("test_partial_deprecated_skip_exit_code_ambiguous", session=session):
+            DockerOperator.partial(
+                task_id="fake-task-id",
+                skip_exit_code=skip_exit_code,
+                skip_on_exit_code=skip_on_exit_code,
+            ).expand(image=["test", "apache/airflow"])
+
+        dr = dag_maker.create_dagrun(session=session)
+        tis = dr.get_task_instances(session=session)
+        with set_current_task_instance_session(session=session):
+            warning_match = r"`skip_exit_code` is deprecated and will be removed"
+            for ti in tis:
+                with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match), pytest.raises(
+                    ValueError, match="Conflicting `skip_on_exit_code` provided"
+                ):
+                    ti.render_templates()

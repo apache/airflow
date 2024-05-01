@@ -21,7 +21,6 @@ import datetime
 from unittest.mock import patch
 
 import pytest
-import pytz
 
 from airflow.providers.google.cloud.transfers.postgres_to_gcs import PostgresToGCSOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
@@ -29,13 +28,14 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 TABLES = {"postgres_to_gcs_operator", "postgres_to_gcs_operator_empty"}
 
 TASK_ID = "test-postgres-to-gcs"
+LONG_TASK_ID = "t" * 100
 POSTGRES_CONN_ID = "postgres_default"
 SQL = "SELECT * FROM postgres_to_gcs_operator"
 BUCKET = "gs://test"
 FILENAME = "test_{}.ndjson"
 
 NDJSON_LINES = [
-    b'{"some_json": {"firtname": "John", "lastname": "Smith", "nested_dict": {"a": null, "b": "something"}}, "some_num": 42, "some_str": "mock_row_content_1"}\n',  # noqa
+    b'{"some_json": {"firtname": "John", "lastname": "Smith", "nested_dict": {"a": null, "b": "something"}}, "some_num": 42, "some_str": "mock_row_content_1"}\n',
     b'{"some_json": {}, "some_num": 43, "some_str": "mock_row_content_2"}\n',
     b'{"some_json": {}, "some_num": 44, "some_str": "mock_row_content_3"}\n',
 ]
@@ -110,7 +110,7 @@ class TestPostgresToGoogleCloudStorageOperator:
             (datetime.date(1000, 1, 2), "1000-01-02"),
             (datetime.datetime(1970, 1, 1, 1, 0, tzinfo=None), "1970-01-01T01:00:00"),
             (
-                datetime.datetime(2022, 1, 1, 2, 0, tzinfo=pytz.UTC),
+                datetime.datetime(2022, 1, 1, 2, 0, tzinfo=datetime.timezone.utc),
                 1641002400.0,
             ),
             (datetime.time(hour=0, minute=0, second=0), "0:00:00"),
@@ -139,6 +139,25 @@ class TestPostgresToGoogleCloudStorageOperator:
         """Test the execute in case where the run is successful while using server side cursor."""
         op = PostgresToGCSOperator(
             task_id=TASK_ID,
+            postgres_conn_id=POSTGRES_CONN_ID,
+            sql=SQL,
+            bucket=BUCKET,
+            filename=FILENAME,
+            use_server_side_cursor=True,
+            cursor_itersize=100,
+        )
+        gcs_hook_mock = gcs_hook_mock_class.return_value
+        gcs_hook_mock.upload.side_effect = self._assert_uploaded_file_content
+        op.execute(None)
+
+    @patch("airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook")
+    def test_exec_success_server_side_cursor_unique_name(self, gcs_hook_mock_class):
+        """
+        Test that the server side cursor unique name generator is successful
+        with a task id that surpasses postgres identifier limit.
+        """
+        op = PostgresToGCSOperator(
+            task_id=LONG_TASK_ID,
             postgres_conn_id=POSTGRES_CONN_ID,
             sql=SQL,
             bucket=BUCKET,

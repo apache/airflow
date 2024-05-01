@@ -16,16 +16,19 @@
 # specific language governing permissions and limitations
 # under the License.
 """Get code APIs."""
+
 from __future__ import annotations
 
 from deprecated import deprecated
 
 from airflow.api.common.experimental import check_and_get_dag
-from airflow.exceptions import AirflowException, DagCodeNotFound
+from airflow.exceptions import AirflowException, DagCodeNotFound, RemovedInAirflow3Warning
 from airflow.models.dagcode import DagCode
 
 
-@deprecated(reason="Use DagCode().get_code_by_fileloc() instead", version="2.2.4")
+@deprecated(
+    reason="Use DagCode().get_code_by_fileloc() instead", version="2.2.4", category=RemovedInAirflow3Warning
+)
 def get_code(dag_id: str) -> str:
     """Return python code of a given dag_id.
 
@@ -37,5 +40,5 @@ def get_code(dag_id: str) -> str:
     try:
         return DagCode.get_code_by_fileloc(dag.fileloc)
     except (OSError, DagCodeNotFound) as exception:
-        error_message = f"Error {str(exception)} while reading Dag id {dag_id} Code"
+        error_message = f"Error {exception} while reading Dag id {dag_id} Code"
         raise AirflowException(error_message, exception)

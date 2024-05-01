@@ -17,13 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-from moto import mock_sqs
+from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 
 
 class TestSqsHook:
-    @mock_sqs
+    @mock_aws
     def test_get_conn(self):
         hook = SqsHook(aws_conn_id="aws_default")
         assert hook.get_conn() is not None

@@ -17,18 +17,21 @@
 # under the License.
 from __future__ import annotations
 
-import io
 import os
-import tempfile
 from contextlib import redirect_stdout
+from io import StringIO
 
 import pytest
+from sqlalchemy import select
 
 from airflow import models
 from airflow.cli import cli_parser
 from airflow.cli.commands import variable_command
 from airflow.models import Variable
+from airflow.utils.session import create_session
 from tests.test_utils.db import clear_db_variables
+
+pytestmark = pytest.mark.db_test
 
 
 class TestCliVariables:
@@ -50,15 +53,31 @@ class TestCliVariables:
         with pytest.raises(KeyError):
             Variable.get("foo1")
 
+    def test_variables_set_with_description(self):
+        """Test variable_set command with optional description argument"""
+        expected_var_desc = "foo_bar_description"
+        var_key = "foo"
+        variable_command.variables_set(
+            self.parser.parse_args(["variables", "set", var_key, "bar", "--description", expected_var_desc])
+        )
+
+        assert Variable.get(var_key) == "bar"
+        with create_session() as session:
+            actual_var_desc = session.scalar(select(Variable.description).where(Variable.key == var_key))
+            assert actual_var_desc == expected_var_desc
+
+        with pytest.raises(KeyError):
+            Variable.get("foo1")
+
     def test_variables_get(self):
         Variable.set("foo", {"foo": "bar"}, serialize_json=True)
 
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             variable_command.variables_get(self.parser.parse_args(["variables", "get", "foo"]))
             assert '{\n  "foo": "bar"\n}\n' == stdout.getvalue()
 
     def test_get_variable_default_value(self):
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             variable_command.variables_get(
                 self.parser.parse_args(["variables", "get", "baz", "--default", "bar"])
             )
@@ -107,6 +126,24 @@ class TestCliVariables:
         assert Variable.get("false", deserialize_json=True) is False
         assert Variable.get("null", deserialize_json=True) is None
 
+        # test variable import skip existing
+        # set varliable list to ["airflow"] and have it skip during import
+        variable_command.variables_set(self.parser.parse_args(["variables", "set", "list", '["airflow"]']))
+        variable_command.variables_import(
+            self.parser.parse_args(
+                ["variables", "import", "variables_types.json", "--action-on-existing-key", "skip"]
+            )
+        )
+        assert ["airflow"] == Variable.get("list", deserialize_json=True)  # should not be overwritten
+
+        # test variable import fails on existing when action is set to fail
+        with pytest.raises(SystemExit):
+            variable_command.variables_import(
+                self.parser.parse_args(
+                    ["variables", "import", "variables_types.json", "--action-on-existing-key", "fail"]
+                )
+            )
+
         os.remove("variables_types.json")
 
     def test_variables_list(self):
@@ -130,33 +167,25 @@ class TestCliVariables:
         """Test variables_export command"""
         variable_command.variables_export(self.parser.parse_args(["variables", "export", os.devnull]))
 
-    def test_variables_isolation(self):
+    def test_variables_isolation(self, tmp_path):
         """Test isolation of variables"""
-        with tempfile.NamedTemporaryFile(delete=True) as tmp1, tempfile.NamedTemporaryFile(
-            delete=True
-        ) as tmp2:
+        path1 = tmp_path / "testfile1"
+        path2 = tmp_path / "testfile2"
 
-            # First export
-            variable_command.variables_set(
-                self.parser.parse_args(["variables", "set", "foo", '{"foo":"bar"}'])
-            )
-            variable_command.variables_set(self.parser.parse_args(["variables", "set", "bar", "original"]))
-            variable_command.variables_export(self.parser.parse_args(["variables", "export", tmp1.name]))
+        # First export
+        variable_command.variables_set(self.parser.parse_args(["variables", "set", "foo", '{"foo":"bar"}']))
+        variable_command.variables_set(self.parser.parse_args(["variables", "set", "bar", "original"]))
+        variable_command.variables_export(self.parser.parse_args(["variables", "export", os.fspath(path1)]))
 
-            with open(tmp1.name) as first_exp:
+        variable_command.variables_set(self.parser.parse_args(["variables", "set", "bar", "updated"]))
+        variable_command.variables_set(self.parser.parse_args(["variables", "set", "foo", '{"foo":"oops"}']))
+        variable_command.variables_delete(self.parser.parse_args(["variables", "delete", "foo"]))
+        variable_command.variables_import(self.parser.parse_args(["variables", "import", os.fspath(path1)]))
 
-                variable_command.variables_set(self.parser.parse_args(["variables", "set", "bar", "updated"]))
-                variable_command.variables_set(
-                    self.parser.parse_args(["variables", "set", "foo", '{"foo":"oops"}'])
-                )
-                variable_command.variables_delete(self.parser.parse_args(["variables", "delete", "foo"]))
-                variable_command.variables_import(self.parser.parse_args(["variables", "import", tmp1.name]))
+        assert "original" == Variable.get("bar")
+        assert '{\n  "foo": "bar"\n}' == Variable.get("foo")
 
-                assert "original" == Variable.get("bar")
-                assert '{\n  "foo": "bar"\n}' == Variable.get("foo")
+        # Second export
+        variable_command.variables_export(self.parser.parse_args(["variables", "export", os.fspath(path2)]))
 
-                # Second export
-                variable_command.variables_export(self.parser.parse_args(["variables", "export", tmp2.name]))
-
-                with open(tmp2.name) as second_exp:
-                    assert first_exp.read() == second_exp.read()
+        assert path1.read_text() == path2.read_text()

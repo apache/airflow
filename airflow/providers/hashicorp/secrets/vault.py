@@ -16,10 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """Objects relating to sourcing connections & variables from Hashicorp Vault."""
+
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING
+
+from deprecated import deprecated
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.hashicorp._internal_client.vault_client import _VaultClient
@@ -72,6 +74,9 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     :param key_id: Key ID for Authentication (for ``aws_iam`` and ''azure`` auth_type).
     :param secret_id: Secret ID for Authentication (for ``approle``, ``aws_iam`` and ``azure`` auth_types).
     :param role_id: Role ID for Authentication (for ``approle``, ``aws_iam`` auth_types).
+    :param assume_role_kwargs: AWS assume role param.
+        See AWS STS Docs:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sts/client/assume_role.html
     :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type).
     :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, default:
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``).
@@ -105,6 +110,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         key_id: str | None = None,
         secret_id: str | None = None,
         role_id: str | None = None,
+        assume_role_kwargs: dict | None = None,
         kubernetes_role: str | None = None,
         kubernetes_jwt_path: str = "/var/run/secrets/kubernetes.io/serviceaccount/token",
         gcp_key_path: str | None = None,
@@ -145,6 +151,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
             key_id=key_id,
             secret_id=secret_id,
             role_id=role_id,
+            assume_role_kwargs=assume_role_kwargs,
             kubernetes_role=kubernetes_role,
             kubernetes_jwt_path=kubernetes_jwt_path,
             gcp_key_path=gcp_key_path,
@@ -184,6 +191,10 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
             secret_path=(mount_point + "/" if mount_point else "") + secret_path
         )
 
+    @deprecated(
+        reason="Method `VaultBackend.get_conn_uri` is deprecated and will be removed in a future release.",
+        category=AirflowProviderDeprecationWarning,
+    )
     def get_conn_uri(self, conn_id: str) -> str | None:
         """
         Get serialized representation of connection.
@@ -193,12 +204,6 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         """
         # Since VaultBackend implements `get_connection`, `get_conn_uri` is not used. So we
         # don't need to implement (or direct users to use) method `get_conn_value` instead
-        warnings.warn(
-            f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
-            "in a future release.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         response = self.get_response(conn_id)
         return response.get("conn_uri") if response else None
 

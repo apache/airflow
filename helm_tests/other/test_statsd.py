@@ -102,8 +102,19 @@ class TestStatsd:
             values=values,
             show_only=["templates/statsd/statsd-deployment.yaml"],
         )
-        expected_result = revision_history_limit if revision_history_limit else global_revision_history_limit
+        expected_result = revision_history_limit or global_revision_history_limit
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
+
+    def test_scheduler_name(self):
+        docs = render_chart(
+            values={"schedulerName": "airflow-scheduler"},
+            show_only=["templates/statsd/statsd-deployment.yaml"],
+        )
+
+        assert "airflow-scheduler" == jmespath.search(
+            "spec.template.spec.schedulerName",
+            docs[0],
+        )
 
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
@@ -311,6 +322,20 @@ class TestStatsd:
 
         assert jmespath.search("spec.template.spec.containers[0].env", docs) == [env1]
 
+    def test_should_add_annotations_to_statsd_configmap(self):
+        docs = render_chart(
+            values={
+                "statsd": {
+                    "enabled": True,
+                    "configMapAnnotations": {"test_annotation": "test_annotation_value"},
+                },
+            },
+            show_only=["templates/configmaps/statsd-configmap.yaml"],
+        )[0]
+
+        assert "annotations" in jmespath.search("metadata", docs)
+        assert jmespath.search("metadata.annotations", docs)["test_annotation"] == "test_annotation_value"
+
 
 class TestStatsdServiceAccount:
     """Tests statsd service account."""
@@ -326,7 +351,7 @@ class TestStatsdServiceAccount:
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
-    def test_overriden_automount_service_account_token(self):
+    def test_overridden_automount_service_account_token(self):
         docs = render_chart(
             values={
                 "statsd": {

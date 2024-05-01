@@ -24,7 +24,7 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ .Release.Name }}-redis-policy
+  name: {{ include "airflow.fullname" . }}-redis-policy
   labels:
     tier: airflow
     component: redis-policy

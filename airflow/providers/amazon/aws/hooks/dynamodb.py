@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains the Amazon DynamoDB Hook."""
+
 from __future__ import annotations
 
 from typing import Iterable
@@ -68,4 +69,4 @@ class DynamoDBHook(AwsBaseHook):
                     batch.put_item(Item=item)
             return True
         except Exception as general_error:
-            raise AirflowException(f"Failed to insert items in dynamodb, error: {str(general_error)}")
+            raise AirflowException(f"Failed to insert items in dynamodb, error: {general_error}")

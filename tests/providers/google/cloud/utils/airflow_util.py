@@ -16,16 +16,19 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pendulum
 
 from airflow.models import DAG, Connection
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
+
+if TYPE_CHECKING:
+    from airflow.models.baseoperator import BaseOperator
 
 
 def get_dag_run(dag_id: str = "test_dag_id", run_id: str = "test_dag_id") -> DagRun:

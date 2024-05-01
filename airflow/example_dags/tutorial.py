@@ -20,15 +20,16 @@
 Documentation that goes along with the Airflow tutorial located
 [here](https://airflow.apache.org/tutorial.html)
 """
+
 from __future__ import annotations
 
 # [START tutorial]
 # [START import_module]
+import textwrap
 from datetime import datetime, timedelta
-from textwrap import dedent
 
 # The DAG object; we'll need this to instantiate a DAG
-from airflow import DAG
+from airflow.models.dag import DAG
 
 # Operators; we need this to operate!
 from airflow.operators.bash import BashOperator
@@ -60,6 +61,7 @@ with DAG(
         # 'on_success_callback': some_other_function, # or list of functions
         # 'on_retry_callback': another_function, # or list of functions
         # 'sla_miss_callback': yet_another_function, # or list of functions
+        # 'on_skipped_callback': another_function, #or list of functions
         # 'trigger_rule': 'all_success'
     },
     # [END default_args]
@@ -87,13 +89,13 @@ with DAG(
     # [END basic_task]
 
     # [START documentation]
-    t1.doc_md = dedent(
+    t1.doc_md = textwrap.dedent(
         """\
     #### Task Documentation
     You can document your task using the attributes `doc_md` (markdown),
     `doc` (plain text), `doc_rst`, `doc_json`, `doc_yaml` which gets
     rendered in the UI's Task Instance Details page.
-    ![img](http://montcs.bloomu.edu/~bobmon/Semesters/2012-01/491/import%20soul.png)
+    ![img](https://imgs.xkcd.com/comics/fixing_problems.png)
     **Image Credit:** Randall Munroe, [XKCD](https://xkcd.com/license.html)
     """
     )
@@ -105,7 +107,7 @@ with DAG(
     # [END documentation]
 
     # [START jinja_template]
-    templated_command = dedent(
+    templated_command = textwrap.dedent(
         """
     {% for i in range(5) %}
         echo "{{ ds }}"

@@ -16,12 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.models import DAG
+import pytest
+
+from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
+
+pytestmark = pytest.mark.db_test
 
 
 def test_runtype_enum_escape():
@@ -31,15 +35,21 @@ def test_runtype_enum_escape():
     """
     with create_session() as session:
         dag = DAG(dag_id="test_enum_dags", start_date=DEFAULT_DATE)
+        data_interval = dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE)
         dag.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             state=State.RUNNING,
             execution_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
             session=session,
+            data_interval=data_interval,
         )
 
-        query = session.query(DagRun.dag_id, DagRun.state, DagRun.run_type,).filter(
+        query = session.query(
+            DagRun.dag_id,
+            DagRun.state,
+            DagRun.run_type,
+        ).filter(
             DagRun.dag_id == dag.dag_id,
             # make sure enum value can be used in filter queries
             DagRun.run_type == DagRunType.SCHEDULED,

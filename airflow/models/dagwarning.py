@@ -18,9 +18,9 @@
 from __future__ import annotations
 
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, ForeignKeyConstraint, String, Text, delete, false, select
-from sqlalchemy.orm import Session
 
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.models.base import Base, StringID
@@ -28,6 +28,9 @@ from airflow.utils import timezone
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 
 class DagWarning(Base):

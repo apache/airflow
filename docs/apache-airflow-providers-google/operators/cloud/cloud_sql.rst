@@ -243,7 +243,7 @@ it will be retrieved from the Google Cloud connection used. Both variants are sh
 
 Also for all this action you can use operator in the deferrable mode:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql_deferrable.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloudsql_export_async]
@@ -574,25 +574,69 @@ certificate/key files available in predefined locations for all the workers on
 which the operator can run. This can be provided for example by mounting
 NFS-like volumes in the same path for all the workers.
 
-Example connection definitions for all connectivity cases. Note that all the components
-of the connection URI should be URL-encoded:
+Example connection definitions for all non-SSL connectivity. Note that all the components of the connection URI should
+be URL-encoded:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_cloud_sql_query.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql_query.py
     :language: python
     :start-after: [START howto_operator_cloudsql_query_connections]
     :end-before: [END howto_operator_cloudsql_query_connections]
 
+Similar connection definition for all SSL-enabled connectivity:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql_query_ssl.py
+    :language: python
+    :start-after: [START howto_operator_cloudsql_query_connections]
+    :end-before: [END howto_operator_cloudsql_query_connections]
+
+It is also possible to configure a connection via environment variable (note that the connection id from the operator
+matches the :envvar:`AIRFLOW_CONN_{CONN_ID}` postfix uppercase if you are using a standard AIRFLOW notation for
+defining connection via environment variables):
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql_query.py
+    :language: python
+    :start-after: [START howto_operator_cloudsql_query_connections_env]
+    :end-before: [END howto_operator_cloudsql_query_connections_env]
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql_query_ssl.py
+    :language: python
+    :start-after: [START howto_operator_cloudsql_query_connections_env]
+    :end-before: [END howto_operator_cloudsql_query_connections_env]
+
+
 Using the operator
 """"""""""""""""""
 
-Example operators below are using all connectivity options. Note connection id
-from the operator matches the :envvar:`AIRFLOW_CONN_{CONN_ID}` postfix uppercase. This is
-standard AIRFLOW notation for defining connection via environment variables):
+Example operator below is using prepared earlier connection. It might be a connection_id from the Airflow database
+or the connection configured via environment variable (note that the connection id from the operator matches the
+:envvar:`AIRFLOW_CONN_{CONN_ID}` postfix uppercase if you are using a standard AIRFLOW notation for defining connection
+via environment variables):
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_cloud_sql_query.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql_query.py
     :language: python
     :start-after: [START howto_operator_cloudsql_query_operators]
     :end-before: [END howto_operator_cloudsql_query_operators]
+
+SSL settings can be also specified on an operator's level. In this case SSL settings configured in the connection
+will be overridden. One of the ways to do so is specifying paths to each certificate file as shown below.
+Note that these files will be copied into a temporary location with minimal required permissions for security
+reasons.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql_query_ssl.py
+    :language: python
+    :start-after: [START howto_operator_cloudsql_query_operators_ssl]
+    :end-before: [END howto_operator_cloudsql_query_operators_ssl]
+
+You can also save your SSL certificated into a Google Cloud Secret Manager and provide a secret id. The secret
+format is:
+.. code-block:: python
+
+  {"sslcert": "", "sslkey": "", "sslrootcert": ""}
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql_query_ssl.py
+    :language: python
+    :start-after: [START howto_operator_cloudsql_query_operators_ssl_secret_id]
+    :end-before: [END howto_operator_cloudsql_query_operators_ssl_secret_id]
 
 Templating
 """"""""""

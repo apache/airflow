@@ -18,14 +18,20 @@
 from __future__ import annotations
 
 import importlib
-from types import ModuleType
+import warnings
+from typing import TYPE_CHECKING
 
 import pymongo
 import pytest
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.mongo.hooks.mongo import MongoHook
-from airflow.utils import db
+
+pytestmark = pytest.mark.db_test
+
+if TYPE_CHECKING:
+    from types import ModuleType
 
 mongomock: ModuleType | None
 
@@ -35,14 +41,36 @@ except ImportError:
     mongomock = None
 
 
+@pytest.fixture(scope="module", autouse=True)
+def mongo_connections():
+    """Create MongoDB connections which use for testing purpose."""
+    connections = [
+        Connection(conn_id="mongo_default", conn_type="mongo", host="mongo", port=27017),
+        Connection(
+            conn_id="mongo_default_with_srv",
+            conn_type="mongo",
+            host="mongo",
+            port=27017,
+            extra='{"srv": true}',
+        ),
+        # Mongo establishes connection during initialization, so we need to have this connection
+        Connection(conn_id="fake_connection", conn_type="mongo", host="mongo", port=27017),
+    ]
+
+    with pytest.MonkeyPatch.context() as mp:
+        for conn in connections:
+            mp.setenv(f"AIRFLOW_CONN_{conn.conn_id.upper()}", conn.as_json())
+        yield
+
+
 class MongoHookTest(MongoHook):
     """
     Extending hook so that a mockmongo collection object can be passed in
     to get_collection()
     """
 
-    def __init__(self, conn_id="mongo_default", *args, **kwargs):
-        super().__init__(conn_id=conn_id, *args, **kwargs)
+    def __init__(self, mongo_conn_id="mongo_default", *args, **kwargs):
+        super().__init__(mongo_conn_id=mongo_conn_id, *args, **kwargs)
 
     def get_collection(self, mock_collection, mongo_db=None):
         return mock_collection
@@ -51,24 +79,33 @@ class MongoHookTest(MongoHook):
 @pytest.mark.skipif(mongomock is None, reason="mongomock package not present")
 class TestMongoHook:
     def setup_method(self):
-        self.hook = MongoHookTest(conn_id="mongo_default", mongo_db="default")
+        self.hook = MongoHookTest(mongo_conn_id="mongo_default")
         self.conn = self.hook.get_conn()
-        db.merge_conn(
-            Connection(
-                conn_id="mongo_default_with_srv",
-                conn_type="mongo",
-                host="mongo",
-                port=27017,
-                extra='{"srv": true}',
+
+    def test_mongo_conn_id(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", category=AirflowProviderDeprecationWarning)
+            # Use default "mongo_default"
+            assert MongoHook().mongo_conn_id == "mongo_default"
+            # Positional argument
+            assert MongoHook("fake_connection").mongo_conn_id == "fake_connection"
+
+        warning_message = "Parameter `conn_id` is deprecated"
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
+            assert MongoHook(conn_id="fake_connection").mongo_conn_id == "fake_connection"
+
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
+            assert (
+                MongoHook(conn_id="fake_connection", mongo_conn_id="foo-bar").mongo_conn_id
+                == "fake_connection"
             )
-        )
 
     def test_get_conn(self):
         assert self.hook.connection.port == 27017
         assert isinstance(self.conn, pymongo.MongoClient)
 
     def test_srv(self):
-        hook = MongoHook(conn_id="mongo_default_with_srv")
+        hook = MongoHook(mongo_conn_id="mongo_default_with_srv")
         assert hook.uri.startswith("mongodb+srv://")
 
     def test_insert_one(self):
@@ -300,9 +337,35 @@ class TestMongoHook:
         results = self.hook.aggregate(collection, aggregate_query)
         assert len(list(results)) == 2
 
+    def test_distinct(self):
+        collection = mongomock.MongoClient().db.collection
+        objs = [
+            {"test_id": "1", "test_status": "success"},
+            {"test_id": "2", "test_status": "failure"},
+            {"test_id": "3", "test_status": "success"},
+        ]
+
+        collection.insert_many(objs)
+
+        results = self.hook.distinct(collection, "test_status")
+        assert len(results) == 2
+
+    def test_distinct_with_filter(self):
+        collection = mongomock.MongoClient().db.collection
+        objs = [
+            {"test_id": "1", "test_status": "success"},
+            {"test_id": "2", "test_status": "failure"},
+            {"test_id": "3", "test_status": "success"},
+        ]
+
+        collection.insert_many(objs)
+
+        results = self.hook.distinct(collection, "test_id", {"test_status": "failure"})
+        assert len(results) == 1
+
 
 def test_context_manager():
-    with MongoHook(conn_id="mongo_default", mongo_db="default") as ctx_hook:
+    with MongoHook(mongo_conn_id="mongo_default") as ctx_hook:
         ctx_hook.get_conn()
 
         assert isinstance(ctx_hook, MongoHook)

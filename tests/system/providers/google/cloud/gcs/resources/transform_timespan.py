@@ -28,11 +28,7 @@ print(sys.argv)
 print(f"Running script, called with source: {source}, destination: {destination}")
 print(f"timespan_start: {timespan_start}, timespan_end: {timespan_end}")
 
-with open(Path(destination) / "output.txt", "w+") as dest:
-    for f in Path(source).glob("**/*"):
-        if f.is_dir():
-            continue
-    with open(f) as src:
-        lines = [line.upper() for line in src.readlines()]
-        print(lines)
-        dest.writelines(lines)
+path = next(path for path in Path(source).rglob("*") if path.is_file())
+content = path.read_text().upper()
+print(content)
+Path(destination, "output.txt").write_text(content)

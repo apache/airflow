@@ -102,20 +102,16 @@ class JWTGenerator:
         account = raw_account
         if ".global" not in account:
             # Handle the general case.
-            idx = account.find(".")
-            if idx > 0:
-                account = account[0:idx]
+            account = account.partition(".")[0]
         else:
             # Handle the replication case.
-            idx = account.find("-")
-            if idx > 0:
-                account = account[0:idx]  # pragma: no cover
+            account = account.partition("-")[0]
         # Use uppercase for the account identifier.
         return account.upper()
 
     def get_token(self) -> str | None:
         """
-        Generates a new JWT.
+        Generate a new JWT.
 
         If a JWT has been already been generated earlier, return the previously
         generated token unless the specified renewal time has passed.

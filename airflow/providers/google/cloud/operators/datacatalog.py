@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.datacatalog import (
     DataCatalogClient,
     Entry,
@@ -31,7 +30,6 @@ from google.cloud.datacatalog import (
     TagTemplate,
     TagTemplateField,
 )
-from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.providers.google.cloud.hooks.datacatalog import CloudDataCatalogHook
 from airflow.providers.google.cloud.links.datacatalog import (
@@ -40,8 +38,12 @@ from airflow.providers.google.cloud.links.datacatalog import (
     DataCatalogTagTemplateLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+    from google.protobuf.field_mask_pb2 import FieldMask
+
     from airflow.utils.context import Context
 
 
@@ -103,7 +105,7 @@ class CloudDataCatalogCreateEntryOperator(GoogleCloudBaseOperator):
         entry_group: str,
         entry_id: str,
         entry: dict | Entry,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -219,7 +221,7 @@ class CloudDataCatalogCreateEntryGroupOperator(GoogleCloudBaseOperator):
         location: str,
         entry_group_id: str,
         entry_group: dict | EntryGroup,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -335,7 +337,7 @@ class CloudDataCatalogCreateTagOperator(GoogleCloudBaseOperator):
         entry: str,
         tag: dict | Tag,
         template_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -466,7 +468,7 @@ class CloudDataCatalogCreateTagTemplateOperator(GoogleCloudBaseOperator):
         location: str,
         tag_template_id: str,
         tag_template: dict | TagTemplate,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -582,7 +584,7 @@ class CloudDataCatalogCreateTagTemplateFieldOperator(GoogleCloudBaseOperator):
         tag_template: str,
         tag_template_field_id: str,
         tag_template_field: dict | TagTemplateField,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -689,7 +691,7 @@ class CloudDataCatalogDeleteEntryOperator(GoogleCloudBaseOperator):
         location: str,
         entry_group: str,
         entry: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -773,7 +775,7 @@ class CloudDataCatalogDeleteEntryGroupOperator(GoogleCloudBaseOperator):
         *,
         location: str,
         entry_group: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -859,7 +861,7 @@ class CloudDataCatalogDeleteTagOperator(GoogleCloudBaseOperator):
         entry_group: str,
         entry: str,
         tag: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -948,7 +950,7 @@ class CloudDataCatalogDeleteTagTemplateOperator(GoogleCloudBaseOperator):
         location: str,
         tag_template: str,
         force: bool,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -1036,7 +1038,7 @@ class CloudDataCatalogDeleteTagTemplateFieldOperator(GoogleCloudBaseOperator):
         tag_template: str,
         field: str,
         force: bool,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -1124,7 +1126,7 @@ class CloudDataCatalogGetEntryOperator(GoogleCloudBaseOperator):
         location: str,
         entry_group: str,
         entry: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -1219,7 +1221,7 @@ class CloudDataCatalogGetEntryGroupOperator(GoogleCloudBaseOperator):
         location: str,
         entry_group: str,
         read_mask: FieldMask,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -1307,7 +1309,7 @@ class CloudDataCatalogGetTagTemplateOperator(GoogleCloudBaseOperator):
         *,
         location: str,
         tag_template: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -1402,7 +1404,7 @@ class CloudDataCatalogListTagsOperator(GoogleCloudBaseOperator):
         entry_group: str,
         entry: str,
         page_size: int = 100,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -1496,7 +1498,7 @@ class CloudDataCatalogLookupEntryOperator(GoogleCloudBaseOperator):
         *,
         linked_resource: str | None = None,
         sql_resource: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -1592,7 +1594,7 @@ class CloudDataCatalogRenameTagTemplateFieldOperator(GoogleCloudBaseOperator):
         tag_template: str,
         field: str,
         new_tag_template_field_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -1807,7 +1809,7 @@ class CloudDataCatalogUpdateEntryOperator(GoogleCloudBaseOperator):
         location: str | None = None,
         entry_group: str | None = None,
         entry_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -1919,7 +1921,7 @@ class CloudDataCatalogUpdateTagOperator(GoogleCloudBaseOperator):
         entry_group: str | None = None,
         entry: str | None = None,
         tag_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -2033,7 +2035,7 @@ class CloudDataCatalogUpdateTagTemplateOperator(GoogleCloudBaseOperator):
         update_mask: dict | FieldMask,
         location: str | None = None,
         tag_template_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -2150,7 +2152,7 @@ class CloudDataCatalogUpdateTagTemplateFieldOperator(GoogleCloudBaseOperator):
         location: str | None = None,
         tag_template: str | None = None,
         tag_template_field_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),

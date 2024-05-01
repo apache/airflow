@@ -18,9 +18,9 @@
 Public Interface of Airflow
 ...........................
 
-The Public Interface of Apache Airflow is a set of interfaces that allow developers to interact
-with and access certain features of the Apache Airflow system. This includes operations such as
-creating and managing DAGs (Directed Acyclic Graphs), managing tasks and their dependencies,
+The Public Interface of Apache Airflow is the collection of interfaces and behaviors in Apache Airflow
+whose changes are governed by semantic versioning. A user interacts with Airflow's public interface
+by creating and managing DAGs, managing tasks and dependencies,
 and extending Airflow capabilities by writing new executors, plugins, operators and providers. The
 Public Interface can be useful for building custom tools and integrations with other systems,
 and for automating certain aspects of the Airflow workflow.
@@ -28,17 +28,19 @@ and for automating certain aspects of the Airflow workflow.
 Using Airflow Public Interfaces
 ===============================
 
-Using Airflow Public Interfaces is needed when you want to interact with Airflow programmatically:
+The following are some examples of the public interface of Airflow:
 
-* When you are extending Airflow classes such as Operators and Hooks. This can be done by DAG authors to add missing functionality in their DAGs or by those who write reusable custom operators for other DAG authors.
+* When you are writing your own operators or hooks. This commonly done when no hook or operator exists for your use case, or when perhaps when one exists but you need to customize the behavior.
 * When writing new :doc:`Plugins <authoring-and-scheduling/plugins>` that extend Airflow's functionality beyond
   DAG building blocks. Secrets, Timetables, Triggers, Listeners are all examples of such functionality. This
   is usually done by users who manage Airflow instances.
 * Bundling custom Operators, Hooks, Plugins and releasing them together via
   :doc:`provider packages <apache-airflow-providers:index>` - this is usually done by those who intend to
   provide a reusable set of functionality for external services or applications Airflow integrates with.
+* Using the taskflow API to write tasks
+* Relying on the consistent behavior of Airflow objects
 
-All the ways above involve extending or using Airflow Python classes and functions. The classes
+One aspect of "public interface" is  extending or using Airflow Python classes and functions. The classes
 and functions mentioned below can be relied on to keep backwards-compatible signatures and behaviours within
 MAJOR version of Airflow. On the other hand, classes and methods starting with ``_`` (also known
 as protected Python methods) and ``__`` (also known as private Python methods) are not part of the Public
@@ -46,7 +48,7 @@ Airflow Interface and might change at any time.
 
 You can also use Airflow's Public Interface via the `Stable REST API <stable-rest-api-ref>`_ (based on the
 OpenAPI specification). For specific needs you can also use the
-`Airflow Command Line Interface (CLI) <cli-and-env-variables-ref>`_ though it's behaviour might change
+`Airflow Command Line Interface (CLI) <cli-and-env-variables-ref>`_ though its behaviour might change
 in details (such as output format and available flags) so if you want to rely on those in programmatic
 way, the Stable REST API is recommended.
 
@@ -59,8 +61,8 @@ DAGs
 
 The DAG is Airflow's core entity that represents a recurring workflow. You can create a DAG by
 instantiating the :class:`~airflow.models.dag.DAG` class in your DAG file. You can also instantiate
-them via :class::`~airflow.models.dagbag.DagBag` class that reads DAGs from a file or a folder. DAGs
-can also have parameters specified via :class::`~airflow.models.param.Param` class.
+them via :class:`~airflow.models.dagbag.DagBag` class that reads DAGs from a file or a folder. DAGs
+can also have parameters specified via :class:`~airflow.models.param.Param` class.
 
 Airflow has a set of example DAGs that you can use to learn how to write DAGs
 
@@ -73,8 +75,6 @@ Airflow has a set of example DAGs that you can use to learn how to write DAGs
 
 You can read more about DAGs in :doc:`DAGs <core-concepts/dags>`.
 
-.. _pythonapi:operators:
-
 References for the modules used in DAGs are here:
 
 .. toctree::
@@ -86,56 +86,23 @@ References for the modules used in DAGs are here:
   _api/airflow/models/dagbag/index
   _api/airflow/models/param/index
 
+Properties of a :class:`~airflow.models.dagrun.DagRun` can also be referenced in things like :ref:`Templates <templates-ref>`.
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  _api/airflow/models/dagrun/index
+
+.. _pythonapi:operators:
+
 Operators
 ---------
 
-Operators allow for generation of certain types of tasks that become nodes in
-the DAG when instantiated.
+The base classes :class:`~airflow.models.baseoperator.BaseOperator` and :class:`~airflow.sensors.base.BaseSensorOperator` are public and may be extended to make new operators.
 
-There are 3 main types of operators:
-
-- Operators that performs an **action**, or tell another system to
-  perform an action
-- **Transfer** operators move data from one system to another
-- **Sensors** are a certain type of operator that will keep running until a
-  certain criterion is met. Examples include a specific file landing in HDFS or
-  S3, a partition appearing in Hive, or a specific time of the day. Sensors
-  are derived from :class:`~airflow.sensors.base.BaseSensorOperator` and run a poke
-  method at a specified :attr:`~airflow.sensors.base.BaseSensorOperator.poke_interval` until it
-  returns ``True``.
-
-All operators are derived from :class:`~airflow.models.baseoperator.BaseOperator` and acquire much
-functionality through inheritance. Since this is the core of the engine,
-it's worth taking the time to understand the parameters of :class:`~airflow.models.baseoperator.BaseOperator`
-to understand the primitive features that can be leveraged in your DAGs.
-
-Airflow has a set of Operators that are considered public. You are also free to extend their functionality
-by extending them:
-
-.. toctree::
-  :includehidden:
-  :glob:
-  :maxdepth: 1
-
-  _api/airflow/operators/index
-
-  _api/airflow/sensors/index
-
-
-You can read more about the operators in :doc:`core-concepts/operators`, :doc:`core-concepts/sensors`.
-Also you can learn how to write a custom operator in :doc:`howto/custom-operator`.
-
-.. _pythonapi:hooks:
-
-References for the modules used in for operators are here:
-
-.. toctree::
-  :includehidden:
-  :glob:
-  :maxdepth: 1
-
-  _api/airflow/models/baseoperator/index
-
+Subclasses of BaseOperator which are published in Apache Airflow are public in *behavior* but not in *structure*.  That is to say, the Operator's parameters and behavior is governed by semver but the methods are subject to change at any time.
 
 Task Instances
 --------------
@@ -165,6 +132,7 @@ Task instance keys are unique identifiers of task instances in a DAG (in a DAG R
 
   _api/airflow/models/taskinstancekey/index
 
+.. _pythonapi:hooks:
 
 Hooks
 -----
@@ -221,6 +189,16 @@ exposes:
   :maxdepth: 1
 
   _api/airflow/exceptions/index
+
+Public Utility classes
+----------------------
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  _api/airflow/utils/state/index
 
 
 Using Public Interface to extend Airflow capabilities
@@ -292,6 +270,13 @@ Extra Links
 Extra links are dynamic links that could be added to Airflow independently from custom Operators. Normally
 they can be defined by the Operators, but plugins allow you to override the links on a global level.
 
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  _api/airflow/models/baseoperatorlink/index
+
 You can read more about the Extra Links in :doc:`/howto/define-extra-link`.
 
 Using Public Interface to integrate with external services and applications
@@ -308,11 +293,11 @@ Executors
 
 Executors are the mechanism by which task instances get run. All executors are
 derived from :class:`~airflow.executors.base_executor.BaseExecutor`. There are several
-executor implementations built-in Airflow, each with its own unique characteristics and capabilities.
+executor implementations built-in Airflow, each with their own unique characteristics and capabilities.
 
-The executor interface itself (the BaseExecutor class) is public, but the built-in executors are not (i.e. KubernetesExecutor, LocalExecutor, etc).  This means that, to use KubernetesExecutor as an example, we may make changes to KubernetesExecutor in minor or patch Airflow releases which could break an executor that subclasses KubernetesExecutor.  This is necessary to allow Airflow developers sufficient freedom to continue to improve the executors we offer.  Accordingly if you want to modify or extend a built-in executor, you should incorporate the full executor code into your project so that such changes will not break your derivative executor.
+The executor interface itself (the BaseExecutor class) is public, but the built-in executors are not (i.e. KubernetesExecutor, LocalExecutor, etc).  This means that, to use KubernetesExecutor as an example, we may make changes to KubernetesExecutor in minor or patch Airflow releases which could break an executor that subclasses KubernetesExecutor.  This is necessary to allow Airflow developers sufficient freedom to continue to improve the executors we offer.  Accordingly, if you want to modify or extend a built-in executor, you should incorporate the full executor code into your project so that such changes will not break your derivative executor.
 
-You can read more about executors in :doc:`core-concepts/executor/index`.
+You can read more about executors and how to write your own in :doc:`core-concepts/executor/index`.
 
 .. versionadded:: 2.6
 
@@ -327,8 +312,8 @@ Secrets Backends
 ----------------
 
 Airflow can be configured to rely on secrets backends to retrieve
-:class:`~airflow.models.connection.Connection` and :class:`~airflow.models.Variables`.
-All secrets backends derive from :class:`~airflow.secrets.BaseSecretsBackend`.
+:class:`~airflow.models.connection.Connection` and :class:`~airflow.models.variable.Variable`.
+All secrets backends derive from :class:`~airflow.secrets.base_secrets.BaseSecretsBackend`.
 
 All Secrets Backend implementations are public. You can extend their functionality:
 
@@ -343,12 +328,24 @@ You can read more about Secret Backends in :doc:`security/secrets/secrets-backen
 You can also find all the available Secrets Backends implemented in community providers
 in :doc:`apache-airflow-providers:core-extensions/secrets-backends`.
 
+Auth managers
+-------------
+
+Auth managers are responsible of user authentication and user authorization in Airflow. All auth managers are
+derived from :class:`~airflow.auth.managers.base_auth_manager.BaseAuthManager`.
+
+The auth manager interface itself (the :class:`~airflow.auth.managers.base_auth_manager.BaseAuthManager` class) is
+public, but the different implementations of auth managers are not (i.e. FabAuthManager).
+
+You can read more about auth managers and how to write your own in :doc:`core-concepts/auth-manager`.
+
 Authentication Backends
 -----------------------
 
 Authentication backends can extend the way how Airflow authentication mechanism works. You can find out more
 about authentication in :doc:`apache-airflow-providers:core-extensions/auth-backends` that also shows available
-Authentication backends implemented in the community providers.
+Authentication backends implemented in the community providers. In case of authentication backend implemented in a
+provider, it is then part of the provider's public interface and not Airflow's.
 
 Connections
 -----------

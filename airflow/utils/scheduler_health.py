@@ -19,6 +19,8 @@ from __future__ import annotations
 import logging
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+from sqlalchemy import select
+
 from airflow.configuration import conf
 from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
@@ -35,12 +37,12 @@ class HealthServer(BaseHTTPRequestHandler):
         if self.path == "/health":
             try:
                 with create_session() as session:
-                    scheduler_job = (
-                        session.query(Job)
+                    scheduler_job = session.scalar(
+                        select(Job)
                         .filter_by(job_type=SchedulerJobRunner.job_type)
                         .filter_by(hostname=get_hostname())
                         .order_by(Job.latest_heartbeat.desc())
-                        .first()
+                        .limit(1)
                     )
                 if scheduler_job and scheduler_job.is_alive():
                     self.send_response(200)
@@ -55,8 +57,10 @@ class HealthServer(BaseHTTPRequestHandler):
 
 
 def serve_health_check():
+    """Start a http server to serve scheduler health check."""
+    health_check_host = conf.get("scheduler", "SCHEDULER_HEALTH_CHECK_SERVER_HOST")
     health_check_port = conf.getint("scheduler", "SCHEDULER_HEALTH_CHECK_SERVER_PORT")
-    httpd = HTTPServer(("0.0.0.0", health_check_port), HealthServer)
+    httpd = HTTPServer((health_check_host, health_check_port), HealthServer)
     httpd.serve_forever()
 
 

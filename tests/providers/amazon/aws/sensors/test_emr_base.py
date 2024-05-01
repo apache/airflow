@@ -17,11 +17,15 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.sensors.emr import EmrBaseSensor
-from airflow.utils.context import Context
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 TARGET_STATE = "TARGET_STATE"
 FAILED_STATE = "FAILED_STATE"

@@ -65,7 +65,6 @@ class TestAwsTaskLogFetcher:
         ),
     )
     def test_run(self, get_log_events_mock, event_is_set_mock):
-
         self.log_fetcher.run()
 
         self.logger_mock.info.assert_has_calls(
@@ -84,12 +83,10 @@ class TestAwsTaskLogFetcher:
         with pytest.raises(StopIteration):
             next(self.log_fetcher._get_log_events())
 
-    @mock.patch(
-        "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
-        side_effect=Exception(),
-    )
+    @mock.patch("airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events")
     def test_get_log_events_with_unexpected_error(self, get_log_events_mock):
-        with pytest.raises(Exception):
+        get_log_events_mock.side_effect = ConnectionError("Fake: Failed to connect")
+        with pytest.raises(ConnectionError, match="Fake: Failed to connect"):
             next(self.log_fetcher._get_log_events())
 
     @mock.patch.object(AwsLogsHook, "conn", new_callable=PropertyMock)

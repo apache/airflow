@@ -16,13 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google AutoML operators."""
+
 from __future__ import annotations
 
 import ast
+import warnings
 from typing import TYPE_CHECKING, Sequence, Tuple
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.automl_v1beta1 import (
     BatchPredictResult,
     ColumnSpec,
@@ -32,6 +33,7 @@ from google.cloud.automl_v1beta1 import (
     TableSpec,
 )
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.links.automl import (
     AutoMLDatasetLink,
@@ -41,8 +43,11 @@ from airflow.providers.google.cloud.links.automl import (
     AutoMLModelTrainLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+
     from airflow.utils.context import Context
 
 MetaData = Sequence[Tuple[str, str]]
@@ -51,6 +56,10 @@ MetaData = Sequence[Tuple[str, str]]
 class AutoMLTrainModelOperator(GoogleCloudBaseOperator):
     """
     Creates Google Cloud AutoML model.
+
+    AutoMLTrainModelOperator for text prediction is deprecated. Please use
+    :class:`airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTextTrainingJobOperator`
+    instead.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -92,7 +101,7 @@ class AutoMLTrainModelOperator(GoogleCloudBaseOperator):
         *,
         model: dict,
         location: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         metadata: MetaData = (),
         timeout: float | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -101,7 +110,6 @@ class AutoMLTrainModelOperator(GoogleCloudBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
         self.model = model
         self.location = location
         self.project_id = project_id
@@ -112,6 +120,18 @@ class AutoMLTrainModelOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
+        # Output warning if running not AutoML Translation prediction job
+        if "translation_model_metadata" not in self.model:
+            warnings.warn(
+                "AutoMLTrainModelOperator for text, image and video prediction is deprecated. "
+                "All the functionality of legacy "
+                "AutoML Natural Language, Vision and Video Intelligence and new features are available "
+                "on the Vertex AI platform. "
+                "Please use `CreateAutoMLTextTrainingJobOperator`, `CreateAutoMLImageTrainingJobOperator` or"
+                " `CreateAutoMLVideoTrainingJobOperator` from VertexAI.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=3,
+            )
         hook = CloudAutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -190,7 +210,7 @@ class AutoMLPredictOperator(GoogleCloudBaseOperator):
         location: str,
         payload: dict,
         operation_params: dict[str, str] | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         metadata: MetaData = (),
         timeout: float | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -293,7 +313,7 @@ class AutoMLBatchPredictOperator(GoogleCloudBaseOperator):
         input_config: dict,
         output_config: dict,
         location: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         prediction_params: dict[str, str] | None = None,
         metadata: MetaData = (),
         timeout: float | None = None,
@@ -390,7 +410,7 @@ class AutoMLCreateDatasetOperator(GoogleCloudBaseOperator):
         *,
         dataset: dict,
         location: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         metadata: MetaData = (),
         timeout: float | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -485,7 +505,7 @@ class AutoMLImportDataOperator(GoogleCloudBaseOperator):
         dataset_id: str,
         location: str,
         input_config: dict,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         metadata: MetaData = (),
         timeout: float | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -589,7 +609,7 @@ class AutoMLTablesListColumnSpecsOperator(GoogleCloudBaseOperator):
         field_mask: dict | None = None,
         filter_: str | None = None,
         page_size: int | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         metadata: MetaData = (),
         timeout: float | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -771,7 +791,7 @@ class AutoMLGetModelOperator(GoogleCloudBaseOperator):
         *,
         model_id: str,
         location: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         metadata: MetaData = (),
         timeout: float | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -857,7 +877,7 @@ class AutoMLDeleteModelOperator(GoogleCloudBaseOperator):
         *,
         model_id: str,
         location: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         metadata: MetaData = (),
         timeout: float | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -943,7 +963,7 @@ class AutoMLDeployModelOperator(GoogleCloudBaseOperator):
         *,
         model_id: str,
         location: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         image_detection_metadata: dict | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         timeout: float | None = None,
@@ -1034,7 +1054,7 @@ class AutoMLTablesListTableSpecsOperator(GoogleCloudBaseOperator):
         location: str,
         page_size: int | None = None,
         filter_: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         metadata: MetaData = (),
         timeout: float | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -1122,7 +1142,7 @@ class AutoMLListDatasetOperator(GoogleCloudBaseOperator):
         self,
         *,
         location: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         metadata: MetaData = (),
         timeout: float | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -1207,7 +1227,7 @@ class AutoMLDeleteDatasetOperator(GoogleCloudBaseOperator):
         *,
         dataset_id: str | list[str],
         location: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         metadata: MetaData = (),
         timeout: float | None = None,
         retry: Retry | _MethodDefault = DEFAULT,

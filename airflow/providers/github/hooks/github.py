@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module allows you to connect to GitHub."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -47,7 +48,7 @@ class GithubHook(BaseHook):
         self.get_conn()
 
     def get_conn(self) -> GithubClient:
-        """Function that initiates a new GitHub connection with token and hostname (for GitHub Enterprise)."""
+        """Initiate a new GitHub connection with token and hostname (for GitHub Enterprise)."""
         if self.client is not None:
             return self.client
 
@@ -68,9 +69,9 @@ class GithubHook(BaseHook):
 
         return self.client
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict:
-        """Returns custom field behaviour."""
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict:
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "login", "extra"],
             "relabeling": {"host": "GitHub Enterprise URL (Optional)", "password": "GitHub Access Token"},

@@ -23,15 +23,14 @@ Operators for Google Cloud Memorystore service.
     FieldMask
     memcache
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.memcache_v1beta2.types import cloud_memcache
 from google.cloud.redis_v1 import FailoverInstanceRequest, InputConfig, Instance, OutputConfig
-from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.providers.google.cloud.hooks.cloud_memorystore import (
     CloudMemorystoreHook,
@@ -44,8 +43,12 @@ from airflow.providers.google.cloud.links.cloud_memorystore import (
     RedisInstanceListLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+    from google.protobuf.field_mask_pb2 import FieldMask
+
     from airflow.utils.context import Context
 
 
@@ -110,7 +113,7 @@ class CloudMemorystoreCreateInstanceOperator(GoogleCloudBaseOperator):
         location: str,
         instance_id: str,
         instance: dict | Instance,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -196,7 +199,7 @@ class CloudMemorystoreDeleteInstanceOperator(GoogleCloudBaseOperator):
         *,
         location: str,
         instance: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -281,7 +284,7 @@ class CloudMemorystoreExportInstanceOperator(GoogleCloudBaseOperator):
         location: str,
         instance: str,
         output_config: dict | OutputConfig,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -374,7 +377,7 @@ class CloudMemorystoreFailoverInstanceOperator(GoogleCloudBaseOperator):
         location: str,
         instance: str,
         data_protection_mode: FailoverInstanceRequest.DataProtectionMode,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -460,7 +463,7 @@ class CloudMemorystoreGetInstanceOperator(GoogleCloudBaseOperator):
         *,
         location: str,
         instance: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -554,7 +557,7 @@ class CloudMemorystoreImportOperator(GoogleCloudBaseOperator):
         location: str,
         instance: str,
         input_config: dict | InputConfig,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -644,7 +647,7 @@ class CloudMemorystoreListInstancesOperator(GoogleCloudBaseOperator):
         *,
         location: str,
         page_size: int,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -747,7 +750,7 @@ class CloudMemorystoreUpdateInstanceOperator(GoogleCloudBaseOperator):
         instance: dict | Instance,
         location: str | None = None,
         instance_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -840,7 +843,7 @@ class CloudMemorystoreScaleInstanceOperator(GoogleCloudBaseOperator):
         memory_size_gb: int,
         location: str | None = None,
         instance_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -952,7 +955,7 @@ class CloudMemorystoreCreateInstanceAndImportOperator(GoogleCloudBaseOperator):
         instance_id: str,
         instance: dict | Instance,
         input_config: dict | InputConfig,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -1059,7 +1062,7 @@ class CloudMemorystoreExportAndDeleteInstanceOperator(GoogleCloudBaseOperator):
         location: str,
         instance: str,
         output_config: dict | OutputConfig,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -1241,7 +1244,7 @@ class CloudMemorystoreMemcachedCreateInstanceOperator(GoogleCloudBaseOperator):
         location: str,
         instance_id: str,
         instance: dict | cloud_memcache.Instance,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -1314,7 +1317,7 @@ class CloudMemorystoreMemcachedDeleteInstanceOperator(GoogleCloudBaseOperator):
         self,
         location: str,
         instance: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -1388,7 +1391,7 @@ class CloudMemorystoreMemcachedGetInstanceOperator(GoogleCloudBaseOperator):
         *,
         location: str,
         instance: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -1472,7 +1475,7 @@ class CloudMemorystoreMemcachedListInstancesOperator(GoogleCloudBaseOperator):
         self,
         *,
         location: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -1570,7 +1573,7 @@ class CloudMemorystoreMemcachedUpdateInstanceOperator(GoogleCloudBaseOperator):
         instance: dict | cloud_memcache.Instance,
         location: str | None = None,
         instance_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),

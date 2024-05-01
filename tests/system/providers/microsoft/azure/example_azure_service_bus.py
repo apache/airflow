@@ -45,7 +45,7 @@ EXECUTION_TIMEOUT = int(os.getenv("EXECUTION_TIMEOUT", 6))
 CLIENT_ID = os.getenv("CLIENT_ID", "")
 QUEUE_NAME = "sb_mgmt_queue_test"
 MESSAGE = "Test Message"
-MESSAGE_LIST = [MESSAGE + " " + str(n) for n in range(0, 10)]
+MESSAGE_LIST = [f"{MESSAGE} {n}" for n in range(10)]
 TOPIC_NAME = "sb_mgmt_topic_test"
 SUBSCRIPTION_NAME = "sb_mgmt_subscription"
 

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module allows to connect to a MySQL database."""
+
 from __future__ import annotations
 
 import json
@@ -23,12 +24,13 @@ import logging
 from typing import TYPE_CHECKING, Any, Union
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
-from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from airflow.models import Connection
+
     try:
         from mysql.connector.abstracts import MySQLConnectionAbstract
     except ModuleNotFoundError:
@@ -58,6 +60,7 @@ class MySqlHook(DbApiHook):
     :param schema: The MySQL database schema to connect to.
     :param connection: The :ref:`MySQL connection id <howto/connection:mysql>` used for MySQL credentials.
     :param local_infile: Boolean flag determining if local_infile should be used
+    :param init_command: Initial command to issue to MySQL server upon connection
     """
 
     conn_name_attr = "mysql_conn_id"
@@ -71,6 +74,7 @@ class MySqlHook(DbApiHook):
         self.schema = kwargs.pop("schema", None)
         self.connection = kwargs.pop("connection", None)
         self.local_infile = kwargs.pop("local_infile", False)
+        self.init_command = kwargs.pop("init_command", None)
 
     def set_autocommit(self, conn: MySQLConnectionTypes, autocommit: bool) -> None:
         """
@@ -144,6 +148,8 @@ class MySqlHook(DbApiHook):
             conn_config["unix_socket"] = conn.extra_dejson["unix_socket"]
         if self.local_infile:
             conn_config["local_infile"] = 1
+        if self.init_command:
+            conn_config["init_command"] = self.init_command
         return conn_config
 
     def _get_conn_config_mysql_connector_python(self, conn: Connection) -> dict:
@@ -157,6 +163,8 @@ class MySqlHook(DbApiHook):
 
         if self.local_infile:
             conn_config["allow_local_infile"] = True
+        if self.init_command:
+            conn_config["init_command"] = self.init_command
         # Ref: https://dev.mysql.com/doc/connector-python/en/connector-python-connectargs.html
         for key, value in conn.extra_dejson.items():
             if key.startswith("ssl_"):
@@ -166,7 +174,7 @@ class MySqlHook(DbApiHook):
 
     def get_conn(self) -> MySQLConnectionTypes:
         """
-        Connection to a MySQL database.
+        Get connection to a MySQL database.
 
         Establishes a connection to a mysql database
         by extracting the connection configuration from the Airflow connection.
@@ -207,10 +215,8 @@ class MySqlHook(DbApiHook):
         conn = self.get_conn()
         cur = conn.cursor()
         cur.execute(
-            f"""
-            LOAD DATA LOCAL INFILE '{tmp_file}'
-            INTO TABLE {table}
-            """
+            f"LOAD DATA LOCAL INFILE %s INTO TABLE {table}",
+            (tmp_file,),
         )
         conn.commit()
         conn.close()  # type: ignore[misc]
@@ -220,10 +226,8 @@ class MySqlHook(DbApiHook):
         conn = self.get_conn()
         cur = conn.cursor()
         cur.execute(
-            f"""
-            SELECT * INTO OUTFILE '{tmp_file}'
-            FROM {table}
-            """
+            f"SELECT * INTO OUTFILE %s FROM {table}",
+            (tmp_file,),
         )
         conn.commit()
         conn.close()  # type: ignore[misc]
@@ -265,7 +269,7 @@ class MySqlHook(DbApiHook):
         self, table: str, tmp_file: str, duplicate_key_handling: str = "IGNORE", extra_options: str = ""
     ) -> None:
         """
-        A more configurable way to load local data from a file into the database.
+        Load local data from a file into the database in a more configurable way.
 
         .. warning:: According to the mysql docs using this function is a
             `security risk <https://dev.mysql.com/doc/refman/8.0/en/load-data-local.html>`_.
@@ -287,12 +291,8 @@ class MySqlHook(DbApiHook):
         cursor = conn.cursor()
 
         cursor.execute(
-            f"""
-            LOAD DATA LOCAL INFILE '{tmp_file}'
-            {duplicate_key_handling}
-            INTO TABLE {table}
-            {extra_options}
-            """
+            f"LOAD DATA LOCAL INFILE %s %s INTO TABLE {table} %s",
+            (tmp_file, duplicate_key_handling, extra_options),
         )
 
         cursor.close()
@@ -300,7 +300,7 @@ class MySqlHook(DbApiHook):
         conn.close()  # type: ignore[misc]
 
     def get_openlineage_database_info(self, connection):
-        """Returns MySQL specific information for OpenLineage."""
+        """Return MySQL specific information for OpenLineage."""
         from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
         return DatabaseInfo(
@@ -317,7 +317,7 @@ class MySqlHook(DbApiHook):
         )
 
     def get_openlineage_database_dialect(self, _):
-        """Returns database dialect."""
+        """Return database dialect."""
         return "mysql"
 
     def get_openlineage_default_schema(self):

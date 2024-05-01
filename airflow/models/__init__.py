@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Airflow models."""
+
 from __future__ import annotations
 
 # Do not add new models to this -- this is for compat only
@@ -33,7 +34,6 @@ __all__ = [
     "DagRun",
     "DagTag",
     "DbCallbackRequest",
-    "ImportError",
     "Log",
     "MappedOperator",
     "Operator",
@@ -61,19 +61,36 @@ def import_all_models():
 
     import airflow.models.dagwarning
     import airflow.models.dataset
+    import airflow.models.errors
     import airflow.models.serialized_dag
     import airflow.models.tasklog
 
 
 def __getattr__(name):
     # PEP-562: Lazy loaded attributes on python modules
-    path = __lazy_imports.get(name)
-    if not path:
-        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    if name != "ImportError":
+        path = __lazy_imports.get(name)
+        if not path:
+            raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
-    from airflow.utils.module_loading import import_string
+        from airflow.utils.module_loading import import_string
 
-    val = import_string(f"{path}.{name}")
+        val = import_string(f"{path}.{name}")
+    else:
+        import warnings
+
+        from airflow.exceptions import RemovedInAirflow3Warning
+        from airflow.models.errors import ParseImportError
+
+        warnings.warn(
+            f"Import '{__name__}.ImportError' is deprecated due to shadowing with builtin exception "
+            f"ImportError and will be removed in the future. "
+            f"Please consider to use '{ParseImportError.__module__}.ParseImportError' instead.",
+            RemovedInAirflow3Warning,
+            stacklevel=2,
+        )
+        val = ParseImportError
+
     # Store for next time
     globals()[name] = val
     return val
@@ -84,15 +101,15 @@ __lazy_imports = {
     "ID_LEN": "airflow.models.base",
     "Base": "airflow.models.base",
     "BaseOperator": "airflow.models.baseoperator",
-    "BaseOperatorLink": "airflow.models.baseoperator",
+    "BaseOperatorLink": "airflow.models.baseoperatorlink",
     "Connection": "airflow.models.connection",
     "DagBag": "airflow.models.dagbag",
     "DagModel": "airflow.models.dag",
     "DagPickle": "airflow.models.dagpickle",
     "DagRun": "airflow.models.dagrun",
     "DagTag": "airflow.models.dag",
+    "DagWarning": "airflow.models.dagwarning",
     "DbCallbackRequest": "airflow.models.db_callback_request",
-    "ImportError": "airflow.models.errors",
     "Log": "airflow.models.log",
     "MappedOperator": "airflow.models.mappedoperator",
     "Operator": "airflow.models.operator",
@@ -114,14 +131,15 @@ if TYPE_CHECKING:
     # I was unable to get mypy to respect a airflow/models/__init__.pyi, so
     # having to resort back to this hacky method
     from airflow.models.base import ID_LEN, Base
-    from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+    from airflow.models.baseoperator import BaseOperator
+    from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.connection import Connection
     from airflow.models.dag import DAG, DagModel, DagTag
     from airflow.models.dagbag import DagBag
     from airflow.models.dagpickle import DagPickle
     from airflow.models.dagrun import DagRun
+    from airflow.models.dagwarning import DagWarning
     from airflow.models.db_callback_request import DbCallbackRequest
-    from airflow.models.errors import ImportError
     from airflow.models.log import Log
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.operator import Operator

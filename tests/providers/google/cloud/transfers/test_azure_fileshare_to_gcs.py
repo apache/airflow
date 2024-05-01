@@ -80,7 +80,7 @@ class TestAzureFileShareToGCSOperator:
             any_order=True,
         )
 
-        azure_fileshare_mock_hook.assert_called_once_with(AZURE_FILESHARE_CONN_ID)
+        assert azure_fileshare_mock_hook.return_value.get_file_to_stream.call_count == 3
 
         gcs_mock_hook.assert_called_once_with(
             gcp_conn_id=GCS_CONN_ID,

@@ -184,7 +184,8 @@ provider packages are automatically documented in the release notes of every pro
 
 
 If you want to contribute to ``Apache Airflow``, you can see how to build and extend community
-managed providers in ``https://github.com/apache/airflow/blob/main/airflow/providers/CREATING_COMMUNITY_PROVIDERS.rst``.
+managed providers in
+``https://github.com/apache/airflow/blob/main/airflow/providers/MANAGING_PROVIDERS_LIFECYCLE.rst``.
 
 .. toctree::
     :hidden:

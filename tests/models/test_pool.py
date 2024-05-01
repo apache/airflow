@@ -29,11 +29,12 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from tests.test_utils.db import clear_db_dags, clear_db_pools, clear_db_runs, set_default_pool_slots
 
+pytestmark = pytest.mark.db_test
+
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
 class TestPool:
-
     USER_POOL_COUNT = 2
     TOTAL_POOL_COUNT = USER_POOL_COUNT + 1  # including default_pool
 
@@ -73,10 +74,12 @@ class TestPool:
             op1 = EmptyOperator(task_id="dummy1", pool="test_pool")
             op2 = EmptyOperator(task_id="dummy2", pool="test_pool")
             op3 = EmptyOperator(task_id="dummy3", pool="test_pool")
-        dag_maker.create_dagrun()
-        ti1 = TI(task=op1, execution_date=DEFAULT_DATE)
-        ti2 = TI(task=op2, execution_date=DEFAULT_DATE)
-        ti3 = TI(task=op3, execution_date=DEFAULT_DATE)
+
+        dr = dag_maker.create_dagrun()
+
+        ti1 = TI(task=op1, run_id=dr.run_id)
+        ti2 = TI(task=op2, run_id=dr.run_id)
+        ti3 = TI(task=op3, run_id=dr.run_id)
         ti1.state = State.RUNNING
         ti2.state = State.QUEUED
         ti3.state = State.DEFERRED
@@ -100,6 +103,7 @@ class TestPool:
                 "queued": 0,
                 "total": 128,
                 "running": 0,
+                "scheduled": 0,
                 "deferred": 0,
             },
             "test_pool": {
@@ -107,6 +111,7 @@ class TestPool:
                 "queued": 1,
                 "running": 1,
                 "deferred": 1,
+                "scheduled": 0,
                 "total": 5,
             },
         } == pool.slots_stats()
@@ -119,9 +124,11 @@ class TestPool:
         ):
             op1 = EmptyOperator(task_id="dummy1", pool="test_pool")
             op2 = EmptyOperator(task_id="dummy2", pool="test_pool")
-        dag_maker.create_dagrun()
-        ti1 = TI(task=op1, execution_date=DEFAULT_DATE)
-        ti2 = TI(task=op2, execution_date=DEFAULT_DATE)
+
+        dr = dag_maker.create_dagrun()
+
+        ti1 = TI(task=op1, run_id=dr.run_id)
+        ti2 = TI(task=op2, run_id=dr.run_id)
         ti1.state = State.RUNNING
         ti2.state = State.DEFERRED
 
@@ -143,6 +150,7 @@ class TestPool:
                 "queued": 0,
                 "total": 128,
                 "running": 0,
+                "scheduled": 0,
                 "deferred": 0,
             },
             "test_pool": {
@@ -150,6 +158,7 @@ class TestPool:
                 "queued": 0,
                 "running": 1,
                 "deferred": 1,
+                "scheduled": 0,
                 "total": 5,
             },
         } == pool.slots_stats()
@@ -161,9 +170,11 @@ class TestPool:
         ):
             op1 = EmptyOperator(task_id="dummy1", pool="test_pool")
             op2 = EmptyOperator(task_id="dummy2", pool="test_pool")
-        dag_maker.create_dagrun()
-        ti1 = TI(task=op1, execution_date=DEFAULT_DATE)
-        ti2 = TI(task=op2, execution_date=DEFAULT_DATE)
+
+        dr = dag_maker.create_dagrun()
+
+        ti1 = TI(task=op1, run_id=dr.run_id)
+        ti2 = TI(task=op2, run_id=dr.run_id)
         ti1.state = State.RUNNING
         ti2.state = State.QUEUED
 
@@ -184,6 +195,7 @@ class TestPool:
                 "queued": 0,
                 "total": 128,
                 "running": 0,
+                "scheduled": 0,
                 "deferred": 0,
             },
             "test_pool": {
@@ -191,6 +203,7 @@ class TestPool:
                 "queued": 1,
                 "running": 1,
                 "total": float("inf"),
+                "scheduled": 0,
                 "deferred": 0,
             },
         } == pool.slots_stats()
@@ -204,15 +217,21 @@ class TestPool:
         ):
             op1 = EmptyOperator(task_id="dummy1")
             op2 = EmptyOperator(task_id="dummy2", pool_slots=2)
-        dag_maker.create_dagrun()
-        ti1 = TI(task=op1, execution_date=DEFAULT_DATE)
-        ti2 = TI(task=op2, execution_date=DEFAULT_DATE)
+            op3 = EmptyOperator(task_id="dummy3")
+
+        dr = dag_maker.create_dagrun()
+
+        ti1 = TI(task=op1, run_id=dr.run_id)
+        ti2 = TI(task=op2, run_id=dr.run_id)
+        ti3 = TI(task=op3, run_id=dr.run_id)
         ti1.state = State.RUNNING
         ti2.state = State.QUEUED
+        ti3.state = State.SCHEDULED
 
         session = settings.Session()
         session.merge(ti1)
         session.merge(ti2)
+        session.merge(ti3)
         session.commit()
         session.close()
 
@@ -223,6 +242,7 @@ class TestPool:
                 "queued": 2,
                 "total": 5,
                 "running": 1,
+                "scheduled": 1,
                 "deferred": 0,
             }
         } == Pool.slots_stats()

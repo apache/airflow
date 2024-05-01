@@ -16,17 +16,20 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Speech Hook."""
+
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.speech_v1 import SpeechClient
 from google.cloud.speech_v1.types import RecognitionAudio, RecognitionConfig
 
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.retry import Retry
 
 
 class CloudSpeechToTextHook(GoogleBaseHook):
@@ -63,7 +66,7 @@ class CloudSpeechToTextHook(GoogleBaseHook):
 
     def get_conn(self) -> SpeechClient:
         """
-        Retrieves connection to Cloud Speech.
+        Retrieve connection to Cloud Speech.
 
         :return: Google Cloud Speech client object.
         """

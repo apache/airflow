@@ -39,6 +39,7 @@ It's recommended that you first review the pages in :doc:`core concepts </core-c
 .. toctree::
     :maxdepth: 2
 
+    cron
     timezone
     datasets
     timetable

@@ -45,6 +45,7 @@ class TestS3KeyTrigger:
             "hook_params": {},
             "poke_interval": 5.0,
             "should_check_fn": False,
+            "use_regex": False,
         }
 
     @pytest.mark.asyncio

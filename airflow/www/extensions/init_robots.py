@@ -23,8 +23,10 @@ log = logging.getLogger(__name__)
 
 def init_robots(app):
     """
-    Add X-Robots-Tag header. Use it to avoid search engines indexing airflow. This mitigates some
-    of the risk associated with exposing Airflow to the public internet, however it does not
+    Add X-Robots-Tag header.
+
+    Use it to avoid search engines indexing airflow. This mitigates some of the risk
+    associated with exposing Airflow to the public internet, however it does not
     address the real security risks associated with such a deployment.
 
     See also: https://developers.google.com/search/docs/advanced/robots/robots_meta_tag#xrobotstag

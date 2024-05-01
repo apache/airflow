@@ -17,10 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-import ftplib
+import ftplib  # nosec: B402
 import re
 from typing import TYPE_CHECKING, Sequence
 
+from airflow.exceptions import AirflowSkipException
 from airflow.providers.ftp.hooks.ftp import FTPHook, FTPSHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -44,7 +45,7 @@ class FTPSensor(BaseSensorOperator):
     """Errors that are transient in nature, and where action can be retried"""
     transient_errors = [421, 425, 426, 434, 450, 451, 452]
 
-    error_code_pattern = re.compile(r"([\d]+)")
+    error_code_pattern = re.compile(r"\d+")
 
     def __init__(
         self, *, path: str, ftp_conn_id: str = "ftp_default", fail_on_transient_errors: bool = True, **kwargs
@@ -64,23 +65,26 @@ class FTPSensor(BaseSensorOperator):
         try:
             matches = self.error_code_pattern.match(str(e))
             code = int(matches.group(0))
-            return code
         except ValueError:
             return e
+        else:
+            return code
 
     def poke(self, context: Context) -> bool:
         with self._create_hook() as hook:
             self.log.info("Poking for %s", self.path)
             try:
                 mod_time = hook.get_mod_time(self.path)
-                self.log.info("Found File %s last modified: %s", str(self.path), str(mod_time))
+                self.log.info("Found File %s last modified: %s", self.path, mod_time)
 
             except ftplib.error_perm as e:
-                self.log.error("Ftp error encountered: %s", str(e))
+                self.log.error("Ftp error encountered: %s", e)
                 error_code = self._get_error_code(e)
                 if (error_code != 550) and (
                     self.fail_on_transient_errors or (error_code not in self.transient_errors)
                 ):
+                    if self.soft_fail:
+                        raise AirflowSkipException from e
                     raise e
 
                 return False

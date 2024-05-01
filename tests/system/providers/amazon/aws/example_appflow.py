@@ -18,8 +18,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow import DAG
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.amazon.aws.operators.appflow import (
     AppflowRecordsShortCircuitOperator,
@@ -27,7 +27,6 @@ from airflow.providers.amazon.aws.operators.appflow import (
     AppflowRunBeforeOperator,
     AppflowRunDailyOperator,
     AppflowRunFullOperator,
-    AppflowRunOperator,
 )
 from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
@@ -47,14 +46,6 @@ with DAG(
 
     source_name = "salesforce"
     flow_name = f"{env_id}-salesforce-campaign"
-
-    # [START howto_operator_appflow_run]
-    campaign_dump = AppflowRunOperator(
-        task_id="campaign_dump",
-        source=source_name,
-        flow_name=flow_name,
-    )
-    # [END howto_operator_appflow_run]
 
     # [START howto_operator_appflow_run_full]
     campaign_dump_full = AppflowRunFullOperator(
@@ -111,7 +102,6 @@ with DAG(
         # TEST SETUP
         test_context,
         # TEST BODY
-        campaign_dump,
         campaign_dump_full,
         campaign_dump_daily,
         campaign_dump_before,

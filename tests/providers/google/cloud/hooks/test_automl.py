@@ -71,7 +71,7 @@ class TestAutoMLHook:
 
     @mock.patch("airflow.providers.google.cloud.hooks.automl.PredictionServiceClient")
     def test_prediction_client(self, mock_prediction_client):
-        client = self.hook.prediction_client  # noqa
+        client = self.hook.prediction_client  # noqa: F841
         mock_prediction_client.assert_called_once_with(credentials=CREDENTIALS, client_info=CLIENT_INFO)
 
     @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.create_model")

@@ -52,18 +52,21 @@ const Row = ({
 
   const instance = task.instances.find((ti) => ti.runId === runId);
   const isSelected = taskId === instance?.taskId;
-  const hasQueuedDttm = !!instance?.queuedDttm;
-  const isOpen = openGroupIds.includes(task.label || "");
+  const hasValidQueuedDttm =
+    !!instance?.queuedDttm &&
+    (instance?.startDate && instance?.queuedDttm
+      ? instance.queuedDttm < instance.startDate
+      : true);
+  const isOpen = openGroupIds.includes(task.id || "");
 
   // Calculate durations in ms
   const taskDuration = getDuration(instance?.startDate, instance?.endDate);
-  const queuedDuration = hasQueuedDttm
+  const queuedDuration = hasValidQueuedDttm
     ? getDuration(instance?.queuedDttm, instance?.startDate)
     : 0;
-  const taskStartOffset = getDuration(
-    ganttStartDate,
-    instance?.queuedDttm || instance?.startDate
-  );
+  const taskStartOffset = hasValidQueuedDttm
+    ? getDuration(ganttStartDate, instance?.queuedDttm || instance?.startDate)
+    : getDuration(ganttStartDate, instance?.startDate);
 
   // Percent of each duration vs the overall dag run
   const taskDurationPercent = taskDuration / runDuration;
@@ -74,8 +77,8 @@ const Row = ({
   // Min width should be 5px
   let width = ganttWidth * taskDurationPercent;
   if (width < 5) width = 5;
-  let queuedWidth = hasQueuedDttm ? ganttWidth * queuedDurationPercent : 0;
-  if (hasQueuedDttm && queuedWidth < 5) queuedWidth = 5;
+  let queuedWidth = hasValidQueuedDttm ? ganttWidth * queuedDurationPercent : 0;
+  if (hasValidQueuedDttm && queuedWidth < 5) queuedWidth = 5;
   const offsetMargin = taskStartOffsetPercent * ganttWidth;
 
   return (
@@ -106,7 +109,7 @@ const Row = ({
                 });
               }}
             >
-              {instance.state !== "queued" && hasQueuedDttm && (
+              {instance.state !== "queued" && hasValidQueuedDttm && (
                 <SimpleStatus
                   state="queued"
                   width={`${queuedWidth}px`}
@@ -119,7 +122,9 @@ const Row = ({
                 state={instance.state}
                 width={`${width}px`}
                 borderLeftRadius={
-                  instance.state !== "queued" && hasQueuedDttm ? 0 : undefined
+                  instance.state !== "queued" && hasValidQueuedDttm
+                    ? 0
+                    : undefined
                 }
               />
             </Flex>

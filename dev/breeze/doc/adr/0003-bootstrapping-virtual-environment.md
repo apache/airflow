@@ -87,7 +87,7 @@ Integration we run. It's been established practice of the CI is that the logic
 of the CI is stored in the same repository as the source code of the
 application it tests and part of the Breeze functions are shared with CI.
 
-In the future when breeze stabilizes and it's update cadence will be
+In the future when breeze stabilizes and its update cadence will be
 much slower (which is likele as it happened with the Breeze predecessor)
 there could be an option that Breeze is installed as separate package and
 same released Breeze version could be ued to manage multiple Airflow
@@ -101,7 +101,7 @@ version of Breeze will remain as part of the Airflow's source code.
 The decision is to implement Breeze in a subfolder (`dev/breeze2/`) of
 Apache Airflow as a Python project following the standard setuptools
 enabled project. The project contains setup.py and dependencies described
-in setup.cfg and contains both source code and tests for Breeze code.
+in pyproject.toml and contains both source code and tests for Breeze code.
 
 The sub-project could be used in the future to produce a  PyPI package
 (we reserved such package in PyPI), however its main purpose is
@@ -116,7 +116,7 @@ of Airflow) performs the following tasks:
 
 * when run for the first time it creates `.build/breeze2/venv` virtual
   environment (Python3.6+ based) - with locally installed `dev`
-  project in editable mode (`pip install -e .`) - this makes sure
+  project in editable mode (`pip install -e ".[devel]"`) - this makes sure
   that the users of Breeze will use the latest version of Breeze
   available in their version of the repository
 * when run subsequently, it will check if setup files changed for
@@ -150,11 +150,11 @@ of Airflow) performs the following tasks:
   re-installation if new dependencies are used - which is not
   as seamlessly integrate in the regular development
   environment, and it might create some confusions for the
-  users who would have to learn `pipx` and it's commands.
+  users who would have to learn `pipx` and its commands.
   Another drawback of `pipx` is that installs one global
   version of breeze for all projects, where it is quite
   possible that someone has two different versions of
-  Airflow repository checked out and the bootstraping
+  Airflow repository checked out and the bootstrapping
   script provides this capability.
 
 The bootstrapping script is temporary measure, until the
@@ -192,7 +192,7 @@ The alternatives considered were:
   mostly "used" but not deliberately activated is a better
   choice - especially that most users will simply "use" breeze
   as an app rather than activate the environment deliberately.
-  Also choosing `pyenv` and it's virtualenv plugin would
+  Also choosing `pyenv` and its virtualenv plugin would
   add extra, unnecessary steps and prerequisites for Breeze.
 
 

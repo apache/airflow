@@ -26,9 +26,10 @@ from typing import Any
 from googleapiclient.errors import HttpError
 from paramiko.ssh_exception import SSHException
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 from airflow.providers.google.cloud.hooks.os_login import OSLoginHook
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.utils.types import NOTSET, ArgNotSet
 
@@ -86,6 +87,9 @@ class ComputeEngineSSHHook(SSHHook):
     :param gcp_conn_id: The connection id to use when fetching connection information
     :param max_retries: Maximum number of retries the process will try to establish connection to instance.
         Could be decreased/increased by user based on the amount of parallel SSH connections to the instance.
+    :param impersonation_chain: Optional. The service account email to impersonate using short-term
+        credentials. The provided service account must grant the originating account
+        the Service Account Token Creator IAM role and have the sufficient rights to perform the request
     """
 
     conn_name_attr = "gcp_conn_id"
@@ -93,8 +97,8 @@ class ComputeEngineSSHHook(SSHHook):
     conn_type = "gcpssh"
     hook_name = "Google Cloud SSH"
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         return {
             "hidden_fields": ["host", "schema", "login", "password", "port", "extra"],
             "relabeling": {},
@@ -106,7 +110,7 @@ class ComputeEngineSSHHook(SSHHook):
         instance_name: str | None = None,
         zone: str | None = None,
         user: str | None = "root",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         hostname: str | None = None,
         use_internal_ip: bool = False,
         use_iap_tunnel: bool = False,
@@ -114,15 +118,17 @@ class ComputeEngineSSHHook(SSHHook):
         expire_time: int = 300,
         cmd_timeout: int | ArgNotSet = NOTSET,
         max_retries: int = 10,
+        impersonation_chain: str | None = None,
         **kwargs,
     ) -> None:
         if kwargs.get("delegate_to") is not None:
             raise RuntimeError(
                 "The `delegate_to` parameter has been deprecated before and finally removed in this version"
-                " of Google Provider. You MUST convert it to `impersonate_chain`"
+                " of Google Provider. You MUST convert it to `impersonation_chain`"
             )
         # Ignore original constructor
         # super().__init__()
+        self.gcp_conn_id = gcp_conn_id
         self.instance_name = instance_name
         self.zone = zone
         self.user = user
@@ -132,9 +138,9 @@ class ComputeEngineSSHHook(SSHHook):
         self.use_iap_tunnel = use_iap_tunnel
         self.use_oslogin = use_oslogin
         self.expire_time = expire_time
-        self.gcp_conn_id = gcp_conn_id
         self.cmd_timeout = cmd_timeout
         self.max_retries = max_retries
+        self.impersonation_chain = impersonation_chain
         self._conn: Any | None = None
 
     @cached_property
@@ -143,7 +149,12 @@ class ComputeEngineSSHHook(SSHHook):
 
     @cached_property
     def _compute_hook(self) -> ComputeEngineHook:
-        return ComputeEngineHook(gcp_conn_id=self.gcp_conn_id)
+        if self.impersonation_chain:
+            return ComputeEngineHook(
+                gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+            )
+        else:
+            return ComputeEngineHook(gcp_conn_id=self.gcp_conn_id)
 
     def _load_connection_config(self):
         def _boolify(value):
@@ -254,6 +265,8 @@ class ComputeEngineSSHHook(SSHHook):
                         f"--zone={self.zone}",
                         "--verbosity=warning",
                     ]
+                    if self.impersonation_chain:
+                        proxy_command_args.append(f"--impersonate-service-account={self.impersonation_chain}")
                     proxy_command = " ".join(shlex.quote(arg) for arg in proxy_command_args)
                 sshclient = self._connect_to_instance(user, hostname, privkey, proxy_command)
                 break
@@ -269,7 +282,7 @@ class ComputeEngineSSHHook(SSHHook):
                 if retry == self.max_retries:
                     raise AirflowException("Maximum retries exceeded. Aborting operation.")
                 delay = random.randint(0, max_delay)
-                self.log.info(f"Failed establish SSH connection, waiting {delay} seconds to retry...")
+                self.log.info("Failed establish SSH connection, waiting %s seconds to retry...", delay)
                 time.sleep(delay)
         if not sshclient:
             raise AirflowException("Unable to establish SSH connection.")
@@ -283,7 +296,7 @@ class ComputeEngineSSHHook(SSHHook):
                 client = _GCloudAuthorizedSSHClient(self._compute_hook)
                 # Default is RejectPolicy
                 # No known host checking since we are not storing privatekey
-                client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # nosec B507
                 client.connect(
                     hostname=hostname,
                     username=user,
@@ -314,15 +327,15 @@ class ComputeEngineSSHHook(SSHHook):
                 item["value"] = keys
                 break
         else:
-            new_dict = dict(key="ssh-keys", value=keys)
-            metadata["items"] = [new_dict]
+            new_dict = {"key": "ssh-keys", "value": keys}
+            metadata["items"] = [*items, new_dict]
 
         self._compute_hook.set_instance_metadata(
             zone=self.zone, resource_id=self.instance_name, metadata=metadata, project_id=self.project_id
         )
 
     def _authorize_os_login(self, pubkey):
-        username = self._oslogin_hook._get_credentials_email()
+        username = self._oslogin_hook._get_credentials_email
         self.log.info("Importing SSH public key using OSLogin: user=%s", username)
         expiration = int((time.time() + self.expire_time) * 1000000)
         ssh_public_key = {"key": pubkey, "expiration_time_usec": expiration}

@@ -184,7 +184,7 @@ function set_pythonpath_for_root_user() {
     # Now also adds applications installed as local user "airflow".
     if [[ $UID == "0" ]]; then
         local python_major_minor
-        python_major_minor="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
+        python_major_minor=$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
         export PYTHONPATH="${AIRFLOW_USER_HOME_DIR}/.local/lib/python${python_major_minor}/site-packages:${PYTHONPATH:-}"
         >&2 echo "The container is run as root user. For security, consider using a regular user account."
     fi
@@ -308,7 +308,7 @@ if [[ -n "${_PIP_ADDITIONAL_REQUIREMENTS=}" ]] ; then
     >&2 echo "         the container starts, so it is only useful for testing and trying out"
     >&2 echo "         of adding dependencies."
     >&2 echo
-    pip install --root-user-action ignore --no-cache-dir ${_PIP_ADDITIONAL_REQUIREMENTS}
+    pip install --root-user-action ignore ${_PIP_ADDITIONAL_REQUIREMENTS}
 fi
 
 

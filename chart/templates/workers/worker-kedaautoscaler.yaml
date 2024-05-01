@@ -24,7 +24,7 @@
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
-  name: {{ .Release.Name }}-worker
+  name: {{ include "airflow.fullname" . }}-worker
   labels:
     tier: airflow
     component: worker-horizontalpodautoscaler
@@ -38,7 +38,7 @@ metadata:
 spec:
   scaleTargetRef:
     kind: {{ ternary "StatefulSet" "Deployment" .Values.workers.persistence.enabled }}
-    name: {{ .Release.Name }}-worker
+    name: {{ include "airflow.fullname" . }}-worker
   pollingInterval:  {{ .Values.workers.keda.pollingInterval }}
   cooldownPeriod: {{ .Values.workers.keda.cooldownPeriod }}
   minReplicaCount: {{ .Values.workers.keda.minReplicaCount }}
@@ -47,7 +47,14 @@ spec:
   advanced: {{- toYaml .Values.workers.keda.advanced | nindent 4 }}
   {{- end }}
   triggers:
-    - type: postgresql
+    {{- if eq .Values.data.metadataConnection.protocol "mysql" }}
+    - type: "mysql"
+      metadata:
+        queryValue: "1"
+        connectionStringFromEnv: KEDA_DB_CONN
+        query: {{ tpl .Values.workers.keda.query . | quote }}
+    {{- else }}
+    - type: "postgresql"
       metadata:
         targetQueryValue: "1"
         {{- if and .Values.pgbouncer.enabled (not .Values.workers.keda.usePgbouncer) }}
@@ -56,4 +63,6 @@ spec:
         connectionFromEnv: AIRFLOW_CONN_AIRFLOW_DB
         {{- end }}
         query: {{ tpl .Values.workers.keda.query . | quote }}
+    {{- end }}
+
 {{- end }}

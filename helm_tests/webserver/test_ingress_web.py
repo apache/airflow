@@ -167,3 +167,36 @@ class TestIngressWeb:
         )
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+
+    def test_can_ingress_hosts_be_templated(self):
+        docs = render_chart(
+            values={
+                "testValues": {
+                    "scalar": "aa",
+                    "list": ["bb", "cc"],
+                    "dict": {
+                        "key": "dd",
+                    },
+                },
+                "ingress": {
+                    "web": {
+                        "enabled": True,
+                        "hosts": [
+                            {"name": "*.{{ .Release.Namespace }}.example.com"},
+                            {"name": "{{ .Values.testValues.scalar }}.example.com"},
+                            {"name": "{{ index .Values.testValues.list 1 }}.example.com"},
+                            {"name": "{{ .Values.testValues.dict.key }}.example.com"},
+                        ],
+                    },
+                },
+            },
+            show_only=["templates/webserver/webserver-ingress.yaml"],
+            namespace="airflow",
+        )
+
+        assert [
+            "*.airflow.example.com",
+            "aa.example.com",
+            "cc.example.com",
+            "dd.example.com",
+        ] == jmespath.search("spec.rules[*].host", docs[0])

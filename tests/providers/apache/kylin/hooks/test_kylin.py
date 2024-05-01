@@ -25,6 +25,8 @@ from kylinpy.exceptions import KylinCubeError
 from airflow.exceptions import AirflowException
 from airflow.providers.apache.kylin.hooks.kylin import KylinHook
 
+pytestmark = pytest.mark.db_test
+
 
 class TestKylinHook:
     def setup_method(self) -> None:

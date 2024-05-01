@@ -17,11 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 from kubernetes import client
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -69,9 +70,12 @@ class SparkKubernetesSensor(BaseSensorOperator):
         self.namespace = namespace
         self.container_name = container_name
         self.kubernetes_conn_id = kubernetes_conn_id
-        self.hook = KubernetesHook(conn_id=self.kubernetes_conn_id)
         self.api_group = api_group
         self.api_version = api_version
+
+    @cached_property
+    def hook(self) -> KubernetesHook:
+        return KubernetesHook(conn_id=self.kubernetes_conn_id)
 
     def _log_driver(self, application_state: str, response: dict) -> None:
         if not self.attach_log:
@@ -103,6 +107,7 @@ class SparkKubernetesSensor(BaseSensorOperator):
 
     def poke(self, context: Context) -> bool:
         self.log.info("Poking: %s", self.application_name)
+
         response = self.hook.get_custom_object(
             group=self.api_group,
             version=self.api_version,
@@ -110,14 +115,21 @@ class SparkKubernetesSensor(BaseSensorOperator):
             name=self.application_name,
             namespace=self.namespace,
         )
+
         try:
             application_state = response["status"]["applicationState"]["state"]
         except KeyError:
             return False
+
         if self.attach_log and application_state in self.FAILURE_STATES + self.SUCCESS_STATES:
             self._log_driver(application_state, response)
+
         if application_state in self.FAILURE_STATES:
-            raise AirflowException(f"Spark application failed with state: {application_state}")
+            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+            message = f"Spark application failed with state: {application_state}"
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
         elif application_state in self.SUCCESS_STATES:
             self.log.info("Spark application ended successfully")
             return True

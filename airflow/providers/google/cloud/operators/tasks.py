@@ -23,15 +23,17 @@ from typing import TYPE_CHECKING, Sequence, Tuple
 
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.tasks_v2.types import Queue, Task
-from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.providers.google.cloud.hooks.tasks import CloudTasksHook
 from airflow.providers.google.cloud.links.cloud_tasks import CloudTasksLink, CloudTasksQueueLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+    from google.protobuf.field_mask_pb2 import FieldMask
+
     from airflow.utils.context import Context
 
 
@@ -87,7 +89,7 @@ class CloudTasksQueueCreateOperator(GoogleCloudBaseOperator):
         *,
         location: str,
         task_queue: Queue,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         queue_name: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
@@ -194,7 +196,7 @@ class CloudTasksQueueUpdateOperator(GoogleCloudBaseOperator):
         self,
         *,
         task_queue: Queue,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str | None = None,
         queue_name: str | None = None,
         update_mask: FieldMask | None = None,
@@ -284,7 +286,7 @@ class CloudTasksQueueGetOperator(GoogleCloudBaseOperator):
         *,
         location: str,
         queue_name: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: MetaData = (),
@@ -367,7 +369,7 @@ class CloudTasksQueuesListOperator(GoogleCloudBaseOperator):
         self,
         *,
         location: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         results_filter: str | None = None,
         page_size: int | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -452,7 +454,7 @@ class CloudTasksQueueDeleteOperator(GoogleCloudBaseOperator):
         *,
         location: str,
         queue_name: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: MetaData = (),
@@ -529,7 +531,7 @@ class CloudTasksQueuePurgeOperator(GoogleCloudBaseOperator):
         *,
         location: str,
         queue_name: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: MetaData = (),
@@ -612,7 +614,7 @@ class CloudTasksQueuePauseOperator(GoogleCloudBaseOperator):
         *,
         location: str,
         queue_name: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: MetaData = (),
@@ -695,7 +697,7 @@ class CloudTasksQueueResumeOperator(GoogleCloudBaseOperator):
         *,
         location: str,
         queue_name: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: MetaData = (),
@@ -787,7 +789,7 @@ class CloudTasksTaskCreateOperator(GoogleCloudBaseOperator):
         location: str,
         queue_name: str,
         task: dict | Task,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         task_name: str | None = None,
         response_view: Task.View | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -883,7 +885,7 @@ class CloudTasksTaskGetOperator(GoogleCloudBaseOperator):
         location: str,
         queue_name: str,
         task_name: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         response_view: Task.View | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
@@ -975,7 +977,7 @@ class CloudTasksTasksListOperator(GoogleCloudBaseOperator):
         *,
         location: str,
         queue_name: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         response_view: Task.View | None = None,
         page_size: int | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -1066,7 +1068,7 @@ class CloudTasksTaskDeleteOperator(GoogleCloudBaseOperator):
         location: str,
         queue_name: str,
         task_name: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: MetaData = (),
@@ -1150,7 +1152,7 @@ class CloudTasksTaskRunOperator(GoogleCloudBaseOperator):
         location: str,
         queue_name: str,
         task_name: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         response_view: Task.View | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,

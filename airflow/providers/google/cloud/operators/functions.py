@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud Functions operators."""
+
 from __future__ import annotations
 
 import re
@@ -34,6 +35,7 @@ from airflow.providers.google.cloud.utils.field_validator import (
     GcpBodyFieldValidator,
     GcpFieldValidationException,
 )
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.version import version
 
 if TYPE_CHECKING:
@@ -51,54 +53,54 @@ def _validate_max_instances(value):
 
 
 CLOUD_FUNCTION_VALIDATION: list[dict[str, Any]] = [
-    dict(name="name", regexp="^.+$"),
-    dict(name="description", regexp="^.+$", optional=True),
-    dict(name="entryPoint", regexp=r"^.+$", optional=True),
-    dict(name="runtime", regexp=r"^.+$", optional=True),
-    dict(name="timeout", regexp=r"^.+$", optional=True),
-    dict(name="availableMemoryMb", custom_validation=_validate_available_memory_in_mb, optional=True),
-    dict(name="labels", optional=True),
-    dict(name="environmentVariables", optional=True),
-    dict(name="network", regexp=r"^.+$", optional=True),
-    dict(name="maxInstances", optional=True, custom_validation=_validate_max_instances),
-    dict(
-        name="source_code",
-        type="union",
-        fields=[
-            dict(name="sourceArchiveUrl", regexp=r"^.+$"),
-            dict(name="sourceRepositoryUrl", regexp=r"^.+$", api_version="v1beta2"),
-            dict(name="sourceRepository", type="dict", fields=[dict(name="url", regexp=r"^.+$")]),
-            dict(name="sourceUploadUrl"),
+    {"name": "name", "regexp": "^.+$"},
+    {"name": "description", "regexp": "^.+$", "optional": True},
+    {"name": "entryPoint", "regexp": r"^.+$", "optional": True},
+    {"name": "runtime", "regexp": r"^.+$", "optional": True},
+    {"name": "timeout", "regexp": r"^.+$", "optional": True},
+    {"name": "availableMemoryMb", "custom_validation": _validate_available_memory_in_mb, "optional": True},
+    {"name": "labels", "optional": True},
+    {"name": "environmentVariables", "optional": True},
+    {"name": "network", "regexp": r"^.+$", "optional": True},
+    {"name": "maxInstances", "optional": True, "custom_validation": _validate_max_instances},
+    {
+        "name": "source_code",
+        "type": "union",
+        "fields": [
+            {"name": "sourceArchiveUrl", "regexp": r"^.+$"},
+            {"name": "sourceRepositoryUrl", "regexp": r"^.+$", "api_version": "v1beta2"},
+            {"name": "sourceRepository", "type": "dict", "fields": [{"name": "url", "regexp": r"^.+$"}]},
+            {"name": "sourceUploadUrl"},
         ],
-    ),
-    dict(
-        name="trigger",
-        type="union",
-        fields=[
-            dict(
-                name="httpsTrigger",
-                type="dict",
-                fields=[
+    },
+    {
+        "name": "trigger",
+        "type": "union",
+        "fields": [
+            {
+                "name": "httpsTrigger",
+                "type": "dict",
+                "fields": [
                     # This dict should be empty at input (url is added at output)
                 ],
-            ),
-            dict(
-                name="eventTrigger",
-                type="dict",
-                fields=[
-                    dict(name="eventType", regexp=r"^.+$"),
-                    dict(name="resource", regexp=r"^.+$"),
-                    dict(name="service", regexp=r"^.+$", optional=True),
-                    dict(
-                        name="failurePolicy",
-                        type="dict",
-                        optional=True,
-                        fields=[dict(name="retry", type="dict", optional=True)],
-                    ),
+            },
+            {
+                "name": "eventTrigger",
+                "type": "dict",
+                "fields": [
+                    {"name": "eventType", "regexp": r"^.+$"},
+                    {"name": "resource", "regexp": r"^.+$"},
+                    {"name": "service", "regexp": r"^.+$", "optional": True},
+                    {
+                        "name": "failurePolicy",
+                        "type": "dict",
+                        "optional": True,
+                        "fields": [{"name": "retry", "type": "dict", "optional": True}],
+                    },
                 ],
-            ),
+            },
         ],
-    ),
+    },
 ]
 
 
@@ -154,7 +156,7 @@ class CloudFunctionDeployFunctionOperator(GoogleCloudBaseOperator):
         *,
         location: str,
         body: dict,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
         zip_path: str | None = None,
@@ -282,9 +284,9 @@ class ZipPathPreprocessor:
         if self._is_present_and_empty(self.body, GCF_SOURCE_UPLOAD_URL):
             if not self.zip_path:
                 raise AirflowException(
-                    "Parameter '{url}' is empty in the body and argument '{path}' "
-                    "is missing or empty. You need to have non empty '{path}' "
-                    "when '{url}' is present and empty.".format(url=GCF_SOURCE_UPLOAD_URL, path=GCF_ZIP_PATH)
+                    f"Parameter '{GCF_SOURCE_UPLOAD_URL}' is empty in the body and argument '{GCF_ZIP_PATH}' "
+                    f"is missing or empty. You need to have non empty '{GCF_ZIP_PATH}' "
+                    f"when '{GCF_SOURCE_UPLOAD_URL}' is present and empty."
                 )
 
     def _verify_upload_url_and_zip_path(self) -> None:
@@ -305,13 +307,13 @@ class ZipPathPreprocessor:
             )
 
     def should_upload_function(self) -> bool:
-        """Checks if function source should be uploaded."""
+        """Check if function source should be uploaded."""
         if self.upload_function is None:
             raise AirflowException("validate() method has to be invoked before should_upload_function")
         return self.upload_function
 
     def preprocess_body(self) -> None:
-        """Modifies sourceUploadUrl body field in special way when zip_path is not empty."""
+        """Modify sourceUploadUrl body field in special way when zip_path is not empty."""
         self._verify_archive_url_and_zip_path()
         self._verify_upload_url_and_zip_path()
         self._verify_upload_url_and_no_zip_path()
@@ -362,7 +364,7 @@ class CloudFunctionDeleteFunctionOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
         impersonation_chain: str | Sequence[str] | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         **kwargs,
     ) -> None:
         self.name = name
@@ -446,7 +448,7 @@ class CloudFunctionInvokeFunctionOperator(GoogleCloudBaseOperator):
         function_id: str,
         input_data: dict,
         location: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
         impersonation_chain: str | Sequence[str] | None = None,

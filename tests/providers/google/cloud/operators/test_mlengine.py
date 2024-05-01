@@ -66,7 +66,7 @@ TEST_VERSION = {
 MLENGINE_AI_PATH = "airflow.providers.google.cloud.operators.mlengine.{}"
 
 
-class TestMLEngineBatchPredictionOperator:
+class TestMLEngineStartBatchPredictionJobOperator:
     INPUT_MISSING_ORIGIN = {
         "dataFormat": "TEXT",
         "inputPaths": ["gs://legal-bucket/fake-input-path/*"],
@@ -271,29 +271,23 @@ class TestMLEngineBatchPredictionOperator:
             resp=httplib2.Response({"status": http_error_code}), content=b"Forbidden"
         )
 
-        with pytest.raises(HttpError) as ctx:
-            prediction_task = MLEngineStartBatchPredictionJobOperator(
-                job_id="test_prediction",
-                project_id="test-project",
-                region=input_with_model["region"],
-                data_format=input_with_model["dataFormat"],
-                input_paths=input_with_model["inputPaths"],
-                output_path=input_with_model["outputPath"],
-                model_name=input_with_model["modelName"].split("/")[-1],
-                dag=self.dag,
-                task_id="test-prediction",
-            )
+        prediction_task = MLEngineStartBatchPredictionJobOperator(
+            job_id="test_prediction",
+            project_id="test-project",
+            region=input_with_model["region"],
+            data_format=input_with_model["dataFormat"],
+            input_paths=input_with_model["inputPaths"],
+            output_path=input_with_model["outputPath"],
+            model_name=input_with_model["modelName"].split("/")[-1],
+            dag=self.dag,
+            task_id="test-prediction",
+        )
+        with pytest.raises(HttpError):
             prediction_task.execute(None)
-
-            mock_hook.assert_called_once_with(
-                gcp_conn_id="google_cloud_default",
-                impersonation_chain=None,
-            )
-            hook_instance.create_job.assert_called_once_with(
-                "test-project", {"jobId": "test_prediction", "predictionInput": input_with_model}, ANY
-            )
-
-        assert http_error_code == ctx.value.resp.status
+        mock_hook.assert_called_once_with(
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
+        )
 
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
     def test_failed_job_error(self, mock_hook):
@@ -307,9 +301,40 @@ class TestMLEngineBatchPredictionOperator:
 
         assert "A failure message" == str(ctx.value)
 
+    @pytest.mark.db_test
+    def test_templating(self, create_task_instance_of_operator):
+        ti = create_task_instance_of_operator(
+            MLEngineStartBatchPredictionJobOperator,
+            # Templated fields
+            project_id="{{ 'project_id' }}",
+            job_id="{{ 'job_id' }}",
+            region="{{ 'region' }}",
+            input_paths="{{ 'input_paths' }}",
+            output_path="{{ 'output_path' }}",
+            model_name="{{ 'model_name' }}",
+            version_name="{{ 'version_name' }}",
+            uri="{{ 'uri' }}",
+            impersonation_chain="{{ 'impersonation_chain' }}",
+            # Other parameters
+            data_format="data_format",
+            dag_id="test_template_body_templating_dag",
+            task_id="test_template_body_templating_task",
+            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+        )
+        ti.render_templates()
+        task: MLEngineStartBatchPredictionJobOperator = ti.task
+        assert task.project_id == "project_id"
+        assert task.job_id == "job_id"
+        assert task.region == "region"
+        assert task.input_paths == "input_paths"
+        assert task.output_path == "output_path"
+        assert task.model_name == "model_name"
+        assert task.version_name == "version_name"
+        assert task.uri == "uri"
+        assert task.impersonation_chain == "impersonation_chain"
+
 
 class TestMLEngineTrainingCancelJobOperator:
-
     TRAINING_DEFAULT_ARGS = {
         "project_id": "test-project",
         "job_id": "test_training",
@@ -343,8 +368,8 @@ class TestMLEngineTrainingCancelJobOperator:
             resp=httplib2.Response({"status": http_error_code}), content=b"Forbidden"
         )
 
+        cancel_training_op = MLEngineTrainingCancelJobOperator(**self.TRAINING_DEFAULT_ARGS)
         with pytest.raises(HttpError) as ctx:
-            cancel_training_op = MLEngineTrainingCancelJobOperator(**self.TRAINING_DEFAULT_ARGS)
             cancel_training_op.execute(context=MagicMock())
 
         mock_hook.assert_called_once_with(
@@ -357,6 +382,25 @@ class TestMLEngineTrainingCancelJobOperator:
             project_id=self.TRAINING_DEFAULT_ARGS["project_id"], job_id=self.TRAINING_DEFAULT_ARGS["job_id"]
         )
         assert http_error_code == ctx.value.resp.status
+
+    @pytest.mark.db_test
+    def test_templating(self, create_task_instance_of_operator):
+        ti = create_task_instance_of_operator(
+            MLEngineTrainingCancelJobOperator,
+            # Templated fields
+            project_id="{{ 'project_id' }}",
+            job_id="{{ 'job_id' }}",
+            impersonation_chain="{{ 'impersonation_chain' }}",
+            # Other parameters
+            dag_id="test_template_body_templating_dag",
+            task_id="test_template_body_templating_task",
+            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+        )
+        ti.render_templates()
+        task: MLEngineTrainingCancelJobOperator = ti.task
+        assert task.project_id == "project_id"
+        assert task.job_id == "job_id"
+        assert task.impersonation_chain == "impersonation_chain"
 
 
 class TestMLEngineModelOperator:
@@ -415,6 +459,25 @@ class TestMLEngineModelOperator:
         with pytest.raises(ValueError):
             task.execute(None)
 
+    @pytest.mark.db_test
+    def test_templating(self, create_task_instance_of_operator):
+        ti = create_task_instance_of_operator(
+            MLEngineManageModelOperator,
+            # Templated fields
+            project_id="{{ 'project_id' }}",
+            model="{{ 'model' }}",
+            impersonation_chain="{{ 'impersonation_chain' }}",
+            # Other parameters
+            dag_id="test_template_body_templating_dag",
+            task_id="test_template_body_templating_task",
+            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+        )
+        ti.render_templates()
+        task: MLEngineManageModelOperator = ti.task
+        assert task.project_id == "project_id"
+        assert task.model == "model"
+        assert task.impersonation_chain == "impersonation_chain"
+
 
 class TestMLEngineCreateModelOperator:
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
@@ -436,6 +499,25 @@ class TestMLEngineCreateModelOperator:
         mock_hook.return_value.create_model.assert_called_once_with(
             project_id=TEST_PROJECT_ID, model=TEST_MODEL
         )
+
+    @pytest.mark.db_test
+    def test_templating(self, create_task_instance_of_operator):
+        ti = create_task_instance_of_operator(
+            MLEngineCreateModelOperator,
+            # Templated fields
+            project_id="{{ 'project_id' }}",
+            model="{{ 'model' }}",
+            impersonation_chain="{{ 'impersonation_chain' }}",
+            # Other parameters
+            dag_id="test_template_body_templating_dag",
+            task_id="test_template_body_templating_task",
+            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+        )
+        ti.render_templates()
+        task: MLEngineCreateModelOperator = ti.task
+        assert task.project_id == "project_id"
+        assert task.model == "model"
+        assert task.impersonation_chain == "impersonation_chain"
 
 
 class TestMLEngineGetModelOperator:
@@ -460,6 +542,25 @@ class TestMLEngineGetModelOperator:
         )
         assert mock_hook.return_value.get_model.return_value == result
 
+    @pytest.mark.db_test
+    def test_templating(self, create_task_instance_of_operator):
+        ti = create_task_instance_of_operator(
+            MLEngineGetModelOperator,
+            # Templated fields
+            project_id="{{ 'project_id' }}",
+            model_name="{{ 'model_name' }}",
+            impersonation_chain="{{ 'impersonation_chain' }}",
+            # Other parameters
+            dag_id="test_template_body_templating_dag",
+            task_id="test_template_body_templating_task",
+            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+        )
+        ti.render_templates()
+        task: MLEngineGetModelOperator = ti.task
+        assert task.project_id == "project_id"
+        assert task.model_name == "model_name"
+        assert task.impersonation_chain == "impersonation_chain"
+
 
 class TestMLEngineDeleteModelOperator:
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
@@ -482,6 +583,25 @@ class TestMLEngineDeleteModelOperator:
         mock_hook.return_value.delete_model.assert_called_once_with(
             project_id=TEST_PROJECT_ID, model_name=TEST_MODEL_NAME, delete_contents=True
         )
+
+    @pytest.mark.db_test
+    def test_templating(self, create_task_instance_of_operator):
+        ti = create_task_instance_of_operator(
+            MLEngineDeleteModelOperator,
+            # Templated fields
+            project_id="{{ 'project_id' }}",
+            model_name="{{ 'model_name' }}",
+            impersonation_chain="{{ 'impersonation_chain' }}",
+            # Other parameters
+            dag_id="test_template_body_templating_dag",
+            task_id="test_template_body_templating_task",
+            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+        )
+        ti.render_templates()
+        task: MLEngineDeleteModelOperator = ti.task
+        assert task.project_id == "project_id"
+        assert task.model_name == "model_name"
+        assert task.impersonation_chain == "impersonation_chain"
 
 
 class TestMLEngineVersionOperator:
@@ -510,6 +630,29 @@ class TestMLEngineVersionOperator:
             project_id="test-project", model_name="test-model", version_spec=TEST_VERSION
         )
 
+    @pytest.mark.db_test
+    def test_templating(self, create_task_instance_of_operator):
+        ti = create_task_instance_of_operator(
+            MLEngineManageVersionOperator,
+            # Templated fields
+            project_id="{{ 'project_id' }}",
+            model_name="{{ 'model_name' }}",
+            version="{{ 'version' }}",
+            version_name="{{ 'version_name' }}",
+            impersonation_chain="{{ 'impersonation_chain' }}",
+            # Other parameters
+            dag_id="test_template_body_templating_dag",
+            task_id="test_template_body_templating_task",
+            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+        )
+        ti.render_templates()
+        task: MLEngineManageVersionOperator = ti.task
+        assert task.project_id == "project_id"
+        assert task.model_name == "model_name"
+        assert task.version == "version"
+        assert task.version_name == "version_name"
+        assert task.impersonation_chain == "impersonation_chain"
+
 
 class TestMLEngineCreateVersion:
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
@@ -534,24 +677,47 @@ class TestMLEngineCreateVersion:
         )
 
     def test_missing_model_name(self):
+        task = MLEngineCreateVersionOperator(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            model_name=None,
+            version=TEST_VERSION,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+        )
         with pytest.raises(AirflowException):
-            MLEngineCreateVersionOperator(
-                task_id="task-id",
-                project_id=TEST_PROJECT_ID,
-                model_name=None,
-                version=TEST_VERSION,
-                gcp_conn_id=TEST_GCP_CONN_ID,
-            )
+            task.execute(context=MagicMock())
 
     def test_missing_version(self):
+        task = MLEngineCreateVersionOperator(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            model_name=TEST_MODEL_NAME,
+            version=None,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+        )
         with pytest.raises(AirflowException):
-            MLEngineCreateVersionOperator(
-                task_id="task-id",
-                project_id=TEST_PROJECT_ID,
-                model_name=TEST_MODEL_NAME,
-                version=None,
-                gcp_conn_id=TEST_GCP_CONN_ID,
-            )
+            task.execute(context=MagicMock())
+
+    @pytest.mark.db_test
+    def test_templating(self, create_task_instance_of_operator):
+        ti = create_task_instance_of_operator(
+            MLEngineCreateVersionOperator,
+            # Templated fields
+            project_id="{{ 'project_id' }}",
+            model_name="{{ 'model_name' }}",
+            version="{{ 'version' }}",
+            impersonation_chain="{{ 'impersonation_chain' }}",
+            # Other parameters
+            dag_id="test_template_body_templating_dag",
+            task_id="test_template_body_templating_task",
+            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+        )
+        ti.render_templates()
+        task: MLEngineCreateVersionOperator = ti.task
+        assert task.project_id == "project_id"
+        assert task.model_name == "model_name"
+        assert task.version == "version"
+        assert task.impersonation_chain == "impersonation_chain"
 
 
 class TestMLEngineSetDefaultVersion:
@@ -577,24 +743,47 @@ class TestMLEngineSetDefaultVersion:
         )
 
     def test_missing_model_name(self):
+        task = MLEngineSetDefaultVersionOperator(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            model_name=None,
+            version_name=TEST_VERSION_NAME,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+        )
         with pytest.raises(AirflowException):
-            MLEngineSetDefaultVersionOperator(
-                task_id="task-id",
-                project_id=TEST_PROJECT_ID,
-                model_name=None,
-                version_name=TEST_VERSION_NAME,
-                gcp_conn_id=TEST_GCP_CONN_ID,
-            )
+            task.execute(context=MagicMock())
 
     def test_missing_version_name(self):
+        task = MLEngineSetDefaultVersionOperator(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            model_name=TEST_MODEL_NAME,
+            version_name=None,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+        )
         with pytest.raises(AirflowException):
-            MLEngineSetDefaultVersionOperator(
-                task_id="task-id",
-                project_id=TEST_PROJECT_ID,
-                model_name=TEST_MODEL_NAME,
-                version_name=None,
-                gcp_conn_id=TEST_GCP_CONN_ID,
-            )
+            task.execute(context=MagicMock())
+
+    @pytest.mark.db_test
+    def test_templating(self, create_task_instance_of_operator):
+        ti = create_task_instance_of_operator(
+            MLEngineSetDefaultVersionOperator,
+            # Templated fields
+            project_id="{{ 'project_id' }}",
+            model_name="{{ 'model_name' }}",
+            version_name="{{ 'version_name' }}",
+            impersonation_chain="{{ 'impersonation_chain' }}",
+            # Other parameters
+            dag_id="test_template_body_templating_dag",
+            task_id="test_template_body_templating_task",
+            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+        )
+        ti.render_templates()
+        task: MLEngineSetDefaultVersionOperator = ti.task
+        assert task.project_id == "project_id"
+        assert task.model_name == "model_name"
+        assert task.version_name == "version_name"
+        assert task.impersonation_chain == "impersonation_chain"
 
 
 class TestMLEngineListVersions:
@@ -620,13 +809,33 @@ class TestMLEngineListVersions:
         )
 
     def test_missing_model_name(self):
+        task = MLEngineListVersionsOperator(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            model_name=None,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+        )
         with pytest.raises(AirflowException):
-            MLEngineListVersionsOperator(
-                task_id="task-id",
-                project_id=TEST_PROJECT_ID,
-                model_name=None,
-                gcp_conn_id=TEST_GCP_CONN_ID,
-            )
+            task.execute(context=MagicMock())
+
+    @pytest.mark.db_test
+    def test_templating(self, create_task_instance_of_operator):
+        ti = create_task_instance_of_operator(
+            MLEngineListVersionsOperator,
+            # Templated fields
+            project_id="{{ 'project_id' }}",
+            model_name="{{ 'model_name' }}",
+            impersonation_chain="{{ 'impersonation_chain' }}",
+            # Other parameters
+            dag_id="test_template_body_templating_dag",
+            task_id="test_template_body_templating_task",
+            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+        )
+        ti.render_templates()
+        task: MLEngineListVersionsOperator = ti.task
+        assert task.project_id == "project_id"
+        assert task.model_name == "model_name"
+        assert task.impersonation_chain == "impersonation_chain"
 
 
 class TestMLEngineDeleteVersion:
@@ -652,24 +861,47 @@ class TestMLEngineDeleteVersion:
         )
 
     def test_missing_version_name(self):
+        task = MLEngineDeleteVersionOperator(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            model_name=TEST_MODEL_NAME,
+            version_name=None,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+        )
         with pytest.raises(AirflowException):
-            MLEngineDeleteVersionOperator(
-                task_id="task-id",
-                project_id=TEST_PROJECT_ID,
-                model_name=TEST_MODEL_NAME,
-                version_name=None,
-                gcp_conn_id=TEST_GCP_CONN_ID,
-            )
+            task.execute(context=MagicMock())
 
     def test_missing_model_name(self):
+        task = MLEngineDeleteVersionOperator(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            model_name=None,
+            version_name=TEST_VERSION_NAME,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+        )
         with pytest.raises(AirflowException):
-            MLEngineDeleteVersionOperator(
-                task_id="task-id",
-                project_id=TEST_PROJECT_ID,
-                model_name=None,
-                version_name=TEST_VERSION_NAME,
-                gcp_conn_id=TEST_GCP_CONN_ID,
-            )
+            task.execute(context=MagicMock())
+
+    @pytest.mark.db_test
+    def test_templating(self, create_task_instance_of_operator):
+        ti = create_task_instance_of_operator(
+            MLEngineDeleteVersionOperator,
+            # Templated fields
+            project_id="{{ 'project_id' }}",
+            model_name="{{ 'model_name' }}",
+            version_name="{{ 'version_name' }}",
+            impersonation_chain="{{ 'impersonation_chain' }}",
+            # Other parameters
+            dag_id="test_template_body_templating_dag",
+            task_id="test_template_body_templating_task",
+            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+        )
+        ti.render_templates()
+        task: MLEngineDeleteVersionOperator = ti.task
+        assert task.project_id == "project_id"
+        assert task.model_name == "model_name"
+        assert task.version_name == "version_name"
+        assert task.impersonation_chain == "impersonation_chain"
 
 
 class TestMLEngineStartTrainingJobOperator:
@@ -900,8 +1132,8 @@ class TestMLEngineStartTrainingJobOperator:
             resp=httplib2.Response({"status": "403"}), content=b"content"
         )
 
+        training_op = MLEngineStartTrainingJobOperator(**self.TRAINING_DEFAULT_ARGS)
         with pytest.raises(HttpError):
-            training_op = MLEngineStartTrainingJobOperator(**self.TRAINING_DEFAULT_ARGS)
             training_op.execute(MagicMock())
 
         mock_hook.assert_called_once_with(
@@ -917,8 +1149,8 @@ class TestMLEngineStartTrainingJobOperator:
         mock_wait_for_job.return_value = {"state": "FAILED", "errorMessage": "A failure message"}
         mock_hook.return_value.create_job_without_waiting_result.return_value = failure_response
 
+        training_op = MLEngineStartTrainingJobOperator(**self.TRAINING_DEFAULT_ARGS)
         with pytest.raises(RuntimeError) as ctx:
-            training_op = MLEngineStartTrainingJobOperator(**self.TRAINING_DEFAULT_ARGS)
             training_op.execute(MagicMock())
 
         mock_hook.assert_called_once_with(
@@ -930,6 +1162,49 @@ class TestMLEngineStartTrainingJobOperator:
         )
         assert "A failure message" == str(ctx.value)
 
+    @pytest.mark.db_test
+    def test_templating(self, create_task_instance_of_operator):
+        ti = create_task_instance_of_operator(
+            MLEngineStartTrainingJobOperator,
+            # Templated fields
+            project_id="{{ 'project_id' }}",
+            job_id="{{ 'job_id' }}",
+            region="{{ 'region' }}",
+            package_uris="{{ 'package_uris' }}",
+            training_python_module="{{ 'training_python_module' }}",
+            training_args="{{ 'training_args' }}",
+            scale_tier="{{ 'scale_tier' }}",
+            master_type="{{ 'master_type' }}",
+            master_config="{{ 'master_config' }}",
+            runtime_version="{{ 'runtime_version' }}",
+            python_version="{{ 'python_version' }}",
+            job_dir="{{ 'job_dir' }}",
+            service_account="{{ 'service_account' }}",
+            hyperparameters="{{ 'hyperparameters' }}",
+            impersonation_chain="{{ 'impersonation_chain' }}",
+            # Other parameters
+            dag_id="test_template_body_templating_dag",
+            task_id="test_template_body_templating_task",
+            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+        )
+        ti.render_templates()
+        task: MLEngineStartTrainingJobOperator = ti.task
+        assert task.project_id == "project_id"
+        assert task.job_id == "job_id"
+        assert task.region == "region"
+        assert task.package_uris == "package_uris"
+        assert task.training_python_module == "training_python_module"
+        assert task.training_args == "training_args"
+        assert task.scale_tier == "scale_tier"
+        assert task.master_type == "master_type"
+        assert task.master_config == "master_config"
+        assert task.runtime_version == "runtime_version"
+        assert task.python_version == "python_version"
+        assert task.job_dir == "job_dir"
+        assert task.service_account == "service_account"
+        assert task.hyperparameters == "hyperparameters"
+        assert task.impersonation_chain == "impersonation_chain"
+
 
 TEST_TASK_ID = "training"
 TEST_JOB_ID = "1234"
@@ -940,7 +1215,7 @@ TEST_PYTHON_VERSION = "3.8"
 TEST_JOB_DIR = "gs://example_mlengine_bucket/job-dir"
 TEST_PACKAGE_URIS = ["gs://system-tests-resources/example_gcp_mlengine/trainer-0.1.tar.gz"]
 TEST_TRAINING_PYTHON_MODULE = "trainer.task"
-TEST_TRAINING_ARGS = []
+TEST_TRAINING_ARGS: list[str] = []
 TEST_LABELS = {"job_type": "training", "***-version": "v2-5-0-dev0"}
 
 
@@ -1076,109 +1351,109 @@ def test_async_create_training_job_with_conflict_should_execute_successfully(moc
 
 
 def test_async_create_training_job_should_throw_exception_if_job_id_none():
+    op = MLEngineStartTrainingJobOperator(
+        task_id=TEST_TASK_ID,
+        project_id=TEST_GCP_PROJECT_ID,
+        region=TEST_REGION,
+        job_id=None,
+        runtime_version=TEST_RUNTIME_VERSION,
+        python_version=TEST_PYTHON_VERSION,
+        job_dir=TEST_JOB_DIR,
+        package_uris=TEST_PACKAGE_URIS,
+        training_python_module=TEST_TRAINING_PYTHON_MODULE,
+        training_args=TEST_TRAINING_ARGS,
+        labels=TEST_LABELS,
+        deferrable=True,
+    )
     with pytest.raises(
         AirflowException, match=r"An unique job id is required for Google MLEngine training job."
     ):
-        op = MLEngineStartTrainingJobOperator(
-            task_id=TEST_TASK_ID,
-            project_id=TEST_GCP_PROJECT_ID,
-            region=TEST_REGION,
-            job_id=None,
-            runtime_version=TEST_RUNTIME_VERSION,
-            python_version=TEST_PYTHON_VERSION,
-            job_dir=TEST_JOB_DIR,
-            package_uris=TEST_PACKAGE_URIS,
-            training_python_module=TEST_TRAINING_PYTHON_MODULE,
-            training_args=TEST_TRAINING_ARGS,
-            labels=TEST_LABELS,
-            deferrable=True,
-        )
         op.execute(create_context(op))
 
 
 def test_async_create_training_job_should_throw_exception_if_project_id_none():
+    op = MLEngineStartTrainingJobOperator(
+        task_id=TEST_TASK_ID,
+        project_id=None,
+        region=TEST_REGION,
+        job_id=TEST_JOB_ID,
+        runtime_version=TEST_RUNTIME_VERSION,
+        python_version=TEST_PYTHON_VERSION,
+        job_dir=TEST_JOB_DIR,
+        package_uris=TEST_PACKAGE_URIS,
+        training_python_module=TEST_TRAINING_PYTHON_MODULE,
+        training_args=TEST_TRAINING_ARGS,
+        labels=TEST_LABELS,
+        deferrable=True,
+    )
     with pytest.raises(AirflowException, match=r"Google Cloud project id is required."):
-        op = MLEngineStartTrainingJobOperator(
-            task_id=TEST_TASK_ID,
-            project_id=None,
-            region=TEST_REGION,
-            job_id=TEST_JOB_ID,
-            runtime_version=TEST_RUNTIME_VERSION,
-            python_version=TEST_PYTHON_VERSION,
-            job_dir=TEST_JOB_DIR,
-            package_uris=TEST_PACKAGE_URIS,
-            training_python_module=TEST_TRAINING_PYTHON_MODULE,
-            training_args=TEST_TRAINING_ARGS,
-            labels=TEST_LABELS,
-            deferrable=True,
-        )
         op.execute(create_context(op))
 
 
 def test_async_create_training_job_should_throw_exception_if_custom_none():
+    op = MLEngineStartTrainingJobOperator(
+        task_id=TEST_TASK_ID,
+        project_id=TEST_PROJECT_ID,
+        region=TEST_REGION,
+        job_id=TEST_JOB_ID,
+        runtime_version=TEST_RUNTIME_VERSION,
+        python_version=TEST_PYTHON_VERSION,
+        job_dir=TEST_JOB_DIR,
+        package_uris=TEST_PACKAGE_URIS,
+        training_python_module=TEST_TRAINING_PYTHON_MODULE,
+        training_args=TEST_TRAINING_ARGS,
+        labels=TEST_LABELS,
+        master_config={"config": "config"},
+        master_type=None,
+        deferrable=True,
+    )
     with pytest.raises(AirflowException, match=r"master_type must be set when master_config is provided"):
-        op = MLEngineStartTrainingJobOperator(
-            task_id=TEST_TASK_ID,
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            job_id=TEST_JOB_ID,
-            runtime_version=TEST_RUNTIME_VERSION,
-            python_version=TEST_PYTHON_VERSION,
-            job_dir=TEST_JOB_DIR,
-            package_uris=TEST_PACKAGE_URIS,
-            training_python_module=TEST_TRAINING_PYTHON_MODULE,
-            training_args=TEST_TRAINING_ARGS,
-            labels=TEST_LABELS,
-            master_config={"config": "config"},
-            master_type=None,
-            deferrable=True,
-        )
         op.execute(create_context(op))
 
 
 def test_async_create_training_job_should_throw_exception_if_package_none():
+    op = MLEngineStartTrainingJobOperator(
+        task_id=TEST_TASK_ID,
+        project_id=TEST_PROJECT_ID,
+        region=TEST_REGION,
+        job_id=TEST_JOB_ID,
+        runtime_version=TEST_RUNTIME_VERSION,
+        python_version=TEST_PYTHON_VERSION,
+        job_dir=TEST_JOB_DIR,
+        package_uris=None,
+        training_python_module=None,
+        training_args=TEST_TRAINING_ARGS,
+        labels=TEST_LABELS,
+        deferrable=True,
+    )
     with pytest.raises(
         AirflowException,
         match=r"Either a Python package with a Python module or a custom "
         r"Docker image should be provided.",
     ):
-        op = MLEngineStartTrainingJobOperator(
-            task_id=TEST_TASK_ID,
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            job_id=TEST_JOB_ID,
-            runtime_version=TEST_RUNTIME_VERSION,
-            python_version=TEST_PYTHON_VERSION,
-            job_dir=TEST_JOB_DIR,
-            package_uris=None,
-            training_python_module=None,
-            training_args=TEST_TRAINING_ARGS,
-            labels=TEST_LABELS,
-            deferrable=True,
-        )
         op.execute(create_context(op))
 
 
 def test_async_create_training_job_should_throw_exception_if_uris_none():
+    op = MLEngineStartTrainingJobOperator(
+        task_id=TEST_TASK_ID,
+        project_id=TEST_PROJECT_ID,
+        region=TEST_REGION,
+        job_id=TEST_JOB_ID,
+        runtime_version=TEST_RUNTIME_VERSION,
+        python_version=TEST_PYTHON_VERSION,
+        job_dir=TEST_JOB_DIR,
+        package_uris=None,
+        training_python_module=TEST_TRAINING_PYTHON_MODULE,
+        training_args=TEST_TRAINING_ARGS,
+        labels=TEST_LABELS,
+        master_config={"config": "config"},
+        master_type="type",
+        deferrable=True,
+    )
     with pytest.raises(
         AirflowException,
         match=r"Either a Python package with a Python module or a custom "
         r"Docker image should be provided.",
     ):
-        op = MLEngineStartTrainingJobOperator(
-            task_id=TEST_TASK_ID,
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            job_id=TEST_JOB_ID,
-            runtime_version=TEST_RUNTIME_VERSION,
-            python_version=TEST_PYTHON_VERSION,
-            job_dir=TEST_JOB_DIR,
-            package_uris=None,
-            training_python_module=TEST_TRAINING_PYTHON_MODULE,
-            training_args=TEST_TRAINING_ARGS,
-            labels=TEST_LABELS,
-            master_config={"config": "config"},
-            master_type="type",
-            deferrable=True,
-        )
         op.execute(create_context(op))

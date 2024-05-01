@@ -35,9 +35,11 @@ to:
     - name: "#19263"
       url: https://github.com/apache/airflow/pull/19263
 """
+
 from __future__ import annotations
 
 import re
+from textwrap import indent
 
 import yaml
 
@@ -66,7 +68,7 @@ def parse_line(line: str) -> tuple[str | None, int | None]:
     return desc.strip(), int(pr_number)
 
 
-def print_entry(section: str, description: str, pr_number: int | None):
+def get_entry(section: str, description: str, pr_number: int | None) -> dict[str, str | list]:
     for unwanted_prefix in PREFIXES_TO_STRIP:
         if description.lower().startswith(unwanted_prefix.lower()):
             description = description[len(unwanted_prefix) :].strip()
@@ -79,37 +81,34 @@ def print_entry(section: str, description: str, pr_number: int | None):
         entry["links"] = [
             {"name": f"#{pr_number}", "url": f"https://github.com/apache/airflow/pull/{pr_number}"}
         ]
-    print(yaml.dump([entry]))
+    return entry
 
 
 in_first_release = False
 past_significant_changes = False
 section = ""
+entries = []
 with open("chart/RELEASE_NOTES.rst") as f:
     for line in f:
         line = line.strip()
-        if not line:
-            continue
-        if line.startswith("Airflow Helm Chart"):
+        if not line or line.startswith(('"""', "----", "^^^^")):
+            pass
+        elif line.startswith("Airflow Helm Chart"):
             # We only want to get annotations for the "latest" release
             if in_first_release:
                 break
             in_first_release = True
-            continue
-        if line.startswith('"""') or line.startswith("----") or line.startswith("^^^^"):
-            continue
-
         # Make sure we get past "significant features" before we actually start keeping track
-        if not past_significant_changes:
-            if line == "New Features":
+        elif not past_significant_changes:
+            if line in TYPE_MAPPING:
                 section = line
                 past_significant_changes = True
-            continue
-
-        if not line.startswith("- "):
+        elif not line.startswith("- "):
             section = line
-            continue
+        else:
+            description, pr = parse_line(line)
+            if description:
+                entries.append(get_entry(section, description, pr))
 
-        description, pr = parse_line(line)
-        if description:
-            print_entry(section, description, pr)
+if entries:
+    print(indent(yaml.dump(entries), " " * 4), end="")

@@ -30,7 +30,7 @@ T = TypeVar("T", bound=Callable)
 
 def apply_defaults(func: T) -> T:
     """
-    This decorator is deprecated.
+    Use apply_default decorator for the `default_args` feature to work properly; deprecated.
 
     In previous versions, all subclasses of BaseOperator must use apply_default decorator for the"
     `default_args` feature to work properly.
@@ -58,16 +58,22 @@ def apply_defaults(func: T) -> T:
 
 def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
     """
-    Removes @task or similar decorators as well as @setup and @teardown.
+    Remove @task or similar decorators as well as @setup and @teardown.
 
     :param python_source: The python source code
     :param task_decorator_name: the decorator name
+
+    TODO: Python 3.9+: Rewrite this to use ast.parse and ast.unparse
     """
 
     def _remove_task_decorator(py_source, decorator_name):
-        if decorator_name not in py_source:
+        # if no line starts with @decorator_name, we can early exit
+        for line in py_source.split("\n"):
+            if line.startswith(decorator_name):
+                break
+        else:
             return python_source
-        split = python_source.split(decorator_name)
+        split = python_source.split(decorator_name, 1)
         before_decorator, after_decorator = split[0], split[1]
         if after_decorator[0] == "(":
             after_decorator = _balance_parens(after_decorator)

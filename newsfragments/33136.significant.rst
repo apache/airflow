@@ -1,5 +1,0 @@
-The "airflow db init", "airflow db upgrade" commands and "[database] load_default_connections" configuration options are deprecated.
-
-Instead, you should use "airflow db migrate" command to create or upgrade database. This command will not create default connections.
-In order to create default connections you need to run "airflow connections create-default-connections" explicitly,
-after running "airflow db migrate".

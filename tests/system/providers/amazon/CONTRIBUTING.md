@@ -151,7 +151,7 @@ descriptive.  For example, `example_redshift_cluster.py` and `example_redshift_s
 
 ## Environment ID
 
-`ENV_ID` should be set via the the `SystemTestContextBuilder` and not manually.  This
+`ENV_ID` should be set via the `SystemTestContextBuilder` and not manually.  This
 value should be used as part of any value which is test-specific such as the name of
 an S3 bucket being created. For example, `BUCKET_NAME = f'{ENV_ID}-test-bucket'`.
 

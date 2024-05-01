@@ -34,6 +34,22 @@ if sys.version_info >= (3,6):
         pass
 {% endif %}
 
+# Script
+{{ python_callable_source }}
+
+# monkey patching for the cases when python_callable is part of the dag module.
+{% if modified_dag_module_name is defined %}
+
+import types
+
+{{ modified_dag_module_name }}  = types.ModuleType("{{ modified_dag_module_name }}")
+
+{{ modified_dag_module_name }}.{{ python_callable }} = {{ python_callable }}
+
+sys.modules["{{modified_dag_module_name}}"] = {{modified_dag_module_name}}
+
+{% endif%}
+
 {% if op_args or op_kwargs %}
 with open(sys.argv[1], "rb") as file:
     arg_dict = {{ pickling_library }}.load(file)
@@ -47,8 +63,7 @@ with open(sys.argv[3], "r") as file:
     virtualenv_string_args = list(map(lambda x: x.strip(), list(file)))
 {% endif %}
 
-# Script
-{{ python_callable_source }}
+
 try:
     res = {{ python_callable }}(*arg_dict["args"], **arg_dict["kwargs"])
 except Exception as e:

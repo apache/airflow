@@ -19,23 +19,29 @@ from __future__ import annotations
 import datetime
 import warnings
 
-from airflow.models import DAG
+import pytest
+
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.subdag import SubDagOperator
 
-#
+pytestmark = pytest.mark.db_test
 
 
 def create_subdag_opt(main_dag):
     subdag_name = "daily_job"
     subdag = DAG(
-        dag_id=".".join([dag_name, subdag_name]),
+        dag_id=f"{dag_name}.{subdag_name}",
         start_date=start_date,
         schedule=None,
         max_active_tasks=2,
     )
     BashOperator(bash_command="echo 1", task_id="daily_job_subdag_task", dag=subdag)
-    with warnings.catch_warnings(record=True):
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message=r"This class is deprecated\. Please use `airflow\.utils\.task_group\.TaskGroup`\.",
+        )
         return SubDagOperator(
             task_id=subdag_name,
             subdag=subdag,

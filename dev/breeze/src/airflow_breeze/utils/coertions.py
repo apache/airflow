@@ -30,4 +30,4 @@ def coerce_bool_value(value: str | bool) -> bool:
 
 
 def one_or_none_set(iterable: Iterable[bool]) -> bool:
-    return len([i for i in iterable if i]) in (0, 1)
+    return 0 <= sum(1 for i in iterable if i) <= 1

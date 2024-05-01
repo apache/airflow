@@ -24,6 +24,7 @@ import pandas as pd
 import pytest
 
 from airflow.exceptions import AirflowException
+from airflow.models import Connection
 from airflow.providers.amazon.aws.transfers.sql_to_s3 import SqlToS3Operator
 
 
@@ -269,3 +270,72 @@ class TestSqlToS3Operator:
                 }
             )
         )
+
+    def test_with_max_rows_per_file(self):
+        """
+        Test operator when the max_rows_per_file is specified
+        """
+        query = "query"
+        s3_bucket = "bucket"
+        s3_key = "key"
+
+        op = SqlToS3Operator(
+            query=query,
+            s3_bucket=s3_bucket,
+            s3_key=s3_key,
+            sql_conn_id="mysql_conn_id",
+            aws_conn_id="aws_conn_id",
+            task_id="task_id",
+            replace=True,
+            pd_kwargs={"index": False, "header": False},
+            max_rows_per_file=3,
+            dag=None,
+        )
+        example = {
+            "Team": ["Australia", "Australia", "India", "India"],
+            "Player": ["Ricky", "David Warner", "Virat Kohli", "Rohit Sharma"],
+            "Runs": [345, 490, 672, 560],
+        }
+
+        df = pd.DataFrame(example)
+        data = []
+        for group_name, df in op._partition_dataframe(df):
+            data.append((group_name, df))
+        data.sort(key=lambda d: d[0])
+        team, df = data[0]
+        assert df.equals(
+            pd.DataFrame(
+                {
+                    "Team": ["Australia", "Australia", "India"],
+                    "Player": ["Ricky", "David Warner", "Virat Kohli"],
+                    "Runs": [345, 490, 672],
+                }
+            )
+        )
+        team, df = data[1]
+        assert df.equals(
+            pd.DataFrame(
+                {
+                    "Team": ["India"],
+                    "Player": ["Rohit Sharma"],
+                    "Runs": [560],
+                }
+            )
+        )
+
+    @mock.patch("airflow.providers.common.sql.operators.sql.BaseHook.get_connection")
+    def test_hook_params(self, mock_get_conn):
+        mock_get_conn.return_value = Connection(conn_id="postgres_test", conn_type="postgres")
+        op = SqlToS3Operator(
+            query="query",
+            s3_bucket="bucket",
+            s3_key="key",
+            sql_conn_id="postgres_test",
+            task_id="task_id",
+            sql_hook_params={
+                "log_sql": False,
+            },
+            dag=None,
+        )
+        hook = op._get_hook()
+        assert hook.log_sql == op.sql_hook_params["log_sql"]

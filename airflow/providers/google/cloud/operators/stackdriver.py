@@ -20,7 +20,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.monitoring_v3 import AlertPolicy, NotificationChannel
 
 from airflow.providers.google.cloud.hooks.stackdriver import StackdriverHook
@@ -29,8 +28,11 @@ from airflow.providers.google.cloud.links.stackdriver import (
     StackdriverPoliciesLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+
     from airflow.utils.context import Context
 
 
@@ -98,7 +100,7 @@ class StackdriverListAlertPoliciesOperator(GoogleCloudBaseOperator):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -195,7 +197,7 @@ class StackdriverEnableAlertPoliciesOperator(GoogleCloudBaseOperator):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -278,7 +280,7 @@ class StackdriverDisableAlertPoliciesOperator(GoogleCloudBaseOperator):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -361,7 +363,7 @@ class StackdriverUpsertAlertOperator(GoogleCloudBaseOperator):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -440,7 +442,7 @@ class StackdriverDeleteAlertOperator(GoogleCloudBaseOperator):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -534,7 +536,7 @@ class StackdriverListNotificationChannelsOperator(GoogleCloudBaseOperator):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -631,7 +633,7 @@ class StackdriverEnableNotificationChannelsOperator(GoogleCloudBaseOperator):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -716,7 +718,7 @@ class StackdriverDisableNotificationChannelsOperator(GoogleCloudBaseOperator):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -803,7 +805,7 @@ class StackdriverUpsertNotificationChannelOperator(GoogleCloudBaseOperator):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -884,7 +886,7 @@ class StackdriverDeleteNotificationChannelOperator(GoogleCloudBaseOperator):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:

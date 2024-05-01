@@ -27,13 +27,12 @@ The Microsoft Azure Data Factory connection type enables the Azure Data Factory 
 Authenticating to Azure Data Factory
 ------------------------------------
 
-There are multiple ways to connect to Azure Data Factory using Airflow.
+There are three ways to connect to Azure Data Factory using Airflow.
 
-1. Use `token credentials
-   <https://docs.microsoft.com/en-us/azure/developer/python/azure-sdk-authenticate?tabs=cmd#authenticate-with-token-credentials>`_
+1. Use `token credentials <https://docs.microsoft.com/en-us/azure/developer/python/azure-sdk-authenticate?tabs=cmd#authenticate-with-token-credentials>`_
    i.e. add specific credentials (client_id, secret, tenant) and subscription id to the Airflow connection.
-2. Fallback on `DefaultAzureCredential
-   <https://docs.microsoft.com/en-us/python/api/overview/azure/identity-readme?view=azure-python#defaultazurecredential>`_.
+2. Use managed identity by setting ``managed_identity_client_id``, ``workload_identity_tenant_id`` (under the hook, it uses DefaultAzureCredential_ with these arguments)
+3. Fallback on DefaultAzureCredential_.
    This includes a mechanism to try different options to authenticate: Managed System Identity, environment variables, authentication through Azure CLI...
 
 Default Connection IDs
@@ -47,17 +46,17 @@ Configuring the Connection
 Client ID
     Specify the ``client_id`` used for the initial connection.
     This is needed for *token credentials* authentication mechanism.
-    It can be left out to fall back on ``DefaultAzureCredential``.
+    It can be left out to fall back on DefaultAzureCredential_.
 
 Secret
     Specify the ``secret`` used for the initial connection.
     This is needed for *token credentials* authentication mechanism.
-    It can be left out to fall back on ``DefaultAzureCredential``.
+    It can be left out to fall back on DefaultAzureCredential_.
 
 Tenant ID
     Specify the Azure tenant ID used for the initial connection.
     This is needed for *token credentials* authentication mechanism.
-    It can be left out to fall back on ``DefaultAzureCredential``.
+    It can be left out to fall back on DefaultAzureCredential_.
     Use extra param ``tenantId`` to pass in the tenant ID.
 
 Subscription ID
@@ -75,6 +74,12 @@ Resource Group Name (optional)
     If not specified in the connection, this needs to be passed in directly to hooks, operators, and sensors.
     Use extra param ``resource_group_name`` to pass in the resource group name.
 
+Managed Identity Client ID (optional)
+    The client ID of a user-assigned managed identity. If provided with ``workload_identity_tenant_id``, they'll pass to DefaultAzureCredential_.
+
+Workload Identity Tenant ID (optional)
+    ID of the application's Microsoft Entra tenant. Also called its "directory" ID. If provided with ``managed_identity_client_id``, they'll pass to DefaultAzureCredential_.
+
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.
@@ -91,3 +96,9 @@ Examples
 .. code-block:: bash
 
    export AIRFLOW_CONN_AZURE_DATA_FACTORY_DEFAULT='azure-data-factory://applicationid:serviceprincipalpassword@?tenantId=tenant+id&subscriptionId=subscription+id'
+
+
+.. _DefaultAzureCredential: https://docs.microsoft.com/en-us/python/api/overview/azure/identity-readme?view=azure-python#defaultazurecredential
+
+.. spelling:word-list::
+    Entra

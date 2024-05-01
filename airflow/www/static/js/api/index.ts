@@ -33,6 +33,7 @@ import useGraphData from "./useGraphData";
 import useGridData from "./useGridData";
 import useMappedInstances from "./useMappedInstances";
 import useDatasets from "./useDatasets";
+import useDatasetsSummary from "./useDatasetsSummary";
 import useDataset from "./useDataset";
 import useDatasetDependencies from "./useDatasetDependencies";
 import useDatasetEvents from "./useDatasetEvents";
@@ -48,6 +49,17 @@ import usePools from "./usePools";
 import useDags from "./useDags";
 import useDagRuns from "./useDagRuns";
 import useHistoricalMetricsData from "./useHistoricalMetricsData";
+import { useTaskXcomEntry, useTaskXcomCollection } from "./useTaskXcom";
+import useEventLogs from "./useEventLogs";
+import useCalendarData from "./useCalendarData";
+import useCreateDatasetEvent from "./useCreateDatasetEvent";
+
+axios.interceptors.request.use((config) => {
+  config.paramsSerializer = {
+    indexes: null,
+  };
+  return config;
+});
 
 axios.interceptors.response.use((res: AxiosResponse) =>
   res.data ? camelcaseKeys(res.data, { deep: true }) : res
@@ -64,9 +76,10 @@ export {
   useDagRuns,
   useDags,
   useDataset,
+  useDatasets,
   useDatasetDependencies,
   useDatasetEvents,
-  useDatasets,
+  useDatasetsSummary,
   useExtraLinks,
   useGraphData,
   useGridData,
@@ -84,4 +97,9 @@ export {
   useTaskInstance,
   useUpstreamDatasetEvents,
   useHistoricalMetricsData,
+  useTaskXcomEntry,
+  useTaskXcomCollection,
+  useEventLogs,
+  useCalendarData,
+  useCreateDatasetEvent,
 };

@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Sequence
 
 from deprecated import deprecated
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -42,11 +42,15 @@ class GlueCrawlerSensor(BaseSensorOperator):
 
     :param crawler_name: The AWS Glue crawler unique name
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     """
 
     template_fields: Sequence[str] = ("crawler_name",)
 
-    def __init__(self, *, crawler_name: str, aws_conn_id: str = "aws_default", **kwargs) -> None:
+    def __init__(self, *, crawler_name: str, aws_conn_id: str | None = "aws_default", **kwargs) -> None:
         super().__init__(**kwargs)
         self.crawler_name = crawler_name
         self.aws_conn_id = aws_conn_id
@@ -63,13 +67,17 @@ class GlueCrawlerSensor(BaseSensorOperator):
                 self.log.info("Status: %s", crawler_status)
                 return True
             else:
-                raise AirflowException(f"Status: {crawler_status}")
+                # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+                message = f"Status: {crawler_status}"
+                if self.soft_fail:
+                    raise AirflowSkipException(message)
+                raise AirflowException(message)
         else:
             return False
 
-    @deprecated(reason="use `hook` property instead.")
+    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
     def get_hook(self) -> GlueCrawlerHook:
-        """Returns a new or pre-existing GlueCrawlerHook."""
+        """Return a new or pre-existing GlueCrawlerHook."""
         return self.hook
 
     @cached_property

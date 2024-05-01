@@ -23,23 +23,33 @@ Airflow connection of type `azure_cosmos` exists. Authorization can be done by s
 login (=Endpoint uri), password (=secret key) and extra fields database_name and collection_name to specify
 the default database and collection to use (see connection `azure_cosmos_default` for an example).
 """
+
 from __future__ import annotations
 
-import json
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any, List, Union
+from urllib.parse import urlparse
 
+from azure.cosmos import PartitionKey
 from azure.cosmos.cosmos_client import CosmosClient
 from azure.cosmos.exceptions import CosmosHttpResponseError
+from azure.mgmt.cosmosdb import CosmosDBManagementClient
 
-from airflow.exceptions import AirflowBadRequest
+from airflow.exceptions import AirflowBadRequest, AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import get_field
+from airflow.providers.microsoft.azure.utils import (
+    add_managed_identity_connection_widgets,
+    get_field,
+    get_sync_default_azure_credential,
+)
+
+if TYPE_CHECKING:
+    PartitionKeyType = Union[str, List[str]]
 
 
 class AzureCosmosDBHook(BaseHook):
     """
-    Interacts with Azure CosmosDB.
+    Interact with Azure CosmosDB.
 
     login should be the endpoint uri, password should be the master key
     optionally, you can use the following extras to default these values
@@ -54,9 +64,10 @@ class AzureCosmosDBHook(BaseHook):
     conn_type = "azure_cosmos"
     hook_name = "Azure CosmosDB"
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+    @classmethod
+    @add_managed_identity_connection_widgets
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -68,11 +79,19 @@ class AzureCosmosDBHook(BaseHook):
             "collection_name": StringField(
                 lazy_gettext("Cosmos Collection Name (optional)"), widget=BS3TextFieldWidget()
             ),
+            "subscription_id": StringField(
+                lazy_gettext("Subscription ID (optional)"),
+                widget=BS3TextFieldWidget(),
+            ),
+            "resource_group_name": StringField(
+                lazy_gettext("Resource Group Name (optional)"),
+                widget=BS3TextFieldWidget(),
+            ),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour."""
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "host", "extra"],
             "relabeling": {
@@ -81,9 +100,11 @@ class AzureCosmosDBHook(BaseHook):
             },
             "placeholders": {
                 "login": "endpoint uri",
-                "password": "master key",
+                "password": "master key (not needed for Azure AD authentication)",
                 "database_name": "database name",
                 "collection_name": "collection name",
+                "subscription_id": "Subscription ID (required for Azure AD authentication)",
+                "resource_group_name": "Resource Group Name (required for Azure AD authentication)",
             },
         }
 
@@ -94,6 +115,7 @@ class AzureCosmosDBHook(BaseHook):
 
         self.default_database_name = None
         self.default_collection_name = None
+        self.default_partition_key = None
 
     def _get_field(self, extras, name):
         return get_field(
@@ -109,10 +131,34 @@ class AzureCosmosDBHook(BaseHook):
             conn = self.get_connection(self.conn_id)
             extras = conn.extra_dejson
             endpoint_uri = conn.login
-            master_key = conn.password
+            resource_group_name = self._get_field(extras, "resource_group_name")
+
+            if conn.password:
+                master_key = conn.password
+            elif resource_group_name:
+                managed_identity_client_id = self._get_field(extras, "managed_identity_client_id")
+                workload_identity_tenant_id = self._get_field(extras, "workload_identity_tenant_id")
+                subscritption_id = self._get_field(extras, "subscription_id")
+                credential = get_sync_default_azure_credential(
+                    managed_identity_client_id=managed_identity_client_id,
+                    workload_identity_tenant_id=workload_identity_tenant_id,
+                )
+                management_client = CosmosDBManagementClient(
+                    credential=credential,
+                    subscription_id=subscritption_id,
+                )
+
+                database_account = urlparse(conn.login).netloc.split(".")[0]
+                database_account_keys = management_client.database_accounts.list_keys(
+                    resource_group_name, database_account
+                )
+                master_key = database_account_keys.primary_master_key
+            else:
+                raise AirflowException("Either password or resource_group_name is required")
 
             self.default_database_name = self._get_field(extras, "database_name")
             self.default_collection_name = self._get_field(extras, "collection_name")
+            self.default_partition_key = self._get_field(extras, "partition_key")
 
             # Initialize the Python Azure Cosmos DB client
             self._conn = CosmosClient(endpoint_uri, {"masterKey": master_key})
@@ -140,20 +186,34 @@ class AzureCosmosDBHook(BaseHook):
 
         return coll_name
 
+    def __get_partition_key(self, partition_key: PartitionKeyType | None = None) -> PartitionKeyType:
+        self.get_conn()
+        if partition_key is None:
+            part_key = self.default_partition_key
+        else:
+            part_key = partition_key
+
+        if part_key is None:
+            raise AirflowBadRequest("Partition key must be specified")
+
+        return part_key
+
     def does_collection_exist(self, collection_name: str, database_name: str) -> bool:
-        """Checks if a collection exists in CosmosDB."""
+        """Check if a collection exists in CosmosDB."""
         if collection_name is None:
             raise AirflowBadRequest("Collection name cannot be None.")
 
+        # The ignores below is due to typing bug in azure-cosmos 9.2.0
+        # https://github.com/Azure/azure-sdk-for-python/issues/31811
         existing_container = list(
             self.get_conn()
             .get_database_client(self.__get_database_name(database_name))
             .query_containers(
                 "SELECT * FROM r WHERE r.id=@id",
-                parameters=[json.dumps({"name": "@id", "value": collection_name})],
+                parameters=[{"name": "@id", "value": collection_name}],  # type: ignore[list-item]
             )
         )
-        if len(existing_container) == 0:
+        if not existing_container:
             return False
 
         return True
@@ -162,72 +222,79 @@ class AzureCosmosDBHook(BaseHook):
         self,
         collection_name: str,
         database_name: str | None = None,
-        partition_key: str | None = None,
+        partition_key: PartitionKeyType | None = None,
     ) -> None:
-        """Creates a new collection in the CosmosDB database."""
+        """Create a new collection in the CosmosDB database."""
         if collection_name is None:
             raise AirflowBadRequest("Collection name cannot be None.")
 
         # We need to check to see if this container already exists so we don't try
         # to create it twice
+        # The ignores below is due to typing bug in azure-cosmos 9.2.0
+        # https://github.com/Azure/azure-sdk-for-python/issues/31811
         existing_container = list(
             self.get_conn()
             .get_database_client(self.__get_database_name(database_name))
             .query_containers(
                 "SELECT * FROM r WHERE r.id=@id",
-                parameters=[json.dumps({"name": "@id", "value": collection_name})],
+                parameters=[{"name": "@id", "value": collection_name}],  # type: ignore[list-item]
             )
         )
 
         # Only create if we did not find it already existing
-        if len(existing_container) == 0:
+        if not existing_container:
             self.get_conn().get_database_client(self.__get_database_name(database_name)).create_container(
-                collection_name, partition_key=partition_key
+                collection_name,
+                partition_key=PartitionKey(path=self.__get_partition_key(partition_key)),
             )
 
     def does_database_exist(self, database_name: str) -> bool:
-        """Checks if a database exists in CosmosDB."""
+        """Check if a database exists in CosmosDB."""
         if database_name is None:
             raise AirflowBadRequest("Database name cannot be None.")
 
+        # The ignores below is due to typing bug in azure-cosmos 9.2.0
+        # https://github.com/Azure/azure-sdk-for-python/issues/31811
         existing_database = list(
             self.get_conn().query_databases(
                 "SELECT * FROM r WHERE r.id=@id",
-                parameters=[json.dumps({"name": "@id", "value": database_name})],
+                parameters=[{"name": "@id", "value": database_name}],  # type: ignore[list-item]
             )
         )
-        if len(existing_database) == 0:
+        if not existing_database:
             return False
 
         return True
 
     def create_database(self, database_name: str) -> None:
-        """Creates a new database in CosmosDB."""
+        """Create a new database in CosmosDB."""
         if database_name is None:
             raise AirflowBadRequest("Database name cannot be None.")
 
         # We need to check to see if this database already exists so we don't try
         # to create it twice
+        # The ignores below is due to typing bug in azure-cosmos 9.2.0
+        # https://github.com/Azure/azure-sdk-for-python/issues/31811
         existing_database = list(
             self.get_conn().query_databases(
                 "SELECT * FROM r WHERE r.id=@id",
-                parameters=[json.dumps({"name": "@id", "value": database_name})],
+                parameters=[{"name": "@id", "value": database_name}],  # type: ignore[list-item]
             )
         )
 
         # Only create if we did not find it already existing
-        if len(existing_database) == 0:
+        if not existing_database:
             self.get_conn().create_database(database_name)
 
     def delete_database(self, database_name: str) -> None:
-        """Deletes an existing database in CosmosDB."""
+        """Delete an existing database in CosmosDB."""
         if database_name is None:
             raise AirflowBadRequest("Database name cannot be None.")
 
         self.get_conn().delete_database(database_name)
 
     def delete_collection(self, collection_name: str, database_name: str | None = None) -> None:
-        """Deletes an existing collection in the CosmosDB database."""
+        """Delete an existing collection in the CosmosDB database."""
         if collection_name is None:
             raise AirflowBadRequest("Collection name cannot be None.")
 
@@ -245,10 +312,7 @@ class AzureCosmosDBHook(BaseHook):
             raise AirflowBadRequest("You cannot insert a None document")
 
         # Add document id if isn't found
-        if "id" in document:
-            if document["id"] is None:
-                document["id"] = document_id
-        else:
+        if document.get("id") is None:
             document["id"] = document_id
 
         created_document = (
@@ -283,7 +347,7 @@ class AzureCosmosDBHook(BaseHook):
         document_id: str,
         database_name: str | None = None,
         collection_name: str | None = None,
-        partition_key: str | None = None,
+        partition_key: PartitionKeyType | None = None,
     ) -> None:
         """Delete an existing document out of a collection in the CosmosDB database."""
         if document_id is None:
@@ -292,7 +356,7 @@ class AzureCosmosDBHook(BaseHook):
             self.get_conn()
             .get_database_client(self.__get_database_name(database_name))
             .get_container_client(self.__get_collection_name(collection_name))
-            .delete_item(document_id, partition_key=partition_key)
+            .delete_item(document_id, partition_key=self.__get_partition_key(partition_key))
         )
 
     def get_document(
@@ -300,7 +364,7 @@ class AzureCosmosDBHook(BaseHook):
         document_id: str,
         database_name: str | None = None,
         collection_name: str | None = None,
-        partition_key: str | None = None,
+        partition_key: PartitionKeyType | None = None,
     ):
         """Get a document from an existing collection in the CosmosDB database."""
         if document_id is None:
@@ -311,7 +375,7 @@ class AzureCosmosDBHook(BaseHook):
                 self.get_conn()
                 .get_database_client(self.__get_database_name(database_name))
                 .get_container_client(self.__get_collection_name(collection_name))
-                .read_item(document_id, partition_key=partition_key)
+                .read_item(document_id, partition_key=self.__get_partition_key(partition_key))
             )
         except CosmosHttpResponseError:
             return None
@@ -321,7 +385,7 @@ class AzureCosmosDBHook(BaseHook):
         sql_string: str,
         database_name: str | None = None,
         collection_name: str | None = None,
-        partition_key: str | None = None,
+        partition_key: PartitionKeyType | None = None,
     ) -> list | None:
         """Get a list of documents from an existing collection in the CosmosDB database via SQL query."""
         if sql_string is None:
@@ -332,7 +396,7 @@ class AzureCosmosDBHook(BaseHook):
                 self.get_conn()
                 .get_database_client(self.__get_database_name(database_name))
                 .get_container_client(self.__get_collection_name(collection_name))
-                .query_items(sql_string, partition_key=partition_key)
+                .query_items(sql_string, partition_key=self.__get_partition_key(partition_key))
             )
             return list(result_iterable)
         except CosmosHttpResponseError:

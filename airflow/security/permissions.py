@@ -19,7 +19,6 @@ from __future__ import annotations
 # Resource Constants
 RESOURCE_ACTION = "Permissions"
 RESOURCE_ADMIN_MENU = "Admin"
-RESOURCE_AIRFLOW = "Airflow"
 RESOURCE_AUDIT_LOG = "Audit Logs"
 RESOURCE_BROWSE_MENU = "Browse"
 RESOURCE_CONFIG = "Configurations"
@@ -36,7 +35,6 @@ RESOURCE_DOCS = "Documentation"
 RESOURCE_DOCS_MENU = "Docs"
 RESOURCE_IMPORT_ERROR = "ImportError"
 RESOURCE_JOB = "Jobs"
-RESOURCE_LOGIN = "Logins"
 RESOURCE_MY_PASSWORD = "My Password"
 RESOURCE_MY_PROFILE = "My Profile"
 RESOURCE_PASSWORD = "Passwords"
@@ -70,7 +68,7 @@ DAG_ACTIONS = {ACTION_CAN_READ, ACTION_CAN_EDIT, ACTION_CAN_DELETE}
 
 
 def resource_name_for_dag(root_dag_id: str) -> str:
-    """Returns the resource name for a DAG id.
+    """Return the resource name for a DAG id.
 
     Note that since a sub-DAG should follow the permission of its
     parent DAG, you should pass ``DagModel.root_dag_id`` to this function,

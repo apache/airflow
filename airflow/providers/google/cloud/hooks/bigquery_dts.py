@@ -16,20 +16,19 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a BigQuery Hook."""
+
 from __future__ import annotations
 
 from copy import copy
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.bigquery_datatransfer_v1 import DataTransferServiceAsyncClient, DataTransferServiceClient
 from google.cloud.bigquery_datatransfer_v1.types import (
     StartManualTransferRunsResponse,
     TransferConfig,
     TransferRun,
 )
-from googleapiclient.discovery import Resource
 
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import (
@@ -38,9 +37,14 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseHook,
 )
 
+if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+    from google.api_core.retry_async import AsyncRetry
+    from googleapiclient.discovery import Resource
+
 
 def get_object_id(obj: dict) -> str:
-    """Returns unique id of the object."""
+    """Return unique id of the object."""
     return obj["name"].rpartition("/")[-1]
 
 
@@ -98,7 +102,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
 
     def get_conn(self) -> DataTransferServiceClient:
         """
-        Retrieves connection to Google Bigquery.
+        Retrieve connection to Google Bigquery.
 
         :return: Google Bigquery API client
         """
@@ -119,7 +123,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> TransferConfig:
         """
-        Creates a new data transfer configuration.
+        Create a new data transfer configuration.
 
         :param transfer_config: Data transfer configuration to create.
         :param project_id: The BigQuery project id where the transfer configuration should be
@@ -161,7 +165,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Deletes transfer configuration.
+        Delete transfer configuration.
 
         :param transfer_config_id: Id of transfer config to be used.
         :param project_id: The BigQuery project id where the transfer configuration should be
@@ -249,7 +253,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> TransferRun:
         """
-        Returns information about the particular transfer run.
+        Return information about the particular transfer run.
 
         :param run_id: ID of the transfer run.
         :param transfer_config_id: ID of transfer config to be used.
@@ -319,12 +323,12 @@ class AsyncBiqQueryDataTransferServiceHook(GoogleBaseAsyncHook):
         run_id: str,
         project_id: str | None,
         location: str | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
-        Returns information about the particular transfer run.
+        Return information about the particular transfer run.
 
         :param run_id: ID of the transfer run.
         :param config_id: ID of transfer config to be used.

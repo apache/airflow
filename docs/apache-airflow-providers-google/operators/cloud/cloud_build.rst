@@ -104,9 +104,9 @@ Trigger a build is performed with the
 
 You can use deferrable mode for this action in order to run the operator asynchronously:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_build/example_cloud_build_async.py
+.. exampleinclude:: ../../../../tests/system/providers/google/cloud/cloud_build/example_cloud_build.py
     :language: python
-    :dedent: 0
+    :dedent: 4
     :start-after: [START howto_operator_create_build_from_storage_async]
     :end-before: [END howto_operator_create_build_from_storage_async]
 
@@ -132,9 +132,9 @@ you can pass wait=False as example shown below.
 
 You can use deferrable mode for this action in order to run the operator asynchronously:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_build/example_cloud_build_async.py
+.. exampleinclude:: ../../../../tests/system/providers/google/cloud/cloud_build/example_cloud_build.py
     :language: python
-    :dedent: 0
+    :dedent: 4
     :start-after: [START howto_operator_create_build_without_wait_async]
     :end-before: [END howto_operator_create_build_without_wait_async]
 
@@ -149,9 +149,9 @@ that are needed for Cloud Build to perform your tasks. You can write the build c
 
 You can use deferrable mode for this action in order to run the operator asynchronously:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_build/example_cloud_build_async.py
+.. exampleinclude:: ../../../../tests/system/providers/google/cloud/cloud_build/example_cloud_build.py
     :language: python
-    :dedent: 0
+    :dedent: 4
     :start-after: [START howto_operator_gcp_create_build_from_yaml_body_async]
     :end-before: [END howto_operator_gcp_create_build_from_yaml_body_async]
 
@@ -166,9 +166,9 @@ Once build has started, it ill build the code in source repositories.
 
 You can use deferrable mode for this action in order to run the operator asynchronously:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_build/example_cloud_build_async.py
+.. exampleinclude:: ../../../../tests/system/providers/google/cloud/cloud_build/example_cloud_build.py
     :language: python
-    :dedent: 0
+    :dedent: 4
     :start-after: [START howto_operator_create_build_from_repo_async]
     :end-before: [END howto_operator_create_build_from_repo_async]
 

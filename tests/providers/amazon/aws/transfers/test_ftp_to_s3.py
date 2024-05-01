@@ -35,7 +35,6 @@ class TestFTPToS3Operator:
     def assert_execute(
         self, mock_local_tmp_file, mock_s3_hook_load_file, mock_ftp_hook_retrieve_file, ftp_file, s3_file
     ):
-
         mock_local_tmp_file_value = mock_local_tmp_file.return_value.__enter__.return_value
         mock_ftp_hook_retrieve_file.assert_called_once_with(
             local_full_path_or_buffer=mock_local_tmp_file_value.name, remote_full_path=ftp_file
@@ -72,7 +71,6 @@ class TestFTPToS3Operator:
     def test_execute_multiple_files_different_names(
         self, mock_local_tmp_file, mock_s3_hook_load_file, mock_ftp_hook_retrieve_file
     ):
-
         operator = FTPToS3Operator(
             task_id=TASK_ID,
             s3_bucket=BUCKET,
@@ -97,7 +95,6 @@ class TestFTPToS3Operator:
     def test_execute_multiple_files_same_names(
         self, mock_local_tmp_file, mock_s3_hook_load_file, mock_ftp_hook_retrieve_file
     ):
-
         operator = FTPToS3Operator(
             task_id=TASK_ID,
             s3_bucket=BUCKET,
@@ -120,7 +117,6 @@ class TestFTPToS3Operator:
         self,
         mock_ftp_hook_list_directory,
     ):
-
         operator = FTPToS3Operator(
             task_id=TASK_ID,
             s3_bucket=BUCKET,

@@ -40,7 +40,7 @@ def _get_next_available_cidr(vpc_id: str) -> str:
     if len({block.prefixlen for block in existing_cidr_blocks}) > 1:
         raise ValueError(error_msg_template.format("Subnets do not all use the same CIDR block size."))
 
-    last_used_block = sorted(existing_cidr_blocks)[-1]
+    last_used_block = max(existing_cidr_blocks)
     *_, last_reserved_ip = last_used_block
     return f"{last_reserved_ip + 1}/{last_used_block.prefixlen}"
 

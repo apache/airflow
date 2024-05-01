@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Enums for DAG serialization."""
+
 from __future__ import annotations
 
 from enum import Enum, unique
@@ -36,11 +37,15 @@ class DagAttributeTypes(str, Enum):
     """Enum of supported attribute types of DAG."""
 
     DAG = "dag"
+    DATASET_EVENT_ACCESSORS = "dataset_event_accessors"
+    DATASET_EVENT_ACCESSOR = "dataset_event_accessor"
     OP = "operator"
     DATETIME = "datetime"
     TIMEDELTA = "timedelta"
     TIMEZONE = "timezone"
     RELATIVEDELTA = "relativedelta"
+    BASE_TRIGGER = "base_trigger"
+    AIRFLOW_EXC_SER = "airflow_exc_ser"
     DICT = "dict"
     SET = "set"
     TUPLE = "tuple"
@@ -50,8 +55,15 @@ class DagAttributeTypes(str, Enum):
     PARAM = "param"
     XCOM_REF = "xcomref"
     DATASET = "dataset"
+    DATASET_ANY = "dataset_any"
+    DATASET_ALL = "dataset_all"
     SIMPLE_TASK_INSTANCE = "simple_task_instance"
     BASE_JOB = "Job"
     TASK_INSTANCE = "task_instance"
     DAG_RUN = "dag_run"
+    DAG_MODEL = "dag_model"
     DATA_SET = "data_set"
+    LOG_TEMPLATE = "log_template"
+    CONNECTION = "connection"
+    TASK_CONTEXT = "task_context"
+    ARG_NOT_SET = "arg_not_set"

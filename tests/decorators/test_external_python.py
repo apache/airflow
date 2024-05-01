@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import datetime
+import logging
 import subprocess
 import venv
 from datetime import timedelta
@@ -29,6 +30,11 @@ import pytest
 
 from airflow.decorators import setup, task, teardown
 from airflow.utils import timezone
+
+log = logging.getLogger(__name__)
+
+pytestmark = pytest.mark.db_test
+
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 END_DATE = timezone.datetime(2016, 1, 2)
@@ -43,28 +49,106 @@ TI_CONTEXT_ENV_VARS = [
 ]
 
 
-@pytest.fixture()
+@pytest.fixture
 def venv_python():
     with TemporaryDirectory() as d:
         venv.create(d, with_pip=False)
         yield Path(d) / "bin" / "python"
 
 
-@pytest.fixture()
-def venv_python_with_dill():
+@pytest.fixture
+def venv_python_with_cloudpickle_and_dill():
     with TemporaryDirectory() as d:
         venv.create(d, with_pip=True)
         python_path = Path(d) / "bin" / "python"
-        subprocess.call([python_path, "-m", "pip", "install", "dill"])
+        subprocess.call([python_path, "-m", "pip", "install", "cloudpickle", "dill"])
         yield python_path
 
 
 class TestExternalPythonDecorator:
-    def test_with_dill_works(self, dag_maker, venv_python_with_dill):
-        @task.external_python(python=venv_python_with_dill, use_dill=True)
+    def test_with_cloudpickle_works(self, dag_maker, venv_python_with_cloudpickle_and_dill):
+        @task.external_python(python=venv_python_with_cloudpickle_and_dill, use_cloudpickle=True)
+        def f():
+            """Import cloudpickle to double-check it is installed ."""
+            try:
+                import cloudpickle  # noqa: F401
+            except ImportError:
+                log.warning(
+                    "Cloudpickle package is required to be installed."
+                    " Please install it with: pip install [cloudpickle]"
+                )
+
+        with dag_maker():
+            ret = f()
+
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    def test_with_templated_python_cloudpickle(self, dag_maker, venv_python_with_cloudpickle_and_dill):
+        # add template that produces empty string when rendered
+        templated_python_with_cloudpickle = venv_python_with_cloudpickle_and_dill.as_posix() + "{{ '' }}"
+
+        @task.external_python(python=templated_python_with_cloudpickle, use_cloudpickle=True)
+        def f():
+            """Import cloudpickle to double-check it is installed ."""
+            try:
+                import cloudpickle  # noqa: F401
+            except ImportError:
+                log.warning(
+                    "Cloudpickle package is required to be installed."
+                    " Please install it with: pip install [cloudpickle]"
+                )
+
+        with dag_maker():
+            ret = f()
+
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    def test_no_cloudpickle_installed_raises_exception_when_use_cloudpickle(self, dag_maker, venv_python):
+        @task.external_python(python=venv_python, use_cloudpickle=True)
+        def f():
+            pass
+
+        with dag_maker():
+            ret = f()
+
+        with pytest.raises(CalledProcessError):
+            ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    def test_with_dill_works(self, dag_maker, venv_python_with_cloudpickle_and_dill):
+        @task.external_python(python=venv_python_with_cloudpickle_and_dill, use_dill=True)
         def f():
             """Import dill to double-check it is installed ."""
-            import dill  # noqa: F401
+            try:
+                import dill  # noqa: F401
+            except ImportError:
+                import logging
+
+                _log = logging.getLogger(__name__)
+                _log.warning(
+                    "Dill package is required to be installed. Please install it with: pip install [dill]"
+                )
+
+        with dag_maker():
+            ret = f()
+
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    def test_with_templated_python_dill(self, dag_maker, venv_python_with_cloudpickle_and_dill):
+        # add template that produces empty string when rendered
+        templated_python_with_dill = venv_python_with_cloudpickle_and_dill.as_posix() + "{{ '' }}"
+
+        @task.external_python(python=templated_python_with_dill, use_dill=True)
+        def f():
+            """Import dill to double-check it is installed ."""
+            try:
+                import dill  # noqa: F401
+            except ImportError:
+                import logging
+
+                _log = logging.getLogger(__name__)
+                _log.warning(
+                    "Dill package is required to be installed. Please install it with: pip install [dill]"
+                )
 
         with dag_maker():
             ret = f()
@@ -122,7 +206,7 @@ class TestExternalPythonDecorator:
             return None
 
         with dag_maker():
-            ret = f(datetime.datetime.utcnow())
+            ret = f(datetime.datetime.now(tz=datetime.timezone.utc))
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 

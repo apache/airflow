@@ -91,7 +91,6 @@ def user_confirm(
             if default_answer:
                 return default_answer
             # timeout should only occur when default_answer is set so this should never happened
-            continue
         except KeyboardInterrupt:
             if quit_allowed:
                 return Answer.QUIT

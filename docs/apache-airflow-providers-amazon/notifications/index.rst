@@ -20,7 +20,6 @@
 Amazon AWS Notifications
 ========================
 
-
 .. toctree::
     :maxdepth: 1
     :glob:

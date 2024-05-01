@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import re
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -68,22 +68,25 @@ def download_file_from_github(tag: str, path: str, output_file: Path) -> bool:
 ACTIVE_TAG_MATCH = re.compile(r"^(\d+)\.\d+\.\d+$")
 
 
-def get_active_airflow_versions(confirm: bool = True) -> list[str]:
+def get_active_airflow_versions(confirm: bool = True) -> tuple[list[str], dict[str, str]]:
     """
     Gets list of active Airflow versions from GitHub.
-    :return: list of active Airflow versions
+
+    :param confirm: if True, will ask the user before proceeding with the versions found
+    :return: tuple: list of active Airflow versions and dict of Airflow release dates (in iso format)
     """
     from git import GitCommandError, Repo
     from packaging.version import Version
 
+    airflow_release_dates: dict[str, str] = {}
     get_console().print(
-        "\n[warning]Make sure you have 'apache` remote added pointing to apache/airflow repository\n"
+        "\n[warning]Make sure you have `apache` remote added pointing to apache/airflow repository\n"
     )
     get_console().print("[info]Fetching all released Airflow 2 versions from GitHub[/]\n")
     repo = Repo(AIRFLOW_SOURCES_ROOT)
     all_active_tags: list[str] = []
     try:
-        ref_tags = repo.git.ls_remote("--tags", "apache").split("\n")
+        ref_tags = repo.git.ls_remote("--tags", "apache").splitlines()
     except GitCommandError as ex:
         get_console().print(
             "[error]Could not fetch tags from `apache` remote! Make sure to have it configured.\n"
@@ -100,16 +103,24 @@ def get_active_airflow_versions(confirm: bool = True) -> list[str]:
         match = ACTIVE_TAG_MATCH.match(tag)
         if match and match.group(1) == "2":
             all_active_tags.append(tag)
-    airflow_versions = sorted(all_active_tags, key=lambda x: Version(x))
+    airflow_versions = sorted(all_active_tags, key=Version)
+    for version in airflow_versions:
+        date = get_tag_date(version)
+        if not date:
+            get_console().print("[error]Error fetching tag date for Airflow {version}")
+            sys.exit(1)
+        airflow_release_dates[version] = date
+    get_console().print("[info]All Airflow 2 versions")
+    for version in airflow_versions:
+        get_console().print(f"  {version}: [info]{airflow_release_dates[version]}[/]")
     if confirm:
-        get_console().print(f"All Airflow 2 versions: {all_active_tags}")
         answer = user_confirm(
             "Should we continue with those versions?", quit_allowed=False, default_answer=Answer.YES
         )
         if answer == Answer.NO:
             get_console().print("[red]Aborting[/]")
             sys.exit(1)
-    return airflow_versions
+    return airflow_versions, airflow_release_dates
 
 
 def download_constraints_file(
@@ -153,4 +164,4 @@ def get_tag_date(tag: str) -> str | None:
     timestamp: int = (
         tag_object.committed_date if hasattr(tag_object, "committed_date") else tag_object.tagged_date
     )
-    return datetime.utcfromtimestamp(timestamp).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")

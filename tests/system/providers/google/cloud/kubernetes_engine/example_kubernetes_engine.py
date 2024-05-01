@@ -18,31 +18,34 @@
 """
 Example Airflow DAG for Google Kubernetes Engine.
 """
+
 from __future__ import annotations
 
 import os
 from datetime import datetime
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKECreateClusterOperator,
     GKEDeleteClusterOperator,
     GKEStartPodOperator,
 )
+from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "kubernetes_engine"
 GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
 GCP_LOCATION = "europe-north1-a"
-CLUSTER_NAME = f"cluster-name-test-build-{ENV_ID}"
+CLUSTER_NAME = f"gke-{ENV_ID}".replace("_", "-")
 
 # [START howto_operator_gcp_gke_create_cluster_definition]
 CLUSTER = {"name": CLUSTER_NAME, "initial_node_count": 1}
 # [END howto_operator_gcp_gke_create_cluster_definition]
 
-with models.DAG(
+
+with DAG(
     DAG_ID,
     schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),
@@ -101,9 +104,9 @@ with models.DAG(
         location=GCP_LOCATION,
     )
     # [END howto_operator_gke_delete_cluster]
+    delete_cluster.trigger_rule = TriggerRule.ALL_DONE
 
-    create_cluster >> pod_task >> delete_cluster
-    create_cluster >> pod_task_xcom >> delete_cluster
+    create_cluster >> [pod_task, pod_task_xcom] >> delete_cluster
     pod_task_xcom >> pod_task_xcom_result
 
     from tests.system.utils.watcher import watcher

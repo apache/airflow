@@ -47,6 +47,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
         retry_delay: int = 10,
         retry_args: dict[Any, Any] | None = None,
         run_page_url: str | None = None,
+        repair_run: bool = False,
     ) -> None:
         super().__init__()
         self.run_id = run_id
@@ -56,6 +57,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
         self.retry_delay = retry_delay
         self.retry_args = retry_args
         self.run_page_url = run_page_url
+        self.repair_run = repair_run
         self.hook = DatabricksHook(
             databricks_conn_id,
             retry_limit=self.retry_limit,
@@ -74,6 +76,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
                 "retry_delay": self.retry_delay,
                 "retry_args": self.retry_args,
                 "run_page_url": self.run_page_url,
+                "repair_run": self.repair_run,
             },
         )
 
@@ -81,16 +84,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
         async with self.hook:
             while True:
                 run_state = await self.hook.a_get_run_state(self.run_id)
-                if run_state.is_terminal:
-                    yield TriggerEvent(
-                        {
-                            "run_id": self.run_id,
-                            "run_page_url": self.run_page_url,
-                            "run_state": run_state.to_json(),
-                        }
-                    )
-                    return
-                else:
+                if not run_state.is_terminal:
                     self.log.info(
                         "run-id %s in run state %s. sleeping for %s seconds",
                         self.run_id,
@@ -98,3 +92,28 @@ class DatabricksExecutionTrigger(BaseTrigger):
                         self.polling_period_seconds,
                     )
                     await asyncio.sleep(self.polling_period_seconds)
+                    continue
+
+                failed_tasks = []
+                if run_state.result_state == "FAILED":
+                    run_info = await self.hook.a_get_run(self.run_id)
+                    for task in run_info.get("tasks", []):
+                        if task.get("state", {}).get("result_state", "") == "FAILED":
+                            task_run_id = task["run_id"]
+                            task_key = task["task_key"]
+                            run_output = await self.hook.a_get_run_output(task_run_id)
+                            if "error" in run_output:
+                                error = run_output["error"]
+                            else:
+                                error = run_state.state_message
+                            failed_tasks.append({"task_key": task_key, "run_id": task_run_id, "error": error})
+                yield TriggerEvent(
+                    {
+                        "run_id": self.run_id,
+                        "run_page_url": self.run_page_url,
+                        "run_state": run_state.to_json(),
+                        "repair_run": self.repair_run,
+                        "errors": failed_tasks,
+                    }
+                )
+                return

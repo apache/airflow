@@ -179,7 +179,7 @@ It is not possible to use both asynchronous and deferrable parameters at the sam
 Please, check the example of using deferrable mode:
 :class:`~airflow.providers.google.cloud.operators.datafusion.CloudDataFusionStartPipelineOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datafusion/example_datafusion_async.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/datafusion/example_datafusion.py
     :language: python
     :dedent: 4
     :start-after: [START howto_cloud_data_fusion_start_pipeline_def]

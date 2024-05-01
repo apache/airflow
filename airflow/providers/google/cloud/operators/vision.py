@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Vision operator."""
+
 from __future__ import annotations
 
 from copy import deepcopy
@@ -23,7 +24,6 @@ from typing import TYPE_CHECKING, Any, Sequence, Tuple
 
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.vision_v1 import (
     AnnotateImageRequest,
     Image,
@@ -31,12 +31,15 @@ from google.cloud.vision_v1 import (
     ProductSet,
     ReferenceImage,
 )
-from google.protobuf.field_mask_pb2 import FieldMask  # type: ignore
 
 from airflow.providers.google.cloud.hooks.vision import CloudVisionHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+    from google.protobuf.field_mask_pb2 import FieldMask
+
     from airflow.utils.context import Context
 
 
@@ -92,7 +95,7 @@ class CloudVisionCreateProductSetOperator(GoogleCloudBaseOperator):
         *,
         product_set: dict | ProductSet,
         location: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         product_set_id: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
@@ -179,7 +182,7 @@ class CloudVisionGetProductSetOperator(GoogleCloudBaseOperator):
         *,
         location: str,
         product_set_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: MetaData = (),
@@ -277,7 +280,7 @@ class CloudVisionUpdateProductSetOperator(GoogleCloudBaseOperator):
         product_set: dict | ProductSet,
         location: str | None = None,
         product_set_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         update_mask: dict | FieldMask | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
@@ -365,7 +368,7 @@ class CloudVisionDeleteProductSetOperator(GoogleCloudBaseOperator):
         *,
         location: str,
         product_set_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: MetaData = (),
@@ -453,7 +456,7 @@ class CloudVisionCreateProductOperator(GoogleCloudBaseOperator):
         *,
         location: str,
         product: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         product_id: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
@@ -543,7 +546,7 @@ class CloudVisionGetProductOperator(GoogleCloudBaseOperator):
         *,
         location: str,
         product_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: MetaData = (),
@@ -650,7 +653,7 @@ class CloudVisionUpdateProductOperator(GoogleCloudBaseOperator):
         product: dict | Product,
         location: str | None = None,
         product_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         update_mask: dict | FieldMask | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
@@ -741,7 +744,7 @@ class CloudVisionDeleteProductOperator(GoogleCloudBaseOperator):
         *,
         location: str,
         product_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: MetaData = (),
@@ -897,7 +900,7 @@ class CloudVisionCreateReferenceImageOperator(GoogleCloudBaseOperator):
         reference_image: dict | ReferenceImage,
         product_id: str,
         reference_image_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: MetaData = (),
@@ -994,7 +997,7 @@ class CloudVisionDeleteReferenceImageOperator(GoogleCloudBaseOperator):
         location: str,
         product_id: str,
         reference_image_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: MetaData = (),
@@ -1083,7 +1086,7 @@ class CloudVisionAddProductToProductSetOperator(GoogleCloudBaseOperator):
         product_set_id: str,
         product_id: str,
         location: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: MetaData = (),
@@ -1165,7 +1168,7 @@ class CloudVisionRemoveProductFromProductSetOperator(GoogleCloudBaseOperator):
         product_set_id: str,
         product_id: str,
         location: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: MetaData = (),

@@ -33,9 +33,9 @@ class DagWarningSchema(SQLAlchemySchema):
         model = DagWarning
 
     dag_id = auto_field(data_key="dag_id", dump_only=True)
-    warning_type = auto_field()
-    message = auto_field()
-    timestamp = auto_field(format="iso")
+    warning_type = auto_field(dump_only=True)
+    message = auto_field(dump_only=True)
+    timestamp = auto_field(format="iso", dump_only=True)
 
 
 class DagWarningCollection(NamedTuple):

@@ -18,13 +18,14 @@
 """
 Example DAG using PrestoToGCSOperator.
 """
+
 from __future__ import annotations
 
 import os
 import re
 from datetime import datetime
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
     BigQueryCreateExternalTableOperator,
@@ -48,13 +49,12 @@ def safe_name(s: str) -> str:
     return re.sub("[^0-9a-zA-Z_]+", "_", s)
 
 
-with models.DAG(
+with DAG(
     dag_id="example_presto_to_gcs",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example"],
 ) as dag:
-
     create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create-dataset", dataset_id=DATASET_NAME)
 
     delete_dataset = BigQueryDeleteDatasetOperator(

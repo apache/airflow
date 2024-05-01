@@ -17,12 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-import datetime
+import pytest
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dag import DAG
 from airflow.providers.apache.spark.operators.spark_sql import SparkSqlOperator
+from airflow.utils import timezone
 
-DEFAULT_DATE = datetime.datetime(2017, 1, 1)
+DEFAULT_DATE = timezone.datetime(2024, 2, 1, tzinfo=timezone.utc)
 
 
 class TestSparkSqlOperator:
@@ -64,3 +66,22 @@ class TestSparkSqlOperator:
         assert self._config["num_executors"] == operator._num_executors
         assert self._config["verbose"] == operator._verbose
         assert self._config["yarn_queue"] == operator._yarn_queue
+
+    @pytest.mark.db_test
+    def test_templating(self, create_task_instance_of_operator):
+        ti = create_task_instance_of_operator(
+            SparkSqlOperator,
+            # Templated fields
+            sql="{{ 'sql' }}",
+            # Other parameters
+            dag_id="test_template_body_templating_dag",
+            task_id="test_template_body_templating_task",
+            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+        )
+        ti.render_templates()
+        task: SparkSqlOperator = ti.task
+        assert task.sql == "sql"
+
+        # Deprecated aliases
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            assert task._sql == "sql"

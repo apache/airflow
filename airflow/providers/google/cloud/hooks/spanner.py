@@ -16,22 +16,25 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Spanner Hook."""
+
 from __future__ import annotations
 
-from typing import Callable, NamedTuple, Sequence
+from typing import TYPE_CHECKING, Callable, NamedTuple, Sequence
 
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.cloud.spanner_v1.client import Client
-from google.cloud.spanner_v1.database import Database
-from google.cloud.spanner_v1.instance import Instance
-from google.cloud.spanner_v1.transaction import Transaction
-from google.longrunning.operations_grpc_pb2 import Operation
 from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook, get_field
+
+if TYPE_CHECKING:
+    from google.cloud.spanner_v1.database import Database
+    from google.cloud.spanner_v1.instance import Instance
+    from google.cloud.spanner_v1.transaction import Transaction
+    from google.longrunning.operations_grpc_pb2 import Operation
 
 
 class SpannerConnectionParams(NamedTuple):
@@ -74,7 +77,7 @@ class SpannerHook(GoogleBaseHook, DbApiHook):
 
     def _get_client(self, project_id: str) -> Client:
         """
-        Provides a client for interacting with the Cloud Spanner API.
+        Provide a client for interacting with the Cloud Spanner API.
 
         :param project_id: The ID of the Google Cloud project.
         :return: Client
@@ -120,7 +123,7 @@ class SpannerHook(GoogleBaseHook, DbApiHook):
         project_id: str,
     ) -> Instance | None:
         """
-        Gets information about a particular instance.
+        Get information about a particular instance.
 
         :param project_id: Optional, The ID of the Google Cloud project that owns the Cloud Spanner
             database. If set to None or missing, the default project_id from the Google Cloud connection
@@ -143,7 +146,7 @@ class SpannerHook(GoogleBaseHook, DbApiHook):
         func: Callable[[Instance], Operation],
     ) -> None:
         """
-        Invokes a method on a given instance by applying a specified Callable.
+        Invoke a method on a given instance by applying a specified Callable.
 
         :param project_id: The ID of the Google Cloud project that owns the Cloud Spanner database.
         :param instance_id: The ID of the instance.
@@ -181,7 +184,7 @@ class SpannerHook(GoogleBaseHook, DbApiHook):
         project_id: str,
     ) -> None:
         """
-        Creates a new Cloud Spanner instance.
+        Create a new Cloud Spanner instance.
 
         :param instance_id: The ID of the Cloud Spanner instance.
         :param configuration_name: The name of the instance configuration defining how the
@@ -211,7 +214,7 @@ class SpannerHook(GoogleBaseHook, DbApiHook):
         project_id: str,
     ) -> None:
         """
-        Updates an existing Cloud Spanner instance.
+        Update an existing Cloud Spanner instance.
 
         :param instance_id: The ID of the Cloud Spanner instance.
         :param configuration_name: The name of the instance configuration defining how the
@@ -234,7 +237,7 @@ class SpannerHook(GoogleBaseHook, DbApiHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_instance(self, instance_id: str, project_id: str) -> None:
         """
-        Deletes an existing Cloud Spanner instance.
+        Delete an existing Cloud Spanner instance.
 
         :param instance_id: The ID of the Cloud Spanner instance.
         :param project_id: Optional, the ID of the Google Cloud project that owns the Cloud Spanner
@@ -258,7 +261,7 @@ class SpannerHook(GoogleBaseHook, DbApiHook):
         project_id: str,
     ) -> Database | None:
         """
-        Retrieves a database in Cloud Spanner; return None if the database does not exist in the instance.
+        Retrieve a database in Cloud Spanner; return None if the database does not exist in the instance.
 
         :param instance_id: The ID of the Cloud Spanner instance.
         :param database_id: The ID of the database in Cloud Spanner.
@@ -285,7 +288,7 @@ class SpannerHook(GoogleBaseHook, DbApiHook):
         project_id: str,
     ) -> None:
         """
-        Creates a new database in Cloud Spanner.
+        Create a new database in Cloud Spanner.
 
         :param instance_id: The ID of the Cloud Spanner instance.
         :param database_id: The ID of the database to create in Cloud Spanner.
@@ -319,7 +322,7 @@ class SpannerHook(GoogleBaseHook, DbApiHook):
         operation_id: str | None = None,
     ) -> None:
         """
-        Updates DDL of a database in Cloud Spanner.
+        Update DDL of a database in Cloud Spanner.
 
         :param instance_id: The ID of the Cloud Spanner instance.
         :param database_id: The ID of the database in Cloud Spanner.
@@ -355,7 +358,7 @@ class SpannerHook(GoogleBaseHook, DbApiHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_database(self, instance_id: str, database_id, project_id: str) -> bool:
         """
-        Drops a database in Cloud Spanner.
+        Drop a database in Cloud Spanner.
 
         :param instance_id: The ID of the Cloud Spanner instance.
         :param database_id: The ID of the database in Cloud Spanner.
@@ -390,7 +393,7 @@ class SpannerHook(GoogleBaseHook, DbApiHook):
         project_id: str,
     ) -> None:
         """
-        Executes an arbitrary DML query (INSERT, UPDATE, DELETE).
+        Execute an arbitrary DML query (INSERT, UPDATE, DELETE).
 
         :param instance_id: The ID of the Cloud Spanner instance.
         :param database_id: The ID of the database in Cloud Spanner.

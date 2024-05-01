@@ -17,6 +17,7 @@
 """
 Returns information about Host that should be passed to the docker-compose.
 """
+
 from __future__ import annotations
 
 import platform

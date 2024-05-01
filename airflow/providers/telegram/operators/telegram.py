@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Operator for Telegram."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
@@ -72,7 +73,7 @@ class TelegramOperator(BaseOperator):
         super().__init__(**kwargs)
 
     def execute(self, context: Context) -> None:
-        """Calls the TelegramHook to post the provided Telegram message."""
+        """Call the TelegramHook to post the provided Telegram message."""
         if self.text:
             self.telegram_kwargs["text"] = self.text
 

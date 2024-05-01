@@ -16,12 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud SQL triggers."""
+
 from __future__ import annotations
 
 import asyncio
 from typing import Sequence
 
 from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLAsyncHook, CloudSqlOperationStatus
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -35,7 +37,7 @@ class CloudSQLExportTrigger(BaseTrigger):
     def __init__(
         self,
         operation_name: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         poke_interval: int = 20,
@@ -64,8 +66,8 @@ class CloudSQLExportTrigger(BaseTrigger):
         )
 
     async def run(self):
-        while True:
-            try:
+        try:
+            while True:
                 operation = await self.hook.get_operation(
                     project_id=self.project_id, operation_name=self.operation_name
                 )
@@ -79,6 +81,7 @@ class CloudSQLExportTrigger(BaseTrigger):
                             }
                         )
                         return
+
                     yield TriggerEvent(
                         {
                             "operation_name": operation["name"],
@@ -93,11 +96,11 @@ class CloudSQLExportTrigger(BaseTrigger):
                         self.poke_interval,
                     )
                     await asyncio.sleep(self.poke_interval)
-            except Exception as e:
-                self.log.exception("Exception occurred while checking operation status.")
-                yield TriggerEvent(
-                    {
-                        "status": "failed",
-                        "message": str(e),
-                    }
-                )
+        except Exception as e:
+            self.log.exception("Exception occurred while checking operation status.")
+            yield TriggerEvent(
+                {
+                    "status": "failed",
+                    "message": str(e),
+                }
+            )

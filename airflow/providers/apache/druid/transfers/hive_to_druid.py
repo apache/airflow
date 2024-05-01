@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains operator to move data from Hive to Druid."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Sequence
@@ -154,7 +155,7 @@ class HiveToDruidOperator(BaseOperator):
 
     def construct_ingest_query(self, static_path: str, columns: list[str]) -> dict[str, Any]:
         """
-        Builds an ingest query for an HDFS TSV load.
+        Build an ingest query for an HDFS TSV load.
 
         :param static_path: The path on hdfs where the data is
         :param columns: List of all the columns that are available

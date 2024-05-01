@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 
-from airflow.models import DAG
+from airflow.models.dag import DAG
 from airflow.operators.python import PythonOperator
 from airflow.utils.timezone import datetime
 

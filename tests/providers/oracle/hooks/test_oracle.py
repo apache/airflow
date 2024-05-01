@@ -21,7 +21,7 @@ import json
 from datetime import datetime
 from unittest import mock
 
-import numpy
+import numpy as np
 import oracledb
 import pytest
 
@@ -245,15 +245,15 @@ class TestOracleHookConn:
         assert oracledb.defaults.fetch_lobs is False
 
     def test_type_checking_thick_mode_lib_dir(self):
+        thick_mode_lib_dir_test = {"thick_mode": True, "thick_mode_lib_dir": 1}
+        self.connection.extra = json.dumps(thick_mode_lib_dir_test)
         with pytest.raises(TypeError, match=r"thick_mode_lib_dir expected str or None, got.*"):
-            thick_mode_lib_dir_test = {"thick_mode": True, "thick_mode_lib_dir": 1}
-            self.connection.extra = json.dumps(thick_mode_lib_dir_test)
             self.db_hook.get_conn()
 
     def test_type_checking_thick_mode_config_dir(self):
+        thick_mode_config_dir_test = {"thick_mode": True, "thick_mode_config_dir": 1}
+        self.connection.extra = json.dumps(thick_mode_config_dir_test)
         with pytest.raises(TypeError, match=r"thick_mode_config_dir expected str or None, got.*"):
-            thick_mode_config_dir_test = {"thick_mode": True, "thick_mode_config_dir": 1}
-            self.connection.extra = json.dumps(thick_mode_config_dir_test)
             self.db_hook.get_conn()
 
 
@@ -290,8 +290,8 @@ class TestOracleHook:
             (
                 "'basestr_with_quote",
                 None,
-                numpy.NAN,
-                numpy.datetime64("2019-01-24T01:02:03"),
+                np.NAN,
+                np.datetime64("2019-01-24T01:02:03"),
                 datetime(2019, 1, 24),
                 1,
                 10.24,
@@ -321,8 +321,8 @@ class TestOracleHook:
             (
                 "'basestr_with_quote",
                 None,
-                numpy.NAN,
-                numpy.datetime64("2019-01-24T01:02:03"),
+                np.NAN,
+                np.datetime64("2019-01-24T01:02:03"),
                 datetime(2019, 1, 24),
                 1,
                 10.24,

@@ -21,15 +21,24 @@ An Action Logger module.
 Singleton pattern has been applied into this module so that registered
 callbacks can be used all through the same python process.
 """
+
 from __future__ import annotations
 
 import json
 import logging
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
+
+from airflow.api_internal.internal_api_call import internal_api_call
+from airflow.utils.session import NEW_SESSION, provide_session
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 
 def register_pre_exec_callback(action_logger):
-    """Registers more action_logger function callback for pre-execution.
+    """Register more action_logger function callback for pre-execution.
 
     This function callback is expected to be called with keyword args.
     For more about the arguments that is being passed to the callback,
@@ -38,12 +47,12 @@ def register_pre_exec_callback(action_logger):
     :param action_logger: An action logger function
     :return: None
     """
-    logging.debug("Adding %s to pre execution callback", action_logger)
+    logger.debug("Adding %s to pre execution callback", action_logger)
     __pre_exec_callbacks.append(action_logger)
 
 
 def register_post_exec_callback(action_logger):
-    """Registers more action_logger function callback for post-execution.
+    """Register more action_logger function callback for post-execution.
 
     This function callback is expected to be called with keyword args.
     For more about the arguments that is being passed to the callback,
@@ -52,28 +61,28 @@ def register_post_exec_callback(action_logger):
     :param action_logger: An action logger function
     :return: None
     """
-    logging.debug("Adding %s to post execution callback", action_logger)
+    logger.debug("Adding %s to post execution callback", action_logger)
     __post_exec_callbacks.append(action_logger)
 
 
 def on_pre_execution(**kwargs):
-    """Calls callbacks before execution.
+    """Call callbacks before execution.
 
     Note that any exception from callback will be logged but won't be propagated.
 
     :param kwargs:
     :return: None
     """
-    logging.debug("Calling callbacks: %s", __pre_exec_callbacks)
+    logger.debug("Calling callbacks: %s", __pre_exec_callbacks)
     for callback in __pre_exec_callbacks:
         try:
             callback(**kwargs)
         except Exception:
-            logging.exception("Failed on pre-execution callback using %s", callback)
+            logger.exception("Failed on pre-execution callback using %s", callback)
 
 
 def on_post_execution(**kwargs):
-    """Calls callbacks after execution.
+    """Call callbacks after execution.
 
     As it's being called after execution, it can capture status of execution,
     duration, etc. Note that any exception from callback will be logged but
@@ -82,58 +91,90 @@ def on_post_execution(**kwargs):
     :param kwargs:
     :return: None
     """
-    logging.debug("Calling callbacks: %s", __post_exec_callbacks)
+    logger.debug("Calling callbacks: %s", __post_exec_callbacks)
     for callback in __post_exec_callbacks:
         try:
             callback(**kwargs)
         except Exception:
-            logging.exception("Failed on post-execution callback using %s", callback)
+            logger.exception("Failed on post-execution callback using %s", callback)
 
 
 def default_action_log(sub_command, user, task_id, dag_id, execution_date, host_name, full_command, **_):
-    """Default action logger callback that behaves similar to ``action_logging``.
+    """
+    Behave similar to ``action_logging``; default action logger callback.
 
     The difference is this function uses the global ORM session, and pushes a
     ``Log`` row into the database instead of actually logging.
+    """
+    _default_action_log_internal(
+        sub_command=sub_command,
+        user=user,
+        task_id=task_id,
+        dag_id=dag_id,
+        execution_date=execution_date,
+        host_name=host_name,
+        full_command=full_command,
+    )
+
+
+@internal_api_call
+@provide_session
+def _default_action_log_internal(
+    *,
+    sub_command,
+    user,
+    task_id,
+    dag_id,
+    execution_date,
+    host_name,
+    full_command,
+    session: Session = NEW_SESSION,
+):
+    """
+    RPC portion of default_action_log.
+
+    To use RPC, we need to accept a session, which is provided by the RPC call handler.
+    But, the action log callback system may already be forwarding a session, so to avoid
+    a collision, I have made this internal function instead of making default_action_log
+    an RPC function.
     """
     from sqlalchemy.exc import OperationalError, ProgrammingError
 
     from airflow.models.log import Log
     from airflow.utils import timezone
-    from airflow.utils.session import create_session
 
     try:
-        with create_session() as session:
-            extra = json.dumps({"host_name": host_name, "full_command": full_command})
-            # Use bulk_insert_mappings here to avoid importing all models (which using the classes does) early
-            # on in the CLI
-            session.bulk_insert_mappings(
-                Log,
-                [
-                    {
-                        "event": f"cli_{sub_command}",
-                        "task_instance": None,
-                        "owner": user,
-                        "extra": extra,
-                        "task_id": task_id,
-                        "dag_id": dag_id,
-                        "execution_date": execution_date,
-                        "dttm": timezone.utcnow(),
-                    }
-                ],
-            )
+        # Use bulk_insert_mappings here to avoid importing all models (which using the classes does) early
+        # on in the CLI
+        session.bulk_insert_mappings(
+            Log,
+            [
+                {
+                    "event": f"cli_{sub_command}",
+                    "task_instance": None,
+                    "owner": user,
+                    "extra": json.dumps({"host_name": host_name, "full_command": full_command}),
+                    "task_id": task_id,
+                    "dag_id": dag_id,
+                    "execution_date": execution_date,
+                    "dttm": timezone.utcnow(),
+                }
+            ],
+        )
+        session.commit()
     except (OperationalError, ProgrammingError) as e:
         expected = [
             '"log" does not exist',  # postgres
             "no such table",  # sqlite
             "log' doesn't exist",  # mysql
-            "Invalid object name 'log'",  # mssql
         ]
         error_is_ok = e.args and any(x in e.args[0] for x in expected)
         if not error_is_ok:
-            logging.warning("Failed to log action %s", e)
+            logger.warning("Failed to log action %s", e)
+        session.rollback()
     except Exception as e:
-        logging.warning("Failed to log action %s", e)
+        logger.warning("Failed to log action %s", e)
+        session.rollback()
 
 
 __pre_exec_callbacks: list[Callable] = []

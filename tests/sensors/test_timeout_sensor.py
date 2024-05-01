@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import time
 from datetime import timedelta
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -26,8 +27,12 @@ from airflow.exceptions import AirflowSensorTimeout, AirflowSkipException
 from airflow.models.dag import DAG
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils import timezone
-from airflow.utils.context import Context
 from airflow.utils.timezone import datetime
+
+pytestmark = pytest.mark.db_test
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = "unit_test_dag"

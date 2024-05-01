@@ -1,5 +1,0 @@
-Default name of the Celery application changed from ``airflow.executors.celery_executor`` to ``airflow.providers.celery.executors.celery_executor``
-
-You should change both your configuration and Health check command to use the new name:
- * in configuration (``celery_app_name`` configuration in ``celery`` section) use ``airflow.providers.celery.executors.celery_executor``
- * in your Health check command use ``airflow.providers.celery.executors.celery_executor.app``

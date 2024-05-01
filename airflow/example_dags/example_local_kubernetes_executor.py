@@ -18,15 +18,16 @@
 """
 This is an example dag for using a Local Kubernetes Executor Configuration.
 """
+
 from __future__ import annotations
 
 import logging
 from datetime import datetime
 
-from airflow import DAG
 from airflow.configuration import conf
 from airflow.decorators import task
 from airflow.example_dags.libs.helper import print_stuff
+from airflow.models.dag import DAG
 
 log = logging.getLogger(__name__)
 

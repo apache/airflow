@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow.models import DAG
+from airflow.models.dag import DAG
 
 args = {"owner": "airflow", "retries": 3, "start_date": pendulum.datetime(2022, 1, 1)}
 

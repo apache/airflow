@@ -17,24 +17,26 @@
 from __future__ import annotations
 
 from datetime import datetime
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from airflow.api.common.airflow_health import (
     HEALTHY,
     UNHEALTHY,
-    DagProcessorJobRunner,
-    SchedulerJobRunner,
-    TriggererJobRunner,
     get_airflow_health,
 )
 
+pytestmark = pytest.mark.db_test
 
-def test_get_airflow_health_only_metadatabase_healthy():
-    SchedulerJobRunner.most_recent_job = MagicMock(return_value=None)
-    TriggererJobRunner.most_recent_job = MagicMock(return_value=None)
-    DagProcessorJobRunner.most_recent_job = MagicMock(return_value=None)
+
+@patch("airflow.api.common.airflow_health.SchedulerJobRunner.most_recent_job", return_value=None)
+@patch("airflow.api.common.airflow_health.TriggererJobRunner.most_recent_job", return_value=None)
+@patch("airflow.api.common.airflow_health.DagProcessorJobRunner.most_recent_job", return_value=None)
+def test_get_airflow_health_only_metadatabase_healthy(
+    latest_scheduler_job_mock, latest_triggerer_job_mock, latest_dag_processor_job_mock
+):
     health_status = get_airflow_health()
-
     expected_status = {
         "metadatabase": {"status": HEALTHY},
         "scheduler": {"status": UNHEALTHY, "latest_scheduler_heartbeat": None},
@@ -45,11 +47,12 @@ def test_get_airflow_health_only_metadatabase_healthy():
     assert health_status == expected_status
 
 
-def test_get_airflow_health_metadatabase_unhealthy():
-    SchedulerJobRunner.most_recent_job = MagicMock(side_effect=Exception)
-    TriggererJobRunner.most_recent_job = MagicMock(side_effect=Exception)
-    DagProcessorJobRunner.most_recent_job = MagicMock(side_effect=Exception)
-
+@patch("airflow.api.common.airflow_health.SchedulerJobRunner.most_recent_job", return_value=Exception)
+@patch("airflow.api.common.airflow_health.TriggererJobRunner.most_recent_job", return_value=Exception)
+@patch("airflow.api.common.airflow_health.DagProcessorJobRunner.most_recent_job", return_value=Exception)
+def test_get_airflow_health_metadatabase_unhealthy(
+    latest_scheduler_job_mock, latest_triggerer_job_mock, latest_dag_processor_job_mock
+):
     health_status = get_airflow_health()
 
     expected_status = {
@@ -62,21 +65,27 @@ def test_get_airflow_health_metadatabase_unhealthy():
     assert health_status == expected_status
 
 
-def test_get_airflow_health_scheduler_healthy_no_triggerer():
-    latest_scheduler_job_mock = MagicMock()
-    latest_scheduler_job_mock.latest_heartbeat = datetime.now()
-    latest_scheduler_job_mock.is_alive = MagicMock(return_value=True)
-    SchedulerJobRunner.most_recent_job = MagicMock(return_value=latest_scheduler_job_mock)
-    TriggererJobRunner.most_recent_job = MagicMock(return_value=None)
-    DagProcessorJobRunner.most_recent_job = MagicMock(return_value=None)
+LATEST_SCHEDULER_JOB_MOCK = MagicMock()
+LATEST_SCHEDULER_JOB_MOCK.latest_heartbeat = datetime.now()
+LATEST_SCHEDULER_JOB_MOCK.is_alive = MagicMock(return_value=True)
 
+
+@patch(
+    "airflow.api.common.airflow_health.SchedulerJobRunner.most_recent_job",
+    return_value=LATEST_SCHEDULER_JOB_MOCK,
+)
+@patch("airflow.api.common.airflow_health.TriggererJobRunner.most_recent_job", return_value=None)
+@patch("airflow.api.common.airflow_health.DagProcessorJobRunner.most_recent_job", return_value=None)
+def test_get_airflow_health_scheduler_healthy_no_triggerer(
+    latest_scheduler_job_mock, latest_triggerer_job_mock, latest_dag_processor_job_mock
+):
     health_status = get_airflow_health()
 
     expected_status = {
         "metadatabase": {"status": HEALTHY},
         "scheduler": {
             "status": HEALTHY,
-            "latest_scheduler_heartbeat": latest_scheduler_job_mock.latest_heartbeat.isoformat(),
+            "latest_scheduler_heartbeat": LATEST_SCHEDULER_JOB_MOCK.latest_heartbeat.isoformat(),
         },
         "triggerer": {"status": None, "latest_triggerer_heartbeat": None},
         "dag_processor": {"status": None, "latest_dag_processor_heartbeat": None},
@@ -85,18 +94,27 @@ def test_get_airflow_health_scheduler_healthy_no_triggerer():
     assert health_status == expected_status
 
 
-def test_get_airflow_health_triggerer_healthy_no_scheduler_job_record():
-    latest_triggerer_job_mock = MagicMock()
-    latest_triggerer_job_mock.latest_heartbeat = datetime.now()
-    latest_triggerer_job_mock.is_alive = MagicMock(return_value=True)
-    latest_dag_processor_job_mock = MagicMock()
-    latest_dag_processor_job_mock.latest_heartbeat = datetime.now()
-    latest_dag_processor_job_mock.is_alive = MagicMock(return_value=True)
+LATEST_TRIGGERER_JOB_MOCK = MagicMock()
+LATEST_TRIGGERER_JOB_MOCK.latest_heartbeat = datetime.now()
+LATEST_TRIGGERER_JOB_MOCK.is_alive = MagicMock(return_value=True)
 
-    SchedulerJobRunner.most_recent_job = MagicMock(return_value=None)
-    TriggererJobRunner.most_recent_job = MagicMock(return_value=latest_triggerer_job_mock)
-    DagProcessorJobRunner.most_recent_job = MagicMock(return_value=latest_dag_processor_job_mock)
+LATEST_DAG_PROCESSOR_JOB_MOCK = MagicMock()
+LATEST_DAG_PROCESSOR_JOB_MOCK.latest_heartbeat = datetime.now()
+LATEST_DAG_PROCESSOR_JOB_MOCK.is_alive = MagicMock(return_value=True)
 
+
+@patch("airflow.api.common.airflow_health.SchedulerJobRunner.most_recent_job", return_value=None)
+@patch(
+    "airflow.api.common.airflow_health.TriggererJobRunner.most_recent_job",
+    return_value=LATEST_TRIGGERER_JOB_MOCK,
+)
+@patch(
+    "airflow.api.common.airflow_health.DagProcessorJobRunner.most_recent_job",
+    return_value=LATEST_DAG_PROCESSOR_JOB_MOCK,
+)
+def test_get_airflow_health_triggerer_healthy_no_scheduler_job_record(
+    latest_scheduler_job_mock, latest_triggerer_job_mock, latest_dag_processor_job_mock
+):
     health_status = get_airflow_health()
 
     expected_status = {
@@ -104,11 +122,11 @@ def test_get_airflow_health_triggerer_healthy_no_scheduler_job_record():
         "scheduler": {"status": UNHEALTHY, "latest_scheduler_heartbeat": None},
         "triggerer": {
             "status": HEALTHY,
-            "latest_triggerer_heartbeat": latest_triggerer_job_mock.latest_heartbeat.isoformat(),
+            "latest_triggerer_heartbeat": LATEST_TRIGGERER_JOB_MOCK.latest_heartbeat.isoformat(),
         },
         "dag_processor": {
             "status": HEALTHY,
-            "latest_dag_processor_heartbeat": latest_dag_processor_job_mock.latest_heartbeat.isoformat(),
+            "latest_dag_processor_heartbeat": LATEST_DAG_PROCESSOR_JOB_MOCK.latest_heartbeat.isoformat(),
         },
     }
 

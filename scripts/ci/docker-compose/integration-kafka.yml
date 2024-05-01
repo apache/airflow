@@ -15,10 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-version: "3.7"
+version: "3.8"
 services:
   broker:
     image: confluentinc/cp-kafka:7.3.0
+    labels:
+      breeze.description: "Integration required for Kafka hooks."
     hostname: broker
     container_name: broker
     ports:

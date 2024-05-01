@@ -16,65 +16,362 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
-
 from airflow.providers.amazon.aws.triggers.emr import (
+    EmrAddStepsTrigger,
     EmrContainerTrigger,
     EmrCreateJobFlowTrigger,
+    EmrServerlessCancelJobsTrigger,
+    EmrServerlessCreateApplicationTrigger,
+    EmrServerlessDeleteApplicationTrigger,
+    EmrServerlessStartApplicationTrigger,
+    EmrServerlessStartJobTrigger,
+    EmrServerlessStopApplicationTrigger,
     EmrStepSensorTrigger,
     EmrTerminateJobFlowTrigger,
 )
 
-TEST_JOB_FLOW_ID = "test-job-flow-id"
-TEST_POLL_INTERVAL = 10
-TEST_MAX_ATTEMPTS = 10
-TEST_AWS_CONN_ID = "test-aws-id"
-VIRTUAL_CLUSTER_ID = "vzwemreks"
-JOB_ID = "job-1234"
-AWS_CONN_ID = "aws_emr_conn"
-POLL_INTERVAL = 60
-TARGET_STATE = ["TERMINATED"]
-STEP_ID = "s-1234"
+
+class TestEmrAddStepsTrigger:
+    def test_serialization(self):
+        job_flow_id = "test_job_flow_id"
+        step_ids = ["step1", "step2"]
+        waiter_delay = 10
+        waiter_max_attempts = 5
+
+        trigger = EmrAddStepsTrigger(
+            job_flow_id=job_flow_id,
+            step_ids=step_ids,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrAddStepsTrigger"
+        assert kwargs == {
+            "job_flow_id": "test_job_flow_id",
+            "step_ids": ["step1", "step2"],
+            "waiter_delay": 10,
+            "waiter_max_attempts": 5,
+            "aws_conn_id": "aws_default",
+        }
 
 
-class TestEmrTriggers:
-    @pytest.mark.parametrize(
-        "trigger",
-        [
-            EmrCreateJobFlowTrigger(
-                job_flow_id=TEST_JOB_FLOW_ID,
-                aws_conn_id=TEST_AWS_CONN_ID,
-                poll_interval=TEST_POLL_INTERVAL,
-                max_attempts=TEST_MAX_ATTEMPTS,
-            ),
-            EmrTerminateJobFlowTrigger(
-                job_flow_id=TEST_JOB_FLOW_ID,
-                aws_conn_id=TEST_AWS_CONN_ID,
-                poll_interval=TEST_POLL_INTERVAL,
-                max_attempts=TEST_MAX_ATTEMPTS,
-            ),
-            EmrContainerTrigger(
-                virtual_cluster_id=VIRTUAL_CLUSTER_ID,
-                job_id=JOB_ID,
-                aws_conn_id=AWS_CONN_ID,
-                poll_interval=POLL_INTERVAL,
-            ),
-            EmrStepSensorTrigger(
-                job_flow_id=TEST_JOB_FLOW_ID,
-                step_id=STEP_ID,
-                aws_conn_id=AWS_CONN_ID,
-                waiter_delay=POLL_INTERVAL,
-            ),
-        ],
-    )
-    def test_serialize_recreate(self, trigger):
-        class_path, args = trigger.serialize()
+class TestEmrCreateJobFlowTrigger:
+    def test_init_with_deprecated_params(self):
+        import warnings
 
-        class_name = class_path.split(".")[-1]
-        clazz = globals()[class_name]
-        instance = clazz(**args)
+        with warnings.catch_warnings(record=True) as catch_warns:
+            warnings.simplefilter("always")
 
-        class_path2, args2 = instance.serialize()
+            job_flow_id = "test_job_flow_id"
+            poll_interval = 10
+            max_attempts = 5
+            aws_conn_id = "aws_default"
+            waiter_delay = 30
+            waiter_max_attempts = 60
 
-        assert class_path == class_path2
-        assert args == args2
+            trigger = EmrCreateJobFlowTrigger(
+                job_flow_id=job_flow_id,
+                poll_interval=poll_interval,
+                max_attempts=max_attempts,
+                aws_conn_id=aws_conn_id,
+                waiter_delay=waiter_delay,
+                waiter_max_attempts=waiter_max_attempts,
+            )
+
+            assert trigger.waiter_delay == poll_interval
+            assert len(catch_warns) == 1
+            assert issubclass(catch_warns[-1].category, DeprecationWarning)
+            assert "please use waiter_delay instead of poll_interval" in str(catch_warns[-1].message)
+            assert "and waiter_max_attempts instead of max_attempts" in str(catch_warns[-1].message)
+
+    def test_serialization(self):
+        job_flow_id = "test_job_flow_id"
+        waiter_delay = 30
+        waiter_max_attempts = 60
+        aws_conn_id = "aws_default"
+
+        trigger = EmrCreateJobFlowTrigger(
+            job_flow_id=job_flow_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrCreateJobFlowTrigger"
+        assert kwargs == {
+            "job_flow_id": "test_job_flow_id",
+            "waiter_delay": 30,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+        }
+
+
+class TestEmrTerminateJobFlowTrigger:
+    def test_init_with_deprecated_params(self):
+        import warnings
+
+        with warnings.catch_warnings(record=True) as catch_warns:
+            warnings.simplefilter("always")
+
+            job_flow_id = "test_job_flow_id"
+            poll_interval = 10
+            max_attempts = 5
+            aws_conn_id = "aws_default"
+            waiter_delay = 30
+            waiter_max_attempts = 60
+
+            trigger = EmrTerminateJobFlowTrigger(
+                job_flow_id=job_flow_id,
+                poll_interval=poll_interval,
+                max_attempts=max_attempts,
+                aws_conn_id=aws_conn_id,
+                waiter_delay=waiter_delay,
+                waiter_max_attempts=waiter_max_attempts,
+            )
+
+            assert trigger.waiter_delay == poll_interval  # Assert deprecated parameter is correctly used
+            assert len(catch_warns) == 1
+            assert issubclass(catch_warns[-1].category, DeprecationWarning)
+            assert "please use waiter_delay instead of poll_interval" in str(catch_warns[-1].message)
+            assert "and waiter_max_attempts instead of max_attempts" in str(catch_warns[-1].message)
+
+    def test_serialization(self):
+        job_flow_id = "test_job_flow_id"
+        waiter_delay = 30
+        waiter_max_attempts = 60
+        aws_conn_id = "aws_default"
+
+        trigger = EmrTerminateJobFlowTrigger(
+            job_flow_id=job_flow_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrTerminateJobFlowTrigger"
+        assert kwargs == {
+            "job_flow_id": "test_job_flow_id",
+            "waiter_delay": 30,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+        }
+
+
+class TestEmrContainerTrigger:
+    def test_init_with_deprecated_params(self):
+        import warnings
+
+        with warnings.catch_warnings(record=True) as catch_warns:
+            warnings.simplefilter("always")
+
+            virtual_cluster_id = "test_virtual_cluster_id"
+            job_id = "test_job_id"
+            aws_conn_id = "aws_default"
+            poll_interval = 10
+            waiter_delay = 30
+            waiter_max_attempts = 600
+
+            trigger = EmrContainerTrigger(
+                virtual_cluster_id=virtual_cluster_id,
+                job_id=job_id,
+                aws_conn_id=aws_conn_id,
+                poll_interval=poll_interval,
+                waiter_delay=waiter_delay,
+                waiter_max_attempts=waiter_max_attempts,
+            )
+
+            assert trigger.waiter_delay == poll_interval  # Assert deprecated parameter is correctly used
+            assert len(catch_warns) == 1
+            assert issubclass(catch_warns[-1].category, DeprecationWarning)
+            assert "please use waiter_delay instead of poll_interval" in str(catch_warns[-1].message)
+
+    def test_serialization(self):
+        virtual_cluster_id = "test_virtual_cluster_id"
+        job_id = "test_job_id"
+        waiter_delay = 30
+        waiter_max_attempts = 600
+        aws_conn_id = "aws_default"
+
+        trigger = EmrContainerTrigger(
+            virtual_cluster_id=virtual_cluster_id,
+            job_id=job_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrContainerTrigger"
+        assert kwargs == {
+            "virtual_cluster_id": "test_virtual_cluster_id",
+            "job_id": "test_job_id",
+            "waiter_delay": 30,
+            "waiter_max_attempts": 600,
+            "aws_conn_id": "aws_default",
+        }
+
+
+class TestEmrStepSensorTrigger:
+    def test_serialization(self):
+        job_flow_id = "test_job_flow_id"
+        step_id = "test_step_id"
+        waiter_delay = 30
+        waiter_max_attempts = 60
+        aws_conn_id = "aws_default"
+
+        trigger = EmrStepSensorTrigger(
+            job_flow_id=job_flow_id,
+            step_id=step_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrStepSensorTrigger"
+        assert kwargs == {
+            "job_flow_id": "test_job_flow_id",
+            "step_id": "test_step_id",
+            "waiter_delay": 30,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+        }
+
+
+class TestEmrServerlessCreateApplicationTrigger:
+    def test_serialization(self):
+        application_id = "test_application_id"
+        waiter_delay = 30
+        waiter_max_attempts = 60
+        aws_conn_id = "aws_default"
+
+        trigger = EmrServerlessCreateApplicationTrigger(
+            application_id=application_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrServerlessCreateApplicationTrigger"
+        assert kwargs == {
+            "application_id": "test_application_id",
+            "waiter_delay": 30,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+        }
+
+
+class TestEmrServerlessStartApplicationTrigger:
+    def test_serialization(self):
+        application_id = "test_application_id"
+        waiter_delay = 30
+        waiter_max_attempts = 60
+        aws_conn_id = "aws_default"
+
+        trigger = EmrServerlessStartApplicationTrigger(
+            application_id=application_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrServerlessStartApplicationTrigger"
+        assert kwargs == {
+            "application_id": "test_application_id",
+            "waiter_delay": 30,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+        }
+
+
+class TestEmrServerlessStopApplicationTrigger:
+    def test_serialization(self):
+        application_id = "test_application_id"
+        waiter_delay = 30
+        waiter_max_attempts = 60
+        aws_conn_id = "aws_default"
+
+        trigger = EmrServerlessStopApplicationTrigger(
+            application_id=application_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrServerlessStopApplicationTrigger"
+        assert kwargs == {
+            "application_id": "test_application_id",
+            "waiter_delay": 30,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+        }
+
+
+class TestEmrServerlessStartJobTrigger:
+    def test_serialization(self):
+        application_id = "test_application_id"
+        waiter_delay = 30
+        waiter_max_attempts = 60
+        job_id = "job_id"
+        aws_conn_id = "aws_default"
+
+        trigger = EmrServerlessStartJobTrigger(
+            application_id=application_id,
+            waiter_delay=waiter_delay,
+            job_id=job_id,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrServerlessStartJobTrigger"
+        assert kwargs == {
+            "application_id": "test_application_id",
+            "waiter_delay": 30,
+            "waiter_max_attempts": 60,
+            "job_id": "job_id",
+            "aws_conn_id": "aws_default",
+        }
+
+
+class TestEmrServerlessDeleteApplicationTrigger:
+    def test_serialization(self):
+        application_id = "test_application_id"
+        waiter_delay = 30
+        waiter_max_attempts = 60
+        aws_conn_id = "aws_default"
+
+        trigger = EmrServerlessDeleteApplicationTrigger(
+            application_id=application_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrServerlessDeleteApplicationTrigger"
+        assert kwargs == {
+            "application_id": "test_application_id",
+            "waiter_delay": 30,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+        }
+
+
+class TestEmrServerlessCancelJobsTrigger:
+    def test_serialization(self):
+        application_id = "test_application_id"
+        waiter_delay = 30
+        waiter_max_attempts = 60
+        aws_conn_id = "aws_default"
+
+        trigger = EmrServerlessCancelJobsTrigger(
+            application_id=application_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrServerlessCancelJobsTrigger"
+        assert kwargs == {
+            "application_id": "test_application_id",
+            "waiter_delay": 30,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+        }

@@ -1,0 +1,379 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: Basic tests
+on:  # yamllint disable-line rule:truthy
+  workflow_call:
+    inputs:
+      runs-on-as-json-public:
+        description: "The array of labels (in json form) determining public runners."
+        required: true
+        type: string
+      run-www-tests:
+        description: "Whether to run WWW tests (true/false)"
+        required: true
+        type: string
+      needs-api-codegen:
+        description: "Whether to run API codegen (true/false)"
+        required: true
+        type: string
+      basic-checks-only:
+        description: "Whether to run only basic checks (true/false)"
+        required: true
+        type: string
+      skip-pre-commits:
+        description: "Whether to skip pre-commits (true/false)"
+        required: true
+        type: string
+      default-python-version:
+        description: "Which version of python should be used by default"
+        required: true
+        type: string
+      canary-run:
+        description: "Whether to run canary tests (true/false)"
+        required: true
+        type: string
+      latest-versions-only:
+        description: "Whether to run only latest version checks (true/false)"
+        required: true
+        type: string
+jobs:
+  run-breeze-tests:
+    timeout-minutes: 10
+    name: Breeze unit tests
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: actions/checkout@v4
+        with:
+          # Need to fetch all history for selective checks tests
+          fetch-depth: 0
+          persist-credentials: false
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "${{ inputs.default-python-version }}"
+          cache: 'pip'
+          cache-dependency-path: ./dev/breeze/pyproject.toml
+      - run: pip install --editable ./dev/breeze/
+      - run: python -m pytest -n auto --color=yes
+        working-directory: ./dev/breeze/
+
+  tests-www:
+    timeout-minutes: 10
+    name: React WWW tests
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    if: inputs.run-www-tests == 'true'
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Setup node"
+        uses: actions/setup-node@v4
+        with:
+          node-version: 21
+      - name: "Cache eslint"
+        uses: actions/cache@v4
+        with:
+          path: 'airflow/www/node_modules'
+          key: ${{ runner.os }}-www-node-modules-${{ hashFiles('airflow/www/**/yarn.lock') }}
+      - run: yarn --cwd airflow/www/ install --frozen-lockfile --non-interactive
+      - run: yarn --cwd airflow/www/ run test
+        env:
+          FORCE_COLOR: 2
+
+  test-openapi-client:
+    timeout-minutes: 10
+    name: "Test OpenAPI client"
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    if: inputs.needs-api-codegen == 'true'
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          repository: "apache/airflow-client-python"
+          fetch-depth: 1
+          persist-credentials: false
+          path: ./airflow-client-python
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: "Generate client with breeze"
+        run: >
+          breeze release-management prepare-python-client --package-format both
+          --version-suffix-for-pypi dev0 --python-client-repo ./airflow-client-python
+      - name: "Show diff"
+        run: git diff --color HEAD
+        working-directory: ./airflow-client-python
+      - name: Install hatch
+        run: |
+          python -m pip install --upgrade pipx
+          pipx ensurepath
+          pipx install hatch --force
+      - name: Run tests
+        run: hatch run run-coverage
+        env:
+          HATCH_ENV: "test"
+        working-directory: ./clients/python
+      - name: "Install Airflow in editable mode with fab for webserver tests"
+        run: pip install -e ".[fab]"
+      - name: "Install Python client"
+        run: pip install ./dist/apache_airflow_client-*.whl
+      - name: "Initialize Airflow DB and start webserver"
+        run: |
+          airflow db init
+          # Let scheduler runs a few loops and get all DAG files from example DAGs serialized to DB
+          airflow scheduler --num-runs 100
+          airflow users create --username admin --password admin --firstname Admin --lastname Admin \
+             --role Admin --email admin@example.org
+          killall python || true  # just in case there is a webserver running in the background
+          nohup airflow webserver --port 8080 &
+          echo "Started webserver"
+        env:
+          AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.session,airflow.api.auth.backend.basic_auth
+          AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "True"
+          AIRFLOW__CORE__LOAD_EXAMPLES: "True"
+          AIRFLOW_HOME: "${{ github.workspace }}/airflow_home"
+      - name: "Waiting for the webserver to be available"
+        run: |
+          timeout 30 bash -c 'until nc -z $0 $1; do echo "sleeping"; sleep 1; done' localhost 8080
+          sleep 5
+      - name: "Run test python client"
+        run: python ./clients/python/test_python_client.py
+        env:
+          FORCE_COLOR: "standard"
+      - name: "Stop running webserver"
+        run: killall python || true  # just in case there is a webserver running in the background
+        if: always()
+      - name: "Upload python client packages"
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-client-packages
+          path: ./dist/apache_airflow_client-*
+          retention-days: 7
+          if-no-files-found: error
+      - name: "Upload logs from failed tests"
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: python-client-failed-logs
+          path: "${{ github.workspace }}/airflow_home/logs"
+          retention-days: 7
+
+  # Those checks are run if no image needs to be built for checks. This is for simple changes that
+  # Do not touch any of the python code or any of the important files that might require building
+  # The CI Docker image and they can be run entirely using the pre-commit virtual environments on host
+  static-checks-basic-checks-only:
+    timeout-minutes: 30
+    name: "Static checks: basic checks only"
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    if: inputs.basic-checks-only == 'true'
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Setup python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.default-python-version }}
+          cache: 'pip'
+          cache-dependency-path: ./dev/breeze/pyproject.toml
+      - name: "Setup python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "${{ inputs.default-python-version }}"
+          cache: 'pip'
+          cache-dependency-path: ./dev/breeze/pyproject.toml
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        id: breeze
+      - name: Cache pre-commit envs
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          # yamllint disable-line rule:line-length
+          key: "pre-commit-${{steps.breeze.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
+          restore-keys: "\
+            pre-commit-${{steps.breeze.outputs.host-python-version}}-\
+            ${{ hashFiles('.pre-commit-config.yaml') }}\n
+            pre-commit-${{steps.breeze.outputs.host-python-version}}-"
+      - name: Fetch incoming commit ${{ github.sha }} with its parent
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+      - name: "Static checks: basic checks only"
+        run: >
+          breeze static-checks --show-diff-on-failure --color always --initialize-environment
+          --skip-image-upgrade-check --commit-ref "${{ github.sha }}"
+        env:
+          VERBOSE: "false"
+          SKIP_BREEZE_PRE_COMMITS: "true"
+          SKIP: ${{ inputs.skip-pre-commits }}
+          COLUMNS: "250"
+
+  test-git-clone-on-windows:
+    timeout-minutes: 5
+    name: "Test git clone on Windows"
+    runs-on: ["windows-latest"]
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+  upgrade-check:
+    timeout-minutes: 45
+    name: "Upgrade checks"
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    env:
+      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
+    if: inputs.canary-run == 'true' && inputs.latest-versions-only != 'true'
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
+      # Install python from scratch. No cache used. We always want to have fresh version of everything
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "${{ inputs.default-python-version }}"
+      - name: "Install latest pre-commit"
+        run: pip install pre-commit
+      - name: "Autoupdate all pre-commits"
+        run: pre-commit autoupdate
+      - name: "Run automated upgrade for black"
+        run: >
+          pre-commit run
+          --all-files --show-diff-on-failure --color always --verbose
+          --hook-stage manual
+          update-black-version
+        if: always()
+      - name: "Run automated upgrade for build dependencies"
+        run: >
+          pre-commit run
+          --all-files --show-diff-on-failure --color always --verbose
+          --hook-stage manual
+          update-build-dependencies
+        if: always()
+      - name: "Run automated upgrade for chart dependencies"
+        run: >
+          pre-commit run
+          --all-files --show-diff-on-failure --color always --verbose
+          --hook-stage manual
+          update-chart-dependencies
+        if: always()
+      # For UV we are not failing the upgrade installers check if it is updated because
+      # it is upgraded very frequently, so we want to manually upgrade it rather than
+      # get notified about it - until it stabilizes in 1.* version
+      - name: "Run automated upgrade for uv (open to see if new version is updated)"
+        run: >
+          pre-commit run
+          --all-files --show-diff-on-failure --color always --verbose
+          --hook-stage manual update-installers || true
+        if: always()
+        env:
+          UPGRADE_UV: "true"
+          UPGRADE_PIP: "false"
+      - name: "Run automated upgrade for pip"
+        run: >
+          pre-commit run
+          --all-files --show-diff-on-failure --color always --verbose
+          --hook-stage manual update-installers
+        if: always()
+        env:
+          UPGRADE_UV: "false"
+          UPGRADE_PIP: "true"
+
+  test-airflow-release-commands:
+    timeout-minutes: 80
+    name: "Test Airflow release commands"
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    env:
+      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
+      IMAGE_TAG: ${{ inputs.image-tag }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      VERBOSE: "true"
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: "Cleanup dist files"
+        run: rm -fv ./dist/*
+      - name: Setup git for tagging
+        run: |
+          git config --global user.email "name@example.com"
+          git config --global user.name "Your Name"
+      - name: Install twine
+        run: pip install twine
+      - name: "Check Airflow create minor branch command"
+        run: breeze release-management create-minor-branch --version-branch 2-8 --answer yes
+      - name: "Check Airflow RC process command"
+        run: >
+          breeze release-management start-rc-process --version 2.8.3rc1 --previous-version 2.8.0 --answer yes
+      - name: "Check Airflow release process command"
+        run: >
+          breeze release-management start-release --release-candidate 2.8.3rc1 --previous-release 2.8.0
+          --answer yes
+      - name: "Fetch all git tags"
+        run: git fetch --tags >/dev/null 2>&1 || true
+      - name: "Test airflow core issue generation automatically"
+        run: |
+          breeze release-management generate-issue-content-core \
+          --limit-pr-count 25 --latest --verbose

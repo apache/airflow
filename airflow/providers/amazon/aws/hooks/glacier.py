@@ -35,9 +35,9 @@ class GlacierHook(AwsBaseHook):
         - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    def __init__(self, aws_conn_id: str = "aws_default") -> None:
-        super().__init__(client_type="glacier")
-        self.aws_conn_id = aws_conn_id
+    def __init__(self, *args, **kwargs) -> None:
+        kwargs.update({"client_type": "glacier", "resource_type": None})
+        super().__init__(*args, **kwargs)
 
     def retrieve_inventory(self, vault_name: str) -> dict[str, Any]:
         """Initiate an Amazon Glacier inventory-retrieval job.

@@ -20,7 +20,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Iterable
 from urllib.parse import urlsplit
 
-from flask import Flask
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -29,6 +28,7 @@ from airflow.exceptions import AirflowConfigException
 
 if TYPE_CHECKING:
     from _typeshed.wsgi import StartResponse, WSGIEnvironment
+    from flask import Flask
 
 
 def _root_app(env: WSGIEnvironment, resp: StartResponse) -> Iterable[bytes]:

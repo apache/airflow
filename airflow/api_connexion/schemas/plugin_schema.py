@@ -24,16 +24,19 @@ from marshmallow import Schema, fields
 class PluginSchema(Schema):
     """Plugin schema."""
 
-    name = fields.String()
-    hooks = fields.List(fields.String())
-    executors = fields.List(fields.String())
-    macros = fields.List(fields.Dict())
-    flask_blueprints = fields.List(fields.Dict())
-    appbuilder_views = fields.List(fields.Dict())
-    appbuilder_menu_items = fields.List(fields.Dict())
-    global_operator_extra_links = fields.List(fields.Dict())
-    operator_extra_links = fields.List(fields.Dict())
-    source = fields.String()
+    name = fields.String(dump_only=True)
+    hooks = fields.List(fields.String(dump_only=True))
+    executors = fields.List(fields.String(dump_only=True))
+    macros = fields.List(fields.String(dump_only=True))
+    flask_blueprints = fields.List(fields.String(dump_only=True))
+    appbuilder_views = fields.List(fields.Dict(dump_only=True))
+    appbuilder_menu_items = fields.List(fields.Dict(dump_only=True))
+    global_operator_extra_links = fields.List(fields.String(dump_only=True))
+    operator_extra_links = fields.List(fields.String(dump_only=True))
+    source = fields.String(dump_only=True)
+    ti_deps = fields.List(fields.String(dump_only=True))
+    listeners = fields.List(fields.String(dump_only=True))
+    timetables = fields.List(fields.String(dump_only=True))
 
 
 class PluginCollection(NamedTuple):

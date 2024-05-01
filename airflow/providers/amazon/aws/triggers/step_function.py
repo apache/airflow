@@ -16,9 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
+from typing import TYPE_CHECKING
+
 from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
+
+if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 
 class StepFunctionsExecutionCompleteTrigger(AwsBaseWaiterTrigger):
@@ -39,8 +43,8 @@ class StepFunctionsExecutionCompleteTrigger(AwsBaseWaiterTrigger):
         waiter_max_attempts: int = 30,
         aws_conn_id: str | None = None,
         region_name: str | None = None,
+        **kwargs,
     ) -> None:
-
         super().__init__(
             serialized_fields={"execution_arn": execution_arn, "region_name": region_name},
             waiter_name="step_function_succeeded",
@@ -53,7 +57,13 @@ class StepFunctionsExecutionCompleteTrigger(AwsBaseWaiterTrigger):
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
+            **kwargs,
         )
 
     def hook(self) -> AwsGenericHook:
-        return StepFunctionHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+        return StepFunctionHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )

@@ -29,9 +29,6 @@ from airflow.providers.amazon.aws.operators.eks import (
     EksPodOperator,
 )
 from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksFargateProfileStateSensor
-
-# Ignore missing args provided by default_args
-# type: ignore[call-arg]
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from tests.system.providers.amazon.aws.utils.k8s import get_describe_pod_operator

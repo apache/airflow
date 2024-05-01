@@ -154,7 +154,7 @@ class DmsHook(AwsBaseHook):
         **kwargs,
     ):
         """
-        Starts replication task.
+        Start replication task.
 
         .. seealso::
             - :external+boto3:py:meth:`DatabaseMigrationService.Client.start_replication_task`
@@ -172,7 +172,7 @@ class DmsHook(AwsBaseHook):
 
     def stop_replication_task(self, replication_task_arn):
         """
-        Stops replication task.
+        Stop replication task.
 
         .. seealso::
             - :external+boto3:py:meth:`DatabaseMigrationService.Client.stop_replication_task`
@@ -184,7 +184,7 @@ class DmsHook(AwsBaseHook):
 
     def delete_replication_task(self, replication_task_arn):
         """
-        Starts replication task deletion and waits for it to be deleted.
+        Start replication task deletion and waits for it to be deleted.
 
         .. seealso::
             - :external+boto3:py:meth:`DatabaseMigrationService.Client.delete_replication_task`
@@ -198,7 +198,7 @@ class DmsHook(AwsBaseHook):
 
     def wait_for_task_status(self, replication_task_arn: str, status: DmsTaskWaiterStatus):
         """
-        Waits for replication task to reach status; supported statuses: deleted, ready, running, stopped.
+        Wait for replication task to reach status; supported statuses: deleted, ready, running, stopped.
 
         :param status: Status to wait for
         :param replication_task_arn: Replication task ARN

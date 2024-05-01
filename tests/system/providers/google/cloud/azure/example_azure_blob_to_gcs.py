@@ -20,15 +20,11 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.transfers.azure_blob_to_gcs import AzureBlobStorageToGCSOperator
 from airflow.providers.microsoft.azure.sensors.wasb import (
     WasbBlobSensor,
 )
-
-# Ignore missing args provided by default_args
-# type: ignore[call-arg]
-
 
 BLOB_NAME = os.environ.get("AZURE_BLOB_NAME", "file.txt")
 AZURE_CONTAINER_NAME = os.environ.get("AZURE_CONTAINER_NAME", "airflow")

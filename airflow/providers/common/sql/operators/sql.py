@@ -55,6 +55,8 @@ def _parse_boolean(val: str) -> str | bool:
 
 def _get_failed_checks(checks, col=None):
     """
+    Get failed checks.
+
     IMPORTANT!!! Keep it for compatibility with released 8.4.0 version of google provider.
 
     Unfortunately the provider used _get_failed_checks and parse_boolean as imports and we should
@@ -84,7 +86,7 @@ keep those methods to avoid 8.4.0 version from failing.
 """
 
 
-_PROVIDERS_MATCHER = re.compile(r"airflow\.providers\.(.*)\.hooks.*")
+_PROVIDERS_MATCHER = re.compile(r"airflow\.providers\.(.*?)\.hooks.*")
 
 _MIN_SUPPORTED_PROVIDERS_VERSION = {
     "amazon": "4.1.0",
@@ -218,7 +220,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         :ref:`howto/operator:SQLExecuteQueryOperator`
     """
 
-    template_fields: Sequence[str] = ("conn_id", "sql", "parameters")
+    template_fields: Sequence[str] = ("conn_id", "sql", "parameters", "hook_params")
     template_ext: Sequence[str] = (".sql", ".json")
     template_fields_renderers = {"sql": "sql", "parameters": "json"}
     ui_color = "#cdaaed"
@@ -248,7 +250,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
 
     def _process_output(self, results: list[Any], descriptions: list[Sequence[Sequence] | None]) -> list[Any]:
         """
-        Processes output before it is returned by the operator.
+        Process output before it is returned by the operator.
 
         It can be overridden by the subclass in case some extra processing is needed. Note that unlike
         DBApiHook return values returned - the results passed and returned by ``_process_output`` should
@@ -307,6 +309,14 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
 
         hook = self.get_db_hook()
 
+        try:
+            from airflow.providers.openlineage.utils.utils import should_use_external_connection
+
+            use_external_connection = should_use_external_connection(hook)
+        except ImportError:
+            # OpenLineage provider release < 1.8.0 - we always use connection
+            use_external_connection = True
+
         connection = hook.get_connection(getattr(hook, hook.conn_name_attr))
         try:
             database_info = hook.get_openlineage_database_info(connection)
@@ -332,6 +342,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
             database_info=database_info,
             database=self.database,
             sqlalchemy_engine=hook.get_sqlalchemy_engine(),
+            use_connection=use_external_connection,
         )
 
         return operator_lineage
@@ -414,7 +425,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         :ref:`howto/operator:SQLColumnCheckOperator`
     """
 
-    template_fields: Sequence[str] = ("partition_clause", "table", "sql")
+    template_fields: Sequence[str] = ("partition_clause", "table", "sql", "hook_params")
     template_fields_renderers = {"sql": "sql"}
 
     sql_check_template = """
@@ -642,7 +653,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
         :ref:`howto/operator:SQLTableCheckOperator`
     """
 
-    template_fields: Sequence[str] = ("partition_clause", "table", "sql", "conn_id")
+    template_fields: Sequence[str] = ("partition_clause", "table", "sql", "conn_id", "hook_params")
 
     template_fields_renderers = {"sql": "sql"}
 
@@ -727,6 +738,8 @@ class SQLCheckOperator(BaseSQLOperator):
     The ``SQLCheckOperator`` expects a sql query that will return a single row.
     Each value on that first row is evaluated using python ``bool`` casting.
     If any of the values return ``False`` the check is failed and errors out.
+    If a Python dict is returned, and any values in the Python dict are ``False``,
+    the check is failed and errors out.
 
     Note that Python bool casting evals the following as ``False``:
 
@@ -735,6 +748,7 @@ class SQLCheckOperator(BaseSQLOperator):
     * Empty string (``""``)
     * Empty list (``[]``)
     * Empty dictionary or set (``{}``)
+    * Dictionary with value = ``False`` (``{'DUPLICATE_ID_CHECK': False}``)
 
     Given a query like ``SELECT COUNT(*) FROM foo``, it will fail only if
     the count ``== 0``. You can craft much more complex query that could,
@@ -755,7 +769,7 @@ class SQLCheckOperator(BaseSQLOperator):
     :param parameters: (optional) the parameters to render the SQL query with.
     """
 
-    template_fields: Sequence[str] = ("sql",)
+    template_fields: Sequence[str] = ("sql", "hook_params")
     template_ext: Sequence[str] = (
         ".hql",
         ".sql",
@@ -783,7 +797,9 @@ class SQLCheckOperator(BaseSQLOperator):
         self.log.info("Record: %s", records)
         if not records:
             self._raise_exception(f"The following query returned zero rows: {self.sql}")
-        elif not all(bool(r) for r in records):
+        elif isinstance(records, dict) and not all(records.values()):
+            self._raise_exception(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
+        elif not all(records):
             self._raise_exception(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
 
         self.log.info("Success.")
@@ -802,6 +818,7 @@ class SQLValueCheckOperator(BaseSQLOperator):
     template_fields: Sequence[str] = (
         "sql",
         "pass_value",
+        "hook_params",
     )
     template_ext: Sequence[str] = (
         ".hql",
@@ -827,26 +844,19 @@ class SQLValueCheckOperator(BaseSQLOperator):
         self.tol = tol if isinstance(tol, float) else None
         self.has_tolerance = self.tol is not None
 
-    def execute(self, context: Context):
-        self.log.info("Executing SQL check: %s", self.sql)
-        records = self.get_db_hook().get_first(self.sql)
-
+    def check_value(self, records):
         if not records:
             self._raise_exception(f"The following query returned zero rows: {self.sql}")
 
         pass_value_conv = _convert_to_float_if_possible(self.pass_value)
         is_numeric_value_check = isinstance(pass_value_conv, float)
 
-        tolerance_pct_str = str(self.tol * 100) + "%" if self.tol is not None else None
         error_msg = (
-            "Test failed.\nPass value:{pass_value_conv}\n"
-            "Tolerance:{tolerance_pct_str}\n"
-            "Query:\n{sql}\nResults:\n{records!s}"
-        ).format(
-            pass_value_conv=pass_value_conv,
-            tolerance_pct_str=tolerance_pct_str,
-            sql=self.sql,
-            records=records,
+            f"Test failed.\n"
+            f"Pass value:{pass_value_conv}\n"
+            f"Tolerance:{f'{self.tol:.1%}' if self.tol is not None else None}\n"
+            f"Query:\n{self.sql}\n"
+            f"Results:\n{records!s}"
         )
 
         if not is_numeric_value_check:
@@ -862,6 +872,11 @@ class SQLValueCheckOperator(BaseSQLOperator):
 
         if not all(tests):
             self._raise_exception(error_msg)
+
+    def execute(self, context: Context):
+        self.log.info("Executing SQL check: %s", self.sql)
+        records = self.get_db_hook().get_first(self.sql)
+        self.check_value(records)
 
     def _to_float(self, records):
         return [float(record) for record in records]
@@ -901,7 +916,7 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
     """
 
     __mapper_args__ = {"polymorphic_identity": "SQLIntervalCheckOperator"}
-    template_fields: Sequence[str] = ("sql1", "sql2")
+    template_fields: Sequence[str] = ("sql1", "sql2", "hook_params")
     template_ext: Sequence[str] = (
         ".hql",
         ".sql",
@@ -944,8 +959,8 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
         sqlexp = ", ".join(self.metrics_sorted)
         sqlt = f"SELECT {sqlexp} FROM {table} WHERE {date_filter_column}="
 
-        self.sql1 = sqlt + "'{{ ds }}'"
-        self.sql2 = sqlt + "'{{ macros.ds_add(ds, " + str(self.days_back) + ") }}'"
+        self.sql1 = f"{sqlt}'{{{{ ds }}}}'"
+        self.sql2 = f"{sqlt}'{{{{ macros.ds_add(ds, {self.days_back}) }}}}'"
 
     def execute(self, context: Context):
         hook = self.get_db_hook()
@@ -1029,7 +1044,7 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
     :param max_threshold: numerical value or max threshold sql to be executed (templated)
     """
 
-    template_fields: Sequence[str] = ("sql", "min_threshold", "max_threshold")
+    template_fields: Sequence[str] = ("sql", "min_threshold", "max_threshold", "hook_params")
     template_ext: Sequence[str] = (
         ".hql",
         ".sql",
@@ -1053,8 +1068,13 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
 
     def execute(self, context: Context):
         hook = self.get_db_hook()
-        result = hook.get_first(self.sql)[0]
-        if not result:
+        result = hook.get_first(self.sql)
+
+        # if the query returns 0 rows result will be None so cannot be indexed into
+        # also covers indexing out of bounds on empty list, tuple etc. if returned
+        try:
+            result = result[0]
+        except (TypeError, IndexError):
             self._raise_exception(f"The following query returned zero rows: {self.sql}")
 
         min_threshold = _convert_to_float_if_possible(self.min_threshold)
@@ -1099,7 +1119,7 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
 
     def push(self, meta_data):
         """
-        Optional: Send data check info and metadata to an external database.
+        Send data check info and metadata to an external database.
 
         Default functionality will log metadata.
         """

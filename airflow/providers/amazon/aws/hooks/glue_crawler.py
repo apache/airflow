@@ -49,7 +49,7 @@ class GlueCrawlerHook(AwsBaseHook):
 
     def has_crawler(self, crawler_name) -> bool:
         """
-        Checks if the crawler already exists.
+        Check if the crawler already exists.
 
         :param crawler_name: unique crawler name per AWS account
         :return: Returns True if the crawler already exists and False if not.
@@ -64,7 +64,7 @@ class GlueCrawlerHook(AwsBaseHook):
 
     def get_crawler(self, crawler_name: str) -> dict:
         """
-        Gets crawler configurations.
+        Get crawler configurations.
 
         .. seealso::
             - :external+boto3:py:meth:`Glue.Client.get_crawler`
@@ -76,7 +76,7 @@ class GlueCrawlerHook(AwsBaseHook):
 
     def update_crawler(self, **crawler_kwargs) -> bool:
         """
-        Updates crawler configurations.
+        Update crawler configurations.
 
         .. seealso::
             - :external+boto3:py:meth:`Glue.Client.update_crawler`
@@ -105,7 +105,7 @@ class GlueCrawlerHook(AwsBaseHook):
 
     def update_tags(self, crawler_name: str, crawler_tags: dict) -> bool:
         """
-        Updates crawler tags.
+        Update crawler tags.
 
         .. seealso::
             - :external+boto3:py:meth:`Glue.Client.tag_resource`
@@ -145,7 +145,7 @@ class GlueCrawlerHook(AwsBaseHook):
 
     def create_crawler(self, **crawler_kwargs) -> str:
         """
-        Creates an AWS Glue Crawler.
+        Create an AWS Glue Crawler.
 
         .. seealso::
             - :external+boto3:py:meth:`Glue.Client.create_crawler`

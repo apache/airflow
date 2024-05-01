@@ -18,13 +18,14 @@ from __future__ import annotations
 
 import datetime
 import enum
+import warnings
+from collections import namedtuple
 from dataclasses import dataclass
 from importlib import import_module
 from typing import ClassVar
 
 import attr
 import pytest
-from pydantic import BaseModel
 
 from airflow.datasets import Dataset
 from airflow.serialization.serde import (
@@ -33,17 +34,31 @@ from airflow.serialization.serde import (
     SCHEMA_ID,
     VERSION,
     _get_patterns,
+    _get_regexp_patterns,
     _match,
+    _match_glob,
+    _match_regexp,
     deserialize,
     serialize,
 )
 from airflow.utils.module_loading import import_string, iter_namespace, qualname
+from airflow.utils.pydantic import BaseModel
 from tests.test_utils.config import conf_vars
 
 
-@pytest.fixture()
+@pytest.fixture
 def recalculate_patterns():
     _get_patterns.cache_clear()
+    _get_regexp_patterns.cache_clear()
+    _match_glob.cache_clear()
+    _match_regexp.cache_clear()
+    try:
+        yield
+    finally:
+        _get_patterns.cache_clear()
+        _get_regexp_patterns.cache_clear()
+        _match_glob.cache_clear()
+        _match_regexp.cache_clear()
 
 
 class Z:
@@ -98,6 +113,16 @@ class U(BaseModel):
     x: int
     v: V
     u: tuple
+
+
+@attr.define
+class T:
+    x: int
+    y: Y
+    u: tuple
+    w: W
+
+    __version__: ClassVar[int] = 1
 
 
 class C:
@@ -164,17 +189,25 @@ class TestSerDe:
         e = serialize(i)
         assert i == e
 
+        i = {CLASSNAME: "cannot"}
         with pytest.raises(AttributeError, match="^reserved"):
-            i = {CLASSNAME: "cannot"}
             serialize(i)
 
+        i = {SCHEMA_ID: "cannot"}
         with pytest.raises(AttributeError, match="^reserved"):
-            i = {SCHEMA_ID: "cannot"}
             serialize(i)
+
+    def test_ser_namedtuple(self):
+        CustomTuple = namedtuple("CustomTuple", ["id", "value"])
+        data = CustomTuple(id=1, value="something")
+
+        i = deserialize(serialize(data))
+        e = (1, "something")
+        assert i == e
 
     def test_no_serializer(self):
+        i = Exception
         with pytest.raises(TypeError, match="^cannot serialize"):
-            i = Exception
             serialize(i)
 
     def test_ser_registered(self):
@@ -214,7 +247,7 @@ class TestSerDe:
 
     @conf_vars(
         {
-            ("core", "allowed_deserialization_classes"): "airflow[.].*",
+            ("core", "allowed_deserialization_classes"): "airflow.*",
         }
     )
     @pytest.mark.usefixtures("recalculate_patterns")
@@ -228,13 +261,54 @@ class TestSerDe:
 
     @conf_vars(
         {
-            ("core", "allowed_deserialization_classes"): "tests.*",
+            ("core", "allowed_deserialization_classes"): "tests.airflow.*",
         }
     )
     @pytest.mark.usefixtures("recalculate_patterns")
-    def test_allow_list_replace(self):
+    def test_allow_list_match(self):
         assert _match("tests.airflow.deep")
-        assert _match("testsfault") is False
+        assert _match("tests.wrongpath") is False
+
+    @conf_vars(
+        {
+            ("core", "allowed_deserialization_classes"): "tests.airflow.deep",
+        }
+    )
+    @pytest.mark.usefixtures("recalculate_patterns")
+    def test_allow_list_match_class(self):
+        """Test the match function when passing a full classname as
+        allowed_deserialization_classes
+        """
+        assert _match("tests.airflow.deep")
+        assert _match("tests.airflow.FALSE") is False
+
+    @conf_vars(
+        {
+            ("core", "allowed_deserialization_classes"): "",
+            ("core", "allowed_deserialization_classes_regexp"): r"tests\.airflow\..",
+        }
+    )
+    @pytest.mark.usefixtures("recalculate_patterns")
+    def test_allow_list_match_regexp(self):
+        """Test the match function when passing a path as
+        allowed_deserialization_classes_regexp with no glob pattern defined
+        """
+        assert _match("tests.airflow.deep")
+        assert _match("tests.wrongpath") is False
+
+    @conf_vars(
+        {
+            ("core", "allowed_deserialization_classes"): "",
+            ("core", "allowed_deserialization_classes_regexp"): r"tests\.airflow\.deep",
+        }
+    )
+    @pytest.mark.usefixtures("recalculate_patterns")
+    def test_allow_list_match_class_regexp(self):
+        """Test the match function when passing a full classname as
+        allowed_deserialization_classes_regexp with no glob pattern defined
+        """
+        assert _match("tests.airflow.deep")
+        assert _match("tests.airflow.FALSE") is False
 
     def test_incompatible_version(self):
         data = dict(
@@ -260,7 +334,7 @@ class TestSerDe:
         """
         Verify deserialization of old-style encoded Xcom values including nested ones
         """
-        uri = "s3://does_not_exist"
+        uri = "s3://does/not/exist"
         data = {
             "__type": "airflow.datasets.Dataset",
             "__source": None,
@@ -299,6 +373,16 @@ class TestSerDe:
         import airflow.serialization.serializers
 
         for _, name, _ in iter_namespace(airflow.serialization.serializers):
+            if name == "airflow.serialization.serializers.iceberg":
+                try:
+                    import pyiceberg  # noqa: F401
+                except ImportError:
+                    continue
+            if name == "airflow.serialization.serializers.deltalake":
+                try:
+                    import deltalake  # noqa: F401
+                except ImportError:
+                    continue
             mod = import_module(name)
             for s in getattr(mod, "serializers", list()):
                 if not isinstance(s, str):
@@ -348,10 +432,19 @@ class TestSerDe:
         e = deserialize(i)
         assert i == e
 
-    def test_pydantic(self):
-        i = U(x=10, v=V(W(10), ["l1", "l2"], (1, 2), 10), u=(1, 2))
+    def test_attr(self):
+        i = T(y=Y(10), u=(1, 2), x=10, w=W(11))
         e = serialize(i)
         s = deserialize(e)
+        assert i == s
+
+    def test_pydantic(self):
+        pydantic = pytest.importorskip("pydantic", minversion="2.0.0")
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", category=pydantic.warnings.PydanticDeprecationWarning)
+            i = U(x=10, v=V(W(10), ["l1", "l2"], (1, 2), 10), u=(1, 2))
+            e = serialize(i)
+            s = deserialize(e)
         assert i == s
 
     def test_error_when_serializing_callable_without_name(self):

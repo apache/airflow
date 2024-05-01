@@ -18,6 +18,7 @@
 """
 This is an example dag for managing twitter data.
 """
+
 from __future__ import annotations
 
 import os
@@ -111,7 +112,6 @@ with DAG(
     hdfs_dir = " /tmp/"
 
     for channel in to_channels:
-
         file_name = f"to_{channel}_{dt}.csv"
 
         load_to_hdfs = BashOperator(

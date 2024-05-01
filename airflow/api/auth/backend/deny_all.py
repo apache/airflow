@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Authentication backend that denies all requests."""
+
 from __future__ import annotations
 
 from functools import wraps

@@ -31,7 +31,6 @@ with DAG(
     tags=["example"],
     catchup=False,
 ) as dag:
-
     # [START howto_operator_influxdb]
 
     query_influxdb_task = InfluxDBOperator(

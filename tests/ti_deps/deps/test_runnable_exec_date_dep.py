@@ -28,8 +28,10 @@ from airflow.ti_deps.deps.runnable_exec_date_dep import RunnableExecDateDep
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
+pytestmark = pytest.mark.db_test
 
-@pytest.fixture(autouse=True, scope="function")
+
+@pytest.fixture(autouse=True)
 def clean_db(session):
     yield
     session.query(DagRun).delete()

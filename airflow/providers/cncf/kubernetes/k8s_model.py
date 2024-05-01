@@ -15,12 +15,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """Classes for interacting with Kubernetes API."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from functools import reduce
+from typing import TYPE_CHECKING
 
-from kubernetes.client import models as k8s
+if TYPE_CHECKING:
+    from kubernetes.client import models as k8s
 
 
 class K8SModel(ABC):

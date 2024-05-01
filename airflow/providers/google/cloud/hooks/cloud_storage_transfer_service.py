@@ -33,7 +33,7 @@ import time
 import warnings
 from copy import deepcopy
 from datetime import timedelta
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from google.cloud.storage_transfer_v1 import (
     ListTransferJobsRequest,
@@ -41,15 +41,22 @@ from google.cloud.storage_transfer_v1 import (
     TransferJob,
     TransferOperation,
 )
-from google.cloud.storage_transfer_v1.services.storage_transfer_service.pagers import (
-    ListTransferJobsAsyncPager,
-)
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
-from proto import Message
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
+from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseAsyncHook,
+    GoogleBaseHook,
+)
+
+if TYPE_CHECKING:
+    from google.cloud.storage_transfer_v1.services.storage_transfer_service.pagers import (
+        ListTransferJobsAsyncPager,
+    )
+    from proto import Message
 
 log = logging.getLogger(__name__)
 
@@ -81,6 +88,7 @@ ALREADY_EXISTING_IN_SINK = "overwriteObjectsAlreadyExistingInSink"
 AWS_ACCESS_KEY = "awsAccessKey"
 AWS_SECRET_ACCESS_KEY = "secretAccessKey"
 AWS_S3_DATA_SOURCE = "awsS3DataSource"
+AWS_ROLE_ARN = "roleArn"
 BODY = "body"
 BUCKET_NAME = "bucketName"
 COUNTERS = "counters"
@@ -248,7 +256,11 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
                 request_filter = kwargs["filter"]
                 if not isinstance(request_filter, dict):
                     raise ValueError(f"The request_filter should be dict and is {type(request_filter)}")
-                warnings.warn("Use 'request_filter' instead of 'filter'", AirflowProviderDeprecationWarning)
+                warnings.warn(
+                    "Use 'request_filter' instead of 'filter'",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=2,
+                )
             else:
                 raise TypeError("list_transfer_job missing 1 required positional argument: 'request_filter'")
 
@@ -372,7 +384,11 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
                 request_filter = kwargs["filter"]
                 if not isinstance(request_filter, dict):
                     raise ValueError(f"The request_filter should be dict and is {type(request_filter)}")
-                warnings.warn("Use 'request_filter' instead of 'filter'", AirflowProviderDeprecationWarning)
+                warnings.warn(
+                    "Use 'request_filter' instead of 'filter'",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=2,
+                )
             else:
                 raise TypeError(
                     "list_transfer_operations missing 1 required positional argument: 'request_filter'"
@@ -493,44 +509,48 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
 class CloudDataTransferServiceAsyncHook(GoogleBaseAsyncHook):
     """Asynchronous hook for Google Storage Transfer Service."""
 
-    def __init__(self, project_id: str | None = None, **kwargs: Any) -> None:
+    def __init__(self, project_id: str = PROVIDE_PROJECT_ID, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.project_id = project_id
         self._client: StorageTransferServiceAsyncClient | None = None
 
-    def get_conn(self) -> StorageTransferServiceAsyncClient:
+    async def get_conn(self) -> StorageTransferServiceAsyncClient:
         """
-        Returns async connection to the Storage Transfer Service.
+        Return async connection to the Storage Transfer Service.
 
         :return: Google Storage Transfer asynchronous client.
         """
         if not self._client:
-            self._client = StorageTransferServiceAsyncClient()
+            credentials = (await self.get_sync_hook()).get_credentials()
+            self._client = StorageTransferServiceAsyncClient(
+                credentials=credentials,
+                client_info=CLIENT_INFO,
+            )
         return self._client
 
     async def get_jobs(self, job_names: list[str]) -> ListTransferJobsAsyncPager:
         """
-        Gets the latest state of a long-running operations in Google Storage Transfer Service.
+        Get the latest state of a long-running operations in Google Storage Transfer Service.
 
         :param job_names: (Required) List of names of the jobs to be fetched.
         :return: Object that yields Transfer jobs.
         """
-        client = self.get_conn()
+        client = await self.get_conn()
         jobs_list_request = ListTransferJobsRequest(
-            filter=json.dumps(dict(project_id=self.project_id, job_names=job_names))
+            filter=json.dumps({"project_id": self.project_id, "job_names": job_names})
         )
         return await client.list_transfer_jobs(request=jobs_list_request)
 
     async def get_latest_operation(self, job: TransferJob) -> Message | None:
         """
-        Gets the latest operation of the given TransferJob instance.
+        Get the latest operation of the given TransferJob instance.
 
         :param job: Transfer job instance.
         :return: The latest job operation.
         """
         latest_operation_name = job.latest_operation_name
         if latest_operation_name:
-            client = self.get_conn()
+            client = await self.get_conn()
             response_operation = await client.transport.operations_client.get_operation(latest_operation_name)
             operation = TransferOperation.deserialize(response_operation.metadata.value)
             return operation

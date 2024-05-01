@@ -18,13 +18,16 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
 from attrs import Factory, define
-from openlineage.client.facet import BaseFacet
-from openlineage.client.run import Dataset
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
+
+if TYPE_CHECKING:
+    from openlineage.client.facet import BaseFacet
+    from openlineage.client.run import Dataset
 
 
 @define
@@ -59,12 +62,11 @@ class BaseExtractor(ABC, LoggingMixin):
         """
         raise NotImplementedError()
 
-    def validate(self):
-        assert self.operator.task_type in self.get_operator_classnames()
-
     @abstractmethod
+    def _execute_extraction(self) -> OperatorLineage | None: ...
+
     def extract(self) -> OperatorLineage | None:
-        pass
+        return self._execute_extraction()
 
     def extract_on_complete(self, task_instance) -> OperatorLineage | None:
         return self.extract()
@@ -82,7 +84,7 @@ class DefaultExtractor(BaseExtractor):
         """
         return []
 
-    def extract(self) -> OperatorLineage | None:
+    def _execute_extraction(self) -> OperatorLineage | None:
         # OpenLineage methods are optional - if there's no method, return None
         try:
             return self._get_openlineage_facets(self.operator.get_openlineage_facets_on_start)  # type: ignore
@@ -93,6 +95,10 @@ class DefaultExtractor(BaseExtractor):
             )
             return None
         except AttributeError:
+            self.log.debug(
+                "Operator %s does not have the get_openlineage_facets_on_start method.",
+                self.operator.task_type,
+            )
             return None
 
     def extract_on_complete(self, task_instance) -> OperatorLineage | None:
@@ -122,5 +128,5 @@ class DefaultExtractor(BaseExtractor):
                 "This should not happen."
             )
         except Exception:
-            self.log.exception("OpenLineage provider method failed to extract data from provider. ")
+            self.log.warning("OpenLineage provider method failed to extract data from provider. ")
         return None

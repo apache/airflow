@@ -22,13 +22,14 @@ from datetime import datetime, timedelta
 import pendulum
 import pytest
 from dateutil.relativedelta import relativedelta
-from pytest import approx
 
 from airflow.utils import dates, timezone
 
 
 class TestDates:
-    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
+    @pytest.mark.filterwarnings(
+        "ignore:Function `days_ago` is deprecated.*:airflow.exceptions.RemovedInAirflow3Warning"
+    )
     def test_days_ago(self):
         today = pendulum.today()
         today_midnight = pendulum.instance(datetime.fromordinal(today.date().toordinal()))
@@ -54,7 +55,6 @@ class TestDates:
             dates.parse_execution_date(bad_execution_date_str)
 
     def test_round_time(self):
-
         rt1 = dates.round_time(timezone.datetime(2015, 1, 1, 6), timedelta(days=1))
         assert timezone.datetime(2015, 1, 1, 0, 0) == rt1
 
@@ -93,34 +93,36 @@ class TestDates:
     def test_scale_time_units(self):
         # floating point arrays
         arr1 = dates.scale_time_units([130, 5400, 10], "minutes")
-        assert arr1 == approx([2.1667, 90.0, 0.1667], rel=1e-3)
+        assert arr1 == pytest.approx([2.1667, 90.0, 0.1667], rel=1e-3)
 
         arr2 = dates.scale_time_units([110, 50, 10, 100], "seconds")
-        assert arr2 == approx([110.0, 50.0, 10.0, 100.0])
+        assert arr2 == pytest.approx([110.0, 50.0, 10.0, 100.0])
 
         arr3 = dates.scale_time_units([100000, 50000, 10000, 20000], "hours")
-        assert arr3 == approx([27.7778, 13.8889, 2.7778, 5.5556], rel=1e-3)
+        assert arr3 == pytest.approx([27.7778, 13.8889, 2.7778, 5.5556], rel=1e-3)
 
         arr4 = dates.scale_time_units([200000, 100000], "days")
-        assert arr4 == approx([2.3147, 1.1574], rel=1e-3)
+        assert arr4 == pytest.approx([2.3147, 1.1574], rel=1e-3)
 
 
-@pytest.mark.filterwarnings("ignore:`airflow.utils.dates.date_range:DeprecationWarning")
+@pytest.mark.filterwarnings(
+    r"ignore:`airflow.utils.dates.date_range\(\)` is deprecated:airflow.exceptions.RemovedInAirflow3Warning"
+)
 class TestUtilsDatesDateRange:
     def test_no_delta(self):
         assert dates.date_range(datetime(2016, 1, 1), datetime(2016, 1, 3)) == []
 
     def test_end_date_before_start_date(self):
-        with pytest.raises(Exception, match="Wait. start_date needs to be before end_date"):
+        with pytest.raises(ValueError, match="Wait. start_date needs to be before end_date"):
             dates.date_range(datetime(2016, 2, 1), datetime(2016, 1, 1), delta=timedelta(seconds=1))
 
     def test_both_end_date_and_num_given(self):
-        with pytest.raises(Exception, match="Wait. Either specify end_date OR num"):
+        with pytest.raises(ValueError, match="Wait. Either specify end_date OR num"):
             dates.date_range(datetime(2016, 1, 1), datetime(2016, 1, 3), num=2, delta=timedelta(seconds=1))
 
     def test_invalid_delta(self):
         exception_msg = "Wait. delta must be either datetime.timedelta or cron expression as str"
-        with pytest.raises(Exception, match=exception_msg):
+        with pytest.raises(TypeError, match=exception_msg):
             dates.date_range(datetime(2016, 1, 1), datetime(2016, 1, 3), delta=1)
 
     def test_positive_num_given(self):

@@ -20,13 +20,17 @@ from __future__ import annotations
 import copy
 import logging
 import os
+import pickle
 import re
 import sys
+import tempfile
 import warnings
 from collections import namedtuple
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone as _timezone
+from functools import partial
 from subprocess import CalledProcessError
-from typing import Generator
+from tempfile import TemporaryDirectory
+from typing import TYPE_CHECKING, Generator
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -35,17 +39,20 @@ from slugify import slugify
 
 from airflow.decorators import task_group
 from airflow.exceptions import AirflowException, DeserializingResultError, RemovedInAirflow3Warning
-from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, clear_task_instances, set_current_context
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import (
+    BranchExternalPythonOperator,
     BranchPythonOperator,
-    ExternalBranchPythonOperator,
+    BranchPythonVirtualenvOperator,
     ExternalPythonOperator,
     PythonOperator,
     PythonVirtualenvOperator,
     ShortCircuitOperator,
+    _parse_version_info,
+    _PythonVersionInfo,
     get_current_context,
 )
 from airflow.utils import timezone
@@ -58,9 +65,20 @@ from airflow.utils.types import NOTSET, DagRunType
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 from tests.test_utils.db import clear_db_runs
 
+log = logging.getLogger(__name__)
+
+pytestmark = pytest.mark.db_test
+
+
+if TYPE_CHECKING:
+    from airflow.models.dagrun import DagRun
+
+TI = TaskInstance
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 TEMPLATE_SEARCHPATH = os.path.join(AIRFLOW_MAIN_FOLDER, "tests", "config_templates")
 LOGGER_NAME = "airflow.task.operators"
+DEFAULT_PYTHON_VERSION = f"{sys.version_info[0]}.{sys.version_info[1]}"
+PY311 = sys.version_info >= (3, 11)
 
 
 class BasePythonTest:
@@ -210,7 +228,7 @@ class TestPythonOperator(BasePythonTest):
 
     def test_python_operator_shallow_copy_attr(self):
         def not_callable(x):
-            assert False, "Should not be triggered"
+            raise RuntimeError("Should not be triggered")
 
         original_task = PythonOperator(
             python_callable=not_callable,
@@ -297,6 +315,31 @@ class TestPythonOperator(BasePythonTest):
         )
 
         assert python_operator.template_ext == ["test_ext"]
+
+    def test_python_operator_has_default_logger_name(self):
+        python_operator = PythonOperator(task_id="task", python_callable=partial(int, 2))
+
+        logger_name: str = "airflow.task.operators.airflow.operators.python.PythonOperator"
+        assert python_operator.log.name == logger_name
+
+    def test_custom_logger_name_is_correctly_set(self):
+        """
+        Ensure the custom logger name is correctly set when the Operator is created,
+        and when its state is resumed via __setstate__.
+        """
+        logger_name: str = "airflow.task.operators.custom.logger"
+
+        python_operator = PythonOperator(
+            task_id="task", python_callable=partial(int, 2), logger_name="custom.logger"
+        )
+        assert python_operator.log.name == logger_name
+
+        setstate_operator = pickle.loads(pickle.dumps(python_operator))
+        assert setstate_operator.log.name == logger_name
+
+    def test_custom_logger_name_can_be_empty_string(self):
+        python_operator = PythonOperator(task_id="task", python_callable=partial(int, 2), logger_name="")
+        assert python_operator.log.name == "airflow.task.operators"
 
 
 class TestBranchOperator(BasePythonTest):
@@ -709,25 +752,24 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
 
     def test_fail(self):
         def f():
-            raise Exception
+            raise RuntimeError
 
         with pytest.raises(CalledProcessError):
             self.run_as_task(f)
 
     def test_fail_with_message(self):
         def f():
-            raise Exception("Custom error message")
+            raise RuntimeError("Custom error message")
 
-        with pytest.raises(AirflowException) as e:
+        with pytest.raises(AirflowException, match="Custom error message"):
             self.run_as_task(f)
-            assert "Custom error message" in str(e)
 
     def test_string_args(self):
         def f():
             global virtualenv_string_args
             print(virtualenv_string_args)
             if virtualenv_string_args[0] != virtualenv_string_args[2]:
-                raise Exception
+                raise RuntimeError
 
         self.run_as_task(f, string_args=[1, 2, 1])
 
@@ -736,7 +778,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             if a == 0 and b == 1 and c and not d:
                 return True
             else:
-                raise Exception
+                raise RuntimeError
 
         self.run_as_task(f, op_args=[0, 1], op_kwargs={"c": True})
 
@@ -755,14 +797,15 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         assert task.execute_callable() is False
 
     def test_lambda(self):
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError) as info:
             PythonVirtualenvOperator(python_callable=lambda x: 4, task_id=self.task_id)
+        assert str(info.value) == "PythonVirtualenvOperator only supports functions for python_callable arg"
 
     def test_nonimported_as_arg(self):
         def f(_):
             return None
 
-        self.run_as_task(f, op_args=[datetime.utcnow()])
+        self.run_as_task(f, op_args=[datetime.now(tz=_timezone.utc)])
 
     def test_context(self):
         def f(templates_dict):
@@ -794,6 +837,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             "ti",
             "var",  # Accessor for Variable; var->json and var->value.
             "conn",  # Accessor for Connection.
+            "dataset_events",  # Accessor for DatasetEvent.
         ]
 
         ti = create_task_instance(dag_id=self.dag_id, task_id=self.task_id, schedule=None)
@@ -808,61 +852,107 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         assert set(context) == declared_keys
 
     @pytest.mark.parametrize(
-        "extra_kwargs, actual_exit_code, expected_state",
+        "kwargs, actual_exit_code, expected_state",
         [
-            (None, 99, TaskInstanceState.FAILED),
-            ({"skip_on_exit_code": 100}, 100, TaskInstanceState.SKIPPED),
-            ({"skip_on_exit_code": [100]}, 100, TaskInstanceState.SKIPPED),
-            ({"skip_on_exit_code": (100, 101)}, 100, TaskInstanceState.SKIPPED),
-            ({"skip_on_exit_code": 100}, 101, TaskInstanceState.FAILED),
-            ({"skip_on_exit_code": [100, 102]}, 101, TaskInstanceState.FAILED),
+            ({}, 0, TaskInstanceState.SUCCESS),
+            ({}, 100, TaskInstanceState.FAILED),
+            ({}, 101, TaskInstanceState.FAILED),
             ({"skip_on_exit_code": None}, 0, TaskInstanceState.SUCCESS),
+            ({"skip_on_exit_code": None}, 100, TaskInstanceState.FAILED),
+            ({"skip_on_exit_code": None}, 101, TaskInstanceState.FAILED),
+            ({"skip_on_exit_code": 100}, 0, TaskInstanceState.SUCCESS),
+            ({"skip_on_exit_code": 100}, 100, TaskInstanceState.SKIPPED),
+            ({"skip_on_exit_code": 100}, 101, TaskInstanceState.FAILED),
+            ({"skip_on_exit_code": 0}, 0, TaskInstanceState.SKIPPED),
+            ({"skip_on_exit_code": [100]}, 0, TaskInstanceState.SUCCESS),
+            ({"skip_on_exit_code": [100]}, 100, TaskInstanceState.SKIPPED),
+            ({"skip_on_exit_code": [100]}, 101, TaskInstanceState.FAILED),
+            ({"skip_on_exit_code": [100, 102]}, 101, TaskInstanceState.FAILED),
+            ({"skip_on_exit_code": (100,)}, 0, TaskInstanceState.SUCCESS),
+            ({"skip_on_exit_code": (100,)}, 100, TaskInstanceState.SKIPPED),
+            ({"skip_on_exit_code": (100,)}, 101, TaskInstanceState.FAILED),
         ],
     )
-    def test_on_skip_exit_code(self, extra_kwargs, actual_exit_code, expected_state):
+    def test_on_skip_exit_code(self, kwargs, actual_exit_code, expected_state):
         def f(exit_code):
             if exit_code != 0:
                 raise SystemExit(exit_code)
 
         if expected_state == TaskInstanceState.FAILED:
             with pytest.raises(CalledProcessError):
-                self.run_as_task(
-                    f, op_kwargs={"exit_code": actual_exit_code}, **(extra_kwargs if extra_kwargs else {})
-                )
+                self.run_as_task(f, op_kwargs={"exit_code": actual_exit_code}, **kwargs)
         else:
             ti = self.run_as_task(
                 f,
                 return_ti=True,
                 op_kwargs={"exit_code": actual_exit_code},
-                **(extra_kwargs if extra_kwargs else {}),
+                **kwargs,
             )
             assert ti.state == expected_state
 
 
+venv_cache_path = tempfile.mkdtemp(prefix="venv_cache_path")
+
+
+# when venv tests are run in parallel to other test they create new processes and this might take
+# quite some time in shared docker environment and get some contention even between different containers
+# therefore we have to extend timeouts for those tests
+@pytest.mark.execution_timeout(120)
+@pytest.mark.virtualenv_operator
 class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
     opcls = PythonVirtualenvOperator
 
     @staticmethod
-    def default_kwargs(*, python_version=sys.version_info[0], **kwargs):
+    def default_kwargs(*, python_version=DEFAULT_PYTHON_VERSION, **kwargs):
         kwargs["python_version"] = python_version
+        if "do_not_use_caching" in kwargs:
+            kwargs.pop("do_not_use_caching")
+        else:
+            # Caching by default makes the tests run faster except few cases we want to test with regular venv
+            if "venv_cache_path" not in kwargs:
+                kwargs["venv_cache_path"] = venv_cache_path
         return kwargs
 
     @mock.patch("shutil.which")
     @mock.patch("airflow.operators.python.importlib")
-    def test_virtuenv_not_installed(self, importlib_mock, which_mock):
+    def test_virtualenv_not_installed(self, importlib_mock, which_mock):
         which_mock.return_value = None
         importlib_mock.util.find_spec.return_value = None
+
+        def f():
+            pass
+
         with pytest.raises(AirflowException, match="requires virtualenv"):
-
-            def f():
-                pass
-
             self.run_as_task(f)
+
+    def test_add_cloudpickle(self):
+        def f():
+            """Ensure cloudpickle is correctly installed."""
+            try:
+                import cloudpickle  # noqa: F401
+            except ImportError:
+                import logging
+
+                _log = logging.getLogger(__name__)
+                _log.warning(
+                    "Cloudpickle package is required to be installed."
+                    " Please install it with: pip install [cloudpickle]"
+                )
+
+        self.run_as_task(f, use_cloudpickle=True, system_site_packages=False)
 
     def test_add_dill(self):
         def f():
             """Ensure dill is correctly installed."""
-            import dill  # noqa: F401
+            try:
+                import dill  # noqa: F401
+            except ImportError:
+                import logging
+
+                _log = logging.getLogger(__name__)
+                _log.warning(
+                    "Dill package is required to be installed. Please install it with: pip install [dill]"
+                )
 
         self.run_as_task(f, use_dill=True, system_site_packages=False)
 
@@ -874,13 +964,23 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         self.run_as_task(f)
 
-    def test_no_system_site_packages(self):
+    def test_no_system_site_packages_cloudpickle(self):
         def f():
             try:
                 import funcsigs  # noqa: F401
             except ImportError:
                 return True
-            raise Exception
+            raise RuntimeError
+
+        self.run_as_task(f, system_site_packages=False, requirements=["cloudpickle"])
+
+    def test_no_system_site_packages_dill(self):
+        def f():
+            try:
+                import funcsigs  # noqa: F401
+            except ImportError:
+                return True
+            raise RuntimeError
 
         self.run_as_task(f, system_site_packages=False, requirements=["dill"])
 
@@ -895,17 +995,45 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             import funcsigs
 
             if funcsigs.__version__ != "0.4":
-                raise Exception
+                raise RuntimeError
 
         self.run_as_task(f, requirements=["funcsigs==0.4"])
 
-    def test_unpinned_requirements(self):
+    def test_with_no_caching(self):
+        """
+        Most of venv tests use caching to speed up the tests. This test ensures that
+        we have test without caching as well.
+
+        :return:
+        """
+
+        def f():
+            import funcsigs
+
+            if funcsigs.__version__ != "0.4":
+                raise RuntimeError
+
+        self.run_as_task(f, requirements=["funcsigs==0.4"], do_not_use_caching=True)
+
+    def test_unpinned_requirements_cloudpickle(self):
+        def f():
+            import funcsigs  # noqa: F401
+
+        self.run_as_task(f, requirements=["funcsigs", "cloudpickle"], system_site_packages=False)
+
+    def test_unpinned_requirements_dill(self):
         def f():
             import funcsigs  # noqa: F401
 
         self.run_as_task(f, requirements=["funcsigs", "dill"], system_site_packages=False)
 
-    def test_range_requirements(self):
+    def test_range_requirements_cloudpickle(self):
+        def f():
+            import funcsigs  # noqa: F401
+
+        self.run_as_task(f, requirements=["funcsigs>1.0", "cloudpickle"], system_site_packages=False)
+
+    def test_range_requirements_dill(self):
         def f():
             import funcsigs  # noqa: F401
 
@@ -931,6 +1059,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             pip_install_options=["--no-deps"],
         )
         mocked_prepare_virtualenv.assert_called_with(
+            index_urls=None,
             venv_directory=mock.ANY,
             python_bin=mock.ANY,
             system_site_packages=False,
@@ -938,7 +1067,21 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             pip_install_options=["--no-deps"],
         )
 
-    def test_templated_requirements_file(self):
+    def test_templated_requirements_file_cloudpickle(self):
+        def f():
+            import funcsigs
+
+            assert funcsigs.__version__ == "1.0.2"
+
+        self.run_as_operator(
+            f,
+            requirements="requirements.txt",
+            use_cloudpickle=True,
+            params={"environ": "templated_unit_test"},
+            system_site_packages=False,
+        )
+
+    def test_templated_requirements_file_dill(self):
         def f():
             import funcsigs
 
@@ -952,7 +1095,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             system_site_packages=False,
         )
 
-    def test_python_3(self):
+    def test_python_3_cloudpickle(self):
         def f():
             import sys
 
@@ -961,9 +1104,28 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
                 {}.iteritems()
             except AttributeError:
                 return
-            raise Exception
+            raise RuntimeError
 
-        self.run_as_task(f, python_version=3, use_dill=False, requirements=["dill"])
+        self.run_as_task(f, python_version="3", use_cloudpickle=False, requirements=["cloudpickle"])
+
+    def test_python_3_dill(self):
+        def f():
+            import sys
+
+            print(sys.version)
+            try:
+                {}.iteritems()
+            except AttributeError:
+                return
+            raise RuntimeError
+
+        self.run_as_task(f, python_version="3", use_dill=False, requirements=["dill"])
+
+    def test_without_cloudpickle(self):
+        def f(a):
+            return a
+
+        self.run_as_task(f, system_site_packages=False, use_cloudpickle=False, op_args=[4])
 
     def test_without_dill(self):
         def f(a):
@@ -971,15 +1133,37 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         self.run_as_task(f, system_site_packages=False, use_dill=False, op_args=[4])
 
+    def test_with_index_urls(self):
+        def f(a):
+            import sys
+            from pathlib import Path
+
+            pip_conf = (Path(sys.executable).parent.parent / "pip.conf").read_text()
+            assert "abc.def.de" in pip_conf
+            assert "xyz.abc.de" in pip_conf
+            return a
+
+        self.run_as_task(f, index_urls=["https://abc.def.de", "http://xyz.abc.de"], op_args=[4])
+
+    def test_caching(self):
+        def f(a):
+            import sys
+
+            assert "pytest_venv_1234" in sys.executable
+            return a
+
+        with TemporaryDirectory(prefix="pytest_venv_1234") as tmp_dir:
+            self.run_as_task(f, venv_cache_path=tmp_dir, op_args=[4])
+
     # This tests might take longer than default 60 seconds as it is serializing a lot of
-    # context using dill (which is slow apparently).
+    # context using cloudpickle (which is slow apparently).
     @pytest.mark.execution_timeout(120)
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     @pytest.mark.skipif(
         os.environ.get("PYTEST_PLAIN_ASSERTS") != "true",
-        reason="assertion rewriting breaks this test because dill will try to serialize "
+        reason="assertion rewriting breaks this test because cloudpickle will try to serialize "
         "AssertRewritingHook including captured stdout and we need to run "
-        "it with `--assert=plain`pytest option and PYTEST_PLAIN_ASSERTS=true",
+        "it with `--assert=plain`pytest option and PYTEST_PLAIN_ASSERTS=true .",
     )
     def test_airflow_context(self):
         def f(
@@ -1008,6 +1192,58 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             prev_execution_date,
             prev_execution_date_success,
             prev_start_date_success,
+            prev_end_date_success,
+            # airflow-specific
+            macros,
+            conf,
+            dag,
+            dag_run,
+            task,
+            # other
+            **context,
+        ):
+            pass
+
+        self.run_as_operator(f, use_cloudpickle=True, system_site_packages=True, requirements=None)
+
+    # This tests might take longer than default 60 seconds as it is serializing a lot of
+    # context using dill (which is slow apparently).
+    @pytest.mark.execution_timeout(120)
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
+    @pytest.mark.skipif(
+        os.environ.get("PYTEST_PLAIN_ASSERTS") != "true",
+        reason="assertion rewriting breaks this test because dill will try to serialize "
+        "AssertRewritingHook including captured stdout and we need to run "
+        "it with `--assert=plain`pytest option and PYTEST_PLAIN_ASSERTS=true .",
+    )
+    def test_airflow_context_dill(self):
+        def f(
+            # basic
+            ds_nodash,
+            inlets,
+            next_ds,
+            next_ds_nodash,
+            outlets,
+            params,
+            prev_ds,
+            prev_ds_nodash,
+            run_id,
+            task_instance_key_str,
+            test_mode,
+            tomorrow_ds,
+            tomorrow_ds_nodash,
+            ts,
+            ts_nodash,
+            ts_nodash_with_tz,
+            yesterday_ds,
+            yesterday_ds_nodash,
+            # pendulum-specific
+            execution_date,
+            next_execution_date,
+            prev_execution_date,
+            prev_execution_date_success,
+            prev_start_date_success,
+            prev_end_date_success,
             # airflow-specific
             macros,
             conf,
@@ -1048,6 +1284,42 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             prev_execution_date,
             prev_execution_date_success,
             prev_start_date_success,
+            prev_end_date_success,
+            # other
+            **context,
+        ):
+            pass
+
+        self.run_as_task(f, use_cloudpickle=True, system_site_packages=False, requirements=["pendulum"])
+
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
+    def test_pendulum_context_dill(self):
+        def f(
+            # basic
+            ds_nodash,
+            inlets,
+            next_ds,
+            next_ds_nodash,
+            outlets,
+            prev_ds,
+            prev_ds_nodash,
+            run_id,
+            task_instance_key_str,
+            test_mode,
+            tomorrow_ds,
+            tomorrow_ds_nodash,
+            ts,
+            ts_nodash,
+            ts_nodash_with_tz,
+            yesterday_ds,
+            yesterday_ds_nodash,
+            # pendulum-specific
+            execution_date,
+            next_execution_date,
+            prev_execution_date,
+            prev_execution_date_success,
+            prev_start_date_success,
+            prev_end_date_success,
             # other
             **context,
         ):
@@ -1081,14 +1353,47 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         ):
             pass
 
+        self.run_as_task(f, use_cloudpickle=True, system_site_packages=False, requirements=None)
+
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
+    def test_base_context_dill(self):
+        def f(
+            # basic
+            ds_nodash,
+            inlets,
+            next_ds,
+            next_ds_nodash,
+            outlets,
+            prev_ds,
+            prev_ds_nodash,
+            run_id,
+            task_instance_key_str,
+            test_mode,
+            tomorrow_ds,
+            tomorrow_ds_nodash,
+            ts,
+            ts_nodash,
+            ts_nodash_with_tz,
+            yesterday_ds,
+            yesterday_ds_nodash,
+            # other
+            **context,
+        ):
+            pass
+
         self.run_as_task(f, use_dill=True, system_site_packages=False, requirements=None)
 
 
+# when venv tests are run in parallel to other test they create new processes and this might take
+# quite some time in shared docker environment and get some contention even between different containers
+# therefore we have to extend timeouts for those tests
+@pytest.mark.execution_timeout(120)
+@pytest.mark.external_python_operator
 class TestExternalPythonOperator(BaseTestPythonVirtualenvOperator):
     opcls = ExternalPythonOperator
 
     @staticmethod
-    def default_kwargs(*, python_version=sys.version_info[0], **kwargs):
+    def default_kwargs(*, python_version=DEFAULT_PYTHON_VERSION, **kwargs):
         kwargs["python"] = sys.executable
         return kwargs
 
@@ -1097,9 +1402,10 @@ class TestExternalPythonOperator(BaseTestPythonVirtualenvOperator):
         def f():
             return 1
 
-        task = PythonVirtualenvOperator(
+        task = ExternalPythonOperator(
             python_callable=f,
             task_id="task",
+            python=sys.executable,
             dag=self.dag,
         )
 
@@ -1107,26 +1413,63 @@ class TestExternalPythonOperator(BaseTestPythonVirtualenvOperator):
         with pytest.raises(DeserializingResultError):
             task._read_result(path=mock.Mock())
 
+    def test_airflow_version(self):
+        def f():
+            return 42
 
-class TestExternalBranchPythonOperator(BaseTestPythonVirtualenvOperator):
-    opcls = ExternalBranchPythonOperator
+        op = ExternalPythonOperator(
+            python_callable=f, task_id="task", python=sys.executable, expect_airflow=True
+        )
+        assert op._get_airflow_version_from_target_env()
 
+    def test_airflow_version_doesnt_match(self, caplog):
+        def f():
+            return 42
+
+        op = ExternalPythonOperator(
+            python_callable=f, task_id="task", python=sys.executable, expect_airflow=True
+        )
+
+        with mock.patch.object(
+            ExternalPythonOperator, "_external_airflow_version_script", new_callable=mock.PropertyMock
+        ) as mock_script:
+            mock_script.return_value = "print('1.10.4')"
+            caplog.set_level("WARNING")
+            caplog.clear()
+            assert op._get_airflow_version_from_target_env() is None
+            assert "(1.10.4) is different than the runtime Airflow version" in caplog.text
+
+    def test_airflow_version_script_error_handle(self, caplog):
+        def f():
+            return 42
+
+        op = ExternalPythonOperator(
+            python_callable=f, task_id="task", python=sys.executable, expect_airflow=True
+        )
+
+        with mock.patch.object(
+            ExternalPythonOperator, "_external_airflow_version_script", new_callable=mock.PropertyMock
+        ) as mock_script:
+            mock_script.return_value = "raise SystemExit('Something went wrong')"
+            caplog.set_level("WARNING")
+            caplog.clear()
+            assert op._get_airflow_version_from_target_env() is None
+            assert "Something went wrong" in caplog.text
+            assert "returned non-zero exit status" in caplog.text
+
+
+class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
     @pytest.fixture(autouse=True)
     def setup_tests(self):
         self.branch_1 = EmptyOperator(task_id="branch_1")
         self.branch_2 = EmptyOperator(task_id="branch_2")
-
-    @staticmethod
-    def default_kwargs(*, python_version=sys.version_info[0], **kwargs):
-        kwargs["python"] = sys.executable
-        return kwargs
 
     def test_with_args(self):
         def f(a, b, c=False, d=False):
             if a == 0 and b == 1 and c and not d:
                 return True
             else:
-                raise Exception
+                raise RuntimeError
 
         with pytest.raises(AirflowException, match="but got 'bool'"):
             self.run_as_task(f, op_args=[0, 1], op_kwargs={"c": True})
@@ -1144,6 +1487,20 @@ class TestExternalBranchPythonOperator(BaseTestPythonVirtualenvOperator):
 
         with pytest.raises(AirflowException, match="Invalid tasks found:"):
             self.run_as_task(f, templates_dict={"ds": "{{ ds }}"})
+
+    def test_with_no_caching(self):
+        """
+        Most of venv tests use caching to speed up the tests. This test ensures that
+        we have test without caching as well.
+
+        :return:
+        """
+
+        def f():
+            return False
+
+        with pytest.raises(AirflowException, match="but got 'bool'"):
+            self.run_as_task(f, do_not_use_caching=True)
 
     def test_with_dag_run(self):
         with self.dag:
@@ -1267,6 +1624,43 @@ class TestExternalBranchPythonOperator(BaseTestPythonVirtualenvOperator):
             ti.run()
 
 
+# when venv tests are run in parallel to other test they create new processes and this might take
+# quite some time in shared docker environment and get some contention even between different containers
+# therefore we have to extend timeouts for those tests
+
+
+@pytest.mark.execution_timeout(120)
+@pytest.mark.virtualenv_operator
+class TestBranchPythonVirtualenvOperator(BaseTestBranchPythonVirtualenvOperator):
+    opcls = BranchPythonVirtualenvOperator
+
+    @staticmethod
+    def default_kwargs(*, python_version=DEFAULT_PYTHON_VERSION, **kwargs):
+        if "do_not_use_caching" in kwargs:
+            kwargs.pop("do_not_use_caching")
+        else:
+            # Caching by default makes the tests run faster except few cases we want to test with regular venv
+            if "venv_cache_path" not in kwargs:
+                kwargs["venv_cache_path"] = venv_cache_path
+        return kwargs
+
+
+# when venv tests are run in parallel to other test they create new processes and this might take
+# quite some time in shared docker environment and get some contention even between different containers
+# therefore we have to extend timeouts for those tests
+@pytest.mark.external_python_operator
+class TestBranchExternalPythonOperator(BaseTestBranchPythonVirtualenvOperator):
+    opcls = BranchExternalPythonOperator
+
+    @staticmethod
+    def default_kwargs(*, python_version=DEFAULT_PYTHON_VERSION, **kwargs):
+        # Remove do not use caching that might come from one of the tests in the base class
+        if "do_not_use_caching" in kwargs:
+            kwargs.pop("do_not_use_caching")
+        kwargs["python"] = sys.executable
+        return kwargs
+
+
 class TestCurrentContext:
     def test_current_context_no_context_raise(self):
         with pytest.raises(AirflowException):
@@ -1383,7 +1777,7 @@ class TestShortCircuitWithTeardown:
             op1.skip = MagicMock()
             dagrun = dag_maker.create_dagrun()
             tis = dagrun.get_task_instances()
-            ti: TaskInstance = [x for x in tis if x.task_id == "op1"][0]
+            ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
             ti._run_raw_task()
             expected_tasks = {dag.task_dict[x] for x in expected}
         if should_skip:
@@ -1414,7 +1808,7 @@ class TestShortCircuitWithTeardown:
             op1.skip = MagicMock()
             dagrun = dag_maker.create_dagrun()
             tis = dagrun.get_task_instances()
-            ti: TaskInstance = [x for x in tis if x.task_id == "op1"][0]
+            ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
             ti._run_raw_task()
             # we can't use assert_called_with because it's a set and therefore not ordered
             actual_skipped = set(op1.skip.call_args.kwargs["tasks"])
@@ -1441,7 +1835,7 @@ class TestShortCircuitWithTeardown:
             op1.skip = MagicMock()
             dagrun = dag_maker.create_dagrun()
             tis = dagrun.get_task_instances()
-            ti: TaskInstance = [x for x in tis if x.task_id == "op1"][0]
+            ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
             ti._run_raw_task()
             # we can't use assert_called_with because it's a set and therefore not ordered
             actual_kwargs = op1.skip.call_args.kwargs
@@ -1476,7 +1870,7 @@ class TestShortCircuitWithTeardown:
             op1.skip = MagicMock()
             dagrun = dag_maker.create_dagrun()
             tis = dagrun.get_task_instances()
-            ti: TaskInstance = [x for x in tis if x.task_id == "op1"][0]
+            ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
             ti._run_raw_task()
             # we can't use assert_called_with because it's a set and therefore not ordered
             actual_kwargs = op1.skip.call_args.kwargs
@@ -1487,3 +1881,61 @@ class TestShortCircuitWithTeardown:
                 assert isinstance(actual_skipped, Generator)
             assert set(actual_skipped) == {op3}
             assert actual_kwargs["execution_date"] == dagrun.logical_date
+
+
+@pytest.mark.parametrize(
+    "text_input, expected_tuple",
+    [
+        pytest.param("   2.7.18.final.0  ", (2, 7, 18, "final", 0), id="py27"),
+        pytest.param("3.10.13.final.0\n", (3, 10, 13, "final", 0), id="py310"),
+        pytest.param("\n3.13.0.alpha.3", (3, 13, 0, "alpha", 3), id="py313-alpha"),
+    ],
+)
+def test_parse_version_info(text_input, expected_tuple):
+    assert _parse_version_info(text_input) == expected_tuple
+
+
+@pytest.mark.parametrize(
+    "text_input",
+    [
+        pytest.param("   2.7.18.final.0.3  ", id="more-than-5-parts"),
+        pytest.param("3.10.13\n", id="less-than-5-parts"),
+        pytest.param("Apache Airflow 3.0.0", id="garbage-input"),
+    ],
+)
+def test_parse_version_invalid_parts(text_input):
+    with pytest.raises(ValueError, match=r"expected 5 components separated by '\.'"):
+        _parse_version_info(text_input)
+
+
+@pytest.mark.parametrize(
+    "text_input",
+    [
+        pytest.param("2EOL.7.18.final.0", id="major-non-int"),
+        pytest.param("3.XXX.13.final.3", id="minor-non-int"),
+        pytest.param("3.13.0a.alpha.3", id="micro-non-int"),
+        pytest.param("3.8.18.alpha.beta", id="serial-non-int"),
+    ],
+)
+def test_parse_version_invalid_parts_types(text_input):
+    with pytest.raises(ValueError, match="Unable to convert parts.*parsed from.*to"):
+        _parse_version_info(text_input)
+
+
+def test_python_version_info_fail_subprocess(mocker):
+    mocked_subprocess = mocker.patch("subprocess.check_output")
+    mocked_subprocess.side_effect = RuntimeError("some error")
+
+    with pytest.raises(ValueError, match="Error while executing command.*some error"):
+        _PythonVersionInfo.from_executable("/dev/null")
+    mocked_subprocess.assert_called_once()
+
+
+def test_python_version_info(mocker):
+    result = _PythonVersionInfo.from_executable(sys.executable)
+    assert result.major == sys.version_info.major
+    assert result.minor == sys.version_info.minor
+    assert result.micro == sys.version_info.micro
+    assert result.releaselevel == sys.version_info.releaselevel
+    assert result.serial == sys.version_info.serial
+    assert list(result) == list(sys.version_info)

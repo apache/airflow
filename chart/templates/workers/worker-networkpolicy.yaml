@@ -24,7 +24,7 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ .Release.Name }}-worker-policy
+  name: {{ include "airflow.fullname" . }}-worker-policy
   labels:
     tier: airflow
     component: airflow-worker-policy

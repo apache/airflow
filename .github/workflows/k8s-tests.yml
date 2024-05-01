@@ -1,0 +1,123 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: K8s tests
+on:  # yamllint disable-line rule:truthy
+  workflow_call:
+    inputs:
+      runs-on-as-json-default:
+        description: "The array of labels (in json form) determining default runner used for the build."
+        required: true
+        type: string
+      image-tag:
+        description: "Tag to set for the image"
+        required: true
+        type: string
+      python-versions-list-as-string:
+        description: "List of Python versions to test: space separated string"
+        required: true
+        type: string
+      kubernetes-versions-list-as-string:
+        description: "List of Kubernetes versions to test"
+        required: true
+        type: string
+      kubernetes-combos-list-as-string:
+        description: "List of combinations of Kubernetes and Python versions to test: space separated string"
+        required: true
+        type: string
+      include-success-outputs:
+        description: "Whether to include success outputs"
+        required: true
+        type: string
+      debug-resources:
+        description: "Whether to debug resources"
+        required: true
+        type: string
+jobs:
+  tests-kubernetes:
+    timeout-minutes: 240
+    name: "\
+      K8S System:${{ matrix.executor }} - ${{ matrix.use-standard-naming }} - \
+      ${{ inputs.kubernetes-versions-list-as-string }}"
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    strategy:
+      matrix:
+        executor: [KubernetesExecutor, CeleryExecutor, LocalExecutor]
+        use-standard-naming: [true, false]
+      fail-fast: false
+    env:
+      DEBUG_RESOURCES: ${{ inputs.debug-resources }}
+      INCLUDE_SUCCESS_OUTPUTS: ${{ inputs.include-success-outputs }}
+      IMAGE_TAG: ${{ inputs.image-tag }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      VERBOSE: "true"
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        id: breeze
+      - name: Login to ghcr.io
+        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Pull PROD images ${{ inputs.python-versions-list-as-string }}:${{ inputs.image-tag }}
+        run: breeze prod-image pull --run-in-parallel --tag-as-latest
+        env:
+          PYTHON_VERSIONS: ${{ inputs.python-versions-list-as-string }}
+          # Force more parallelism for pull even on public images
+          PARALLELISM: 6
+      - name: "Cache bin folder with tools for kubernetes testing"
+        uses: actions/cache@v4
+        with:
+          path: ".build/.k8s-env"
+          key: "\
+            k8s-env-${{ steps.breeze.outputs.host-python-version }}-\
+            ${{ hashFiles('scripts/ci/kubernetes/k8s_requirements.txt','pyproject.toml') }}"
+      - name: Run complete K8S tests ${{ inputs.kubernetes-combos-list-as-string }}
+        run: breeze k8s run-complete-tests --run-in-parallel --upgrade --no-copy-local-sources
+        env:
+          PYTHON_VERSIONS: ${{ inputs.python-versions-list-as-string }}
+          KUBERNETES_VERSIONS: ${{ inputs.kubernetes-versions-list-as-string }}
+          EXECUTOR: ${{ matrix.executor }}
+          USE_STANDARD_NAMING: ${{ matrix.use-standard-naming }}
+          VERBOSE: "false"
+      - name: Upload KinD logs on failure ${{ inputs.kubernetes-combos-list-as-string }}
+        uses: actions/upload-artifact@v4
+        if: failure() || cancelled()
+        with:
+          name: kind-logs-${{ matrix.executor }}-${{ matrix.use-standard-naming }}
+          path: /tmp/kind_logs_*
+          retention-days: 7
+      - name: Upload test resource logs on failure ${{ inputs.kubernetes-combos-list-as-string }}
+        uses: actions/upload-artifact@v4
+        if: failure() || cancelled()
+        with:
+          name: k8s-test-resources-${{ matrix.executor }}-${{ matrix.use-standard-naming }}
+          path: /tmp/k8s_test_resources_*
+          retention-days: 7
+      - name: "Delete clusters just in case they are left"
+        run: breeze k8s delete-cluster --all
+        if: always()

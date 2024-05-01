@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
@@ -27,11 +28,15 @@ import requests
 from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
-from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.settings import _ENABLE_AIP_44
 from airflow.utils.state import State
 from tests.test_utils.config import conf_vars
+
+if TYPE_CHECKING:
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
+
+pytest.importorskip("pydantic", minversion="2.0.0")
 
 
 @pytest.fixture(autouse=True)
@@ -130,7 +135,7 @@ class TestInternalApiCall:
             {
                 "jsonrpc": "2.0",
                 "method": "tests.api_internal.test_internal_api_call.TestInternalApiCall.fake_method",
-                "params": json.dumps(BaseSerialization.serialize({})),
+                "params": BaseSerialization.serialize({}),
             }
         )
         mock_requests.post.assert_called_once_with(
@@ -138,6 +143,23 @@ class TestInternalApiCall:
             data=expected_data,
             headers={"Content-Type": "application/json"},
         )
+
+    @conf_vars(
+        {
+            ("core", "database_access_isolation"): "true",
+            ("core", "internal_api_url"): "http://localhost:8888",
+        }
+    )
+    @mock.patch("airflow.api_internal.internal_api_call.requests")
+    def test_remote_call_with_none_result(self, mock_requests):
+        response = requests.Response()
+        response.status_code = 200
+        response._content = b""
+
+        mock_requests.post.return_value = response
+
+        result = TestInternalApiCall.fake_method()
+        assert result is None
 
     @conf_vars(
         {
@@ -162,13 +184,11 @@ class TestInternalApiCall:
                 "jsonrpc": "2.0",
                 "method": "tests.api_internal.test_internal_api_call.TestInternalApiCall."
                 "fake_method_with_params",
-                "params": json.dumps(
-                    BaseSerialization.serialize(
-                        {
-                            "dag_id": "fake-dag",
-                            "task_id": 123,
-                        }
-                    )
+                "params": BaseSerialization.serialize(
+                    {
+                        "dag_id": "fake-dag",
+                        "task_id": 123,
+                    }
                 ),
             }
         )
@@ -201,12 +221,10 @@ class TestInternalApiCall:
                 "jsonrpc": "2.0",
                 "method": "tests.api_internal.test_internal_api_call.TestInternalApiCall."
                 "fake_class_method_with_params",
-                "params": json.dumps(
-                    BaseSerialization.serialize(
-                        {
-                            "dag_id": "fake-dag",
-                        }
-                    )
+                "params": BaseSerialization.serialize(
+                    {
+                        "dag_id": "fake-dag",
+                    }
                 ),
             }
         )
@@ -240,7 +258,7 @@ class TestInternalApiCall:
                 "jsonrpc": "2.0",
                 "method": "tests.api_internal.test_internal_api_call.TestInternalApiCall."
                 "fake_class_method_with_serialized_params",
-                "params": json.dumps(BaseSerialization.serialize({"ti": ti}, use_pydantic_models=True)),
+                "params": BaseSerialization.serialize({"ti": ti}, use_pydantic_models=True),
             }
         )
         mock_requests.post.assert_called_once_with(

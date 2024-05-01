@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google PubSub sensor."""
+
 from __future__ import annotations
 
 from datetime import timedelta
@@ -24,7 +25,7 @@ from typing import TYPE_CHECKING, Any, Callable, Sequence
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
 from airflow.sensors.base import BaseSensorOperator
@@ -73,7 +74,7 @@ class PubSubPullSensor(BaseSensorOperator):
     :param gcp_conn_id: The connection ID to use connecting to
         Google Cloud.
     :param messages_callback: (Optional) Callback to process received messages.
-        It's return value will be saved to XCom.
+        Its return value will be saved to XCom.
         If you are pulling large messages, you probably want to provide a custom callback.
         If not provided, the default implementation will convert `ReceivedMessage` objects
         into JSON-serializable dicts using `google.protobuf.json_format.MessageToDict` function.
@@ -169,11 +170,14 @@ class PubSubPullSensor(BaseSensorOperator):
             )
 
     def execute_complete(self, context: dict[str, Any], event: dict[str, str | list[str]]) -> str | list[str]:
-        """Callback for the trigger; returns immediately and relies on trigger to throw a success event."""
+        """Return immediately and relies on trigger to throw a success event. Callback for the trigger."""
         if event["status"] == "success":
             self.log.info("Sensor pulls messages: %s", event["message"])
             return event["message"]
         self.log.info("Sensor failed: %s", event["message"])
+        # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+        if self.soft_fail:
+            raise AirflowSkipException(event["message"])
         raise AirflowException(event["message"])
 
     def _default_message_callback(
@@ -181,7 +185,8 @@ class PubSubPullSensor(BaseSensorOperator):
         pulled_messages: list[ReceivedMessage],
         context: Context,
     ):
-        """
+        """Convert `ReceivedMessage` objects into JSON-serializable dicts.
+
         This method can be overridden by subclasses or by `messages_callback` constructor argument.
 
         This default implementation converts `ReceivedMessage` objects into JSON-serializable dicts.

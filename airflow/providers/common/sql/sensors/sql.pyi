@@ -18,7 +18,7 @@
 # This is automatically generated stub for the `common.sql` provider
 #
 # This file is generated automatically by the `update-common-sql-api stubs` pre-commit
-# and the .pyi file represents part of the the "public" API that the
+# and the .pyi file represents part of the "public" API that the
 # `common.sql` provider exposes to other providers.
 #
 # Any, potentially breaking change in the stubs will require deliberate manual action from the contributor
@@ -32,7 +32,13 @@ Definition of the public interface for airflow.providers.common.sql.sensors.sql
 isort:skip_file
 """
 from _typeshed import Incomplete
-from airflow.sensors.base import BaseSensorOperator
+from airflow.exceptions import (
+    AirflowException as AirflowException,
+    AirflowSkipException as AirflowSkipException,
+)
+from airflow.hooks.base import BaseHook as BaseHook
+from airflow.providers.common.sql.hooks.sql import DbApiHook as DbApiHook
+from airflow.sensors.base import BaseSensorOperator as BaseSensorOperator
 from typing import Any, Sequence
 
 class SqlSensor(BaseSensorOperator):
@@ -51,11 +57,11 @@ class SqlSensor(BaseSensorOperator):
         *,
         conn_id,
         sql,
-        parameters: Incomplete | None = ...,
-        success: Incomplete | None = ...,
-        failure: Incomplete | None = ...,
-        fail_on_empty: bool = ...,
-        hook_params: Incomplete | None = ...,
+        parameters: Incomplete | None = None,
+        success: Incomplete | None = None,
+        failure: Incomplete | None = None,
+        fail_on_empty: bool = False,
+        hook_params: Incomplete | None = None,
         **kwargs,
     ) -> None: ...
     def poke(self, context: Any): ...

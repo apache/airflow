@@ -18,12 +18,13 @@
 Example Airflow DAG for Google BigQuery service.
 Uses Async version of the Big Query Operators
 """
+
 from __future__ import annotations
 
 import os
 from datetime import datetime, timedelta
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCheckOperator,
