@@ -45,6 +45,7 @@ Bug Fixes
 
 * ``fixes templated env vars for k8s pod operator (#39139)``
 * ``Fix SparkKubernetesOperator when using initContainers (#38119)``
+* ``Refresh properties on KubernetesPodOperator when k8s fails due to token expiration (#39325)``
 
 Misc
 ~~~~

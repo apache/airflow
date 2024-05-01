@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 1.2.0
 .....
 
-Latest change: 2024-04-25
+Latest change: 2024-05-01
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`da6c2bcf3c <https://github.com/apache/airflow/commit/da6c2bcf3cb270cb305dd407b34e411ee4a6e440>`_  2024-05-01   ``OpenAI Files & Vector Store Hooks (#39248)``
 `ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
 `2674a69780 <https://github.com/apache/airflow/commit/2674a69780bd1aa0768ad035b96c6e5e551ce529>`_  2024-04-19   ``OpenAI Chat & Assistant hook functions (#38736)``
 `5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``

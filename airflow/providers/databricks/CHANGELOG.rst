@@ -38,6 +38,7 @@ Features
 
 * ``Add DatabricksNotebookOperator (#39178)``
 * ``Add notification settings parameters (#39175)``
+* ``[FEAT] raise exception with main notebook error in DatabricksRunNowDeferrableOperator (#39110)``
 
 Misc
 ~~~~

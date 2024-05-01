@@ -31,6 +31,7 @@ Features
 ~~~~~~~~
 
 * ``OpenAI Chat & Assistant hook functions (#38736)``
+* ``OpenAI Files & Vector Store Hooks (#39248)``
 
 Misc
 ~~~~

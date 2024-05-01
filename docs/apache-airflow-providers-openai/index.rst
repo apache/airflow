@@ -95,5 +95,5 @@ The minimum Apache Airflow version supported by this provider package is ``2.7.0
 PIP package          Version required
 ===================  ==================
 ``apache-airflow``   ``>=2.7.0``
-``openai[datalib]``  ``>=1.16``
+``openai[datalib]``  ``>=1.23``
 ===================  ==================
