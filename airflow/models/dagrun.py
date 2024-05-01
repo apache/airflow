@@ -1560,14 +1560,13 @@ class DagRun(Base, LoggingMixin):
                 schedulable_ti_ids, max_tis_per_query or len(schedulable_ti_ids)
             )
             for schedulable_ti_ids_chunk in schedulable_ti_ids_chunks:
-                schedulable_cond = (
-                    TI.dag_id == self.dag_id,
-                    TI.run_id == self.run_id,
-                    tuple_in_condition((TI.task_id, TI.map_index), schedulable_ti_ids_chunk),
-                )
-                update_stmt = (
+                count += session.execute(
                     update(TI)
-                    .where(*schedulable_cond)
+                    .where(
+                        TI.dag_id == self.dag_id,
+                        TI.run_id == self.run_id,
+                        tuple_in_condition((TI.task_id, TI.map_index), schedulable_ti_ids_chunk),
+                    )
                     .values(
                         state=TaskInstanceState.SCHEDULED,
                         try_number=case(
@@ -1579,8 +1578,7 @@ class DagRun(Base, LoggingMixin):
                         ),
                     )
                     .execution_options(synchronize_session=False)
-                )
-                count += session.execute(update_stmt).rowcount
+                ).rowcount
 
         # Tasks using EmptyOperator should not be executed, mark them as success
         if dummy_ti_ids:
