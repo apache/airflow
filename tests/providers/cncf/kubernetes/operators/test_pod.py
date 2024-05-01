@@ -24,8 +24,7 @@ from unittest.mock import MagicMock, patch
 
 import pendulum
 import pytest
-from kubernetes.client import ApiClient, V1Pod, V1PodSecurityContext, V1PodStatus
-from kubernetes.client import models as k8s
+from kubernetes.client import ApiClient, V1Pod, V1PodSecurityContext, V1PodStatus, models as k8s
 from kubernetes.client.rest import ApiException
 from urllib3 import HTTPResponse
 
@@ -38,10 +37,6 @@ from airflow.providers.cncf.kubernetes.operators.pod import (
     PodEventType,
     _optionally_suppress,
 )
-from airflow.providers.cncf.kubernetes.secret import Secret
-from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
-from airflow.providers.cncf.kubernetes.utils.pod_manager import PodLoggingStatus, PodPhase
-from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
