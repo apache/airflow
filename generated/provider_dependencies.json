@@ -33,7 +33,7 @@
       "boto3>=1.33.0",
       "botocore>=1.33.0",
       "inflection>=0.5.1",
-      "jmsepath",
+      "jmespath",
       "jsonpath_ng>=1.5.3",
       "redshift_connector>=2.0.918",
       "sqlalchemy_redshift>=0.8.6",
@@ -474,7 +474,7 @@
       "flask-login>=0.6.2",
       "flask>=2.2,<2.3",
       "google-re2>=1.0",
-      "jmsepath"
+      "jmespath"
     ],
     "devel-deps": [],
     "cross-providers-deps": [],
