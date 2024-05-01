@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add case-insensitive unique constraint for username
+"""Add case-insensitive unique constraint for username.
 
 Revision ID: e07f49787c9d
 Revises: b0d31815b5a6
@@ -38,7 +38,7 @@ airflow_version = "2.4.3"
 
 
 def upgrade():
-    """Apply Add case-insensitive unique constraint"""
+    """Apply Add case-insensitive unique constraint."""
     conn = op.get_bind()
     if conn.dialect.name == "postgresql":
         op.create_index("idx_ab_user_username", "ab_user", [sa.text("LOWER(username)")], unique=True)
@@ -65,7 +65,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Add case-insensitive unique constraint"""
+    """Unapply Add case-insensitive unique constraint."""
     conn = op.get_bind()
     if conn.dialect.name == "postgresql":
         op.drop_index("idx_ab_user_username", table_name="ab_user")

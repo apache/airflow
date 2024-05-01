@@ -231,29 +231,6 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
               </Td>
             </Tr>
           )}
-          {taskInstance?.renderedFields && (
-            <>
-              {Object.keys(taskInstance.renderedFields).map((key) => {
-                const renderedFields = taskInstance.renderedFields as Record<
-                  string,
-                  unknown
-                >;
-                if (renderedFields[key]) {
-                  return (
-                    <Tr key={key}>
-                      <Td>{key}</Td>
-                      <Td>
-                        <Code fontSize="md">
-                          {JSON.stringify(renderedFields[key])}
-                        </Code>
-                      </Td>
-                    </Tr>
-                  );
-                }
-                return null;
-              })}
-            </>
-          )}
           {!!taskInstance?.pool && (
             <Tr>
               <Td>Pool</Td>
@@ -300,6 +277,42 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
           )}
         </Tbody>
       </Table>
+      {taskInstance?.renderedFields && (
+        <Box mt={3}>
+          <Text as="strong" mb={3}>
+            Rendered Templates
+          </Text>
+          <Table>
+            <Tbody>
+              {Object.keys(taskInstance.renderedFields).map((key) => {
+                const renderedFields = taskInstance.renderedFields as Record<
+                  string,
+                  unknown
+                >;
+                let field = renderedFields[key];
+                if (field) {
+                  if (typeof field !== "string") {
+                    try {
+                      field = JSON.stringify(field);
+                    } catch (e) {
+                      // skip
+                    }
+                  }
+                  return (
+                    <Tr key={key}>
+                      <Td>{key}</Td>
+                      <Td>
+                        <Code fontSize="md">{field as string}</Code>
+                      </Td>
+                    </Tr>
+                  );
+                }
+                return null;
+              })}
+            </Tbody>
+          </Table>
+        </Box>
+      )}
     </Box>
   );
 };

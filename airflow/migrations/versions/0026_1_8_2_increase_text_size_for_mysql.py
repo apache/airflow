@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Increase text size for MySQL (not relevant for other DBs' text types)
+"""Increase text size for MySQL (not relevant for other DBs' text types).
 
 Revision ID: d2ae31099d61
 Revises: 947454bf1dff
 Create Date: 2017-08-18 17:07:16.686130
 
 """
+
 from __future__ import annotations
 
 from alembic import op

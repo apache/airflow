@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add queued by Job ID to TI
+"""Add queued by Job ID to TI.
 
 Revision ID: b247b1e3d1ed
 Revises: e38be357a868
 Create Date: 2020-09-04 11:53:00.978882
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -36,12 +37,12 @@ airflow_version = "2.0.0"
 
 
 def upgrade():
-    """Apply Add queued by Job ID to TI"""
+    """Apply Add queued by Job ID to TI."""
     with op.batch_alter_table("task_instance") as batch_op:
         batch_op.add_column(sa.Column("queued_by_job_id", sa.Integer(), nullable=True))
 
 
 def downgrade():
-    """Unapply Add queued by Job ID to TI"""
+    """Unapply Add queued by Job ID to TI."""
     with op.batch_alter_table("task_instance") as batch_op:
         batch_op.drop_column("queued_by_job_id")

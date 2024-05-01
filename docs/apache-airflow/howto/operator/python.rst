@@ -111,6 +111,11 @@ Use the :class:`~airflow.operators.python.PythonVirtualenvOperator` decorator to
 inside a new Python virtual environment. The ``virtualenv`` package needs to be installed in the environment
 that runs Airflow (as optional dependency ``pip install apache-airflow[virtualenv] --constraint ...``).
 
+Additionally, the ``cloudpickle`` package needs to be installed as an optional dependency using command
+``pip install [cloudpickle] --constraint ...``. This package is a replacement for currently used ``dill`` package.
+Cloudpickle offers a strong advantage for its focus on standard pickling protocol, ensuring wider compatibility and
+smoother data exchange, while still effectively handling common Python objects and global variables within functions.
+
 .. tip::
     The ``@task.virtualenv`` decorator is recommended over the classic ``PythonVirtualenvOperator``
     to execute Python callables inside new Python virtual environments.

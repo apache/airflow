@@ -450,6 +450,14 @@ option_remove_arm_packages = click.option(
     is_flag=True,
     envvar="REMOVE_ARM_PACKAGES",
 )
+option_force_sa_warnings = click.option(
+    "--force-sa-warnings/--no-force-sa-warnings",
+    help="Enable `sqlalchemy.exc.MovedIn20Warning` during the tests runs.",
+    is_flag=True,
+    default=True,
+    show_default=True,
+    envvar="SQLALCHEMY_WARN_20",
+)
 
 
 @group_for_testing.command(
@@ -496,6 +504,7 @@ option_remove_arm_packages = click.option(
 @option_verbose
 @option_dry_run
 @option_github_repository
+@option_force_sa_warnings
 @click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
 def command_for_tests(**kwargs):
     _run_test_command(**kwargs)
@@ -537,6 +546,7 @@ def command_for_tests(**kwargs):
 @option_test_timeout
 @option_upgrade_boto
 @option_use_airflow_version
+@option_force_sa_warnings
 @option_verbose
 def command_for_db_tests(**kwargs):
     _run_test_command(
@@ -585,6 +595,7 @@ def command_for_db_tests(**kwargs):
 @option_test_timeout
 @option_upgrade_boto
 @option_use_airflow_version
+@option_force_sa_warnings
 @option_verbose
 def command_for_non_db_tests(**kwargs):
     _run_test_command(
@@ -612,6 +623,7 @@ def _run_test_command(
     enable_coverage: bool,
     excluded_parallel_test_types: str,
     extra_pytest_args: tuple,
+    force_sa_warnings: bool,
     forward_credentials: bool,
     github_repository: str,
     image_tag: str | None,
@@ -654,6 +666,7 @@ def _run_test_command(
         downgrade_sqlalchemy=downgrade_sqlalchemy,
         downgrade_pendulum=downgrade_pendulum,
         enable_coverage=enable_coverage,
+        force_sa_warnings=force_sa_warnings,
         forward_credentials=forward_credentials,
         forward_ports=False,
         github_repository=github_repository,
@@ -745,6 +758,7 @@ def _run_test_command(
 @option_python
 @option_skip_provider_tests
 @option_test_timeout
+@option_force_sa_warnings
 @option_verbose
 @click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
 def integration_tests(
@@ -761,6 +775,7 @@ def integration_tests(
     postgres_version: str,
     python: str,
     skip_provider_tests: bool,
+    force_sa_warnings: bool,
     test_timeout: int,
 ):
     docker_filesystem = get_filesystem_type("/var/lib/docker")
@@ -779,6 +794,7 @@ def integration_tests(
         python=python,
         skip_provider_tests=skip_provider_tests,
         test_type="Integration",
+        force_sa_warnings=force_sa_warnings,
     )
     fix_ownership_using_docker()
     cleanup_python_generated_files()

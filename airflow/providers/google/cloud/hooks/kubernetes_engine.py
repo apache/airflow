@@ -156,7 +156,7 @@ class GKEHook(GoogleBaseHook):
     def get_client(self) -> ClusterManagerClient:
         return self.get_conn()
 
-    def wait_for_operation(self, operation: Operation, project_id: str | None = None) -> Operation:
+    def wait_for_operation(self, operation: Operation, project_id: str = PROVIDE_PROJECT_ID) -> Operation:
         """Continuously fetch the status from Google Cloud.
 
         This is done until the given operation completes, or raises an error.
@@ -176,7 +176,7 @@ class GKEHook(GoogleBaseHook):
             operation = self.get_operation(operation.name, project_id=project_id or self.project_id)
         return operation
 
-    def get_operation(self, operation_name: str, project_id: str | None = None) -> Operation:
+    def get_operation(self, operation_name: str, project_id: str = PROVIDE_PROJECT_ID) -> Operation:
         """Get an operation from Google Cloud.
 
         :param operation_name: Name of operation to fetch

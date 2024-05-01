@@ -161,19 +161,39 @@ def client_ti_without_dag_edit(app):
         ),
         pytest.param(
             f"task?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}",
+            ["Grid"],
+            id="task-grid-button",
+        ),
+        pytest.param(
+            f"task?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}",
             ["Task Instance Details"],
             id="task",
+        ),
+        pytest.param(
+            f"log?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}",
+            ["Grid"],
+            id="log-grid-button",
         ),
         pytest.param(
             f"xcom?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}",
             ["XCom"],
             id="xcom",
         ),
+        pytest.param(
+            f"xcom?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}",
+            ["Grid"],
+            id="xcom-grid-button",
+        ),
         pytest.param("xcom/list", ["List XComs"], id="xcom-list"),
         pytest.param(
             f"rendered-templates?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}",
             ["Rendered Template"],
             id="rendered-templates",
+        ),
+        pytest.param(
+            f"rendered-templates?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}",
+            ["Grid"],
+            id="rendered-templates-grid-button",
         ),
         pytest.param(
             "object/graph_data?dag_id=example_bash_operator",
@@ -974,7 +994,8 @@ def test_action_muldelete_task_instance(session, admin_client, task_search_tuple
     # add task reschedules for those tasks to make sure that the delete cascades to the required tables
     trs = [
         TaskReschedule(
-            task=task,
+            task_id=task.task_id,
+            dag_id=task.dag_id,
             run_id=task.run_id,
             try_number=1,
             start_date=timezone.datetime(2021, 1, 1),

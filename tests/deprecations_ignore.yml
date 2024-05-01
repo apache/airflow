@@ -34,7 +34,9 @@
 - tests/always/test_connection.py::TestConnection::test_connection_get_uri_from_uri
 - tests/always/test_connection.py::TestConnection::test_connection_test_success
 - tests/always/test_connection.py::TestConnection::test_from_json_extra
+# `test_should_be_importable` and `test_should_not_do_database_queries` should be resolved together
 - tests/always/test_example_dags.py::test_should_be_importable
+- tests/always/test_example_dags.py::test_should_not_do_database_queries
 
 
 # API
@@ -56,17 +58,7 @@
 
 
 # CLI
-- tests/cli/commands/test_connection_command.py::TestCliAddConnections::test_cli_connection_add
-- tests/cli/commands/test_connection_command.py::TestCliImportConnections::test_cli_connections_import_should_load_connections
-- tests/cli/commands/test_connection_command.py::TestCliImportConnections::test_cli_connections_import_should_not_overwrite_existing_connections
-- tests/cli/commands/test_connection_command.py::TestCliImportConnections::test_cli_connections_import_should_overwrite_existing_connections
 - tests/cli/commands/test_kubernetes_command.py::TestGenerateDagYamlCommand::test_generate_dag_yaml
-- tests/cli/commands/test_task_command.py::TestCliTasks::test_parentdag_downstream_clear
-- tests/cli/commands/test_task_command.py::TestCliTasks::test_subdag_clear
-- tests/cli/commands/test_task_command.py::TestCliTasks::test_task_states_for_dag_run
-- tests/cli/commands/test_task_command.py::TestCliTasks::test_test
-- tests/cli/commands/test_task_command.py::TestCliTasks::test_test_no_execution_date
-- tests/cli/commands/test_task_command.py::TestCliTasks::test_test_with_existing_dag_run
 
 
 # Core
@@ -170,60 +162,18 @@
 - tests/models/test_skipmixin.py::TestSkipMixin::test_raise_exception_on_not_valid_branch_task_ids
 - tests/models/test_skipmixin.py::TestSkipMixin::test_skip_all_except
 - tests/models/test_skipmixin.py::TestSkipMixin::test_skip_none_dagrun
-- tests/models/test_taskinstance.py::TestTaskInstance::test_changing_of_dataset_when_ddrq_is_already_populated
 - tests/models/test_taskinstance.py::TestTaskInstance::test_context_triggering_dataset_events
 - tests/models/test_taskinstance.py::TestTaskInstance::test_get_num_running_task_instances
 - tests/models/test_taskinstance.py::TestTaskInstance::test_get_previous_start_date_none
 - tests/models/test_taskinstance.py::TestTaskInstance::test_handle_failure
 - tests/models/test_taskinstance.py::TestTaskInstance::test_handle_failure_fail_stop
-- tests/models/test_taskinstance.py::TestTaskInstance::test_outlet_datasets
 - tests/models/test_taskinstance.py::TestTaskInstance::test_template_with_custom_timetable_deprecated_context
 - tests/models/test_taskinstance.py::TestTaskInstance::test_xcom_pull
 - tests/models/test_taskinstance.py::TestTaskInstance::test_xcom_pull_different_execution_date
-- tests/models/test_taskinstance.py::TestTaskInstance::test_outlet_dataset_extra
-- tests/models/test_taskinstance.py::TestTaskInstance::test_outlet_dataset_extra_ignore_different
 - tests/models/test_timestamp.py::test_timestamp_behaviour
 - tests/models/test_timestamp.py::test_timestamp_behaviour_with_timezone
 - tests/models/test_xcom.py::TestXCom::test_set_serialize_call_old_signature
 - tests/ti_deps/deps/test_prev_dagrun_dep.py::TestPrevDagrunDep::test_first_task_run_of_new_task
-- tests/utils/log/test_log_reader.py::TestLogView::test_read_log_stream_should_read_each_try_in_turn
-- tests/utils/log/test_log_reader.py::TestLogView::test_read_log_stream_should_support_multiple_chunks
-- tests/utils/log/test_log_reader.py::TestLogView::test_supports_external_link
-- tests/utils/log/test_log_reader.py::TestLogView::test_task_log_filename_unique
-- tests/utils/log/test_log_reader.py::TestLogView::test_test_read_log_chunks_should_read_all_files
-- tests/utils/log/test_log_reader.py::TestLogView::test_test_read_log_chunks_should_read_one_try
-- tests/utils/log/test_log_reader.py::TestLogView::test_test_test_read_log_stream_should_read_all_logs
-- tests/utils/log/test_log_reader.py::TestLogView::test_test_test_read_log_stream_should_read_one_try
-- tests/utils/test_cli_util.py::TestCliUtil::test_get_dags
-- tests/utils/test_dates.py::TestDates::test_days_ago
-- tests/utils/test_dates.py::TestUtilsDatesDateRange::test_both_end_date_and_num_given
-- tests/utils/test_dates.py::TestUtilsDatesDateRange::test_delta_cron_presets
-- tests/utils/test_dates.py::TestUtilsDatesDateRange::test_end_date_before_start_date
-- tests/utils/test_dates.py::TestUtilsDatesDateRange::test_invalid_delta
-- tests/utils/test_dates.py::TestUtilsDatesDateRange::test_negative_num_given
-- tests/utils/test_dates.py::TestUtilsDatesDateRange::test_no_delta
-- tests/utils/test_dates.py::TestUtilsDatesDateRange::test_positive_num_given
-- tests/utils/test_db_cleanup.py::TestDBCleanup::test_no_models_missing
-- tests/utils/test_email.py::TestEmailSmtp::test_send_mime
-- tests/utils/test_email.py::TestEmailSmtp::test_send_mime_complete_failure
-- tests/utils/test_email.py::TestEmailSmtp::test_send_mime_custom_timeout_retrylimit
-- tests/utils/test_email.py::TestEmailSmtp::test_send_mime_dryrun
-- tests/utils/test_email.py::TestEmailSmtp::test_send_mime_noauth
-- tests/utils/test_email.py::TestEmailSmtp::test_send_mime_partial_failure
-- tests/utils/test_email.py::TestEmailSmtp::test_send_mime_ssl_complete_failure
-- tests/utils/test_email.py::TestEmailSmtp::test_send_mime_ssl_default_context_if_not_set
-- tests/utils/test_email.py::TestEmailSmtp::test_send_mime_ssl_default_context_with_value_set_to_default
-- tests/utils/test_email.py::TestEmailSmtp::test_send_mime_ssl_none_context
-- tests/utils/test_log_handlers.py::TestFileTaskLogHandler::test_file_task_handler
-- tests/utils/test_log_handlers.py::TestFileTaskLogHandler::test_file_task_handler_running
-- tests/utils/test_log_handlers.py::TestFileTaskLogHandler::test_file_task_handler_when_ti_value_is_invalid
-- tests/utils/test_log_handlers.py::TestFileTaskLogHandler::test_read_from_k8s_under_multi_namespace_mode
-- tests/utils/test_sqlalchemy.py::TestSqlAlchemyUtils::test_process_bind_param_naive
-- tests/utils/test_sqlalchemy.py::TestSqlAlchemyUtils::test_utc_transformations
-- tests/utils/test_state.py::test_dagrun_state_enum_escape
-- tests/utils/test_task_handler_with_custom_formatter.py::test_custom_formatter_custom_format_not_affected_by_config
-- tests/utils/test_task_handler_with_custom_formatter.py::test_custom_formatter_default_format
-- tests/utils/test_types.py::test_runtype_enum_escape
 
 
 # Operators
@@ -407,15 +357,12 @@
 - tests/decorators/test_python.py::TestAirflowTaskDecorator::test_python_callable_arguments_are_templatized
 - tests/decorators/test_python.py::TestAirflowTaskDecorator::test_python_callable_keyword_arguments_are_templatized
 - tests/decorators/test_python.py::TestAirflowTaskDecorator::test_xcom_arg
-- tests/decorators/test_python.py::test_task_decorator_dataset
 - tests/decorators/test_python_virtualenv.py::TestPythonVirtualenvDecorator::test_no_system_site_packages
 - tests/decorators/test_python_virtualenv.py::TestPythonVirtualenvDecorator::test_python_3
 - tests/decorators/test_python_virtualenv.py::TestPythonVirtualenvDecorator::test_system_site_packages
 - tests/decorators/test_python_virtualenv.py::TestPythonVirtualenvDecorator::test_unpinned_requirements
 - tests/decorators/test_python_virtualenv.py::TestPythonVirtualenvDecorator::test_with_requirements_file
 - tests/decorators/test_python_virtualenv.py::TestPythonVirtualenvDecorator::test_with_requirements_pinned
-- tests/lineage/test_lineage.py::TestLineage::test_lineage_is_sent_to_backend
-- tests/listeners/test_dataset_listener.py::test_dataset_listener_on_dataset_changed_gets_calls
 - tests/sensors/test_external_task_sensor.py::TestExternalTaskSensor::test_external_dag_sensor
 - tests/sensors/test_external_task_sensor.py::TestExternalTaskSensor::test_external_dag_sensor_log
 - tests/sensors/test_external_task_sensor.py::TestExternalTaskSensor::test_external_dag_sensor_soft_fail_as_skipped

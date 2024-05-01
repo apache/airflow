@@ -31,6 +31,7 @@ import pytest
 from kubernetes.client import models as k8s
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors import executor_loader
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
@@ -75,6 +76,13 @@ class TestFileTaskLogHandler:
     def teardown_method(self):
         self.clean_up()
 
+    def test_deprecated_filename_template(self):
+        with pytest.warns(
+            RemovedInAirflow3Warning,
+            match="Passing filename_template to a log handler is deprecated and has no effect",
+        ):
+            FileTaskHandler("", filename_template="/foo/bar")
+
     def test_default_task_logging_setup(self):
         # file task handler is used by default.
         logger = logging.getLogger(TASK_LOGGER)
@@ -92,6 +100,7 @@ class TestFileTaskLogHandler:
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             execution_date=DEFAULT_DATE,
+            data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
         )
         task = PythonOperator(
             task_id="task_for_testing_file_log_handler",
@@ -144,6 +153,7 @@ class TestFileTaskLogHandler:
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             execution_date=DEFAULT_DATE,
+            data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
         )
         task = PythonOperator(
             task_id="task_for_testing_file_log_handler",
@@ -203,6 +213,7 @@ class TestFileTaskLogHandler:
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             execution_date=DEFAULT_DATE,
+            data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
         )
         ti = TaskInstance(task=task, run_id=dagrun.run_id)
 
@@ -304,7 +315,7 @@ class TestFileTaskLogHandler:
 
     def test__read_for_celery_executor_fallbacks_to_worker(self, create_task_instance):
         """Test for executors which do not have `get_task_log` method, it fallbacks to reading
-        log from worker. But it happens only for the latest try_number."""
+        log from worker if and only if remote logs aren't found"""
         executor_name = "CeleryExecutor"
 
         ti = create_task_instance(
@@ -325,7 +336,17 @@ class TestFileTaskLogHandler:
             fth._read_from_logs_server.assert_called_once()
             assert actual == ("*** this message\nthis\nlog\ncontent", {"end_of_log": False, "log_pos": 16})
 
-            # Previous try_number is from remote logs without reaching worker server
+            # Previous try_number should return served logs when remote logs aren't implemented
+            fth._read_from_logs_server = mock.Mock()
+            fth._read_from_logs_server.return_value = ["served logs try_number=1"], ["this\nlog\ncontent"]
+            actual = fth._read(ti=ti, try_number=1)
+            fth._read_from_logs_server.assert_called_once()
+            assert actual == (
+                "*** served logs try_number=1\nthis\nlog\ncontent",
+                {"end_of_log": True, "log_pos": 16},
+            )
+
+            # When remote_logs is implemented, previous try_number is from remote logs without reaching worker server
             fth._read_from_logs_server.reset_mock()
             fth._read_remote_logs = mock.Mock()
             fth._read_remote_logs.return_value = ["remote logs"], ["remote\nlog\ncontent"]
@@ -413,6 +434,7 @@ class TestFileTaskLogHandler:
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             execution_date=DEFAULT_DATE,
+            data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
         )
         ti = TaskInstance(task=task, run_id=dagrun.run_id)
         ti.try_number = 3

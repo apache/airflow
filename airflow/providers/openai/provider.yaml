@@ -40,8 +40,8 @@ integrations:
     tags: [software]
 
 dependencies:
-  - apache-airflow>=2.6.0
-  - openai[datalib]>=1.0
+  - apache-airflow>=2.7.0
+  - openai[datalib]>=1.23
 
 hooks:
   - integration-name: OpenAI
