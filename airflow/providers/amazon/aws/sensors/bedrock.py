@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import abc
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence, TypeVar
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException
@@ -36,7 +36,10 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class BedrockBaseSensor(AwsBaseSensor[BedrockHook]):
+_GenericBedrockHook = TypeVar("_GenericBedrockHook", BedrockAgentHook, BedrockHook)
+
+
+class BedrockBaseSensor(AwsBaseSensor[_GenericBedrockHook]):
     """
     General sensor behavior for Amazon Bedrock.
 
@@ -59,7 +62,7 @@ class BedrockBaseSensor(AwsBaseSensor[BedrockHook]):
     SUCCESS_STATES: tuple[str, ...] = ()
     FAILURE_MESSAGE = ""
 
-    aws_hook_class = BedrockHook
+    aws_hook_class: type[_GenericBedrockHook]
     ui_color = "#66c3ff"
 
     def __init__(
@@ -85,56 +88,7 @@ class BedrockBaseSensor(AwsBaseSensor[BedrockHook]):
         """Implement in subclasses."""
 
 
-class BedrockAgentBaseSensor(AwsBaseSensor[BedrockAgentHook]):
-    """
-    General sensor behavior for Amazon Bedrock Agents.
-
-    Subclasses must implement following methods:
-        - ``get_state()``
-
-    Subclasses must set the following fields:
-        - ``INTERMEDIATE_STATES``
-        - ``FAILURE_STATES``
-        - ``SUCCESS_STATES``
-        - ``FAILURE_MESSAGE``
-
-    :param deferrable: If True, the sensor will operate in deferrable mode. This mode requires aiobotocore
-        module to be installed.
-        (default: False, but can be overridden in config file by setting default_deferrable to True)
-    """
-
-    INTERMEDIATE_STATES: tuple[str, ...] = ()
-    FAILURE_STATES: tuple[str, ...] = ()
-    SUCCESS_STATES: tuple[str, ...] = ()
-    FAILURE_MESSAGE = ""
-
-    aws_hook_class = BedrockAgentHook
-    ui_color = "#66c3ff"
-
-    def __init__(
-        self,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        **kwargs: Any,
-    ):
-        super().__init__(**kwargs)
-        self.deferrable = deferrable
-
-    def poke(self, context: Context, **kwargs) -> bool:
-        state = self.get_state()
-        if state in self.FAILURE_STATES:
-            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
-            if self.soft_fail:
-                raise AirflowSkipException(self.FAILURE_MESSAGE)
-            raise AirflowException(self.FAILURE_MESSAGE)
-
-        return state not in self.INTERMEDIATE_STATES
-
-    @abc.abstractmethod
-    def get_state(self) -> str:
-        """Implement in subclasses."""
-
-
-class BedrockCustomizeModelCompletedSensor(BedrockBaseSensor):
+class BedrockCustomizeModelCompletedSensor(BedrockBaseSensor[BedrockHook]):
     """
     Poll the state of the model customization job until it reaches a terminal state; fails if the job fails.
 
@@ -165,6 +119,8 @@ class BedrockCustomizeModelCompletedSensor(BedrockBaseSensor):
     FAILURE_STATES: tuple[str, ...] = ("Failed", "Stopping", "Stopped")
     SUCCESS_STATES: tuple[str, ...] = ("Completed",)
     FAILURE_MESSAGE = "Bedrock model customization job sensor failed."
+
+    aws_hook_class = BedrockHook
 
     template_fields: Sequence[str] = aws_template_fields("job_name")
 
@@ -199,7 +155,7 @@ class BedrockCustomizeModelCompletedSensor(BedrockBaseSensor):
         return self.hook.conn.get_model_customization_job(jobIdentifier=self.job_name)["status"]
 
 
-class BedrockProvisionModelThroughputCompletedSensor(BedrockBaseSensor):
+class BedrockProvisionModelThroughputCompletedSensor(BedrockBaseSensor[BedrockHook]):
     """
     Poll the provisioned model throughput job until it reaches a terminal state; fails if the job fails.
 
@@ -230,6 +186,8 @@ class BedrockProvisionModelThroughputCompletedSensor(BedrockBaseSensor):
     FAILURE_STATES: tuple[str, ...] = ("Failed",)
     SUCCESS_STATES: tuple[str, ...] = ("InService",)
     FAILURE_MESSAGE = "Bedrock provision model throughput sensor failed."
+
+    aws_hook_class = BedrockHook
 
     template_fields: Sequence[str] = aws_template_fields("model_id")
 
@@ -264,7 +222,7 @@ class BedrockProvisionModelThroughputCompletedSensor(BedrockBaseSensor):
             super().execute(context=context)
 
 
-class BedrockKnowledgeBaseActiveSensor(BedrockAgentBaseSensor):
+class BedrockKnowledgeBaseActiveSensor(BedrockBaseSensor[BedrockAgentHook]):
     """
     Poll the Knowledge Base status until it reaches a terminal state; fails if creation fails.
 
@@ -295,6 +253,8 @@ class BedrockKnowledgeBaseActiveSensor(BedrockAgentBaseSensor):
     FAILURE_STATES: tuple[str, ...] = ("DELETING", "FAILED")
     SUCCESS_STATES: tuple[str, ...] = ("ACTIVE",)
     FAILURE_MESSAGE = "Bedrock Knowledge Base Active sensor failed."
+
+    aws_hook_class = BedrockAgentHook
 
     template_fields: Sequence[str] = aws_template_fields("knowledge_base_id")
 
@@ -331,7 +291,7 @@ class BedrockKnowledgeBaseActiveSensor(BedrockAgentBaseSensor):
             super().execute(context=context)
 
 
-class BedrockIngestionJobSensor(BedrockAgentBaseSensor):
+class BedrockIngestionJobSensor(BedrockBaseSensor[BedrockAgentHook]):
     """
     Poll the ingestion job status until it reaches a terminal state; fails if creation fails.
 
@@ -364,6 +324,8 @@ class BedrockIngestionJobSensor(BedrockAgentBaseSensor):
     FAILURE_STATES: tuple[str, ...] = ("FAILED",)
     SUCCESS_STATES: tuple[str, ...] = ("COMPLETE",)
     FAILURE_MESSAGE = "Bedrock ingestion job sensor failed."
+
+    aws_hook_class = BedrockAgentHook
 
     template_fields: Sequence[str] = aws_template_fields(
         "knowledge_base_id", "data_source_id", "ingestion_job_id"
