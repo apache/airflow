@@ -35,14 +35,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.5.0
+.....
+
+Latest change: 2024-04-25
+
+=================================================================================================  ===========  ==============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================
+`ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+`ecc5af70eb <https://github.com/apache/airflow/commit/ecc5af70ebd845c873f30fa7ef85790edbf3351c>`_  2024-04-22   ``openlineage, snowflake: do not run external queries for Snowflake (#39113)``
+`f8104325b7 <https://github.com/apache/airflow/commit/f8104325b7a66d4e98ff3a6c3555f90c796071c6>`_  2024-04-15   ``Activate RUF019 that checks for unnecessary key check (#38950)``
+=================================================================================================  ===========  ==============================================================================
+
 5.4.0
 .....
 
-Latest change: 2024-03-18
+Latest change: 2024-04-10
 
 =================================================================================================  ===========  ===========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
 `b5b972a106 <https://github.com/apache/airflow/commit/b5b972a1068e19b09d48ec4d7663dd1d996d594f>`_  2024-03-18   ``Update yanked versions in providers changelogs (#38262)``
 `0a74928894 <https://github.com/apache/airflow/commit/0a74928894fb57b0160208262ccacad12da23fc7>`_  2024-03-18   ``Bump ruff to 0.3.3 (#38240)``
 `2967986a00 <https://github.com/apache/airflow/commit/2967986a00886ecf271da5089eadd4a61cf4d227>`_  2024-03-06   ``feat: update SnowflakeSqlApiHook to support OAuth (#37922)``
