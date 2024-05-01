@@ -1544,6 +1544,7 @@ class DagRun(Base, LoggingMixin):
                 and not ti.task.on_success_callback
                 and not ti.task.outlets
             ):
+                ti.try_number += 1
                 ti.defer_task(
                     defer=TaskDeferred(trigger=ti.task.start_trigger, method_name=ti.task.next_method),
                     session=session,
