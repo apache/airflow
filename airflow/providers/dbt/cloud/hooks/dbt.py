@@ -428,6 +428,11 @@ class DbtCloudHook(HttpHook):
         payload.update(additional_run_config)
 
         if retry_from_failure:
+            if steps_override is not None or schema_override is not None or additional_run_config != {}:
+                raise ValueError(
+                    "steps_override, schema_override, or additional_run_config"
+                    " cannot be used when retry_from_failure is True."
+                )
             return self.retry_failed_job_run(job_id, account_id)
 
         return self._run_and_get_response(
