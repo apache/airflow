@@ -774,7 +774,7 @@ class KubernetesPodOperator(BaseOperator):
             except ApiException as e:
                 if e.status == 404:
                     self.pod = None
-                    self.log.info(
+                    self.log.warning(
                         "Pod not found while waiting for completion. The last status was %r", event["status"]
                     )
                 else:
