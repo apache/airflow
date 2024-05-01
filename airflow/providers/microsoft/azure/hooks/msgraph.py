@@ -54,9 +54,7 @@ if TYPE_CHECKING:
 
 
 class DefaultResponseHandler(ResponseHandler):
-    """
-    DefaultResponseHandler returns JSON payload or content in bytes or response headers.
-    """
+    """DefaultResponseHandler returns JSON payload or content in bytes or response headers."""
 
     @staticmethod
     def get_value(response: NativeResponseType) -> Any:
