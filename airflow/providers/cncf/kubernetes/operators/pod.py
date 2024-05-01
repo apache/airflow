@@ -99,6 +99,12 @@ alphanum_lower = string.ascii_lowercase + string.digits
 KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
 
 
+def check_exception_is_kubernetes_api_unauthorized(exc: Exception):
+    return (
+        isinstance(exc, kubernetes.client.exceptions.ApiException) and exc.status and str(exc.status) == "401"
+    )
+
+
 class PodEventType(Enum):
     """Type of Events emitted by kubernetes pod."""
 
@@ -646,14 +652,22 @@ class KubernetesPodOperator(BaseOperator):
         if self.do_xcom_push:
             return result
 
-    @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(max=15), reraise=True)
+    @tenacity.retry(
+        stop=tenacity.stop_after_attempt(3),
+        wait=tenacity.wait_exponential(max=15),
+        retry=tenacity.retry_if_exception(lambda exc: check_exception_is_kubernetes_api_unauthorized(exc)),
+        reraise=True,
+    )
     def await_container_completion(self, pod: k8s.V1Pod, container_name: str):
         try:
             self.pod_manager.await_container_completion(pod=pod, container_name=container_name)
-        except kubernetes.client.exceptions.ApiException as e:
-            if str(e.status) == "401":
+        except kubernetes.client.exceptions.ApiException as exc:
+            if exc.status and str(exc.status) == "401":
+                self.log.warning(
+                    "Failed to check container status due to permission error. Refreshing credentials and retrying."
+                )
                 self._refresh_cached_properties()
-            raise e
+            raise exc
 
     def _refresh_cached_properties(self):
         del self.hook

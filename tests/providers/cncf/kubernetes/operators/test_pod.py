@@ -1613,7 +1613,9 @@ class TestKubernetesPodOperator:
         }
 
     @patch(f"{POD_MANAGER_CLASS}.await_container_completion")
-    def test_await_container_completion_refreshes_properties_on_error(self, mock_await_container_completion):
+    def test_await_container_completion_refreshes_properties_on_exception(
+        self, mock_await_container_completion
+    ):
         container_name = "base"
         k = KubernetesPodOperator(
             task_id="task",
@@ -1631,6 +1633,38 @@ class TestKubernetesPodOperator:
         assert client != k.client
         assert hook != k.hook
         assert pod_manager != k.pod_manager
+
+    @pytest.mark.parametrize(
+        "side_effect, exception_type, expect_retry",
+        [
+            (ApiException(401), ApiException, True),
+            (ApiException(402), ApiException, False),
+            (ApiException(500), ApiException, False),
+            (Exception, Exception, False),
+        ],
+    )
+    @patch(f"{POD_MANAGER_CLASS}.await_container_completion")
+    def test_await_container_completion_retries_on_specific_exception(
+        self, mock_await_container_completion, side_effect, exception_type, expect_retry
+    ):
+        container_name = "base"
+        k = KubernetesPodOperator(
+            task_id="task",
+        )
+        pod = self.run_pod(k)
+        mock_await_container_completion.side_effect = [side_effect, mock.DEFAULT]
+        if expect_retry:
+            k.await_container_completion(pod, container_name=container_name)
+            mock_await_container_completion.assert_has_calls(
+                [
+                    mock.call(pod=pod, container_name=container_name),
+                    mock.call(pod=pod, container_name=container_name),
+                ]
+            )
+        else:
+            with pytest.raises(exception_type):
+                k.await_container_completion(pod, container_name=container_name)
+            mock_await_container_completion.assert_called_once_with(pod=pod, container_name=container_name)
 
 
 class TestSuppress:
