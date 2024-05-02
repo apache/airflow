@@ -17,11 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 from unittest import mock
 
-import asyncio
 import pytest
-
 
 from airflow.models import Connection
 from airflow.providers.databricks.hooks.databricks import RunState
