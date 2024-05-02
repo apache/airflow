@@ -113,3 +113,73 @@ When we put everything together, our DAG should look like this:
     :language: python
     :start-after: [START teradata_operator_howto_guide]
     :end-before: [END teradata_operator_howto_guide]
+
+TeradataStoredProcedureOperator
+===============================
+
+The purpose of TeradataStoredProcedureOperator is to define tasks involving executing teradata
+stored procedures.
+
+Execute a Stored Procedure in a Teradata database
+-------------------------------------------------
+
+To execute a Stored Procedure in an Teradata, use the
+:class:`~airflow.providers.teradata.operators.teradata.TeradataStoredProcedureOperator`.
+
+Assume a stored procedure exists in the database that looks like this:
+
+    .. code-block:: sql
+
+        REPLACE PROCEDURE
+        TEST_PROCEDURE (IN val_in INTEGER, OUT val_out INTEGER)
+          BEGIN
+            set val_out = val_in * 2;
+          END;
+        /
+
+This stored procedure accepts a single integer argument, val_in, and outputs
+a single integer argument, val_out. This can be represented with the following
+call using :class:`~airflow.providers.teradata.operators.teradata.TeradataStoredProcedureOperator`
+with parameters passed positionally as a list:
+
+.. exampleinclude:: /../../tests/system/providers/teradata/example_teradata_call_sp.py
+    :language: python
+    :start-after: [START howto_teradata_stored_procedure_operator_with_in_inout]
+    :end-before: [END howto_teradata_stored_procedure_operator_with_in_inout]
+
+
+Assume a stored procedure exists in the database that looks like this:
+
+    .. code-block:: sql
+
+        REPLACE PROCEDURE
+        TEST_PROCEDURE (IN val_in INTEGER, OUT val_out INTEGER)
+          BEGIN
+            DECLARE cur1 CURSOR WITH RETURN FOR SELECT * from DBC.DBCINFO ORDER BY 1 ;
+            DECLARE cur2 CURSOR WITH RETURN FOR SELECT infodata, infokey from DBC.DBCINFO order by 1 ;
+            open cur1 ;
+            open cur2 ;
+            set val_out = val_in * 2;
+          END;
+        /
+
+This stored procedure accepts a single integer argument, val_in, and outputs
+a single integer argument, val_out and returns two cursors representing output of select queries.
+This can be represented with the following call using
+:class:`~airflow.providers.teradata.operators.teradata.TeradataStoredProcedureOperator`
+with parameters passed positionally as a list:
+
+.. exampleinclude:: /../../tests/system/providers/teradata/example_teradata_call_sp.py
+    :language: python
+    :start-after: [START howto_teradata_stored_procedure_operator_with_in_out_dynamic_result]
+    :end-before: [END howto_teradata_stored_procedure_operator_with_in_out_dynamic_result]
+
+The complete TeradataStoredProcedureOperator DAG
+------------------------------------------------
+
+When we put everything together, our DAG should look like this:
+
+.. exampleinclude:: /../../tests/system/providers/teradata/example_teradata_call_sp.py
+    :language: python
+    :start-after: [START howto_teradata_operator_for_sp]
+    :end-before: [END howto_teradata_operator_for_sp]
