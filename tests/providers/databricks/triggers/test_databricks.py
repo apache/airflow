@@ -19,7 +19,9 @@ from __future__ import annotations
 
 from unittest import mock
 
+import asyncio
 import pytest
+
 
 from airflow.models import Connection
 from airflow.providers.databricks.hooks.databricks import RunState
@@ -250,3 +252,62 @@ class TestDatabricksExecutionTrigger:
             )
         mock_sleep.assert_called_once()
         mock_sleep.assert_called_with(POLLING_INTERVAL_SECONDS)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_state")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_cancel_run")
+    async def test_cancellation_cancels_job_if_job_in_non_terminal_state(
+        self, mock_get_run_state, mock_cancel_run, caplog
+    ):
+        mock_get_run_state.side_effect = [
+            RunState(
+                life_cycle_state=LIFE_CYCLE_STATE_PENDING,
+                state_message="",
+                result_state="",
+            ),
+        ]
+
+        trigger_event = self.trigger.run()
+
+        try:
+            await trigger_event.__anext__()
+            await trigger_event.aclose()
+
+        except asyncio.CancelledError:
+            mock_cancel_run.assert_awaited_once_with(RUN_ID)
+
+            assert f"run {RUN_ID} is being terminated" in caplog.text
+            assert f"run {RUN_ID} was cancelled" in caplog.text
+        except Exception as e:
+            pytest.fail(f"Unexpected exception raised: {e}")
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_state")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_cancel_run")
+    async def test_cancellation_skips_cancellation_if_job_in_terminal_state(
+        self, mock_get_run_state, mock_cancel_run, caplog
+    ):
+        mock_get_run_state.side_effect = [
+            RunState(
+                life_cycle_state=LIFE_CYCLE_STATE_PENDING,
+                state_message="",
+                result_state="",
+            ),
+            RunState(
+                life_cycle_state=LIFE_CYCLE_STATE_TERMINATED,
+                state_message="",
+                result_state="",
+            ),
+        ]
+
+        trigger_event = self.trigger.run()
+
+        try:
+            await trigger_event.__anext__()
+            await trigger_event.aclose()
+        except asyncio.CancelledError:
+            mock_cancel_run.assert_not_called()
+
+            assert f"run {RUN_ID} is being terminated" in caplog.text
+        except Exception as e:
+            pytest.fail(f"Unexpected exception raised: {e}")

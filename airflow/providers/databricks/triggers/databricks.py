@@ -82,38 +82,55 @@ class DatabricksExecutionTrigger(BaseTrigger):
 
     async def run(self):
         async with self.hook:
-            while True:
+            try:
+                while True:
+                    run_state = await self.hook.a_get_run_state(self.run_id)
+                    if not run_state.is_terminal:
+                        self.log.info(
+                            "run-id %s in run state %s. sleeping for %s seconds",
+                            self.run_id,
+                            run_state,
+                            self.polling_period_seconds,
+                        )
+                        await asyncio.sleep(self.polling_period_seconds)
+                        continue
+
+                    failed_tasks = []
+                    if run_state.result_state == "FAILED":
+                        run_info = await self.hook.a_get_run(self.run_id)
+                        for task in run_info.get("tasks", []):
+                            if task.get("state", {}).get("result_state", "") == "FAILED":
+                                task_run_id = task["run_id"]
+                                task_key = task["task_key"]
+                                run_output = await self.hook.a_get_run_output(task_run_id)
+                                if "error" in run_output:
+                                    error = run_output["error"]
+                                else:
+                                    error = run_state.state_message
+                                failed_tasks.append(
+                                    {"task_key": task_key, "run_id": task_run_id, "error": error}
+                                )
+                    yield TriggerEvent(
+                        {
+                            "run_id": self.run_id,
+                            "run_page_url": self.run_page_url,
+                            "run_state": run_state.to_json(),
+                            "repair_run": self.repair_run,
+                            "errors": failed_tasks,
+                        }
+                    )
+                    return
+            except asyncio.CancelledError:
+                self.log.info("run-id %s is being terminated, checking latest job state", self.run_id)
+
                 run_state = await self.hook.a_get_run_state(self.run_id)
                 if not run_state.is_terminal:
                     self.log.info(
-                        "run-id %s in run state %s. sleeping for %s seconds",
+                        "Latest state for run-id %s is %s, cancelling job...",
                         self.run_id,
                         run_state,
-                        self.polling_period_seconds,
                     )
-                    await asyncio.sleep(self.polling_period_seconds)
-                    continue
 
-                failed_tasks = []
-                if run_state.result_state == "FAILED":
-                    run_info = await self.hook.a_get_run(self.run_id)
-                    for task in run_info.get("tasks", []):
-                        if task.get("state", {}).get("result_state", "") == "FAILED":
-                            task_run_id = task["run_id"]
-                            task_key = task["task_key"]
-                            run_output = await self.hook.a_get_run_output(task_run_id)
-                            if "error" in run_output:
-                                error = run_output["error"]
-                            else:
-                                error = run_state.state_message
-                            failed_tasks.append({"task_key": task_key, "run_id": task_run_id, "error": error})
-                yield TriggerEvent(
-                    {
-                        "run_id": self.run_id,
-                        "run_page_url": self.run_page_url,
-                        "run_state": run_state.to_json(),
-                        "repair_run": self.repair_run,
-                        "errors": failed_tasks,
-                    }
-                )
+                    await self.hook.a_cancel_run(self.run_id)
+                    self.log.info("run-id %s was cancelled", self.run_id)
                 return

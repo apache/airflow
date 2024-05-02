@@ -511,6 +511,15 @@ class DatabricksHook(BaseDatabricksHook):
         json = {"run_id": run_id}
         self._do_api_call(CANCEL_RUN_ENDPOINT, json)
 
+    async def a_cancel_run(self, run_id: int) -> None:
+        """
+        Async version of `cancel_run`.
+
+        :param run_id: id of the run
+        """
+        json = {"run_id": run_id}
+        await self._a_do_api_call(CANCEL_RUN_ENDPOINT, json)
+
     def cancel_all_runs(self, job_id: int) -> None:
         """
         Cancel all active runs of a job asynchronously.
