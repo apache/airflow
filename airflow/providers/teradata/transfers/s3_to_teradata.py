@@ -95,16 +95,6 @@ class S3ToTeradataOperator(BaseOperator):
         try:
             teradata_hook.run(sql, True)
         except Exception as ex:
-            # Handling permission issue errors
-            if "Error 3524" in str(ex):
-                self.log.error("The user does not have CREATE TABLE access in teradata")
-                raise
-            if "Error 9134" in str(ex):
-                self.log.error(
-                    "There is an issue with the transfer operation. Please validate s3 and "
-                    "teradata connection details."
-                )
-                raise
-            self.log.error("Issue occurred at Teradata: %s", str(ex))
+            self.log.error(str(ex))
             raise
         self.log.info("The transfer of data from S3 to Teradata was successful")

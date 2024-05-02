@@ -57,7 +57,7 @@ with DAG(
     # [START s3_to_teradata_transfer_operator_howto_guide_transfer_data_s3_to_teradata_csv]
     transfer_data_csv = S3ToTeradataOperator(
         task_id="transfer_data_s3_to_teradata_csv",
-        s3_source_key="/s3/td-usgs-public.s3.amazonaws.com/CSVDATA/",
+        s3_source_key="/s3/td-usgs-public.s3.amazonaws.com/CSVDATA/09394500/2018/06/",
         teradata_table="example_s3_teradata_csv",
         aws_conn_id="aws_default",
         teradata_conn_id="teradata_default",
@@ -85,7 +85,7 @@ with DAG(
     # [START s3_to_teradata_transfer_operator_howto_guide_transfer_data_s3_to_teradata_json]
     transfer_data_json = S3ToTeradataOperator(
         task_id="transfer_data_s3_to_teradata_json",
-        s3_source_key="/s3/td-usgs-public.s3.amazonaws.com/JSONDATA/",
+        s3_source_key="/s3/td-usgs-public.s3.amazonaws.com/JSONDATA/09394500/2018/06/",
         teradata_table="example_s3_teradata_json",
         aws_conn_id="aws_default",
         teradata_conn_id="teradata_default",
@@ -113,7 +113,7 @@ with DAG(
     # [START s3_to_teradata_transfer_operator_howto_guide_transfer_data_s3_to_teradata_parquet]
     transfer_data_parquet = S3ToTeradataOperator(
         task_id="transfer_data_s3_to_teradata_parquet",
-        s3_source_key="/s3/td-usgs-public.s3.amazonaws.com/PARQUETDATA/",
+        s3_source_key="/s3/td-usgs-public.s3.amazonaws.com/PARQUETDATA/09394500/2018/06/",
         teradata_table="example_s3_teradata_parquet",
         aws_conn_id="aws_default",
         teradata_conn_id="teradata_default",
@@ -139,15 +139,15 @@ with DAG(
     )
     # [END s3_to_teradata_transfer_operator_howto_guide_drop_table_parquet]
     (
-        transfer_data_csv,
-        transfer_data_json,
-        transfer_data_parquet,
-        read_data_table_csv,
-        read_data_table_json,
-        read_data_table_parquet,
-        drop_table_csv,
-        drop_table_json,
-        drop_table_parquet,
+        transfer_data_csv >>
+        transfer_data_json >>
+        transfer_data_parquet >>
+        read_data_table_csv >>
+        read_data_table_json >>
+        read_data_table_parquet >>
+        drop_table_csv >>
+        drop_table_json >>
+        drop_table_parquet
     )
     # [END s3_to_teradata_transfer_operator_howto_guide]
 
