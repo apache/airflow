@@ -40,7 +40,7 @@ Bug Fixes
 """""""""
 - Make task log messages include run_id (#39280)
 - Copy menu_item ``href`` for nav bar (#39282)
-- Fix trigger kwarg encryption migration (#39246)
+- Fix trigger kwarg encryption migration (#39246, #39361, #39374)
 - Add workaround for datetime-local input in ``firefox`` (#39261)
 - Add Grid button to Task Instance view (#39223)
 - Get served logs when remote or executor logs not available for non-running task try (#39177)
