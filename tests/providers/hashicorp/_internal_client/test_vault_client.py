@@ -899,7 +899,7 @@ class TestVaultClient:
         assert "/etc/ssl/certificates/ca-bundle.pem" == vault_client.kwargs["session"].verify
         mock_client.secrets.kv.v1.read_secret.assert_called_once_with(
             mount_point="secret", path="/path/to/secret"
-        )    
+        )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_existing_key_v1_without_preconfigured_mount_point(self, mock_hvac):
