@@ -76,10 +76,9 @@ def upgrade():
         # SQLite does not support DROP CONSTRAINT
         # We have to recreate the table without the constraint
         conn.execute(sa.text("PRAGMA foreign_keys=off"))
-        conn.execute(sa.text("ALTER TABLE connection RENAME TO connection_old"))
         conn.execute(
             sa.text("""
-        CREATE TABLE "connection" (
+        CREATE TABLE connection_new (
                 id INTEGER NOT NULL,
                 conn_id VARCHAR(250) NOT NULL,
                 conn_type VARCHAR(500) NOT NULL,
@@ -97,8 +96,9 @@ def upgrade():
         )
         """)
         )
-        conn.execute(sa.text("INSERT INTO connection SELECT * FROM connection_old"))
-        conn.execute(sa.text("DROP TABLE connection_old"))
+        conn.execute(sa.text("INSERT INTO connection_new SELECT * FROM connection"))
+        conn.execute(sa.text("DROP TABLE connection"))
+        conn.execute(sa.text("ALTER TABLE connection_new RENAME TO connection"))
         conn.execute(sa.text("PRAGMA foreign_keys=on"))
     else:
         op.execute("ALTER TABLE connection DROP CONSTRAINT IF EXISTS unique_conn_id")
@@ -179,10 +179,9 @@ def upgrade():
         # SQLite does not support DROP CONSTRAINT
         # We have to recreate the table without the constraint
         conn.execute(sa.text("PRAGMA foreign_keys=off"))
-        conn.execute(sa.text("ALTER TABLE dag_run RENAME TO dag_run_old"))
         conn.execute(
             sa.text("""
-            CREATE TABLE dag_run (
+            CREATE TABLE dag_run_new (
                 id INTEGER NOT NULL,
                 dag_id VARCHAR(250) NOT NULL,
                 queued_at TIMESTAMP,
@@ -210,8 +209,9 @@ def upgrade():
         """)
         )
 
-        conn.execute(sa.text("INSERT INTO dag_run SELECT * FROM dag_run_old"))
-        conn.execute(sa.text("DROP TABLE dag_run_old"))
+        conn.execute(sa.text("INSERT INTO dag_run_new SELECT * FROM dag_run"))
+        conn.execute(sa.text("DROP TABLE dag_run"))
+        conn.execute(sa.text("ALTER TABLE dag_run_new RENAME TO dag_run"))
         conn.execute(sa.text("PRAGMA foreign_keys=on"))
         with op.batch_alter_table("dag_run") as batch_op:
             batch_op.create_index("dag_id_state", ["dag_id", "state"], if_not_exists=True)
