@@ -36,6 +36,9 @@ html {
   -ms-text-size-adjust: 100%;
   -webkit-text-size-adjust: 100%;
 }
+html.dark-mode{
+  filter: invert(100%)hue-rotate(180deg);
+}
 body {
   margin: 0;
 }
@@ -297,6 +300,9 @@ th {
 html {
   font-size: 12px;
   -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+}
+html.dark-mode{
+  filter: invert(100%)hue-rotate(180deg);
 }
 body {
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
