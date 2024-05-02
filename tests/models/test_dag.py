@@ -3047,7 +3047,8 @@ class TestDagDecorator:
 
     def test_fileloc(self):
         @dag_decorator(default_args=self.DEFAULT_ARGS)
-        def noop_pipeline(): ...
+        def noop_pipeline():
+            ...
 
         dag = noop_pipeline()
         assert isinstance(dag, DAG)
@@ -3058,7 +3059,8 @@ class TestDagDecorator:
         """Test that checks you can set dag_id from decorator."""
 
         @dag_decorator("test", default_args=self.DEFAULT_ARGS)
-        def noop_pipeline(): ...
+        def noop_pipeline():
+            ...
 
         dag = noop_pipeline()
         assert isinstance(dag, DAG)
@@ -3068,7 +3070,8 @@ class TestDagDecorator:
         """Test that @dag uses function name as default dag id."""
 
         @dag_decorator(default_args=self.DEFAULT_ARGS)
-        def noop_pipeline(): ...
+        def noop_pipeline():
+            ...
 
         dag = noop_pipeline()
         assert isinstance(dag, DAG)
@@ -3124,7 +3127,8 @@ class TestDagDecorator:
         @dag_decorator(
             "test-dag", start_date=DEFAULT_DATE, template_searchpath=os.fspath(path.parent), doc_md=path.name
         )
-        def markdown_docs(): ...
+        def markdown_docs():
+            ...
 
         dag = markdown_docs()
         assert isinstance(dag, DAG)
@@ -3220,7 +3224,8 @@ class TestDagDecorator:
     def test_warning_location(self):
         # NOTE: This only works as long as there is some warning we can emit from `DAG()`
         @dag_decorator(schedule_interval=None)
-        def mydag(): ...
+        def mydag():
+            ...
 
         with pytest.warns(RemovedInAirflow3Warning) as warnings:
             line = sys._getframe().f_lineno + 1
@@ -3257,7 +3262,13 @@ def test_dag_timetable_change_after_init(timetable):
     assert not dag._check_schedule_interval_matches_timetable()
 
 
-@pytest.mark.parametrize("run_id, execution_date", [(None, datetime_tz(2020, 1, 1)), ("test-run-id", None)])
+@pytest.mark.parametrize(
+    "run_id, execution_date",
+    [
+        (None, datetime_tz(2020, 1, 1)),
+        ("test-run-id", None),
+    ],
+)
 def test_set_task_instance_state(run_id, execution_date, session, dag_maker):
     """Test that set_task_instance_state updates the TaskInstance state and clear downstream failed"""
 
@@ -3321,7 +3332,9 @@ def test_set_task_instance_state(run_id, execution_date, session, dag_maker):
     # dagrun should be set to QUEUED
     assert dagrun.get_state() == State.QUEUED
 
-    assert {t.key for t in altered} == {("test_set_task_instance_state", "task_1", dagrun.run_id, 1, -1)}
+    assert {tuple(t.key) for t in altered} == {
+        ("test_set_task_instance_state", "task_1", dagrun.run_id, 0, -1)
+    }
 
 
 def test_set_task_instance_state_mapped(dag_maker, session):
@@ -4098,13 +4111,16 @@ class TestTaskClearingSetupTeardownBehavior:
         with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
 
             @setup
-            def my_setup(): ...
+            def my_setup():
+                ...
 
             @task_decorator
-            def my_work(): ...
+            def my_work():
+                ...
 
             @teardown
-            def my_teardown(): ...
+            def my_teardown():
+                ...
 
             s1 = my_setup()
             w1 = my_work()

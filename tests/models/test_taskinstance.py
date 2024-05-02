@@ -621,21 +621,31 @@ class TestTaskInstance:
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
 
-        assert ti.try_number == 1
+        with create_session() as session:
+            session.get(TaskInstance, ti.key.primary).try_number += 1
+
         # first run -- up for retry
         run_with_error(ti)
         assert ti.state == State.UP_FOR_RETRY
-        assert ti.try_number == 2
+        assert ti.try_number == 1
+
+        with create_session() as session:
+            session.get(TaskInstance, ti.key.primary).try_number += 1
 
         # second run -- still up for retry because retry_delay hasn't expired
         time_machine.coordinates.shift(3)
         run_with_error(ti)
         assert ti.state == State.UP_FOR_RETRY
+        assert ti.try_number == 2
+
+        with create_session() as session:
+            session.get(TaskInstance, ti.key.primary).try_number += 1
 
         # third run -- failed
         time_machine.coordinates.shift(datetime.datetime.resolution)
         run_with_error(ti)
         assert ti.state == State.FAILED
+        assert ti.try_number == 3
 
     def test_retry_handling(self, dag_maker):
         """
@@ -890,7 +900,6 @@ class TestTaskInstance:
 
         ti.task = task
         assert ti.try_number == 0
-        assert ti.try_number == 1
 
         def run_ti_and_assert(
             run_date,
@@ -911,7 +920,6 @@ class TestTaskInstance:
             ti.refresh_from_db()
             assert ti.state == expected_state
             assert ti.try_number == expected_try_number
-            assert ti.try_number == expected_try_number + 1
             assert ti.start_date == expected_start_date
             assert ti.end_date == expected_end_date
             assert ti.duration == expected_duration
@@ -938,29 +946,36 @@ class TestTaskInstance:
         run_ti_and_assert(date3, date1, date3, 120, State.UP_FOR_RESCHEDULE, 0, 3)
 
         done, fail = True, False
-        run_ti_and_assert(date4, date1, date4, 180, State.SUCCESS, 1, 0)
+        run_ti_and_assert(date4, date1, date4, 180, State.SUCCESS, 0, 3)
 
         # Clear the task instance.
         dag.clear()
         ti.refresh_from_db()
         assert ti.state == State.NONE
-        assert ti.try_number == 1
+        assert ti.try_number == 0
 
         # Run again after clearing with reschedules and a retry.
-        # The retry increments the try number, and for that try no reschedule is expected.
+
+        # We increment the try number because that's what the scheduler would do
+        with create_session() as session:
+            session.get(TaskInstance, ti.key.primary).try_number += 1
+
         # After the retry the start date is reset, hence the duration is also reset.
 
         done, fail = False, False
         run_ti_and_assert(date1, date1, date1, 0, State.UP_FOR_RESCHEDULE, 1, 1)
 
         done, fail = False, True
-        run_ti_and_assert(date2, date1, date2, 60, State.UP_FOR_RETRY, 2, 0)
+        run_ti_and_assert(date2, date1, date2, 60, State.UP_FOR_RETRY, 1, 1)
+
+        with create_session() as session:
+            session.get(TaskInstance, ti.key.primary).try_number += 1
 
         done, fail = False, False
         run_ti_and_assert(date3, date3, date3, 0, State.UP_FOR_RESCHEDULE, 2, 1)
 
         done, fail = True, False
-        run_ti_and_assert(date4, date3, date4, 60, State.SUCCESS, 3, 0)
+        run_ti_and_assert(date4, date3, date4, 60, State.SUCCESS, 2, 1)
 
     @pytest.mark.usefixtures("test_pool")
     def test_mapped_task_reschedule_handling_clear_reschedules(self, dag_maker, task_reschedules_for_ti):

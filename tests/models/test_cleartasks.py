@@ -25,7 +25,7 @@ import pytest
 from airflow import settings
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
+from airflow.models.taskinstance import TaskInstance, TaskInstance as TI, clear_task_instances
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.operators.empty import EmptyOperator
 from airflow.sensors.python import PythonSensor
@@ -500,37 +500,35 @@ class TestClearTasks:
         ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
         ti0.refresh_from_task(task0)
         ti1.refresh_from_task(task1)
-
+        session.get(TaskInstance, ti0.key.primary).try_number += 1
+        session.commit()
         # Next try to run will be try 1
         assert ti0.try_number == 1
         ti0.run()
 
-        assert ti0.try_number == 2
+        assert ti0.try_number == 1
         dag.clear()
         ti0.refresh_from_db()
-        assert ti0.try_number == 2
+        assert ti0.try_number == 1
         assert ti0.state == State.NONE
         assert ti0.max_tries == 1
 
         assert ti1.max_tries == 2
-        ti1.try_number = 1
-        session.merge(ti1)
+        session.get(TaskInstance, ti1.key.primary).try_number += 1
         session.commit()
-
-        # Next try will be 2
         ti1.run()
 
-        assert ti1.try_number == 3
+        assert ti1.try_number == 1
         assert ti1.max_tries == 2
 
         dag.clear()
         ti0.refresh_from_db()
         ti1.refresh_from_db()
-        # after clear dag, ti2 should show attempt 3 of 5
-        assert ti1.max_tries == 4
-        assert ti1.try_number == 3
-        # after clear dag, ti1 should show attempt 2 of 2
-        assert ti0.try_number == 2
+        # after clear dag, we have 2 remaining tries
+        assert ti1.max_tries == 3
+        assert ti1.try_number == 1
+        # after clear dag, ti0 has no remaining tries
+        assert ti0.try_number == 1
         assert ti0.max_tries == 1
 
     def test_dags_clear(self):
@@ -559,9 +557,11 @@ class TestClearTasks:
 
         # test clear all dags
         for i in range(num_of_dags):
+            session.get(TaskInstance, tis[i].key.primary).try_number += 1
+            session.commit()
             tis[i].run()
             assert tis[i].state == State.SUCCESS
-            assert tis[i].try_number == 2
+            assert tis[i].try_number == 1
             assert tis[i].max_tries == 0
 
         DAG.clear_dags(dags)
@@ -569,14 +569,16 @@ class TestClearTasks:
         for i in range(num_of_dags):
             tis[i].refresh_from_db()
             assert tis[i].state == State.NONE
-            assert tis[i].try_number == 2
+            assert tis[i].try_number == 1
             assert tis[i].max_tries == 1
 
         # test dry_run
         for i in range(num_of_dags):
+            session.get(TaskInstance, tis[i].key.primary).try_number += 1
+            session.commit()
             tis[i].run()
             assert tis[i].state == State.SUCCESS
-            assert tis[i].try_number == 3
+            assert tis[i].try_number == 2
             assert tis[i].max_tries == 1
 
         DAG.clear_dags(dags, dry_run=True)
@@ -584,7 +586,7 @@ class TestClearTasks:
         for i in range(num_of_dags):
             tis[i].refresh_from_db()
             assert tis[i].state == State.SUCCESS
-            assert tis[i].try_number == 3
+            assert tis[i].try_number == 2
             assert tis[i].max_tries == 1
 
         # test only_failed
@@ -599,14 +601,14 @@ class TestClearTasks:
             ti.refresh_from_db()
             if ti is failed_dag:
                 assert ti.state == State.NONE
-                assert ti.try_number == 3
+                assert ti.try_number == 2
                 assert ti.max_tries == 2
             else:
                 assert ti.state == State.SUCCESS
-                assert ti.try_number == 3
+                assert ti.try_number == 2
                 assert ti.max_tries == 1
 
-    def test_operator_clear(self, dag_maker):
+    def test_operator_clear(self, dag_maker, session):
         with dag_maker(
             "test_operator_clear",
             start_date=DEFAULT_DATE,
@@ -625,18 +627,27 @@ class TestClearTasks:
         ti1.task = op1
         ti2.task = op2
 
+        session.get(TaskInstance, ti2.key.primary).try_number += 1
+        session.commit()
         ti2.run()
         # Dependency not met
         assert ti2.try_number == 1
         assert ti2.max_tries == 1
 
         op2.clear(upstream=True)
+        # max tries will be set to retries + curr try number == 1 + 1 == 2
+        assert session.get(TaskInstance, ti2.key.primary).max_tries == 2
+
+        session.get(TaskInstance, ti1.key.primary).try_number += 1
+        session.commit()
         ti1.run()
+        assert ti1.try_number == 1
+
+        session.get(TaskInstance, ti2.key.primary).try_number += 1
+        session.commit()
         ti2.run(ignore_ti_state=True)
-        assert ti1.try_number == 2
         # max_tries is 0 because there is no task instance in db for ti1
         # so clear won't change the max_tries.
         assert ti1.max_tries == 0
         assert ti2.try_number == 2
-        # try_number (0) + retries(1)
-        assert ti2.max_tries == 1
+        assert ti2.max_tries == 2  # max tries has not changed since it was updated when op2.clear called
