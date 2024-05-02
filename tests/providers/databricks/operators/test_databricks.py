@@ -1310,6 +1310,7 @@ class TestDatabricksRunNowOperator:
                 "tasks": [
                     {
                         "run_id": 2,
+                        "task_key": "first_task",
                         "state": {
                             "life_cycle_state": "TERMINATED",
                             "result_state": "FAILED",
@@ -1324,7 +1325,7 @@ class TestDatabricksRunNowOperator:
         with pytest.raises(AirflowException) as exc_info:
             op.execute(None)
 
-        assert exc_info.value.args[0].endswith(" Exception: Something went wrong...")
+        assert exc_info.value.args[0].endswith("Exception: Something went wrong...'}]")
 
         expected = utils.normalise_json_content(
             {
