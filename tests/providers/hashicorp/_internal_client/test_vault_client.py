@@ -864,7 +864,7 @@ class TestVaultClient:
         )
         secret = vault_client.get_secret(secret_path="/path/to/secret")
         assert {"value": "world"} == secret
-        assert False == vault_client.kwargs["session"].verify
+        assert not vault_client.kwargs["session"].verify
         mock_client.secrets.kv.v1.read_secret.assert_called_once_with(
             mount_point="secret", path="/path/to/secret"
         )
