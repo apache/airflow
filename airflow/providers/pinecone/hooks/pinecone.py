@@ -216,7 +216,7 @@ class PineconeHook(BaseHook):
         index_name: str,
         dimension: int,
         spec: ServerlessSpec | PodSpec,
-        metric: str | None = "cosine",
+        metric: str = "cosine",
         timeout: int | None = None,
     ) -> None:
         """
