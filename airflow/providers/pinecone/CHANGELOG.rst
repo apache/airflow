@@ -23,6 +23,10 @@ Changelog
 2.0.0
 .....
 
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
@@ -49,6 +53,20 @@ Breaking changes
 
 * ``PineconeHook.create_index`` is updated to accept a ``ServerlessSpec`` or ``PodSpec`` instead of directly accepting index related configurations
 * To initialize ``PineconeHook`` object, API key needs to be passed via argument or the connection.
+
+* ``Pinecone provider support for 'pinecone-client'>=3  (#37307)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+   * ``Add comment about versions updated by release manager (#37488)``
+   * ``D401 fixes in Pinecone provider (#37270)``
 
 1.1.2
 .....

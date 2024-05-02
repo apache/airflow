@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Increase length of pool name
+"""Increase length of pool name.
 
 Revision ID: b25a55525161
 Revises: bbf4a7ad0465
 Create Date: 2020-03-09 08:48:14.534700
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -38,13 +39,13 @@ airflow_version = "2.0.0"
 
 
 def upgrade():
-    """Increase column length of pool name from 50 to 256 characters"""
+    """Increase column length of pool name from 50 to 256 characters."""
     # use batch_alter_table to support SQLite workaround
     with op.batch_alter_table("slot_pool", table_args=sa.UniqueConstraint("pool")) as batch_op:
         batch_op.alter_column("pool", type_=sa.String(256, **COLLATION_ARGS))
 
 
 def downgrade():
-    """Revert Increased length of pool name from 256 to 50 characters"""
+    """Revert Increased length of pool name from 256 to 50 characters."""
     with op.batch_alter_table("slot_pool", table_args=sa.UniqueConstraint("pool")) as batch_op:
         batch_op.alter_column("pool", type_=sa.String(50))

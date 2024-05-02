@@ -22,13 +22,14 @@ Revises: 45ba3f1493b9
 Create Date: 2020-10-01 17:25:10.006322
 
 """
+
 from __future__ import annotations
 
 from flask_appbuilder import SQLA
 
 from airflow import settings
-from airflow.security import permissions
 from airflow.providers.fab.auth_manager.models import Action, Permission, Resource
+from airflow.security import permissions
 
 # revision identifiers, used by Alembic.
 revision = "849da589634d"

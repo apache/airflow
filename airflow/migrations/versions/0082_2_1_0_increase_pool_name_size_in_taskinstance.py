@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Increase maximum length of pool name in ``task_instance`` table to ``256`` characters
+"""Increase maximum length of pool name in ``task_instance`` table to ``256`` characters.
 
 Revision ID: 90d1635d7b86
 Revises: 2e42bb497a22
 Create Date: 2021-04-05 09:37:54.848731
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -36,13 +37,13 @@ airflow_version = "2.1.0"
 
 
 def upgrade():
-    """Apply Increase maximum length of pool name in ``task_instance`` table to ``256`` characters"""
+    """Apply Increase maximum length of pool name in ``task_instance`` table to ``256`` characters."""
     with op.batch_alter_table("task_instance") as batch_op:
         batch_op.alter_column("pool", type_=sa.String(256), nullable=False)
 
 
 def downgrade():
-    """Unapply Increase maximum length of pool name in ``task_instance`` table to ``256`` characters"""
+    """Unapply Increase maximum length of pool name in ``task_instance`` table to ``256`` characters."""
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
         with op.batch_alter_table("task_instance") as batch_op:
