@@ -33,6 +33,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence
 
 import kubernetes
+import tenacity
 from deprecated import deprecated
 from kubernetes.client import CoreV1Api, V1Pod, models as k8s
 from kubernetes.stream import stream
@@ -77,6 +78,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodNotFoundException,
     PodOperatorHookProtocol,
     PodPhase,
+    check_exception_is_kubernetes_api_unauthorized,
     container_is_succeeded,
     get_container_termination_message,
 )
@@ -618,9 +620,7 @@ class KubernetesPodOperator(BaseOperator):
             if not self.get_logs or (
                 self.container_logs is not True and self.base_container_name not in self.container_logs
             ):
-                self.pod_manager.await_container_completion(
-                    pod=self.pod, container_name=self.base_container_name
-                )
+                self.await_container_completion(pod=self.pod, container_name=self.base_container_name)
             if self.callbacks:
                 self.callbacks.on_pod_completion(
                     pod=self.find_pod(self.pod.metadata.namespace, context=context),
@@ -646,6 +646,28 @@ class KubernetesPodOperator(BaseOperator):
 
         if self.do_xcom_push:
             return result
+
+    @tenacity.retry(
+        stop=tenacity.stop_after_attempt(3),
+        wait=tenacity.wait_exponential(max=15),
+        retry=tenacity.retry_if_exception(lambda exc: check_exception_is_kubernetes_api_unauthorized(exc)),
+        reraise=True,
+    )
+    def await_container_completion(self, pod: k8s.V1Pod, container_name: str):
+        try:
+            self.pod_manager.await_container_completion(pod=pod, container_name=container_name)
+        except kubernetes.client.exceptions.ApiException as exc:
+            if exc.status and str(exc.status) == "401":
+                self.log.warning(
+                    "Failed to check container status due to permission error. Refreshing credentials and retrying."
+                )
+                self._refresh_cached_properties()
+            raise exc
+
+    def _refresh_cached_properties(self):
+        del self.hook
+        del self.client
+        del self.pod_manager
 
     def execute_async(self, context: Context):
         self.pod_request_obj = self.build_pod_request_obj(context)

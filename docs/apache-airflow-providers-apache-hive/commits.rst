@@ -35,14 +35,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.1.0
+.....
+
+Latest change: 2024-04-25
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+=================================================================================================  ===========  =======================================================================
+
 8.0.0
 .....
 
-Latest change: 2024-04-09
+Latest change: 2024-04-10
 
 =================================================================================================  ===========  =================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =================================================================================
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
 `a92c47b6fa <https://github.com/apache/airflow/commit/a92c47b6fa06ccd746fdae21919cfc3cab28fa57>`_  2024-04-09   ``Removing deprecated code in hive provider (#38859)``
 `6e0ac39764 <https://github.com/apache/airflow/commit/6e0ac3976491679ab99e116d41846f0c1261abaa>`_  2024-04-09   ``Setting use_beeline by default for hive cli connection (#38763)``
 `cec6d31a5a <https://github.com/apache/airflow/commit/cec6d31a5a1d7872ffc063207d57cda3168a756c>`_  2024-04-05   ``Fix TRY002 for apache hive provider (#38781)``
