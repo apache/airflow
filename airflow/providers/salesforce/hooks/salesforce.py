@@ -27,7 +27,7 @@ from __future__ import annotations
 import logging
 import time
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable, cast
 
 from simple_salesforce import Salesforce, api
 
@@ -36,6 +36,7 @@ from airflow.hooks.base import BaseHook
 if TYPE_CHECKING:
     import pandas as pd
     from requests import Session
+    from simple_salesforce.api import SFType
 
 log = logging.getLogger(__name__)
 
@@ -190,8 +191,9 @@ class SalesforceHook(BaseHook):
         :return: the description of the Salesforce object.
         """
         conn = self.get_conn()
+        sftype: SFType = cast("SFType", conn.__getattr__(obj))
 
-        return conn.__getattr__(obj).describe()
+        return sftype.describe()
 
     def get_available_fields(self, obj: str) -> list[str]:
         """

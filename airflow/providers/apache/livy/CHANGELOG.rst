@@ -28,6 +28,31 @@
 Changelog
 ---------
 
+3.8.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix bug in LivyOperator when its trigger times out (#38916)``
+* ``Fix 'polling_interval' parameter docs in LivyOperator (#38979)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+* ``Update docstring 'LivyOperator' retry_args and deferrable docs (#39266)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+
 3.7.3
 .....
 

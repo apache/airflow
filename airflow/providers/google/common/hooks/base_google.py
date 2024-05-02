@@ -114,6 +114,19 @@ def is_operation_in_progress_exception(exception: Exception) -> bool:
     return False
 
 
+def is_refresh_credentials_exception(exception: Exception) -> bool:
+    """
+    Handle refresh credentials exceptions.
+
+    Some calls return 502 (server error) in case a new token cannot be obtained.
+
+    * Google BigQuery
+    """
+    if isinstance(exception, RefreshError):
+        return "Unable to acquire impersonated credentials" in str(exception)
+    return False
+
+
 class retry_if_temporary_quota(tenacity.retry_if_exception):
     """Retries if there was an exception for exceeding the temporary quote limit."""
 
@@ -122,10 +135,17 @@ class retry_if_temporary_quota(tenacity.retry_if_exception):
 
 
 class retry_if_operation_in_progress(tenacity.retry_if_exception):
-    """Retries if there was an exception for exceeding the temporary quote limit."""
+    """Retries if there was an exception in case of operation in progress."""
 
     def __init__(self):
         super().__init__(is_operation_in_progress_exception)
+
+
+class retry_if_temporary_refresh_credentials(tenacity.retry_if_exception):
+    """Retries if there was an exception for refreshing credentials."""
+
+    def __init__(self):
+        super().__init__(is_refresh_credentials_exception)
 
 
 # A fake project_id to use in functions decorated by fallback_to_default_project_id
@@ -364,14 +384,14 @@ class GoogleBaseHook(BaseHook):
         return hasattr(self, "extras") and get_field(self.extras, f) or default
 
     @property
-    def project_id(self) -> str | None:
+    def project_id(self) -> str:
         """
         Returns project id.
 
         :return: id of the project
         """
         _, project_id = self.get_credentials_and_project_id()
-        return project_id
+        return project_id or PROVIDE_PROJECT_ID
 
     @property
     def num_retries(self) -> int:
@@ -426,7 +446,7 @@ class GoogleBaseHook(BaseHook):
     def quota_retry(*args, **kwargs) -> Callable:
         """Provide a mechanism to repeat requests in response to exceeding a temporary quota limit."""
 
-        def decorator(fun: Callable):
+        def decorator(func: Callable):
             default_kwargs = {
                 "wait": tenacity.wait_exponential(multiplier=1, max=100),
                 "retry": retry_if_temporary_quota(),
@@ -434,7 +454,7 @@ class GoogleBaseHook(BaseHook):
                 "after": tenacity.after_log(log, logging.DEBUG),
             }
             default_kwargs.update(**kwargs)
-            return tenacity.retry(*args, **default_kwargs)(fun)
+            return tenacity.retry(*args, **default_kwargs)(func)
 
         return decorator
 
@@ -442,7 +462,7 @@ class GoogleBaseHook(BaseHook):
     def operation_in_progress_retry(*args, **kwargs) -> Callable[[T], T]:
         """Provide a mechanism to repeat requests in response to operation in progress (HTTP 409) limit."""
 
-        def decorator(fun: T):
+        def decorator(func: T):
             default_kwargs = {
                 "wait": tenacity.wait_exponential(multiplier=1, max=300),
                 "retry": retry_if_operation_in_progress(),
@@ -450,7 +470,25 @@ class GoogleBaseHook(BaseHook):
                 "after": tenacity.after_log(log, logging.DEBUG),
             }
             default_kwargs.update(**kwargs)
-            return cast(T, tenacity.retry(*args, **default_kwargs)(fun))
+            return cast(T, tenacity.retry(*args, **default_kwargs)(func))
+
+        return decorator
+
+    @staticmethod
+    def refresh_credentials_retry(*args, **kwargs) -> Callable[[T], T]:
+        """Provide a mechanism to repeat requests in response to a temporary refresh credential issue."""
+
+        def decorator(func: T):
+            default_kwargs = {
+                "wait": tenacity.wait_exponential(multiplier=1, max=5),
+                "stop": tenacity.stop_after_attempt(3),
+                "retry": retry_if_temporary_refresh_credentials(),
+                "reraise": True,
+                "before": tenacity.before_log(log, logging.DEBUG),
+                "after": tenacity.after_log(log, logging.DEBUG),
+            }
+            default_kwargs.update(**kwargs)
+            return cast(T, tenacity.retry(*args, **default_kwargs)(func))
 
         return decorator
 

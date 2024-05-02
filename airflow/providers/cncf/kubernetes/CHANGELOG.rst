@@ -27,6 +27,42 @@
 Changelog
 ---------
 
+8.2.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+
+Features
+~~~~~~~~
+
+* ``Add missing informative logs in KPO trigger until container has not finished (#37546)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fixes templated env vars for k8s pod operator (#39139)``
+* ``Fix SparkKubernetesOperator when using initContainers (#38119)``
+* ``Refresh properties on KubernetesPodOperator when k8s fails due to token expiration (#39325)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+* ``Remove unnecessary validation from cncf provider. (#39238)``
+* ``Moves airflow import in deprecated pod_generator to local (#39062)``
+* ``KPO xcom sidecar PodDefault usage (#38951)``
+
+8.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Avoid logging empty line KPO (#38247)``
+
 8.1.0
 .....
 

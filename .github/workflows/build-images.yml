@@ -91,8 +91,25 @@ jobs:
       - name: Discover PR merge commit
         id: discover-pr-merge-commit
         run: |
+          # Sometimes target-commit-sha cannot be
           TARGET_COMMIT_SHA="$(gh api '${{ github.event.pull_request.url }}' --jq .merge_commit_sha)"
-          echo "TARGET_COMMIT_SHA=$TARGET_COMMIT_SHA" >> ${GITHUB_ENV}
+          if [[ ${TARGET_COMMIT_SHA} == "" ]]; then
+            # Sometimes retrieving the merge commit SHA from PR fails. We retry it once. Otherwise we
+            # fall-back to github.event.pull_request.head.sha
+            echo
+            echo "Could not retrieve merge commit SHA from PR, waiting for 3 seconds and retrying."
+            echo
+            sleep 3
+            TARGET_COMMIT_SHA="$(gh api '${{ github.event.pull_request.url }}' --jq .merge_commit_sha)"
+            if [[ ${TARGET_COMMIT_SHA} == "" ]]; then
+              echo
+              echo "Could not retrieve merge commit SHA from PR, falling back to PR head SHA."
+              echo
+              TARGET_COMMIT_SHA="${{ github.event.pull_request.head.sha }}"
+            fi
+          fi
+          echo "TARGET_COMMIT_SHA=${TARGET_COMMIT_SHA}"
+          echo "TARGET_COMMIT_SHA=${TARGET_COMMIT_SHA}" >> ${GITHUB_ENV}
           echo "target-commit-sha=${TARGET_COMMIT_SHA}" >> ${GITHUB_OUTPUT}
         if: github.event_name == 'pull_request_target'
       # The labels in the event aren't updated when re-triggering the job, So lets hit the API to get

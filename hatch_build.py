@@ -75,6 +75,9 @@ CORE_EXTRAS: dict[str, list[str]] = {
         # Cgroupspy 0.2.2 added Python 3.10 compatibility
         "cgroupspy>=0.2.2",
     ],
+    "cloudpickle": [
+        "cloudpickle",
+    ],
     "deprecated-api": [
         "requests>=2.27.0,<3",
     ],
@@ -140,7 +143,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "statsd>=3.3.0",
     ],
     "uv": [
-        "uv>=0.1.29",
+        "uv>=0.1.32",
     ],
     "virtualenv": [
         "virtualenv",
@@ -255,6 +258,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "beautifulsoup4>=4.7.1",
         # Coverage 7.4.0 added experimental support for Python 3.12 PEP669 which we use in Airflow
         "coverage>=7.4.0",
+        "jmespath",
         "pytest-asyncio>=0.23.3",
         "pytest-cov>=4.1.0",
         "pytest-custom-exit-code>=0.3.0",

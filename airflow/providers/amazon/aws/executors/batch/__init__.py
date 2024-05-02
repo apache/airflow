@@ -14,3 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations  # Added by precommit hooks
+
+__all__ = ["AwsBatchExecutor"]
+
+from airflow.providers.amazon.aws.executors.batch.batch_executor import AwsBatchExecutor

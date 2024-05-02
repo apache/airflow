@@ -62,7 +62,12 @@ def custom_task_log_handler_config():
 def task_instance():
     dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
     task = EmptyOperator(task_id=TASK_ID, dag=dag)
-    dagrun = dag.create_dagrun(DagRunState.RUNNING, execution_date=DEFAULT_DATE, run_type=DagRunType.MANUAL)
+    dagrun = dag.create_dagrun(
+        DagRunState.RUNNING,
+        execution_date=DEFAULT_DATE,
+        run_type=DagRunType.MANUAL,
+        data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
+    )
     ti = TaskInstance(task=task, run_id=dagrun.run_id)
     ti.log.disabled = False
     yield ti

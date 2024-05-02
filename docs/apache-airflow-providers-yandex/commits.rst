@@ -37,14 +37,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-3.9.1
-.....
+3.11.0
+......
 
-Latest change: 2024-03-28
+Latest change: 2024-04-25
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+=================================================================================================  ===========  =======================================================================
+
+3.10.0
+......
+
+Latest change: 2024-04-13
 
 =================================================================================================  ===========  ==================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================
+`f9dcc82fb6 <https://github.com/apache/airflow/commit/f9dcc82fb690777e0cb4951f5ae5a4bde1e15c54>`_  2024-04-13   ``Prepare docs 1st wave (RC2) April 2024 (#38995)``
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
 `a9a6976dd2 <https://github.com/apache/airflow/commit/a9a6976dd234ff84af7db4253fe700b9ccc6aa4a>`_  2024-03-28   ``docs: yandex provider grammatical improvements (#38589)``
 `30817a5c6d <https://github.com/apache/airflow/commit/30817a5c6df1be3ec080ff1c542899092679768f>`_  2024-03-22   ``support iam token from metadata, simplify code (#38411)``
 `390bec1c82 <https://github.com/apache/airflow/commit/390bec1c82f6a6ac0efdc51a1355b5aae79516cb>`_  2024-03-20   ``Add Yandex Query support from Yandex.Cloud (#37458)``

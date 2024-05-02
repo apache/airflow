@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``max_active_runs`` column to ``dag_model`` table
+"""Add ``max_active_runs`` column to ``dag_model`` table.
 
 Revision ID: 092435bf5d12
 Revises: 97cdd93827b8
 Create Date: 2021-09-06 21:29:24.728923
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -37,7 +38,7 @@ airflow_version = "2.1.4"
 
 
 def upgrade():
-    """Apply Add ``max_active_runs`` column to ``dag_model`` table"""
+    """Apply Add ``max_active_runs`` column to ``dag_model`` table."""
     op.add_column("dag", sa.Column("max_active_runs", sa.Integer(), nullable=True))
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
         # Add index to dag_run.dag_id and also add index to dag_run.state where state==running
@@ -52,7 +53,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Add ``max_active_runs`` column to ``dag_model`` table"""
+    """Unapply Add ``max_active_runs`` column to ``dag_model`` table."""
     with op.batch_alter_table("dag") as batch_op:
         batch_op.drop_column("max_active_runs")
     with op.batch_alter_table("dag_run", schema=None) as batch_op:

@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Rename ``last_scheduler_run`` column in ``DAG`` table to ``last_parsed_time``
+"""Rename ``last_scheduler_run`` column in ``DAG`` table to ``last_parsed_time``.
 
 Revision ID: 2e42bb497a22
 Revises: 8646922c8a04
 Create Date: 2021-03-04 19:50:38.880942
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -37,7 +38,7 @@ airflow_version = "2.0.2"
 
 
 def upgrade():
-    """Apply Rename ``last_scheduler_run`` column in ``DAG`` table to ``last_parsed_time``"""
+    """Apply Rename ``last_scheduler_run`` column in ``DAG`` table to ``last_parsed_time``."""
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
         with op.batch_alter_table("dag") as batch_op:
@@ -52,7 +53,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Rename ``last_scheduler_run`` column in ``DAG`` table to ``last_parsed_time``"""
+    """Unapply Rename ``last_scheduler_run`` column in ``DAG`` table to ``last_parsed_time``."""
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
         with op.batch_alter_table("dag") as batch_op:

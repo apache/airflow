@@ -39,6 +39,9 @@
         {{ url_for(endpoint, dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}
       {%- endif -%}
     {% endmacro -%}
+    <li><a href="{{ url_for('Airflow.grid', dag_id=dag.dag_id, dag_run_id=dag_run_id ,task_id=task_id, map_index=map_index) }}">
+        <span class="material-icons" aria-hidden="true">grid_on</span>
+      Grid</a></li>
     <li><a href="{{ ti_url('Airflow.task') }}">
         <span class="material-icons" aria-hidden="true">details</span>
       Task Instance Details</a></li>

@@ -25,6 +25,33 @@
 Changelog
 ---------
 
+1.13.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+
+
+Features
+~~~~~~~~
+
+* ``Add 'sqlalchemy_url' property to 'DbApiHook' class (#38871)``
+* ``Always use the executemany method when inserting rows in DbApiHook as it's way much faster (#38715)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'DbApiHook.insert_rows' when 'rows' is a generator (#38972)``
+* ``Fix 'update-common-sql-api-stubs' pre-commit check (#38915)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+* ``openlineage, snowflake: do not run external queries for Snowflake (#39113)``
+
 1.12.0
 ......
 
