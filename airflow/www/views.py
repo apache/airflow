@@ -1493,7 +1493,7 @@ class Airflow(AirflowBaseView):
         form = DateTimeForm(data={"execution_date": dttm})
         root = request.args.get("root", "")
         map_index = request.args.get("map_index", -1, type=int)
-        logger.info("Retrieving rendered templates.")
+        logger.info("Retrieving rendered k8s.")
 
         dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
         task = dag.get_task(task_id)
@@ -1537,6 +1537,48 @@ class Airflow(AirflowBaseView):
             root=root,
             title=title,
         )
+
+    @expose("/object/rendered-k8s")
+    @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
+    @provide_session
+    def rendered_k8s_data(self, *, session: Session = NEW_SESSION):
+        """Get rendered k8s yaml."""
+        if not settings.IS_K8S_OR_K8SCELERY_EXECUTOR:
+            return {"error": "Not a k8s or k8s_celery executor"}, 404
+        # This part is only used for k8s executor so providers.cncf.kubernetes must be installed
+        # with the get_rendered_k8s_spec method
+        from airflow.providers.cncf.kubernetes.template_rendering import get_rendered_k8s_spec
+
+        dag_id = request.args.get("dag_id")
+        task_id = request.args.get("task_id")
+        if task_id is None:
+            return {"error": "Task id not passed in the request"}, 404
+        run_id = request.args.get("run_id")
+        map_index = request.args.get("map_index", -1, type=int)
+        logger.info("Retrieving rendered k8s data.")
+
+        dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
+        task = dag.get_task(task_id)
+        dag_run = dag.get_dagrun(run_id=run_id, session=session)
+        ti = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index, session=session)
+
+        if not ti:
+            return {"error": f"can't find task instance {task.task_id}"}, 404
+        pod_spec = None
+        if not isinstance(ti, TaskInstance):
+            return {"error": f"{task.task_id} is not a task instance"}, 500
+        try:
+            pod_spec = get_rendered_k8s_spec(ti, session=session)
+        except AirflowException as e:
+            if not e.__cause__:
+                return {"error": f"Error rendering Kubernetes POD Spec: {e}"}, 500
+            else:
+                tmp = Markup("Error rendering Kubernetes POD Spec: {0}<br><br>Original error: {0.__cause__}")
+                return {"error": tmp.format(e)}, 500
+        except Exception as e:
+            return {"error": f"Error rendering Kubernetes Pod Spec: {e}"}, 500
+
+        return pod_spec
 
     @expose("/get_logs_with_metadata")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
