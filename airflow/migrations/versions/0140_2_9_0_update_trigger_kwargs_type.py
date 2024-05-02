@@ -87,4 +87,6 @@ def downgrade():
             session.close()
 
     with op.batch_alter_table("trigger") as batch_op:
-        batch_op.alter_column("kwargs", type_=ExtendedJSON(), postgresql_using="kwargs::json")
+        batch_op.alter_column(
+            "kwargs", type_=ExtendedJSON(), postgresql_using="kwargs::json", existing_nullable=False
+        )
