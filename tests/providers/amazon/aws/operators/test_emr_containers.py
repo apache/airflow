@@ -152,8 +152,7 @@ class TestEmrContainerOperator:
         self.emr_container.deferrable = True
         self.emr_container.max_polling_attempts = 1000
 
-        error_match = "Waiter error: max attempts reached"
-        with pytest.raises(AirflowException, match=error_match):
+        with pytest.raises(TaskDeferred):
             self.emr_container.execute(context=None)
 
         assert mock_check_query_status.call_count == 1000

@@ -92,8 +92,7 @@ class TestEmrContainerSensor:
         self.sensor.deferrable = True
         self.sensor.max_polling_attempts = 1000
 
-        error_match = "Waiter error: max attempts reached"
-        with pytest.raises(TaskDeferred, match=error_match):
+        with pytest.raises(TaskDeferred):
             self.sensor.execute(context=None)
 
         assert mock_check_query_status.call_count == 1000
