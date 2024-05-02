@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-04-30T08:11:04.508270
+# This constraints file was automatically generated on 2024-05-02T09:25:25.441993
 # via "eager-upgrade" mechanism of PIP. For the "v2-9-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -73,7 +73,7 @@ annotated-types==0.6.0
 ansicolors==1.1.8
 anyascii==0.3.2
 anyio==4.3.0
-apache-beam==2.55.1
+apache-beam==2.56.0
 apispec==6.6.1
 apprise==1.7.6
 argcomplete==3.3.0
@@ -132,7 +132,7 @@ celery==5.4.0
 certifi==2024.2.2
 cffi==1.16.0
 cfgv==3.4.0
-cfn-lint==0.86.4
+cfn-lint==0.87.0
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.3.2
@@ -163,7 +163,7 @@ db-dtypes==1.2.0
 debugpy==1.8.1
 decorator==5.1.1
 defusedxml==0.7.1
-deltalake==0.17.2
+deltalake==0.17.3
 dill==0.3.1.1
 distlib==0.3.8
 distro==1.9.0
@@ -202,7 +202,7 @@ gevent==24.2.1
 gitdb==4.0.11
 google-ads==24.0.0
 google-analytics-admin==0.22.7
-google-api-core==2.18.0
+google-api-core==2.19.0
 google-api-python-client==2.127.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.0
@@ -237,7 +237,7 @@ google-cloud-redis==2.15.3
 google-cloud-resource-manager==1.12.3
 google-cloud-run==0.10.5
 google-cloud-secret-manager==2.20.0
-google-cloud-spanner==3.45.0
+google-cloud-spanner==3.46.0
 google-cloud-speech==2.26.0
 google-cloud-storage-transfer==1.11.3
 google-cloud-storage==2.16.0
@@ -248,7 +248,7 @@ google-cloud-videointelligence==2.13.3
 google-cloud-vision==3.7.2
 google-cloud-workflows==1.14.3
 google-crc32c==1.5.0
-google-re2==1.1
+google-re2==1.1.20240501
 google-resumable-media==2.7.0
 googleapis-common-protos==1.63.0
 graphql-core==3.2.3
@@ -259,13 +259,13 @@ grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
 grpcio-status==1.62.2
 grpcio-tools==1.62.2
-grpcio==1.62.2
+grpcio==1.63.0
 gssapi==1.8.3
 gunicorn==22.0.0
 h11==0.14.0
 h2==4.1.0
-hatch==1.9.7
-hatchling==1.21.1
+hatch==1.10.0
+hatchling==1.24.2
 hdfs==2.7.3
 hmsclient==0.1.1
 hpack==4.0.0
@@ -309,7 +309,7 @@ jsonpickle==3.0.4
 jsonpointer==2.4
 jsonschema-path==0.3.2
 jsonschema-specifications==2023.12.1
-jsonschema==4.21.1
+jsonschema==4.22.0
 junit-xml==1.9
 jupyter_client==8.6.1
 jupyter_core==5.7.2
@@ -331,7 +331,7 @@ lz4==4.3.3
 markdown-it-py==3.0.0
 marshmallow-oneofschema==3.1.1
 marshmallow-sqlalchemy==0.28.2
-marshmallow==3.21.1
+marshmallow==3.21.2
 matplotlib-inline==0.1.7
 mdit-py-plugins==0.4.0
 mdurl==0.1.2
@@ -353,7 +353,7 @@ mypy-boto3-redshift-data==1.34.0
 mypy-boto3-s3==1.34.91
 mypy-extensions==1.0.0
 mypy==1.9.0
-mysql-connector-python==8.3.0
+mysql-connector-python==8.4.0
 mysqlclient==2.2.4
 nbclient==0.10.0
 nbformat==5.10.4
@@ -365,7 +365,7 @@ nodeenv==1.8.0
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.24.0
+openai==1.25.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.13.1
@@ -385,7 +385,7 @@ opentelemetry-semantic-conventions==0.45b0
 opsgenie-sdk==2.1.5
 oracledb==2.1.2
 ordered-set==4.1.0
-orjson==3.10.1
+orjson==3.10.2
 oss2==2.18.5
 packaging==24.0
 pandas-gbq==0.22.0
@@ -442,10 +442,10 @@ pydruid==0.6.8
 pyenchant==3.2.2
 pyexasol==0.25.2
 pygraphviz==1.11
-pyiceberg==0.6.0
+pyiceberg==0.6.1
 pyjsparser==2.7.1
 pykerberos==1.2.4
-pymongo==4.7.0
+pymongo==4.7.1
 pymssql==2.3.0
 pyodbc==5.1.0
 pyparsing==3.1.2
@@ -475,7 +475,7 @@ python-telegram-bot==20.2
 python3-saml==1.16.0
 pytz==2024.1
 pywinrm==0.4.3
-pyzmq==26.0.2
+pyzmq==26.0.3
 qdrant-client==1.9.0
 reactivex==4.0.4
 readme_renderer==43.0
@@ -555,7 +555,7 @@ sympy==1.12
 tableauserverclient==0.25
 tabulate==0.9.0
 tenacity==8.2.3
-teradatasql==20.0.0.11
+teradatasql==20.0.0.12
 teradatasqlalchemy==20.0.0.0
 termcolor==2.4.0
 text-unidecode==1.3
@@ -608,7 +608,7 @@ uv==0.1.35
 validators==0.28.1
 vertica-python==1.3.8
 vine==5.1.0
-virtualenv==20.25.3
+virtualenv==20.26.1
 watchtower==3.2.0
 wcwidth==0.2.13
 weaviate-client==3.26.2
@@ -622,7 +622,7 @@ yandex-query-client==0.1.3
 yandexcloud==0.271.0
 yarl==1.9.4
 zeep==4.2.1
-zenpy==2.0.47
+zenpy==2.0.48
 zipp==3.18.1
 zope.event==5.0
 zope.interface==6.3

@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-04-30T08:11:17.292754
+# This constraints file was automatically generated on 2024-05-02T09:25:38.499639
 # via "eager-upgrade" mechanism of PIP. For the "v2-9-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -79,11 +79,11 @@ filelock==3.14.0
 frozenlist==1.4.1
 fsspec==2024.3.1
 gevent==24.2.1
-google-re2==1.1
+google-re2==1.1.20240501
 googleapis-common-protos==1.63.0
 graphviz==0.20.3
 greenlet==3.0.3
-grpcio==1.62.2
+grpcio==1.63.0
 gssapi==1.8.3
 gunicorn==22.0.0
 h11==0.14.0
@@ -98,7 +98,7 @@ isodate==0.6.1
 itsdangerous==2.2.0
 jmespath==1.0.1
 jsonschema-specifications==2023.12.1
-jsonschema==4.21.1
+jsonschema==4.22.0
 krb5==0.5.1
 lazy-object-proxy==1.10.0
 ldap3==2.9.1
@@ -109,7 +109,7 @@ lxml==5.2.1
 markdown-it-py==3.0.0
 marshmallow-oneofschema==3.1.1
 marshmallow-sqlalchemy==0.28.2
-marshmallow==3.21.1
+marshmallow==3.21.2
 mdit-py-plugins==0.4.0
 mdurl==0.1.2
 methodtools==0.4.7
@@ -150,7 +150,7 @@ python-nvd3==0.16.0
 python-slugify==8.0.4
 python3-saml==1.16.0
 pytz==2024.1
-referencing==0.35.0
+referencing==0.35.1
 requests-kerberos==0.14.0
 requests==2.31.0
 rfc3339-validator==0.1.4
