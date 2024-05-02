@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``conf`` column in ``dag_run`` table
+"""Add ``conf`` column in ``dag_run`` table.
 
 Revision ID: 40e67319e3a9
 Revises: 2e541a1dcfed
 Create Date: 2015-10-29 08:36:31.726728
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa

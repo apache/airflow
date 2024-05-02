@@ -1,6 +1,0 @@
-Stronger validation for key parameter defaults in taskflow context variables
-
-As for the taskflow implementation in conjunction with context variable defaults invalid parameter orders can be
-generated, it is now not accepted anymore (and validated) that taskflow functions are defined with defaults
-other than ``None``. If you have done this before you most likely will see a broken DAG and a error message like
-``Error message: Context key parameter my_param can't have a default other than None``.

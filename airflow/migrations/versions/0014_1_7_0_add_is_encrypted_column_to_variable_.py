@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``is_encrypted`` column to variable table
+"""Add ``is_encrypted`` column to variable table.
 
 Revision ID: 1968acfc09e3
 Revises: bba5a7cfc896
 Create Date: 2016-02-02 17:20:55.692295
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa

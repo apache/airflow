@@ -79,7 +79,7 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
                 group_id = repr(self.tg_kwargs["group_id"])
             except KeyError:
                 group_id = f"at {hex(id(self))}"
-            warnings.warn(f"Partial task group {group_id} was never mapped!")
+            warnings.warn(f"Partial task group {group_id} was never mapped!", stacklevel=1)
 
     def __call__(self, *args: FParams.args, **kwargs: FParams.kwargs) -> DAGNode:
         """Instantiate the task group.

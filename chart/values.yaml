@@ -1050,6 +1050,7 @@ createUserJob:
   affinity: {}
   tolerations: []
   topologySpreadConstraints: []
+  priorityClassName: ~
   # In case you need to disable the helm hooks that create the jobs after install.
   # Disable this if you are using ArgoCD for example
   useHelmHooks: true
@@ -1149,6 +1150,7 @@ migrateDatabaseJob:
   affinity: {}
   tolerations: []
   topologySpreadConstraints: []
+  priorityClassName: ~
   # In case you need to disable the helm hooks that create the jobs after install.
   # Disable this if you are using ArgoCD for example
   useHelmHooks: true
@@ -2268,6 +2270,7 @@ cleanup:
   affinity: {}
   tolerations: []
   topologySpreadConstraints: []
+  priorityClassName: ~
 
   podAnnotations: {}
 

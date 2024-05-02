@@ -35,14 +35,34 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.4.0
+.....
+
+Latest change: 2024-05-01
+
+=================================================================================================  ===========  ==================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================================
+`42dbccaac2 <https://github.com/apache/airflow/commit/42dbccaac26671dc2ec7891da9a077a6257bd933>`_  2024-05-01   ``[FEAT] raise exception with main notebook error in DatabricksRunNowDeferrableOperator (#39110)``
+`7683344c9c <https://github.com/apache/airflow/commit/7683344c9cb4750d5d3eaabee74893a902d849dc>`_  2024-04-26   ``Add 'DatabricksNotebookOperator' (#39178)``
+`ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+`04ac0c1b32 <https://github.com/apache/airflow/commit/04ac0c1b32d9138f8badc0dbd8f036a75c328d20>`_  2024-04-23   ``Add notification settings paramaters (#39175)``
+=================================================================================================  ===========  ==================================================================================================
+
 6.3.0
 .....
 
-Latest change: 2024-04-10
+Latest change: 2024-04-16
 
 =================================================================================================  ===========  ======================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================================
+`13df6569d6 <https://github.com/apache/airflow/commit/13df6569d6cc131fbf096cedd46dc32b0a6cf6b2>`_  2024-04-16   ``Prepare docs 1st wave (RC3) + ad hoc April 2024 (#38995) (#39054)``
+`66df296a6e <https://github.com/apache/airflow/commit/66df296a6e54d42909231230a1c76f260dd15d0b>`_  2024-04-16   ``[FIX] typo in parameter (#39050)``
+`629545bea2 <https://github.com/apache/airflow/commit/629545bea2afa55dbda9b839734b4851d9da566e>`_  2024-04-14   ``Adds job_id as path param in update permission (#38962)``
+`f9dcc82fb6 <https://github.com/apache/airflow/commit/f9dcc82fb690777e0cb4951f5ae5a4bde1e15c54>`_  2024-04-13   ``Prepare docs 1st wave (RC2) April 2024 (#38995)``
+`4a669fb1a9 <https://github.com/apache/airflow/commit/4a669fb1a9891809932a7fdba202c6baa369d537>`_  2024-04-11   ``Remove extra slash from update permission endpoint (#38918)``
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
 `6f21f7dc9b <https://github.com/apache/airflow/commit/6f21f7dc9b8e7d47480f59145d803b6907e3ec7d>`_  2024-04-10   ``Update ACL during job reset (#38741)``
 `4e6d3fa4cf <https://github.com/apache/airflow/commit/4e6d3fa4cf60f4b59325bbffa658ebb0b12aee87>`_  2024-04-08   ``Add cancel_previous_run to DatabricksRunNowOperator (#38702)``
 `39b684d91a <https://github.com/apache/airflow/commit/39b684d91aa67d15085d06b024452f792d3e0087>`_  2024-04-01   ``add repair_run support to DatabricksRunNowOperator in deferrable mode (#38619)``

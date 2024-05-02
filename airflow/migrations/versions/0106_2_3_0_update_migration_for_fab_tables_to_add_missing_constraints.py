@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Update migration for FAB tables to add missing constraints
+"""Update migration for FAB tables to add missing constraints.
 
 Revision ID: 909884dea523
 Revises: 48925b2719cb
 Create Date: 2022-03-21 08:33:01.635688
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -38,7 +39,7 @@ airflow_version = "2.3.0"
 
 
 def upgrade():
-    """Apply Update migration for FAB tables to add missing constraints"""
+    """Apply Update migration for FAB tables to add missing constraints."""
     conn = op.get_bind()
     if conn.dialect.name == "sqlite":
         op.execute("PRAGMA foreign_keys=OFF")
@@ -73,7 +74,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Update migration for FAB tables to add missing constraints"""
+    """Unapply Update migration for FAB tables to add missing constraints."""
     conn = op.get_bind()
     if conn.dialect.name == "sqlite":
         op.execute("PRAGMA foreign_keys=OFF")

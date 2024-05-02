@@ -16,13 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add index to task_instance table
+"""Add index to task_instance table.
 
 Revision ID: 937cbd173ca1
 Revises: c804e5c76e3e
 Create Date: 2023-05-03 11:31:32.527362
 
 """
+
 from __future__ import annotations
 
 from alembic import op
@@ -36,17 +37,18 @@ airflow_version = "2.7.0"
 
 
 def upgrade():
-    """Apply Add index to task_instance table"""
+    """Apply Add index to task_instance table."""
     # We don't add this index anymore because it's not useful.
     pass
 
 
 def downgrade():
-    """Unapply Add index to task_instance table"""
+    """Unapply Add index to task_instance table."""
     # At 2.8.1 we removed this index as it is not used, and changed this migration not to add it
     # So we use drop if exists (cus it might not be there)
-    import sqlalchemy
     from contextlib import suppress
+
+    import sqlalchemy
 
     with suppress(sqlalchemy.exc.DatabaseError):  # mysql does not support drop if exists index
         op.drop_index("ti_state_incl_start_date", table_name="task_instance", if_exists=True)

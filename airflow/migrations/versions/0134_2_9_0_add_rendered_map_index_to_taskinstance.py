@@ -24,9 +24,10 @@ Create Date: 2024-02-26 18:48:06.386776
 
 """
 
+from __future__ import annotations
+
 import sqlalchemy as sa
 from alembic import op
-
 
 # revision identifiers, used by Alembic.
 revision = "1fd565369930"
@@ -38,14 +39,11 @@ airflow_version = "2.9.0"
 
 def upgrade():
     """Apply Add rendered_map_index to TaskInstance."""
-    conn = op.get_bind()
-
     with op.batch_alter_table("task_instance") as batch_op:
         batch_op.add_column(sa.Column("rendered_map_index", sa.String(length=250), nullable=True))
 
 
 def downgrade():
     """Unapply Add rendered_map_index to TaskInstance."""
-    conn = op.get_bind()
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
         batch_op.drop_column("rendered_map_index")

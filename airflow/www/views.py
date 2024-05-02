@@ -71,7 +71,7 @@ from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from markupsafe import Markup, escape
 from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
-from sqlalchemy import and_, case, desc, func, inspect, select, union_all
+from sqlalchemy import and_, case, desc, func, inspect, or_, select, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from wtforms import BooleanField, validators
@@ -101,10 +101,11 @@ from airflow.hooks.base import BaseHook
 from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, Trigger, XCom, errors
+from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, Trigger, XCom
 from airflow.models.dag import get_dataset_triggered_next_run_info
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun, DagRunType
 from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.models.errors import ParseImportError
 from airflow.models.operator import needs_expansion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
@@ -632,7 +633,7 @@ def not_found(error):
     return (
         render_template(
             "airflow/error.html",
-            hostname=get_hostname() if conf.getboolean("webserver", "EXPOSE_HOSTNAME") else "redact",
+            hostname=get_hostname() if conf.getboolean("webserver", "EXPOSE_HOSTNAME") else "",
             status_code=404,
             error_message="Page cannot be found.",
         ),
@@ -645,7 +646,7 @@ def method_not_allowed(error):
     return (
         render_template(
             "airflow/error.html",
-            hostname=get_hostname() if conf.getboolean("webserver", "EXPOSE_HOSTNAME") else "redact",
+            hostname=get_hostname() if conf.getboolean("webserver", "EXPOSE_HOSTNAME") else "",
             status_code=405,
             error_message="Received an invalid request.",
         ),
@@ -659,11 +660,11 @@ def show_traceback(error):
     return (
         render_template(
             "airflow/traceback.html",
-            python_version=sys.version.split(" ")[0] if is_logged_in else "redact",
-            airflow_version=version if is_logged_in else "redact",
+            python_version=sys.version.split(" ")[0] if is_logged_in else "redacted",
+            airflow_version=version if is_logged_in else "redacted",
             hostname=get_hostname()
             if conf.getboolean("webserver", "EXPOSE_HOSTNAME") and is_logged_in
-            else "redact",
+            else "redacted",
             info=traceback.format_exc()
             if conf.getboolean("webserver", "EXPOSE_STACKTRACE") and is_logged_in
             else "Error! Please contact server admin.",
@@ -790,6 +791,9 @@ class Airflow(AirflowBaseView):
                 escaped_arg_search_query = arg_search_query.replace("_", r"\_")
                 dags_query = dags_query.where(
                     DagModel.dag_id.ilike("%" + escaped_arg_search_query + "%", escape="\\")
+                    | DagModel._dag_display_property_value.ilike(
+                        "%" + escaped_arg_search_query + "%", escape="\\"
+                    )
                     | DagModel.owners.ilike("%" + escaped_arg_search_query + "%", escape="\\")
                 )
 
@@ -842,9 +846,7 @@ class Airflow(AirflowBaseView):
 
             is_paused_count = dict(
                 session.execute(
-                    all_dags.with_only_columns([DagModel.is_paused, func.count()]).group_by(
-                        DagModel.is_paused
-                    )
+                    all_dags.with_only_columns(DagModel.is_paused, func.count()).group_by(DagModel.is_paused)
                 ).all()
             )
 
@@ -945,13 +947,13 @@ class Airflow(AirflowBaseView):
             owner_links_dict = DagOwnerAttributes.get_all(session)
 
             if get_auth_manager().is_authorized_view(access_view=AccessView.IMPORT_ERRORS):
-                import_errors = select(errors.ImportError).order_by(errors.ImportError.id)
+                import_errors = select(ParseImportError).order_by(ParseImportError.id)
 
                 can_read_all_dags = get_auth_manager().is_authorized_dag(method="GET")
                 if not can_read_all_dags:
                     # if the user doesn't have access to all DAGs, only display errors from visible DAGs
                     import_errors = import_errors.where(
-                        errors.ImportError.filename.in_(
+                        ParseImportError.filename.in_(
                             select(DagModel.fileloc).distinct().where(DagModel.dag_id.in_(filter_dag_ids))
                         )
                     )
@@ -1393,6 +1395,7 @@ class Airflow(AirflowBaseView):
                     show_trigger_form_if_no_params=conf.getboolean(
                         "webserver", "show_trigger_form_if_no_params"
                     ),
+                    dag_run_id=dag_run.run_id if dag_run else "",
                     html_dict=html_dict,
                     dag=dag,
                     task_id=task_id,
@@ -1458,6 +1461,7 @@ class Airflow(AirflowBaseView):
             "airflow/ti_code.html",
             show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             html_dict=html_dict,
+            dag_run_id=dag_run.run_id if dag_run else "",
             dag=dag,
             task_id=task_id,
             task_display_name=task.task_display_name,
@@ -1489,7 +1493,7 @@ class Airflow(AirflowBaseView):
         form = DateTimeForm(data={"execution_date": dttm})
         root = request.args.get("root", "")
         map_index = request.args.get("map_index", -1, type=int)
-        logger.info("Retrieving rendered templates.")
+        logger.info("Retrieving rendered k8s.")
 
         dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
         task = dag.get_task(task_id)
@@ -1522,6 +1526,7 @@ class Airflow(AirflowBaseView):
         return self.render_template(
             "airflow/ti_code.html",
             show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
+            dag_run_id=dag_run.run_id if dag_run else "",
             html_dict={"k8s": content},
             dag=dag,
             task_id=task_id,
@@ -1532,6 +1537,48 @@ class Airflow(AirflowBaseView):
             root=root,
             title=title,
         )
+
+    @expose("/object/rendered-k8s")
+    @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
+    @provide_session
+    def rendered_k8s_data(self, *, session: Session = NEW_SESSION):
+        """Get rendered k8s yaml."""
+        if not settings.IS_K8S_OR_K8SCELERY_EXECUTOR:
+            return {"error": "Not a k8s or k8s_celery executor"}, 404
+        # This part is only used for k8s executor so providers.cncf.kubernetes must be installed
+        # with the get_rendered_k8s_spec method
+        from airflow.providers.cncf.kubernetes.template_rendering import get_rendered_k8s_spec
+
+        dag_id = request.args.get("dag_id")
+        task_id = request.args.get("task_id")
+        if task_id is None:
+            return {"error": "Task id not passed in the request"}, 404
+        run_id = request.args.get("run_id")
+        map_index = request.args.get("map_index", -1, type=int)
+        logger.info("Retrieving rendered k8s data.")
+
+        dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
+        task = dag.get_task(task_id)
+        dag_run = dag.get_dagrun(run_id=run_id, session=session)
+        ti = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index, session=session)
+
+        if not ti:
+            return {"error": f"can't find task instance {task.task_id}"}, 404
+        pod_spec = None
+        if not isinstance(ti, TaskInstance):
+            return {"error": f"{task.task_id} is not a task instance"}, 500
+        try:
+            pod_spec = get_rendered_k8s_spec(ti, session=session)
+        except AirflowException as e:
+            if not e.__cause__:
+                return {"error": f"Error rendering Kubernetes POD Spec: {e}"}, 500
+            else:
+                tmp = Markup("Error rendering Kubernetes POD Spec: {0}<br><br>Original error: {0.__cause__}")
+                return {"error": tmp.format(e)}, 500
+        except Exception as e:
+            return {"error": f"Error rendering Kubernetes Pod Spec: {e}"}, 500
+
+        return pod_spec
 
     @expose("/get_logs_with_metadata")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
@@ -1648,6 +1695,7 @@ class Airflow(AirflowBaseView):
             show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             logs=logs,
             dag=dag_model,
+            dag_run_id=ti.run_id if ti else "",
             title="Log by attempts",
             dag_id=dag_id,
             task_id=task_id,
@@ -1804,6 +1852,7 @@ class Airflow(AirflowBaseView):
             show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             task_attrs=task_attrs,
             ti_attrs=ti_attrs,
+            dag_run_id=ti.run_id if ti else "",
             failed_dep_reasons=failed_dep_reasons or no_failed_deps_result,
             task_id=task_id,
             execution_date=execution_date,
@@ -1856,6 +1905,7 @@ class Airflow(AirflowBaseView):
             show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             attributes=attributes,
             task_id=task_id,
+            dag_run_id=ti.run_id if ti else "",
             task_display_name=ti.task_display_name,
             execution_date=execution_date,
             map_index=map_index,
@@ -3290,7 +3340,7 @@ class Airflow(AirflowBaseView):
             latest_run = dag_model.get_last_dagrun(session=session)
 
             events = [
-                dict(info)
+                dict(info._mapping)
                 for info in session.execute(
                     select(
                         DatasetModel.id,
@@ -3452,7 +3502,7 @@ class Airflow(AirflowBaseView):
             count_query = count_query.where(*filters)
 
             query = session.execute(query)
-            datasets = [dict(dataset) for dataset in query]
+            datasets = [dict(dataset._mapping) for dataset in query]
             data = {"datasets": datasets, "total_entries": session.scalar(count_query)}
 
             return (
@@ -5421,12 +5471,21 @@ class AutocompleteView(AirflowBaseView):
         dag_ids_query = select(
             sqla.literal("dag").label("type"),
             DagModel.dag_id.label("name"),
-        ).where(~DagModel.is_subdag, DagModel.is_active, DagModel.dag_id.ilike(f"%{query}%"))
+            DagModel._dag_display_property_value.label("dag_display_name"),
+        ).where(
+            ~DagModel.is_subdag,
+            DagModel.is_active,
+            or_(
+                DagModel.dag_id.ilike(f"%{query}%"),
+                DagModel._dag_display_property_value.ilike(f"%{query}%"),
+            ),
+        )
 
         owners_query = (
             select(
                 sqla.literal("owner").label("type"),
                 DagModel.owners.label("name"),
+                sqla.literal(None).label("dag_display_name"),
             )
             .distinct()
             .where(~DagModel.is_subdag, DagModel.is_active, DagModel.owners.ilike(f"%{query}%"))

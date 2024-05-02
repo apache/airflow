@@ -57,6 +57,7 @@ class ConnectionAccessor:
     def get(self, key: str, default_conn: Any = None) -> Any: ...
 
 class DatasetEventAccessor:
+    def __init__(self, *, extra: dict[str, Any]) -> None: ...
     extra: dict[str, Any]
 
 class DatasetEventAccessors(Mapping[str, DatasetEventAccessor]):

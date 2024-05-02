@@ -28,7 +28,7 @@ Airflow™ is tested with:
   * MySQL: 8.0, `Innovation <https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions>`_
   * SQLite: 3.15.0+
 
-* Kubernetes: 1.25, 1.26, 1.27, 1.28
+* Kubernetes: 1.26, 1.27, 1.28, 1.29
 
 The minimum memory required we recommend Airflow to run with is 4GB, but the actual requirements depend
 wildly on the deployment options you have

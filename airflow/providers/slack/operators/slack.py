@@ -226,7 +226,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
         filetype: str | None = None,
         content: str | None = None,
         title: str | None = None,
-        method_version: Literal["v1", "v2"] = "v1",
+        method_version: Literal["v1", "v2"] = "v2",
         channel: str | Sequence[str] | None | ArgNotSet = NOTSET,
         **kwargs,
     ) -> None:

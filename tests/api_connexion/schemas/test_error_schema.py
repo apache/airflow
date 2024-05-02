@@ -23,7 +23,7 @@ from airflow.api_connexion.schemas.error_schema import (
     import_error_collection_schema,
     import_error_schema,
 )
-from airflow.models.errors import ImportError
+from airflow.models.errors import ParseImportError
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from tests.test_utils.db import clear_db_import_errors
@@ -43,7 +43,7 @@ class TestErrorSchemaBase:
 class TestErrorSchema(TestErrorSchemaBase):
     @provide_session
     def test_serialize(self, session):
-        import_error = ImportError(
+        import_error = ParseImportError(
             filename="lorem.py",
             stacktrace="Lorem Ipsum",
             timestamp=timezone.parse(self.timestamp, timezone="UTC"),
@@ -64,7 +64,7 @@ class TestErrorCollectionSchema(TestErrorSchemaBase):
     @provide_session
     def test_serialize(self, session):
         import_error = [
-            ImportError(
+            ParseImportError(
                 filename="Lorem_ipsum.py",
                 stacktrace="Lorem ipsum",
                 timestamp=timezone.parse(self.timestamp, timezone="UTC"),
@@ -73,7 +73,7 @@ class TestErrorCollectionSchema(TestErrorSchemaBase):
         ]
         session.add_all(import_error)
         session.commit()
-        query = session.query(ImportError)
+        query = session.query(ParseImportError)
         query_list = query.all()
         serialized_data = import_error_collection_schema.dump(
             ImportErrorCollection(import_errors=query_list, total_entries=2)

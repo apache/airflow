@@ -27,8 +27,25 @@
 Changelog
 ---------
 
-3.9.1
-.....
+3.11.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+
+3.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Yandex Query support from Yandex.Cloud (#37458)``
 
 Misc
 ~~~~
@@ -38,8 +55,8 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
    * ``docs: yandex provider grammatical improvements (#38589)``
-   * ``Add Yandex Query support from Yandex.Cloud (#37458)``
    * ``Bump ruff to 0.3.3 (#38240)``
    * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
    * ``Add comment about versions updated by release manager (#37488)``

@@ -19,12 +19,14 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Any
 
 import sqlalchemy
 import teradatasql
 from teradatasql import TeradataConnection
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
@@ -58,6 +60,9 @@ class TeradataHook(DbApiHook):
 
     # Override if this db supports autocommit.
     supports_autocommit = True
+
+    # Override if this db supports executemany.
+    supports_executemany = True
 
     # Override this for hook to have a custom name in the UI selection
     conn_type = "teradata"
@@ -97,7 +102,9 @@ class TeradataHook(DbApiHook):
         target_fields: list[str] | None = None,
         commit_every: int = 5000,
     ):
-        """Insert bulk of records into Teradata SQL Database.
+        """Use :func:`insert_rows` instead, this is deprecated.
+
+        Insert bulk of records into Teradata SQL Database.
 
         This uses prepared statements via `executemany()`. For best performance,
         pass in `rows` as an iterator.
@@ -106,41 +113,20 @@ class TeradataHook(DbApiHook):
             specific database
         :param rows: the rows to insert into the table
         :param target_fields: the names of the columns to fill in the table, default None.
-            If None, each rows should have some order as table columns name
+            If None, each row should have some order as table columns name
         :param commit_every: the maximum number of rows to insert in one transaction
             Default 5000. Set greater than 0. Set 1 to insert each row in each transaction
         """
+        warnings.warn(
+            "bulk_insert_rows is deprecated. Please use the insert_rows method instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+
         if not rows:
             raise ValueError("parameter rows could not be None or empty iterable")
-        conn = self.get_conn()
-        if self.supports_autocommit:
-            self.set_autocommit(conn, False)
-        cursor = conn.cursor()
-        cursor.fast_executemany = True
-        values_base = target_fields if target_fields else rows[0]
-        prepared_stm = "INSERT INTO {tablename} {columns} VALUES ({values})".format(
-            tablename=table,
-            columns="({})".format(", ".join(target_fields)) if target_fields else "",
-            values=", ".join("?" for i in range(1, len(values_base) + 1)),
-        )
-        row_count = 0
-        # Chunk the rows
-        row_chunk = []
-        for row in rows:
-            row_chunk.append(row)
-            row_count += 1
-            if row_count % commit_every == 0:
-                cursor.executemany(prepared_stm, row_chunk)
-                conn.commit()  # type: ignore[attr-defined]
-                # Empty chunk
-                row_chunk = []
-        # Commit the leftover chunk
-        if len(row_chunk) > 0:
-            cursor.executemany(prepared_stm, row_chunk)
-            conn.commit()  # type: ignore[attr-defined]
-        self.log.info("[%s] inserted %s rows", table, row_count)
-        cursor.close()
-        conn.close()  # type: ignore[attr-defined]
+
+        self.insert_rows(table=table, rows=rows, target_fields=target_fields, commit_every=commit_every)
 
     def _get_conn_config_teradatasql(self) -> dict[str, Any]:
         """Return set of config params required for connecting to Teradata DB using teradatasql client."""

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Change value column type to longblob in xcom table for mysql
+"""Change value column type to longblob in xcom table for mysql.
 
 Revision ID: b4078ac230a1
 Revises: 8e1c784a4fc7
@@ -24,20 +24,22 @@ Create Date: 2024-03-22 14:06:51.185268
 
 """
 
+from __future__ import annotations
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.mysql import LONGBLOB
 
 # revision identifiers, used by Alembic.
-revision = 'b4078ac230a1'
-down_revision = '8e1c784a4fc7'
+revision = "b4078ac230a1"
+down_revision = "8e1c784a4fc7"
 branch_labels = None
 depends_on = None
-airflow_version = '2.9.0'
+airflow_version = "2.9.0"
 
 
 def upgrade():
-    """Apply Change value column type to longblob in xcom table for mysql"""
+    """Apply Change value column type to longblob in xcom table for mysql."""
     conn = op.get_bind()
     if conn.dialect.name == "mysql":
         with op.batch_alter_table("xcom", schema=None) as batch_op:
@@ -45,7 +47,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Change value column type to longblob in xcom table for mysql"""
+    """Unapply Change value column type to longblob in xcom table for mysql."""
     conn = op.get_bind()
     if conn.dialect.name == "mysql":
         with op.batch_alter_table("xcom", schema=None) as batch_op:

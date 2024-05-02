@@ -16,13 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""add dttm index on log table
+"""add dttm index on log table.
 
 Revision ID: 6abdffdd4815
 Revises: 290244fb8b83
 Create Date: 2023-01-13 13:57:14.412028
 
 """
+
 from __future__ import annotations
 
 from alembic import op
@@ -36,10 +37,10 @@ airflow_version = "2.6.0"
 
 
 def upgrade():
-    """Apply add dttm index on log table"""
+    """Apply add dttm index on log table."""
     op.create_index("idx_log_dttm", "log", ["dttm"], unique=False)
 
 
 def downgrade():
-    """Unapply add dttm index on log table"""
+    """Unapply add dttm index on log table."""
     op.drop_index("idx_log_dttm", table_name="log")

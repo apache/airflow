@@ -24,7 +24,13 @@ from typing import TYPE_CHECKING, Sequence
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url, gcs_object_is_directory
-from airflow.providers.microsoft.azure.hooks.fileshare import AzureFileShareHook
+
+try:
+    from airflow.providers.microsoft.azure.hooks.fileshare import AzureFileShareHook
+except ModuleNotFoundError as e:
+    from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+    raise AirflowOptionalProviderFeatureException(e)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

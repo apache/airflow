@@ -52,10 +52,30 @@ def test_shell_script_example(script_file):
     run_command(["bash", script_file])
 
 
-@pytest.mark.parametrize("dockerfile", glob.glob(f"{DOCKER_EXAMPLES_DIR}/**/Dockerfile", recursive=True))
-def test_dockerfile_example(dockerfile, tmp_path):
-    rel_dockerfile_path = Path(dockerfile).relative_to(DOCKER_EXAMPLES_DIR)
-    image_name = str(rel_dockerfile_path).lower().replace("/", "-")
+def docker_examples(directory: Path, xfails: list[str] | None = None):
+    xfails = xfails or []
+    result = []
+    for filepath in sorted(directory.rglob("**/Dockerfile")):
+        markers = []
+        rel_path = filepath.relative_to(directory).as_posix()
+        if rel_path in xfails:
+            markers.append(pytest.mark.xfail)
+        result.append(pytest.param(filepath, rel_path, marks=markers, id=rel_path))
+    return result
+
+
+@pytest.mark.parametrize(
+    "dockerfile, relative_path",
+    docker_examples(
+        DOCKER_EXAMPLES_DIR,
+        xfails=[
+            # FIXME https://github.com/apache/airflow/issues/38988
+            "extending/add-build-essential-extend/Dockerfile",
+        ],
+    ),
+)
+def test_dockerfile_example(dockerfile, relative_path, tmp_path):
+    image_name = relative_path.lower().replace("/", "-")
     content = Path(dockerfile).read_text()
     test_image = os.environ.get("TEST_IMAGE", get_latest_airflow_image())
 
