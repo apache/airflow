@@ -119,7 +119,7 @@ class CreatePodIndexOperator(BaseOperator):
         pod_type: str | None = None,
         metadata_config: dict | None = None,
         source_collection: str | None = None,
-        metric: str | None = None,
+        metric: str | None = "cosine",
         timeout: int | None = None,
         **kwargs: Any,
     ):
