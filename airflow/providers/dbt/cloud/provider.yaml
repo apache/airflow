@@ -57,6 +57,13 @@ dependencies:
   - asgiref
   - aiohttp>=3.9.2
 
+additional-extras:
+  # pip install apache-airflow-providers-dbt-cloud[openlineage]
+  - name: openlineage
+    description: Install compatible OpenLineage dependencies
+    dependencies:
+      - apache-airflow-providers-openlineage>=1.7.0
+
 integrations:
   - integration-name: dbt Cloud
     external-doc-url: https://docs.getdbt.com/docs/dbt-cloud/cloud-overview
