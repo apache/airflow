@@ -1133,7 +1133,7 @@
       "apache-airflow-providers-amazon",
       "apache-airflow-providers-common-sql>=1.3.1",
       "apache-airflow-providers-microsoft-azure",
-      "apache-airflow>=2.6.0",
+      "apache-airflow>=2.7.0",
       "teradatasql>=17.20.0.28",
       "teradatasqlalchemy>=17.20.0.0"
     ],
