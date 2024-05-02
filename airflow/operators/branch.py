@@ -44,9 +44,6 @@ class BranchMixIn(SkipMixin):
         self, ti: TaskInstance | TaskInstancePydantic, branches_to_execute: str | Iterable[str]
     ) -> Iterable[str]:
         """Expand any task group into its root task ids."""
-        if not (isinstance(branches_to_execute, Iterable) or isinstance(branches_to_execute, str)):
-            return branches_to_execute
-
         if TYPE_CHECKING:
             assert ti.task
 
@@ -55,7 +52,7 @@ class BranchMixIn(SkipMixin):
         if TYPE_CHECKING:
             assert dag
 
-        if isinstance(branches_to_execute, str):
+        if isinstance(branches_to_execute, str) or not isinstance(branches_to_execute, Iterable):
             branches_to_execute = [branches_to_execute]
 
         for branch in branches_to_execute:
