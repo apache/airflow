@@ -254,7 +254,7 @@ class TestDogStats:
         from datadog import DogStatsd
 
         with conf_vars(
-            {("metrics", "statsd_datadog_enabled"): "True", ("metrics", "use_pattern_match"): "True"}
+            {("metrics", "statsd_datadog_enabled"): "True", ("metrics", "metrics_use_pattern_match"): "True"}
         ):
             importlib.reload(airflow.stats)
             assert isinstance(airflow.stats.Stats.dogstatsd, DogStatsd)
@@ -269,7 +269,7 @@ class TestDogStats:
             {
                 ("metrics", "statsd_on"): "True",
                 ("metrics", "statsd_datadog_enabled"): "True",
-                ("metrics", "use_pattern_match"): "True",
+                ("metrics", "metrics_use_pattern_match"): "True",
             }
         ):
             importlib.reload(airflow.stats)
@@ -523,7 +523,7 @@ class TestCustomStatsName:
     @conf_vars(
         {
             ("metrics", "statsd_datadog_enabled"): "True",
-            ("metrics", "use_pattern_match"): "True",
+            ("metrics", "metrics_use_pattern_match"): "True",
             ("metrics", "stat_name_handler"): "tests.core.test_stats.always_invalid",
         }
     )
@@ -548,7 +548,7 @@ class TestCustomStatsName:
     @conf_vars(
         {
             ("metrics", "statsd_datadog_enabled"): "True",
-            ("metrics", "use_pattern_match"): "True",
+            ("metrics", "metrics_use_pattern_match"): "True",
             ("metrics", "stat_name_handler"): "tests.core.test_stats.always_valid",
         }
     )
