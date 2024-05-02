@@ -2835,6 +2835,9 @@ class Airflow(AirflowBaseView):
     @provide_session
     def grid(self, dag_id: str, session: Session = NEW_SESSION):
         """Get Dag's grid view."""
+        color_log_error_keywords = conf.get("logging", "color_log_error_keywords", fallback="")
+        color_log_warning_keywords = conf.get("logging", "color_log_warning_keywords", fallback="")
+
         dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
         dag_model = DagModel.get_dagmodel(dag_id, session=session)
         if not dag:
@@ -2892,6 +2895,8 @@ class Airflow(AirflowBaseView):
             ),
             included_events_raw=included_events_raw,
             excluded_events_raw=excluded_events_raw,
+            color_log_error_keywords=color_log_error_keywords,
+            color_log_warning_keywords=color_log_warning_keywords,
         )
 
     @expose("/calendar")

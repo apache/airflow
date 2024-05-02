@@ -16,20 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
-
-from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, BedrockHook, BedrockRuntimeHook
+from airflow.providers.amazon.aws.hooks.opensearch_serverless import OpenSearchServerlessHook
 
 
-class TestBedrockHooks:
-    @pytest.mark.parametrize(
-        "test_hook, service_name",
-        [
-            pytest.param(BedrockHook(), "bedrock", id="bedrock"),
-            pytest.param(BedrockRuntimeHook(), "bedrock-runtime", id="bedrock-runtime"),
-            pytest.param(BedrockAgentHook(), "bedrock-agent", id="bedrock-agent"),
-        ],
-    )
-    def test_bedrock_hooks(self, test_hook, service_name):
-        assert test_hook.conn is not None
-        assert test_hook.conn.meta.service_model.service_name == service_name
+class TestOpenSearchServerlessHook:
+    def test_opensearch_serverless_hook(self):
+        hook = OpenSearchServerlessHook()
+        service_name = "opensearchserverless"
+
+        assert hook.conn is not None
+        assert hook.conn.meta.service_model.service_name == service_name
