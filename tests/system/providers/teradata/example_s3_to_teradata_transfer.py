@@ -139,15 +139,15 @@ with DAG(
     )
     # [END s3_to_teradata_transfer_operator_howto_guide_drop_table_parquet]
     (
-        transfer_data_csv >>
-        transfer_data_json >>
-        transfer_data_parquet >>
-        read_data_table_csv >>
-        read_data_table_json >>
-        read_data_table_parquet >>
-        drop_table_csv >>
-        drop_table_json >>
-        drop_table_parquet
+        transfer_data_csv
+        >> transfer_data_json
+        >> transfer_data_parquet
+        >> read_data_table_csv
+        >> read_data_table_json
+        >> read_data_table_parquet
+        >> drop_table_csv
+        >> drop_table_json
+        >> drop_table_parquet
     )
     # [END s3_to_teradata_transfer_operator_howto_guide]
 
