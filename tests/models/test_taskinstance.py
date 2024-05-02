@@ -782,7 +782,11 @@ class TestTaskInstance:
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
         assert ti.try_number == 0
-        assert ti.try_number == 1
+
+        date1 = timezone.utcnow()
+        date2 = date1 + datetime.timedelta(minutes=1)
+        date3 = date2 + datetime.timedelta(minutes=1)
+        date4 = date3 + datetime.timedelta(minutes=1)
 
         def run_ti_and_assert(
             run_date,
@@ -794,30 +798,29 @@ class TestTaskInstance:
             expected_task_reschedule_count,
         ):
             with time_machine.travel(run_date, tick=False):
+                exc = None
                 try:
                     ti.run()
-                except AirflowException:
+                except AirflowException as e:
+                    exc = e
                     if not fail:
                         raise
+                if exc and not fail:
+                    raise RuntimeError("expected to fail")
             ti.refresh_from_db()
             assert ti.state == expected_state
             assert ti.try_number == expected_try_number
-            assert ti.try_number == expected_try_number + 1
             assert ti.start_date == expected_start_date
             assert ti.end_date == expected_end_date
             assert ti.duration == expected_duration
             assert len(task_reschedules_for_ti(ti)) == expected_task_reschedule_count
 
-        date1 = timezone.utcnow()
-        date2 = date1 + datetime.timedelta(minutes=1)
-        date3 = date2 + datetime.timedelta(minutes=1)
-        date4 = date3 + datetime.timedelta(minutes=1)
-
         # Run with multiple reschedules.
         # During reschedule the try number remains the same, but each reschedule is recorded.
         # The start date is expected to remain the initial date, hence the duration increases.
-        # When finished the try number is incremented and there is no reschedule expected
-        # for this try.
+        # When there's a new try (task run following something other than a reschedule), then
+        # the scheduler will increment the try_number. We do that inline here since
+        # we're not using the scheduler.
 
         done, fail = False, False
         run_ti_and_assert(date1, date1, date1, 0, State.UP_FOR_RESCHEDULE, 0, 1)
@@ -829,29 +832,37 @@ class TestTaskInstance:
         run_ti_and_assert(date3, date1, date3, 120, State.UP_FOR_RESCHEDULE, 0, 3)
 
         done, fail = True, False
-        run_ti_and_assert(date4, date1, date4, 180, State.SUCCESS, 1, 0)
+        run_ti_and_assert(date4, date1, date4, 180, State.SUCCESS, 0, 3)
 
         # Clear the task instance.
         dag.clear()
         ti.refresh_from_db()
         assert ti.state == State.NONE
-        assert ti.try_number == 1
+        assert ti.try_number == 0
 
-        # Run again after clearing with reschedules and a retry.
-        # The retry increments the try number, and for that try no reschedule is expected.
+        # We will run it again with reschedules and a retry.
+
+        # We increment the try number because that's what the scheduler would do
+        with create_session() as session:
+            session.get(TaskInstance, ti.key.primary).try_number += 1
+
         # After the retry the start date is reset, hence the duration is also reset.
 
         done, fail = False, False
         run_ti_and_assert(date1, date1, date1, 0, State.UP_FOR_RESCHEDULE, 1, 1)
 
         done, fail = False, True
-        run_ti_and_assert(date2, date1, date2, 60, State.UP_FOR_RETRY, 2, 0)
+        run_ti_and_assert(date2, date1, date2, 60, State.UP_FOR_RETRY, 1, 1)
+
+        # scheduler would create a new try here
+        with create_session() as session:
+            session.get(TaskInstance, ti.key.primary).try_number += 1
 
         done, fail = False, False
         run_ti_and_assert(date3, date3, date3, 0, State.UP_FOR_RESCHEDULE, 2, 1)
 
         done, fail = True, False
-        run_ti_and_assert(date4, date3, date4, 60, State.SUCCESS, 3, 0)
+        run_ti_and_assert(date4, date3, date4, 60, State.SUCCESS, 2, 1)
 
     def test_mapped_reschedule_handling(self, dag_maker, task_reschedules_for_ti):
         """
@@ -1044,7 +1055,6 @@ class TestTaskInstance:
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
         assert ti.try_number == 0
-        assert ti.try_number == 1
 
         def run_ti_and_assert(
             run_date,
@@ -1064,7 +1074,6 @@ class TestTaskInstance:
             ti.refresh_from_db()
             assert ti.state == expected_state
             assert ti.try_number == expected_try_number
-            assert ti.try_number == expected_try_number + 1
             assert ti.start_date == expected_start_date
             assert ti.end_date == expected_end_date
             assert ti.duration == expected_duration
@@ -1806,7 +1815,7 @@ class TestTaskInstance:
         # State should be running, and try_number column should be incremented
         assert ti_from_deserialized_task.external_executor_id == expected_external_executor_id
         assert ti_from_deserialized_task.state == State.RUNNING
-        assert ti_from_deserialized_task.try_number == 1
+        assert ti_from_deserialized_task.try_number == 0
 
     def test_check_and_change_state_before_execution_provided_id_overrides(self, create_task_instance):
         expected_external_executor_id = "banana"
@@ -1827,7 +1836,7 @@ class TestTaskInstance:
         # State should be running, and try_number column should be incremented
         assert ti_from_deserialized_task.external_executor_id == expected_external_executor_id
         assert ti_from_deserialized_task.state == State.RUNNING
-        assert ti_from_deserialized_task.try_number == 1
+        assert ti_from_deserialized_task.try_number == 0
 
     def test_check_and_change_state_before_execution_with_exec_id(self, create_task_instance):
         expected_external_executor_id = "minions"
@@ -1842,10 +1851,10 @@ class TestTaskInstance:
         assert ti_from_deserialized_task.check_and_change_state_before_execution(
             external_executor_id=expected_external_executor_id
         )
-        # State should be running, and try_number column should be incremented
+        # State should be running, and try_number column should be unchanged
         assert ti_from_deserialized_task.external_executor_id == expected_external_executor_id
         assert ti_from_deserialized_task.state == State.RUNNING
-        assert ti_from_deserialized_task.try_number == 1
+        assert ti_from_deserialized_task.try_number == 0
 
     def test_check_and_change_state_before_execution_dep_not_met(self, create_task_instance):
         ti = create_task_instance(dag_id="test_check_and_change_state_before_execution")
@@ -1893,12 +1902,14 @@ class TestTaskInstance:
         Test the try_number accessor behaves in various running states
         """
         ti = create_task_instance(dag_id="test_check_and_change_state_before_execution")
-        assert 1 == ti.try_number
+        # TI starts at 0.  It's only incremented by the scheduler.
+        assert ti.try_number == 0
         ti.try_number = 2
+        assert ti.try_number == 2
         ti.state = State.RUNNING
-        assert 2 == ti.try_number
+        assert ti.try_number == 2  # unaffected by state
         ti.state = State.SUCCESS
-        assert 3 == ti.try_number
+        assert ti.try_number == 2  # unaffected by state
 
     def test_get_num_running_task_instances(self, create_task_instance):
         session = settings.Session()
@@ -2045,7 +2056,7 @@ class TestTaskInstance:
         assert email == "to"
         assert "test_email_alert" in title
         assert "test_email_alert" in body
-        assert "Try 1" in body
+        assert "Try 0" in body
 
     @conf_vars(
         {
@@ -2128,7 +2139,7 @@ class TestTaskInstance:
         (email, title, body), _ = mock_send_email.call_args
         assert email == "to"
         assert title == f"Airflow alert: <TaskInstance: test_dag.{task_id} test map_index=0 [failed]>"
-        assert body.startswith("Try 1")
+        assert body.startswith("Try 0")  # try number only incremented by the scheduler
         assert "test_email_alert" in body
 
         tf = (
@@ -3029,10 +3040,8 @@ class TestTaskInstance:
         assert ti.try_number == 1
         ti.handle_failure("test queued ti", test_mode=True)
         assert ti.state == State.UP_FOR_RETRY
-        # Assert that 'ti.try_number' is bumped from 0 to 1. This is the last/current try
+        # try_number remains at 1
         assert ti.try_number == 1
-        # Check 'ti.try_number' is bumped to 2. This is try_number for next run
-        assert ti.try_number == 2
 
     @patch.object(Stats, "incr")
     def test_handle_failure_no_task(self, Stats_incr, dag_maker):
@@ -3058,10 +3067,8 @@ class TestTaskInstance:
 
         ti.handle_failure("test queued ti", test_mode=False)
         assert ti.state == State.UP_FOR_RETRY
-        # Assert that 'ti.try_number' is bumped from 0 to 1. This is the last/current try
+        # try_number remains at 1
         assert ti.try_number == 1
-        # Check 'ti.try_number' is bumped to 2. This is try_number for next run
-        assert ti.try_number == 2
 
         Stats_incr.assert_any_call("ti_failures", tags=expected_stats_tags)
         Stats_incr.assert_any_call("operator_failures_EmptyOperator", tags=expected_stats_tags)
