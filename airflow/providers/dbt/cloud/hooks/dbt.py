@@ -415,7 +415,8 @@ class DbtCloudHook(HttpHook):
         :param schema_override: Optional. Override the destination schema in the configured target for this
             job.
         :param retry_from_failure: Optional. If set to True, the job will be triggered using the "rerun"
-            endpoint.
+            endpoint. This parameter cannot be used alongside steps_override, schema_override, or
+            additional_run_config.
         :param additional_run_config: Optional. Any additional parameters that should be included in the API
             request when triggering the job.
         :return: The request response.
