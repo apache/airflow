@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-05-02T09:13:55.206584
+# This constraints file was automatically generated on 2024-05-02T22:26:22.976051
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -53,7 +53,7 @@ Js2Py==0.74
 Mako==1.3.3
 Markdown==3.6
 MarkupSafe==2.1.5
-PyAthena==3.7.0
+PyAthena==3.8.0
 PyGithub==2.3.0
 PyHive==0.7.0
 PyJWT==2.8.0
@@ -480,7 +480,7 @@ nodeenv==1.8.0
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.25.0
+openai==1.25.1
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.13.1
@@ -498,7 +498,7 @@ opentelemetry-proto==1.24.0
 opentelemetry-sdk==1.24.0
 opentelemetry-semantic-conventions==0.45b0
 opsgenie-sdk==2.1.5
-oracledb==2.1.2
+oracledb==2.2.0
 ordered-set==4.1.0
 orjson==3.10.2
 oss2==2.18.5
@@ -517,7 +517,7 @@ pendulum==3.0.0
 pexpect==4.9.0
 pgvector==0.2.5
 pinecone-client==2.2.4
-pinotdb==5.1.6
+pinotdb==5.2.0
 pipdeptree==2.19.1
 pipx==1.5.0
 pkginfo==1.10.0
@@ -683,7 +683,7 @@ tomli_w==1.0.0
 tomlkit==0.12.4
 tornado==6.4
 towncrier==23.11.0
-tqdm==4.66.2
+tqdm==4.66.3
 traitlets==5.14.3
 trino==0.328.0
 trove-classifiers==2024.4.10
@@ -736,7 +736,7 @@ xmlsec==1.3.13
 xmltodict==0.13.0
 yamllint==1.35.1
 yandex-query-client==0.1.3
-yandexcloud==0.271.0
+yandexcloud==0.278.0
 yarl==1.9.4
 zeep==4.2.1
 zenpy==2.0.48
