@@ -104,6 +104,7 @@ def upgrade():
         op.execute("ALTER TABLE connection DROP CONSTRAINT IF EXISTS unique_conn_id")
         # Dropping and recreating cause there's no IF NOT EXISTS
         op.execute("ALTER TABLE connection DROP CONSTRAINT IF EXISTS connection_conn_id_uq")
+
     with op.batch_alter_table("connection") as batch_op:
         batch_op.create_unique_constraint(batch_op.f("connection_conn_id_uq"), ["conn_id"])
 
@@ -114,6 +115,7 @@ def upgrade():
 
     with op.batch_alter_table("task_instance") as batch_op:
         batch_op.drop_constraint("task_instance_dag_run_fkey", type_="foreignkey")
+
     with op.batch_alter_table("task_reschedule") as batch_op:
         batch_op.drop_constraint("task_reschedule_dr_fkey", type_="foreignkey")
 
@@ -267,9 +269,11 @@ def upgrade():
         # below we drop and recreate the constraints because there's no IF NOT EXISTS
         op.execute("ALTER TABLE dag_run DROP CONSTRAINT IF EXISTS dag_run_dag_id_execution_date_key")
         op.execute("ALTER TABLE dag_run DROP CONSTRAINT IF EXISTS dag_run_dag_id_run_id_key")
+
     with op.batch_alter_table("dag_run") as batch_op:
         batch_op.create_unique_constraint("dag_run_dag_id_execution_date_key", ["dag_id", "execution_date"])
         batch_op.create_unique_constraint("dag_run_dag_id_run_id_key", ["dag_id", "run_id"])
+
     with op.batch_alter_table("task_instance") as batch_op:
         batch_op.create_foreign_key(
             "task_instance_dag_run_fkey",
@@ -278,6 +282,7 @@ def upgrade():
             ["dag_id", "run_id"],
             ondelete="CASCADE",
         )
+
     with op.batch_alter_table("task_reschedule") as batch_op:
         batch_op.create_foreign_key(
             "task_reschedule_dr_fkey",
