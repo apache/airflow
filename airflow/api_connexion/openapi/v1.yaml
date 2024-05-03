@@ -1098,7 +1098,7 @@ paths:
     put:
       summary: Request re-parsing of a DAG file
       description: >
-        Request re-parsing of existing DAGs
+        Request re-parsing of existing DAG files using a file token.
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_parsing
       operationId: reparse_dags
       tags: [ DAG ]
