@@ -120,6 +120,6 @@ class TestTeradataStoredProcedureOperator:
             mock.ANY,
             "{CALL test(?)}",
             autocommit=True,
-            parameters=parameters,
+            parameters=["value"],
             handler=mock.ANY,
         )
