@@ -17,10 +17,17 @@
 # under the License.
 from __future__ import annotations
 
+from textwrap import dedent
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+
+try:
+    from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+except ModuleNotFoundError as e:
+    from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+    raise AirflowOptionalProviderFeatureException(e)
 from airflow.providers.teradata.hooks.teradata import TeradataHook
 
 if TYPE_CHECKING:
@@ -35,10 +42,13 @@ class S3ToTeradataOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:S3ToTeradataOperator`
 
-    :param s3_source_key: The URI format specifying the location of the S3 object store.(templated)
+    :param s3_source_key: The URI format specifying the location of the S3 bucket.(templated)
         The URI format is /s3/YOUR-BUCKET.s3.amazonaws.com/YOUR-BUCKET-NAME.
         Refer to
         https://docs.teradata.com/search/documents?query=native+object+store&sort=last_update&virtual-field=title_only&content-lang=en-US
+    :param public_bucket: Specifies whether the provided S3 bucket is public. If the bucket is public,
+        it means that anyone can access the objects within it via a URL without requiring authentication.
+        If the bucket is private and authentication is not provided, the operator will throw an exception.
     :param teradata_table: The name of the teradata table to which the data is transferred.(templated)
     :param aws_conn_id: The Airflow AWS connection used for AWS credentials.
     :param teradata_conn_id: The connection ID used to connect to Teradata
@@ -55,6 +65,7 @@ class S3ToTeradataOperator(BaseOperator):
         self,
         *,
         s3_source_key: str,
+        public_bucket: bool = False,
         teradata_table: str,
         aws_conn_id: str = "aws_default",
         teradata_conn_id: str = "teradata_default",
@@ -62,6 +73,7 @@ class S3ToTeradataOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.s3_source_key = s3_source_key
+        self.public_bucket = public_bucket
         self.teradata_table = teradata_table
         self.aws_conn_id = aws_conn_id
         self.teradata_conn_id = teradata_conn_id
@@ -72,17 +84,14 @@ class S3ToTeradataOperator(BaseOperator):
         )
 
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
-        access_key = (
-            s3_hook.conn_config.aws_access_key_id if s3_hook.conn_config.aws_access_key_id is not None else ""
-        )
-        access_secret = (
-            s3_hook.conn_config.aws_secret_access_key
-            if s3_hook.conn_config.aws_secret_access_key is not None
-            else ""
-        )
-
+        access_key = ""
+        access_secret = ""
+        if not self.public_bucket:
+            credentials = s3_hook.get_credentials()
+            access_key = credentials.access_key
+            access_secret = credentials.secret_key
         teradata_hook = TeradataHook(teradata_conn_id=self.teradata_conn_id)
-        sql = f"""
+        sql = dedent(f"""
                         CREATE MULTISET TABLE {self.teradata_table} AS
                         (
                             SELECT * FROM (
@@ -91,7 +100,7 @@ class S3ToTeradataOperator(BaseOperator):
                                 ACCESS_KEY= '{access_secret}'
                             ) AS d
                         ) WITH DATA
-                        """
+                        """).rstrip()
         try:
             teradata_hook.run(sql, True)
         except Exception as ex:

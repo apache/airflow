@@ -88,44 +88,34 @@ with DAG(
     # [START teradata_operator_howto_guide_get_all_countries]
     get_all_countries = TeradataOperator(
         task_id="get_all_countries",
-        sql=r"""
-        SELECT * FROM Country;
-        """,
+        sql=r"SELECT * FROM Country;",
     )
     # [END teradata_operator_howto_guide_get_all_countries]
     # [START teradata_operator_howto_guide_params_passing_get_query]
     get_countries_from_continent = TeradataOperator(
         task_id="get_countries_from_continent",
-        sql=r"""
-        SELECT * FROM Country WHERE {{ params.column }}='{{ params.value }}';
-        """,
+        sql=r"SELECT * FROM Country WHERE {{ params.column }}='{{ params.value }}';",
         params={"column": "continent", "value": "Asia"},
     )
     # [END teradata_operator_howto_guide_params_passing_get_query]
     # [START teradata_operator_howto_guide_drop_country_table]
     drop_country_table = TeradataOperator(
         task_id="drop_country_table",
-        sql=r"""
-        DROP TABLE Country;
-        """,
+        sql=r"DROP TABLE Country;",
         dag=dag,
     )
     # [END teradata_operator_howto_guide_drop_country_table]
     # [START teradata_operator_howto_guide_drop_users_table]
     drop_users_table = TeradataOperator(
         task_id="drop_users_table",
-        sql=r"""
-        DROP TABLE Users;
-        """,
+        sql=r"DROP TABLE Users;",
         dag=dag,
     )
     # [END teradata_operator_howto_guide_drop_users_table]
     # [START teradata_operator_howto_guide_create_schema]
     create_schema = TeradataOperator(
         task_id="create_schema",
-        sql=r"""
-        CREATE DATABASE airflow_temp AS PERM=10e6;
-        """,
+        sql=r"CREATE DATABASE airflow_temp AS PERM=10e6;",
     )
     # [END teradata_operator_howto_guide_create_schema]
     # [START teradata_operator_howto_guide_create_table_with_schema]
@@ -144,9 +134,7 @@ with DAG(
     # [START teradata_operator_howto_guide_drop_schema_table]
     drop_schema_table = TeradataOperator(
         task_id="drop_schema_table",
-        sql=r"""
-        DROP TABLE schema_table;
-        """,
+        sql=r"DROP TABLE schema_table;",
         dag=dag,
         schema="airflow_temp",
     )
@@ -154,9 +142,7 @@ with DAG(
     # [START teradata_operator_howto_guide_drop_schema]
     drop_schema = TeradataOperator(
         task_id="drop_schema",
-        sql=r"""
-        DROP DATABASE airflow_temp;
-        """,
+        sql=r"DROP DATABASE airflow_temp;",
         dag=dag,
     )
 

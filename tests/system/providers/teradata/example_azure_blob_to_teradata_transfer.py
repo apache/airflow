@@ -67,18 +67,14 @@ with DAG(
     read_data_table_csv = TeradataOperator(
         task_id="read_data_table_csv",
         conn_id=CONN_ID,
-        sql="""
-                SELECT count(1) from example_blob_teradata_csv;
-            """,
+        sql="SELECT count(1) from example_blob_teradata_csv;",
     )
     # [END azure_blob_to_teradata_transfer_operator_howto_guide_read_data_table_csv]
     # [START azure_blob_to_teradata_transfer_operator_howto_guide_drop_table_csv]
     drop_table_csv = TeradataOperator(
         task_id="drop_table_csv",
         conn_id=CONN_ID,
-        sql="""
-                DROP TABLE example_blob_teradata_csv;
-            """,
+        sql="DROP TABLE example_blob_teradata_csv;",
     )
     # [END azure_blob_to_teradata_transfer_operator_howto_guide_drop_table_csv]
     # [START azure_blob_to_teradata_transfer_operator_howto_guide_transfer_data_blob_to_teradata_json]
@@ -95,18 +91,14 @@ with DAG(
     read_data_table_json = TeradataOperator(
         task_id="read_data_table_json",
         conn_id=CONN_ID,
-        sql="""
-                SELECT count(1) from example_blob_teradata_json;
-            """,
+        sql="SELECT count(1) from example_blob_teradata_json;",
     )
     # [END azure_blob_to_teradata_transfer_operator_howto_guide_read_data_table_json]
     # [START azure_blob_to_teradata_transfer_operator_howto_guide_drop_table_json]
     drop_table_json = TeradataOperator(
         task_id="drop_table_json",
         conn_id=CONN_ID,
-        sql="""
-                DROP TABLE example_blob_teradata_json;
-            """,
+        sql="DROP TABLE example_blob_teradata_json;",
     )
     # [END azure_blob_to_teradata_transfer_operator_howto_guide_drop_table_json]
     # [START azure_blob_to_teradata_transfer_operator_howto_guide_transfer_data_blob_to_teradata_parquet]
@@ -123,18 +115,14 @@ with DAG(
     read_data_table_parquet = TeradataOperator(
         task_id="read_data_table_parquet",
         conn_id=CONN_ID,
-        sql="""
-                SELECT count(1) from example_blob_teradata_parquet;
-            """,
+        sql="SELECT count(1) from example_blob_teradata_parquet;",
     )
     # [END azure_blob_to_teradata_transfer_operator_howto_guide_read_data_table_parquet]
     # [START azure_blob_to_teradata_transfer_operator_howto_guide_drop_table_parquet]
     drop_table_parquet = TeradataOperator(
         task_id="drop_table_parquet",
         conn_id=CONN_ID,
-        sql="""
-                DROP TABLE example_blob_teradata_parquet;
-            """,
+        sql="DROP TABLE example_blob_teradata_parquet;",
     )
     # [END azure_blob_to_teradata_transfer_operator_howto_guide_drop_table_parquet]
 

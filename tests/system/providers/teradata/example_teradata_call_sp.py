@@ -51,24 +51,64 @@ with DAG(
     schedule="@once",
     start_date=datetime(2023, 1, 1),
 ) as dag:
-    # [START howto_teradata_stored_procedure_operator_with_in_inout]
+    # [START howto_teradata_stored_procedure_operator_with_in_inout_out]
+    # [START howto_create_teradata_stored_procedure_operator_with_in_inout]
     create_sp_in_inout = TeradataOperator(
         task_id="create_sp_in_inout",
-        sql=r"""REPLACE PROCEDURE TEST_PROCEDURE (IN val_in INTEGER, OUT val_out INTEGER)
+        sql=r"""REPLACE PROCEDURE TEST_PROCEDURE (
+                    IN val_in INTEGER,
+                    INOUT val_in_out INTEGER,
+                    OUT val_out INTEGER,
+                    OUT value_str_out varchar(100)
+                )
                 BEGIN
                     set val_out = val_in * 2;
+                    set val_in_out = val_in_out * 4;
+                    set value_str_out = 'string output';
                 END;
             """,
     )
-
-    opr_sp_in_inout = TeradataStoredProcedureOperator(
-        task_id="opr_sp_in_inout",
+    # [END howto_create_teradata_stored_procedure_operator_with_in_inout]
+    # [START howto_call_teradata_stored_procedure_operator_with_types]
+    opr_sp_types = TeradataStoredProcedureOperator(
+        task_id="opr_sp_types",
         procedure="TEST_PROCEDURE",
-        parameters=[3, int],
+        parameters=[3, 1, int, str],
     )
-
-    # [END howto_teradata_stored_procedure_operator_with_in_inout]
-
+    # [END howto_call_teradata_stored_procedure_operator_with_types]
+    # [START howto_call_teradata_stored_procedure_operator_with_place_holder]
+    opr_sp_place_holder = TeradataStoredProcedureOperator(
+        task_id="opr_sp_place_holder",
+        procedure="TEST_PROCEDURE",
+        parameters=[3, 1, "?", "?"],
+    )
+    # [END howto_call_teradata_stored_procedure_operator_with_place_holder]
+    # [START howto_call_teradata_stored_procedure_operator_with_dict_input]
+    opr_sp_dict = TeradataStoredProcedureOperator(
+        task_id="opr_sp_dict",
+        procedure="TEST_PROCEDURE",
+        parameters={"val_in": 3, "val_in_out": 1, "val_out": int, "str_out": str},
+    )
+    # [END howto_call_teradata_stored_procedure_operator_with_dict_input]
+    # [END howto_teradata_stored_procedure_operator_with_in_inout_out]
+    # [START howto_create_teradata_stored_procedure_operator_timestamp]
+    create_sp_timestamp = TeradataOperator(
+        task_id="create_sp_timestamp",
+        sql=r"""REPLACE PROCEDURE GetTimestampOutParameter (OUT out_timestamp TIMESTAMP)
+                    BEGIN
+                        -- Assign current timestamp to the OUT parameter
+                        SET out_timestamp = CURRENT_TIMESTAMP;
+                    END;
+                 """,
+    )
+    # [END howto_create_teradata_stored_procedure_operator_timestamp]
+    # [START howto_call_teradata_stored_procedure_operator_timestamp]
+    opr_sp_timestamp = TeradataStoredProcedureOperator(
+        task_id="opr_sp_timestamp",
+        procedure="GetTimestampOutParameter",
+        parameters=["?"],
+    )
+    # [END howto_call_teradata_stored_procedure_operator_timestamp]
     # [START howto_teradata_stored_procedure_operator_with_in_out_dynamic_result]
     create_sp_param_dr = TeradataOperator(
         task_id="create_sp_param_dr",
@@ -84,21 +124,41 @@ with DAG(
                 end ;
             """,
     )
+    # [END howto_teradata_stored_procedure_operator_with_in_out_dynamic_result]
+    # [START howto_call_teradata_stored_procedure_operator_with_in_out_dynamic_result]
     opr_sp_param_dr = TeradataStoredProcedureOperator(
         task_id="opr_sp_param_dr",
         procedure="examplestoredproc",
         parameters=[3, 2, int],
     )
-    # [END howto_teradata_stored_procedure_operator_with_in_out_dynamic_result]
-
+    # [END howto_call_teradata_stored_procedure_operator_with_in_out_dynamic_result]
     # [START howto_teradata_stored_procedure_operator_drop]
     drop_sp = TeradataOperator(
         task_id="drop_sp",
-        sql=r"""drop procedure examplestoredproc;
-               """,
+        sql=r"drop procedure examplestoredproc;",
+    )
+    drop_sp_test = TeradataOperator(
+        task_id="drop_sp_test",
+        sql=r"drop procedure TEST_PROCEDURE;",
+    )
+    drop_sp_timestamp = TeradataOperator(
+        task_id="drop_sp_timestamp",
+        sql=r"drop procedure GetTimestampOutParameter;",
     )
     # [END howto_teradata_stored_procedure_operator_drop]
-    (create_sp_in_inout >> opr_sp_in_inout >> create_sp_param_dr >> opr_sp_param_dr >> drop_sp)
+    (
+        create_sp_in_inout
+        >> opr_sp_types
+        >> opr_sp_dict
+        >> opr_sp_place_holder
+        >> create_sp_param_dr
+        >> opr_sp_param_dr
+        >> drop_sp
+        >> drop_sp_test
+        >> create_sp_timestamp
+        >> opr_sp_timestamp
+        >> drop_sp_timestamp
+    )
 
     # [END howto_teradata_operator_for_sp]
 

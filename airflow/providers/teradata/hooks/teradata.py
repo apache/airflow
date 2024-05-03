@@ -234,7 +234,6 @@ class TeradataHook(DbApiHook):
 
             if records is None:
                 return
-
             if isinstance(records, list):
                 return [row for row in records]
 
@@ -246,7 +245,7 @@ class TeradataHook(DbApiHook):
             sql,
             autocommit=autocommit,
             parameters=(
-                {name: _map_param(value) for (name, value) in parameters.items()}
+                [_map_param(value) for (name, value) in parameters.items()]
                 if isinstance(parameters, dict)
                 else [_map_param(value) for value in parameters]
             ),

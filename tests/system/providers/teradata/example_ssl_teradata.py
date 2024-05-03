@@ -89,23 +89,23 @@ with DAG(
     # [START teradata_operator_howto_guide_get_all_countries]
     get_all_countries = TeradataOperator(
         task_id="get_all_countries",
-        sql=r"""SELECT * FROM SSL_Country;""",
+        sql=r"SELECT * FROM SSL_Country;",
     )
     # [END teradata_operator_howto_guide_get_all_countries]
     # [START teradata_operator_howto_guide_params_passing_get_query]
     get_countries_from_continent = TeradataOperator(
         task_id="get_countries_from_continent",
-        sql=r"""SELECT * FROM SSL_Country where {{ params.column }}='{{ params.value }}';""",
+        sql=r"SELECT * FROM SSL_Country where {{ params.column }}='{{ params.value }}';",
         params={"column": "continent", "value": "Asia"},
     )
     # [END teradata_operator_howto_guide_params_passing_get_query]
     # [START teradata_operator_howto_guide_drop_country_table]
     drop_country_table = TeradataOperator(
-        task_id="drop_country_table", sql=r"""DROP TABLE SSL_Country;""", dag=dag
+        task_id="drop_country_table", sql=r"DROP TABLE SSL_Country;", dag=dag
     )
     # [END teradata_operator_howto_guide_drop_country_table]
     # [START teradata_operator_howto_guide_drop_users_table]
-    drop_users_table = TeradataOperator(task_id="drop_users_table", sql=r"""DROP TABLE SSL_Users;""", dag=dag)
+    drop_users_table = TeradataOperator(task_id="drop_users_table", sql=r"DROP TABLE SSL_Users;", dag=dag)
     # [END teradata_operator_howto_guide_drop_users_table]
 
     (

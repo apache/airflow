@@ -17,10 +17,18 @@
 # under the License.
 from __future__ import annotations
 
+from textwrap import dedent
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
-from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
+
+try:
+    from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
+except ModuleNotFoundError as e:
+    from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+    raise AirflowOptionalProviderFeatureException(e)
+
 from airflow.providers.teradata.hooks.teradata import TeradataHook
 
 if TYPE_CHECKING:
@@ -77,7 +85,7 @@ class AzureBlobStorageToTeradataOperator(BaseOperator):
         access_id = conn.login if conn.login is not None else ""
         access_secret = conn.password if conn.password is not None else ""
         teradata_hook = TeradataHook(teradata_conn_id=self.teradata_conn_id)
-        sql = f"""
+        sql = dedent(f"""
                     CREATE MULTISET TABLE {self.teradata_table}  AS
                     (
                         SELECT * FROM (
@@ -86,7 +94,7 @@ class AzureBlobStorageToTeradataOperator(BaseOperator):
                             ACCESS_KEY= '{access_secret}'
                     ) AS d
                     ) WITH DATA
-                """
+                """).rstrip()
         try:
             teradata_hook.run(sql, True)
         except Exception as ex:
