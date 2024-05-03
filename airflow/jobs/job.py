@@ -202,7 +202,9 @@ class Job(Base, LoggingMixin):
 
         try:
             # This will cause it to load from the db
+            self.log.info("fetching from DB")
             self._merge_from(Job._fetch_from_db(self, session))
+            self.log.info("finished fetching from DB")
             previous_heartbeat = self.latest_heartbeat
 
             if self.state == JobState.RESTARTING:
@@ -215,6 +217,7 @@ class Job(Base, LoggingMixin):
                     self.heartrate - (timezone.utcnow() - self.latest_heartbeat).total_seconds()
                 )
                 sleep_for = max(0, seconds_remaining)
+            print(f"sleeping for {sleep_for}")
             sleep(sleep_for)
 
             job = Job._update_heartbeat(job=self, session=session)

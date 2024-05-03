@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any, Iterable, Iterator, Mapping, Sequence
 
 import attr
 import pendulum
-from sqlalchemy import select, tuple_, update
+from sqlalchemy import case, or_, select, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
 from tabulate import tabulate
@@ -245,7 +245,16 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
             session.execute(
                 update(TI)
                 .where(filter_for_tis)
-                .values(state=TaskInstanceState.SCHEDULED)
+                .values(
+                    state=TaskInstanceState.SCHEDULED,
+                    try_number=case(
+                        (
+                            or_(TI.state.is_(None), TI.state != TaskInstanceState.UP_FOR_RESCHEDULE),
+                            TI.try_number + 1,
+                        ),
+                        else_=TI.try_number,
+                    ),
+                )
                 .execution_options(synchronize_session=False)
             )
             session.flush()
@@ -407,6 +416,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         :param dag_run: the dag run to get the tasks from
         :param session: the database session object
         """
+        self.log.info("_task_instances_for_dag_run")
         tasks_to_run = {}
 
         if dag_run is None:
@@ -422,9 +432,13 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         dag_run.dag = dag
         info = dag_run.task_instance_scheduling_decisions(session=session)
         schedulable_tis = info.schedulable_tis
+        self.log.info("schedulable_tis: %s", schedulable_tis)
         try:
             for ti in dag_run.get_task_instances(session=session):
+                session.merge(ti)
                 if ti in schedulable_tis:
+                    if not ti.state == TaskInstanceState.UP_FOR_RESCHEDULE:
+                        ti.try_number += 1
                     ti.set_state(TaskInstanceState.SCHEDULED)
                 if ti.state != TaskInstanceState.REMOVED:
                     tasks_to_run[ti.key] = ti
@@ -489,20 +503,20 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                 task = self.dag.get_task(ti.task_id, include_subdags=True)
                 ti.task = task
 
-                self.log.debug("Task instance to run %s state %s", ti, ti.state)
+                self.log.info("Task instance to run %s state %s", ti, ti.state)
 
                 # The task was already marked successful or skipped by a
                 # different Job. Don't rerun it.
                 if ti.state == TaskInstanceState.SUCCESS:
                     ti_status.succeeded.add(key)
-                    self.log.debug("Task instance %s succeeded. Don't rerun.", ti)
+                    self.log.info("Task instance %s succeeded. Don't rerun.", ti)
                     ti_status.to_run.pop(key)
                     if key in ti_status.running:
                         ti_status.running.pop(key)
                     return
                 elif ti.state == TaskInstanceState.SKIPPED:
                     ti_status.skipped.add(key)
-                    self.log.debug("Task instance %s skipped. Don't rerun.", ti)
+                    self.log.info("Task instance %s skipped. Don't rerun.", ti)
                     ti_status.to_run.pop(key)
                     if key in ti_status.running:
                         ti_status.running.pop(key)
@@ -511,7 +525,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                 if self.rerun_failed_tasks:
                     # Rerun failed tasks or upstreamed failed tasks
                     if ti.state in (TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED):
-                        self.log.error("Task instance %s with state %s", ti, ti.state)
+                        self.log.info("Task instance %s with state %s", ti, ti.state)
                         if key in ti_status.running:
                             ti_status.running.pop(key)
                         # Reset the failed task in backfill to scheduled state
@@ -695,7 +709,9 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.debug(e)
 
             perform_heartbeat(
-                job=self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True
+                job=self.job,
+                heartbeat_callback=self.heartbeat_callback,
+                only_if_necessary=True,
             )
             # execute the tasks in the queue
             executor.heartbeat()
@@ -835,14 +851,16 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         :param start_date: backfill start date
         :param session: the current session object
         """
+        self.log.info("_execute_dagruns")
         for dagrun_info in dagrun_infos:
             for dag in self._get_dag_with_subdags():
                 dag_run = self._get_dag_run(dagrun_info, dag, session=session)
                 if dag_run is not None:
                     tis_map = self._task_instances_for_dag_run(dag, dag_run, session=session)
+                    self.log.info("tis_map=%s", tis_map)
                     ti_status.active_runs.add(dag_run)
                     ti_status.to_run.update(tis_map or {})
-
+        self.log.info("")
         processed_dag_run_dates = self._process_backfill_task_instances(
             ti_status=ti_status,
             executor=executor,

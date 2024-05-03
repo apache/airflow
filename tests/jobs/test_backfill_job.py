@@ -185,7 +185,7 @@ class TestBackfillJob:
 
         assert task_instances_list
 
-    @pytest.mark.backend("postgres", "mysql")
+    # @pytest.mark.backend("postgres", "mysql")
     def test_backfill_multi_dates(self):
         dag = self.dagbag.get_dag("miscellaneous_test_dag")
 
@@ -217,11 +217,15 @@ class TestBackfillJob:
             ("run_this_last", DEFAULT_DATE),
             ("run_this_last", end_date),
         ]
-        assert [
-            ((dag.dag_id, task_id, f"backfill__{when.isoformat()}", 1, -1), (State.SUCCESS, None))
+        actual = [(tuple(x), y) for x, y in executor.sorted_tasks]
+        expected = [
+            (
+                (dag.dag_id, task_id, f"backfill__{when.isoformat()}", 0, -1),
+                (State.SUCCESS, None),
+            )
             for (task_id, when) in expected_execution_order
-        ] == executor.sorted_tasks
-
+        ]
+        assert actual == expected
         session = settings.Session()
         drs = session.query(DagRun).filter(DagRun.dag_id == dag.dag_id).order_by(DagRun.execution_date).all()
 
@@ -879,12 +883,12 @@ class TestBackfillJob:
         dag_maker.create_dagrun(state=None)
 
         executor = MockExecutor(parallelism=16)
-        executor.mock_task_results[TaskInstanceKey(dag.dag_id, task1.task_id, DEFAULT_DATE, try_number=1)] = (
-            State.UP_FOR_RETRY
-        )
-        executor.mock_task_results[TaskInstanceKey(dag.dag_id, task1.task_id, DEFAULT_DATE, try_number=2)] = (
-            State.UP_FOR_RETRY
-        )
+        executor.mock_task_results[
+            TaskInstanceKey(dag.dag_id, task1.task_id, DEFAULT_DATE, try_number=1)
+        ] = State.UP_FOR_RETRY
+        executor.mock_task_results[
+            TaskInstanceKey(dag.dag_id, task1.task_id, DEFAULT_DATE, try_number=2)
+        ] = State.UP_FOR_RETRY
         job = Job(executor=executor)
         job_runner = BackfillJobRunner(
             job=job,
@@ -907,10 +911,10 @@ class TestBackfillJob:
         dr = dag_maker.create_dagrun(state=None)
 
         executor = MockExecutor(parallelism=16)
-        executor.mock_task_results[TaskInstanceKey(dag.dag_id, task1.task_id, dr.run_id, try_number=1)] = (
-            State.UP_FOR_RETRY
-        )
-        executor.mock_task_fail(dag.dag_id, task1.task_id, dr.run_id, try_number=2)
+        executor.mock_task_results[
+            TaskInstanceKey(dag.dag_id, task1.task_id, dr.run_id, try_number=0)
+        ] = State.UP_FOR_RETRY
+        executor.mock_task_fail(dag.dag_id, task1.task_id, dr.run_id, try_number=1)
         job = Job(executor=executor)
         job_runner = BackfillJobRunner(
             job=job,
