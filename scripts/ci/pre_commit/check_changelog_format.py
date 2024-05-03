@@ -40,7 +40,7 @@ def check_changelog_format(filename):
 
 
 for filename in sys.argv[1:]:
-    if "CHANGELOG" in filename:
+    if filename.split(".", 1) == "CHANGELOG":
         passed = check_changelog_format(filename)
         if not passed:
             sys.exit(1)
