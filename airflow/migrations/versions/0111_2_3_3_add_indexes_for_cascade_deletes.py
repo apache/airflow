@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add indexes for CASCADE deletes on task_instance
+"""Add indexes for CASCADE deletes on task_instance.
 
 Some databases don't add indexes on the FK columns so we have to add them for performance on CASCADE deletes.
 
@@ -24,6 +24,7 @@ Revises: 3c94c427fdf6
 Create Date: 2022-06-15 18:04:54.081789
 
 """
+
 from __future__ import annotations
 
 from alembic import context, op
@@ -39,6 +40,8 @@ airflow_version = "2.3.3"
 
 def _mysql_tables_where_indexes_already_present(conn):
     """
+    Check if certain indexes already exist.
+
     If user downgraded and is upgrading again, we have to check for existing
     indexes on mysql because we can't (and don't) drop them as part of the
     downgrade.
@@ -56,7 +59,7 @@ def _mysql_tables_where_indexes_already_present(conn):
 
 
 def upgrade():
-    """Apply Add indexes for CASCADE deletes"""
+    """Apply Add indexes for CASCADE deletes."""
     conn = op.get_bind()
     tables_to_skip = set()
 
@@ -78,7 +81,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Add indexes for CASCADE deletes"""
+    """Unapply Add indexes for CASCADE deletes."""
     conn = op.get_bind()
 
     # mysql requires indexes for FKs, so adding had the effect of renaming, and we cannot remove.

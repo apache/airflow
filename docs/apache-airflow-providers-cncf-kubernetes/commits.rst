@@ -35,16 +35,35 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.2.0
+.....
+
+Latest change: 2024-05-01
+
+=================================================================================================  ===========  ===============================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================================================
+`43b48a9ac1 <https://github.com/apache/airflow/commit/43b48a9ac1737b9dbafa706caa6f266399753521>`_  2024-05-01   ``Refresh properties on KubernetesPodOperator when k8s fails due to token expiration (#39325)``
+`97871a0378 <https://github.com/apache/airflow/commit/97871a0378be7b89e8a4aef6ede31c9a884413e8>`_  2024-05-01   ``Fix SparkKubernetesOperator when using initContainers (#38119)``
+`ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+`4920ab25b3 <https://github.com/apache/airflow/commit/4920ab25b3062c04222823f3c47b8d4d8be7bd97>`_  2024-04-25   ``Remove unnecessary validation from cncf provider. (#39238)``
+`84f1ae23cc <https://github.com/apache/airflow/commit/84f1ae23cc817c4e1e8066702938aeccc0a0d826>`_  2024-04-24   ``Add missing informative logs in KPO trigger until container has not finished (#37546)``
+`85bc9afcaa <https://github.com/apache/airflow/commit/85bc9afcaa7408c62b106ac97aeed355ebfbf8e2>`_  2024-04-20   ``fixes templated env vars for k8s pod operator (#39139)``
+`cf56402f5e <https://github.com/apache/airflow/commit/cf56402f5e2ede2d8dd89d1bd418e5344276cf50>`_  2024-04-16   ``KPO xcom sidecar PodDefault usage (#38951)``
+`b59cef1c83 <https://github.com/apache/airflow/commit/b59cef1c8374d53e1ffdeb46c94e6c9ff30c239d>`_  2024-04-16   ``Moves airflow import in deprecated pod_generator to local (#39062)``
+=================================================================================================  ===========  ===============================================================================================
+
 8.1.1
 .....
 
-Latest change: 2024-04-15
+Latest change: 2024-04-16
 
-=================================================================================================  ===========  =========================================
+=================================================================================================  ===========  =====================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  =========================================
+=================================================================================================  ===========  =====================================================================
+`13df6569d6 <https://github.com/apache/airflow/commit/13df6569d6cc131fbf096cedd46dc32b0a6cf6b2>`_  2024-04-16   ``Prepare docs 1st wave (RC3) + ad hoc April 2024 (#38995) (#39054)``
 `43919c2fa6 <https://github.com/apache/airflow/commit/43919c2fa6cbffd65239cb7fa3db2abb0545a260>`_  2024-04-15   ``Avoid logging empty line KPO (#38247)``
-=================================================================================================  ===========  =========================================
+=================================================================================================  ===========  =====================================================================
 
 8.1.0
 .....

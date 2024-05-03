@@ -2426,6 +2426,59 @@ class TestTaskInstance:
         assert events["write2"].dataset.uri == "test_outlet_dataset_extra_2"
         assert events["write2"].extra == {"x": 1}
 
+    def test_inlet_dataset_extra(self, dag_maker, session):
+        from airflow.datasets import Dataset
+
+        read_task_evaluated = False
+
+        with dag_maker(schedule=None, session=session):
+
+            @task(outlets=Dataset("test_inlet_dataset_extra"))
+            def write(*, ti, dataset_events):
+                dataset_events["test_inlet_dataset_extra"].extra = {"from": ti.task_id}
+
+            @task(inlets=Dataset("test_inlet_dataset_extra"))
+            def read(*, inlet_events):
+                second_event = inlet_events["test_inlet_dataset_extra"][1]
+                assert second_event.uri == "test_inlet_dataset_extra"
+                assert second_event.extra == {"from": "write2"}
+
+                last_event = inlet_events["test_inlet_dataset_extra"][-1]
+                assert last_event.uri == "test_inlet_dataset_extra"
+                assert last_event.extra == {"from": "write3"}
+
+                with pytest.raises(KeyError):
+                    inlet_events["does_not_exist"]
+                with pytest.raises(IndexError):
+                    inlet_events["test_inlet_dataset_extra"][5]
+
+                # TODO: Support slices.
+
+                nonlocal read_task_evaluated
+                read_task_evaluated = True
+
+            [
+                write.override(task_id="write1")(),
+                write.override(task_id="write2")(),
+                write.override(task_id="write3")(),
+            ] >> read()
+
+        dr: DagRun = dag_maker.create_dagrun()
+
+        # Run "write1", "write2", and "write3" (in this order).
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        for ti in sorted(decision.schedulable_tis, key=operator.attrgetter("task_id")):
+            ti.run(session=session)
+
+        # Run "read".
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        for ti in decision.schedulable_tis:
+            ti.run(session=session)
+
+        # Should be done.
+        assert not dr.task_instance_scheduling_decisions(session=session).schedulable_tis
+        assert read_task_evaluated
+
     def test_changing_of_dataset_when_ddrq_is_already_populated(self, dag_maker):
         """
         Test that when a task that produces dataset has ran, that changing the consumer
