@@ -3183,7 +3183,7 @@ components:
           nullable: true
 
     DagPriorityParsingRequest:
-      description: Dag parsing requests.
+      description: Request to reparse DAG(s) in a file.
       type: object
       properties:
         fileloc:
@@ -3191,7 +3191,7 @@ components:
         id:
           type: string
           readOnly: true
-          description: The request ID.
+          description: ID of the created reparse request.
           nullable: true
 
     UpdateDagRunState:
