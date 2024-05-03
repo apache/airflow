@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import re
 import sys
+from pathlib import Path
 
 
 def check_changelog_format(filename):
@@ -33,14 +34,17 @@ def check_changelog_format(filename):
     for i, line in enumerate(lines):
         if line == "....." and i + 1 < len(lines):
             if re.match(version_regex, lines[i + 1]):
-                print(f"Invalid format in {filename}: version is followed by version")
+                print(f"{filename}:{i + 1} Invalid format in version is followed by version")
                 print(f"Check for lines with {lines[i - 1]} and {lines[i + 1]}")
                 return False
     return True
 
 
-for filename in sys.argv[1:]:
-    if filename.split(".", 1) == "CHANGELOG":
-        passed = check_changelog_format(filename)
-        if not passed:
-            sys.exit(1)
+if __name__ == "__main__":
+    files = sys.argv[1:]
+    failed = any(
+        not check_changelog_format(filename) for filename in files if Path(filename).stem == "CHANGELOG"
+    )
+
+    if failed:
+        sys.exit(1)
