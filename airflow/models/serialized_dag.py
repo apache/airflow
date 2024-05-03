@@ -25,7 +25,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Collection
 
 import sqlalchemy_jsonfield
-from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, Text, and_, exc, or_, select
+from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_, exc, or_, select
 from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.sql.expression import func, literal
 
@@ -83,7 +83,7 @@ class SerializedDagModel(Base):
     _data_compressed = Column("data_compressed", LargeBinary, nullable=True)
     last_updated = Column(UtcDateTime, nullable=False)
     dag_hash = Column(String(32), nullable=False)
-    processor_subdir = Column(String(2000).with_variant(Text(length=2000), "mysql"), nullable=True)
+    processor_subdir = Column(String(2000), nullable=True)
 
     __table_args__ = (Index("idx_fileloc_hash", fileloc_hash, unique=False),)
 

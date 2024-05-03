@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Update missing constraints.
+"""Fix inconsistency between ORM and migration files.
 
 Revision ID: 686269002441
 Revises: bff083ad727d
@@ -175,6 +175,38 @@ def upgrade():
                             deallocate prepare stmt;
                             """)
         )
+        with op.batch_alter_table("callback_request", schema=None) as batch_op:
+            batch_op.alter_column(
+                "processor_subdir",
+                existing_type=sa.Text(length=2000),
+                type_=sa.String(length=2000),
+                existing_nullable=True,
+            )
+
+        with op.batch_alter_table("dag", schema=None) as batch_op:
+            batch_op.alter_column(
+                "processor_subdir",
+                existing_type=sa.Text(length=2000),
+                type_=sa.String(length=2000),
+                existing_nullable=True,
+            )
+
+        with op.batch_alter_table("import_error", schema=None) as batch_op:
+            batch_op.alter_column(
+                "processor_subdir",
+                existing_type=sa.Text(length=2000),
+                type_=sa.String(length=2000),
+                existing_nullable=True,
+            )
+
+        with op.batch_alter_table("serialized_dag", schema=None) as batch_op:
+            batch_op.alter_column(
+                "processor_subdir",
+                existing_type=sa.Text(length=2000),
+                type_=sa.String(length=2000),
+                existing_nullable=True,
+            )
+
     elif conn.dialect.name == "sqlite":
         # SQLite does not support DROP CONSTRAINT
         # We have to recreate the table without the constraint

@@ -3619,7 +3619,7 @@ class DagModel(Base):
     # associated zip.
     fileloc = Column(String(2000))
     # The base directory used by Dag Processor that parsed this dag.
-    processor_subdir = Column(String(2000).with_variant(Text(length=2000), "mysql"), nullable=True)
+    processor_subdir = Column(String(2000), nullable=True)
     # String representing the owners
     owners = Column(String(2000))
     # Display name of the dag
