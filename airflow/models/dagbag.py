@@ -748,7 +748,7 @@ class DagPriorityParsingRequests(Base):
     # associated zip.
     fileloc = Column(String(2000), nullable=False)
 
-    def __init__(self, fileloc: str):
+    def __init__(self, fileloc: str) -> None:
         super().__init__()
         self.fileloc = fileloc
         # Adding a unique constraint to fileloc results in the creation of an index and we have a limitation
