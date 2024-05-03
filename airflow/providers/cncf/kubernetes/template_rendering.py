@@ -24,9 +24,7 @@ from kubernetes.client.api_client import ApiClient
 
 from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
-from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
-    create_pod_id,
-)
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import create_unique_id
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -43,7 +41,7 @@ def render_k8s_pod_yaml(task_instance: TaskInstance) -> dict | None:
         task_id=task_instance.task_id,
         map_index=task_instance.map_index,
         date=None,
-        pod_id=create_pod_id(task_instance.dag_id, task_instance.task_id),
+        pod_id=create_unique_id(task_instance.dag_id, task_instance.task_id),
         try_number=task_instance.try_number,
         kube_image=kube_config.kube_image,
         args=task_instance.command_as_list(),
