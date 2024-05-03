@@ -32,7 +32,7 @@ log = logging.getLogger(__name__)
 pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
-PYTHON_VERSION = sys.version_info[0]
+PYTHON_VERSION = f"{sys.version_info.major}{sys.version_info.minor}"
 
 
 class TestPythonVirtualenvDecorator:
@@ -252,7 +252,7 @@ class TestPythonVirtualenvDecorator:
             ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_python_3_cloudpickle(self, dag_maker):
-        @task.virtualenv(python_version=3, use_cloudpickle=False, requirements=["cloudpickle"])
+        @task.virtualenv(python_version="3", use_cloudpickle=False, requirements=["cloudpickle"])
         def f():
             import sys
 
@@ -269,7 +269,7 @@ class TestPythonVirtualenvDecorator:
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_python_3_dill(self, dag_maker):
-        @task.virtualenv(python_version=3, use_dill=False, requirements=["dill"])
+        @task.virtualenv(python_version="3", use_dill=False, requirements=["dill"])
         def f():
             import sys
 
