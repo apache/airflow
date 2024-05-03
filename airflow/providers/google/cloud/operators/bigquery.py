@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any, Iterable, Sequence, SupportsAbs
 import attr
 from deprecated import deprecated
 from google.api_core.exceptions import Conflict
-from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob
+from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob, Row
 from google.cloud.bigquery.table import RowIterator
 
 from airflow.configuration import conf
@@ -57,6 +57,7 @@ from airflow.providers.google.cloud.triggers.bigquery import (
 )
 from airflow.providers.google.cloud.utils.bigquery import convert_job_id
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
+from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
@@ -871,9 +872,10 @@ class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
 
 class BigQueryGetDataOperator(GoogleCloudBaseOperator):
     """
-    Fetches the data from a BigQuery table (alternatively fetch data for selected columns) and returns data.
+    Fetch data and return it, either from a BigQuery table, or results of a query job.
 
-    Data is returned in either of the following two formats, based on "as_dict" value:
+    Data could be narrowed down by specific columns or retrieved as a whole.
+    It is returned in either of the following two formats, based on "as_dict" value:
     1. False (Default) - A Python list of lists, with the number of nested lists equal to the number of rows
     fetched. Each nested list represents a row, where the elements within it correspond to the column values
     for that particular row.
@@ -893,27 +895,42 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
     .. note::
         If you pass fields to ``selected_fields`` which are in different order than the
         order of columns already in
-        BQ table, the data will still be in the order of BQ table.
+        BQ table/job, the data will still be in the order of BQ table.
         For example if the BQ table has 3 columns as
         ``[A,B,C]`` and you pass 'B,A' in the ``selected_fields``
         the data would still be of the form ``'A,B'``.
 
-    **Example**::
+    .. note::
+        When utilizing job id not in deferrable mode, the job should be in DONE state.
+
+    **Example - Retrieve data from BigQuery using table**::
 
         get_data = BigQueryGetDataOperator(
             task_id="get_data_from_bq",
             dataset_id="test_dataset",
             table_id="Transaction_partitions",
-            project_id="internal-gcp-project",
+            table_project_id="internal-gcp-project",
+            max_results=100,
+            selected_fields="DATE",
+            gcp_conn_id="airflow-conn-id",
+        )
+
+    **Example - Retrieve data from BigQuery using a job id**::
+
+        get_data = BigQueryGetDataOperator(
+            job_id="airflow_8999918812727394_86a1cecc69c5e3028d28247affd7563",
+            job_project_id="internal-gcp-project",
             max_results=100,
             selected_fields="DATE",
             gcp_conn_id="airflow-conn-id",
         )
 
     :param dataset_id: The dataset ID of the requested table. (templated)
-    :param table_id: The table ID of the requested table. (templated)
+    :param table_id: The table ID of the requested table. Mutually exclusive with job_id. (templated)
     :param table_project_id: (Optional) The project ID of the requested table.
         If None, it will be derived from the hook's project ID. (templated)
+    :param job_id: The job ID from which query results are retrieved.
+        Mutually exclusive with table_id. (templated)
     :param job_project_id: (Optional) Google Cloud Project where the job is running.
         If None, it will be derived from the hook's project ID. (templated)
     :param project_id: (Deprecated) (Optional) The name of the project where the data
@@ -944,6 +961,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         "dataset_id",
         "table_id",
         "table_project_id",
+        "job_id",
         "job_project_id",
         "project_id",
         "max_results",
@@ -955,9 +973,10 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
     def __init__(
         self,
         *,
-        dataset_id: str,
-        table_id: str,
+        dataset_id: str | None = None,
+        table_id: str | None = None,
         table_project_id: str | None = None,
+        job_id: str | None = None,
         job_project_id: str | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
         max_results: int = 100,
@@ -977,6 +996,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         self.dataset_id = dataset_id
         self.table_id = table_id
         self.job_project_id = job_project_id
+        self.job_id = job_id
         self.max_results = max_results
         self.selected_fields = selected_fields
         self.gcp_conn_id = gcp_conn_id
@@ -1013,7 +1033,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
             query += "*"
         query += (
             f" from `{self.table_project_id or hook.project_id}.{self.dataset_id}"
-            f".{self.table_id}` limit {int(self.max_results)}"
+            f".{self.table_id}` limit {self.max_results}"
         )
         return query
 
@@ -1026,7 +1046,13 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
             if not self.table_project_id:
                 self.table_project_id = self.project_id
             else:
-                self.log.info("Ignoring project_id parameter, as table_project_id is found.")
+                self.log.info("Ignoring 'project_id' parameter, as 'table_project_id' is found.")
+
+        if not exactly_one(self.job_id, self.table_id):
+            raise AirflowException(
+                "'job_id' and 'table_id' parameters are mutually exclusive, "
+                "ensure that exactly one of them is specified"
+            )
 
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -1035,31 +1061,45 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         )
 
         if not self.deferrable:
-            self.log.info(
-                "Fetching Data from %s.%s.%s max results: %s",
-                self.table_project_id or hook.project_id,
-                self.dataset_id,
-                self.table_id,
-                int(self.max_results),
-            )
-            if not self.selected_fields:
-                schema: dict[str, list] = hook.get_schema(
+            if not self.job_id:
+                self.log.info(
+                    "Fetching Data from %s.%s.%s max results: %s",
+                    self.table_project_id or hook.project_id,
+                    self.dataset_id,
+                    self.table_id,
+                    self.max_results,
+                )
+                if not self.selected_fields:
+                    schema: dict[str, list] = hook.get_schema(
+                        dataset_id=self.dataset_id,
+                        table_id=self.table_id,
+                        project_id=self.table_project_id or hook.project_id,
+                    )
+                    if "fields" in schema:
+                        self.selected_fields = ",".join([field["name"] for field in schema["fields"]])
+                rows: list[Row] | RowIterator | list[dict[str, Any]] = hook.list_rows(
                     dataset_id=self.dataset_id,
                     table_id=self.table_id,
+                    max_results=self.max_results,
+                    selected_fields=self.selected_fields,
+                    location=self.location,
                     project_id=self.table_project_id or hook.project_id,
                 )
-                if "fields" in schema:
-                    self.selected_fields = ",".join([field["name"] for field in schema["fields"]])
-
-            rows = hook.list_rows(
-                dataset_id=self.dataset_id,
-                table_id=self.table_id,
-                max_results=int(self.max_results),
-                selected_fields=self.selected_fields,
-                location=self.location,
-                project_id=self.table_project_id or hook.project_id,
-            )
-
+            else:
+                self.log.info(
+                    "Fetching data from job '%s:%s.%s' max results: %s",
+                    self.job_project_id or hook.project_id,
+                    self.location,
+                    self.job_id,
+                    self.max_results,
+                )
+                rows = hook.get_query_results(
+                    job_id=self.job_id,
+                    location=self.location,
+                    selected_fields=self.selected_fields,
+                    max_results=self.max_results,
+                    project_id=self.job_project_id or hook.project_id,
+                )
             if isinstance(rows, RowIterator):
                 raise TypeError(
                     "BigQueryHook.list_rows() returns iterator when return_iterator is False (default)"
@@ -1069,11 +1109,16 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
             if self.as_dict:
                 table_data = [dict(row) for row in rows]
             else:
-                table_data = [row.values() for row in rows]
+                table_data = [row.values() if isinstance(row, Row) else list(row.values()) for row in rows]
 
             return table_data
 
-        job = self._submit_job(hook, job_id="")
+        if not self.job_id:
+            job: BigQueryJob | UnknownJob = self._submit_job(hook, job_id="")
+        else:
+            job = hook.get_job(
+                job_id=self.job_id, project_id=self.job_project_id or hook.project_id, location=self.location
+            )
 
         context["ti"].xcom_push(key="job_id", value=job.job_id)
         self.defer(
@@ -1088,6 +1133,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
                 poll_interval=self.poll_interval,
                 as_dict=self.as_dict,
                 impersonation_chain=self.impersonation_chain,
+                selected_fields=self.selected_fields,
             ),
             method_name="execute_complete",
         )

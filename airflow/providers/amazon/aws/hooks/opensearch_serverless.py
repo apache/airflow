@@ -16,20 +16,24 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
-
-from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, BedrockHook, BedrockRuntimeHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class TestBedrockHooks:
-    @pytest.mark.parametrize(
-        "test_hook, service_name",
-        [
-            pytest.param(BedrockHook(), "bedrock", id="bedrock"),
-            pytest.param(BedrockRuntimeHook(), "bedrock-runtime", id="bedrock-runtime"),
-            pytest.param(BedrockAgentHook(), "bedrock-agent", id="bedrock-agent"),
-        ],
-    )
-    def test_bedrock_hooks(self, test_hook, service_name):
-        assert test_hook.conn is not None
-        assert test_hook.conn.meta.service_model.service_name == service_name
+class OpenSearchServerlessHook(AwsBaseHook):
+    """
+    Interact with the Amazon OpenSearch Serverless API.
+
+    Provide thin wrapper around :external+boto3:py:class:`boto3.client("opensearchserverless") <OpenSearchServiceServerless.Client>`.
+
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+    """
+
+    client_type = "opensearchserverless"
+
+    def __init__(self, *args, **kwargs) -> None:
+        kwargs["client_type"] = self.client_type
+        super().__init__(*args, **kwargs)
