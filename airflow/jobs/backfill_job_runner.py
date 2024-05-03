@@ -747,6 +747,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
 
             self._log_progress(ti_status)
             session.commit()
+            time.sleep(1)
 
         # return updated status
         return executed_run_dates
