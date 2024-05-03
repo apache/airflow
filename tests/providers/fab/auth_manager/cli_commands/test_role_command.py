@@ -44,18 +44,18 @@ class TestCliRoles:
         self.parser = cli_parser.get_parser()
         with get_application_builder() as appbuilder:
             self.appbuilder = appbuilder
-            self.clear_roles_and_roles()
+            self.clear_users_and_roles()
             yield
-            self.clear_roles_and_roles()
+            self.clear_users_and_roles()
 
-    def clear_roles_and_roles(self):
-        for email in [TEST_USER1_EMAIL, TEST_USER2_EMAIL]:
-            test_user = self.appbuilder.sm.find_user(email=email)
-            if test_user:
-                self.appbuilder.sm.del_register_user(test_user)
+    def clear_users_and_roles(self):
+        session = self.appbuilder.get_session
+        for user in self.appbuilder.sm.get_all_users():
+            session.delete(user)
         for role_name in ["FakeTeamA", "FakeTeamB", "FakeTeamC"]:
             if self.appbuilder.sm.find_role(role_name):
                 self.appbuilder.sm.delete_role(role_name)
+        session.commit()
 
     def test_cli_create_roles(self):
         assert self.appbuilder.sm.find_role("FakeTeamA") is None

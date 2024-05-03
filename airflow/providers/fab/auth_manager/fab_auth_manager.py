@@ -272,10 +272,7 @@ class FabAuthManager(BaseAuthManager):
     ):
         if not user:
             user = self.get_user()
-        if method in get_fab_action_from_method_map():
-            fab_action_name = get_fab_action_from_method_map()[method]
-        else:
-            fab_action_name = method
+        fab_action_name = get_fab_action_from_method_map().get(method, method)
         return (fab_action_name, resource_name) in self._get_user_permissions(user)
 
     @provide_session
