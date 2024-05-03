@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``scheduling_decision`` to ``DagRun`` and ``DAG``
+"""Add ``scheduling_decision`` to ``DagRun`` and ``DAG``.
 
 Revision ID: 98271e7606e2
 Revises: bef4f3d11e8b
 Create Date: 2020-10-01 12:13:32.968148
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -38,7 +39,7 @@ airflow_version = "2.0.0"
 
 
 def upgrade():
-    """Apply Add ``scheduling_decision`` to ``DagRun`` and ``DAG``"""
+    """Apply Add ``scheduling_decision`` to ``DagRun`` and ``DAG``."""
     conn = op.get_bind()
     is_sqlite = bool(conn.dialect.name == "sqlite")
     is_mssql = bool(conn.dialect.name == "mssql")
@@ -64,7 +65,7 @@ def upgrade():
         from airflow.configuration import conf
 
         concurrency = conf.getint("core", "max_active_tasks_per_dag", fallback=16)
-    except:  # noqa
+    except Exception:
         concurrency = 16
 
     # Set it to true here as it makes us take the slow/more complete path, and when it's next parsed by the
@@ -88,7 +89,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Add ``scheduling_decision`` to ``DagRun`` and ``DAG``"""
+    """Unapply Add ``scheduling_decision`` to ``DagRun`` and ``DAG``."""
     conn = op.get_bind()
     is_sqlite = bool(conn.dialect.name == "sqlite")
 

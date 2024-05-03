@@ -35,14 +35,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.8.0
+.....
+
+Latest change: 2024-04-25
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+`9d46507f59 <https://github.com/apache/airflow/commit/9d46507f59d0ec976656f8e9f24046f6db51be4f>`_  2024-04-11   ``Rename SparkSubmitOperator argument queue as yarn_queue (#38852)``
+=================================================================================================  ===========  =======================================================================
+
 4.7.2
 .....
 
-Latest change: 2024-03-16
+Latest change: 2024-04-10
 
 =================================================================================================  ===========  ====================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================================
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
 `baa6f08a5c <https://github.com/apache/airflow/commit/baa6f08a5cd4c8fa35ddf481e649e97b8576b952>`_  2024-03-16   ``Rename 'SparkSubmitOperator''s fields' names to comply with templated fields validation (#38051)``
 `58bffa6862 <https://github.com/apache/airflow/commit/58bffa686238102cb628f19a16d9ad1c65ecda15>`_  2024-03-12   ``Rename 'SparkSqlOperator''s field's name to comply with templated fields validation (#38045)``
 `83316b8158 <https://github.com/apache/airflow/commit/83316b81584c9e516a8142778fc509f19d95cc3e>`_  2024-03-04   ``Prepare docs 1st wave (RC1) March 2024 (#37876)``

@@ -35,6 +35,17 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.10.0
+......
+
+Latest change: 2024-04-25
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+=================================================================================================  ===========  =======================================================================
+
 4.9.1
 .....
 
@@ -43,6 +54,7 @@ Latest change: 2024-04-10
 =================================================================================================  ===========  =====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =====================================================================================
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
 `d703a224d1 <https://github.com/apache/airflow/commit/d703a224d1f27d6b6eb62f0dd24d085e99f5631c>`_  2024-04-10   ``Close open connections for deferrable SFTPSensor (#38881)``
 `17eaf8eae3 <https://github.com/apache/airflow/commit/17eaf8eae30e6e2d4fac1b582495a052b5871415>`_  2024-04-03   ``Resolve 'PT012' in 'SFTP' provider tests (#38518)``
 `5bf60bcf56 <https://github.com/apache/airflow/commit/5bf60bcf56fb7f2f4ac453216ed487b31cff3b9f>`_  2024-03-22   ``fix(sftp): add return statement to yield within a while loop in triggers (#38391)``

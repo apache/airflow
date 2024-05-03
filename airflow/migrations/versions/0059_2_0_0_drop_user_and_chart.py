@@ -14,13 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Drop ``user`` and ``chart`` table
+"""Drop ``user`` and ``chart`` table.
 
 Revision ID: cf5dc11e79ad
 Revises: 03afc6b6f902
 Create Date: 2019-01-24 15:30:35.834740
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa

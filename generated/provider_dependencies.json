@@ -33,6 +33,7 @@
       "boto3>=1.33.0",
       "botocore>=1.33.0",
       "inflection>=0.5.1",
+      "jmespath",
       "jsonpath_ng>=1.5.3",
       "redshift_connector>=2.0.918",
       "sqlalchemy_redshift>=0.8.6",
@@ -472,7 +473,8 @@
       "flask-appbuilder==4.4.1",
       "flask-login>=0.6.2",
       "flask>=2.2,<2.3",
-      "google-re2>=1.0"
+      "google-re2>=1.0",
+      "jmespath"
     ],
     "devel-deps": [],
     "cross-providers-deps": [],
@@ -805,7 +807,7 @@
   "openai": {
     "deps": [
       "apache-airflow>=2.7.0",
-      "openai[datalib]>=1.16"
+      "openai[datalib]>=1.23"
     ],
     "devel-deps": [],
     "cross-providers-deps": [],
@@ -910,7 +912,7 @@
   "pinecone": {
     "deps": [
       "apache-airflow>=2.7.0",
-      "pinecone-client>=2.2.4,<3.0"
+      "pinecone-client>=3.0.0"
     ],
     "devel-deps": [],
     "cross-providers-deps": [],

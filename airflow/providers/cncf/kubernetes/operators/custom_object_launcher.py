@@ -344,7 +344,7 @@ class CustomObjectLauncher(LoggingMixin):
             waiting_message = waiting_status.message
         except Exception:
             return
-        if waiting_reason != "ContainerCreating":
+        if waiting_reason not in ("ContainerCreating", "PodInitializing"):
             raise AirflowException(f"Spark Job Failed. Status: {waiting_reason}, Error: {waiting_message}")
 
     def delete_spark_job(self, spark_job_name=None):
