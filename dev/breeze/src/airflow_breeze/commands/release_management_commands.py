@@ -2128,7 +2128,8 @@ def generate_issue_content_providers(
         users: set[str] = set()
         for provider_info in providers.values():
             for pr in provider_info.pr_list:
-                users.add("@" + pr.user.login)
+                if pr.user.login:
+                    users.add("@" + pr.user.login)
         issue_content += f"All users involved in the PRs:\n{' '.join(users)}"
         syntax = Syntax(issue_content, "markdown", theme="ansi_dark")
         get_console().print(syntax)

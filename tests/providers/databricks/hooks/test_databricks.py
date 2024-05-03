@@ -1603,6 +1603,23 @@ class TestDatabricksHookAsyncMethods:
             timeout=self.hook.timeout_seconds,
         )
 
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get")
+    async def test_get_run_output(self, mock_get):
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=GET_RUN_OUTPUT_RESPONSE)
+        async with self.hook:
+            run_output = await self.hook.a_get_run_output(RUN_ID)
+            run_output_error = run_output.get("error")
+
+        assert run_output_error == ERROR_MESSAGE
+        mock_get.assert_called_once_with(
+            get_run_output_endpoint(HOST),
+            json={"run_id": RUN_ID},
+            auth=aiohttp.BasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
 
 @pytest.mark.db_test
 class TestDatabricksHookAsyncAadToken:

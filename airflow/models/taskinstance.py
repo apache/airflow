@@ -1250,8 +1250,9 @@ def _log_state(*, task_instance: TaskInstance | TaskInstancePydantic, lead_msg: 
         str(task_instance.state).upper(),
         task_instance.dag_id,
         task_instance.task_id,
+        task_instance.run_id,
     ]
-    message = "%sMarking task as %s. dag_id=%s, task_id=%s, "
+    message = "%sMarking task as %s. dag_id=%s, task_id=%s, run_id=%s, "
     if task_instance.map_index >= 0:
         params.append(task_instance.map_index)
         message += "map_index=%d, "
@@ -2558,9 +2559,10 @@ class TaskInstance(Base, LoggingMixin):
                     raise
                 self.defer_task(defer=defer, session=session)
                 self.log.info(
-                    "Pausing task as DEFERRED. dag_id=%s, task_id=%s, execution_date=%s, start_date=%s",
+                    "Pausing task as DEFERRED. dag_id=%s, task_id=%s, run_id=%s, execution_date=%s, start_date=%s",
                     self.dag_id,
                     self.task_id,
+                    self.run_id,
                     _date_or_empty(task_instance=self, attr="execution_date"),
                     _date_or_empty(task_instance=self, attr="start_date"),
                 )

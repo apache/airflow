@@ -22,6 +22,7 @@ Revises: 849da589634d
 Create Date: 2020-10-21 00:18:52.529438
 
 """
+
 from __future__ import annotations
 
 import logging
@@ -312,7 +313,7 @@ def remap_permissions():
 
 
 def undo_remap_permissions():
-    """Unapply Map Airflow permissions"""
+    """Unapply Map Airflow permissions."""
     appbuilder = cached_app(config={"FAB_UPDATE_PERMS": False}).appbuilder
     for old, new in mapping.items():
         (new_resource_name, new_action_name) = new[0]

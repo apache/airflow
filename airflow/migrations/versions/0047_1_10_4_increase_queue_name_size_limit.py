@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Increase queue name size limit
+"""Increase queue name size limit.
 
 Revision ID: 004c1210f153
 Revises: 939bb1e647c8
 Create Date: 2019-06-07 07:46:04.262275
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -37,8 +38,9 @@ airflow_version = "1.10.4"
 
 def upgrade():
     """
-    Increase column size from 50 to 256 characters,
-    caused by broker backends that might use unusually large queue names.
+    Increase column size from 50 to 256 characters.
+
+    Broker backends might use unusually large queue names.
     """
     # use batch_alter_table to support SQLite workaround
     with op.batch_alter_table("task_instance") as batch_op:

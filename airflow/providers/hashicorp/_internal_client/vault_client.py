@@ -74,7 +74,9 @@ class _VaultClient(LoggingMixin):
     :param key_id: Key ID for Authentication (for ``aws_iam`` and ''azure`` auth_type).
     :param secret_id: Secret ID for Authentication (for ``approle``, ``aws_iam`` and ``azure`` auth_types).
     :param role_id: Role ID for Authentication (for ``approle``, ``aws_iam`` auth_types).
-    :param role_arn: AWS arn role (for ``aws_iam`` auth_type)
+    :param assume_role_kwargs: AWS assume role param.
+        See AWS STS Docs:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sts/client/assume_role.html
     :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type).
     :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, default:
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``).
@@ -104,7 +106,7 @@ class _VaultClient(LoggingMixin):
         password: str | None = None,
         key_id: str | None = None,
         secret_id: str | None = None,
-        role_arn: str | None = None,
+        assume_role_kwargs: dict | None = None,
         role_id: str | None = None,
         kubernetes_role: str | None = None,
         kubernetes_jwt_path: str | None = "/var/run/secrets/kubernetes.io/serviceaccount/token",
@@ -163,7 +165,7 @@ class _VaultClient(LoggingMixin):
         self.key_id = key_id
         self.secret_id = secret_id
         self.role_id = role_id
-        self.role_arn = role_arn
+        self.assume_role_kwargs = assume_role_kwargs
         self.kubernetes_role = kubernetes_role
         self.kubernetes_jwt_path = kubernetes_jwt_path
         self.gcp_key_path = gcp_key_path
@@ -330,9 +332,9 @@ class _VaultClient(LoggingMixin):
         else:
             import boto3
 
-            if self.role_arn:
+            if self.assume_role_kwargs:
                 sts_client = boto3.client("sts")
-                credentials = sts_client.assume_role(RoleArn=self.role_arn, RoleSessionName="airflow")
+                credentials = sts_client.assume_role(**self.assume_role_kwargs)
                 auth_args = {
                     "access_key": credentials["Credentials"]["AccessKeyId"],
                     "secret_key": credentials["Credentials"]["SecretAccessKey"],

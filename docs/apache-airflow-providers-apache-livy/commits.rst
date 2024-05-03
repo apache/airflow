@@ -35,14 +35,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.8.0
+.....
+
+Latest change: 2024-04-27
+
+=================================================================================================  ===========  ===========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===========================================================================
+`04caa6eceb <https://github.com/apache/airflow/commit/04caa6eceb631528adb988092322b2d41a516869>`_  2024-04-27   ``Update docstring 'LivyOperator' retry_args and deferrable docs (#39266)``
+`ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+`bf5ab8fc46 <https://github.com/apache/airflow/commit/bf5ab8fc462b1f35a45b5cfc8940d06fb0e698dd>`_  2024-04-14   ``Fix bug in LivyOperator when its trigger times out (#38916)``
+`6de420a0ee <https://github.com/apache/airflow/commit/6de420a0eed92bbfb8d3ec60511956e3684fa57b>`_  2024-04-13   ``Fix 'polling_interval' parameter docs in LivyOperator (#38979)``
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
+`0a74928894 <https://github.com/apache/airflow/commit/0a74928894fb57b0160208262ccacad12da23fc7>`_  2024-03-18   ``Bump ruff to 0.3.3 (#38240)``
+=================================================================================================  ===========  ===========================================================================
+
 3.7.3
 .....
 
-Latest change: 2024-02-16
+Latest change: 2024-03-04
 
 =================================================================================================  ===========  ==================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================
+`83316b8158 <https://github.com/apache/airflow/commit/83316b81584c9e516a8142778fc509f19d95cc3e>`_  2024-03-04   ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
 `5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
 `82d9a89611 <https://github.com/apache/airflow/commit/82d9a8961168b0a44d45fe0b6bfc08a8492b6436>`_  2024-02-12   ``Fix rendering 'LivyOperator.spark_params' (#37361)``
 =================================================================================================  ===========  ==================================================================

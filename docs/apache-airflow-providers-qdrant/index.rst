@@ -70,7 +70,7 @@ apache-airflow-providers-qdrant package
 `Qdrant <https://qdrant.tech/documentation>`__
 
 
-Release: 1.0.0
+Release: 1.1.0
 
 Provider package
 ----------------
@@ -93,6 +93,6 @@ The minimum Apache Airflow version supported by this provider package is ``2.7.0
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``qdrant_client``   ``>=1.7.0``
+``qdrant_client``   ``>=1.9.0``
 ``apache-airflow``  ``>=2.7.0``
 ==================  ==================

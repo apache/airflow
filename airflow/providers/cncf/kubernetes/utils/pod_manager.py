@@ -190,6 +190,10 @@ def get_container_termination_message(pod: V1Pod, container_name: str):
         return container_status.state.terminated.message if container_status else None
 
 
+def check_exception_is_kubernetes_api_unauthorized(exc: BaseException):
+    return isinstance(exc, ApiException) and exc.status and str(exc.status) == "401"
+
+
 class PodLaunchTimeoutException(AirflowException):
     """When pod does not leave the ``Pending`` phase within specified timeout."""
 

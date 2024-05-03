@@ -28,6 +28,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     ACCESS_KEY_ID,
     AWS_ACCESS_KEY,
+    AWS_ROLE_ARN,
     AWS_S3_DATA_SOURCE,
     BUCKET_NAME,
     DAY,
@@ -79,15 +80,23 @@ class TransferJobPreprocessor:
         self.default_schedule = default_schedule
 
     def _inject_aws_credentials(self) -> None:
-        if TRANSFER_SPEC in self.body and AWS_S3_DATA_SOURCE in self.body[TRANSFER_SPEC]:
-            aws_hook = AwsBaseHook(self.aws_conn_id, resource_type="s3")
-            aws_credentials = aws_hook.get_credentials()
-            aws_access_key_id = aws_credentials.access_key  # type: ignore[attr-defined]
-            aws_secret_access_key = aws_credentials.secret_key  # type: ignore[attr-defined]
-            self.body[TRANSFER_SPEC][AWS_S3_DATA_SOURCE][AWS_ACCESS_KEY] = {
-                ACCESS_KEY_ID: aws_access_key_id,
-                SECRET_ACCESS_KEY: aws_secret_access_key,
-            }
+        if TRANSFER_SPEC not in self.body:
+            return
+
+        if AWS_S3_DATA_SOURCE not in self.body[TRANSFER_SPEC]:
+            return
+
+        if AWS_ROLE_ARN in self.body[TRANSFER_SPEC][AWS_S3_DATA_SOURCE]:
+            return
+
+        aws_hook = AwsBaseHook(self.aws_conn_id, resource_type="s3")
+        aws_credentials = aws_hook.get_credentials()
+        aws_access_key_id = aws_credentials.access_key  # type: ignore[attr-defined]
+        aws_secret_access_key = aws_credentials.secret_key  # type: ignore[attr-defined]
+        self.body[TRANSFER_SPEC][AWS_S3_DATA_SOURCE][AWS_ACCESS_KEY] = {
+            ACCESS_KEY_ID: aws_access_key_id,
+            SECRET_ACCESS_KEY: aws_secret_access_key,
+        }
 
     def _reformat_date(self, field_key: str) -> None:
         schedule = self.body[SCHEDULE]
@@ -819,6 +828,9 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     :param delete_job_after_completion: If True, delete the job after complete.
         If set to True, 'wait' must be set to True.
+    :param aws_role_arn: Optional AWS role ARN for workload identity federation. This will
+        override the `aws_conn_id` for authentication between GCP and AWS; see
+        https://cloud.google.com/storage-transfer/docs/reference/rest/v1/TransferSpec#AwsS3Data
     """
 
     template_fields: Sequence[str] = (
@@ -830,6 +842,7 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
         "description",
         "object_conditions",
         "google_impersonation_chain",
+        "aws_role_arn",
     )
     ui_color = "#e09411"
 
@@ -851,6 +864,7 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
         timeout: float | None = None,
         google_impersonation_chain: str | Sequence[str] | None = None,
         delete_job_after_completion: bool = False,
+        aws_role_arn: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -869,6 +883,7 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
         self.timeout = timeout
         self.google_impersonation_chain = google_impersonation_chain
         self.delete_job_after_completion = delete_job_after_completion
+        self.aws_role_arn = aws_role_arn
         self._validate_inputs()
 
     def _validate_inputs(self) -> None:
@@ -918,6 +933,9 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
 
         if self.transfer_options is not None:
             body[TRANSFER_SPEC][TRANSFER_OPTIONS] = self.transfer_options  # type: ignore[index]
+
+        if self.aws_role_arn is not None:
+            body[TRANSFER_SPEC][AWS_S3_DATA_SOURCE][AWS_ROLE_ARN] = self.aws_role_arn  # type: ignore[index]
 
         return body
 

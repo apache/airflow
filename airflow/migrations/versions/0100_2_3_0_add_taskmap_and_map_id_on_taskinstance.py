@@ -15,13 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``map_index`` column to TaskInstance to identify task-mapping,
+"""Add TaskMap and map_index on TaskInstance.
+
+Add ``map_index`` column to TaskInstance to identify task-mapping,
 and a ``task_map`` table to track mapping values from XCom.
 
 Revision ID: e655c0453f75
 Revises: f9da662e7089
 Create Date: 2021-12-13 22:59:41.052584
 """
+
 from __future__ import annotations
 
 from alembic import op
@@ -39,10 +42,7 @@ airflow_version = "2.3.0"
 
 
 def upgrade():
-    """
-    Add ``map_index`` column to TaskInstance to identify task-mapping,
-    and a ``task_map`` table to track mapping values from XCom.
-    """
+    """Add TaskMap and map_index on TaskInstance."""
     # We need to first remove constraints on task_reschedule since they depend on task_instance.
     with op.batch_alter_table("task_reschedule") as batch_op:
         batch_op.drop_constraint("task_reschedule_ti_fkey", type_="foreignkey")
