@@ -1105,14 +1105,14 @@ paths:
       responses:
         "201":
           description: Success.
-        "409":
-          $ref: "#/components/responses/AlreadyExists"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/PermissionDenied"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/AlreadyExists"
 
   /datasets/queuedEvent/{uri}:
     parameters:
