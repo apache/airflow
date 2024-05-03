@@ -18,7 +18,18 @@
  */
 
 import React from "react";
-import { Text, Table, Tbody, Tr, Th, Td, Box } from "@chakra-ui/react";
+import {
+  Alert,
+  AlertIcon,
+  Box,
+  Spinner,
+  Text,
+  Table,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+} from "@chakra-ui/react";
 
 import { useTaskFailedDependency } from "src/api";
 
@@ -30,16 +41,16 @@ interface Props {
 }
 
 const TaskFailedDependency = ({ dagId, runId, taskId, mapIndex }: Props) => {
-  const { data: dependencies, isLoading } = useTaskFailedDependency({
+  const {
+    data: dependencies,
+    isLoading,
+    error,
+  } = useTaskFailedDependency({
     dagId,
     taskId,
     runId,
     mapIndex,
   });
-
-  if (isLoading) {
-    return null;
-  }
 
   return (
     <Box mt={3} flexGrow={1}>
@@ -47,22 +58,34 @@ const TaskFailedDependency = ({ dagId, runId, taskId, mapIndex }: Props) => {
         Task Failed Dependencies
       </Text>
       <br />
-      <br />
-      <Text>Dependencies Blocking Task From Getting Scheduled</Text>
-      <Table variant="striped">
-        <Tbody>
-          <Tr>
-            <Th>Dependency</Th>
-            <Th>Reason</Th>
-          </Tr>
-          {dependencies?.dependencies?.map((dep) => (
-            <Tr key={dep.name}>
-              <Td>{dep.name}</Td>
-              <Td>{dep.reason}</Td>
-            </Tr>
-          ))}
-        </Tbody>
-      </Table>
+
+      {isLoading && <Spinner size="md" thickness="4px" speed="0.65s" />}
+      {!!error && (
+        <Alert status="error" marginBottom="10px">
+          <AlertIcon />
+          An error occurred while fetching task dependencies.
+        </Alert>
+      )}
+
+      {dependencies && (
+        <Box mt={3}>
+          <Text>Dependencies Blocking Task From Getting Scheduled</Text>
+          <Table variant="striped">
+            <Tbody>
+              <Tr>
+                <Th>Dependency</Th>
+                <Th>Reason</Th>
+              </Tr>
+              {dependencies.dependencies?.map((dep) => (
+                <Tr key={dep.name}>
+                  <Td>{dep.name}</Td>
+                  <Td>{dep.reason}</Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        </Box>
+      )}
     </Box>
   );
 };

@@ -50,17 +50,11 @@ export default function useTaskFailedDependency({
         )
         .replace("_TASK_ID_", taskId);
 
-      try {
-        const datum = await axios.get<
-          AxiosResponse,
-          API.TaskInstanceDependencyCollection
-        >(url);
-        return datum;
-      } catch (e) {
-        // eslint-disable-next-line no-console
-        console.error(e);
-        return { dependencies: [] };
-      }
+      const datum = await axios.get<
+        AxiosResponse,
+        API.TaskInstanceDependencyCollection
+      >(url);
+      return datum;
     }
   );
 }
