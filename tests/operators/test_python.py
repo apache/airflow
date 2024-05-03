@@ -133,6 +133,7 @@ class BasePythonTest:
             session=self.dag_maker.session,
             execution_date=self.default_date,
             run_type=DagRunType.MANUAL,
+            data_interval=(self.default_date, self.default_date),
         )
 
     def create_ti(self, fn, **kwargs) -> TI:

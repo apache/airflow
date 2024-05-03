@@ -67,24 +67,22 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
                     log.info("%s completed successfully.", operator.task_id)
                     log.info("View run status, Spark UI, and logs at %s", run_page_url)
                     return
-
                 if run_state.result_state == "FAILED":
-                    task_run_id = None
-                    if "tasks" in run_info:
-                        for task in run_info["tasks"]:
-                            if task.get("state", {}).get("result_state", "") == "FAILED":
-                                task_run_id = task["run_id"]
-                    if task_run_id is not None:
-                        run_output = hook.get_run_output(task_run_id)
-                        if "error" in run_output:
-                            notebook_error = run_output["error"]
-                        else:
-                            notebook_error = run_state.state_message
-                    else:
-                        notebook_error = run_state.state_message
+                    failed_tasks = []
+                    for task in run_info.get("tasks", []):
+                        if task.get("state", {}).get("result_state", "") == "FAILED":
+                            task_run_id = task["run_id"]
+                            task_key = task["task_key"]
+                            run_output = hook.get_run_output(task_run_id)
+                            if "error" in run_output:
+                                error = run_output["error"]
+                            else:
+                                error = run_state.state_message
+                            failed_tasks.append({"task_key": task_key, "run_id": task_run_id, "error": error})
+
                     error_message = (
                         f"{operator.task_id} failed with terminal state: {run_state} "
-                        f"and with the error {notebook_error}"
+                        f"and with the errors {failed_tasks}"
                     )
                 else:
                     error_message = (
@@ -160,13 +158,15 @@ def _handle_deferrable_databricks_operator_completion(event: dict, log: Logger) 
     validate_trigger_event(event)
     run_state = RunState.from_json(event["run_state"])
     run_page_url = event["run_page_url"]
+    errors = event["errors"]
     log.info("View run status, Spark UI, and logs at %s", run_page_url)
 
     if run_state.is_successful:
         log.info("Job run completed successfully.")
         return
 
-    error_message = f"Job run failed with terminal state: {run_state}"
+    error_message = f"Job run failed with terminal state: {run_state} and with the errors {errors}"
+
     if event["repair_run"]:
         log.warning(
             "%s but since repair run is set, repairing the run with all failed tasks",
@@ -892,3 +892,177 @@ class DatabricksRunNowDeferrableOperator(DatabricksRunNowOperator):
 
     def __init__(self, *args, **kwargs):
         super().__init__(deferrable=True, *args, **kwargs)
+
+
+class DatabricksNotebookOperator(BaseOperator):
+    """
+    Runs a notebook on Databricks using an Airflow operator.
+
+    The DatabricksNotebookOperator allows users to launch and monitor notebook
+    job runs on Databricks as Airflow tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DatabricksNotebookOperator`
+
+    :param notebook_path: The path to the notebook in Databricks.
+    :param source: Optional location type of the notebook. When set to WORKSPACE, the notebook will be retrieved
+            from the local Databricks workspace. When set to GIT, the notebook will be retrieved from a Git repository
+            defined in git_source. If the value is empty, the task will use GIT if git_source is defined
+            and WORKSPACE otherwise. For more information please visit
+            https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsCreate
+    :param notebook_params: A dict of key-value pairs to be passed as optional params to the notebook task.
+    :param notebook_packages: A list of the Python libraries to be installed on the cluster running the
+        notebook.
+    :param new_cluster: Specs for a new cluster on which this task will be run.
+    :param existing_cluster_id: ID for existing cluster on which to run this task.
+    :param job_cluster_key: The key for the job cluster.
+    :param polling_period_seconds: Controls the rate which we poll for the result of this notebook job run.
+    :param databricks_retry_limit: Amount of times to retry if the Databricks backend is unreachable.
+    :param databricks_retry_delay: Number of seconds to wait between retries.
+    :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
+    :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
+    :param databricks_conn_id: The name of the Airflow connection to use.
+    """
+
+    template_fields = ("notebook_params",)
+
+    def __init__(
+        self,
+        notebook_path: str,
+        source: str,
+        notebook_params: dict | None = None,
+        notebook_packages: list[dict[str, Any]] | None = None,
+        new_cluster: dict[str, Any] | None = None,
+        existing_cluster_id: str = "",
+        job_cluster_key: str = "",
+        polling_period_seconds: int = 5,
+        databricks_retry_limit: int = 3,
+        databricks_retry_delay: int = 1,
+        databricks_retry_args: dict[Any, Any] | None = None,
+        wait_for_termination: bool = True,
+        databricks_conn_id: str = "databricks_default",
+        **kwargs: Any,
+    ):
+        self.notebook_path = notebook_path
+        self.source = source
+        self.notebook_params = notebook_params or {}
+        self.notebook_packages = notebook_packages or []
+        self.new_cluster = new_cluster or {}
+        self.existing_cluster_id = existing_cluster_id
+        self.job_cluster_key = job_cluster_key
+        self.polling_period_seconds = polling_period_seconds
+        self.databricks_retry_limit = databricks_retry_limit
+        self.databricks_retry_delay = databricks_retry_delay
+        self.databricks_retry_args = databricks_retry_args
+        self.wait_for_termination = wait_for_termination
+        self.databricks_conn_id = databricks_conn_id
+        self.databricks_run_id: int | None = None
+        super().__init__(**kwargs)
+
+    @cached_property
+    def _hook(self) -> DatabricksHook:
+        return self._get_hook(caller="DatabricksNotebookOperator")
+
+    def _get_hook(self, caller: str) -> DatabricksHook:
+        return DatabricksHook(
+            self.databricks_conn_id,
+            retry_limit=self.databricks_retry_limit,
+            retry_delay=self.databricks_retry_delay,
+            retry_args=self.databricks_retry_args,
+            caller=caller,
+        )
+
+    def _get_task_timeout_seconds(self) -> int:
+        """
+        Get the timeout seconds value for the Databricks job based on the execution timeout value provided for the Airflow task.
+
+        By default, tasks in Airflow have an execution_timeout set to None. In Airflow, when
+        execution_timeout is not defined, the task continues to run indefinitely. Therefore,
+        to mirror this behavior in the Databricks Jobs API, we set the timeout to 0, indicating
+        that the job should run indefinitely. This aligns with the default behavior of Databricks jobs,
+        where a timeout seconds value of 0 signifies an indefinite run duration.
+        More details can be found in the Databricks documentation:
+        See https://docs.databricks.com/api/workspace/jobs/submit#timeout_seconds
+        """
+        if self.execution_timeout is None:
+            return 0
+        execution_timeout_seconds = int(self.execution_timeout.total_seconds())
+        if execution_timeout_seconds == 0:
+            raise ValueError(
+                "If you've set an `execution_timeout` for the task, ensure it's not `0`. Set it instead to "
+                "`None` if you desire the task to run indefinitely."
+            )
+        return execution_timeout_seconds
+
+    def _get_task_base_json(self) -> dict[str, Any]:
+        """Get task base json to be used for task submissions."""
+        return {
+            "timeout_seconds": self._get_task_timeout_seconds(),
+            "email_notifications": {},
+            "notebook_task": {
+                "notebook_path": self.notebook_path,
+                "source": self.source,
+                "base_parameters": self.notebook_params,
+            },
+            "libraries": self.notebook_packages,
+        }
+
+    def _get_databricks_task_id(self, task_id: str) -> str:
+        """Get the databricks task ID using dag_id and task_id. Removes illegal characters."""
+        return f"{self.dag_id}__{task_id.replace('.', '__')}"
+
+    def _get_run_json(self) -> dict[str, Any]:
+        """Get run json to be used for task submissions."""
+        run_json = {
+            "run_name": self._get_databricks_task_id(self.task_id),
+            **self._get_task_base_json(),
+        }
+        if self.new_cluster and self.existing_cluster_id:
+            raise ValueError("Both new_cluster and existing_cluster_id are set. Only one should be set.")
+        if self.new_cluster:
+            run_json["new_cluster"] = self.new_cluster
+        elif self.existing_cluster_id:
+            run_json["existing_cluster_id"] = self.existing_cluster_id
+        else:
+            raise ValueError("Must specify either existing_cluster_id or new_cluster.")
+        return run_json
+
+    def launch_notebook_job(self) -> int:
+        run_json = self._get_run_json()
+        self.databricks_run_id = self._hook.submit_run(run_json)
+        url = self._hook.get_run_page_url(self.databricks_run_id)
+        self.log.info("Check the job run in Databricks: %s", url)
+        return self.databricks_run_id
+
+    def monitor_databricks_job(self) -> None:
+        if self.databricks_run_id is None:
+            raise ValueError("Databricks job not yet launched. Please run launch_notebook_job first.")
+        run = self._hook.get_run(self.databricks_run_id)
+        run_state = RunState(**run["state"])
+        self.log.info("Current state of the job: %s", run_state.life_cycle_state)
+        while not run_state.is_terminal:
+            time.sleep(self.polling_period_seconds)
+            run = self._hook.get_run(self.databricks_run_id)
+            run_state = RunState(**run["state"])
+            self.log.info(
+                "task %s %s", self._get_databricks_task_id(self.task_id), run_state.life_cycle_state
+            )
+            self.log.info("Current state of the job: %s", run_state.life_cycle_state)
+        if run_state.life_cycle_state != "TERMINATED":
+            raise AirflowException(
+                f"Databricks job failed with state {run_state.life_cycle_state}. "
+                f"Message: {run_state.state_message}"
+            )
+        if not run_state.is_successful:
+            raise AirflowException(
+                "Task failed. Final state %s. Reason: %s",
+                run_state.result_state,
+                run_state.state_message,
+            )
+        self.log.info("Task succeeded. Final state %s.", run_state.result_state)
+
+    def execute(self, context: Context) -> None:
+        self.launch_notebook_job()
+        if self.wait_for_termination:
+            self.monitor_databricks_job()

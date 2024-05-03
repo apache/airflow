@@ -105,19 +105,19 @@ def coerce_to_uri(value: str | Dataset) -> str:
     return _sanitize_uri(str(value))
 
 
-class BaseDatasetEventInput:
+class BaseDataset:
     """Protocol for all dataset triggers to use in ``DAG(schedule=...)``.
 
     :meta private:
     """
 
-    def __or__(self, other: BaseDatasetEventInput) -> DatasetAny:
-        if not isinstance(other, BaseDatasetEventInput):
+    def __or__(self, other: BaseDataset) -> DatasetAny:
+        if not isinstance(other, BaseDataset):
             return NotImplemented
         return DatasetAny(self, other)
 
-    def __and__(self, other: BaseDatasetEventInput) -> DatasetAll:
-        if not isinstance(other, BaseDatasetEventInput):
+    def __and__(self, other: BaseDataset) -> DatasetAll:
+        if not isinstance(other, BaseDataset):
             return NotImplemented
         return DatasetAll(self, other)
 
@@ -139,7 +139,7 @@ class BaseDatasetEventInput:
 
 
 @attr.define()
-class Dataset(os.PathLike, BaseDatasetEventInput):
+class Dataset(os.PathLike, BaseDataset):
     """A representation of data dependencies between workflows."""
 
     uri: str = attr.field(
@@ -175,13 +175,13 @@ class Dataset(os.PathLike, BaseDatasetEventInput):
         return statuses.get(self.uri, False)
 
 
-class _DatasetBooleanCondition(BaseDatasetEventInput):
+class _DatasetBooleanCondition(BaseDataset):
     """Base class for dataset boolean logic."""
 
     agg_func: Callable[[Iterable], bool]
 
-    def __init__(self, *objects: BaseDatasetEventInput) -> None:
-        if not all(isinstance(o, BaseDatasetEventInput) for o in objects):
+    def __init__(self, *objects: BaseDataset) -> None:
+        if not all(isinstance(o, BaseDataset) for o in objects):
             raise TypeError("expect dataset expressions in condition")
         self.objects = objects
 
@@ -203,8 +203,8 @@ class DatasetAny(_DatasetBooleanCondition):
 
     agg_func = any
 
-    def __or__(self, other: BaseDatasetEventInput) -> DatasetAny:
-        if not isinstance(other, BaseDatasetEventInput):
+    def __or__(self, other: BaseDataset) -> DatasetAny:
+        if not isinstance(other, BaseDataset):
             return NotImplemented
         # Optimization: X | (Y | Z) is equivalent to X | Y | Z.
         return DatasetAny(*self.objects, other)
@@ -225,8 +225,8 @@ class DatasetAll(_DatasetBooleanCondition):
 
     agg_func = all
 
-    def __and__(self, other: BaseDatasetEventInput) -> DatasetAll:
-        if not isinstance(other, BaseDatasetEventInput):
+    def __and__(self, other: BaseDataset) -> DatasetAll:
+        if not isinstance(other, BaseDataset):
             return NotImplemented
         # Optimization: X & (Y & Z) is equivalent to X & Y & Z.
         return DatasetAll(*self.objects, other)

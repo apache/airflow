@@ -398,12 +398,10 @@ class BaseAuthManager(LoggingMixin):
         accessible_items = []
         for menu_item in items:
             menu_item_copy = MenuItem(
-                name=menu_item.name,
-                icon=menu_item.icon,
-                label=menu_item.label,
-                childs=[],
-                baseview=menu_item.baseview,
-                cond=menu_item.cond,
+                **{
+                    **menu_item.__dict__,
+                    "childs": [],
+                }
             )
             if menu_item.childs:
                 accessible_children = []

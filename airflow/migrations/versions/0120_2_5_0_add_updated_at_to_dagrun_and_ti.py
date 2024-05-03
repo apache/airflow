@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add updated_at column to DagRun and TaskInstance
+"""Add updated_at column to DagRun and TaskInstance.
 
 Revision ID: ee8d93fcc81e
 Revises: e07f49787c9d
@@ -40,7 +40,7 @@ airflow_version = "2.5.0"
 
 
 def upgrade():
-    """Apply add updated_at column to DagRun and TaskInstance"""
+    """Apply add updated_at column to DagRun and TaskInstance."""
     with op.batch_alter_table("task_instance") as batch_op:
         batch_op.add_column(sa.Column("updated_at", TIMESTAMP, default=sa.func.now))
 
@@ -49,7 +49,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply add updated_at column to DagRun and TaskInstance"""
+    """Unapply add updated_at column to DagRun and TaskInstance."""
     with op.batch_alter_table("task_instance") as batch_op:
         batch_op.drop_column("updated_at")
 

@@ -61,10 +61,10 @@ class TestCliUsers:
             self.clear_users()
 
     def clear_users(self):
-        for email in [TEST_USER1_EMAIL, TEST_USER2_EMAIL]:
-            test_user = self.appbuilder.sm.find_user(email=email)
-            if test_user:
-                self.appbuilder.sm.del_register_user(test_user)
+        session = self.appbuilder.get_session
+        for user in self.appbuilder.sm.get_all_users():
+            session.delete(user)
+        session.commit()
 
     def test_cli_create_user_random_password(self):
         args = self.parser.parse_args(

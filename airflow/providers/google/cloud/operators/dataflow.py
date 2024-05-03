@@ -41,6 +41,7 @@ from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.links.dataflow import DataflowJobLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.dataflow import TemplateJobStartTrigger
+from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.version import version
 
@@ -460,7 +461,7 @@ class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
 
 class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
     """
-    Start a Templated Cloud Dataflow job; the parameters of the operation will be passed to the job.
+    Start a Dataflow job with a classic template; the parameters of the operation will be passed to the job.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -643,7 +644,7 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
         self.deferrable = deferrable
         self.expected_terminal_state = expected_terminal_state
 
-        self.job: dict | None = None
+        self.job: dict[str, str] | None = None
 
         self._validate_deferrable_params()
 
@@ -681,29 +682,34 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
         if not self.location:
             self.location = DEFAULT_DATAFLOW_LOCATION
 
-        self.job = self.hook.start_template_dataflow(
+        if not self.deferrable:
+            self.job = self.hook.start_template_dataflow(
+                job_name=self.job_name,
+                variables=options,
+                parameters=self.parameters,
+                dataflow_template=self.template,
+                on_new_job_callback=set_current_job,
+                project_id=self.project_id,
+                location=self.location,
+                environment=self.environment,
+                append_job_name=self.append_job_name,
+            )
+            job_id = self.hook.extract_job_id(self.job)
+            self.xcom_push(context, key="job_id", value=job_id)
+            return job_id
+
+        self.job = self.hook.launch_job_with_template(
             job_name=self.job_name,
             variables=options,
             parameters=self.parameters,
             dataflow_template=self.template,
-            on_new_job_callback=set_current_job,
             project_id=self.project_id,
+            append_job_name=self.append_job_name,
             location=self.location,
             environment=self.environment,
-            append_job_name=self.append_job_name,
         )
-        job_id = self.job.get("id")
-
-        if job_id is None:
-            raise AirflowException(
-                "While reading job object after template execution error occurred. Job object has no id."
-            )
-
-        if not self.deferrable:
-            return job_id
-
-        context["ti"].xcom_push(key="job_id", value=job_id)
-
+        job_id = self.hook.extract_job_id(self.job)
+        DataflowJobLink.persist(self, context, self.project_id, self.location, job_id)
         self.defer(
             trigger=TemplateJobStartTrigger(
                 project_id=self.project_id,
@@ -714,16 +720,17 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
                 impersonation_chain=self.impersonation_chain,
                 cancel_timeout=self.cancel_timeout,
             ),
-            method_name="execute_complete",
+            method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
         )
 
-    def execute_complete(self, context: Context, event: dict[str, Any]):
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> str:
         """Execute after trigger finishes its work."""
         if event["status"] in ("error", "stopped"):
             self.log.info("status: %s, msg: %s", event["status"], event["message"])
             raise AirflowException(event["message"])
 
         job_id = event["job_id"]
+        self.xcom_push(context, key="job_id", value=job_id)
         self.log.info("Task %s completed with response %s", self.task_id, event["message"])
         return job_id
 
@@ -741,7 +748,7 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
 
 class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
     """
-    Starts flex templates with the Dataflow pipeline.
+    Starts a Dataflow Job with a Flex Template.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -803,6 +810,9 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
     :param expected_terminal_state: The expected final status of the operator on which the corresponding
         Airflow task succeeds. When not specified, it will be determined by the hook.
     :param append_job_name: True if unique suffix has to be appended to job name.
+    :param poll_sleep: The time in seconds to sleep between polling Google
+        Cloud Platform for the dataflow job status while the job is in the
+        JOB_STATE_RUNNING state.
     """
 
     template_fields: Sequence[str] = ("body", "location", "project_id", "gcp_conn_id")
@@ -821,6 +831,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         append_job_name: bool = True,
         expected_terminal_state: str | None = None,
+        poll_sleep: int = 10,
         *args,
         **kwargs,
     ) -> None:
@@ -832,11 +843,12 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         self.drain_pipeline = drain_pipeline
         self.cancel_timeout = cancel_timeout
         self.wait_until_finished = wait_until_finished
-        self.job: dict | None = None
+        self.job: dict[str, str] | None = None
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
         self.expected_terminal_state = expected_terminal_state
         self.append_job_name = append_job_name
+        self.poll_sleep = poll_sleep
 
         self._validate_deferrable_params()
 
@@ -871,32 +883,35 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
             self.job = current_job
             DataflowJobLink.persist(self, context, self.project_id, self.location, self.job.get("id"))
 
-        self.job = self.hook.start_flex_template(
+        if not self.deferrable:
+            self.job = self.hook.start_flex_template(
+                body=self.body,
+                location=self.location,
+                project_id=self.project_id,
+                on_new_job_callback=set_current_job,
+            )
+            job_id = self.hook.extract_job_id(self.job)
+            self.xcom_push(context, key="job_id", value=job_id)
+            return self.job
+
+        self.job = self.hook.launch_job_with_flex_template(
             body=self.body,
             location=self.location,
             project_id=self.project_id,
-            on_new_job_callback=set_current_job,
         )
-
-        job_id = self.job.get("id")
-        if job_id is None:
-            raise AirflowException(
-                "While reading job object after template execution error occurred. Job object has no id."
-            )
-
-        if not self.deferrable:
-            return self.job
-
+        job_id = self.hook.extract_job_id(self.job)
+        DataflowJobLink.persist(self, context, self.project_id, self.location, job_id)
         self.defer(
             trigger=TemplateJobStartTrigger(
                 project_id=self.project_id,
                 job_id=job_id,
                 location=self.location,
                 gcp_conn_id=self.gcp_conn_id,
+                poll_sleep=self.poll_sleep,
                 impersonation_chain=self.impersonation_chain,
                 cancel_timeout=self.cancel_timeout,
             ),
-            method_name="execute_complete",
+            method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
         )
 
     def _append_uuid_to_job_name(self):
@@ -907,7 +922,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
             job_body["jobName"] = job_name
             self.log.info("Job name was changed to %s", job_name)
 
-    def execute_complete(self, context: Context, event: dict):
+    def execute_complete(self, context: Context, event: dict) -> dict[str, str]:
         """Execute after trigger finishes its work."""
         if event["status"] in ("error", "stopped"):
             self.log.info("status: %s, msg: %s", event["status"], event["message"])
@@ -915,6 +930,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
 
         job_id = event["job_id"]
         self.log.info("Task %s completed with response %s", job_id, event["message"])
+        self.xcom_push(context, key="job_id", value=job_id)
         job = self.hook.get_job(job_id=job_id, project_id=self.project_id, location=self.location)
         return job
 

@@ -82,14 +82,10 @@ def apply_lineage(func: T) -> T:
         inlets = list(self.inlets)
 
         if outlets:
-            self.xcom_push(
-                context, key=PIPELINE_OUTLETS, value=outlets, execution_date=context["ti"].execution_date
-            )
+            self.xcom_push(context, key=PIPELINE_OUTLETS, value=outlets)
 
         if inlets:
-            self.xcom_push(
-                context, key=PIPELINE_INLETS, value=inlets, execution_date=context["ti"].execution_date
-            )
+            self.xcom_push(context, key=PIPELINE_INLETS, value=inlets)
 
         if _backend:
             _backend.send_lineage(operator=self, inlets=self.inlets, outlets=self.outlets, context=context)

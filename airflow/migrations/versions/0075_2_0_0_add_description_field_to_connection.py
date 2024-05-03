@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add description field to ``connection`` table
+"""Add description field to ``connection`` table.
 
 Revision ID: 61ec73d9401f
 Revises: 2c6edca13270
 Create Date: 2020-09-10 14:56:30.279248
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -36,7 +37,7 @@ airflow_version = "2.0.0"
 
 
 def upgrade():
-    """Apply Add description field to ``connection`` table"""
+    """Apply Add description field to ``connection`` table."""
     conn = op.get_bind()
 
     with op.batch_alter_table("connection") as batch_op:
@@ -50,6 +51,6 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Add description field to ``connection`` table"""
+    """Unapply Add description field to ``connection`` table."""
     with op.batch_alter_table("connection", schema=None) as batch_op:
         batch_op.drop_column("description")

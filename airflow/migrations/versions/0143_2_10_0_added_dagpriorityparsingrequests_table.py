@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Added DagPriorityParsingRequests table
+"""Added DagPriorityParsingRequests table.
 
 Revision ID: c4602ba06b4b
 Revises: 88344c1d9134
@@ -24,27 +24,29 @@ Create Date: 2024-04-17 17:12:05.473889
 
 """
 
+from __future__ import annotations
+
 import sqlalchemy as sa
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
-revision = 'c4602ba06b4b'
-down_revision = '677fdbb7fc54'
+revision = "c4602ba06b4b"
+down_revision = "677fdbb7fc54"
 branch_labels = None
 depends_on = None
-airflow_version = '2.10.0'
+airflow_version = "2.10.0"
 
 
 def upgrade():
-    """Apply Added DagPriorityParsingRequests table"""
-    op.create_table('dag_priority_parsing_request',
-    sa.Column('id', sa.String(length=32), nullable=False),
-    sa.Column('fileloc', sa.String(length=2000), nullable=False),
-    sa.PrimaryKeyConstraint('id', name=op.f('dag_priority_parsing_request_pkey'))
+    """Apply Added DagPriorityParsingRequests table."""
+    op.create_table(
+        "dag_priority_parsing_request",
+        sa.Column("id", sa.String(length=32), nullable=False),
+        sa.Column("fileloc", sa.String(length=2000), nullable=False),
+        sa.PrimaryKeyConstraint("id", name=op.f("dag_priority_parsing_request_pkey")),
     )
 
 
 def downgrade():
-    """Unapply Added DagPriorityParsingRequests table"""
-    op.drop_table('dag_priority_parsing_request')
+    """Unapply Added DagPriorityParsingRequests table."""
+    op.drop_table("dag_priority_parsing_request")
