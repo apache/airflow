@@ -731,7 +731,7 @@ class DagFileProcessorManager(LoggingMixin):
             Stats.incr("dag_processing.other_callback_count")
 
     @provide_session
-    def _refresh_requested_filelocs(self, session=NEW_SESSION):
+    def _refresh_requested_filelocs(self, session=NEW_SESSION) -> None:
         """Refresh filepaths from dag dir as requested by users via APIs."""
         # Get values from DB table
         requests = DagPriorityParsingRequests.get_requests()
