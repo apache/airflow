@@ -54,6 +54,7 @@
 
 
 # CLI
+# https://github.com/apache/airflow/issues/39199
 - tests/cli/commands/test_kubernetes_command.py::TestGenerateDagYamlCommand::test_generate_dag_yaml
 
 
@@ -456,34 +457,6 @@
 - tests/providers/atlassian/jira/operators/test_jira.py::TestJiraOperator::test_project_issue_count
 - tests/providers/atlassian/jira/operators/test_jira.py::TestJiraOperator::test_update_issue
 - tests/providers/atlassian/jira/sensors/test_jira.py::TestJiraSensor::test_issue_label_set
-- tests/providers/cncf/kubernetes/executors/test_kubernetes_executor.py::TestAirflowKubernetesScheduler::test_create_pod_id
-- tests/providers/cncf/kubernetes/executors/test_kubernetes_executor.py::TestKubernetesExecutor::test_pod_template_file_override_in_executor_config
-- tests/providers/cncf/kubernetes/executors/test_kubernetes_executor.py::TestKubernetesExecutor::test_run_next_exception_requeue
-- tests/providers/cncf/kubernetes/executors/test_kubernetes_executor.py::TestKubernetesExecutor::test_run_next_pmh_error
-- tests/providers/cncf/kubernetes/executors/test_kubernetes_executor.py::TestKubernetesExecutor::test_run_next_pod_reconciliation_error
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_execute_async_callbacks
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_mark_checked_if_not_deleted
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_pod_delete_after_await_container_error
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperatorAsync::test_async_create_pod_should_throw_exception
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperatorAsync::test_async_create_pod_with_skip_on_exit_code_should_skip
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperatorAsync::test_async_create_pod_xcom_push_should_execute_successfully
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperatorAsync::test_async_get_logs_should_execute_successfully
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperatorAsync::test_async_write_logs_should_execute_successfully
-- tests/providers/cncf/kubernetes/operators/test_pod.py::test_async_kpo_wait_termination_before_cleanup_on_failure
-- tests/providers/cncf/kubernetes/operators/test_pod.py::test_async_kpo_wait_termination_before_cleanup_on_success
-- tests/providers/cncf/kubernetes/operators/test_pod.py::test_async_skip_kpo_wait_termination_with_timeout_event
-- tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::TestSparkKubernetesOperator::test_create_application_from_yaml_json
-- tests/providers/cncf/kubernetes/test_kubernetes_helper_functions.py::TestCreatePodId::test_create_pod_id
-- tests/providers/cncf/kubernetes/test_kubernetes_helper_functions.py::TestCreatePodId::test_create_pod_id_dag_and_task
-- tests/providers/cncf/kubernetes/test_kubernetes_helper_functions.py::TestCreatePodId::test_create_pod_id_dag_only
-- tests/providers/cncf/kubernetes/test_kubernetes_helper_functions.py::TestCreatePodId::test_create_pod_id_dag_too_long_non_unique
-- tests/providers/cncf/kubernetes/test_kubernetes_helper_functions.py::TestCreatePodId::test_create_pod_id_dag_too_long_with_suffix
-- tests/providers/cncf/kubernetes/test_kubernetes_helper_functions.py::TestCreatePodId::test_create_pod_id_task_only
-- tests/providers/cncf/kubernetes/test_pod_generator.py::TestPodGenerator::test_from_obj
-- tests/providers/cncf/kubernetes/test_pod_generator.py::TestPodGenerator::test_gen_pod_extract_xcom
-- tests/providers/cncf/kubernetes/test_pod_generator.py::TestPodGenerator::test_pod_name_confirm_to_max_length
-- tests/providers/cncf/kubernetes/test_pod_generator.py::TestPodGenerator::test_pod_name_is_valid
-- tests/providers/cncf/kubernetes/test_template_rendering.py::test_render_k8s_pod_yaml
 - tests/providers/common/sql/hooks/test_dbapi.py::TestDbApiHook::test_insert_rows_executemany
 - tests/providers/common/sql/hooks/test_dbapi.py::TestDbApiHook::test_insert_rows_replace_executemany_hana_dialect
 - tests/providers/common/sql/hooks/test_dbapi.py::TestDbApiHook::test_instance_check_works_for_legacy_db_api_hook
