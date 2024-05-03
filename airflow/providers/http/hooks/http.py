@@ -567,9 +567,7 @@ class HttpAsyncHook(HttpHookMixin, BaseHook):
         verify = session_conf.pop("verify")
         if verify is not None:
             session_conf["verify_ssl"] = verify
-        trust_env = session_conf.pop("trust_env")
-        if trust_env is not None:
-            session_conf["trust_env"] = trust_env
+        session_conf.pop("trust_env")
         return session_conf
 
     def _retryable_error_async(self, exception: ClientResponseError) -> bool:
