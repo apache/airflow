@@ -77,7 +77,6 @@ DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 TEMPLATE_SEARCHPATH = os.path.join(AIRFLOW_MAIN_FOLDER, "tests", "config_templates")
 LOGGER_NAME = "airflow.task.operators"
 DEFAULT_PYTHON_VERSION = f"{sys.version_info[0]}.{sys.version_info[1]}"
-PY311 = sys.version_info >= (3, 11)
 DILL_INSTALLED = find_spec("dill") is not None
 DILL_MARKER = pytest.mark.skipif(not DILL_INSTALLED, reason="`dill` is not installed")
 CLOUDPICKLE_INSTALLED = find_spec("cloudpickle") is not None
@@ -1200,7 +1199,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             self.run_as_task(f, venv_cache_path=tmp_dir, op_args=[4])
 
     # This tests might take longer than default 60 seconds as it is serializing a lot of
-    # context using cloudpickle (which is slow apparently).
+    # context using dill/cloudpickle (which is slow apparently).
     @pytest.mark.execution_timeout(120)
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     @pytest.mark.parametrize(
@@ -1211,7 +1210,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
                 marks=[
                     DILL_MARKER,
                     pytest.mark.xfail(
-                        PY311,
+                        sys.version_info[:2] == (3, 11),
                         reason=(
                             "Also this test is failed on Python 3.11 because of impact of "
                             "regression in Python 3.11 connected likely with CodeType behaviour "
