@@ -32,7 +32,6 @@
 - tests/always/test_connection.py::TestConnection::test_connection_from_uri
 - tests/always/test_connection.py::TestConnection::test_connection_get_uri_from_conn
 - tests/always/test_connection.py::TestConnection::test_connection_get_uri_from_uri
-- tests/always/test_connection.py::TestConnection::test_connection_test_success
 - tests/always/test_connection.py::TestConnection::test_from_json_extra
 # `test_should_be_importable` and `test_should_not_do_database_queries` should be resolved together
 - tests/always/test_example_dags.py::test_should_be_importable
@@ -40,8 +39,6 @@
 
 
 # API
-- tests/api_connexion/endpoints/test_connection_endpoint.py::TestConnection::test_connection_env_is_cleaned_after_run
-- tests/api_connexion/endpoints/test_connection_endpoint.py::TestConnection::test_should_respond_200
 - tests/api_connexion/endpoints/test_connection_endpoint.py::TestGetConnection::test_should_respond_200
 - tests/api_connexion/endpoints/test_connection_endpoint.py::TestPatchConnection::test_patch_should_respond_200
 - tests/api_connexion/endpoints/test_dag_run_endpoint.py::TestSetDagRunNote::test_should_respond_200_with_anonymous_user
@@ -53,16 +50,15 @@
 - tests/api_connexion/endpoints/test_extra_link_endpoint.py::TestGetExtraLinks::test_should_respond_200_support_plugins
 - tests/api_connexion/endpoints/test_extra_link_endpoint.py::TestGetExtraLinks::test_should_respond_404
 - tests/api_connexion/endpoints/test_task_instance_endpoint.py::TestGetTaskInstancesBatch::test_should_respond_200
-- tests/api_connexion/endpoints/test_task_instance_endpoint.py::TestPostClearTaskInstances::test_should_respond_200
 - tests/api_connexion/schemas/test_connection_schema.py::TestConnectionSchema::test_serialize
 
 
 # CLI
+# https://github.com/apache/airflow/issues/39199
 - tests/cli/commands/test_kubernetes_command.py::TestGenerateDagYamlCommand::test_generate_dag_yaml
 
 
 # Core
-- tests/core/test_impersonation_tests.py::TestImpersonation::test_impersonation_subdag
 - tests/core/test_stats.py::TestCustomStatsName::test_does_not_send_stats_using_statsd_when_the_name_is_not_valid
 - tests/core/test_stats.py::TestCustomStatsName::test_does_send_stats_using_statsd_when_the_name_is_valid
 - tests/core/test_stats.py::TestPatternOrBasicValidatorConfigOption::test_pattern_or_basic_picker
@@ -83,7 +79,6 @@
 - tests/jobs/test_backfill_job.py::TestBackfillJob::test_reset_orphaned_tasks_with_orphans
 - tests/jobs/test_backfill_job.py::TestBackfillJob::test_subdag_clear_parentdag_downstream_clear
 - tests/jobs/test_backfill_job.py::TestBackfillJob::test_update_counters
-- tests/jobs/test_backfill_job.py::TestBackfillJob::test_backfilling_dags
 - tests/jobs/test_scheduler_job.py::TestSchedulerJob::test_adopt_or_reset_orphaned_tasks
 - tests/jobs/test_scheduler_job.py::TestSchedulerJob::test_bulk_write_to_db_external_trigger_dont_skip_scheduled_run
 - tests/jobs/test_scheduler_job.py::TestSchedulerJob::test_dagrun_deadlock_ignore_depends_on_past
@@ -100,9 +95,7 @@
 - tests/jobs/test_scheduler_job.py::TestSchedulerJob::test_not_enough_pool_slots
 - tests/jobs/test_scheduler_job.py::TestSchedulerJob::test_start_queued_dagruns_do_follow_execution_date_order
 - tests/jobs/test_scheduler_job.py::TestSchedulerJob::test_zombie_message
-- tests/jobs/test_scheduler_job.py::TestSchedulerJob::test_mapped_dag
 - tests/jobs/test_triggerer_job_logging.py::test_configure_trigger_log_handler_fallback_task
-- tests/jobs/test_triggerer_job_logging.py::test_configure_trigger_log_handler_root_has_task_handler
 - tests/jobs/test_triggerer_job_logging.py::test_configure_trigger_log_handler_root_not_file_task
 - tests/jobs/test_triggerer_job_logging.py::test_configure_trigger_log_handler_root_old_file_task
 - tests/models/test_baseoperatormeta.py::TestExecutorSafeguard::test_executor_when_classic_operator_called_from_decorated_task_with_allow_nested_operators_false
@@ -152,7 +145,6 @@
 - tests/models/test_dag.py::test_dag_schedule_interval_change_after_init
 - tests/models/test_dag.py::test_dag_timetable_match_schedule_interval
 - tests/models/test_dag.py::test_iter_dagrun_infos_between_error
-- tests/models/test_dagbag.py::TestDagBag::test_get_dag_registration
 - tests/models/test_dagbag.py::TestDagBag::test_load_subdags
 - tests/models/test_dagbag.py::TestDagBag::test_skip_cycle_dags
 - tests/models/test_mappedoperator.py::test_expand_mapped_task_instance_with_named_index
@@ -192,17 +184,6 @@
 - tests/operators/test_datetime.py::TestBranchDateTimeOperator::test_no_target_time
 - tests/operators/test_latest_only_operator.py::TestLatestOnlyOperator::test_not_skipping_external
 - tests/operators/test_latest_only_operator.py::TestLatestOnlyOperator::test_skipping_non_latest
-- tests/operators/test_python.py::TestBranchOperator::test_clear_skipped_downstream_task
-- tests/operators/test_python.py::TestBranchOperator::test_empty_branch
-- tests/operators/test_python.py::TestBranchOperator::test_with_dag_run
-- tests/operators/test_python.py::TestBranchOperator::test_with_skip_in_branch_downstream_dependencies
-- tests/operators/test_python.py::TestBranchOperator::test_with_skip_in_branch_downstream_dependencies2
-- tests/operators/test_python.py::TestBranchOperator::test_xcom_push
-- tests/operators/test_python.py::TestShortCircuitOperator::test_clear_skipped_downstream_task
-- tests/operators/test_python.py::TestShortCircuitOperator::test_mapped_xcom_push_skipped_tasks
-- tests/operators/test_python.py::TestShortCircuitOperator::test_short_circuiting
-- tests/operators/test_python.py::TestShortCircuitOperator::test_xcom_push
-- tests/operators/test_python.py::TestShortCircuitOperator::test_xcom_push_skipped_tasks
 - tests/operators/test_subdag_operator.py::TestSubDagOperator::test_execute_create_dagrun_wait_until_success
 - tests/operators/test_subdag_operator.py::TestSubDagOperator::test_execute_create_dagrun_with_conf
 - tests/operators/test_subdag_operator.py::TestSubDagOperator::test_execute_dagrun_failed
@@ -235,31 +216,6 @@
 - tests/operators/test_weekday.py::TestBranchDayOfWeekOperator::test_branch_xcom_push_true_branch
 
 
-# BranchPythonVenv
-- tests/operators/test_python.py::TestBranchPythonVirtualenvOperator::test_clear_skipped_downstream_task
-- tests/operators/test_python.py::TestBranchPythonVirtualenvOperator::test_with_dag_run
-- tests/operators/test_python.py::TestBranchPythonVirtualenvOperator::test_with_skip_in_branch_downstream_dependencies
-- tests/operators/test_python.py::TestBranchPythonVirtualenvOperator::test_with_skip_in_branch_downstream_dependencies2
-- tests/operators/test_python.py::TestBranchPythonVirtualenvOperator::test_xcom_push
-
-
-# BranchExternalPython
-- tests/operators/test_python.py::TestBranchExternalPythonOperator::test_clear_skipped_downstream_task
-- tests/operators/test_python.py::TestBranchExternalPythonOperator::test_with_dag_run
-- tests/operators/test_python.py::TestBranchExternalPythonOperator::test_with_skip_in_branch_downstream_dependencies
-- tests/operators/test_python.py::TestBranchExternalPythonOperator::test_with_skip_in_branch_downstream_dependencies2
-- tests/operators/test_python.py::TestBranchExternalPythonOperator::test_xcom_push
-
-
-# PythonVenv
-- tests/operators/test_python.py::TestPythonVirtualenvOperator::test_base_context
-- tests/operators/test_python.py::TestPythonVirtualenvOperator::test_pendulum_context
-
-
-# PlainAsserts
-- tests/operators/test_python.py::TestPythonVirtualenvOperator::test_airflow_context
-
-
 # Serialization
 - tests/serialization/test_dag_serialization.py::TestStringifiedDAGs::test_custom_dep_detector
 - tests/serialization/test_dag_serialization.py::TestStringifiedDAGs::test_dag_params_roundtrip
@@ -268,13 +224,10 @@
 
 
 # WWW
-- tests/www/api/experimental/test_dag_runs_endpoint.py::TestDagRunsEndpoint::test_get_dag_runs_invalid_dag_id
-- tests/www/api/experimental/test_dag_runs_endpoint.py::TestDagRunsEndpoint::test_get_dag_runs_no_runs
 - tests/www/api/experimental/test_dag_runs_endpoint.py::TestDagRunsEndpoint::test_get_dag_runs_success
 - tests/www/api/experimental/test_dag_runs_endpoint.py::TestDagRunsEndpoint::test_get_dag_runs_success_with_capital_state_parameter
 - tests/www/api/experimental/test_dag_runs_endpoint.py::TestDagRunsEndpoint::test_get_dag_runs_success_with_state_no_result
 - tests/www/api/experimental/test_dag_runs_endpoint.py::TestDagRunsEndpoint::test_get_dag_runs_success_with_state_parameter
-- tests/www/api/experimental/test_endpoints.py::TestApiExperimental::test_dag_paused
 - tests/www/api/experimental/test_endpoints.py::TestApiExperimental::test_dagrun_status
 - tests/www/api/experimental/test_endpoints.py::TestApiExperimental::test_get_dag_code
 - tests/www/api/experimental/test_endpoints.py::TestApiExperimental::test_info
@@ -282,7 +235,6 @@
 - tests/www/api/experimental/test_endpoints.py::TestApiExperimental::test_task_instance_info
 - tests/www/api/experimental/test_endpoints.py::TestApiExperimental::test_trigger_dag
 - tests/www/api/experimental/test_endpoints.py::TestApiExperimental::test_trigger_dag_for_date
-- tests/www/api/experimental/test_endpoints.py::TestLineageApiExperimental::test_lineage_info
 - tests/www/api/experimental/test_endpoints.py::TestPoolApiExperimental::test_create_pool
 - tests/www/api/experimental/test_endpoints.py::TestPoolApiExperimental::test_create_pool_with_bad_name
 - tests/www/api/experimental/test_endpoints.py::TestPoolApiExperimental::test_delete_default_pool
@@ -347,22 +299,6 @@
 - tests/dag_processing/test_processor.py::TestDagFileProcessor::test_execute_on_failure_callbacks_without_dag
 - tests/dag_processing/test_processor.py::TestDagFileProcessor::test_failure_callbacks_should_not_drop_hostname
 - tests/dag_processing/test_processor.py::TestDagFileProcessor::test_process_file_should_failure_callback
-- tests/decorators/test_python.py::TestAirflowTaskDecorator::test_fail_multiple_outputs_key_type
-- tests/decorators/test_python.py::TestAirflowTaskDecorator::test_fail_multiple_outputs_no_dict
-- tests/decorators/test_python.py::TestAirflowTaskDecorator::test_manual_multiple_outputs_false_with_typings
-- tests/decorators/test_python.py::TestAirflowTaskDecorator::test_multiple_outputs
-- tests/decorators/test_python.py::TestAirflowTaskDecorator::test_multiple_outputs_empty_dict
-- tests/decorators/test_python.py::TestAirflowTaskDecorator::test_multiple_outputs_ignore_typing
-- tests/decorators/test_python.py::TestAirflowTaskDecorator::test_multiple_outputs_return_none
-- tests/decorators/test_python.py::TestAirflowTaskDecorator::test_python_callable_arguments_are_templatized
-- tests/decorators/test_python.py::TestAirflowTaskDecorator::test_python_callable_keyword_arguments_are_templatized
-- tests/decorators/test_python.py::TestAirflowTaskDecorator::test_xcom_arg
-- tests/decorators/test_python_virtualenv.py::TestPythonVirtualenvDecorator::test_no_system_site_packages
-- tests/decorators/test_python_virtualenv.py::TestPythonVirtualenvDecorator::test_python_3
-- tests/decorators/test_python_virtualenv.py::TestPythonVirtualenvDecorator::test_system_site_packages
-- tests/decorators/test_python_virtualenv.py::TestPythonVirtualenvDecorator::test_unpinned_requirements
-- tests/decorators/test_python_virtualenv.py::TestPythonVirtualenvDecorator::test_with_requirements_file
-- tests/decorators/test_python_virtualenv.py::TestPythonVirtualenvDecorator::test_with_requirements_pinned
 - tests/sensors/test_external_task_sensor.py::TestExternalTaskSensor::test_external_dag_sensor
 - tests/sensors/test_external_task_sensor.py::TestExternalTaskSensor::test_external_dag_sensor_log
 - tests/sensors/test_external_task_sensor.py::TestExternalTaskSensor::test_external_dag_sensor_soft_fail_as_skipped
@@ -392,16 +328,6 @@
 - tests/providers/amazon/aws/deferrable/hooks/test_redshift_cluster.py::TestRedshiftAsyncHook::test_pause_cluster
 - tests/providers/amazon/aws/deferrable/hooks/test_redshift_cluster.py::TestRedshiftAsyncHook::test_resume_cluster
 - tests/providers/amazon/aws/deferrable/hooks/test_redshift_cluster.py::TestRedshiftAsyncHook::test_resume_cluster_exception
-- tests/providers/amazon/aws/hooks/test_base_aws.py::TestAwsBaseHook::test_hook_connection_test_failed
-- tests/providers/amazon/aws/hooks/test_emr.py::TestEmrHook::test_create_job_flow_extra_args
-- tests/providers/amazon/aws/hooks/test_emr.py::TestEmrHook::test_get_cluster_id_by_name_pagination
-- tests/providers/amazon/aws/hooks/test_redshift_cluster.py::TestRedshiftHook::test_cluster_status_returns_available_cluster
-- tests/providers/amazon/aws/hooks/test_redshift_cluster.py::TestRedshiftHook::test_create_cluster_snapshot_returns_snapshot_data
-- tests/providers/amazon/aws/hooks/test_redshift_cluster.py::TestRedshiftHook::test_delete_cluster_returns_a_dict_with_cluster_data
-- tests/providers/amazon/aws/hooks/test_redshift_cluster.py::TestRedshiftHook::test_get_client_type_returns_a_boto3_client_of_the_requested_type
-- tests/providers/amazon/aws/hooks/test_redshift_cluster.py::TestRedshiftHook::test_restore_from_cluster_snapshot_returns_dict_with_cluster_data
-- tests/providers/amazon/aws/hooks/test_s3.py::TestAwsS3Hook::test_create_bucket_us_standard_region
-- tests/providers/amazon/aws/hooks/test_s3.py::TestAwsS3Hook::test_delete_bucket_if_bucket_exist
 - tests/providers/amazon/aws/hooks/test_sagemaker.py::TestSageMakerHook::test_start_pipeline_waits_for_completion
 - tests/providers/amazon/aws/hooks/test_sagemaker.py::TestSageMakerHook::test_stop_pipeline_waits_for_completion
 - tests/providers/amazon/aws/hooks/test_sagemaker.py::TestSageMakerHook::test_stop_pipeline_waits_for_completion_even_when_already_stopped
@@ -459,15 +385,13 @@
 - tests/providers/amazon/aws/operators/test_emr_serverless.py::TestEmrServerlessCreateApplicationOperator::test_create_application_waiter_params
 - tests/providers/amazon/aws/operators/test_emr_serverless.py::TestEmrServerlessDeleteOperator::test_delete_application_waiter_params
 - tests/providers/amazon/aws/operators/test_emr_serverless.py::TestEmrServerlessStartJobOperator::test_start_job_waiter_params
-- tests/providers/amazon/aws/secrets/test_secrets_manager.py
-- tests/providers/amazon/aws/secrets/test_systems_manager.py
+- tests/providers/amazon/aws/secrets/test_secrets_manager.py::TestSecretsManagerBackend::test_get_conn_value_broken_field_mode
+- tests/providers/amazon/aws/secrets/test_secrets_manager.py::TestSecretsManagerBackend::test_get_conn_value_broken_field_mode_extra_words_added
+- tests/providers/amazon/aws/secrets/test_secrets_manager.py::TestSecretsManagerBackend::test_get_connection_broken_field_mode_extra_allows_nested_json
+- tests/providers/amazon/aws/secrets/test_secrets_manager.py::TestSecretsManagerBackend::test_get_connection_broken_field_mode_url_encoding
 - tests/providers/amazon/aws/sensors/test_base_aws.py::TestAwsBaseSensor::test_conflicting_region_name
-- tests/providers/amazon/aws/sensors/test_cloud_formation.py::TestCloudFormationCreateStackSensor::test_poke
 - tests/providers/amazon/aws/sensors/test_ecs.py::TestEcsBaseSensor::test_hook_and_client
 - tests/providers/amazon/aws/sensors/test_ecs.py::TestEcsBaseSensor::test_initialise_operator
-- tests/providers/amazon/aws/sensors/test_glue_catalog_partition.py::TestGlueCatalogPartitionSensor::test_poke_default_args
-- tests/providers/amazon/aws/sensors/test_rds.py::TestRdsExportTaskExistenceSensor::test_export_task_poke_true
-- tests/providers/amazon/aws/sensors/test_redshift_cluster.py::TestRedshiftClusterSensor::test_poke
 - tests/providers/amazon/aws/triggers/test_redshift_cluster.py::TestRedshiftClusterTrigger::test_redshift_cluster_sensor_trigger_exception
 - tests/providers/amazon/aws/triggers/test_redshift_cluster.py::TestRedshiftClusterTrigger::test_redshift_cluster_sensor_trigger_resuming_status
 - tests/providers/amazon/aws/triggers/test_redshift_cluster.py::TestRedshiftClusterTrigger::test_redshift_cluster_sensor_trigger_success
@@ -478,117 +402,6 @@
 - tests/providers/atlassian/jira/operators/test_jira.py::TestJiraOperator::test_project_issue_count
 - tests/providers/atlassian/jira/operators/test_jira.py::TestJiraOperator::test_update_issue
 - tests/providers/atlassian/jira/sensors/test_jira.py::TestJiraSensor::test_issue_label_set
-- tests/providers/cncf/kubernetes/decorators/test_kubernetes.py::test_basic_kubernetes
-- tests/providers/cncf/kubernetes/decorators/test_kubernetes.py::test_kubernetes_with_input_output
-- tests/providers/cncf/kubernetes/executors/test_kubernetes_executor.py::TestAirflowKubernetesScheduler::test_create_pod_id
-- tests/providers/cncf/kubernetes/executors/test_kubernetes_executor.py::TestKubernetesExecutor::test_pod_template_file_override_in_executor_config
-- tests/providers/cncf/kubernetes/executors/test_kubernetes_executor.py::TestKubernetesExecutor::test_run_next_exception_requeue
-- tests/providers/cncf/kubernetes/executors/test_kubernetes_executor.py::TestKubernetesExecutor::test_run_next_pmh_error
-- tests/providers/cncf/kubernetes/executors/test_kubernetes_executor.py::TestKubernetesExecutor::test_run_next_pod_reconciliation_error
-- tests/providers/cncf/kubernetes/operators/test_job.py::TestKubernetesJobOperator::test_backoff_limit_correctly_set
-- tests/providers/cncf/kubernetes/operators/test_job.py::TestKubernetesJobOperator::test_completion_mode_correctly_set
-- tests/providers/cncf/kubernetes/operators/test_job.py::TestKubernetesJobOperator::test_completions_correctly_set
-- tests/providers/cncf/kubernetes/operators/test_job.py::TestKubernetesJobOperator::test_full_job_spec
-- tests/providers/cncf/kubernetes/operators/test_job.py::TestKubernetesJobOperator::test_full_job_spec_kwargs
-- tests/providers/cncf/kubernetes/operators/test_job.py::TestKubernetesJobOperator::test_job_template_file
-- tests/providers/cncf/kubernetes/operators/test_job.py::TestKubernetesJobOperator::test_job_template_file_kwargs_override
-- tests/providers/cncf/kubernetes/operators/test_job.py::TestKubernetesJobOperator::test_manual_selector_correctly_set
-- tests/providers/cncf/kubernetes/operators/test_job.py::TestKubernetesJobOperator::test_parallelism_correctly_set
-- tests/providers/cncf/kubernetes/operators/test_job.py::TestKubernetesJobOperator::test_provided_job_name
-- tests/providers/cncf/kubernetes/operators/test_job.py::TestKubernetesJobOperator::test_selector
-- tests/providers/cncf/kubernetes/operators/test_job.py::TestKubernetesJobOperator::test_suspend_correctly_set
-- tests/providers/cncf/kubernetes/operators/test_job.py::TestKubernetesJobOperator::test_task_id_as_name
-- tests/providers/cncf/kubernetes/operators/test_job.py::TestKubernetesJobOperator::test_task_id_as_name_dag_id_is_ignored
-- tests/providers/cncf/kubernetes/operators/test_job.py::TestKubernetesJobOperator::test_task_id_as_name_with_suffix
-- tests/providers/cncf/kubernetes/operators/test_job.py::TestKubernetesJobOperator::test_task_id_as_name_with_suffix_very_long
-- tests/providers/cncf/kubernetes/operators/test_job.py::TestKubernetesJobOperator::test_ttl_seconds_after_finished_correctly_set
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_config_path
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_container_security_context
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_create_with_affinity
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_envs_from_configmaps
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_envs_from_configmaps_backcompat
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_envs_from_secrets
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_execute_async_callbacks
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_execute_sync_callbacks
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_find_pod_labels
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_full_pod_spec
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_full_pod_spec_kwargs
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_get_logs_but_not_for_base_container
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_host_aliases
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_image_pull_policy_correctly_set
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_image_pull_secrets_correctly_set
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_labels
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_labels_mapped
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_mark_checked_if_not_deleted
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_mark_checked_unexpected_exception
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_no_handle_failure_on_success
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_node_selector
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_omitted_name
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_omitted_namespace_no_conn
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_omitted_namespace_no_conn_not_in_k8s
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_omitted_namespace_with_conn
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_omitted_namespace_with_conn_no_value
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_patch_already_checked
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_pod_delete_after_await_container_error
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_pod_delete_not_called_when_creation_fails
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_pod_dns_options
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_pod_template_dict
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_pod_template_file
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_pod_template_file_kwargs_override
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_pod_with_istio_delete_after_await_container_error
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_previous_pods_ignored_for_reattached
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_provided_pod_name
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_push_xcom_pod_info
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_security_context
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_task_id_as_name
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_task_id_as_name_dag_id_is_ignored
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_task_id_as_name_with_suffix
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_task_id_as_name_with_suffix_very_long
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_task_skip_when_pod_exit_with_certain_code
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_termination_message_policy_correctly_set
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_termination_message_policy_default_value_correctly_set
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_tolerations
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_wait_for_xcom_sidecar_iff_push_xcom
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_xcom_sidecar_container_image_custom
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_xcom_sidecar_container_image_default
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_xcom_sidecar_container_resources_custom
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperator::test_xcom_sidecar_container_resources_default
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperatorAsync::test_async_create_pod_should_throw_exception
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperatorAsync::test_async_create_pod_with_skip_on_exit_code_should_skip
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperatorAsync::test_async_create_pod_xcom_push_should_execute_successfully
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperatorAsync::test_async_get_logs_should_execute_successfully
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperatorAsync::test_async_write_logs_should_execute_successfully
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperatorAsync::test_async_xcom_sidecar_container_image_default_should_execute_successfully
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperatorAsync::test_async_xcom_sidecar_container_resources_default_should_execute_successfully
-- tests/providers/cncf/kubernetes/operators/test_pod.py::TestKubernetesPodOperatorAsync::test_cleanup_log_pod_spec_on_failure
-- tests/providers/cncf/kubernetes/operators/test_pod.py::test_async_kpo_wait_termination_before_cleanup_on_failure
-- tests/providers/cncf/kubernetes/operators/test_pod.py::test_async_kpo_wait_termination_before_cleanup_on_success
-- tests/providers/cncf/kubernetes/operators/test_pod.py::test_async_skip_kpo_wait_termination_with_timeout_event
-- tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::TestSparkKubernetesOperator::test_affinity
-- tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::TestSparkKubernetesOperator::test_create_application_from_yaml_json
-- tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::TestSparkKubernetesOperator::test_env
-- tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::TestSparkKubernetesOperator::test_new_template_from_yaml
-- tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::TestSparkKubernetesOperator::test_pull_secret
-- tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::TestSparkKubernetesOperator::test_template_spec
-- tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::TestSparkKubernetesOperator::test_toleration
-- tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::TestSparkKubernetesOperator::test_volume
-- tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::test_resolve_application_file_real_file
-- tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::test_resolve_application_file_real_file_not_exists
-- tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::test_resolve_application_file_template_file
-- tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::test_resolve_application_file_template_non_dictionary
-- tests/providers/cncf/kubernetes/operators/test_spark_kubernetes.py::test_template_body_templating
-- tests/providers/cncf/kubernetes/test_kubernetes_helper_functions.py::TestCreatePodId::test_create_pod_id
-- tests/providers/cncf/kubernetes/test_kubernetes_helper_functions.py::TestCreatePodId::test_create_pod_id_dag_and_task
-- tests/providers/cncf/kubernetes/test_kubernetes_helper_functions.py::TestCreatePodId::test_create_pod_id_dag_only
-- tests/providers/cncf/kubernetes/test_kubernetes_helper_functions.py::TestCreatePodId::test_create_pod_id_dag_too_long_non_unique
-- tests/providers/cncf/kubernetes/test_kubernetes_helper_functions.py::TestCreatePodId::test_create_pod_id_dag_too_long_with_suffix
-- tests/providers/cncf/kubernetes/test_kubernetes_helper_functions.py::TestCreatePodId::test_create_pod_id_task_only
-- tests/providers/cncf/kubernetes/test_pod_generator.py::TestPodGenerator::test_ensure_max_identifier_length
-- tests/providers/cncf/kubernetes/test_pod_generator.py::TestPodGenerator::test_from_obj
-- tests/providers/cncf/kubernetes/test_pod_generator.py::TestPodGenerator::test_gen_pod_extract_xcom
-- tests/providers/cncf/kubernetes/test_pod_generator.py::TestPodGenerator::test_pod_name_confirm_to_max_length
-- tests/providers/cncf/kubernetes/test_pod_generator.py::TestPodGenerator::test_pod_name_is_valid
-- tests/providers/cncf/kubernetes/test_template_rendering.py::test_render_k8s_pod_yaml
 - tests/providers/common/sql/hooks/test_dbapi.py::TestDbApiHook::test_insert_rows_executemany
 - tests/providers/common/sql/hooks/test_dbapi.py::TestDbApiHook::test_insert_rows_replace_executemany_hana_dialect
 - tests/providers/common/sql/hooks/test_dbapi.py::TestDbApiHook::test_instance_check_works_for_legacy_db_api_hook
@@ -598,14 +411,8 @@
 - tests/providers/common/sql/operators/test_sql.py::TestSqlBranch::test_branch_single_value_with_dag_run
 - tests/providers/common/sql/operators/test_sql.py::TestSqlBranch::test_branch_true_with_dag_run
 - tests/providers/common/sql/operators/test_sql.py::TestSqlBranch::test_invalid_query_result_with_dag_run
-- tests/providers/common/sql/operators/test_sql.py::TestSqlBranch::test_sql_branch_operator_mysql
-- tests/providers/common/sql/operators/test_sql.py::TestSqlBranch::test_sql_branch_operator_postgres
 - tests/providers/common/sql/operators/test_sql.py::TestSqlBranch::test_with_skip_in_branch_downstream_dependencies
 - tests/providers/common/sql/operators/test_sql.py::TestSqlBranch::test_with_skip_in_branch_downstream_dependencies2
-- tests/providers/common/sql/operators/test_sql.py::TestTableCheckOperator::test_sql_check
-- tests/providers/common/sql/operators/test_sql.py::TestTableCheckOperator::test_sql_check_partition_clause_templating
-- tests/providers/common/sql/sensors/test_sql.py::TestSqlSensor::test_sql_sensor_mysql
-- tests/providers/common/sql/sensors/test_sql.py::TestSqlSensor::test_sql_sensor_postgres
 - tests/providers/databricks/hooks/test_databricks_sql.py::test_incorrect_column_names
 - tests/providers/databricks/hooks/test_databricks_sql.py::test_no_query
 - tests/providers/databricks/hooks/test_databricks_sql.py::test_query
@@ -626,30 +433,7 @@
 - tests/providers/databricks/sensors/test_databricks_sql.py::TestDatabricksSqlSensor::test_unsupported_conn_type
 - tests/providers/docker/operators/test_docker.py::test_hook_usage
 - tests/providers/elasticsearch/log/test_es_task_handler.py::test_retrieve_retry_on_timeout
-- tests/providers/google/common/auth_backend/test_google_openid.py::TestGoogleOpenID::test_invalid_id_token
-- tests/providers/google/common/auth_backend/test_google_openid.py::TestGoogleOpenID::test_invalid_iss_in_jwt_token
-- tests/providers/google/common/auth_backend/test_google_openid.py::TestGoogleOpenID::test_malformed_headers
-- tests/providers/google/common/auth_backend/test_google_openid.py::TestGoogleOpenID::test_missing_id_token
 - tests/providers/google/common/auth_backend/test_google_openid.py::TestGoogleOpenID::test_success
-- tests/providers/google/common/auth_backend/test_google_openid.py::TestGoogleOpenID::test_user_not_exists
-- tests/providers/google/cloud/hooks/test_automl.py::TestAutoMLHook::test_batch_predict
-- tests/providers/google/cloud/hooks/test_automl.py::TestAutoMLHook::test_create_dataset
-- tests/providers/google/cloud/hooks/test_automl.py::TestAutoMLHook::test_create_model
-- tests/providers/google/cloud/hooks/test_automl.py::TestAutoMLHook::test_delete_dataset
-- tests/providers/google/cloud/hooks/test_automl.py::TestAutoMLHook::test_delete_model
-- tests/providers/google/cloud/hooks/test_automl.py::TestAutoMLHook::test_deploy_model
-- tests/providers/google/cloud/hooks/test_automl.py::TestAutoMLHook::test_extract_object_id
-- tests/providers/google/cloud/hooks/test_automl.py::TestAutoMLHook::test_get_conn
-- tests/providers/google/cloud/hooks/test_automl.py::TestAutoMLHook::test_get_model
-- tests/providers/google/cloud/hooks/test_automl.py::TestAutoMLHook::test_import_data
-- tests/providers/google/cloud/hooks/test_automl.py::TestAutoMLHook::test_init
-- tests/providers/google/cloud/hooks/test_automl.py::TestAutoMLHook::test_list_column_specs
-- tests/providers/google/cloud/hooks/test_automl.py::TestAutoMLHook::test_list_datasets
-- tests/providers/google/cloud/hooks/test_automl.py::TestAutoMLHook::test_list_table_specs
-- tests/providers/google/cloud/hooks/test_automl.py::TestAutoMLHook::test_predict
-- tests/providers/google/cloud/hooks/test_automl.py::TestAutoMLHook::test_prediction_client
-- tests/providers/google/cloud/hooks/test_automl.py::TestAutoMLHook::test_update_dataset
-- tests/providers/google/cloud/hooks/test_automl.py::TestAutoMLHook::test_wait_for_operation
 - tests/providers/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_api_resource_configs
 - tests/providers/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_api_resource_configs_duplication_warning
 - tests/providers/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_cancel_queries
@@ -871,7 +655,6 @@
 - tests/providers/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_execute_no_suffix
 - tests/providers/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_execute_prefix_and_suffix
 - tests/providers/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_execute_wildcard_empty_destination_object
-- tests/providers/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_execute_wildcard_reports_openlineage
 - tests/providers/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_execute_wildcard_with_destination_object
 - tests/providers/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_execute_wildcard_with_destination_object_retained_prefix
 - tests/providers/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_execute_wildcard_with_replace_flag_false

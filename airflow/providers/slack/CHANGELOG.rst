@@ -27,6 +27,13 @@
 Changelog
 ---------
 
+8.7.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
 .. note::
   Due to future discontinue of `files.upload <https://api.slack.com/changelog/2024-04-a-better-way-to-upload-files-is-here-to-stay>`__
   Slack API method the default value of ``SlackAPIFileOperator.method_version`` and ``SqlToSlackApiFileOperator.slack_method_version``
@@ -43,6 +50,12 @@ Changelog
 
   If you use ``SlackHook.send_file`` please consider switch to ``SlackHook.send_file_v2``
   or ``SlackHook.send_file_v1_to_v2`` methods.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+* ``Use 'upload_files_v2' Slack SDK method by default in Slack Operators (#39340)``
 
 8.6.2
 .....

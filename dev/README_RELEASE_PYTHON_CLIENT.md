@@ -140,7 +140,7 @@ git tag -s python-client-${VERSION}${VERSION_SUFFIX} -m "Airflow Python Client $
 git push apache python-client-${VERSION}${VERSION_SUFFIX}
 cd ${CLIENT_REPO_ROOT}
 git tag -s ${VERSION}${VERSION_SUFFIX} -m "Airflow Python Client ${VERSION}${VERSION_SUFFIX}"
-git push apache ${VERSION}${VERSION_SUFFIX}
+git push apache tag ${VERSION}${VERSION_SUFFIX}
 ```
 
 
@@ -169,6 +169,12 @@ mv ${AIRFLOW_REPO_ROOT}/dist/apache_airflow_client-* ${VERSION}${VERSION_SUFFIX}
 cd ${VERSION}${VERSION_SUFFIX}
 svn add *
 svn commit -m "Add artifacts for Apache Airflow Python Client ${VERSION}${VERSION_SUFFIX}"
+
+# Remove old version
+cd ..
+export PREVIOUS_VERSION_WITH_SUFFIX=2.8.0rc1
+svn rm ${PREVIOUS_VERSION_WITH_SUFFIX}
+svn commit -m "Remove old Apache Airflow Python Client ${PREVIOUS_VERSION_WITH_SUFFIX}"
 ```
 
 ## Prepare PyPI convenience "RC" packages
@@ -550,7 +556,7 @@ cd ${VERSION}
 
 # Move the artifacts to svn folder & commit
 for f in ${CLIENT_DEV_SVN}/${VERSION}${VERSION_SUFFIX}/*; do
-  svn mv $f . ;
+  svn cp $f . ;
 done
 # Remove old release
 cd ..
@@ -581,11 +587,13 @@ twine upload -r pypi *.tar.gz *.whl
 
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
-git tag -s python-client-${VERSION}
-git push origin python-client-${VERSION}
+git checkout python-client-${VERSION}${VERSION_SUFFIX}
+git tag -s python-client-${VERSION} -m "Airflow Python Client ${VERSION}"
+git push apache tag python-client-${VERSION}
 cd ${CLIENT_REPO_ROOT}
-git tag -s ${VERSION}
-git push origin ${VERSION}
+git checkout ${VERSION}${VERSION_SUFFIX}
+git tag -s ${VERSION} -m ${VERSION}
+git push origin tag ${VERSION}
 ```
 
 ## Create release on GitHub
@@ -595,7 +603,38 @@ from the release svn.
 
 ## Notify developers of release
 
-See Airflow process documented [here](https://github.com/apache/airflow/blob/master/dev/README_RELEASE_AIRFLOW.md#notify-developers-of-release) (just replace Airflow with Airflow Client)
+Notify users@airflow.apache.org (cc'ing dev@airflow.apache.org) that the artifacts have been published:
+
+Subject:
+
+```
+cat <<EOF
+[ANNOUNCE] Apache Airflow Python Client ${VERSION} Released
+EOF
+```
+
+Body:
+
+```
+cat <<EOF
+Dear Airflow community,
+
+I'm happy to announce that Apache Airflow Python Client ${VERSION} was just released.
+
+We made this version available on PyPI for convenience:
+\`pip install apache-airflow-client\`
+https://pypi.org/project/apache-airflow-client/${VERSION}/
+
+The documentation is available at:
+https://github.com/apache/airflow-client-python/
+
+Find the changelog here for more details:
+https://github.com/apache/airflow-client-python/blob/main/CHANGELOG.md
+
+Thanks,
+<your name>
+EOF
+```
 
 ## Add release data to Apache Committee Report Helper
 

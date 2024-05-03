@@ -26,9 +26,10 @@
 # declare "these are defined, but don't error if others are accessed" someday.
 from __future__ import annotations
 
-from typing import Any, Collection, Container, Iterable, Iterator, Mapping, overload
+from typing import Any, Collection, Container, Iterable, Iterator, Mapping, Sequence, overload
 
 from pendulum import DateTime
+from sqlalchemy.orm import Session
 
 from airflow.configuration import AirflowConfigParser
 from airflow.datasets import Dataset
@@ -65,6 +66,19 @@ class DatasetEventAccessors(Mapping[str, DatasetEventAccessor]):
     def __len__(self) -> int: ...
     def __getitem__(self, key: str | Dataset) -> DatasetEventAccessor: ...
 
+class InletEventsAccessor(Sequence[DatasetEvent]):
+    @overload
+    def __getitem__(self, key: int) -> DatasetEvent: ...
+    @overload
+    def __getitem__(self, key: slice) -> Sequence[DatasetEvent]: ...
+    def __len__(self) -> int: ...
+
+class InletEventsAccessors(Mapping[str, InletEventsAccessor]):
+    def __init__(self, inlets: list, *, session: Session) -> None: ...
+    def __iter__(self) -> Iterator[str]: ...
+    def __len__(self) -> int: ...
+    def __getitem__(self, key: int | str | Dataset) -> InletEventsAccessor: ...
+
 # NOTE: Please keep this in sync with the following:
 # * KNOWN_CONTEXT_KEYS in airflow/utils/context.py
 # * Table in docs/apache-airflow/templates-ref.rst
@@ -82,6 +96,7 @@ class Context(TypedDict, total=False):
     execution_date: DateTime
     expanded_ti_count: int | None
     inlets: list
+    inlet_events: InletEventsAccessors
     logical_date: DateTime
     macros: Any
     map_index_template: str
