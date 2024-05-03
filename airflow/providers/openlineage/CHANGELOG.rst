@@ -26,6 +26,14 @@
 Changelog
 ---------
 
+1.7.1
+.....
+
+Misc
+~~~~
+
+* ``openlineage, snowflake: do not run external queries for Snowflake (#39113)``
+
 1.7.0
 .....
 

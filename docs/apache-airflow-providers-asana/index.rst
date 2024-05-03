@@ -71,35 +71,35 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-asana
+apache-airflow-providers-asana package
 ------------------------------------------------------
 
 `Asana <https://asana.com/>`__
 
 
-Release: 2.4.1
+Release: 2.5.0
 
 Provider package
 ----------------
 
-This is a provider package for ``asana`` provider. All classes for this provider package
-are in ``airflow.providers.asana`` python package.
+This package is for the ``asana`` provider.
+All classes for this package are included in the ``airflow.providers.asana`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-asana``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-asana``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.6.0``
+``apache-airflow``  ``>=2.7.0``
 ``asana``           ``>=0.10,<4.0.0``
 ==================  ==================

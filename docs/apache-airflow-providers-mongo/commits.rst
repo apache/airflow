@@ -35,6 +35,23 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.1.0
+.....
+
+Latest change: 2024-04-25
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
+`0a74928894 <https://github.com/apache/airflow/commit/0a74928894fb57b0160208262ccacad12da23fc7>`_  2024-03-18   ``Bump ruff to 0.3.3 (#38240)``
+`7e6b7e1667 <https://github.com/apache/airflow/commit/7e6b7e1667e0c5311039e8bda8e6cb3e3de3c529>`_  2024-03-10   ``Fix D105 for mongo provider (#38016)``
+`83316b8158 <https://github.com/apache/airflow/commit/83316b81584c9e516a8142778fc509f19d95cc3e>`_  2024-03-04   ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+`5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
+`e346253760 <https://github.com/apache/airflow/commit/e3462537608854368b04f58c25835c8097dec51c>`_  2024-02-15   ``Fix remaining D401 checks (#37434)``
+=================================================================================================  ===========  =======================================================================
+
 4.0.0
 .....
 
@@ -43,6 +60,7 @@ Latest change: 2024-02-12
 =================================================================================================  ===========  =================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =================================================================
+`bfb054e9e8 <https://github.com/apache/airflow/commit/bfb054e9e867b8b9a6a449e43bfba97f645e025e>`_  2024-02-12   ``Prepare docs 1st wave of Providers February 2024 (#37326)``
 `ed346c78ae <https://github.com/apache/airflow/commit/ed346c78ae2f3a44e81698c51b880dc5da6074dc>`_  2024-02-12   ``Typo fix in changelog for mongo provider (#37350)``
 `c297f55d7a <https://github.com/apache/airflow/commit/c297f55d7aa39fda69530887f1dcfcea8a951463>`_  2024-02-08   ``Fixing the version for mongo provider (#37250)``
 `0d338e6051 <https://github.com/apache/airflow/commit/0d338e6051f54c9940d34dceef9197224583e37c>`_  2024-02-08   ``Change docs type in insert_many to list of dicts (#37230)``

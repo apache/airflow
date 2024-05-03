@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add Precision to ``execution_date`` in ``RenderedTaskInstanceFields`` table
+"""Add Precision to ``execution_date`` in ``RenderedTaskInstanceFields`` table.
 
 Revision ID: a66efa278eea
 Revises: 952da73b5eff
 Create Date: 2020-06-16 21:44:02.883132
 
 """
+
 from __future__ import annotations
 
 from alembic import op
@@ -39,7 +40,7 @@ COLUMN_NAME = "execution_date"
 
 
 def upgrade():
-    """Add Precision to ``execution_date`` in ``RenderedTaskInstanceFields`` table for MySQL"""
+    """Add Precision to ``execution_date`` in ``RenderedTaskInstanceFields`` table for MySQL."""
     conn = op.get_bind()
     if conn.dialect.name == "mysql":
         op.alter_column(
@@ -48,7 +49,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Add Precision to ``execution_date`` in ``RenderedTaskInstanceFields`` table"""
+    """Unapply Add Precision to ``execution_date`` in ``RenderedTaskInstanceFields`` table."""
     conn = op.get_bind()
     if conn.dialect.name == "mysql":
         op.alter_column(

@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Remove smart sensors
+"""Remove smart sensors.
 
 Revision ID: f4ff391becb5
 Revises: 0038cd0c28b4
 Create Date: 2022-08-03 11:33:44.777945
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -40,7 +41,7 @@ airflow_version = "2.4.0"
 
 
 def upgrade():
-    """Apply Remove smart sensors"""
+    """Apply Remove smart sensors."""
     op.drop_table("sensor_instance")
 
     """Minimal model definition for migrations"""
@@ -49,7 +50,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Remove smart sensors"""
+    """Unapply Remove smart sensors."""
     op.create_table(
         "sensor_instance",
         sa.Column("id", sa.Integer(), nullable=False),
