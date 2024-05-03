@@ -161,7 +161,10 @@ class TestHttpHook:
 
     def test_hook_ignore_proxies_from_extra_field_as_header(self):
         airflow_connection = get_airflow_connection_with_extra(
-            extra={"headers": {"bearer": "test"}, "proxies": {"http": "http://proxy:80", "https": "https://proxy:80"}}
+            extra={
+                "headers": {"bearer": "test"},
+                "proxies": {"http": "http://proxy:80", "https": "https://proxy:80"},
+            }
         )
         with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
             expected_conn = airflow_connection()
@@ -804,7 +807,7 @@ class TestHttpAsyncHook:
             "auth_type": None,
             "auth_kwargs": {},
             "session_conf": session_conf,
-            "headers": headers
+            "headers": headers,
         }
 
     @pytest.mark.asyncio
