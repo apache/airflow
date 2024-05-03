@@ -1096,7 +1096,7 @@ paths:
       - $ref: "#/components/parameters/FileToken"
 
     put:
-      summary: Request re-parsing of DAGs
+      summary: Request re-parsing of a DAG file
       description: >
         Request re-parsing of existing DAGs
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_parsing
