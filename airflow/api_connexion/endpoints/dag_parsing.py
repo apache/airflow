@@ -45,26 +45,29 @@ def reparse_dags(*, file_token: str, session: Session = NEW_SESSION) -> Response
     auth_s = URLSafeSerializer(secret_key)
     try:
         path = auth_s.loads(file_token)
-        parsing_request = DagPriorityParsingRequests(fileloc=path)
         dag_ids = session.query(DagModel.dag_id).filter(DagModel.fileloc == path).all()
         if len(dag_ids) == 0:
             raise FileNotFoundError
-        requests: Sequence[IsAuthorizedDagRequest] = [
-            {
-                "method": "PUT",
-                "details": DagDetails(id=dag_id[0]),
-            }
-            for dag_id in dag_ids
-        ]
-        # Check if user has read access to all the DAGs defined in the file
-        if not get_auth_manager().batch_is_authorized_dag(requests):
-            raise PermissionDenied()
-        session.add(parsing_request)
-        try:
-            session.commit()
-        except exc.IntegrityError:
-            session.rollback()
-            return Response("Duplicate request", HTTPStatus.CONFLICT)
     except (BadSignature, FileNotFoundError):
         raise NotFound("File not found")
+
+    requests: Sequence[IsAuthorizedDagRequest] = [
+        {
+            "method": "PUT",
+            "details": DagDetails(id=dag_id[0]),
+        }
+        for dag_id in dag_ids
+    ]
+    # Check if user has read access to all the DAGs defined in the file
+    if not get_auth_manager().batch_is_authorized_dag(requests):
+        raise PermissionDenied()
+
+    parsing_request = DagPriorityParsingRequests(fileloc=path)
+    session.add(parsing_request)
+    try:
+        session.commit()
+    except exc.IntegrityError:
+        session.rollback()
+        return Response("Duplicate request", HTTPStatus.CONFLICT)
+
     return Response(status=HTTPStatus.CREATED)
