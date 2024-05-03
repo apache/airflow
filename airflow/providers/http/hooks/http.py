@@ -77,39 +77,6 @@ class HttpHookMixin:
     get_connection: Callable
     log: Logger
 
-    @classmethod
-    def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Return connection widgets to add to the connection form."""
-        from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, Select2Widget
-        from flask_babel import lazy_gettext
-        from wtforms.fields import SelectField, TextAreaField
-
-        from airflow.www.validators import ValidJson
-
-        default_auth_type: str = ""
-        auth_types_choices = frozenset({default_auth_type}) | get_auth_types()
-        return {
-            "auth_type": SelectField(
-                lazy_gettext("Auth type"),
-                choices=[(clazz, clazz) for clazz in auth_types_choices],
-                widget=Select2Widget(),
-                default=default_auth_type,
-            ),
-            "auth_kwargs": TextAreaField(
-                lazy_gettext("Auth kwargs"), validators=[ValidJson()], widget=BS3TextAreaFieldWidget()
-            ),
-            "headers": TextAreaField(
-                lazy_gettext("Headers"),
-                validators=[ValidJson()],
-                widget=BS3TextAreaFieldWidget(),
-                description=(
-                    "Warning: Passing headers parameters directly in 'Extra' field is deprecated, and "
-                    "will be removed in a future version of the Http provider. Use the 'Headers' "
-                    "field instead."
-                ),
-            ),
-        }
-
     def load_connection_settings(self, *, headers: dict[Any, Any] | None = None) -> tuple[dict, Any, dict]:
         """Load and update the class with Connection Settings.
 
@@ -265,6 +232,39 @@ class HttpHook(HttpHookMixin, BaseHook):
     default_conn_name = "http_default"
     conn_type = "http"
     hook_name = "HTTP"
+
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to the connection form."""
+        from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, Select2Widget
+        from flask_babel import lazy_gettext
+        from wtforms.fields import SelectField, TextAreaField
+
+        from airflow.www.validators import ValidJson
+
+        default_auth_type: str = ""
+        auth_types_choices = frozenset({default_auth_type}) | get_auth_types()
+        return {
+            "auth_type": SelectField(
+                lazy_gettext("Auth type"),
+                choices=[(clazz, clazz) for clazz in auth_types_choices],
+                widget=Select2Widget(),
+                default=default_auth_type,
+            ),
+            "auth_kwargs": TextAreaField(
+                lazy_gettext("Auth kwargs"), validators=[ValidJson()], widget=BS3TextAreaFieldWidget()
+            ),
+            "headers": TextAreaField(
+                lazy_gettext("Headers"),
+                validators=[ValidJson()],
+                widget=BS3TextAreaFieldWidget(),
+                description=(
+                    "Warning: Passing headers parameters directly in 'Extra' field is deprecated, and "
+                    "will be removed in a future version of the Http provider. Use the 'Headers' "
+                    "field instead."
+                ),
+            ),
+        }
 
     def __init__(
         self,
