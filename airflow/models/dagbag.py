@@ -747,7 +747,7 @@ class DagPriorityParsingRequest(Base):
     __tablename__ = "dag_priority_parsing_request"
 
     # Adding a unique constraint to fileloc results in the creation of an index and we have a limitation
-    # on the size of the string we can use in the index for MySql DB. We also have to keep the fileloc
+    # on the size of the string we can use in the index for MySQL DB. We also have to keep the fileloc
     # size consistent with other tables. This is a workaround to enforce the unique constraint.
     id = Column(String(32), primary_key=True, default=generate_md5_hash, onupdate=generate_md5_hash)
 
