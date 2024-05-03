@@ -3182,17 +3182,6 @@ components:
             *New in version 2.5.0*
           nullable: true
 
-    DagPriorityParsingRequest:
-      description: Request to reparse DAG(s) in a file.
-      type: object
-      properties:
-        fileloc:
-          type: string
-        id:
-          type: string
-          readOnly: true
-          description: ID of the created reparse request.
-          nullable: true
 
     UpdateDagRunState:
       type: object

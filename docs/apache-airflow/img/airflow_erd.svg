@@ -69,19 +69,19 @@
 <text text-anchor="start" x="69.5" y="-317.8" font-family="Helvetica,sans-Serif" font-size="14.00">slots</text>
 <text text-anchor="start" x="102.5" y="-317.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
 </g>
-<!-- dag_priority_parsing_requests -->
+<!-- dag_priority_parsing_request -->
 <g id="node3" class="node">
-<title>dag_priority_parsing_requests</title>
-<polygon fill="none" stroke="black" points="66.5,-538 66.5,-566 348.5,-566 348.5,-538 66.5,-538"/>
-<text text-anchor="start" x="71.5" y="-549.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">dag_priority_parsing_requests</text>
-<polygon fill="none" stroke="black" points="66.5,-513 66.5,-538 348.5,-538 348.5,-513 66.5,-513"/>
-<text text-anchor="start" x="71.5" y="-522.8" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">id</text>
-<text text-anchor="start" x="84.5" y="-522.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(40)]</text>
-<text text-anchor="start" x="196.5" y="-522.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="66.5,-488 66.5,-513 348.5,-513 348.5,-488 66.5,-488"/>
-<text text-anchor="start" x="71.5" y="-497.8" font-family="Helvetica,sans-Serif" font-size="14.00">fileloc</text>
-<text text-anchor="start" x="112.5" y="-497.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(2000)]</text>
-<text text-anchor="start" x="242.5" y="-497.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<title>dag_priority_parsing_request</title>
+<polygon fill="none" stroke="black" points="71.5,-538 71.5,-566 343.5,-566 343.5,-538 71.5,-538"/>
+<text text-anchor="start" x="76.5" y="-549.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">dag_priority_parsing_request</text>
+<polygon fill="none" stroke="black" points="71.5,-513 71.5,-538 343.5,-538 343.5,-513 71.5,-513"/>
+<text text-anchor="start" x="76.5" y="-522.8" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">id</text>
+<text text-anchor="start" x="89.5" y="-522.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(32)]</text>
+<text text-anchor="start" x="201.5" y="-522.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="71.5,-488 71.5,-513 343.5,-513 343.5,-488 71.5,-488"/>
+<text text-anchor="start" x="76.5" y="-497.8" font-family="Helvetica,sans-Serif" font-size="14.00">fileloc</text>
+<text text-anchor="start" x="117.5" y="-497.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(2000)]</text>
+<text text-anchor="start" x="247.5" y="-497.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 </g>
 <!-- log -->
 <g id="node4" class="node">

@@ -736,12 +736,21 @@ class DagBag(LoggingMixin):
         security_manager.sync_perm_for_dag(root_dag_id, dag.access_control)
 
 
-class DagPriorityParsingRequests(Base):
+def generate_md5_hash(context):
+    fileloc = context.get_current_parameters()["fileloc"]
+    return hashlib.md5(fileloc.encode()).hexdigest()
+
+
+class DagPriorityParsingRequest(Base):
     """Model to store the dag parsing requests that will be prioritized when parsing files."""
 
-    __tablename__ = "dag_priority_parsing_requests"
+    __tablename__ = "dag_priority_parsing_request"
 
-    id = Column(String(40), primary_key=True)
+    # Adding a unique constraint to fileloc results in the creation of an index and we have a limitation
+    # on the size of the string we can use in the index for MySql DB. We also have to keep the fileloc
+    # size consistent with other tables. This is a workaround to enforce the unique constraint.
+    id = Column(String(32), primary_key=True, default=generate_md5_hash, onupdate=generate_md5_hash)
+
     # The location of the file containing the DAG object
     # Note: Do not depend on fileloc pointing to a file; in the case of a
     # packaged DAG, it will point to the subpath of the DAG within the
@@ -751,24 +760,17 @@ class DagPriorityParsingRequests(Base):
     def __init__(self, fileloc: str) -> None:
         super().__init__()
         self.fileloc = fileloc
-        # Adding a unique constraint to fileloc results in the creation of an index and we have a limitation
-        # on the size of the string we can use in the index for MySql DB. We also have to keep the fileloc
-        # size consistent with other tables. This is a workaround to enforce the unique constraint.
-        self.id = self._generate_md5_hash(fileloc)
-
-    def _generate_md5_hash(self, fileloc: str):
-        return hashlib.md5(fileloc.encode()).hexdigest()
 
     @staticmethod
     @provide_session
     def get_requests(session: Session = NEW_SESSION):
-        return session.scalars(select(DagPriorityParsingRequests)).all()
+        return session.scalars(select(DagPriorityParsingRequest)).all()
 
-    def __repr__(self):
-        return self.fileloc
+    def __repr__(self) -> str:
+        return f"<DagPriorityParsingRequest: fileloc={self.fileloc}>"
 
     def __eq__(self, other):
-        if isinstance(other, (self.__class__, DagPriorityParsingRequests)):
+        if isinstance(other, (self.__class__, DagPriorityParsingRequest)):
             return self.fileloc == other.fileloc
         else:
             return NotImplemented

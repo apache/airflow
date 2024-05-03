@@ -38,13 +38,13 @@ airflow_version = '2.10.0'
 
 def upgrade():
     """Apply Added DagPriorityParsingRequests table"""
-    op.create_table('dag_priority_parsing_requests',
-    sa.Column('id', sa.String(length=40), nullable=False),
+    op.create_table('dag_priority_parsing_request',
+    sa.Column('id', sa.String(length=32), nullable=False),
     sa.Column('fileloc', sa.String(length=2000), nullable=False),
-    sa.PrimaryKeyConstraint('id', name=op.f('dag_priority_parsing_requests_pkey'))
+    sa.PrimaryKeyConstraint('id', name=op.f('dag_priority_parsing_request_pkey'))
     )
 
 
 def downgrade():
     """Unapply Added DagPriorityParsingRequests table"""
-    op.drop_table('dag_priority_parsing_requests')
+    op.drop_table('dag_priority_parsing_request')

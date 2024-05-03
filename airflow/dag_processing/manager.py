@@ -46,7 +46,7 @@ from airflow.callbacks.callback_requests import CallbackRequest, SlaCallbackRequ
 from airflow.configuration import conf
 from airflow.dag_processing.processor import DagFileProcessorProcess
 from airflow.models.dag import DagModel
-from airflow.models.dagbag import DagPriorityParsingRequests
+from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ParseImportError
@@ -734,7 +734,7 @@ class DagFileProcessorManager(LoggingMixin):
     def _refresh_requested_filelocs(self, session=NEW_SESSION) -> None:
         """Refresh filepaths from dag dir as requested by users via APIs."""
         # Get values from DB table
-        requests = DagPriorityParsingRequests.get_requests()
+        requests = DagPriorityParsingRequest.get_requests()
         for request in requests:
             # Check if fileloc is in valid file paths. Parsing any
             # filepaths can be a security issue.

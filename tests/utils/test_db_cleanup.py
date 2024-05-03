@@ -344,7 +344,7 @@ class TestDBCleanup:
             "task_instance_note",  # foreign keys
             "dag_run_note",  # foreign keys
             "rendered_task_instance_fields",  # foreign key with TI
-            "dag_priority_parsing_requests",  # Records are purged once per DAG Processing loop, not a
+            "dag_priority_parsing_request",  # Records are purged once per DAG Processing loop, not a
             # significant source of data.
         }
 

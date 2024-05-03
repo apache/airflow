@@ -27,7 +27,7 @@ from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound, PermissionDenied
 from airflow.auth.managers.models.resource_details import DagDetails
 from airflow.models.dag import DagModel
-from airflow.models.dagbag import DagPriorityParsingRequests
+from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
@@ -62,7 +62,7 @@ def reparse_dags(*, file_token: str, session: Session = NEW_SESSION) -> Response
     if not get_auth_manager().batch_is_authorized_dag(requests):
         raise PermissionDenied()
 
-    parsing_request = DagPriorityParsingRequests(fileloc=path)
+    parsing_request = DagPriorityParsingRequest(fileloc=path)
     session.add(parsing_request)
     try:
         session.commit()

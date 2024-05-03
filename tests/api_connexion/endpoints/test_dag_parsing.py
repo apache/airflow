@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from airflow.models import DagBag
-from airflow.models.dagbag import DagPriorityParsingRequests
+from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.security import permissions
 from tests.test_utils.api_connexion_utils import create_user, delete_user
 from tests.test_utils.db import clear_db_dag_parsing_requests
@@ -85,16 +85,16 @@ class TestDagParsingRequest:
             url, headers={"Accept": "application/json"}, environ_overrides={"REMOTE_USER": "test"}
         )
         assert 201 == response.status_code
-        parsing_requests = DagPriorityParsingRequests.get_requests()
-        assert parsing_requests == [DagPriorityParsingRequests(fileloc=test_dag.fileloc)]
+        parsing_requests = DagPriorityParsingRequest.get_requests()
+        assert parsing_requests == [DagPriorityParsingRequest(fileloc=test_dag.fileloc)]
 
         # Duplicate file parsing request
         response = self.client.put(
             url, headers={"Accept": "application/json"}, environ_overrides={"REMOTE_USER": "test"}
         )
         assert 409 == response.status_code
-        parsing_requests = DagPriorityParsingRequests.get_requests()
-        assert parsing_requests == [DagPriorityParsingRequests(fileloc=test_dag.fileloc)]
+        parsing_requests = DagPriorityParsingRequest.get_requests()
+        assert parsing_requests == [DagPriorityParsingRequest(fileloc=test_dag.fileloc)]
 
     def test_bad_file_request(self, url_safe_serializer):
         url = f"/api/v1/dag/parse/{url_safe_serializer.dumps('/some/random/file.py')}"
@@ -103,7 +103,7 @@ class TestDagParsingRequest:
         )
         assert response.status_code == 404
 
-        parsing_requests = DagPriorityParsingRequests.get_requests()
+        parsing_requests = DagPriorityParsingRequest.get_requests()
         assert parsing_requests == []
 
     def test_bad_user_request(self, url_safe_serializer):
@@ -115,5 +115,5 @@ class TestDagParsingRequest:
         )
         assert response.status_code == 403
 
-        parsing_requests = DagPriorityParsingRequests.get_requests()
+        parsing_requests = DagPriorityParsingRequest.get_requests()
         assert parsing_requests == []

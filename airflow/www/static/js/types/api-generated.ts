@@ -1166,12 +1166,6 @@ export interface components {
        */
       note?: string | null;
     };
-    /** @description Dag parsing requests. */
-    DagPriorityParsingRequest: {
-      fileloc?: string;
-      /** @description The request ID. */
-      id?: string | null;
-    };
     /**
      * @description Modify the state of a DAG run.
      *
@@ -5097,9 +5091,6 @@ export type DAGCollection = CamelCasedPropertiesDeep<
   components["schemas"]["DAGCollection"]
 >;
 export type DAGRun = CamelCasedPropertiesDeep<components["schemas"]["DAGRun"]>;
-export type DagPriorityParsingRequest = CamelCasedPropertiesDeep<
-  components["schemas"]["DagPriorityParsingRequest"]
->;
 export type UpdateDagRunState = CamelCasedPropertiesDeep<
   components["schemas"]["UpdateDagRunState"]
 >;
