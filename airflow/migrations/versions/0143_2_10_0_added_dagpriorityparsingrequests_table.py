@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Added DagPriorityParsingRequests table.
+"""Added DagPriorityParsingRequest table.
 
 Revision ID: c4602ba06b4b
 Revises: 88344c1d9134
@@ -38,7 +38,7 @@ airflow_version = "2.10.0"
 
 
 def upgrade():
-    """Apply Added DagPriorityParsingRequests table."""
+    """Apply Added DagPriorityParsingRequest table."""
     op.create_table(
         "dag_priority_parsing_request",
         sa.Column("id", sa.String(length=32), nullable=False),
@@ -48,5 +48,5 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Added DagPriorityParsingRequests table."""
+    """Unapply Added DagPriorityParsingRequest table."""
     op.drop_table("dag_priority_parsing_request")
