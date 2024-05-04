@@ -299,24 +299,6 @@
 - tests/dag_processing/test_processor.py::TestDagFileProcessor::test_execute_on_failure_callbacks_without_dag
 - tests/dag_processing/test_processor.py::TestDagFileProcessor::test_failure_callbacks_should_not_drop_hostname
 - tests/dag_processing/test_processor.py::TestDagFileProcessor::test_process_file_should_failure_callback
-- tests/sensors/test_external_task_sensor.py::TestExternalTaskSensor::test_external_dag_sensor
-- tests/sensors/test_external_task_sensor.py::TestExternalTaskSensor::test_external_dag_sensor_log
-- tests/sensors/test_external_task_sensor.py::TestExternalTaskSensor::test_external_dag_sensor_soft_fail_as_skipped
-- tests/sensors/test_external_task_sensor.py::TestExternalTaskSensor::test_external_task_group_not_exists_without_check_existence
-- tests/sensors/test_external_task_sensor.py::TestExternalTaskSensor::test_external_task_group_sensor_failed_states
-- tests/sensors/test_external_task_sensor.py::TestExternalTaskSensor::test_external_task_group_sensor_success
-- tests/sensors/test_external_task_sensor.py::TestExternalTaskSensor::test_external_task_group_when_there_is_no_TIs
-- tests/sensors/test_external_task_sensor.py::TestExternalTaskSensor::test_external_task_group_with_mapped_tasks_failed_states
-- tests/sensors/test_external_task_sensor.py::TestExternalTaskSensor::test_external_task_group_with_mapped_tasks_sensor_success
-- tests/sensors/test_external_task_sensor.py::TestExternalTaskSensor::test_external_task_sensor_with_task_group
-- tests/sensors/test_external_task_sensor.py::test_clear_multiple_external_task_marker
-- tests/sensors/test_external_task_sensor.py::test_external_task_marker_clear_activate
-- tests/sensors/test_external_task_sensor.py::test_external_task_marker_cyclic_deep
-- tests/sensors/test_external_task_sensor.py::test_external_task_marker_cyclic_shallow
-- tests/sensors/test_external_task_sensor.py::test_external_task_marker_exception
-- tests/sensors/test_external_task_sensor.py::test_external_task_marker_future
-- tests/sensors/test_external_task_sensor.py::test_external_task_marker_transitive
-- tests/sensors/test_timeout_sensor.py::TestSensorTimeout::test_timeout
 - tests/triggers/test_external_task.py::TestTaskStateTrigger::test_task_state_trigger_success
 
 
