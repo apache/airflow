@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
+import os
 
 from typing import IO, Any
 
@@ -80,6 +81,7 @@ class AzureFileShareHook(BaseHook):
         file_path: str | None = None,
         directory_path: str | None = None,
         azure_fileshare_conn_id: str = "azure_fileshare_default",
+        recursive: bool = False
     ) -> None:
         super().__init__()
         self._conn_id = azure_fileshare_conn_id
@@ -90,6 +92,7 @@ class AzureFileShareHook(BaseHook):
         self._connection_string: str | None = None
         self._account_access_key: str | None = None
         self._sas_token: str | None = None
+        self.recursive: bool = recursive
 
     def get_conn(self) -> None:
         conn = self.get_connection(self._conn_id)
@@ -195,6 +198,18 @@ class AzureFileShareHook(BaseHook):
 
     def list_files(self) -> list[str]:
         """Return the list of files stored on a Azure File Share."""
+        files = []
+        for obj in self.list_directories_and_files():
+            if isinstance(obj, FileProperties):
+                files.append(obj.name)
+            elif self.recursive:
+                dir = self.directory_path
+                self.directory_path = (dir + os.sep if dir else "" ) + obj.name
+                files.extend(self.list_files())
+                self.directory_path = dir
+
+
+
         return [obj.name for obj in self.list_directories_and_files() if isinstance(obj, FileProperties)]
 
     def create_share(self, share_name: str, **kwargs) -> bool:

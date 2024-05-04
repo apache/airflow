@@ -62,6 +62,7 @@ class AzureFileShareToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param recursive: (Optional) Option to look for files through the recursive directory tree
 
     Note that ``share_name``, ``directory_name``, ``prefix``, ``delimiter`` and ``dest_gcs`` are
     templated, so you can use variables in them if you wish.
@@ -87,6 +88,7 @@ class AzureFileShareToGCSOperator(BaseOperator):
         replace: bool = False,
         gzip: bool = False,
         google_impersonation_chain: str | Sequence[str] | None = None,
+        recursive: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -108,6 +110,7 @@ class AzureFileShareToGCSOperator(BaseOperator):
         self.replace = replace
         self.gzip = gzip
         self.google_impersonation_chain = google_impersonation_chain
+        self.recursive = recursive
 
     def _check_inputs(self) -> None:
         if self.dest_gcs and not gcs_object_is_directory(self.dest_gcs):
@@ -167,6 +170,7 @@ class AzureFileShareToGCSOperator(BaseOperator):
                     azure_fileshare_conn_id=self.azure_fileshare_conn_id,
                     directory_path=self.directory_path,
                     file_path=file,
+                    recursive=self.recursive
                 )
                 with NamedTemporaryFile() as temp_file:
                     azure_fileshare_hook.get_file_to_stream(stream=temp_file)
