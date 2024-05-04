@@ -493,6 +493,7 @@ class TestFileTaskLogHandler:
             job = Job()
             t = Trigger("", {})
             t.triggerer_job = job
+            session.add(t)
             ti.triggerer = t
             t.task_instance = ti
         h = FileTaskHandler(base_log_folder=os.fspath(tmp_path))
