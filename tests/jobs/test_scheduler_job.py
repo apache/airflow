@@ -968,7 +968,7 @@ class TestSchedulerJob:
 
     def test_infinite_pool(self, dag_maker):
         dag_id = "SchedulerJobTest.test_infinite_pool"
-        with dag_maker(dag_id=dag_id, concurrency=16):
+        with dag_maker(dag_id=dag_id, max_active_tasks=16):
             EmptyOperator(task_id="dummy", pool="infinite_pool")
 
         scheduler_job = Job()
@@ -995,7 +995,7 @@ class TestSchedulerJob:
 
     def test_not_enough_pool_slots(self, caplog, dag_maker):
         dag_id = "SchedulerJobTest.test_test_not_enough_pool_slots"
-        with dag_maker(dag_id=dag_id, concurrency=16):
+        with dag_maker(dag_id=dag_id, max_active_tasks=16):
             EmptyOperator(task_id="cannot_run", pool="some_pool", pool_slots=4)
             EmptyOperator(task_id="can_run", pool="some_pool", pool_slots=1)
 
