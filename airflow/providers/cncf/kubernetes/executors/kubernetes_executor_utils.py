@@ -32,7 +32,7 @@ from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     annotations_for_logging_task_metadata,
     annotations_to_key,
-    create_pod_id,
+    create_unique_id,
 )
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -413,7 +413,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         pod = PodGenerator.construct_pod(
             namespace=self.namespace,
             scheduler_job_id=self.scheduler_job_id,
-            pod_id=create_pod_id(dag_id, task_id),
+            pod_id=create_unique_id(dag_id, task_id),
             dag_id=dag_id,
             task_id=task_id,
             kube_image=self.kube_config.kube_image,

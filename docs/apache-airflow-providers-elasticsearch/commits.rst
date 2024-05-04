@@ -35,14 +35,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.4.0
+.....
+
+Latest change: 2024-04-25
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+=================================================================================================  ===========  =======================================================================
+
 5.3.4
 .....
 
-Latest change: 2024-03-19
+Latest change: 2024-04-10
 
 =================================================================================================  ===========  =======================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================================
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
 `c6bc052980 <https://github.com/apache/airflow/commit/c6bc0529805be98cffbf336070abee32b93ca39a>`_  2024-03-19   ``Add default for 'task' on TaskInstance / fix attrs on TaskInstancePydantic (#37854)``
 `b5b972a106 <https://github.com/apache/airflow/commit/b5b972a1068e19b09d48ec4d7663dd1d996d594f>`_  2024-03-18   ``Update yanked versions in providers changelogs (#38262)``
 `74892c2195 <https://github.com/apache/airflow/commit/74892c21956cd2e3389697b92365f5d263557303>`_  2024-03-06   ``Fix D105 checks for ES provider (#37880)``

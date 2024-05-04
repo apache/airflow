@@ -64,6 +64,7 @@ TEST_GCP_CONN_ID = "TEST_GCP_CONN_ID"
 TEST_IMPERSONATION_CHAIN = "TEST_SERVICE_ACCOUNT"
 TEST_HOOK_PARAMS: dict[str, Any] = {}
 TEST_PARTITION_ID = "1234"
+TEST_SELECTED_FIELDS = "f0_,f1_"
 
 
 @pytest.fixture
@@ -91,6 +92,7 @@ def get_data_trigger():
         location=None,
         poll_interval=POLLING_PERIOD_SECONDS,
         impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        selected_fields=TEST_SELECTED_FIELDS,
     )
 
 
@@ -285,6 +287,7 @@ class TestBigQueryGetDataTrigger:
             "project_id": TEST_GCP_PROJECT_ID,
             "table_id": TEST_TABLE_ID,
             "location": None,
+            "selected_fields": TEST_SELECTED_FIELDS,
             "poll_interval": POLLING_PERIOD_SECONDS,
         }
 

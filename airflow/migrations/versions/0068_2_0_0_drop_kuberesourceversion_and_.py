@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Drop ``KubeResourceVersion`` and ``KubeWorkerId``
+"""Drop ``KubeResourceVersion`` and ``KubeWorkerId``.
 
 Revision ID: bef4f3d11e8b
 Revises: e1a11ece99cc
 Create Date: 2020-09-22 18:45:28.011654
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -41,7 +42,7 @@ WORKER_RESOURCEVERSION_TABLE = "kube_resource_version"
 
 
 def upgrade():
-    """Apply Drop ``KubeResourceVersion`` and ``KubeWorkerId``entifier tables"""
+    """Apply Drop ``KubeResourceVersion`` and ``KubeWorkerId``entifier tables."""
     conn = op.get_bind()
     inspector = inspect(conn)
     tables = inspector.get_table_names()
@@ -53,7 +54,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Drop ``KubeResourceVersion`` and ``KubeWorkerId``entifier tables"""
+    """Unapply Drop ``KubeResourceVersion`` and ``KubeWorkerId``entifier tables."""
     conn = op.get_bind()
     inspector = inspect(conn)
     tables = inspector.get_table_names()

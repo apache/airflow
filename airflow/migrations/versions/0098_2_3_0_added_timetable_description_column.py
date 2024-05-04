@@ -22,6 +22,7 @@ Revises: 5e3ec427fdd3
 Create Date: 2021-10-15 13:33:04.754052
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa

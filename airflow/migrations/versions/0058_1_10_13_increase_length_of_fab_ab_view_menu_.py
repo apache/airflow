@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Increase length of ``Flask-AppBuilder`` ``ab_view_menu.name`` column
+"""Increase length of ``Flask-AppBuilder`` ``ab_view_menu.name`` column.
 
 Revision ID: 03afc6b6f902
 Revises: 92c57b58940d
 Create Date: 2020-11-13 22:21:41.619565
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -39,7 +40,7 @@ airflow_version = "1.10.13"
 
 
 def upgrade():
-    """Apply Increase length of ``Flask-AppBuilder`` ``ab_view_menu.name`` column"""
+    """Apply Increase length of ``Flask-AppBuilder`` ``ab_view_menu.name`` column."""
     conn = op.get_bind()
     inspector = inspect(conn)
     tables = inspector.get_table_names()
@@ -70,7 +71,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Increase length of ``Flask-AppBuilder`` ``ab_view_menu.name`` column"""
+    """Unapply Increase length of ``Flask-AppBuilder`` ``ab_view_menu.name`` column."""
     conn = op.get_bind()
     inspector = inspect(conn)
     tables = inspector.get_table_names()

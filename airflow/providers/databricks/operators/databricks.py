@@ -67,24 +67,22 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
                     log.info("%s completed successfully.", operator.task_id)
                     log.info("View run status, Spark UI, and logs at %s", run_page_url)
                     return
-
                 if run_state.result_state == "FAILED":
-                    task_run_id = None
-                    if "tasks" in run_info:
-                        for task in run_info["tasks"]:
-                            if task.get("state", {}).get("result_state", "") == "FAILED":
-                                task_run_id = task["run_id"]
-                    if task_run_id is not None:
-                        run_output = hook.get_run_output(task_run_id)
-                        if "error" in run_output:
-                            notebook_error = run_output["error"]
-                        else:
-                            notebook_error = run_state.state_message
-                    else:
-                        notebook_error = run_state.state_message
+                    failed_tasks = []
+                    for task in run_info.get("tasks", []):
+                        if task.get("state", {}).get("result_state", "") == "FAILED":
+                            task_run_id = task["run_id"]
+                            task_key = task["task_key"]
+                            run_output = hook.get_run_output(task_run_id)
+                            if "error" in run_output:
+                                error = run_output["error"]
+                            else:
+                                error = run_state.state_message
+                            failed_tasks.append({"task_key": task_key, "run_id": task_run_id, "error": error})
+
                     error_message = (
                         f"{operator.task_id} failed with terminal state: {run_state} "
-                        f"and with the error {notebook_error}"
+                        f"and with the errors {failed_tasks}"
                     )
                 else:
                     error_message = (
@@ -160,13 +158,15 @@ def _handle_deferrable_databricks_operator_completion(event: dict, log: Logger) 
     validate_trigger_event(event)
     run_state = RunState.from_json(event["run_state"])
     run_page_url = event["run_page_url"]
+    errors = event["errors"]
     log.info("View run status, Spark UI, and logs at %s", run_page_url)
 
     if run_state.is_successful:
         log.info("Job run completed successfully.")
         return
 
-    error_message = f"Job run failed with terminal state: {run_state}"
+    error_message = f"Job run failed with terminal state: {run_state} and with the errors {errors}"
+
     if event["repair_run"]:
         log.warning(
             "%s but since repair run is set, repairing the run with all failed tasks",

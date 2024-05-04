@@ -35,14 +35,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.8.0
+.....
+
+Latest change: 2024-04-30
+
+=================================================================================================  ===========  ==========================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================================================
+`d4bdffc45c <https://github.com/apache/airflow/commit/d4bdffc45cd2e55783bba1e7442c346aef7ca573>`_  2024-04-30   ``migrate to dbt v3 api for project endpoints (#39214)``
+`79b5443d40 <https://github.com/apache/airflow/commit/79b5443d40545d16f219f4f7dc260257fdf45bbd>`_  2024-04-30   ``fix(dbt): fix wrong payload set when reuse_existing_run set to True in DbtCloudRunJobOperator (#39271)``
+`ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+=================================================================================================  ===========  ==========================================================================================================
+
 3.7.1
 .....
 
-Latest change: 2024-03-25
+Latest change: 2024-04-10
 
 =================================================================================================  ===========  ====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
 `9c4e333f5b <https://github.com/apache/airflow/commit/9c4e333f5b7cc6f950f6791500ecd4bad41ba2f9>`_  2024-03-25   ``fix: disabled_for_operators now stops whole event emission (#38033)``
 `cddf1cc7dc <https://github.com/apache/airflow/commit/cddf1cc7dc2869f40a328f2619b776363aea6969>`_  2024-03-22   ``fix(dbt): add return statement to yield within a while loop in triggers (#38395)``
 =================================================================================================  ===========  ====================================================================================

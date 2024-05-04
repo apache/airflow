@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Make XCom primary key columns non-nullable
+"""Make XCom primary key columns non-nullable.
 
 Revision ID: e9304a3141f0
 Revises: 83f031fd9f1c
 Create Date: 2021-04-06 13:22:02.197726
 
 """
+
 from __future__ import annotations
 
 from alembic import op
@@ -37,7 +38,7 @@ airflow_version = "2.2.0"
 
 
 def upgrade():
-    """Apply Make XCom primary key columns non-nullable"""
+    """Apply Make XCom primary key columns non-nullable."""
     conn = op.get_bind()
     with op.batch_alter_table("xcom") as bop:
         bop.alter_column("key", type_=StringID(length=512), nullable=False)
@@ -49,7 +50,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Make XCom primary key columns non-nullable"""
+    """Unapply Make XCom primary key columns non-nullable."""
     conn = op.get_bind()
     with op.batch_alter_table("xcom") as bop:
         # regardless of what the model defined, the `key` and `execution_date`

@@ -25,10 +25,13 @@ import pytest
 from botocore.exceptions import ClientError
 from moto import mock_aws
 
-from airflow.providers.amazon.aws.hooks.bedrock import BedrockHook, BedrockRuntimeHook
+from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, BedrockHook, BedrockRuntimeHook
 from airflow.providers.amazon.aws.operators.bedrock import (
+    BedrockCreateDataSourceOperator,
+    BedrockCreateKnowledgeBaseOperator,
     BedrockCreateProvisionedModelThroughputOperator,
     BedrockCustomizeModelOperator,
+    BedrockIngestDataOperator,
     BedrockInvokeModelOperator,
 )
 
@@ -217,3 +220,129 @@ class TestBedrockCreateProvisionedModelThroughputOperator:
         assert response == self.MODEL_ARN
         assert bedrock_hook.get_waiter.call_count == wait_for_completion
         assert self.operator.defer.call_count == deferrable
+
+
+class TestBedrockCreateKnowledgeBaseOperator:
+    KNOWLEDGE_BASE_ID = "knowledge_base_id"
+
+    @pytest.fixture
+    def mock_conn(self) -> Generator[BaseAwsConnection, None, None]:
+        with mock.patch.object(BedrockAgentHook, "conn") as _conn:
+            _conn.create_knowledge_base.return_value = {
+                "knowledgeBase": {"knowledgeBaseId": self.KNOWLEDGE_BASE_ID}
+            }
+            yield _conn
+
+    @pytest.fixture
+    def bedrock_hook(self) -> Generator[BedrockAgentHook, None, None]:
+        with mock_aws():
+            hook = BedrockAgentHook()
+            yield hook
+
+    def setup_method(self):
+        self.operator = BedrockCreateKnowledgeBaseOperator(
+            task_id="create_knowledge_base",
+            name=self.KNOWLEDGE_BASE_ID,
+            embedding_model_arn="arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-embed-text-v1",
+            role_arn="role-arn",
+            storage_config={
+                "type": "OPENSEARCH_SERVERLESS",
+                "opensearchServerlessConfiguration": {
+                    "collectionArn": "collection_arn",
+                    "vectorIndexName": "index_name",
+                    "fieldMapping": {
+                        "vectorField": "vector",
+                        "textField": "text",
+                        "metadataField": "text-metadata",
+                    },
+                },
+            },
+        )
+        self.operator.defer = mock.MagicMock()
+
+    @pytest.mark.parametrize(
+        "wait_for_completion, deferrable",
+        [
+            pytest.param(False, False, id="no_wait"),
+            pytest.param(True, False, id="wait"),
+            pytest.param(False, True, id="defer"),
+        ],
+    )
+    @mock.patch.object(BedrockAgentHook, "get_waiter")
+    def test_create_knowledge_base_wait_combinations(
+        self, _, wait_for_completion, deferrable, mock_conn, bedrock_hook
+    ):
+        self.operator.wait_for_completion = wait_for_completion
+        self.operator.deferrable = deferrable
+
+        response = self.operator.execute({})
+
+        assert response == self.KNOWLEDGE_BASE_ID
+        assert bedrock_hook.get_waiter.call_count == wait_for_completion
+        assert self.operator.defer.call_count == deferrable
+
+    def test_returns_id(self, mock_conn):
+        self.operator.wait_for_completion = False
+        result = self.operator.execute({})
+
+        assert result == self.KNOWLEDGE_BASE_ID
+
+
+class TestBedrockCreateDataSourceOperator:
+    DATA_SOURCE_ID = "data_source_id"
+
+    @pytest.fixture
+    def mock_conn(self) -> Generator[BaseAwsConnection, None, None]:
+        with mock.patch.object(BedrockAgentHook, "conn") as _conn:
+            _conn.create_data_source.return_value = {"dataSource": {"dataSourceId": self.DATA_SOURCE_ID}}
+            yield _conn
+
+    @pytest.fixture
+    def bedrock_hook(self) -> Generator[BedrockAgentHook, None, None]:
+        with mock_aws():
+            hook = BedrockAgentHook()
+            yield hook
+
+    def setup_method(self):
+        self.operator = BedrockCreateDataSourceOperator(
+            task_id="create_data_source",
+            name=self.DATA_SOURCE_ID,
+            knowledge_base_id="test_knowledge_base_id",
+            bucket_name="test_bucket",
+        )
+
+    def test_id_returned(self, mock_conn):
+        result = self.operator.execute({})
+
+        assert result == self.DATA_SOURCE_ID
+
+
+class TestBedrockIngestDataOperator:
+    INGESTION_JOB_ID = "ingestion_job_id"
+
+    @pytest.fixture
+    def mock_conn(self) -> Generator[BaseAwsConnection, None, None]:
+        with mock.patch.object(BedrockAgentHook, "conn") as _conn:
+            _conn.start_ingestion_job.return_value = {
+                "ingestionJob": {"ingestionJobId": self.INGESTION_JOB_ID}
+            }
+            yield _conn
+
+    @pytest.fixture
+    def bedrock_hook(self) -> Generator[BedrockAgentHook, None, None]:
+        with mock_aws():
+            hook = BedrockAgentHook()
+            yield hook
+
+    def setup_method(self):
+        self.operator = BedrockIngestDataOperator(
+            task_id="create_data_source",
+            data_source_id="data_source_id",
+            knowledge_base_id="knowledge_base_id",
+            wait_for_completion=False,
+        )
+
+    def test_id_returned(self, mock_conn):
+        result = self.operator.execute({})
+
+        assert result == self.INGESTION_JOB_ID

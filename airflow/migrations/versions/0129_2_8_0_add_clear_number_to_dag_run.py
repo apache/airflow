@@ -16,13 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""add new field 'clear_number' to dagrun
+"""add new field 'clear_number' to dagrun.
 
 Revision ID: 375a816bbbf4
 Revises: 405de8318b3a
 Create Date: 2023-09-05 19:27:30.531558
 
 """
+
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
@@ -36,7 +38,7 @@ airflow_version = "2.8.0"
 
 
 def upgrade():
-    """Apply add cleared column to dagrun"""
+    """Apply add cleared column to dagrun."""
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
         with op.batch_alter_table("dag_run") as batch_op:
@@ -56,6 +58,6 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply add cleared column to pool"""
+    """Unapply add cleared column to pool."""
     with op.batch_alter_table("dag_run") as batch_op:
         batch_op.drop_column("clear_number")

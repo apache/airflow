@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""add callback request table
+"""add callback request table.
 
 Revision ID: c97c2ab6aa23
 Revises: c306b5b5ae4a
 Create Date: 2022-01-28 21:11:11.857010
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
