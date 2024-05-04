@@ -577,6 +577,17 @@ class KubernetesExecutor(BaseExecutor):
                 for pod in pod_list:
                     self.adopt_launched_task(kube_client, pod, tis_to_flush_by_key)
             self._adopt_completed_pods(kube_client)
+            # as this method can be retried within a short time frame
+            # (wrapped in a run_with_db_retries of scheduler_job_runner,
+            # and get retried due to an OperationalError, for example),
+            # there is a chance that in second attempt, adopt_launched_task will not be called even once
+            # as all pods are already adopted in the first attempt.
+            # and tis_to_flush_by_key will contain TIs that are already adopted.
+            # therefore, we need to check if the TIs are already adopted by the first attempt and remove them.
+            for ti in list(tis_to_flush_by_key.keys()):
+                if ti in self.running:
+                    del tis_to_flush_by_key[ti]
+                    self.log.info(f"{ti} is already adopted, no need to flush.")
             tis_to_flush.extend(tis_to_flush_by_key.values())
             return tis_to_flush
 
