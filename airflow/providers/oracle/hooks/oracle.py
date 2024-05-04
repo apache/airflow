@@ -252,7 +252,8 @@ class OracleHook(DbApiHook):
         table: str,
         rows: list[tuple],
         target_fields=None,
-        commit_every: int = 1000
+        commit_every: int = 1000,
+        replace: bool | None = False,
         **kwargs,
     ) -> None:
         """
@@ -273,7 +274,10 @@ class OracleHook(DbApiHook):
         :param commit_every: the maximum number of rows to insert in one transaction
             Default 1000, Set greater than 0.
             Set 1 to insert each row in each single transaction
+        :param replace: Does not do anything.
         """
+        if replace:
+            warnings.warn("Using 'replace=True' does not implement any replace functionality currently.", category=UserWarning, stacklevel=2)
         try:
             import numpy as np
         except ImportError:
