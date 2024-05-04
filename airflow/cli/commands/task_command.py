@@ -199,6 +199,8 @@ def _get_ti_db_access(
             )
         # TODO: Validate map_index is in range?
         ti = TaskInstance(task, run_id=dag_run.run_id, map_index=map_index)
+        if dag_run in session:
+            session.add(ti)
         ti.dag_run = dag_run
     else:
         ti = ti_or_none

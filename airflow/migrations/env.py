@@ -29,6 +29,9 @@ from airflow.utils.db import compare_server_default, compare_type
 
 def include_object(_, name, type_, *args):
     """Filter objects for autogenerating revisions."""
+    # Ignore the sqlite_sequence table, which is an internal SQLite construct
+    if name == "sqlite_sequence":
+        return False
     # Ignore _anything_ to do with Celery, or FlaskSession's tables
     if type_ == "table" and (name.startswith("celery_") or name == "session"):
         return False

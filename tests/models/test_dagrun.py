@@ -2115,8 +2115,8 @@ def test_schedulable_task_exist_when_rerun_removed_upstream_mapped_task(session,
     task = ti.task
     for map_index in range(1, 5):
         ti = TI(task, run_id=dr.run_id, map_index=map_index)
-        ti.dag_run = dr
         session.add(ti)
+        ti.dag_run = dr
     session.flush()
     tis = dr.get_task_instances()
     for ti in tis:

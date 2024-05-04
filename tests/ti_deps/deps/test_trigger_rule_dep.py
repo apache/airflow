@@ -137,8 +137,8 @@ def get_mapped_task_dagrun(session, dag_maker):
             ti.map_index = 0
             for map_index in range(1, 5):
                 ti = TaskInstance(ti.task, run_id=dr.run_id, map_index=map_index)
-                ti.dag_run = dr
                 session.add(ti)
+                ti.dag_run = dr
             session.flush()
             tis = dr.get_task_instances(session=session)
             for ti in tis:

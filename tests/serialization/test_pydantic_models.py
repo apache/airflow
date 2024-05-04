@@ -159,8 +159,12 @@ def test_serializing_pydantic_dataset_event(session, create_task_instance, creat
     ds2_event_1 = DatasetEvent(dataset_id=2)
     ds2_event_2 = DatasetEvent(dataset_id=2)
 
-    DagScheduleDatasetReference(dag_id=dag.dag_id, dataset=ds1)
-    TaskOutletDatasetReference(task_id=task1.task_id, dag_id=dag.dag_id, dataset=ds1)
+    dag_ds_ref = DagScheduleDatasetReference(dag_id=dag.dag_id)
+    session.add(dag_ds_ref)
+    dag_ds_ref.dataset = ds1
+    task_ds_ref = TaskOutletDatasetReference(task_id=task1.task_id, dag_id=dag.dag_id)
+    session.add(task_ds_ref)
+    task_ds_ref.dataset = ds1
 
     dr.consumed_dataset_events.append(ds1_event)
     dr.consumed_dataset_events.append(ds2_event_1)

@@ -36,6 +36,7 @@ PRE_COMMIT_LIST = [
     "check-boring-cyborg-configuration",
     "check-breeze-top-dependencies-limited",
     "check-builtin-literals",
+    "check-changelog-format",
     "check-changelog-has-no-duplicates",
     "check-cncf-k8s-only-for-executors",
     "check-code-deprecations",

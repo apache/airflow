@@ -1028,6 +1028,12 @@ repos:
         files: CHANGELOG\.(rst|txt)$
         entry: ./scripts/ci/pre_commit/changelog_duplicates.py
         pass_filenames: true
+      - id: check-changelog-format
+        name: Check changelog format
+        language: python
+        files: CHANGELOG\.(rst|txt)$
+        entry: ./scripts/ci/pre_commit/check_changelog_format.py
+        pass_filenames: true
       - id: check-newsfragments-are-valid
         name: Check newsfragments are valid
         language: python

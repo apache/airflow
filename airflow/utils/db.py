@@ -91,7 +91,7 @@ _REVISION_HEADS_MAP = {
     "2.8.0": "10b52ebd31f7",
     "2.8.1": "88344c1d9134",
     "2.9.0": "1949afb29106",
-    "2.9.2": "bff083ad727d",
+    "2.9.2": "686269002441",
     "2.10.0": "677fdbb7fc54",
 }
 
@@ -744,13 +744,13 @@ def _create_db_from_orm(session):
 
 
 @provide_session
-def initdb(session: Session = NEW_SESSION, load_connections: bool = True):
+def initdb(session: Session = NEW_SESSION, load_connections: bool = True, use_migration_files: bool = False):
     """Initialize Airflow database."""
     import_all_models()
 
     db_exists = _get_current_revision(session)
-    if db_exists:
-        upgradedb(session=session)
+    if db_exists or use_migration_files:
+        upgradedb(session=session, use_migration_files=use_migration_files)
     else:
         _create_db_from_orm(session=session)
     if conf.getboolean("database", "LOAD_DEFAULT_CONNECTIONS") and load_connections:
@@ -1558,6 +1558,7 @@ def upgradedb(
     show_sql_only: bool = False,
     reserialize_dags: bool = True,
     session: Session = NEW_SESSION,
+    use_migration_files: bool = False,
 ):
     """
     Upgrades the DB.
@@ -1614,7 +1615,7 @@ def upgradedb(
     if errors_seen:
         exit(1)
 
-    if not to_revision and not _get_current_revision(session=session):
+    if not to_revision and not _get_current_revision(session=session) and not use_migration_files:
         # Don't load default connections
         # New DB; initialize and exit
         initdb(session=session, load_connections=False)
@@ -1644,7 +1645,7 @@ def upgradedb(
 
 
 @provide_session
-def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
+def resetdb(session: Session = NEW_SESSION, skip_init: bool = False, use_migration_files: bool = False):
     """Clear out the database."""
     if not settings.engine:
         raise RuntimeError("The settings.engine must be set. This is a critical assertion")
@@ -1659,7 +1660,7 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
         drop_airflow_moved_tables(connection)
 
     if not skip_init:
-        initdb(session=session)
+        initdb(session=session, use_migration_files=use_migration_files)
 
 
 @provide_session
