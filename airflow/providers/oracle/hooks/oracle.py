@@ -277,7 +277,11 @@ class OracleHook(DbApiHook):
         :param replace: Does not do anything.
         """
         if replace:
-            warnings.warn("Using 'replace=True' does not implement any replace functionality currently.", category=UserWarning, stacklevel=2)
+            warnings.warn(
+                "Using 'replace=True' does not implement any replace functionality currently.",
+                category=UserWarning,
+                stacklevel=2
+            )
         try:
             import numpy as np
         except ImportError:
