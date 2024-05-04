@@ -587,7 +587,7 @@ class KubernetesExecutor(BaseExecutor):
             for ti in list(tis_to_flush_by_key.keys()):
                 if ti in self.running:
                     del tis_to_flush_by_key[ti]
-                    self.log.info(f"{ti} is already adopted, no need to flush.")
+                    self.log.info("%s is already adopted, no need to flush.", ti)
             tis_to_flush.extend(tis_to_flush_by_key.values())
             return tis_to_flush
 
