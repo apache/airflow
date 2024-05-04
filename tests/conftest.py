@@ -905,7 +905,6 @@ def dag_maker(request):
                 else:
                     DEFAULT_DATE = timezone.datetime(2016, 1, 1)
                     self.start_date = DEFAULT_DATE
-
             self.kwargs["start_date"] = self.start_date
             self.dag = DAG(dag_id, **self.kwargs)
             self.dag.fileloc = fileloc or request.module.__file__
