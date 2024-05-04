@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-05-04T07:17:33.848530
+# This constraints file was automatically generated on 2024-05-04T15:04:18.275125
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -16,7 +16,7 @@ Deprecated==1.2.14
 Flask-AppBuilder==4.4.1
 Flask-Babel==2.0.0
 Flask-Bcrypt==1.0.1
-Flask-Caching==2.2.0
+Flask-Caching==2.3.0
 Flask-JWT-Extended==4.6.0
 Flask-Limiter==3.6.0
 Flask-Login==0.6.3
@@ -38,7 +38,7 @@ PyHive==0.7.0
 PyJWT==2.8.0
 PyNaCl==1.5.0
 PyYAML==6.0.1
-Pygments==2.17.2
+Pygments==2.18.0
 SQLAlchemy-JSONField==1.0.2
 SQLAlchemy-Utils==0.41.2
 SQLAlchemy==1.4.52
@@ -150,7 +150,7 @@ colorlog==4.8.0
 comm==0.2.2
 confluent-kafka==2.3.0
 connexion==2.14.2
-coverage==7.5.0
+coverage==7.5.1
 crcmod==1.7
 cron-descriptor==1.4.3
 croniter==2.0.5
