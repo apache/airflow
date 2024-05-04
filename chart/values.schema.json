@@ -1542,12 +1542,12 @@
                             "default": false
                         },
                         "minReplicaCount": {
-                            "description": "Minimum number of workers created by KEDA.",
+                            "description": "Minimum number of workers created by HPA.",
                             "type": "integer",
                             "default": 0
                         },
                         "maxReplicaCount": {
-                            "description": "Maximum number of workers created by KEDA.",
+                            "description": "Maximum number of workers created by HPA.",
                             "type": "integer",
                             "default": 5
                         },

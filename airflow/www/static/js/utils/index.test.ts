@@ -19,7 +19,12 @@
 
 import { isEmpty } from "lodash";
 import type { DagRun } from "src/types";
-import { getDagRunLabel, getTask, getTaskSummary } from ".";
+import {
+  getDagRunLabel,
+  getTask,
+  getTaskSummary,
+  highlightByKeywords,
+} from ".";
 
 const sampleTasks = {
   id: null,
@@ -146,5 +151,47 @@ describe("Test getDagRunLabel", () => {
   test("Passing an order overrides default", async () => {
     const runLabel = getDagRunLabel({ dagRun, ordering: ["executionDate"] });
     expect(runLabel).toBe(dagRun.executionDate);
+  });
+});
+
+describe("Test highlightByKeywords", () => {
+  test("Highlight error line by red color", async () => {
+    const originalLine = "line with Error";
+    const expected = `\x1b[1m\x1b[31mline with Error\x1b[39m\x1b[0m`;
+    const highlightedLine = highlightByKeywords(
+      originalLine,
+      ["error"],
+      ["warn"]
+    );
+    expect(highlightedLine).toBe(expected);
+  });
+  test("Highlight warning line by yellow color", async () => {
+    const originalLine = "line with Warning";
+    const expected = `\x1b[1m\x1b[33mline with Warning\x1b[39m\x1b[0m`;
+    const highlightedLine = highlightByKeywords(
+      originalLine,
+      ["error"],
+      ["warn"]
+    );
+    expect(highlightedLine).toBe(expected);
+  });
+  test("Highlight line by red color when line has both error and warning", async () => {
+    const originalLine = "line with error Warning";
+    const expected = `\x1b[1m\x1b[31mline with error Warning\x1b[39m\x1b[0m`;
+    const highlightedLine = highlightByKeywords(
+      originalLine,
+      ["error"],
+      ["warn"]
+    );
+    expect(highlightedLine).toBe(expected);
+  });
+  test("No highlight", async () => {
+    const originalLine = "sample line";
+    const highlightedLine = highlightByKeywords(
+      originalLine,
+      ["error"],
+      ["warn"]
+    );
+    expect(highlightedLine).toBe(originalLine);
   });
 });

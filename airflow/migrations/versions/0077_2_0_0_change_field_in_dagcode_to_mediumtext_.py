@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Change field in ``DagCode`` to ``MEDIUMTEXT`` for MySql
+"""Change field in ``DagCode`` to ``MEDIUMTEXT`` for MySql.
 
 Revision ID: e959f08ac86c
 Revises: 64a7d6477aae
 Create Date: 2020-12-07 16:31:43.982353
 
 """
+
 from __future__ import annotations
 
 from alembic import op

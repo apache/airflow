@@ -63,13 +63,13 @@
     :Default: ``{{ "''" if option["default"] == "" else option["default"] }}``
         {% if option.get("sensitive") %}
     :Environment Variables:
-      ``AIRFLOW__{{ section_name | upper }}__{{ option_name | upper }}``
+      ``AIRFLOW__{{ section_name | replace(".", "_") | upper }}__{{ option_name | upper }}``
 
-      ``AIRFLOW__{{ section_name | upper }}__{{ option_name | upper }}_CMD``
+      ``AIRFLOW__{{ section_name | replace(".", "_") | upper }}__{{ option_name | upper }}_CMD``
 
-      ``AIRFLOW__{{ section_name | upper }}__{{ option_name | upper }}_SECRET``
+      ``AIRFLOW__{{ section_name | replace(".", "_") | upper }}__{{ option_name | upper }}_SECRET``
         {% else %}
-    :Environment Variable: ``AIRFLOW__{{ section_name | upper }}__{{ option_name | upper }}``
+    :Environment Variable: ``AIRFLOW__{{ section_name | replace(".", "_") | upper }}__{{ option_name | upper }}``
         {% endif %}
         {% if option["example"] %}
     :Example:

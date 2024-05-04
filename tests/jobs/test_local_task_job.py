@@ -942,12 +942,15 @@ class TestSigtermOnRunner:
         # We could add state validation (`UP_FOR_RETRY`) if callback mechanism changed.
 
         captured = tmp_file.read_text()
-        for msg in [
-            "Received SIGTERM. Terminating subprocesses",
-            "Task exited with return code 143",
-        ]:
-            # assert msg in captured.out or msg in captured.err
-            assert msg in captured
+        expected = ("Received SIGTERM. Terminating subprocesses", "Task exited with return code 143")
+        # It might not appear in case if a process killed before it writes into the logs
+        if not all(msg in captured for msg in expected):
+            reason = (
+                f"https://github.com/apache/airflow/issues/39051: "
+                f"Expected to find all messages {', '.join(map(repr, expected,))} "
+                f"in the captured logs\n{captured!r}"
+            )
+            pytest.xfail(reason)
 
     @staticmethod
     def _sigterm_local_task_runner(

@@ -35,14 +35,38 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.21.0
+......
+
+Latest change: 2024-04-30
+
+=================================================================================================  ===========  ============================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ============================================================================================================
+`91490fb054 <https://github.com/apache/airflow/commit/91490fb054e1b86846ab6ab33fe79384d2de3751>`_  2024-04-30   ``Added logging_config,snapstart,ephemeral_storage parameters to aws lambdacreatefunctionoperator (#39300)``
+`4fa9fe119e <https://github.com/apache/airflow/commit/4fa9fe119e5aae639c942668f40a15a6ef0f7f67>`_  2024-04-29   ``Rename "try_number" increments that are unrelated to the airflow concept (#39317)``
+`6d09adf992 <https://github.com/apache/airflow/commit/6d09adf99262144c71bd15c09bc18f956667ccae>`_  2024-04-26   ``Add tests for 'EmrServerlessJobSensor' and 'EmrServerlessApplicationSensor' (#39099)``
+`ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+`f7a2f60325 <https://github.com/apache/airflow/commit/f7a2f6032544defa8a00d1f7fa90e91d27eb3a8e>`_  2024-04-22   ``Update 'is_authorized_custom_view' from auth manager to handle custom actions (#39167)``
+`fcb2bee1c6 <https://github.com/apache/airflow/commit/fcb2bee1c6bb8ee92d217cfb54f0dc3a0ce93b92>`_  2024-04-22   ``Update logic to allow retries in AWS Batch Client hook to be effective (#38998)``
+`4b9b400cff <https://github.com/apache/airflow/commit/4b9b400cff77eed44149b1b28aa70a3532949f61>`_  2024-04-18   ``Allow importing the aws executors with a shorter path (#39093)``
+`cd888870ba <https://github.com/apache/airflow/commit/cd888870ba1b95c20208b1c87d337cd2418e1dc1>`_  2024-04-18   ``Fix main failing because of the new xmlsec 1.3.14 compatibility (#39104)``
+`1ded297509 <https://github.com/apache/airflow/commit/1ded297509be1eb965d876ba4fdfa773b5bcde52>`_  2024-04-15   ``Remove flag from AWS auth manager to use it (#39033)``
+`6520653c43 <https://github.com/apache/airflow/commit/6520653c43e348e0ff0a9fab6ea4429451c0583c>`_  2024-04-14   ``Activate RUF015 that checks for unnecessary iterable allocation for first element (#38949)``
+`1c9a6609f3 <https://github.com/apache/airflow/commit/1c9a6609f36a6fabddfd6d3858cca049d4088668>`_  2024-04-14   ``Adding MSGraphOperator in Microsoft Azure provider (#38111)``
+`d946d7b013 <https://github.com/apache/airflow/commit/d946d7b01368aac4697d2cab0a667e0e3c0fa467>`_  2024-04-13   ``Fix bug in GlueJobOperator where consecutive runs fail when a local script file is used (#38960)``
+`c25d346adf <https://github.com/apache/airflow/commit/c25d346adf2e9bc7314c73ed47ce00200cc6cd30>`_  2024-04-11   ``Amazon Bedrock - Model Throughput Provisioning (#38850)``
+=================================================================================================  ===========  ============================================================================================================
+
 8.20.0
 ......
 
-Latest change: 2024-04-09
+Latest change: 2024-04-10
 
 =================================================================================================  ===========  =====================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =====================================================================================================================
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
 `b7ac00d12d <https://github.com/apache/airflow/commit/b7ac00d12dd81ae25507c53712f7bd8b6dfca981>`_  2024-04-09   ``Revert "fix: COMMAND string should be raw to avoid SyntaxWarning: invalid escape sequence '\s' (#38734)" (#38864)``
 `7ed31d5fdf <https://github.com/apache/airflow/commit/7ed31d5fdf510e00528522ea313a20b19e498522>`_  2024-04-08   ``Amazon Bedrock - Model Customization Jobs (#38693)``
 `bfaa4f2012 <https://github.com/apache/airflow/commit/bfaa4f20129c3404bae97d78ba9312c5b5c0387c>`_  2024-04-08   ``fix: COMMAND string should be raw to avoid SyntaxWarning: invalid escape sequence '\s' (#38734)``

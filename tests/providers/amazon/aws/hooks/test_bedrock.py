@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.providers.amazon.aws.hooks.bedrock import BedrockHook, BedrockRuntimeHook
+from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, BedrockHook, BedrockRuntimeHook
 
 
 class TestBedrockHooks:
@@ -27,6 +27,7 @@ class TestBedrockHooks:
         [
             pytest.param(BedrockHook(), "bedrock", id="bedrock"),
             pytest.param(BedrockRuntimeHook(), "bedrock-runtime", id="bedrock-runtime"),
+            pytest.param(BedrockAgentHook(), "bedrock-agent", id="bedrock-agent"),
         ],
     )
     def test_bedrock_hooks(self, test_hook, service_name):

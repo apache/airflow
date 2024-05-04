@@ -133,4 +133,5 @@ class BigQueryToSqlBaseOperator(BaseOperator):
                 rows=rows,
                 target_fields=self.selected_fields,
                 replace=self.replace,
+                commit_every=self.batch_size,
             )
