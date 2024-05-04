@@ -39,7 +39,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | Revision ID                     | Revises ID        | Airflow Version   | Description                                                  |
 +=================================+===================+===================+==============================================================+
-| ``bff083ad727d`` (head)         | ``1949afb29106``  | ``2.9.2``         | Remove ``idx_last_scheduling_decision`` index on             |
+| ``686269002441`` (head)         | ``bff083ad727d``  | ``2.9.2``         | Fix inconsistency between ORM and migration files.           |
++---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
+| ``bff083ad727d``                | ``1949afb29106``  | ``2.9.2``         | Remove ``idx_last_scheduling_decision`` index on             |
 |                                 |                   |                   | last_scheduling_decision in dag_run table                    |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | ``1949afb29106``                | ``ee1467d4aa35``  | ``2.9.0``         | update trigger kwargs type and encrypt                       |

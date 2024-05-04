@@ -147,7 +147,7 @@ class DagRun(Base, LoggingMixin):
     # Keeps track of the number of times the dagrun had been cleared.
     # This number is incremented only when the DagRun is re-Queued,
     # when the DagRun is cleared.
-    clear_number = Column(Integer, default=0, nullable=False)
+    clear_number = Column(Integer, default=0, nullable=False, server_default="0")
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:

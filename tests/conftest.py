@@ -311,7 +311,7 @@ def initial_db_init():
     from airflow.www.extensions.init_appbuilder import init_appbuilder
     from airflow.www.extensions.init_auth_manager import get_auth_manager
 
-    db.resetdb()
+    db.resetdb(use_migration_files=True)
     db.bootstrap_dagbag()
     # minimal app to add roles
     flask_app = Flask(__name__)

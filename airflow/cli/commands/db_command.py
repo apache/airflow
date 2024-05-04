@@ -61,7 +61,7 @@ def resetdb(args):
     print(f"DB: {settings.engine.url!r}")
     if not (args.yes or input("This will drop existing tables if they exist. Proceed? (y/n)").upper() == "Y"):
         raise SystemExit("Cancelled")
-    db.resetdb(skip_init=args.skip_init)
+    db.resetdb(skip_init=args.skip_init, use_migration_files=args.use_migration_files)
 
 
 def upgradedb(args):
@@ -132,6 +132,7 @@ def migratedb(args):
         from_revision=from_revision,
         show_sql_only=args.show_sql_only,
         reserialize_dags=args.reserialize_dags,
+        use_migration_files=args.use_migration_files,
     )
     if not args.show_sql_only:
         print("Database migrating done!")
