@@ -312,6 +312,70 @@ class OracleHook(DbApiHook):
         conn.close()  # type: ignore[attr-defined]
         self.log.info("Done loading. Loaded a total of %s rows", i)
 
+    def merge_rows(
+        self,
+        table: str,
+        rows: list[tuple],
+        target_fields=None,
+        commit_every: int = 1000,
+        **kwargs,
+    ) -> None:
+        """Replace/insert rows in a table with given rows using an upsert operation.
+
+        The upsert operation combines both insertion and updating functionality within
+        a single SQL statement. It compares the data being inserted with existing data
+        in the target table based on a specified condition (typically a primary key or
+        unique constraint). If a matching row is found in the target table, it updates
+        the existing row with the new data provided. If no matching row is found, it
+        inserts a new row with the provided data.
+
+        :param table: target Oracle table, use dot notation to target a specific database
+        :param rows: the rows to replace in the table
+        :param target_fields: the names of the columns to fill in the table
+        :param commit_every: the maximum number of rows to replace in one transaction.
+            Default 1000, Set greater than 0. Set 1 to replace each row in each single transaction
+        """
+        try:
+            import numpy as np
+        except ImportError:
+            np = None  # type: ignore
+
+        if target_fields:
+            target_fields = ", ".join(target_fields)
+            target_fields = f"({target_fields})"
+        else:
+            target_fields = ""
+        conn = self.get_conn()
+        if self.supports_autocommit:
+            self.set_autocommit(conn, False)
+        cur = conn.cursor()  # type: ignore[attr-defined]
+        i = 0
+        for row in rows:
+            i += 1
+            lst = []
+            for cell in row:
+                if isinstance(cell, str):
+                    lst.append("'" + str(cell).replace("'", "''") + "'")
+                elif cell is None or isinstance(cell, float) and math.isnan(cell):  # coerce numpy NaN to NULL
+                    lst.append("NULL")
+                elif np and isinstance(cell, np.datetime64):
+                    lst.append(f"'{cell}'")
+                elif isinstance(cell, datetime):
+                    lst.append(f"to_date('{cell:%Y-%m-%d %H:%M:%S}','YYYY-MM-DD HH24:MI:SS')")
+                else:
+                    lst.append(str(cell))
+            values = tuple(lst)
+            # Constructing SQL statement for replacement
+            sql = f"MERGE INTO {table} USING DUAL ON ({target_fields}) = ({','.join(values)}) WHEN MATCHED THEN UPDATE SET {', '.join([f'{field}=VALUES({field})' for field in target_fields.split(',')])} WHEN NOT MATCHED THEN INSERT {target_fields} VALUES ({','.join(values)})"
+            cur.execute(sql)
+            if i % commit_every == 0:
+                conn.commit()  # type: ignore[attr-defined]
+                self.log.info("Replaced/Inserted %s rows so far", i)
+        conn.commit()  # type: ignore[attr-defined]
+        cur.close()
+        conn.close()  # type: ignore[attr-defined]
+        self.log.info("Done replacing/inserting. Processed a total of %s rows", i)
+
     def bulk_insert_rows(
         self,
         table: str,
