@@ -109,10 +109,10 @@ from airflow.utils import timezone
 from airflow.utils.context import (
     ConnectionAccessor,
     Context,
-    DatasetEventAccessors,
     InletEventsAccessors,
+    OutletEventAccessors,
     VariableAccessor,
-    context_get_dataset_events,
+    context_get_outlet_events,
     context_merge,
 )
 from airflow.utils.email import send_email
@@ -440,7 +440,7 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
 
             return ExecutionCallableRunner(
                 execute_callable,
-                context_get_dataset_events(context),
+                context_get_outlet_events(context),
                 logger=log,
             ).run(context=context, **execute_callable_kwargs)
         except SystemExit as e:
@@ -799,7 +799,7 @@ def _get_template_context(
         "dag_run": dag_run,
         "data_interval_end": timezone.coerce_datetime(data_interval.end),
         "data_interval_start": timezone.coerce_datetime(data_interval.start),
-        "dataset_events": DatasetEventAccessors(),
+        "outlet_events": OutletEventAccessors(),
         "ds": ds,
         "ds_nodash": ds_nodash,
         "execution_date": logical_date,
@@ -2641,7 +2641,7 @@ class TaskInstance(Base, LoggingMixin):
                 session.add(Log(self.state, self))
                 session.merge(self).task = self.task
                 if self.state == TaskInstanceState.SUCCESS:
-                    self._register_dataset_changes(events=context["dataset_events"], session=session)
+                    self._register_dataset_changes(events=context["outlet_events"], session=session)
 
                 session.commit()
                 if self.state == TaskInstanceState.SUCCESS:
@@ -2651,7 +2651,7 @@ class TaskInstance(Base, LoggingMixin):
 
             return None
 
-    def _register_dataset_changes(self, *, events: DatasetEventAccessors, session: Session) -> None:
+    def _register_dataset_changes(self, *, events: OutletEventAccessors, session: Session) -> None:
         if TYPE_CHECKING:
             assert self.task
 

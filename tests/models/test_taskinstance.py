@@ -2321,13 +2321,13 @@ class TestTaskInstance:
         with dag_maker(schedule=None, session=session) as dag:
 
             @task(outlets=Dataset("test_outlet_dataset_extra_1"))
-            def write1(*, dataset_events):
-                dataset_events["test_outlet_dataset_extra_1"].extra = {"foo": "bar"}
+            def write1(*, outlet_events):
+                outlet_events["test_outlet_dataset_extra_1"].extra = {"foo": "bar"}
 
             write1()
 
             def _write2_post_execute(context, _):
-                context["dataset_events"]["test_outlet_dataset_extra_2"].extra = {"x": 1}
+                context["outlet_events"]["test_outlet_dataset_extra_2"].extra = {"x": 1}
 
             BashOperator(
                 task_id="write2",
@@ -2362,9 +2362,9 @@ class TestTaskInstance:
         with dag_maker(schedule=None, session=session):
 
             @task(outlets=Dataset("test_outlet_dataset_extra"))
-            def write(*, dataset_events):
-                dataset_events["test_outlet_dataset_extra"].extra = {"one": 1}
-                dataset_events["different_uri"].extra = {"foo": "bar"}  # Will be silently dropped.
+            def write(*, outlet_events):
+                outlet_events["test_outlet_dataset_extra"].extra = {"one": 1}
+                outlet_events["different_uri"].extra = {"foo": "bar"}  # Will be silently dropped.
 
             write()
 
@@ -2434,8 +2434,8 @@ class TestTaskInstance:
         with dag_maker(schedule=None, session=session):
 
             @task(outlets=Dataset("test_inlet_dataset_extra"))
-            def write(*, ti, dataset_events):
-                dataset_events["test_inlet_dataset_extra"].extra = {"from": ti.task_id}
+            def write(*, ti, outlet_events):
+                outlet_events["test_inlet_dataset_extra"].extra = {"from": ti.task_id}
 
             @task(inlets=Dataset("test_inlet_dataset_extra"))
             def read(*, inlet_events):
