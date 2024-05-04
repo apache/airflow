@@ -23,6 +23,7 @@ import platform
 import re
 import subprocess
 import sys
+import warnings
 from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -910,6 +911,12 @@ def dag_maker(request):
             # Handle deprecated argument `concurrency` for DAG class
             # If "concurrency" is defined, replace it with "max_active_tasks"
             if concurrency:
+                warnings.warn(
+                    "The 'concurrency' parameter is deprecated and will be removed in future versions. "
+                    "Please use 'max_active_tasks' instead.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
                 self.kwargs["max_active_tasks"] = concurrency
                 self.kwargs.pop("concurrency")
             self.kwargs["start_date"] = self.start_date
