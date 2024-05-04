@@ -252,8 +252,7 @@ class OracleHook(DbApiHook):
         table: str,
         rows: list[tuple],
         target_fields=None,
-        commit_every: int = 1000,
-        replace: bool | None = False,
+        commit_every: int = 1000
         **kwargs,
     ) -> None:
         """
@@ -274,7 +273,6 @@ class OracleHook(DbApiHook):
         :param commit_every: the maximum number of rows to insert in one transaction
             Default 1000, Set greater than 0.
             Set 1 to insert each row in each single transaction
-        :param replace: Whether to replace instead of insert
         """
         try:
             import numpy as np
