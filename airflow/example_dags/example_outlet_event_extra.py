@@ -54,8 +54,8 @@ with DAG(
 ):
 
     @task(outlets=[ds])
-    def dataset_with_extra_by_context(*, dataset_events=None):
-        dataset_events[ds].extra = {"hi": "bye"}
+    def dataset_with_extra_by_context(*, outlet_events=None):
+        outlet_events[ds].extra = {"hi": "bye"}
 
     dataset_with_extra_by_context()
 
@@ -68,7 +68,7 @@ with DAG(
 ):
 
     def _dataset_with_extra_from_classic_operator_post_execute(context):
-        context["dataset_events"].extra = {"hi": "bye"}
+        context["outlet_events"].extra = {"hi": "bye"}
 
     BashOperator(
         task_id="dataset_with_extra_from_classic_operator",

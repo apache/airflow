@@ -121,6 +121,10 @@ def create_app(config=None, testing=False):
         cookie_samesite_config = "Lax"
     flask_app.config["SESSION_COOKIE_SAMESITE"] = cookie_samesite_config
 
+    # Above Flask 2.0.x, default value of SEND_FILE_MAX_AGE_DEFAULT changed 12 hours to None.
+    # for static file caching, it needs to set value explicitly.
+    flask_app.config["SEND_FILE_MAX_AGE_DEFAULT"] = timedelta(seconds=43200)
+
     if config:
         flask_app.config.from_mapping(config)
 
