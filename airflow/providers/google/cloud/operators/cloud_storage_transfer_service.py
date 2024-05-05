@@ -492,6 +492,7 @@ class CloudDataTransferServiceRunJobOperator(GoogleCloudBaseOperator):
             raise AirflowException("The required parameter 'job_name' is empty or None")
 
     def execute(self, context: Context) -> dict:
+        self._validate_inputs()
         hook = CloudDataTransferServiceHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
