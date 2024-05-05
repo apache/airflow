@@ -2040,6 +2040,56 @@
                         ],
                         "additionalProperties": false
                     }
+            },
+                "placeHolder": {
+                    "description": "Creates place holders with lower priority class for workers.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable PlaceHolder for Kubernetes Executor Workers.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "placeHolderPriority": {
+                            "description": "Value for PriorityClass of PlaceHolder: should be lower than worker PC",
+                            "type": ["null","integer"] ,
+                            "default": 10
+
+                        },
+                        "podDisruptionBudget": {
+                            "description": "Default",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "config":
+                                {
+                                    "description": "Disruption budget configuration.",
+                                    "type": ["null", "object"],
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "maxUnavailable": {
+                                            "description": "Max unavailable pods for scheduler.",
+                                            "type": [
+                                                "integer",
+                                                "string"
+                                            ],
+                                            "default": 1
+                                        },
+                                        "minAvailable": {
+                                            "description": "Min available pods for scheduler.",
+                                            "type": [
+                                                "integer",
+                                                "string"
+                                            ],
+                                            "default": 1
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                    }
                 }
             }
         },
