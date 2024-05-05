@@ -25,7 +25,6 @@ from airflow.exceptions import TaskDeferred
 from airflow.models import DAG, Connection
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
 from airflow.providers.dbt.cloud.operators.dbt import (
-    DBT_CAUSE_MAX_LENGTH,
     DbtCloudGetJobRunArtifactOperator,
     DbtCloudListJobsOperator,
     DbtCloudRunJobOperator,
@@ -37,7 +36,6 @@ pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 TASK_ID = "run_job_op"
-TEST_DBT_CLOUD_JOB_RUN_OP_DAG_ID = "test_dbt_cloud_job_run_op"
 ACCOUNT_ID_CONN = "account_id_conn"
 NO_ACCOUNT_ID_CONN = "no_account_id_conn"
 DEFAULT_ACCOUNT_ID = 11111
@@ -95,7 +93,7 @@ def setup_module():
 
 class TestDbtCloudRunJobOperator:
     def setup_method(self):
-        self.dag = DAG(TEST_DBT_CLOUD_JOB_RUN_OP_DAG_ID, start_date=DEFAULT_DATE)
+        self.dag = DAG("test_dbt_cloud_job_run_op", start_date=DEFAULT_DATE)
         self.mock_ti = MagicMock()
         self.mock_context = {"ti": self.mock_ti}
         self.config = {
@@ -370,23 +368,12 @@ class TestDbtCloudRunJobOperator:
 
     @patch.object(DbtCloudHook, "trigger_job_run")
     @pytest.mark.parametrize(
-        "custom_trigger_reason, expected_trigger_reason",
-        [
-            ("Some other trigger reason.", "Some other trigger reason."),
-            (
-                "Some other trigger reason longer than limit. " * 10,
-                ("Some other trigger reason longer than limit. " * 10)[:DBT_CAUSE_MAX_LENGTH],
-            ),
-        ],
-    )
-    @pytest.mark.parametrize(
         "conn_id, account_id",
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
-    def test_custom_trigger_reason(
-        self, mock_run_job, conn_id, account_id, custom_trigger_reason, expected_trigger_reason
-    ):
+    def test_custom_trigger_reason(self, mock_run_job, conn_id, account_id):
+        custom_trigger_reason = "Some other trigger reason."
         operator = DbtCloudRunJobOperator(
             task_id=TASK_ID,
             dbt_cloud_conn_id=conn_id,
@@ -405,71 +392,10 @@ class TestDbtCloudRunJobOperator:
 
             operator.execute(context=self.mock_context)
 
-            assert operator.trigger_reason == expected_trigger_reason
-
             mock_run_job.assert_called_once_with(
                 account_id=account_id,
                 job_id=JOB_ID,
-                cause=expected_trigger_reason,
-                steps_override=self.config["steps_override"],
-                schema_override=self.config["schema_override"],
-                additional_run_config=self.config["additional_run_config"],
-            )
-
-    @patch.object(DbtCloudHook, "trigger_job_run")
-    @pytest.mark.parametrize(
-        "dag_id, task_id, expected_trigger_reason",
-        [
-            (
-                TEST_DBT_CLOUD_JOB_RUN_OP_DAG_ID,
-                TASK_ID,
-                f"Triggered via Apache Airflow by task {TASK_ID!r} in the "
-                f"{TEST_DBT_CLOUD_JOB_RUN_OP_DAG_ID} DAG.",
-            ),
-            (
-                TEST_DBT_CLOUD_JOB_RUN_OP_DAG_ID + "a" * 220,
-                TASK_ID,
-                f"Triggered via Apache Airflow by task {TASK_ID!r} in the "
-                f"{TEST_DBT_CLOUD_JOB_RUN_OP_DAG_ID + 'a' * 220} DAG."[:DBT_CAUSE_MAX_LENGTH],
-            ),
-            (
-                TEST_DBT_CLOUD_JOB_RUN_OP_DAG_ID,
-                TASK_ID + "a" * 220,
-                f"Triggered via Apache Airflow by task {TASK_ID + 'a' * 220!r} in the "
-                f"{TEST_DBT_CLOUD_JOB_RUN_OP_DAG_ID} DAG."[:DBT_CAUSE_MAX_LENGTH],
-            ),
-        ],
-    )
-    @pytest.mark.parametrize(
-        "conn_id, account_id",
-        [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
-        ids=["default_account", "explicit_account"],
-    )
-    def test_default_trigger_reason(
-        self, mock_run_job, conn_id, account_id, dag_id, task_id, expected_trigger_reason
-    ):
-        self.dag._dag_id = dag_id
-        operator = DbtCloudRunJobOperator(
-            task_id=task_id,
-            dbt_cloud_conn_id=conn_id,
-            account_id=account_id,
-            dag=self.dag,
-            **self.config,
-        )
-
-        with patch.object(DbtCloudHook, "get_job_run") as mock_get_job_run:
-            mock_get_job_run.return_value.json.return_value = {
-                "data": {"status": DbtCloudJobRunStatus.SUCCESS.value, "id": RUN_ID}
-            }
-
-            operator.execute(context=self.mock_context)
-
-            assert operator.trigger_reason == expected_trigger_reason
-
-            mock_run_job.assert_called_once_with(
-                account_id=account_id,
-                job_id=JOB_ID,
-                cause=expected_trigger_reason,
+                cause=custom_trigger_reason,
                 steps_override=self.config["steps_override"],
                 schema_override=self.config["schema_override"],
                 additional_run_config=self.config["additional_run_config"],
