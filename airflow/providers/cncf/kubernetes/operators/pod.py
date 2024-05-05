@@ -544,8 +544,14 @@ class KubernetesPodOperator(BaseOperator):
 
     def get_or_create_pod(self, pod_request_obj: k8s.V1Pod, context: Context) -> k8s.V1Pod:
         if self.reattach_on_restart:
-            pod = self.find_pod(self.namespace or pod_request_obj.metadata.namespace, context=context)
-            if pod:
+            pod_request_obj_namespace = (
+                pod_request_obj.metadata.namespace if pod_request_obj.metadata else None
+            )
+            namespace = self.namespace or pod_request_obj_namespace
+            if not namespace:
+                raise ValueError("Pod namespace is empty")
+            pod = self.find_pod(namespace, context=context)
+            if pod and pod.status and pod.status.phase == "Running":
                 return pod
 
         self.log.debug("Starting pod:\n%s", yaml.safe_dump(pod_request_obj.to_dict()))
