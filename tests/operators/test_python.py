@@ -463,7 +463,10 @@ class TestBranchOperator(BasePythonTest):
             return 5
 
         ti = self.create_ti(f)
-        with pytest.raises(AirflowException, match="must be either None, a task ID, or an Iterable of IDs"):
+        with pytest.raises(
+            AirflowException,
+            match="'branch_task_ids' expected all task IDs are strings.",
+        ):
             ti.run()
 
     def test_raise_exception_on_invalid_task_id(self):
@@ -1581,7 +1584,10 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             return 5
 
         ti = self.create_ti(f)
-        with pytest.raises(AirflowException, match="must be either None, a task ID, or an Iterable of IDs"):
+        with pytest.raises(
+            AirflowException,
+            match="'branch_task_ids' expected all task IDs are strings.",
+        ):
             ti.run()
 
     def test_raise_exception_on_invalid_task_id(self):
