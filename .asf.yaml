@@ -114,7 +114,6 @@ github:
     # https://github.com/apache/infrastructure-asfyaml/blob/main/README.md#assigning-the-github-triage-role-to-external-collaborators
     - RNHTTR
     - aritra24
-    - dirrao
     - mhenc
     - nathadfield
     - sunank200
