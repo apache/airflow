@@ -428,6 +428,7 @@ class DbtCloudHook(HttpHook):
                 f"Cause `{cause}` exceeds limit of {DBT_CAUSE_MAX_LENGTH}"
                 f" characters and will be truncated.",
                 UserWarning,
+                stacklevel=2,
             )
             cause = cause[:DBT_CAUSE_MAX_LENGTH]
 
