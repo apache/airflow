@@ -443,6 +443,7 @@
     "deps": [
       "apache-airflow>=2.7.0",
       "docker>=6",
+      "lazy-object-proxy",
       "python-dotenv>=0.21.0"
     ],
     "devel-deps": [],

@@ -69,6 +69,12 @@ dependencies:
   - apache-airflow>=2.7.0
   - docker>=6
   - python-dotenv>=0.21.0
+  - lazy-object-proxy
+
+additional-extras:
+  - name: cloudpickle
+    dependencies:
+      - cloudpickle
 
 integrations:
   - integration-name: Docker

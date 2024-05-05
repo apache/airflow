@@ -33,8 +33,14 @@ The following parameters are supported in Docker Task decorator.
 multiple_outputs
     If set, function return value will be unrolled to multiple XCom values.
     Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
-use_dill
-    Whether to use dill or pickle for serialization
+serializer
+    Which serializer use to serialize the args and result. It can be one of the following:
+
+    - ``"pickle"``: (default) Use pickle for serialization. Included in the Python Standard Library.
+    - ``"cloudpickle"``: Use cloudpickle for serialize more complex types,
+      this requires to include cloudpickle in your image.
+    - ``"dill"``: Use dill for serialize more complex types,
+      this requires to include dill in your image.
 python_command
     Python command for executing functions, Default python3
 image
@@ -157,6 +163,8 @@ port_bindings
 ulimits
     List of ulimit options to set for the container.
     Each item should be a ``docker.types.Ulimit`` instance.
+use_dill
+    **Deprecated**, use ``serializer`` instead. Whether to use dill or pickle for serialization
 
 
 Usage Example

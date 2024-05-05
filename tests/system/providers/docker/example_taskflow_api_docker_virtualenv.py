@@ -42,12 +42,7 @@ def tutorial_taskflow_api_docker_virtualenv():
     [here](https://airflow.apache.org/docs/apache-airflow/stable/tutorial_taskflow_api.html)
     """
 
-    # [START extract_virtualenv]
-    @task.virtualenv(
-        use_dill=True,
-        system_site_packages=False,
-        requirements=["funcsigs"],
-    )
+    @task.virtualenv(system_site_packages=False, requirements=["funcsigs"])
     def extract():
         """
         #### Extract task
@@ -62,10 +57,8 @@ def tutorial_taskflow_api_docker_virtualenv():
         order_data_dict = json.loads(data_string)
         return order_data_dict
 
-    # [END extract_virtualenv]
-
     # [START transform_docker]
-    @task.docker(image="python:3.9-slim-bookworm", multiple_outputs=True)
+    @task.docker(image="python:3.9-slim-bookworm", serializer="cloudpickle", multiple_outputs=True)
     def transform(order_data_dict: dict):
         """
         #### Transform task
