@@ -1535,7 +1535,7 @@ def _revisions_above_min_for_offline(config, revisions) -> None:
     """
     dbname = settings.engine.dialect.name
     if dbname == "sqlite":
-        raise AirflowException("Offline migration not supported for SQLite.")
+        raise SystemExit("Offline migration not supported for SQLite.")
     min_version, min_revision = ("2.2.0", "7b2661a43ba3") if dbname == "mssql" else ("2.0.0", "e959f08ac86c")
 
     # Check if there is history between the revisions and the start revision
