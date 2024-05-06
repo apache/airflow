@@ -132,8 +132,8 @@ dynamic = ["version", "optional-dependencies", "dependencies"]
 # START PROVIDER EXTRAS HERE
 #
 # airbyte, alibaba, amazon, apache.beam, apache.cassandra, apache.drill, apache.druid, apache.flink,
-# apache.hdfs, apache.hive, apache.impala, apache.kafka, apache.kylin, apache.livy, apache.pig,
-# apache.pinot, apache.spark, apprise, arangodb, asana, atlassian.jira, celery, cloudant,
+# apache.hdfs, apache.hive, apache.iceberg, apache.impala, apache.kafka, apache.kylin, apache.livy,
+# apache.pig, apache.pinot, apache.spark, apprise, arangodb, asana, atlassian.jira, celery, cloudant,
 # cncf.kubernetes, cohere, common.io, common.sql, databricks, datadog, dbt.cloud, dingding, discord,
 # docker, elasticsearch, exasol, fab, facebook, ftp, github, google, grpc, hashicorp, http, imap,
 # influxdb, jdbc, jenkins, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo,
@@ -404,9 +404,6 @@ combine-as-imports = true
 
 # All the modules which do not follow B028 yet: https://docs.astral.sh/ruff/rules/no-explicit-stacklevel/
 "helm_tests/airflow_aux/test_basic_helm_chart.py" = ["B028"]
-
-# https://github.com/apache/airflow/issues/39252
-"airflow/providers/amazon/aws/hooks/eks.py" = ["W605"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.
