@@ -33,7 +33,7 @@ from airflow.executors.base_executor import BaseExecutor, RunningRetryAttemptTyp
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.utils import timezone
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 
 
 def test_supports_sentry():
@@ -363,3 +363,54 @@ def test_running_retry_attempt_type(loop_duration, total_tries):
         assert a.elapsed > min_seconds_for_test
     assert a.total_tries == total_tries
     assert a.tries_after_min == 1
+
+
+def test_state_fail():
+    executor = BaseExecutor()
+    key = TaskInstanceKey("my_dag1", "my_task1", timezone.utcnow(), 1)
+    executor.running.add(key)
+    info = "info"
+    executor.fail(key, info=info)
+    assert not executor.running
+    assert executor.event_buffer[key] == (TaskInstanceState.FAILED, info)
+
+
+def test_state_success():
+    executor = BaseExecutor()
+    key = TaskInstanceKey("my_dag1", "my_task1", timezone.utcnow(), 1)
+    executor.running.add(key)
+    info = "info"
+    executor.success(key, info=info)
+    assert not executor.running
+    assert executor.event_buffer[key] == (TaskInstanceState.SUCCESS, info)
+
+
+def test_state_queued():
+    executor = BaseExecutor()
+    key = TaskInstanceKey("my_dag1", "my_task1", timezone.utcnow(), 1)
+    executor.running.add(key)
+    info = "info"
+    executor.queued(key, info=info)
+    assert not executor.running
+    assert executor.event_buffer[key] == (TaskInstanceState.QUEUED, info)
+
+
+def test_state_generic():
+    executor = BaseExecutor()
+    key = TaskInstanceKey("my_dag1", "my_task1", timezone.utcnow(), 1)
+    executor.running.add(key)
+    info = "info"
+    executor.queued(key, info=info)
+    assert not executor.running
+    assert executor.event_buffer[key] == (TaskInstanceState.QUEUED, info)
+
+
+def test_state_running():
+    executor = BaseExecutor()
+    key = TaskInstanceKey("my_dag1", "my_task1", timezone.utcnow(), 1)
+    executor.running.add(key)
+    info = "info"
+    executor.running_state(key, info=info)
+    # Running state should not remove a command as running
+    assert executor.running
+    assert executor.event_buffer[key] == (TaskInstanceState.RUNNING, info)
