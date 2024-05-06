@@ -116,10 +116,10 @@ class CreatePodIndexOperator(BaseOperator):
         replicas: int | None = None,
         shards: int | None = None,
         pods: int | None = None,
-        pod_type: str | None = "p1.x1",
+        pod_type: str = "p1.x1",
         metadata_config: dict | None = None,
         source_collection: str | None = None,
-        metric: str | None = "cosine",
+        metric: str = "cosine",
         timeout: int | None = None,
         **kwargs: Any,
     ):
