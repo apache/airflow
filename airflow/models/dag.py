@@ -3667,6 +3667,13 @@ class DagModel(Base):
         Index("idx_next_dagrun_create_after", next_dagrun_create_after, unique=False),
     )
 
+    serialized_dag = relationship(
+        "SerializedDagModel",
+        back_populates="dag_model",
+        primaryjoin="DagModel.dag_id == foreign(SerializedDagModel.dag_id)",
+        uselist=False,
+        innerjoin=True,
+    )
     parent_dag = relationship(
         "DagModel", remote_side=[dag_id], primaryjoin=root_dag_id == dag_id, foreign_keys=[root_dag_id]
     )
@@ -4110,15 +4117,6 @@ def dag(
         return factory
 
     return wrapper
-
-
-STATICA_HACK = True
-globals()["kcah_acitats"[::-1].upper()] = False
-if STATICA_HACK:  # pragma: no cover
-    from airflow.models.serialized_dag import SerializedDagModel
-
-    DagModel.serialized_dag = relationship(SerializedDagModel)
-    """:sphinx-autoapi-skip:"""
 
 
 class DagContext:

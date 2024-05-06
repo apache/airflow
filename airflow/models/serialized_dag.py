@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Collection
 
 import sqlalchemy_jsonfield
 from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_, exc, or_, select
-from sqlalchemy.orm import backref, relationship
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql.expression import func, literal
 
 from airflow.api_internal.internal_api_call import internal_api_call
@@ -93,12 +93,11 @@ class SerializedDagModel(Base):
     )
 
     dag_model = relationship(
-        DagModel,
-        primaryjoin=dag_id == DagModel.dag_id,  # type: ignore
-        foreign_keys=dag_id,
+        "DagModel",
+        back_populates="serialized_dag",
+        primaryjoin="DagModel.dag_id == foreign(SerializedDagModel.dag_id)",
         uselist=False,
         innerjoin=True,
-        backref=backref("serialized_dag", uselist=False, innerjoin=True),
     )
 
     load_op_links = True
