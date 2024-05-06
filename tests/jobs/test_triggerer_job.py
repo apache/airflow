@@ -309,7 +309,8 @@ class TestTriggerRunner:
         assert "got an unexpected keyword argument 'not_exists_arg'" in caplog.text
 
 
-def test_trigger_create_race_condition_38599(session, tmp_path):
+@pytest.mark.asyncio
+async def test_trigger_create_race_condition_38599(session, tmp_path):
     """
     This verifies the resolution of race condition documented in github issue #38599.
     More details in the issue description.
@@ -363,11 +364,10 @@ def test_trigger_create_race_condition_38599(session, tmp_path):
     job_runner1.load_triggers()
     assert len(job_runner1.trigger_runner.to_create) == 1
     # Before calling job_runner1.handle_events, run the trigger synchronously
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(job_runner1.trigger_runner.create_triggers())
+    await job_runner1.trigger_runner.create_triggers()
     assert len(job_runner1.trigger_runner.triggers) == 1
-    trigger_task_key, trigger_task_info = next(iter(job_runner1.trigger_runner.triggers.items()))
-    loop.run_until_complete(trigger_task_info["task"])
+    _, trigger_task_info = next(iter(job_runner1.trigger_runner.triggers.items()))
+    await trigger_task_info["task"]
     assert trigger_task_info["task"].done()
 
     # In a real execution environment, a missed heartbeat would cause the trigger to be picked up
@@ -384,10 +384,9 @@ def test_trigger_create_race_condition_38599(session, tmp_path):
     job_runner2.trigger_runner.update_triggers({trigger_orm.id})
     # The race condition happens here.
     # AttributeError: 'NoneType' object has no attribute 'dag_id'
-    loop.run_until_complete(job_runner2.trigger_runner.create_triggers())
+    await job_runner2.trigger_runner.create_triggers()
 
-    instances = path.read_text().splitlines()
-    assert instances == ["hi"]
+    assert path.read_text() == "hi\n"
 
 
 def test_trigger_create_race_condition_18392(session, tmp_path):
