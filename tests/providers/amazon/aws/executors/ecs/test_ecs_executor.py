@@ -367,7 +367,8 @@ class TestEcsExecutorTask:
 class TestAwsEcsExecutor:
     """Tests the AWS ECS Executor."""
 
-    def test_execute(self, mock_airflow_key, mock_executor):
+    @mock.patch("airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor.change_state")
+    def test_execute(self, change_state_mock, mock_airflow_key, mock_executor):
         """Test execution from end-to-end."""
         airflow_key = mock_airflow_key()
 
@@ -393,6 +394,9 @@ class TestAwsEcsExecutor:
         # Task is stored in active worker.
         assert 1 == len(mock_executor.active_workers)
         assert ARN1 in mock_executor.active_workers.task_by_key(airflow_key).task_arn
+        change_state_mock.assert_called_once_with(
+            airflow_key, TaskInstanceState.RUNNING, ARN1, remove_running=False
+        )
 
     @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
     def test_success_execute_api_exception(self, mock_backoff, mock_executor):
