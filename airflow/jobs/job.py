@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Callable, NoReturn
 
 from sqlalchemy import Column, Index, Integer, String, case, select
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import foreign, relationship
+from sqlalchemy.orm import relationship
 from sqlalchemy.orm.session import make_transient
 
 from airflow.api_internal.internal_api_call import internal_api_call
@@ -50,12 +50,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.executors.base_executor import BaseExecutor
-
-
-def _resolve_dagrun_model():
-    from airflow.models.dagrun import DagRun
-
-    return DagRun
 
 
 @lru_cache
@@ -101,23 +95,17 @@ class Job(Base, LoggingMixin):
         Index("idx_job_dag_id", dag_id),
     )
 
-    task_instances_enqueued = relationship(
+    task_instances_enqueued = relationship(  # Task Instances which have been enqueued by this Job.
         "TaskInstance",
         back_populates="queued_by_job",
         primaryjoin="Job.id == foreign(TaskInstance.queued_by_job_id)",
     )
 
-    dag_runs = relationship(
+    dag_runs = relationship(  # Only makes sense for SchedulerJob and BackfillJob instances.
         "DagRun",
-        primaryjoin=lambda: Job.id == foreign(_resolve_dagrun_model().creating_job_id),
-        backref="creating_job",
+        back_populates="creating_job",
+        primaryjoin="Job.id == foreign(DagRun.creating_job_id)",
     )
-
-    """
-    TaskInstances which have been enqueued by this Job.
-
-    Only makes sense for SchedulerJob and BackfillJob instances.
-    """
 
     def __init__(self, executor: BaseExecutor | None = None, heartrate=None, **kwargs):
         # Save init parameters as DB fields
