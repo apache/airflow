@@ -72,11 +72,38 @@ class HttpHookMixin:
     """
 
     http_conn_id: str
+    conn_type: str
     base_url: str
     auth_type: Any
     default_auth_type = HTTPBasicAuth
     get_connection: Callable
     log: Logger
+
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to the connection form."""
+        from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import StringField
+
+        from airflow.www.validators import ValidJson
+
+        return {
+            f"extra__{cls.conn_type}__auth_type": StringField(lazy_gettext("Auth type"), widget=BS3TextFieldWidget()),
+            f"extra__{cls.conn_type}__auth_kwargs": StringField(
+                lazy_gettext("Auth kwargs"), validators=[ValidJson()], widget=BS3TextAreaFieldWidget()
+            ),
+            f"extra__{cls.conn_type}__headers": StringField(
+                lazy_gettext("Headers"),
+                validators=[ValidJson()],
+                widget=BS3TextAreaFieldWidget(),
+                description=(
+                    "Warning: Passing headers parameters directly in 'Extra' field is deprecated, and "
+                    "will be removed in a future version of the Http provider. Use the 'Headers' "
+                    "field instead."
+                ),
+            ),
+        }
 
     def load_connection_settings(self, *, headers: dict[Any, Any] | None = None) -> tuple[dict, Any, dict]:
         """Load and update the class with Connection Settings.
@@ -236,29 +263,7 @@ class HttpHook(HttpHookMixin, BaseHook):
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Return connection widgets to add to the connection form."""
-        from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, BS3TextFieldWidget
-        from flask_babel import lazy_gettext
-        from wtforms import StringField
-
-        from airflow.www.validators import ValidJson
-
-        return {
-            "extra__http__auth_type": StringField(lazy_gettext("Auth type"), widget=BS3TextFieldWidget()),
-            "extra__http__auth_kwargs": StringField(
-                lazy_gettext("Auth kwargs"), validators=[ValidJson()], widget=BS3TextAreaFieldWidget()
-            ),
-            "extra__http__headers": StringField(
-                lazy_gettext("Headers"),
-                validators=[ValidJson()],
-                widget=BS3TextAreaFieldWidget(),
-                description=(
-                    "Warning: Passing headers parameters directly in 'Extra' field is deprecated, and "
-                    "will be removed in a future version of the Http provider. Use the 'Headers' "
-                    "field instead."
-                ),
-            ),
-        }
+        return super().get_connection_form_widgets()
 
     def __init__(
         self,
