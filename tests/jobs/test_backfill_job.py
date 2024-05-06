@@ -1909,8 +1909,8 @@ class TestBackfillJob:
         ti.map_index = 0
         for map_index in range(1, 3):
             ti = TI(consumer_op, run_id=dr.run_id, map_index=map_index)
-            ti.dag_run = dr
             session.add(ti)
+            ti.dag_run = dr
         session.flush()
 
         executor = MockExecutor()

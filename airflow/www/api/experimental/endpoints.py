@@ -24,7 +24,8 @@ from typing import TYPE_CHECKING, Callable, TypeVar, cast
 from flask import Blueprint, current_app, g, jsonify, request, url_for
 
 from airflow import models
-from airflow.api.common.experimental import delete_dag as delete, pool as pool_api, trigger_dag as trigger
+from airflow.api.common import delete_dag as delete, trigger_dag as trigger
+from airflow.api.common.experimental import pool as pool_api
 from airflow.api.common.experimental.get_code import get_code
 from airflow.api.common.experimental.get_dag_run_state import get_dag_run_state
 from airflow.api.common.experimental.get_dag_runs import get_dag_runs

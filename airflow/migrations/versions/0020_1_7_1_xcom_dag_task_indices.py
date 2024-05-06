@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add indices on ``xcom`` table
+"""Add indices on ``xcom`` table.
 
 Revision ID: 8504051e801b
 Revises: 4addfa1236f1
 Create Date: 2016-11-29 08:13:03.253312
 
 """
+
 from __future__ import annotations
 
 from alembic import op

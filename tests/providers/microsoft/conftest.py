@@ -20,15 +20,17 @@ from __future__ import annotations
 import json
 import random
 import string
+from json import JSONDecodeError
 from os.path import dirname, join
 from typing import TYPE_CHECKING, Any, Iterable, TypeVar
 from unittest.mock import MagicMock
 
 import pytest
-from httpx import Response
+from httpx import Headers, Response
 from msgraph_core import APIVersion
 
 from airflow.models import Connection
+from airflow.utils.context import Context
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -88,22 +90,25 @@ def mock_connection(schema: str | None = None, host: str | None = None) -> Conne
 def mock_json_response(status_code, *contents) -> Response:
     response = MagicMock(spec=Response)
     response.status_code = status_code
+    response.headers = Headers({})
+    response.content = b""
     if contents:
-        contents = list(contents)
-        response.json.side_effect = lambda: contents.pop(0)
+        response.json.side_effect = list(contents)
     else:
         response.json.return_value = None
     return response
 
 
-def mock_response(status_code, content: Any = None) -> Response:
+def mock_response(status_code, content: Any = None, headers: dict | None = None) -> Response:
     response = MagicMock(spec=Response)
     response.status_code = status_code
+    response.headers = Headers(headers or {})
     response.content = content
+    response.json.side_effect = JSONDecodeError("", "", 0)
     return response
 
 
-def mock_context(task):
+def mock_context(task) -> Context:
     from datetime import datetime
 
     from airflow.models import TaskInstance
@@ -111,9 +116,20 @@ def mock_context(task):
     from airflow.utils.state import TaskInstanceState
     from airflow.utils.xcom import XCOM_RETURN_KEY
 
+    values = {}
+
     class MockedTaskInstance(TaskInstance):
-        def __init__(self):
-            super().__init__(task=task, run_id="run_id", state=TaskInstanceState.RUNNING)
+        def __init__(
+            self,
+            task,
+            execution_date: datetime | None = None,
+            run_id: str | None = "run_id",
+            state: str | None = TaskInstanceState.RUNNING,
+            map_index: int = -1,
+        ):
+            super().__init__(
+                task=task, execution_date=execution_date, run_id=run_id, state=state, map_index=map_index
+            )
             self.values = {}
 
         def xcom_pull(
@@ -127,9 +143,7 @@ def mock_context(task):
             map_indexes: Iterable[int] | int | None = None,
             default: Any | None = None,
         ) -> Any:
-            self.task_id = task_ids
-            self.dag_id = dag_id
-            return self.values.get(f"{task_ids}_{dag_id}_{key}")
+            return values.get(f"{task_ids or self.task_id}_{dag_id or self.dag_id}_{key}")
 
         def xcom_push(
             self,
@@ -138,9 +152,11 @@ def mock_context(task):
             execution_date: datetime | None = None,
             session: Session = NEW_SESSION,
         ) -> None:
-            self.values[f"{self.task_id}_{self.dag_id}_{key}"] = value
+            values[f"{self.task_id}_{self.dag_id}_{key}"] = value
 
-    return {"ti": MockedTaskInstance()}
+    values["ti"] = MockedTaskInstance(task=task)
+
+    return Context(values)
 
 
 def load_json(*locations: Iterable[str]):

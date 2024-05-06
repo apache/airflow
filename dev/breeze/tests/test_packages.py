@@ -29,6 +29,7 @@ from airflow_breeze.utils.packages import (
     find_matching_long_package_names,
     get_available_packages,
     get_cross_provider_dependent_packages,
+    get_dist_package_name_prefix,
     get_documentation_package_path,
     get_install_requirements,
     get_long_package_name,
@@ -44,7 +45,6 @@ from airflow_breeze.utils.packages import (
     get_source_package_path,
     get_suspended_provider_folders,
     get_suspended_provider_ids,
-    get_wheel_package_name,
     validate_provider_info_with_runtime_schema,
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_PROVIDERS_ROOT, AIRFLOW_SOURCES_ROOT, DOCS_ROOT
@@ -104,7 +104,7 @@ def test_get_long_package_name():
 
 def test_get_provider_requirements():
     # update me when asana dependencies change
-    assert get_provider_requirements("asana") == ["apache-airflow>=2.6.0", "asana>=0.10,<4.0.0"]
+    assert get_provider_requirements("asana") == ["apache-airflow>=2.7.0", "asana>=0.10,<4.0.0"]
 
 
 def test_get_removed_providers():
@@ -170,6 +170,7 @@ def test_get_documentation_package_path():
     "flask-login>=0.6.2",
     "flask>=2.2,<2.3",
     "google-re2>=1.0",
+    "jmespath",
     """,
             id="No suffix fab",
         ),
@@ -182,6 +183,7 @@ def test_get_documentation_package_path():
     "flask-login>=0.6.2",
     "flask>=2.2,<2.3",
     "google-re2>=1.0",
+    "jmespath",
     """,
             id="dev0 suffix fab",
         ),
@@ -194,6 +196,7 @@ def test_get_documentation_package_path():
     "flask-login>=0.6.2",
     "flask>=2.2,<2.3",
     "google-re2>=1.0",
+    "jmespath",
     """,
             id="beta0 suffix fab",
         ),
@@ -202,7 +205,7 @@ def test_get_documentation_package_path():
             "beta0",
             """
     "apache-airflow-providers-common-sql>=1.3.1b0",
-    "apache-airflow>=2.6.0b0",
+    "apache-airflow>=2.7.0b0",
     "psycopg2-binary>=2.8.0",
     """,
             id="beta0 suffix postgres",
@@ -212,7 +215,7 @@ def test_get_documentation_package_path():
             "",
             """
     "apache-airflow-providers-common-sql>=1.3.1",
-    "apache-airflow>=2.6.0",
+    "apache-airflow>=2.7.0",
     "psycopg2-binary>=2.8.0",
     """,
             id="No suffix postgres",
@@ -336,14 +339,14 @@ def test_get_pip_package_name(provider_id: str, pip_package_name: str):
 
 
 @pytest.mark.parametrize(
-    "provider_id, wheel_package_name",
+    "provider_id, expected_package_name",
     [
         ("asana", "apache_airflow_providers_asana"),
         ("apache.hdfs", "apache_airflow_providers_apache_hdfs"),
     ],
 )
-def test_get_wheel_package_name(provider_id: str, wheel_package_name: str):
-    assert get_wheel_package_name(provider_id) == wheel_package_name
+def test_get_dist_package_name_prefix(provider_id: str, expected_package_name: str):
+    assert get_dist_package_name_prefix(provider_id) == expected_package_name
 
 
 @pytest.mark.parametrize(
@@ -425,7 +428,7 @@ def test_validate_provider_info_with_schema():
 @pytest.mark.parametrize(
     "provider_id, min_version",
     [
-        ("amazon", "2.6.0"),
+        ("amazon", "2.7.0"),
         ("common.io", "2.8.0"),
     ],
 )
@@ -481,7 +484,7 @@ def test_provider_jinja_context():
     expected = {
         "PROVIDER_ID": "amazon",
         "PACKAGE_PIP_NAME": "apache-airflow-providers-amazon",
-        "PACKAGE_WHEEL_NAME": "apache_airflow_providers_amazon",
+        "PACKAGE_DIST_PREFIX": "apache_airflow_providers_amazon",
         "FULL_PACKAGE_NAME": "airflow.providers.amazon",
         "RELEASE": version,
         "RELEASE_NO_LEADING_ZEROS": version,
@@ -490,7 +493,7 @@ def test_provider_jinja_context():
         "CHANGELOG_RELATIVE_PATH": "../../airflow/providers/amazon",
         "SUPPORTED_PYTHON_VERSIONS": ["3.8", "3.9", "3.10", "3.11", "3.12"],
         "PLUGINS": [],
-        "MIN_AIRFLOW_VERSION": "2.6.0",
+        "MIN_AIRFLOW_VERSION": "2.7.0",
         "PROVIDER_REMOVED": False,
         "PROVIDER_INFO": provider_info,
     }

@@ -117,7 +117,7 @@ def test_should_be_importable(example):
 @pytest.mark.db_test
 @pytest.mark.parametrize("example", example_dags_except_db_exception(), ids=relative_path)
 def test_should_not_do_database_queries(example):
-    with assert_queries_count(0):
+    with assert_queries_count(0, stacklevel_from_module=example.rsplit(os.sep, 1)[-1]):
         DagBag(
             dag_folder=example,
             include_examples=False,

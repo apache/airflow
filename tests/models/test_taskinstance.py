@@ -1484,8 +1484,8 @@ class TestTaskInstance:
         ti.map_index = 0
         for map_index in range(1, 5):
             ti = TaskInstance(ti.task, run_id=dr.run_id, map_index=map_index)
-            ti.dag_run = dr
             session.add(ti)
+            ti.dag_run = dr
         session.flush()
         downstream = ti.task
         ti = dr.get_task_instance(task_id="do_something_else", map_index=3, session=session)
@@ -1984,14 +1984,15 @@ class TestTaskInstance:
         assert 1 == tis2[("task_3", 0)].get_num_running_task_instances(session=session, same_dagrun=True)
 
     def test_log_url(self, create_task_instance):
-        ti = create_task_instance(dag_id="dag", task_id="op", execution_date=timezone.datetime(2018, 1, 1))
+        ti = create_task_instance(dag_id="my_dag", task_id="op", execution_date=timezone.datetime(2018, 1, 1))
 
         expected_url = (
-            "http://localhost:8080/log?"
-            "execution_date=2018-01-01T00%3A00%3A00%2B00%3A00"
+            "http://localhost:8080"
+            "/dags/my_dag/grid"
+            "?dag_run_id=test"
             "&task_id=op"
-            "&dag_id=dag"
             "&map_index=-1"
+            "&tab=logs"
         )
         assert ti.log_url == expected_url
 
@@ -2320,13 +2321,13 @@ class TestTaskInstance:
         with dag_maker(schedule=None, session=session) as dag:
 
             @task(outlets=Dataset("test_outlet_dataset_extra_1"))
-            def write1(*, dataset_events):
-                dataset_events["test_outlet_dataset_extra_1"].extra = {"foo": "bar"}
+            def write1(*, outlet_events):
+                outlet_events["test_outlet_dataset_extra_1"].extra = {"foo": "bar"}
 
             write1()
 
             def _write2_post_execute(context, _):
-                context["dataset_events"]["test_outlet_dataset_extra_2"].extra = {"x": 1}
+                context["outlet_events"]["test_outlet_dataset_extra_2"].extra = {"x": 1}
 
             BashOperator(
                 task_id="write2",
@@ -2361,9 +2362,9 @@ class TestTaskInstance:
         with dag_maker(schedule=None, session=session):
 
             @task(outlets=Dataset("test_outlet_dataset_extra"))
-            def write(*, dataset_events):
-                dataset_events["test_outlet_dataset_extra"].extra = {"one": 1}
-                dataset_events["different_uri"].extra = {"foo": "bar"}  # Will be silently dropped.
+            def write(*, outlet_events):
+                outlet_events["test_outlet_dataset_extra"].extra = {"one": 1}
+                outlet_events["different_uri"].extra = {"foo": "bar"}  # Will be silently dropped.
 
             write()
 
@@ -2424,6 +2425,59 @@ class TestTaskInstance:
         assert events["write2"].source_task_id == "write2"
         assert events["write2"].dataset.uri == "test_outlet_dataset_extra_2"
         assert events["write2"].extra == {"x": 1}
+
+    def test_inlet_dataset_extra(self, dag_maker, session):
+        from airflow.datasets import Dataset
+
+        read_task_evaluated = False
+
+        with dag_maker(schedule=None, session=session):
+
+            @task(outlets=Dataset("test_inlet_dataset_extra"))
+            def write(*, ti, outlet_events):
+                outlet_events["test_inlet_dataset_extra"].extra = {"from": ti.task_id}
+
+            @task(inlets=Dataset("test_inlet_dataset_extra"))
+            def read(*, inlet_events):
+                second_event = inlet_events["test_inlet_dataset_extra"][1]
+                assert second_event.uri == "test_inlet_dataset_extra"
+                assert second_event.extra == {"from": "write2"}
+
+                last_event = inlet_events["test_inlet_dataset_extra"][-1]
+                assert last_event.uri == "test_inlet_dataset_extra"
+                assert last_event.extra == {"from": "write3"}
+
+                with pytest.raises(KeyError):
+                    inlet_events["does_not_exist"]
+                with pytest.raises(IndexError):
+                    inlet_events["test_inlet_dataset_extra"][5]
+
+                # TODO: Support slices.
+
+                nonlocal read_task_evaluated
+                read_task_evaluated = True
+
+            [
+                write.override(task_id="write1")(),
+                write.override(task_id="write2")(),
+                write.override(task_id="write3")(),
+            ] >> read()
+
+        dr: DagRun = dag_maker.create_dagrun()
+
+        # Run "write1", "write2", and "write3" (in this order).
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        for ti in sorted(decision.schedulable_tis, key=operator.attrgetter("task_id")):
+            ti.run(session=session)
+
+        # Run "read".
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        for ti in decision.schedulable_tis:
+            ti.run(session=session)
+
+        # Should be done.
+        assert not dr.task_instance_scheduling_decisions(session=session).schedulable_tis
+        assert read_task_evaluated
 
     def test_changing_of_dataset_when_ddrq_is_already_populated(self, dag_maker):
         """

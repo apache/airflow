@@ -185,6 +185,34 @@ const toSentenceCase = (camelCase: string): string => {
   return "";
 };
 
+const highlightByKeywords = (
+  parsedLine: string,
+  errorKeywords: string[],
+  warningKeywords: string[]
+): string => {
+  const lowerParsedLine = parsedLine.toLowerCase();
+  const red = (line: string) => `\x1b[1m\x1b[31m${line}\x1b[39m\x1b[0m`;
+  const yellow = (line: string) => `\x1b[1m\x1b[33m${line}\x1b[39m\x1b[0m`;
+
+  const containsError = errorKeywords.some((keyword) =>
+    lowerParsedLine.includes(keyword)
+  );
+
+  if (containsError) {
+    return red(parsedLine);
+  }
+
+  const containsWarning = warningKeywords.some((keyword) =>
+    lowerParsedLine.includes(keyword)
+  );
+
+  if (containsWarning) {
+    return yellow(parsedLine);
+  }
+
+  return parsedLine;
+};
+
 export {
   hoverDelay,
   finalStatesMap,
@@ -197,4 +225,5 @@ export {
   getStatusBackgroundColor,
   useOffsetTop,
   toSentenceCase,
+  highlightByKeywords,
 };

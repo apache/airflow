@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add run_id to (Audit) log table and increase event name length
+"""Add run_id to (Audit) log table and increase event name length.
 
 Revision ID: d75389605139
 Revises: 1fd565369930
@@ -24,22 +24,23 @@ Create Date: 2024-02-29 17:50:03.759967
 
 """
 
-from airflow.migrations.db_types import StringID
+from __future__ import annotations
+
 import sqlalchemy as sa
 from alembic import op
 
+from airflow.migrations.db_types import StringID
 
 # revision identifiers, used by Alembic.
-revision = 'd75389605139'
-down_revision = '1fd565369930'
+revision = "d75389605139"
+down_revision = "1fd565369930"
 branch_labels = None
 depends_on = None
-airflow_version = '2.9.0'
+airflow_version = "2.9.0"
 
 
 def upgrade():
     """Apply Add run_id to Log and increase Log event name length."""
-
     # Note: we could repopulate the run_id of old runs via a join with DagRun on date + dag_id,
     # But this would incur a potentially heavy migration for non-essential changes.
     # Instead, we've chosen to only populate this column from 2.9.0 onwards.

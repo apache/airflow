@@ -91,6 +91,8 @@ _REVISION_HEADS_MAP = {
     "2.8.0": "10b52ebd31f7",
     "2.8.1": "88344c1d9134",
     "2.9.0": "1949afb29106",
+    "2.9.2": "686269002441",
+    "2.10.0": "677fdbb7fc54",
 }
 
 
@@ -742,13 +744,13 @@ def _create_db_from_orm(session):
 
 
 @provide_session
-def initdb(session: Session = NEW_SESSION, load_connections: bool = True):
+def initdb(session: Session = NEW_SESSION, load_connections: bool = True, use_migration_files: bool = False):
     """Initialize Airflow database."""
     import_all_models()
 
     db_exists = _get_current_revision(session)
-    if db_exists:
-        upgradedb(session=session)
+    if db_exists or use_migration_files:
+        upgradedb(session=session, use_migration_files=use_migration_files)
     else:
         _create_db_from_orm(session=session)
     if conf.getboolean("database", "LOAD_DEFAULT_CONNECTIONS") and load_connections:
@@ -970,33 +972,6 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
 
     if not stored or stored.filename != filename or stored.elasticsearch_id != elasticsearch_id:
         session.add(LogTemplate(filename=filename, elasticsearch_id=elasticsearch_id))
-
-
-def encrypt_trigger_kwargs(*, session: Session) -> None:
-    """Encrypt trigger kwargs."""
-    from airflow.models.trigger import Trigger
-    from airflow.serialization.serialized_objects import BaseSerialization
-
-    for trigger in session.query(Trigger):
-        # convert serialized dict to string and encrypt it
-        trigger.kwargs = BaseSerialization.deserialize(json.loads(trigger.encrypted_kwargs))
-    session.commit()
-
-
-def decrypt_trigger_kwargs(*, session: Session) -> None:
-    """Decrypt trigger kwargs."""
-    from airflow.models.trigger import Trigger
-    from airflow.serialization.serialized_objects import BaseSerialization
-
-    if not inspect(session.bind).has_table(Trigger.__tablename__):
-        # table does not exist, nothing to do
-        # this can happen when we downgrade to an old version before the Trigger table was added
-        return
-
-    for trigger in session.scalars(select(Trigger.encrypted_kwargs)):
-        # decrypt the string and convert it to serialized dict
-        trigger.encrypted_kwargs = json.dumps(BaseSerialization.serialize(trigger.kwargs))
-    session.commit()
 
 
 def check_conn_id_duplicates(session: Session) -> Iterable[str]:
@@ -1583,6 +1558,7 @@ def upgradedb(
     show_sql_only: bool = False,
     reserialize_dags: bool = True,
     session: Session = NEW_SESSION,
+    use_migration_files: bool = False,
 ):
     """
     Upgrades the DB.
@@ -1639,7 +1615,7 @@ def upgradedb(
     if errors_seen:
         exit(1)
 
-    if not to_revision and not _get_current_revision(session=session):
+    if not to_revision and not _get_current_revision(session=session) and not use_migration_files:
         # Don't load default connections
         # New DB; initialize and exit
         initdb(session=session, load_connections=False)
@@ -1666,16 +1642,10 @@ def upgradedb(
         _reserialize_dags(session=session)
     add_default_pool_if_not_exists(session=session)
     synchronize_log_template(session=session)
-    if _revision_greater(
-        config,
-        _REVISION_HEADS_MAP["2.9.0"],
-        _get_current_revision(session=session),
-    ):
-        encrypt_trigger_kwargs(session=session)
 
 
 @provide_session
-def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
+def resetdb(session: Session = NEW_SESSION, skip_init: bool = False, use_migration_files: bool = False):
     """Clear out the database."""
     if not settings.engine:
         raise RuntimeError("The settings.engine must be set. This is a critical assertion")
@@ -1690,7 +1660,7 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
         drop_airflow_moved_tables(connection)
 
     if not skip_init:
-        initdb(session=session)
+        initdb(session=session, use_migration_files=use_migration_files)
 
 
 @provide_session
@@ -1744,12 +1714,6 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
         else:
             log.info("Applying downgrade migrations.")
             command.downgrade(config, revision=to_revision, sql=show_sql_only)
-            if _revision_greater(
-                config,
-                _REVISION_HEADS_MAP["2.9.0"],
-                to_revision,
-            ):
-                decrypt_trigger_kwargs(session=session)
 
 
 def drop_airflow_models(connection):

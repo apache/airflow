@@ -2128,7 +2128,8 @@ def generate_issue_content_providers(
         users: set[str] = set()
         for provider_info in providers.values():
             for pr in provider_info.pr_list:
-                users.add("@" + pr.user.login)
+                if pr.user.login:
+                    users.add("@" + pr.user.login)
         issue_content += f"All users involved in the PRs:\n{' '.join(users)}"
         syntax = Syntax(issue_content, "markdown", theme="ansi_dark")
         get_console().print(syntax)
@@ -2702,7 +2703,11 @@ SOURCE_API_YAML_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "api_connexion" / "ope
 TARGET_API_YAML_PATH = PYTHON_CLIENT_DIR_PATH / "v1.yaml"
 OPENAPI_GENERATOR_CLI_VER = "5.4.0"
 
-GENERATED_CLIENT_DIRECTORIES_TO_COPY = ["airflow_client", "docs", "test"]
+GENERATED_CLIENT_DIRECTORIES_TO_COPY: list[Path] = [
+    Path("airflow_client") / "client",
+    Path("docs"),
+    Path("test"),
+]
 FILES_TO_COPY_TO_CLIENT_REPO = [
     ".gitignore",
     ".openapi-generator-ignore",

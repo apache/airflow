@@ -57,3 +57,23 @@ class BedrockRuntimeHook(AwsBaseHook):
     def __init__(self, *args, **kwargs) -> None:
         kwargs["client_type"] = self.client_type
         super().__init__(*args, **kwargs)
+
+
+class BedrockAgentHook(AwsBaseHook):
+    """
+    Interact with the Amazon Agents for Bedrock API.
+
+    Provide thin wrapper around :external+boto3:py:class:`boto3.client("bedrock-agent") <AgentsforBedrock.Client>`.
+
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+    """
+
+    client_type = "bedrock-agent"
+
+    def __init__(self, *args, **kwargs) -> None:
+        kwargs["client_type"] = self.client_type
+        super().__init__(*args, **kwargs)

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""add include_deferred column to pool
+"""add include_deferred column to pool.
 
 Revision ID: 405de8318b3a
 Revises: 788397e78828
@@ -24,9 +24,10 @@ Create Date: 2023-07-20 04:22:21.007342
 
 """
 
+from __future__ import annotations
+
 import sqlalchemy as sa
 from alembic import op
-
 
 # revision identifiers, used by Alembic.
 revision = "405de8318b3a"
@@ -37,7 +38,7 @@ airflow_version = "2.7.0"
 
 
 def upgrade():
-    """Apply add include_deferred column to pool"""
+    """Apply add include_deferred column to pool."""
     with op.batch_alter_table("slot_pool") as batch_op:
         batch_op.add_column(sa.Column("include_deferred", sa.Boolean))
     # Different databases support different literal for FALSE. This is fine.
@@ -47,6 +48,6 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply add include_deferred column to pool"""
+    """Unapply add include_deferred column to pool."""
     with op.batch_alter_table("slot_pool") as batch_op:
         batch_op.drop_column("include_deferred")

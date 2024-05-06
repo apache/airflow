@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``root_dag_id`` to ``DAG``
+"""Add ``root_dag_id`` to ``DAG``.
 
 Revision ID: b3b105409875
 Revises: d38e04c12aa2
 Create Date: 2019-09-28 23:20:01.744775
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -38,12 +39,12 @@ airflow_version = "1.10.7"
 
 
 def upgrade():
-    """Apply Add ``root_dag_id`` to ``DAG``"""
+    """Apply Add ``root_dag_id`` to ``DAG``."""
     op.add_column("dag", sa.Column("root_dag_id", StringID(), nullable=True))
     op.create_index("idx_root_dag_id", "dag", ["root_dag_id"], unique=False)
 
 
 def downgrade():
-    """Unapply Add ``root_dag_id`` to ``DAG``"""
+    """Unapply Add ``root_dag_id`` to ``DAG``."""
     op.drop_index("idx_root_dag_id", table_name="dag")
     op.drop_column("dag", "root_dag_id")

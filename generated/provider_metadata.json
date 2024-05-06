@@ -2085,6 +2085,10 @@
         "8.1.0": {
             "associated_airflow_version": "2.8.3",
             "date_released": "2024-04-13T18:19:54Z"
+        },
+        "8.1.1": {
+            "associated_airflow_version": "2.8.3",
+            "date_released": "2024-04-21T07:55:14Z"
         }
     },
     "cohere": {
@@ -2377,6 +2381,10 @@
         "6.2.0": {
             "associated_airflow_version": "2.8.2",
             "date_released": "2024-02-15T15:48:36Z"
+        },
+        "6.3.0": {
+            "associated_airflow_version": "2.8.2",
+            "date_released": "2024-04-21T07:55:14Z"
         }
     },
     "datadog": {
@@ -3101,6 +3109,10 @@
         "1.0.3": {
             "associated_airflow_version": "2.9.0",
             "date_released": "2024-04-13T18:19:54Z"
+        },
+        "1.0.4": {
+            "associated_airflow_version": "2.9.0",
+            "date_released": "2024-04-21T07:55:14Z"
         }
     },
     "facebook": {
