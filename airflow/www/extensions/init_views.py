@@ -142,11 +142,16 @@ def init_plugins(app):
     appbuilder = app.appbuilder
 
     for view in plugins_manager.flask_appbuilder_views:
-        name = view.pop("name", None)
-        if name:
+        if view.get("name"):
+            # Shallow copy the view to avoid modifying the original view
+            # since Plugins are global objects
+            view_copy = view.copy()
+
+            name = view_copy.pop("name")
+            baseview = view_copy.pop("view")
+
             log.debug("Adding view %s with menu", name)
-            baseview = view.pop("view")
-            appbuilder.add_view(baseview, name, **view)
+            appbuilder.add_view(baseview, name, **view_copy)
         else:
             # if 'name' key is missing, intent is to add view without menu
             log.debug("Adding view %s without menu", str(type(view["view"])))
