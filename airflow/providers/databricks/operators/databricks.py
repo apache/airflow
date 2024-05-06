@@ -167,7 +167,7 @@ def _handle_deferrable_databricks_operator_completion(event: dict, log: Logger) 
 
     error_message = f"Job run failed with terminal state: {run_state} and with the errors {errors}"
 
-    if event["repair_run"]:
+    if event.get("repair_run"):
         log.warning(
             "%s but since repair run is set, repairing the run with all failed tasks",
             error_message,
