@@ -16,29 +16,18 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from datetime import datetime
 
-from airflow import DAG
-from airflow.providers.yandex.operators.yandexcloud_dataproc import (
-    DataprocCreateClusterOperator,
-    DataprocCreateSparkJobOperator,
-    DataprocDeleteClusterOperator,
-)
+from airflow.models.dag import DAG
+from airflow.operators.empty import EmptyOperator
+from airflow.providers.yandex.operators.yq import YQExecuteQueryOperator
+from airflow.operators.python import PythonOperator
 
-# Name of the datacenter where Dataproc cluster will be created
-from airflow.utils.trigger_rule import TriggerRule
 from tests.system.utils import get_test_env_id
 
-# should be filled with appropriate ids
-
-
-AVAILABILITY_ZONE_ID = "ru-central1-c"
-
-# Dataproc cluster will use this bucket as distributed storage
-S3_BUCKET_NAME = ""
-
 ENV_ID = get_test_env_id()
-DAG_ID = "example_yandexcloud_dataproc_lightweight"
+DAG_ID = "example_yandexcloud_yq"
 
 with DAG(
     DAG_ID,
@@ -46,29 +35,12 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     tags=["example"],
 ) as dag:
-    create_cluster = DataprocCreateClusterOperator(
-        task_id="create_cluster",
-        zone=AVAILABILITY_ZONE_ID,
-        s3_bucket=S3_BUCKET_NAME,
-        computenode_count=1,
-        datanode_count=0,
-        services=("SPARK", "YARN"),
+    run_this_last = EmptyOperator(
+        task_id="run_this_last",
     )
 
-    create_spark_job = DataprocCreateSparkJobOperator(
-        cluster_id=create_cluster.cluster_id,
-        task_id="create_spark_job",
-        main_jar_file_uri="file:///usr/lib/spark/examples/jars/spark-examples.jar",
-        main_class="org.apache.spark.examples.SparkPi",
-        args=["1000"],
-    )
-
-    delete_cluster = DataprocDeleteClusterOperator(
-        cluster_id=create_cluster.cluster_id,
-        task_id="delete_cluster",
-        trigger_rule=TriggerRule.ALL_DONE,
-    )
-    create_spark_job >> delete_cluster
+    yq_operator = YQExecuteQueryOperator(task_id="sample_query", sql="select 33 as d, 44 as t")
+    yq_operator >> run_this_last
 
     from tests.system.utils.watcher import watcher
 
