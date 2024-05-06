@@ -109,10 +109,10 @@ from airflow.utils import timezone
 from airflow.utils.context import (
     ConnectionAccessor,
     Context,
-    DatasetEventAccessors,
     InletEventsAccessors,
+    OutletEventAccessors,
     VariableAccessor,
-    context_get_dataset_events,
+    context_get_outlet_events,
     context_merge,
 )
 from airflow.utils.email import send_email
@@ -440,7 +440,7 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
 
             return ExecutionCallableRunner(
                 execute_callable,
-                context_get_dataset_events(context),
+                context_get_outlet_events(context),
                 logger=log,
             ).run(context=context, **execute_callable_kwargs)
         except SystemExit as e:
@@ -799,7 +799,7 @@ def _get_template_context(
         "dag_run": dag_run,
         "data_interval_end": timezone.coerce_datetime(data_interval.end),
         "data_interval_start": timezone.coerce_datetime(data_interval.start),
-        "dataset_events": DatasetEventAccessors(),
+        "outlet_events": OutletEventAccessors(),
         "ds": ds,
         "ds_nodash": ds_nodash,
         "execution_date": logical_date,
@@ -880,6 +880,7 @@ def _handle_failure(
     test_mode: bool | None = None,
     context: Context | None = None,
     force_fail: bool = False,
+    fail_stop: bool = False,
 ) -> None:
     """
     Handle Failure for a task instance.
@@ -903,6 +904,7 @@ def _handle_failure(
         context=context,
         force_fail=force_fail,
         session=session,
+        fail_stop=fail_stop,
     )
 
     _log_state(task_instance=task_instance, lead_msg="Immediate failure requested. " if force_fail else "")
@@ -2639,7 +2641,7 @@ class TaskInstance(Base, LoggingMixin):
                 session.add(Log(self.state, self))
                 session.merge(self).task = self.task
                 if self.state == TaskInstanceState.SUCCESS:
-                    self._register_dataset_changes(events=context["dataset_events"], session=session)
+                    self._register_dataset_changes(events=context["outlet_events"], session=session)
 
                 session.commit()
                 if self.state == TaskInstanceState.SUCCESS:
@@ -2649,7 +2651,7 @@ class TaskInstance(Base, LoggingMixin):
 
             return None
 
-    def _register_dataset_changes(self, *, events: DatasetEventAccessors, session: Session) -> None:
+    def _register_dataset_changes(self, *, events: OutletEventAccessors, session: Session) -> None:
         if TYPE_CHECKING:
             assert self.task
 
@@ -2966,8 +2968,13 @@ class TaskInstance(Base, LoggingMixin):
         context: Context | None = None,
         force_fail: bool = False,
         session: Session = NEW_SESSION,
+        fail_stop: bool = False,
     ):
-        """Handle Failure for the TaskInstance."""
+        """
+        Handle Failure for the TaskInstance.
+
+        :param fail_stop: if true, stop remaining tasks in dag
+        """
         get_listener_manager().hook.on_task_instance_failed(
             previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error, session=session
         )
@@ -3030,7 +3037,7 @@ class TaskInstance(Base, LoggingMixin):
             email_for_state = operator.attrgetter("email_on_failure")
             callbacks = task.on_failure_callback if task else None
 
-            if task and task.dag and task.dag.fail_stop:
+            if task and fail_stop:
                 _stop_remaining_tasks(task_instance=ti, session=session)
         else:
             if ti.state == TaskInstanceState.QUEUED:
@@ -3079,6 +3086,13 @@ class TaskInstance(Base, LoggingMixin):
         :param context: Jinja2 context
         :param force_fail: if True, task does not retry
         """
+        if TYPE_CHECKING:
+            assert self.task
+            assert self.task.dag
+        try:
+            fail_stop = self.task.dag.fail_stop
+        except Exception:
+            fail_stop = False
         _handle_failure(
             task_instance=self,
             error=error,
@@ -3086,6 +3100,7 @@ class TaskInstance(Base, LoggingMixin):
             test_mode=test_mode,
             context=context,
             force_fail=force_fail,
+            fail_stop=fail_stop,
         )
 
     def is_eligible_to_retry(self):

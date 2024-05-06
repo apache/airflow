@@ -84,6 +84,7 @@ class TestDb:
             # Ignore flask-session table/index
             lambda t: (t[0] == "remove_table" and t[1].name == "session"),
             lambda t: (t[0] == "remove_index" and t[1].name == "session_id"),
+            lambda t: (t[0] == "remove_index" and t[1].name == "session_session_id_uq"),
             # sqlite sequence is used for autoincrementing columns created with `sqlite_autoincrement` option
             lambda t: (t[0] == "remove_table" and t[1].name == "sqlite_sequence"),
         ]
@@ -233,7 +234,7 @@ class TestDb:
         if skip_init:
             mock_init.assert_not_called()
         else:
-            mock_init.assert_called_once_with(session=session_mock)
+            mock_init.assert_called_once_with(session=session_mock, use_migration_files=False)
 
     def test_alembic_configuration(self):
         with mock.patch.dict(

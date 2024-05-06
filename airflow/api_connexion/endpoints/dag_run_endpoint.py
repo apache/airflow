@@ -59,6 +59,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     task_instance_reference_collection_schema,
 )
 from airflow.auth.managers.models.resource_details import DagAccessEntity
+from airflow.exceptions import ParamValidationError
 from airflow.models import DagModel, DagRun
 from airflow.timetables.base import DataInterval
 from airflow.utils.airflow_flask_app import get_airflow_app
@@ -356,7 +357,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
                 current_user_id = get_auth_manager().get_user_id()
                 dag_run.note = (dag_run_note, current_user_id)
             return dagrun_schema.dump(dag_run)
-        except ValueError as ve:
+        except (ValueError, ParamValidationError) as ve:
             raise BadRequest(detail=str(ve))
 
     if dagrun_instance.execution_date == logical_date:

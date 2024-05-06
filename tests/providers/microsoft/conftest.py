@@ -20,12 +20,13 @@ from __future__ import annotations
 import json
 import random
 import string
+from json import JSONDecodeError
 from os.path import dirname, join
 from typing import TYPE_CHECKING, Any, Iterable, TypeVar
 from unittest.mock import MagicMock
 
 import pytest
-from httpx import Response
+from httpx import Headers, Response
 from msgraph_core import APIVersion
 
 from airflow.models import Connection
@@ -89,18 +90,21 @@ def mock_connection(schema: str | None = None, host: str | None = None) -> Conne
 def mock_json_response(status_code, *contents) -> Response:
     response = MagicMock(spec=Response)
     response.status_code = status_code
+    response.headers = Headers({})
+    response.content = b""
     if contents:
-        contents = list(contents)
-        response.json.side_effect = lambda: contents.pop(0)
+        response.json.side_effect = list(contents)
     else:
         response.json.return_value = None
     return response
 
 
-def mock_response(status_code, content: Any = None) -> Response:
+def mock_response(status_code, content: Any = None, headers: dict | None = None) -> Response:
     response = MagicMock(spec=Response)
     response.status_code = status_code
+    response.headers = Headers(headers or {})
     response.content = content
+    response.json.side_effect = JSONDecodeError("", "", 0)
     return response
 
 

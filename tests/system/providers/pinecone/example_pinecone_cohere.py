@@ -44,7 +44,8 @@ with DAG(
         from airflow.providers.pinecone.hooks.pinecone import PineconeHook
 
         hook = PineconeHook()
-        hook.create_index(index_name=index_name, dimension=768)
+        pod_spec = hook.get_pod_spec_obj()
+        hook.create_index(index_name=index_name, dimension=768, spec=pod_spec)
         time.sleep(60)
 
     embed_task = CohereEmbeddingOperator(

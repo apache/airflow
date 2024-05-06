@@ -64,6 +64,14 @@ Below is an example of using this operator to get PowerBI workspaces info.
     :start-after: [START howto_operator_powerbi_workspaces_info]
     :end-before: [END howto_operator_powerbi_workspaces_info]
 
+Below is an example of using this operator to refresh PowerBI dataset.
+
+.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_powerbi.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_operator_powerbi_refresh_dataset]
+    :end-before: [END howto_operator_powerbi_refresh_dataset]
+
 
 Reference
 ---------
