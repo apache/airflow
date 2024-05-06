@@ -59,7 +59,7 @@ SKIP_LONG_TASKS = environ.get("SKIP_LONG_SYSTEM_TEST_TASKS", default=True)
 # No-commitment Provisioned Throughput is currently restricted to external
 # customers only and will fail with a ServiceQuotaExceededException if run
 # on the AWS System Test stack.
-SKIP_RESTRICTED_TASKS = environ.get("SKIP_RESTRICTED_SYSTEM_TEST_TASKS", default=True)
+SKIP_PROVISION_THROUGHPUT = environ.get("SKIP_RESTRICTED_SYSTEM_TEST_TASKS", default=True)
 
 
 LLAMA_SHORT_MODEL_ID = "meta.llama2-13b-chat-v1"
@@ -137,7 +137,7 @@ def provision_throughput_workflow():
 
     @task.branch
     def run_or_skip():
-        return end_workflow.task_id if SKIP_RESTRICTED_TASKS else provision_throughput.task_id
+        return end_workflow.task_id if SKIP_PROVISION_THROUGHPUT else provision_throughput.task_id
 
     run_or_skip = run_or_skip()
     end_workflow = EmptyOperator(task_id="end_workflow", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
