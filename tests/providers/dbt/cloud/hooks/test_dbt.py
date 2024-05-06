@@ -25,6 +25,7 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.providers.dbt.cloud.hooks.dbt import (
+    DBT_CAUSE_MAX_LENGTH,
     DbtCloudHook,
     DbtCloudJobRunException,
     DbtCloudJobRunStatus,
@@ -391,6 +392,35 @@ class TestDbtCloudHook:
                     "generate_docs_override": False,
                 }
             ),
+        )
+        hook._paginate.assert_not_called()
+
+    @pytest.mark.parametrize(
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        ids=["default_account", "explicit_account"],
+    )
+    @patch.object(DbtCloudHook, "run")
+    @patch.object(DbtCloudHook, "_paginate")
+    def test_trigger_job_run_with_longer_cause(self, mock_http_run, mock_paginate, conn_id, account_id):
+        hook = DbtCloudHook(conn_id)
+        cause = "Some cause that is longer than limit. " * 15
+        expected_cause = cause[:DBT_CAUSE_MAX_LENGTH]
+        assert len(cause) > DBT_CAUSE_MAX_LENGTH
+
+        with pytest.warns(
+            UserWarning,
+            match=f"Cause `{cause}` exceeds limit of {DBT_CAUSE_MAX_LENGTH}"
+            f" characters and will be truncated.",
+        ):
+            hook.trigger_job_run(job_id=JOB_ID, cause=cause, account_id=account_id)
+
+        assert hook.method == "POST"
+
+        _account_id = account_id or DEFAULT_ACCOUNT_ID
+        hook.run.assert_called_once_with(
+            endpoint=f"api/v2/accounts/{_account_id}/jobs/{JOB_ID}/run/",
+            data=json.dumps({"cause": expected_cause, "steps_override": None, "schema_override": None}),
         )
         hook._paginate.assert_not_called()
 
