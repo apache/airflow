@@ -236,25 +236,18 @@ class HttpHook(HttpHookMixin, BaseHook):
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Return connection widgets to add to the connection form."""
-        from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, Select2Widget
+        from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
-        from wtforms.fields import SelectField, TextAreaField
+        from wtforms import StringField
 
         from airflow.www.validators import ValidJson
 
-        default_auth_type: str = ""
-        auth_types_choices = frozenset({default_auth_type}) | get_auth_types()
         return {
-            "auth_type": SelectField(
-                lazy_gettext("Auth type"),
-                choices=[(clazz, clazz) for clazz in auth_types_choices],
-                widget=Select2Widget(),
-                default=default_auth_type,
-            ),
-            "auth_kwargs": TextAreaField(
+            "extra__http__auth_type": StringField(lazy_gettext("Auth type"), widget=BS3TextFieldWidget()),
+            "extra__http__auth_kwargs": StringField(
                 lazy_gettext("Auth kwargs"), validators=[ValidJson()], widget=BS3TextAreaFieldWidget()
             ),
-            "headers": TextAreaField(
+            "extra__http__headers": StringField(
                 lazy_gettext("Headers"),
                 validators=[ValidJson()],
                 widget=BS3TextAreaFieldWidget(),
