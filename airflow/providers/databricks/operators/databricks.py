@@ -1044,21 +1044,20 @@ class DatabricksNotebookOperator(BaseOperator):
         run = self._hook.get_run(self.databricks_run_id)
         run_state = RunState(**run["state"])
         self.log.info("Current state of the job: %s", run_state.life_cycle_state)
-
+        if self.deferrable and not run_state.is_terminal:
+            return self.defer(
+                trigger=DatabricksExecutionTrigger(
+                    run_id=self.databricks_run_id,
+                    databricks_conn_id=self.databricks_conn_id,
+                    polling_period_seconds=self.polling_period_seconds,
+                    retry_limit=self.databricks_retry_limit,
+                    retry_delay=self.databricks_retry_delay,
+                    retry_args=self.databricks_retry_args,
+                    caller=self.CALLER,
+                ),
+                method_name=DEFER_METHOD_NAME,
+            )
         while not run_state.is_terminal:
-            if self.deferrable:
-                return self.defer(
-                    trigger=DatabricksExecutionTrigger(
-                        run_id=self.databricks_run_id,
-                        databricks_conn_id=self.databricks_conn_id,
-                        polling_period_seconds=self.polling_period_seconds,
-                        retry_limit=self.databricks_retry_limit,
-                        retry_delay=self.databricks_retry_delay,
-                        retry_args=self.databricks_retry_args,
-                        caller=self.CALLER,
-                    ),
-                    method_name=DEFER_METHOD_NAME,
-                )
             time.sleep(self.polling_period_seconds)
             run = self._hook.get_run(self.databricks_run_id)
             run_state = RunState(**run["state"])
