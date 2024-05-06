@@ -366,8 +366,7 @@ def test_trigger_create_race_condition_38599(session, tmp_path):
     loop = asyncio.get_event_loop()
     loop.run_until_complete(job_runner1.trigger_runner.create_triggers())
     assert len(job_runner1.trigger_runner.triggers) == 1
-    trigger_task_key = list(job_runner1.trigger_runner.triggers.keys())[0]
-    trigger_task_info = job_runner1.trigger_runner.triggers[trigger_task_key]
+    trigger_task_key, trigger_task_info = next(iter(job_runner1.trigger_runner.triggers.items()))
     loop.run_until_complete(trigger_task_info["task"])
     assert trigger_task_info["task"].done()
 
