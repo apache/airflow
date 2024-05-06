@@ -926,7 +926,6 @@ class DatabricksNotebookOperator(BaseOperator):
     """
 
     template_fields = ("notebook_params",)
-    CALLER = "DatabricksNotebookOperator"
 
     def __init__(
         self,
@@ -944,6 +943,7 @@ class DatabricksNotebookOperator(BaseOperator):
         wait_for_termination: bool = True,
         databricks_conn_id: str = "databricks_default",
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        caller: str = "DatabricksNotebookOperator",
         **kwargs: Any,
     ):
         self.notebook_path = notebook_path
@@ -961,11 +961,12 @@ class DatabricksNotebookOperator(BaseOperator):
         self.databricks_conn_id = databricks_conn_id
         self.databricks_run_id: int | None = None
         self.deferrable = deferrable
+        self.caller = caller
         super().__init__(**kwargs)
 
     @cached_property
     def _hook(self) -> DatabricksHook:
-        return self._get_hook(caller=self.CALLER)
+        return self._get_hook(caller=self.caller)
 
     def _get_hook(self, caller: str) -> DatabricksHook:
         return DatabricksHook(
@@ -1053,7 +1054,7 @@ class DatabricksNotebookOperator(BaseOperator):
                     retry_limit=self.databricks_retry_limit,
                     retry_delay=self.databricks_retry_delay,
                     retry_args=self.databricks_retry_args,
-                    caller=self.CALLER,
+                    caller=self.caller,
                 ),
                 method_name=DEFER_METHOD_NAME,
             )
