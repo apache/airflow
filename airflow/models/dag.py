@@ -74,7 +74,7 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import backref, joinedload, load_only, relationship
+from sqlalchemy.orm import joinedload, load_only, relationship
 from sqlalchemy.sql import Select, expression
 
 import airflow.templates
@@ -3555,6 +3555,8 @@ class DagTag(Base):
         primary_key=True,
     )
 
+    dag = relationship("DagModel", back_populates="tags")
+
     __table_args__ = (Index("idx_dag_tag_dag_id", dag_id),)
 
     def __repr__(self):
@@ -3577,6 +3579,8 @@ class DagOwnerAttributes(Base):
     )
     owner = Column(String(500), primary_key=True, nullable=False)
     link = Column(String(500), nullable=False)
+
+    dag = relationship("DagModel", back_populates="dag_owner_links")
 
     def __repr__(self):
         return f"<DagOwnerAttributes: dag_id={self.dag_id}, owner={self.owner}, link={self.link}>"
@@ -3639,10 +3643,12 @@ class DagModel(Base):
     # Dataset expression based on dataset triggers
     dataset_expression = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
     # Tags for view filter
-    tags = relationship("DagTag", cascade="all, delete, delete-orphan", backref=backref("dag"))
+    tags = relationship("DagTag", back_populates="dag", cascade="all, delete, delete-orphan")
     # Dag owner links for DAGs view
     dag_owner_links = relationship(
-        "DagOwnerAttributes", cascade="all, delete, delete-orphan", backref=backref("dag")
+        "DagOwnerAttributes",
+        back_populates="dag",
+        cascade="all, delete, delete-orphan",
     )
 
     max_active_tasks = Column(Integer, nullable=False)
