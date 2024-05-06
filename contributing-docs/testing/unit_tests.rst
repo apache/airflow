@@ -1152,10 +1152,13 @@ or by setting the environment variable ``CAPTURE_WARNINGS_OUTPUT``.
 
     root@3f98e75b1ebe:/opt/airflow# pytest tests/core/ --warning-output-path=/foo/bar/spam.egg
     ...
-    ========================= Warning summary. Total: 34, Unique: 16 ==========================
+    ========================= Warning summary. Total: 28, Unique: 12 ==========================
     airflow: total 11, unique 1
-    other: total 12, unique 4
-    tests: total 11, unique 11
+      runtest: total 11, unique 1
+    other: total 7, unique 1
+      runtest: total 7, unique 1
+    tests: total 10, unique 10
+      runtest: total 10, unique 10
     Warnings saved into /foo/bar/spam.egg file.
 
     ================================= short test summary info =================================

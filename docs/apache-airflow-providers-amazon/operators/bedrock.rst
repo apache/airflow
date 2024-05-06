@@ -108,6 +108,73 @@ Trigger.
     :start-after: [START howto_operator_provision_throughput]
     :end-before: [END howto_operator_provision_throughput]
 
+.. _howto/operator:BedrockCreateKnowledgeBaseOperator:
+
+Create an Amazon Bedrock Knowledge Base
+========================================
+
+To create an Amazon Bedrock Knowledge Base, you can use
+:class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockCreateKnowledgeBaseOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock_knowledge_base.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bedrock_create_knowledge_base]
+    :end-before: [END howto_operator_bedrock_create_knowledge_base]
+
+.. _howto/operator:BedrockDeleteKnowledgeBase:
+
+Delete an Amazon Bedrock Knowledge Base
+=======================================
+
+Deleting a Knowledge Base is a simple boto API call and can be done in a TaskFlow task like the example below.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock_knowledge_base.py
+    :language: python
+    :start-after: [START howto_operator_bedrock_delete_knowledge_base]
+    :end-before: [END howto_operator_bedrock_delete_knowledge_base]
+
+.. _howto/operator:BedrockCreateDataSourceOperator:
+
+Create an Amazon Bedrock Data Source
+====================================
+
+To create an Amazon Bedrock Data Source, you can use
+:class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockCreateDataSourceOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock_knowledge_base.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bedrock_create_data_source]
+    :end-before: [END howto_operator_bedrock_create_data_source]
+
+.. _howto_operator:BedrockDeleteDataSource:
+
+Delete an Amazon Bedrock Data Source
+====================================
+
+Deleting a Data Source is a simple boto API call and can be done in a TaskFlow task like the example below.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock_knowledge_base.py
+    :language: python
+    :start-after: [START howto_operator_bedrock_delete_data_source]
+    :end-before: [END howto_operator_bedrock_delete_data_source]
+
+.. _howto/operator:BedrockIngestDataOperator:
+
+Ingest data into an Amazon Bedrock Data Source
+==============================================
+
+To add data from an Amazon S3 bucket into an Amazon Bedrock Data Source, you can use
+:class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockIngestDataOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock_knowledge_base.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bedrock_ingest_data]
+    :end-before: [END howto_operator_bedrock_ingest_data]
+
+
 
 Sensors
 -------
@@ -141,7 +208,37 @@ terminal state you can use
     :start-after: [START howto_sensor_provision_throughput]
     :end-before: [END howto_sensor_provision_throughput]
 
+.. _howto/sensor:BedrockKnowledgeBaseActiveSensor:
+
+Wait for an Amazon Bedrock Knowledge Base
+=========================================
+
+To wait on the state of an Amazon Bedrock Knowledge Base until it reaches a terminal state you can use
+:class:`~airflow.providers.amazon.aws.sensors.bedrock.BedrockKnowledgeBaseActiveSensor`
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock_knowledge_base.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_bedrock_knowledge_base_active]
+    :end-before: [END howto_sensor_bedrock_knowledge_base_active]
+
+.. _howto/sensor:BedrockIngestionJobSensor:
+
+Wait for an Amazon Bedrock ingestion job to finish
+==================================================
+
+To wait on the state of an Amazon Bedrock data ingestion job until it reaches a terminal state you can use
+:class:`~airflow.providers.amazon.aws.sensors.bedrock.BedrockIngestionJobSensor`
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock_knowledge_base.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_bedrock_ingest_data]
+    :end-before: [END howto_sensor_bedrock_ingest_data]
+
 Reference
 ---------
 
 * `AWS boto3 library documentation for Amazon Bedrock <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/bedrock.html>`__
+* `AWS boto3 library documentation for Amazon Bedrock Runtime <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/bedrock-runtime.html>`__
+* `AWS boto3 library documentation for Amazon Bedrock Agents <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/bedrock-agent.html>`__

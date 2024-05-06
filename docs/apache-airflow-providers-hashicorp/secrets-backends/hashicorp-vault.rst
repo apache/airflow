@@ -217,6 +217,19 @@ Add "verify": "absolute path to ca-certificate file"
     backend = airflow.providers.hashicorp.secrets.vault.VaultBackend
     backend_kwargs = {"connections_path": "airflow-connections", "variables_path": null, "mount_point": "airflow", "url": "http://127.0.0.1:8200", "verify": "/etc/ssl/certs/ca-certificates"}
 
+Vault authentication with AWS Assume Role STS
+"""""""""""""""""""""""""""""""""""""""""""""
+
+Add parameter "assume_role_kwargs": "The AWS STS assume role auth parameter dict"
+
+For more details, please refer to the AWS Assume Role Authentication documentation: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sts/client/assume_role.html
+
+.. code-block:: ini
+
+    [secrets]
+    backend = airflow.providers.hashicorp.secrets.vault.VaultBackend
+    backend_kwargs = {"connections_path": "airflow-connections", "variables_path": null, "mount_point": "airflow", "url": "http://127.0.0.1:8200", "auth_type": "aws_iam", "assume_role_kwargs": {"arn:aws:iam::123456789000:role/hashicorp-aws-iam-role", "RoleSessionName": "Airflow"}}
+
 Using multiple mount points
 """""""""""""""""""""""""""
 

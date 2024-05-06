@@ -157,3 +157,23 @@ You can also list all supported Cloud Composer images:
     :dedent: 4
     :start-after: [START howto_operator_composer_image_list]
     :end-before: [END howto_operator_composer_image_list]
+
+Run Airflow CLI commands
+------------------------
+
+You can run Airflow CLI commands in your environments, use:
+:class:`~airflow.providers.google.cloud.operators.cloud_composer.CloudComposerRunAirflowCLICommandOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/composer/example_cloud_composer.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_run_airflow_cli_command]
+    :end-before: [END howto_operator_run_airflow_cli_command]
+
+or you can define the same operator in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/composer/example_cloud_composer.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_run_airflow_cli_command_deferrable_mode]
+    :end-before: [END howto_operator_run_airflow_cli_command_deferrable_mode]

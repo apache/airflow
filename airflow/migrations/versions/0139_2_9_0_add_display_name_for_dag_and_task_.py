@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""add display name for dag and task instance
+"""add display name for dag and task instance.
 
 Revision ID: ee1467d4aa35
 Revises: b4078ac230a1
@@ -24,25 +24,26 @@ Create Date: 2024-03-24 22:33:36.824827
 
 """
 
+from __future__ import annotations
+
 import sqlalchemy as sa
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
-revision = 'ee1467d4aa35'
-down_revision = 'b4078ac230a1'
+revision = "ee1467d4aa35"
+down_revision = "b4078ac230a1"
 branch_labels = None
 depends_on = None
 airflow_version = "2.9.0"
 
 
 def upgrade():
-    """Apply add display name for dag and task instance"""
+    """Apply add display name for dag and task instance."""
     op.add_column("dag", sa.Column("dag_display_name", sa.String(2000), nullable=True))
     op.add_column("task_instance", sa.Column("task_display_name", sa.String(2000), nullable=True))
 
 
 def downgrade():
-    """Unapply add display name for dag and task instance"""
+    """Unapply add display name for dag and task instance."""
     op.drop_column("dag", "dag_display_name")
     op.drop_column("task_instance", "task_display_name")

@@ -37,7 +37,7 @@ if __name__ not in ("__main__", "__mp_main__"):
     )
 
 
-REQUIRED_FIELDS = ("category", "message", "node_id", "filename", "lineno", "group", "count")
+REQUIRED_FIELDS = ("category", "message", "node_id", "filename", "lineno", "group", "count", "when")
 CONSOLE_SIZE = shutil.get_terminal_size((80, 20)).columns
 # Use as prefix/suffix in report output
 IMPORTANT_WARNING_SIGN = {
@@ -71,8 +71,8 @@ WARNINGS_BAD = warnings_filename("bad")
 
 
 @functools.lru_cache(maxsize=None)
-def _unique_key(*args: str) -> str:
-    return str(uuid5(NAMESPACE_OID, "-".join(args)))
+def _unique_key(*args: str | None) -> str:
+    return str(uuid5(NAMESPACE_OID, "-".join(map(str, args))))
 
 
 def sorted_groupby(it, grouping_key: Callable):
@@ -95,9 +95,10 @@ def count_groups(
 class CapturedWarnings:
     category: str
     message: str
-    node_id: str
     filename: str
     lineno: int
+    when: str
+    node_id: str | None
 
     @property
     def unique_warning(self) -> str:
@@ -176,8 +177,8 @@ def merge_files(files: Iterator[tuple[Path, str]], output_directory: Path) -> Pa
     return output_file
 
 
-def group_report_warnings(group, group_records, output_directory: Path) -> None:
-    output_filepath = output_directory / warnings_filename(f"group-{group}")
+def group_report_warnings(group, when: str, group_records, output_directory: Path) -> None:
+    output_filepath = output_directory / warnings_filename(f"{group}-{when}")
 
     group_warnings: dict[str, CapturedWarnings] = {}
     unique_group_warnings: dict[str, CapturedWarnings] = {}
@@ -188,27 +189,21 @@ def group_report_warnings(group, group_records, output_directory: Path) -> None:
         if cw.unique_warning not in unique_group_warnings:
             unique_group_warnings[cw.unique_warning] = cw
 
-    print(f" Group {group!r} ".center(CONSOLE_SIZE, "="))
+    print(f" Group {group!r} on {when!r} ".center(CONSOLE_SIZE, "="))
     with output_filepath.open(mode="w") as fp:
         for cw in group_warnings.values():
             fp.write(f"{cw.output()}\n")
     print(f"Saved into file: {output_filepath.as_posix()}\n")
 
-    print(f"Unique warnings within the test cases: {len(group_warnings):,}\n")
-    print("Top 10 Tests Cases:")
-    it = count_groups(
-        group_warnings.values(),
-        grouping_key=lambda cw: (
-            cw.category,
-            cw.node_id,
-        ),
-        top=10,
-    )
-    for (category, node_id), count in it:
-        if suffix := IMPORTANT_WARNING_SIGN.get(category, ""):
-            suffix = f" ({suffix})"
-        print(f"  {category} {node_id} - {count:,}{suffix}")
-    print()
+    if when == "runtest":  # Node id exists only during runtest
+        print(f"Unique warnings within the test cases: {len(group_warnings):,}\n")
+        print("Top 10 Tests Cases:")
+        it = count_groups(group_warnings.values(), grouping_key=lambda cw: (cw.category, cw.node_id), top=10)
+        for (category, node_id), count in it:
+            if suffix := IMPORTANT_WARNING_SIGN.get(category, ""):
+                suffix = f" ({suffix})"
+            print(f"  {category} {node_id} - {count:,}{suffix}")
+        print()
 
     print(f"Unique warnings: {len(unique_group_warnings):,}\n")
     print("Warnings grouped by category:")
@@ -232,8 +227,6 @@ def group_report_warnings(group, group_records, output_directory: Path) -> None:
     if always:
         print(f" Always reported warnings {len(always):,}".center(CONSOLE_SIZE, "-"))
         for cw in always:
-            if prefix := IMPORTANT_WARNING_SIGN.get(cw.category, ""):
-                prefix = f" ({prefix})"
             print(f"{cw.filename}:{cw.lineno}")
             print(f"  {cw.category} - {cw.message}")
             print()
@@ -243,8 +236,10 @@ def split_by_groups(output_file: Path, output_directory: Path) -> None:
     records: list[dict] = []
     with output_file.open() as fp:
         records.extend(map(json.loads, fp))
-    for group, group_records in sorted_groupby(records, grouping_key=lambda record: record["group"]):
-        group_report_warnings(group, group_records, output_directory)
+    for (group, when), group_records in sorted_groupby(
+        records, grouping_key=lambda record: (record["group"], record["when"])
+    ):
+        group_report_warnings(group, when, group_records, output_directory)
 
 
 def main(_input: str, _output: str | None, pattern: str | None) -> int | str:
@@ -260,7 +255,7 @@ def main(_input: str, _output: str | None, pattern: str | None) -> int | str:
         print(f" Process file {input_path} ".center(CONSOLE_SIZE, "="))
         if not input_path.is_file():
             return f"{input_path} is not a file."
-        files = resolve_file(input_path, cwd)
+        files = resolve_file(input_path, cwd if not input_path.is_absolute() else None)
     else:
         if not input_path.is_dir():
             return f"{input_path} is not a file."

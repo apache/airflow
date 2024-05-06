@@ -29,9 +29,10 @@ description: |
     - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 state: ready
-source-date-epoch: 1712665855
+source-date-epoch: 1714476421
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 10.18.0
   - 10.17.0
   - 10.16.0
   - 10.15.0
@@ -88,7 +89,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.6.0
+  - apache-airflow>=2.7.0
   - apache-airflow-providers-common-sql>=1.7.2
   - asgiref>=3.5.2
   # When upgrading the major version of gcloud-aio-auth we want to make sure to

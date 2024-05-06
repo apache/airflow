@@ -491,6 +491,17 @@ class DatabricksHook(BaseDatabricksHook):
         run_output = self._do_api_call(OUTPUT_RUNS_JOB_ENDPOINT, json)
         return run_output
 
+    async def a_get_run_output(self, run_id: int) -> dict:
+        """
+        Async version of `get_run_output()`.
+
+        :param run_id: id of the run
+        :return: output of the run
+        """
+        json = {"run_id": run_id}
+        run_output = await self._a_do_api_call(OUTPUT_RUNS_JOB_ENDPOINT, json)
+        return run_output
+
     def cancel_run(self, run_id: int) -> None:
         """
         Cancel the run.

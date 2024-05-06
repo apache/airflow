@@ -36,7 +36,11 @@ def suppress_and_warn(*exceptions: type[BaseException]):
     try:
         yield
     except exceptions as e:
-        warnings.warn(f"Exception suppressed: {e}\n{traceback.format_exc()}", category=UserWarning)
+        warnings.warn(
+            f"Exception suppressed: {e}\n{traceback.format_exc()}",
+            category=UserWarning,
+            stacklevel=3,
+        )
 
 
 class JdbcHook(DbApiHook):

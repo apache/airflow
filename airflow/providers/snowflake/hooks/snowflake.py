@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import os
 from contextlib import closing, contextmanager
+from functools import cached_property
 from io import StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, TypeVar, overload
@@ -177,6 +178,7 @@ class SnowflakeHook(DbApiHook):
             return extra_dict[field_name] or None
         return extra_dict.get(backcompat_key) or None
 
+    @cached_property
     def _get_conn_params(self) -> dict[str, str | None]:
         """Fetch connection params as a dict.
 
@@ -269,7 +271,7 @@ class SnowflakeHook(DbApiHook):
 
     def get_uri(self) -> str:
         """Override DbApiHook get_uri method for get_sqlalchemy_engine()."""
-        conn_params = self._get_conn_params()
+        conn_params = self._get_conn_params
         return self._conn_params_to_sqlalchemy_uri(conn_params)
 
     def _conn_params_to_sqlalchemy_uri(self, conn_params: dict) -> str:
@@ -283,7 +285,7 @@ class SnowflakeHook(DbApiHook):
 
     def get_conn(self) -> SnowflakeConnection:
         """Return a snowflake.connection object."""
-        conn_config = self._get_conn_params()
+        conn_config = self._get_conn_params
         conn = connector.connect(**conn_config)
         return conn
 
@@ -294,7 +296,7 @@ class SnowflakeHook(DbApiHook):
         :return: the created engine.
         """
         engine_kwargs = engine_kwargs or {}
-        conn_params = self._get_conn_params()
+        conn_params = self._get_conn_params
         if "insecure_mode" in conn_params:
             engine_kwargs.setdefault("connect_args", {})
             engine_kwargs["connect_args"]["insecure_mode"] = True
@@ -458,21 +460,7 @@ class SnowflakeHook(DbApiHook):
         return "snowflake"
 
     def get_openlineage_default_schema(self) -> str | None:
-        """
-        Attempt to get current schema.
-
-        Usually ``SELECT CURRENT_SCHEMA();`` should work.
-        However, apparently you may set ``database`` without ``schema``
-        and get results from ``SELECT CURRENT_SCHEMAS();`` but not
-        from ``SELECT CURRENT_SCHEMA();``.
-        It still may return nothing if no database is set in connection.
-        """
-        schema = self._get_conn_params()["schema"]
-        if not schema:
-            current_schemas = self.get_first("SELECT PARSE_JSON(CURRENT_SCHEMAS())[0]::string;")[0]
-            if current_schemas:
-                _, schema = current_schemas.split(".")
-        return schema
+        return self._get_conn_params["schema"]
 
     def _get_openlineage_authority(self, _) -> str:
         from openlineage.common.provider.snowflake import fix_snowflake_sqlalchemy_uri
