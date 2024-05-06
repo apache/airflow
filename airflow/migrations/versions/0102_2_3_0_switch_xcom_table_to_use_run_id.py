@@ -92,16 +92,14 @@ def upgrade():
     xcom = Table("xcom", metadata, *_get_old_xcom_columns())
     dagrun = _get_dagrun_table()
     query = select(
-        [
-            dagrun.c.id,
-            xcom.c.task_id,
-            xcom.c.key,
-            xcom.c.value,
-            xcom.c.timestamp,
-            xcom.c.dag_id,
-            dagrun.c.run_id,
-            literal_column("-1"),
-        ],
+        dagrun.c.id,
+        xcom.c.task_id,
+        xcom.c.key,
+        xcom.c.value,
+        xcom.c.timestamp,
+        xcom.c.dag_id,
+        dagrun.c.run_id,
+        literal_column("-1"),
     ).select_from(
         xcom.join(
             right=dagrun,
