@@ -1084,5 +1084,5 @@ class DatabricksNotebookOperator(BaseOperator):
         if self.wait_for_termination:
             self.monitor_databricks_job()
 
-    def execute_complete(self, context: dict | None, event: dict):
+    def execute_complete(self, context: dict | None, event: dict) -> None:
         _handle_deferrable_databricks_operator_completion(event, self.log)
