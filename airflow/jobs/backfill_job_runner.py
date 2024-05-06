@@ -442,6 +442,13 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                     ti.set_state(TaskInstanceState.SCHEDULED)
                 if ti.state != TaskInstanceState.REMOVED:
                     tasks_to_run[ti.key] = ti
+                if ti.state == TaskInstanceState.UP_FOR_RETRY and ti not in schedulable_tis:
+                    self.log.warning(
+                        "unexpected. task_id=%s has state=%s but is not in schedulable_tis=%s",
+                        ti.task_id,
+                        ti.state,
+                        schedulable_tis,
+                    )
             session.commit()
         except Exception:
             session.rollback()
@@ -529,6 +536,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                         if key in ti_status.running:
                             ti_status.running.pop(key)
                         # Reset the failed task in backfill to scheduled state
+                        ti.try_number += 1
                         ti.set_state(TaskInstanceState.SCHEDULED, session=session)
                         if ti.dag_run not in ti_status.active_runs:
                             ti_status.active_runs.add(ti.dag_run)
@@ -566,6 +574,14 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                     else:
                         self.log.debug("Sending %s to executor", ti)
                         # Skip scheduled state, we are executing immediately
+                        if ti.state == TaskInstanceState.UP_FOR_RETRY:
+                            # i am not sure why this is necessary.
+                            # seemingly a quirk of backfill runner.
+                            # it should be handled elsewhere i think.
+                            # but i am not going to look too closely since we need
+                            # to nuke the current backfill approach anyway.
+                            ti.try_number += 1
+                            executor.heartbeat()
                         ti.state = TaskInstanceState.QUEUED
                         ti.queued_by_job_id = self.job.id
                         ti.queued_dttm = timezone.utcnow()
@@ -741,6 +757,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                 ti_status.to_run.update({ti.key: ti for ti in new_mapped_tis})
 
                 for new_ti in new_mapped_tis:
+                    new_ti.try_number += 1
                     new_ti.set_state(TaskInstanceState.SCHEDULED, session=session)
 
             # Set state to failed for running TIs that are set up for retry if disable-retry flag is set
@@ -860,7 +877,6 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                     self.log.info("tis_map=%s", tis_map)
                     ti_status.active_runs.add(dag_run)
                     ti_status.to_run.update(tis_map or {})
-        self.log.info("")
         processed_dag_run_dates = self._process_backfill_task_instances(
             ti_status=ti_status,
             executor=executor,
@@ -948,7 +964,6 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                 "combination. Please adjust backfill dates or wait for this DagRun to finish.",
             )
             return
-        # picklin'
         pickle_id = None
 
         executor_class, _ = ExecutorLoader.import_default_executor_cls()
