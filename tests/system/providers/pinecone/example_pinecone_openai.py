@@ -17,13 +17,12 @@
 from __future__ import annotations
 
 import os
-import time
 from datetime import datetime
 
 from airflow import DAG
-from airflow.decorators import setup, task, teardown
+from airflow.decorators import task, teardown
 from airflow.providers.openai.operators.openai import OpenAIEmbeddingOperator
-from airflow.providers.pinecone.operators.pinecone import PineconeIngestOperator
+from airflow.providers.pinecone.operators.pinecone import CreatePodIndexOperator, PineconeIngestOperator
 
 index_name = os.getenv("INDEX_NAME", "example-pinecone-index")
 namespace = os.getenv("NAMESPACE", "example-pinecone-index")
@@ -75,15 +74,11 @@ with DAG(
     start_date=datetime(2023, 1, 1),
     catchup=False,
 ) as dag:
-
-    @setup
-    @task
-    def create_index():
-        from airflow.providers.pinecone.hooks.pinecone import PineconeHook
-
-        hook = PineconeHook()
-        hook.create_index(index_name=index_name, dimension=1536)
-        time.sleep(60)
+    create_index = CreatePodIndexOperator(
+        task_id="create_index",
+        index_name=index_name,
+        dimension=1536,
+    )
 
     embed_task = OpenAIEmbeddingOperator(
         task_id="embed_task",
@@ -110,7 +105,7 @@ with DAG(
         hook = PineconeHook()
         hook.delete_index(index_name=index_name)
 
-    create_index() >> embed_task >> perform_ingestion >> delete_index()
+    create_index >> embed_task >> perform_ingestion >> delete_index()
 
 from tests.system.utils import get_test_run  # noqa: E402
 

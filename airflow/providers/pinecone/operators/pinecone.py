@@ -99,10 +99,10 @@ class CreatePodIndexOperator(BaseOperator):
     :param replicas: The number of replicas to use.
     :param shards: The number of shards to use.
     :param pods: The number of pods to use.
-    :param pod_type: The type of pod to use.
+    :param pod_type: The type of pod to use. Defaults to p1.x1
     :param metadata_config: The metadata configuration to use.
     :param source_collection: The source collection to use.
-    :param metric: The metric to use.
+    :param metric: The metric to use. Defaults to cosine.
     :param timeout: The timeout to use.
     """
 
@@ -116,10 +116,10 @@ class CreatePodIndexOperator(BaseOperator):
         replicas: int | None = None,
         shards: int | None = None,
         pods: int | None = None,
-        pod_type: str | None = None,
+        pod_type: str = "p1.x1",
         metadata_config: dict | None = None,
         source_collection: str | None = None,
-        metric: str | None = None,
+        metric: str = "cosine",
         timeout: int | None = None,
         **kwargs: Any,
     ):
