@@ -574,10 +574,11 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                     else:
                         self.log.debug("Sending %s to executor", ti)
                         # Skip scheduled state, we are executing immediately
-                        if ti.state == TaskInstanceState.UP_FOR_RETRY:
+                        if ti.state in (TaskInstanceState.UP_FOR_RETRY, None):
                             # i am not sure why this is necessary.
                             # seemingly a quirk of backfill runner.
                             # it should be handled elsewhere i think.
+                            # seems the leaf tasks are set SCHEDULED but others not.
                             # but i am not going to look too closely since we need
                             # to nuke the current backfill approach anyway.
                             ti.try_number += 1
