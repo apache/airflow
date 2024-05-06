@@ -1786,6 +1786,11 @@ class TaskInstance(Base, LoggingMixin):
 
     trigger = relationship("Trigger", uselist=False, back_populates="task_instance")
     triggerer_job = association_proxy("trigger", "triggerer_job")
+    queued_by_job = relationship(
+        "Job",
+        back_populates="task_instances_enqueued",
+        primaryjoin="Job.id == foreign(TaskInstance.queued_by_job_id)",
+    )
     dag_run = relationship("DagRun", back_populates="task_instances", lazy="joined", innerjoin=True)
     rendered_task_instance_fields = relationship("RenderedTaskInstanceFields", lazy="noload", uselist=False)
     execution_date = association_proxy("dag_run", "execution_date")
@@ -4007,11 +4012,3 @@ class TaskInstanceNote(TaskInstanceDependencies):
         if self.map_index != -1:
             prefix += f" map_index={self.map_index}"
         return prefix + ">"
-
-
-STATICA_HACK = True
-globals()["kcah_acitats"[::-1].upper()] = False
-if STATICA_HACK:  # pragma: no cover
-    from airflow.jobs.job import Job
-
-    TaskInstance.queued_by_job = relationship(Job)

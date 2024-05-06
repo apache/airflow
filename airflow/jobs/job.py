@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Callable, NoReturn
 
 from sqlalchemy import Column, Index, Integer, String, case, select
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import backref, foreign, relationship
+from sqlalchemy.orm import foreign, relationship
 from sqlalchemy.orm.session import make_transient
 
 from airflow.api_internal.internal_api_call import internal_api_call
@@ -103,8 +103,8 @@ class Job(Base, LoggingMixin):
 
     task_instances_enqueued = relationship(
         "TaskInstance",
+        back_populates="queued_by_job",
         primaryjoin="Job.id == foreign(TaskInstance.queued_by_job_id)",
-        backref=backref("queued_by_job", uselist=False),
     )
 
     dag_runs = relationship(
