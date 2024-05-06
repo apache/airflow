@@ -50,13 +50,14 @@ def security_manager(app_builder):
 @pytest.mark.db_test
 class TestAirflowSecurityManagerV2:
     @pytest.mark.parametrize(
-        "resource_name, auth_manager_methods, expected",
+        "action_name, resource_name, auth_manager_methods, expected",
         [
-            (RESOURCE_VARIABLE, {"is_authorized_variable": True}, True),
-            (RESOURCE_VARIABLE, {"is_authorized_variable": False}, False),
-            (RESOURCE_DOCS_MENU, {"is_authorized_view": True}, True),
-            (RESOURCE_DOCS_MENU, {"is_authorized_view": False}, False),
+            (ACTION_CAN_READ, RESOURCE_VARIABLE, {"is_authorized_variable": True}, True),
+            (ACTION_CAN_READ, RESOURCE_VARIABLE, {"is_authorized_variable": False}, False),
+            (ACTION_CAN_READ, RESOURCE_DOCS_MENU, {"is_authorized_view": True}, True),
+            (ACTION_CAN_READ, RESOURCE_DOCS_MENU, {"is_authorized_view": False}, False),
             (
+                ACTION_CAN_READ,
                 RESOURCE_ADMIN_MENU,
                 {
                     "is_authorized_view": False,
@@ -69,6 +70,7 @@ class TestAirflowSecurityManagerV2:
                 True,
             ),
             (
+                ACTION_CAN_READ,
                 RESOURCE_ADMIN_MENU,
                 {
                     "is_authorized_view": False,
@@ -81,6 +83,7 @@ class TestAirflowSecurityManagerV2:
                 False,
             ),
             (
+                ACTION_CAN_READ,
                 RESOURCE_BROWSE_MENU,
                 {
                     "is_authorized_dag": False,
@@ -89,6 +92,7 @@ class TestAirflowSecurityManagerV2:
                 False,
             ),
             (
+                ACTION_CAN_READ,
                 RESOURCE_BROWSE_MENU,
                 {
                     "is_authorized_dag": False,
@@ -96,11 +100,29 @@ class TestAirflowSecurityManagerV2:
                 },
                 True,
             ),
+            (
+                "can_not_a_default_action",
+                "custom_resource",
+                {"is_authorized_custom_view": False},
+                False,
+            ),
+            (
+                "can_not_a_default_action",
+                "custom_resource",
+                {"is_authorized_custom_view": True},
+                True,
+            ),
         ],
     )
     @mock.patch("airflow.www.security_manager.get_auth_manager")
     def test_has_access(
-        self, mock_get_auth_manager, security_manager, resource_name, auth_manager_methods, expected
+        self,
+        mock_get_auth_manager,
+        security_manager,
+        action_name,
+        resource_name,
+        auth_manager_methods,
+        expected,
     ):
         user = Mock()
         auth_manager = Mock()
@@ -108,7 +130,7 @@ class TestAirflowSecurityManagerV2:
             method = Mock(return_value=method_return)
             getattr(auth_manager, method_name).side_effect = method
             mock_get_auth_manager.return_value = auth_manager
-        result = security_manager.has_access(ACTION_CAN_READ, resource_name, user=user)
+        result = security_manager.has_access(action_name, resource_name, user=user)
         assert result == expected
         if len(auth_manager_methods) > 1 and not expected:
             for method_name in auth_manager_methods:
