@@ -122,7 +122,7 @@ class TestFileTaskLogHandler:
         # We expect set_context generates a file locally.
         log_filename = file_handler.handler.baseFilename
         assert os.path.isfile(log_filename)
-        assert log_filename.endswith("1.log"), log_filename
+        assert log_filename.endswith("0.log"), log_filename
 
         ti.run(ignore_ti_state=True)
 
@@ -161,7 +161,7 @@ class TestFileTaskLogHandler:
             python_callable=task_callable,
         )
         ti = TaskInstance(task=task, run_id=dagrun.run_id)
-
+        ti.try_number += 1
         logger = ti.log
         ti.log.disabled = False
 

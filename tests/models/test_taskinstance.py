@@ -647,7 +647,7 @@ class TestTaskInstance:
         assert ti.state == State.FAILED
         assert ti.try_number == 3
 
-    def test_retry_handling(self, dag_maker):
+    def test_retry_handling(self, dag_maker, session):
         """
         Test that task retries are handled properly
         """
@@ -671,36 +671,44 @@ class TestTaskInstance:
 
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
-        assert ti.try_number == 1
+        assert ti.try_number == 0
+
+        session.get(TaskInstance, ti.key.primary).try_number += 1
+        session.commit()
 
         # first run -- up for retry
         run_with_error(ti)
         assert ti.state == State.UP_FOR_RETRY
         assert ti.try_number == 1
-        assert ti.try_number == 2
+
+        session.get(TaskInstance, ti.key.primary).try_number += 1
+        session.commit()
 
         # second run -- fail
         run_with_error(ti)
         assert ti.state == State.FAILED
         assert ti.try_number == 2
-        assert ti.try_number == 3
 
         # Clear the TI state since you can't run a task with a FAILED state without
         # clearing it first
         dag.clear()
 
+        session.get(TaskInstance, ti.key.primary).try_number += 1
+        session.commit()
+
         # third run -- up for retry
         run_with_error(ti)
         assert ti.state == State.UP_FOR_RETRY
         assert ti.try_number == 3
-        assert ti.try_number == 4
+
+        session.get(TaskInstance, ti.key.primary).try_number += 1
+        session.commit()
 
         # fourth run -- fail
         run_with_error(ti)
         ti.refresh_from_db()
         assert ti.state == State.FAILED
         assert ti.try_number == 4
-        assert ti.try_number == 5
         assert RenderedTaskInstanceFields.get_templated_fields(ti) == expected_rendered_ti_fields
 
     def test_next_retry_datetime(self, dag_maker):
@@ -1003,7 +1011,6 @@ class TestTaskInstance:
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
         assert ti.try_number == 0
-        assert ti.try_number == 1
 
         def run_ti_and_assert(
             run_date,
@@ -1024,7 +1031,6 @@ class TestTaskInstance:
             ti.refresh_from_db()
             assert ti.state == expected_state
             assert ti.try_number == expected_try_number
-            assert ti.try_number == expected_try_number + 1
             assert ti.start_date == expected_start_date
             assert ti.end_date == expected_end_date
             assert ti.duration == expected_duration
@@ -3042,7 +3048,7 @@ class TestTaskInstance:
         assert "task_instance" in context_arg_3
         mock_on_retry_3.assert_not_called()
 
-    def test_handle_failure_updates_queued_task_try_number(self, dag_maker):
+    def test_handle_failure_updates_queued_task_updates_state(self, dag_maker):
         session = settings.Session()
         with dag_maker():
             task = EmptyOperator(task_id="mytask", retries=1)
@@ -3052,11 +3058,8 @@ class TestTaskInstance:
         session.merge(ti)
         session.flush()
         assert ti.state == State.QUEUED
-        assert ti.try_number == 1
         ti.handle_failure("test queued ti", test_mode=True)
         assert ti.state == State.UP_FOR_RETRY
-        # try_number remains at 1
-        assert ti.try_number == 1
 
     @patch.object(Stats, "incr")
     def test_handle_failure_no_task(self, Stats_incr, dag_maker):
@@ -3069,6 +3072,7 @@ class TestTaskInstance:
             task = EmptyOperator(task_id="mytask", retries=1)
         dr = dag_maker.create_dagrun()
         ti = TI(task=task, run_id=dr.run_id)
+        ti.try_number += 1
         ti = session.merge(ti)
         ti.task = None
         ti.state = State.QUEUED
@@ -4707,6 +4711,8 @@ def test__refresh_from_db_should_not_increment_try_number(dag_maker, session):
         BashOperator(task_id="hello", bash_command="hi")
     dag_maker.create_dagrun(state="success")
     ti = session.scalar(select(TaskInstance))
+    session.get(TaskInstance, ti.key.primary).try_number += 1
+    session.commit()
     assert ti.task_id == "hello"  # just to confirm...
     assert ti.try_number == 1  # starts out as 1
     ti.refresh_from_db()
