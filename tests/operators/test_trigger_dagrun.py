@@ -35,7 +35,7 @@ from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.triggers.external_task import DagStateTrigger
 from airflow.utils import timezone
 from airflow.utils.session import create_session
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 pytestmark = pytest.mark.db_test
@@ -321,6 +321,23 @@ class TestDagRunOperator:
 
         with pytest.raises(DagRunAlreadyExists):
             task.run(start_date=logical_date, end_date=logical_date, ignore_ti_state=True)
+
+    def test_trigger_dagrun_with_skip_when_already_exists(self):
+        """Test TriggerDagRunOperator with skip_when_already_exists."""
+        execution_date = DEFAULT_DATE
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            trigger_run_id="dummy_run_id",
+            execution_date=None,
+            reset_dag_run=False,
+            skip_when_already_exists=True,
+            dag=self.dag,
+        )
+        task.run(start_date=execution_date, end_date=execution_date, ignore_ti_state=True)
+        assert task.get_task_instances()[0].state == TaskInstanceState.SUCCESS
+        task.run(start_date=execution_date, end_date=execution_date, ignore_ti_state=True)
+        assert task.get_task_instances()[0].state == TaskInstanceState.SKIPPED
 
     @pytest.mark.parametrize(
         "trigger_run_id, trigger_logical_date, expected_dagruns_count",
