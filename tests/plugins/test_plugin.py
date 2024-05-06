@@ -79,7 +79,12 @@ class PluginTestAppBuilderBaseView(AppBuilderBaseView):
 
 
 v_appbuilder_view = PluginTestAppBuilderBaseView()
-v_appbuilder_package = {"name": "Test View", "category": "Test Plugin", "view": v_appbuilder_view}
+v_appbuilder_package = {
+    "name": "Test View",
+    "category": "Test Plugin",
+    "view": v_appbuilder_view,
+    "label": "Test Label",
+}
 
 v_nomenu_appbuilder_package = {"view": v_appbuilder_view}
 
