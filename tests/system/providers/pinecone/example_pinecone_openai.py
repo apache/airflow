@@ -78,10 +78,6 @@ with DAG(
         task_id="create_index",
         index_name=index_name,
         dimension=1536,
-        replicas=1,
-        shards=1,
-        pods=1,
-        pod_type="p1.x1",
     )
 
     embed_task = OpenAIEmbeddingOperator(

@@ -20,9 +20,9 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.decorators import task, teardown
+from airflow.decorators import setup, task, teardown
 from airflow.providers.cohere.operators.embedding import CohereEmbeddingOperator
-from airflow.providers.pinecone.operators.pinecone import CreatePodIndexOperator, PineconeIngestOperator
+from airflow.providers.pinecone.operators.pinecone import PineconeIngestOperator
 
 index_name = os.getenv("INDEX_NAME", "example-pinecone-index")
 namespace = os.getenv("NAMESPACE", "example-pinecone-index")
@@ -36,15 +36,15 @@ with DAG(
     start_date=datetime(2023, 1, 1),
     catchup=False,
 ) as dag:
-    create_index = CreatePodIndexOperator(
-        task_id="create_index",
-        index_name=index_name,
-        dimension=768,
-        replicas=1,
-        shards=1,
-        pods=1,
-        pod_type="p1.x1",
-    )
+
+    @setup
+    @task
+    def create_index():
+        from airflow.providers.pinecone.hooks.pinecone import PineconeHook
+
+        hook = PineconeHook()
+        pod_spec = hook.get_pod_spec_obj()
+        hook.create_index(index_name=index_name, dimension=768, spec=pod_spec)
 
     embed_task = CohereEmbeddingOperator(
         task_id="embed_task",
@@ -69,7 +69,7 @@ with DAG(
         hook = PineconeHook()
         hook.delete_index(index_name=index_name)
 
-    create_index >> embed_task >> perform_ingestion >> delete_index()
+    create_index() >> embed_task >> perform_ingestion >> delete_index()
 
 from tests.system.utils import get_test_run  # noqa: E402
 
