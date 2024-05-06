@@ -202,7 +202,6 @@ class TestBackfillJob:
         )
 
         run_job(job=job, execute_callable=job_runner._execute)
-
         expected_execution_order = [
             ("runme_0", DEFAULT_DATE),
             ("runme_1", DEFAULT_DATE),
@@ -220,7 +219,7 @@ class TestBackfillJob:
         actual = [(tuple(x), y) for x, y in executor.sorted_tasks]
         expected = [
             (
-                (dag.dag_id, task_id, f"backfill__{when.isoformat()}", 0, -1),
+                (dag.dag_id, task_id, f"backfill__{when.isoformat()}", 1, -1),
                 (State.SUCCESS, None),
             )
             for (task_id, when) in expected_execution_order
@@ -883,12 +882,12 @@ class TestBackfillJob:
         dag_maker.create_dagrun(state=None)
 
         executor = MockExecutor(parallelism=16)
-        executor.mock_task_results[TaskInstanceKey(dag.dag_id, task1.task_id, DEFAULT_DATE, try_number=1)] = (
-            State.UP_FOR_RETRY
-        )
-        executor.mock_task_results[TaskInstanceKey(dag.dag_id, task1.task_id, DEFAULT_DATE, try_number=2)] = (
-            State.UP_FOR_RETRY
-        )
+        executor.mock_task_results[
+            TaskInstanceKey(dag.dag_id, task1.task_id, DEFAULT_DATE, try_number=1)
+        ] = State.UP_FOR_RETRY
+        executor.mock_task_results[
+            TaskInstanceKey(dag.dag_id, task1.task_id, DEFAULT_DATE, try_number=2)
+        ] = State.UP_FOR_RETRY
         job = Job(executor=executor)
         job_runner = BackfillJobRunner(
             job=job,
@@ -911,9 +910,9 @@ class TestBackfillJob:
         dr = dag_maker.create_dagrun(state=None)
 
         executor = MockExecutor(parallelism=16)
-        executor.mock_task_results[TaskInstanceKey(dag.dag_id, task1.task_id, dr.run_id, try_number=0)] = (
-            State.UP_FOR_RETRY
-        )
+        executor.mock_task_results[
+            TaskInstanceKey(dag.dag_id, task1.task_id, dr.run_id, try_number=0)
+        ] = State.UP_FOR_RETRY
         executor.mock_task_fail(dag.dag_id, task1.task_id, dr.run_id, try_number=1)
         job = Job(executor=executor)
         job_runner = BackfillJobRunner(
@@ -1611,10 +1610,6 @@ class TestBackfillJob:
 
         # test for none
         ti.set_state(State.NONE, session)
-        # Setting ti.try_number = 0 brings us to ti.try_number==1
-        # so that the in-memory key access will work fine
-        ti.try_number = 0
-        assert ti.try_number == 1  # see ti.try_number property in taskinstance module
         session.merge(ti)
         session.commit()
         ti_status.running[ti.key] = ti
@@ -1956,20 +1951,20 @@ class TestBackfillJob:
             )
         assert ti_status.failed == set()
         assert ti_status.succeeded == {
-            TaskInstanceKey(dag_id=dr.dag_id, task_id="consumer", run_id="test", try_number=1, map_index=0),
-            TaskInstanceKey(dag_id=dr.dag_id, task_id="consumer", run_id="test", try_number=1, map_index=1),
-            TaskInstanceKey(dag_id=dr.dag_id, task_id="consumer", run_id="test", try_number=1, map_index=2),
+            TaskInstanceKey(dag_id=dr.dag_id, task_id="consumer", run_id="test", try_number=0, map_index=0),
+            TaskInstanceKey(dag_id=dr.dag_id, task_id="consumer", run_id="test", try_number=0, map_index=1),
+            TaskInstanceKey(dag_id=dr.dag_id, task_id="consumer", run_id="test", try_number=0, map_index=2),
             TaskInstanceKey(
-                dag_id=dr.dag_id, task_id="consumer_literal", run_id="test", try_number=1, map_index=0
+                dag_id=dr.dag_id, task_id="consumer_literal", run_id="test", try_number=0, map_index=0
             ),
             TaskInstanceKey(
-                dag_id=dr.dag_id, task_id="consumer_literal", run_id="test", try_number=1, map_index=1
+                dag_id=dr.dag_id, task_id="consumer_literal", run_id="test", try_number=0, map_index=1
             ),
             TaskInstanceKey(
-                dag_id=dr.dag_id, task_id="consumer_literal", run_id="test", try_number=1, map_index=2
+                dag_id=dr.dag_id, task_id="consumer_literal", run_id="test", try_number=0, map_index=2
             ),
             TaskInstanceKey(
-                dag_id=dr.dag_id, task_id="make_arg_lists", run_id="test", try_number=1, map_index=-1
+                dag_id=dr.dag_id, task_id="make_arg_lists", run_id="test", try_number=0, map_index=-1
             ),
         }
 
