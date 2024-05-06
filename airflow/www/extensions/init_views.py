@@ -142,10 +142,11 @@ def init_plugins(app):
     appbuilder = app.appbuilder
 
     for view in plugins_manager.flask_appbuilder_views:
-        name = view.get("name")
+        name = view.pop("name", None)
         if name:
             log.debug("Adding view %s with menu", name)
-            appbuilder.add_view(view["view"], name, category=view["category"])
+            baseview = view.pop("view")
+            appbuilder.add_view(baseview, name, **view)
         else:
             # if 'name' key is missing, intent is to add view without menu
             log.debug("Adding view %s without menu", str(type(view["view"])))
