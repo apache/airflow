@@ -2849,20 +2849,7 @@ class TestTaskInstance:
             ti.refresh_from_db()
             assert ti.state == State.SUCCESS
 
-    @pytest.mark.parametrize(
-        "finished_state",
-        [
-            State.SUCCESS,
-            State.UP_FOR_RETRY,
-            State.FAILED,
-        ],
-    )
-    @patch("logging.Logger.exception")
-    def test_finished_callbacks_handle_and_log_exception(
-        self, mock_log, finished_state, create_task_instance
-    ):
-        called = completed = False
-
+    def test_finished_callbacks_handle_and_log_exception(self, caplog):
         def on_finish_callable(context):
             nonlocal called, completed
             called = True
@@ -2870,14 +2857,16 @@ class TestTaskInstance:
             completed = True
 
         for callback_input in [[on_finish_callable], on_finish_callable]:
+            called = completed = False
+            caplog.clear()
             _run_finished_callback(callbacks=callback_input, context={})
 
             assert called
             assert not completed
             callback_name = callback_input[0] if isinstance(callback_input, list) else callback_input
             callback_name = qualname(callback_name).split(".")[-1]
-            expected_message = "Error when executing %s callback"
-            mock_log.assert_called_with(expected_message, callback_name)
+            assert "Executing on_finish_callable callback" in caplog.text
+            assert "Error when executing on_finish_callable callback" in caplog.text
 
     @provide_session
     def test_handle_failure(self, create_dummy_dag, session=None):
@@ -2890,7 +2879,9 @@ class TestTaskInstance:
         get_listener_manager().pm.hook.on_task_instance_failed = listener_callback_on_error
 
         mock_on_failure_1 = mock.MagicMock()
+        mock_on_failure_1.__name__ = "mock_on_failure_1"
         mock_on_retry_1 = mock.MagicMock()
+        mock_on_retry_1.__name__ = "mock_on_retry_1"
         dag, task1 = create_dummy_dag(
             dag_id="test_handle_failure",
             schedule=None,
@@ -2927,7 +2918,9 @@ class TestTaskInstance:
         mock_on_retry_1.assert_not_called()
 
         mock_on_failure_2 = mock.MagicMock()
+        mock_on_failure_2.__name__ = "mock_on_failure_2"
         mock_on_retry_2 = mock.MagicMock()
+        mock_on_retry_2.__name__ = "mock_on_retry_2"
         task2 = EmptyOperator(
             task_id="test_handle_failure_on_retry",
             on_failure_callback=mock_on_failure_2,
@@ -2949,7 +2942,9 @@ class TestTaskInstance:
 
         # test the scenario where normally we would retry but have been asked to fail
         mock_on_failure_3 = mock.MagicMock()
+        mock_on_failure_3.__name__ = "mock_on_failure_3"
         mock_on_retry_3 = mock.MagicMock()
+        mock_on_retry_3.__name__ = "mock_on_retry_3"
         task3 = EmptyOperator(
             task_id="test_handle_failure_on_force_fail",
             on_failure_callback=mock_on_failure_3,
@@ -3465,6 +3460,7 @@ class TestTaskInstance:
             raise AirflowSkipException
 
         callback_function = mock.MagicMock()
+        callback_function.__name__ = "callback_function"
 
         with dag_maker(dag_id="test_skipped_task"):
             task = PythonOperator(
@@ -3560,6 +3556,7 @@ def test_sensor_timeout(mode, retries, dag_maker):
         raise AirflowSensorTimeout
 
     mock_on_failure = mock.MagicMock()
+    mock_on_failure.__name__ = "mock_on_failure"
     with dag_maker(dag_id=f"test_sensor_timeout_{mode}_{retries}"):
         PythonSensor(
             task_id="test_raise_sensor_timeout",
@@ -3588,6 +3585,7 @@ def test_mapped_sensor_timeout(mode, retries, dag_maker):
         raise AirflowSensorTimeout
 
     mock_on_failure = mock.MagicMock()
+    mock_on_failure.__name__ = "mock_on_failure"
     with dag_maker(dag_id=f"test_sensor_timeout_{mode}_{retries}"):
         PythonSensor.partial(
             task_id="test_raise_sensor_timeout",

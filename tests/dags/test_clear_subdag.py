@@ -37,7 +37,11 @@ def create_subdag_opt(main_dag):
         max_active_tasks=2,
     )
     BashOperator(bash_command="echo 1", task_id="daily_job_subdag_task", dag=subdag)
-    with warnings.catch_warnings(record=True):
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message=r"This class is deprecated\. Please use `airflow\.utils\.task_group\.TaskGroup`\.",
+        )
         return SubDagOperator(
             task_id=subdag_name,
             subdag=subdag,

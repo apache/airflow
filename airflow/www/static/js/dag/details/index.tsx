@@ -77,8 +77,6 @@ interface Props {
   hoveredTaskState?: string | null;
   gridScrollRef: React.RefObject<HTMLDivElement>;
   ganttScrollRef: React.RefObject<HTMLDivElement>;
-  isFullScreen?: boolean;
-  toggleFullScreen?: () => void;
 }
 
 const tabToIndex = (tab?: string) => {
@@ -150,8 +148,6 @@ const Details = ({
   hoveredTaskState,
   gridScrollRef,
   ganttScrollRef,
-  isFullScreen,
-  toggleFullScreen,
 }: Props) => {
   const {
     selected: { runId, taskId, mapIndex },
@@ -241,12 +237,7 @@ const Details = ({
 
   return (
     <Flex flexDirection="column" height="100%">
-      <Flex
-        alignItems="center"
-        justifyContent="space-between"
-        flexWrap="wrap"
-        ml={6}
-      >
+      <Flex alignItems="center" justifyContent="space-between" flexWrap="wrap">
         <Header
           mapIndex={
             mappedTaskInstance?.renderedMapIndex || mappedTaskInstance?.mapIndex
@@ -418,8 +409,6 @@ const Details = ({
               openGroupIds={openGroupIds}
               onToggleGroups={onToggleGroups}
               hoveredTaskState={hoveredTaskState}
-              isFullScreen={isFullScreen}
-              toggleFullScreen={toggleFullScreen}
             />
           </TabPanel>
           <TabPanel p={0} height="100%">
@@ -469,8 +458,6 @@ const Details = ({
                     ? undefined
                     : instance.state
                 }
-                isFullScreen={isFullScreen}
-                toggleFullScreen={toggleFullScreen}
               />
             </TabPanel>
           )}

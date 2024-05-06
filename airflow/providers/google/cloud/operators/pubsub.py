@@ -42,6 +42,7 @@ from google.cloud.pubsub_v1.types import (
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.providers.google.cloud.links.pubsub import PubSubSubscriptionLink, PubSubTopicLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
@@ -124,7 +125,7 @@ class PubSubCreateTopicOperator(GoogleCloudBaseOperator):
         self,
         *,
         topic: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         fail_if_exists: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         labels: dict[str, str] | None = None,
@@ -310,7 +311,7 @@ class PubSubCreateSubscriptionOperator(GoogleCloudBaseOperator):
         self,
         *,
         topic: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         subscription: str | None = None,
         subscription_project_id: str | None = None,
         ack_deadline_secs: int = 10,
@@ -452,7 +453,7 @@ class PubSubDeleteTopicOperator(GoogleCloudBaseOperator):
         self,
         *,
         topic: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         fail_if_not_exists: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         retry: Retry | _MethodDefault = DEFAULT,
@@ -552,7 +553,7 @@ class PubSubDeleteSubscriptionOperator(GoogleCloudBaseOperator):
         self,
         *,
         subscription: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         fail_if_not_exists: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         retry: Retry | _MethodDefault = DEFAULT,
@@ -654,7 +655,7 @@ class PubSubPublishMessageOperator(GoogleCloudBaseOperator):
         *,
         topic: str,
         messages: list,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,

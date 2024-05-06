@@ -68,7 +68,11 @@ with DAG(
         task_id="start",
     )
 
-    with warnings.catch_warnings(record=True):
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message=r"This class is deprecated\. Please use `airflow\.utils\.task_group\.TaskGroup`\.",
+        )
         section_1 = SubDagOperator(
             task_id="section-1",
             subdag=subdag(DAG_NAME, "section-1", DEFAULT_TASK_ARGS),
