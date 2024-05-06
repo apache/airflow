@@ -3480,8 +3480,8 @@ def test_set_task_group_state(run_id, execution_date, session, dag_maker):
     assert dagrun.get_state() == State.QUEUED
 
     assert {t.key for t in altered} == {
-        ("test_set_task_group_state", "section_1.task_1", dagrun.run_id, 1, -1),
-        ("test_set_task_group_state", "section_1.task_3", dagrun.run_id, 1, -1),
+        ("test_set_task_group_state", "section_1.task_1", dagrun.run_id, 0, -1),
+        ("test_set_task_group_state", "section_1.task_3", dagrun.run_id, 0, -1),
     }
 
 

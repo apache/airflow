@@ -68,6 +68,13 @@ class TestClearTasks:
         ti1.run()
 
         with create_session() as session:
+            # do the incrementing of try_number ordinarily handled by scheduler
+            ti0.try_number += 1
+            ti1.try_number += 1
+            session.merge(ti0)
+            session.merge(ti1)
+            session.commit()
+
             # we use order_by(task_id) here because for the test DAG structure of ours
             # this is equivalent to topological sort. It would not work in general case
             # but it works for our case because we specifically constructed test DAGS
@@ -79,10 +86,10 @@ class TestClearTasks:
         ti1.refresh_from_db()
         # Next try to run will be try 2
         assert ti0.state is None
-        assert ti0.try_number == 2
+        assert ti0.try_number == 1
         assert ti0.max_tries == 1
         assert ti1.state is None
-        assert ti1.try_number == 2
+        assert ti1.try_number == 1
         assert ti1.max_tries == 3
 
     def test_clear_task_instances_external_executor_id(self, dag_maker):
@@ -279,6 +286,14 @@ class TestClearTasks:
         ti0.refresh_from_task(task0)
         ti1.refresh_from_task(task1)
 
+        with create_session() as session:
+            # do the incrementing of try_number ordinarily handled by scheduler
+            ti0.try_number += 1
+            ti1.try_number += 1
+            session.merge(ti0)
+            session.merge(ti1)
+            session.commit()
+
         ti0.run()
         ti1.run()
 
@@ -298,10 +313,9 @@ class TestClearTasks:
         # When no task is found, max_tries will be maximum of original max_tries or try_number.
         ti0.refresh_from_db()
         ti1.refresh_from_db()
-        # Next try to run will be try 2
-        assert ti0.try_number == 2
+        assert ti0.try_number == 1
         assert ti0.max_tries == 1
-        assert ti1.try_number == 2
+        assert ti1.try_number == 1
         assert ti1.max_tries == 2
 
     def test_clear_task_instances_without_dag(self, dag_maker):
@@ -323,6 +337,14 @@ class TestClearTasks:
         ti0.refresh_from_task(task0)
         ti1.refresh_from_task(task1)
 
+        with create_session() as session:
+            # do the incrementing of try_number ordinarily handled by scheduler
+            ti0.try_number += 1
+            ti1.try_number += 1
+            session.merge(ti0)
+            session.merge(ti1)
+            session.commit()
+
         ti0.run()
         ti1.run()
 
@@ -337,10 +359,9 @@ class TestClearTasks:
         # When no DAG is found, max_tries will be maximum of original max_tries or try_number.
         ti0.refresh_from_db()
         ti1.refresh_from_db()
-        # Next try to run will be try 2
-        assert ti0.try_number == 2
+        assert ti0.try_number == 1
         assert ti0.max_tries == 1
-        assert ti1.try_number == 2
+        assert ti1.try_number == 1
         assert ti1.max_tries == 2
 
     def test_clear_task_instances_without_dag_param(self, dag_maker, session):
@@ -365,6 +386,14 @@ class TestClearTasks:
         ti0.refresh_from_task(task0)
         ti1.refresh_from_task(task1)
 
+        with create_session() as session:
+            # do the incrementing of try_number ordinarily handled by scheduler
+            ti0.try_number += 1
+            ti1.try_number += 1
+            session.merge(ti0)
+            session.merge(ti1)
+            session.commit()
+
         ti0.run(session=session)
         ti1.run(session=session)
 
@@ -377,10 +406,9 @@ class TestClearTasks:
 
         ti0.refresh_from_db(session=session)
         ti1.refresh_from_db(session=session)
-        # Next try to run will be try 2
-        assert ti0.try_number == 2
+        assert ti0.try_number == 1
         assert ti0.max_tries == 1
-        assert ti1.try_number == 2
+        assert ti1.try_number == 1
         assert ti1.max_tries == 3
 
     def test_clear_task_instances_in_multiple_dags(self, dag_maker, session):
@@ -418,6 +446,14 @@ class TestClearTasks:
         ti0.refresh_from_task(task0)
         ti1.refresh_from_task(task1)
 
+        with create_session() as session:
+            # do the incrementing of try_number ordinarily handled by scheduler
+            ti0.try_number += 1
+            ti1.try_number += 1
+            session.merge(ti0)
+            session.merge(ti1)
+            session.commit()
+
         ti0.run(session=session)
         ti1.run(session=session)
 
@@ -426,10 +462,9 @@ class TestClearTasks:
 
         ti0.refresh_from_db(session=session)
         ti1.refresh_from_db(session=session)
-        # Next try to run will be try 2
-        assert ti0.try_number == 2
+        assert ti0.try_number == 1
         assert ti0.max_tries == 1
-        assert ti1.try_number == 2
+        assert ti1.try_number == 1
         assert ti1.max_tries == 3
 
     def test_clear_task_instances_with_task_reschedule(self, dag_maker):
@@ -451,6 +486,15 @@ class TestClearTasks:
         ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
         ti0.refresh_from_task(task0)
         ti1.refresh_from_task(task1)
+
+        with create_session() as session:
+            # do the incrementing of try_number ordinarily handled by scheduler
+            ti0.try_number += 1
+            ti1.try_number += 1
+            session.merge(ti0)
+            session.merge(ti1)
+            session.commit()
+
         ti0.run()
         ti1.run()
 

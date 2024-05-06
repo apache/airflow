@@ -3180,7 +3180,7 @@ class TestSchedulerJob:
         # executing task.
         run_with_error(ti, ignore_ti_state=True)
         assert ti.state == State.UP_FOR_RETRY
-        assert ti.try_number == 2
+        assert ti.try_number == 1
 
         with create_session() as session:
             ti.refresh_from_db(lock_for_update=True, session=session)
@@ -3191,6 +3191,7 @@ class TestSchedulerJob:
         executor.do_update = True
         do_schedule()
         ti.refresh_from_db()
+        assert ti.try_number == 2
         assert ti.state == State.SUCCESS
 
     def test_retry_handling_job(self):

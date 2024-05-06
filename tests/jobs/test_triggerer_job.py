@@ -152,7 +152,7 @@ def test_trigger_logging_sensitive_info(session, caplog):
     # give it more time for the trigger event to write the log.
     time.sleep(0.5)
 
-    assert "test_dag/test_run/sensitive_arg_task/-1/1 (ID 1) starting" in caplog.text
+    assert "test_dag/test_run/sensitive_arg_task/-1/0 (ID 1) starting" in caplog.text
     assert "some_password" not in caplog.text
 
 
