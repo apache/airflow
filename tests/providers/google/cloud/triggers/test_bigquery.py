@@ -65,11 +65,17 @@ TEST_IMPERSONATION_CHAIN = "TEST_SERVICE_ACCOUNT"
 TEST_HOOK_PARAMS: dict[str, Any] = {}
 TEST_PARTITION_ID = "1234"
 TEST_SELECTED_FIELDS = "f0_,f1_"
+TEST_DAG_ID = "test_dag_id"
+TEST_TASK_ID = "test_task_id"
+TEST_RUN_ID = "test_run_id"
 
 
 @pytest.fixture
 def insert_job_trigger():
     return BigQueryInsertJobTrigger(
+        dag_id=TEST_DAG_ID,
+        task_id=TEST_TASK_ID,
+        run_id=TEST_RUN_ID,
         conn_id=TEST_CONN_ID,
         job_id=TEST_JOB_ID,
         project_id=TEST_GCP_PROJECT_ID,
@@ -84,6 +90,9 @@ def insert_job_trigger():
 @pytest.fixture
 def get_data_trigger():
     return BigQueryGetDataTrigger(
+        dag_id=TEST_DAG_ID,
+        task_id=TEST_TASK_ID,
+        run_id=TEST_RUN_ID,
         conn_id=TEST_CONN_ID,
         job_id=TEST_JOB_ID,
         project_id=TEST_GCP_PROJECT_ID,
@@ -112,6 +121,9 @@ def table_existence_trigger():
 @pytest.fixture
 def interval_check_trigger():
     return BigQueryIntervalCheckTrigger(
+        dag_id=TEST_DAG_ID,
+        task_id=TEST_TASK_ID,
+        run_id=TEST_RUN_ID,
         conn_id=TEST_CONN_ID,
         first_job_id=TEST_FIRST_JOB_ID,
         second_job_id=TEST_SECOND_JOB_ID,
@@ -132,6 +144,9 @@ def interval_check_trigger():
 @pytest.fixture
 def check_trigger():
     return BigQueryCheckTrigger(
+        dag_id=TEST_DAG_ID,
+        task_id=TEST_TASK_ID,
+        run_id=TEST_RUN_ID,
         conn_id=TEST_CONN_ID,
         job_id=TEST_JOB_ID,
         project_id=TEST_GCP_PROJECT_ID,
@@ -146,6 +161,9 @@ def check_trigger():
 @pytest.fixture
 def value_check_trigger():
     return BigQueryValueCheckTrigger(
+        dag_id=TEST_DAG_ID,
+        task_id=TEST_TASK_ID,
+        run_id=TEST_RUN_ID,
         conn_id=TEST_CONN_ID,
         pass_value=TEST_PASS_VALUE,
         job_id=TEST_JOB_ID,
@@ -167,6 +185,9 @@ class TestBigQueryInsertJobTrigger:
         classpath, kwargs = insert_job_trigger.serialize()
         assert classpath == "airflow.providers.google.cloud.triggers.bigquery.BigQueryInsertJobTrigger"
         assert kwargs == {
+            "dag_id": TEST_DAG_ID,
+            "task_id": TEST_TASK_ID,
+            "run_id": TEST_RUN_ID,
             "cancel_on_kill": True,
             "conn_id": TEST_CONN_ID,
             "job_id": TEST_JOB_ID,
@@ -239,13 +260,15 @@ class TestBigQueryInsertJobTrigger:
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.cancel_job")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
+    @mock.patch("airflow.providers.google.cloud.triggers.bigquery.BigQueryInsertJobTrigger.safe_to_cancel")
     async def test_bigquery_insert_job_trigger_cancellation(
-        self, mock_get_job_status, mock_cancel_job, caplog, insert_job_trigger
+        self, mock_get_task_instance, mock_get_job_status, mock_cancel_job, caplog, insert_job_trigger
     ):
         """
         Test that BigQueryInsertJobTrigger handles cancellation correctly, logs the appropriate message,
         and conditionally cancels the job based on the `cancel_on_kill` attribute.
         """
+        mock_get_task_instance.return_value = True
         insert_job_trigger.cancel_on_kill = True
         insert_job_trigger.job_id = "1234"
 
@@ -271,6 +294,42 @@ class TestBigQueryInsertJobTrigger:
         ), "Expected messages about task status or cancellation not found in log."
         mock_cancel_job.assert_awaited_once()
 
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.cancel_job")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
+    @mock.patch("airflow.providers.google.cloud.triggers.bigquery.BigQueryInsertJobTrigger.safe_to_cancel")
+    async def test_bigquery_insert_job_trigger_cancellation_unsafe_cancellation(
+        self, mock_safe_to_cancel, mock_get_job_status, mock_cancel_job, caplog, insert_job_trigger
+    ):
+        """
+        Test that BigQueryInsertJobTrigger logs the appropriate message and does not cancel the job
+        if safe_to_cancel returns False even when the task is cancelled.
+        """
+        mock_safe_to_cancel.return_value = False
+        insert_job_trigger.cancel_on_kill = True
+        insert_job_trigger.job_id = "1234"
+
+        # Simulate the initial job status as running
+        mock_get_job_status.side_effect = [
+            {"status": "running", "message": "Job is still running"},
+            asyncio.CancelledError(),
+            {"status": "running", "message": "Job is still running after cancellation"},
+        ]
+
+        caplog.set_level(logging.INFO)
+
+        try:
+            async for _ in insert_job_trigger.run():
+                pass
+        except asyncio.CancelledError:
+            pass
+
+        assert "Task was killed" in caplog.text, "Expected message about task status not found in log."
+        assert (
+            "Skipping to cancel job" in caplog.text
+        ), "Expected message about skipping cancellation not found in log."
+        assert mock_get_job_status.call_count == 2, "Job status should be checked multiple times"
+
 
 class TestBigQueryGetDataTrigger:
     def test_bigquery_get_data_trigger_serialization(self, get_data_trigger):
@@ -279,6 +338,9 @@ class TestBigQueryGetDataTrigger:
         classpath, kwargs = get_data_trigger.serialize()
         assert classpath == "airflow.providers.google.cloud.triggers.bigquery.BigQueryGetDataTrigger"
         assert kwargs == {
+            "dag_id": TEST_DAG_ID,
+            "task_id": TEST_TASK_ID,
+            "run_id": TEST_RUN_ID,
             "as_dict": False,
             "conn_id": TEST_CONN_ID,
             "impersonation_chain": TEST_IMPERSONATION_CHAIN,
@@ -439,6 +501,9 @@ class TestBigQueryCheckTrigger:
         classpath, kwargs = check_trigger.serialize()
         assert classpath == "airflow.providers.google.cloud.triggers.bigquery.BigQueryCheckTrigger"
         assert kwargs == {
+            "dag_id": TEST_DAG_ID,
+            "task_id": TEST_TASK_ID,
+            "run_id": TEST_RUN_ID,
             "conn_id": TEST_CONN_ID,
             "impersonation_chain": TEST_IMPERSONATION_CHAIN,
             "job_id": TEST_JOB_ID,
@@ -447,6 +512,7 @@ class TestBigQueryCheckTrigger:
             "table_id": TEST_TABLE_ID,
             "location": None,
             "poll_interval": POLLING_PERIOD_SECONDS,
+            "cancel_on_kill": True,
         }
 
     @pytest.mark.asyncio
@@ -521,6 +587,9 @@ class TestBigQueryIntervalCheckTrigger:
         classpath, kwargs = interval_check_trigger.serialize()
         assert classpath == "airflow.providers.google.cloud.triggers.bigquery.BigQueryIntervalCheckTrigger"
         assert kwargs == {
+            "dag_id": TEST_DAG_ID,
+            "task_id": TEST_TASK_ID,
+            "run_id": TEST_RUN_ID,
             "conn_id": TEST_CONN_ID,
             "impersonation_chain": TEST_IMPERSONATION_CHAIN,
             "first_job_id": TEST_FIRST_JOB_ID,
@@ -615,6 +684,9 @@ class TestBigQueryValueCheckTrigger:
 
         assert classpath == "airflow.providers.google.cloud.triggers.bigquery.BigQueryValueCheckTrigger"
         assert kwargs == {
+            "dag_id": TEST_DAG_ID,
+            "task_id": TEST_TASK_ID,
+            "run_id": TEST_RUN_ID,
             "conn_id": TEST_CONN_ID,
             "impersonation_chain": TEST_IMPERSONATION_CHAIN,
             "pass_value": TEST_PASS_VALUE,
@@ -690,6 +762,9 @@ class TestBigQueryValueCheckTrigger:
         mock_job_status.side_effect = Exception("Test exception")
 
         trigger = BigQueryValueCheckTrigger(
+            dag_id=TEST_DAG_ID,
+            task_id=TEST_TASK_ID,
+            run_id=TEST_RUN_ID,
             conn_id=TEST_CONN_ID,
             sql=TEST_SQL_QUERY,
             pass_value=TEST_PASS_VALUE,

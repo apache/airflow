@@ -17,19 +17,29 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, AsyncIterator, Sequence, SupportsAbs
+from typing import TYPE_CHECKING, Any, AsyncIterator, Sequence, SupportsAbs
 
 from aiohttp import ClientSession
 from aiohttp.client_exceptions import ClientResponseError
 
+from airflow.exceptions import AirflowException
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryAsyncHook, BigQueryTableAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.utils.session import provide_session
+from airflow.utils.state import TaskInstanceState
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 
 class BigQueryInsertJobTrigger(BaseTrigger):
     """
     BigQueryInsertJobTrigger run on the trigger worker to perform insert operation.
 
+    :param dag_id: The DAG ID.
+    :param task_id: The task ID.
+    :param run_id: The run ID.
     :param conn_id: Reference to google cloud connection id
     :param job_id:  The ID of the job. It will be suffixed with hash of job configuration
     :param project_id: Google Cloud Project where the job is running
@@ -49,6 +59,9 @@ class BigQueryInsertJobTrigger(BaseTrigger):
 
     def __init__(
         self,
+        dag_id: str,
+        task_id: str,
+        run_id: str | None,
         conn_id: str,
         job_id: str | None,
         project_id: str,
@@ -61,6 +74,9 @@ class BigQueryInsertJobTrigger(BaseTrigger):
     ):
         super().__init__()
         self.log.info("Using the connection  %s .", conn_id)
+        self.dag_id = dag_id
+        self.task_id = task_id
+        self.run_id = run_id
         self.conn_id = conn_id
         self.job_id = job_id
         self._job_conn = None
@@ -77,6 +93,9 @@ class BigQueryInsertJobTrigger(BaseTrigger):
         return (
             "airflow.providers.google.cloud.triggers.bigquery.BigQueryInsertJobTrigger",
             {
+                "dag_id": self.dag_id,
+                "task_id": self.task_id,
+                "run_id": self.run_id,
                 "conn_id": self.conn_id,
                 "job_id": self.job_id,
                 "dataset_id": self.dataset_id,
@@ -88,6 +107,38 @@ class BigQueryInsertJobTrigger(BaseTrigger):
                 "cancel_on_kill": self.cancel_on_kill,
             },
         )
+
+    @provide_session
+    def get_task_instance(self, session: Session) -> TaskInstance:
+        """
+        Get the task instance for the current task.
+
+        :param session: Sqlalchemy session
+        """
+        query = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == self.dag_id,
+            TaskInstance.task_id == self.task_id,
+            TaskInstance.run_id == self.run_id,
+        )
+        task_instance = query.one_or_none()
+        if task_instance is None:
+            raise AirflowException(
+                f"TaskInstance {self.dag_id}.{self.task_id} with run_id {self.run_id} not found"
+            )
+        return task_instance
+
+    def safe_to_cancel(self) -> bool:
+        """
+        Whether it is safe to cancel the external job which is being executed by this trigger.
+
+        This is to avoid the case that `asyncio.CancelledError` is called because the trigger itself is stopped.
+        Because in those cases, we should NOT cancel the external job.
+        """
+        task_instance = self.get_task_instance()  # type: ignore[call-arg]
+        return task_instance.state not in {
+            TaskInstanceState.RUNNING,
+            TaskInstanceState.DEFERRED,
+        }
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
         """Get current job execution status and yields a TriggerEvent."""
@@ -118,7 +169,7 @@ class BigQueryInsertJobTrigger(BaseTrigger):
                     await asyncio.sleep(self.poll_interval)
         except asyncio.CancelledError:
             self.log.info("Task was killed.")
-            if self.job_id and self.cancel_on_kill:
+            if self.job_id and self.cancel_on_kill and self.safe_to_cancel():
                 await hook.cancel_job(  # type: ignore[union-attr]
                     job_id=self.job_id, project_id=self.project_id, location=self.location
                 )
@@ -140,6 +191,9 @@ class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
         return (
             "airflow.providers.google.cloud.triggers.bigquery.BigQueryCheckTrigger",
             {
+                "dag_id": self.dag_id,
+                "task_id": self.task_id,
+                "run_id": self.run_id,
                 "conn_id": self.conn_id,
                 "job_id": self.job_id,
                 "dataset_id": self.dataset_id,
@@ -148,6 +202,7 @@ class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
                 "table_id": self.table_id,
                 "poll_interval": self.poll_interval,
                 "impersonation_chain": self.impersonation_chain,
+                "cancel_on_kill": self.cancel_on_kill,
             },
         )
 
@@ -201,12 +256,26 @@ class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
     """
     BigQueryGetDataTrigger run on the trigger worker, inherits from BigQueryInsertJobTrigger class.
 
+    :param dag_id: The DAG ID.
+    :param task_id: The task ID.
+    :param run_id: The run ID.
     :param as_dict: if True returns the result as a list of dictionaries, otherwise as list of lists
         (default: False).
     """
 
-    def __init__(self, as_dict: bool = False, selected_fields: str | None = None, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(
+        self,
+        dag_id: str,
+        task_id: str,
+        run_id: str | None,
+        as_dict: bool = False,
+        selected_fields: str | None = None,
+        **kwargs,
+    ):
+        super().__init__(dag_id=dag_id, task_id=task_id, run_id=run_id, **kwargs)
+        self.dag_id = dag_id
+        self.task_id = task_id
+        self.run_id = run_id
         self.as_dict = as_dict
         self.selected_fields = selected_fields
 
@@ -215,6 +284,9 @@ class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
         return (
             "airflow.providers.google.cloud.triggers.bigquery.BigQueryGetDataTrigger",
             {
+                "dag_id": self.dag_id,
+                "task_id": self.task_id,
+                "run_id": self.run_id,
                 "conn_id": self.conn_id,
                 "job_id": self.job_id,
                 "dataset_id": self.dataset_id,
@@ -270,6 +342,9 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
     """
     BigQueryIntervalCheckTrigger run on the trigger worker, inherits from BigQueryInsertJobTrigger class.
 
+    :param dag_id: The DAG ID.
+    :param task_id: The task ID.
+    :param run_id: The run ID.
     :param conn_id: Reference to google cloud connection id
     :param first_job_id:  The ID of the job 1 performed
     :param second_job_id:  The ID of the job 2 performed
@@ -296,6 +371,9 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
 
     def __init__(
         self,
+        dag_id: str,
+        task_id: str,
+        run_id: str | None,
         conn_id: str,
         first_job_id: str,
         second_job_id: str,
@@ -313,6 +391,9 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
         impersonation_chain: str | Sequence[str] | None = None,
     ):
         super().__init__(
+            dag_id=dag_id,
+            task_id=task_id,
+            run_id=run_id,
             conn_id=conn_id,
             job_id=first_job_id,
             project_id=project_id,
@@ -322,6 +403,9 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
             poll_interval=poll_interval,
             impersonation_chain=impersonation_chain,
         )
+        self.dag_id = dag_id
+        self.task_id = task_id
+        self.run_id = run_id
         self.conn_id = conn_id
         self.first_job_id = first_job_id
         self.second_job_id = second_job_id
@@ -338,6 +422,9 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
         return (
             "airflow.providers.google.cloud.triggers.bigquery.BigQueryIntervalCheckTrigger",
             {
+                "dag_id": self.dag_id,
+                "task_id": self.task_id,
+                "run_id": self.run_id,
                 "conn_id": self.conn_id,
                 "first_job_id": self.first_job_id,
                 "second_job_id": self.second_job_id,
@@ -434,6 +521,9 @@ class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
     """
     BigQueryValueCheckTrigger run on the trigger worker, inherits from BigQueryInsertJobTrigger class.
 
+    :param dag_id: The DAG ID.
+    :param task_id: The task ID.
+    :param run_id: The run ID.
     :param conn_id: Reference to google cloud connection id
     :param sql: the sql to be executed
     :param pass_value: pass value
@@ -456,6 +546,9 @@ class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
 
     def __init__(
         self,
+        dag_id: str,
+        task_id: str,
+        run_id: str | None,
         conn_id: str,
         sql: str,
         pass_value: int | float | str,
@@ -469,6 +562,9 @@ class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
         impersonation_chain: str | Sequence[str] | None = None,
     ):
         super().__init__(
+            dag_id=dag_id,
+            task_id=task_id,
+            run_id=run_id,
             conn_id=conn_id,
             job_id=job_id,
             project_id=project_id,
@@ -478,6 +574,9 @@ class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
             poll_interval=poll_interval,
             impersonation_chain=impersonation_chain,
         )
+        self.dag_id = dag_id
+        self.task_id = task_id
+        self.run_id = run_id
         self.sql = sql
         self.pass_value = pass_value
         self.tolerance = tolerance
@@ -487,6 +586,9 @@ class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
         return (
             "airflow.providers.google.cloud.triggers.bigquery.BigQueryValueCheckTrigger",
             {
+                "dag_id": self.dag_id,
+                "task_id": self.task_id,
+                "run_id": self.run_id,
                 "conn_id": self.conn_id,
                 "pass_value": self.pass_value,
                 "job_id": self.job_id,
