@@ -49,6 +49,9 @@ TEST_POLL_INTERVAL = 5
 TEST_GCP_CONN_ID = "google_cloud_default"
 TEST_OPERATION_NAME = "name"
 TEST_JOB_ID = "test-job-id"
+TEST_DAG_ID = "test_dag_id"
+TEST_TASK_ID = "test_task_id"
+TEST_RUN_ID = "test_run_id"
 
 
 @pytest.fixture
@@ -118,6 +121,9 @@ def async_get_cluster():
 @pytest.fixture
 def submit_trigger():
     return DataprocSubmitTrigger(
+        dag_id=TEST_DAG_ID,
+        task_id=TEST_TASK_ID,
+        run_id=TEST_RUN_ID,
         job_id=TEST_JOB_ID,
         project_id=TEST_PROJECT_ID,
         region=TEST_REGION,
@@ -494,6 +500,9 @@ class TestDataprocSubmitTrigger:
         classpath, kwargs = submit_trigger.serialize()
         assert classpath == "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger"
         assert kwargs == {
+            "dag_id": TEST_DAG_ID,
+            "task_id": TEST_TASK_ID,
+            "run_id": TEST_RUN_ID,
             "job_id": TEST_JOB_ID,
             "project_id": TEST_PROJECT_ID,
             "region": TEST_REGION,
@@ -538,10 +547,12 @@ class TestDataprocSubmitTrigger:
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_async_hook")
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_sync_hook")
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.safe_to_cancel")
     async def test_submit_trigger_run_cancelled(
-        self, mock_get_sync_hook, mock_get_async_hook, submit_trigger
+        self, mock_safe_to_cancel, mock_get_sync_hook, mock_get_async_hook, submit_trigger
     ):
         """Test the trigger correctly handles an asyncio.CancelledError."""
+        mock_safe_to_cancel.return_value = True
         mock_async_hook = mock_get_async_hook.return_value
         mock_async_hook.get_job.side_effect = asyncio.CancelledError
 

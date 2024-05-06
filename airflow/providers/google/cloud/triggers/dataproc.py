@@ -22,16 +22,22 @@ from __future__ import annotations
 import asyncio
 import re
 import time
-from typing import Any, AsyncIterator, Sequence
+from typing import TYPE_CHECKING, Any, AsyncIterator, Sequence
 
 from google.api_core.exceptions import NotFound
 from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, JobStatus
 
 from airflow.exceptions import AirflowException
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.google.cloud.hooks.dataproc import DataprocAsyncHook, DataprocHook
 from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.utils.session import provide_session
+from airflow.utils.state import TaskInstanceState
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 
 class DataprocBaseTrigger(BaseTrigger):
@@ -77,6 +83,9 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
     """
     DataprocSubmitTrigger run on the trigger worker to perform create Build operation.
 
+    :param dag_id: The DAG ID.
+    :param task_id: The task ID.
+    :param run_id: The run ID.
     :param job_id: The ID of a Dataproc job.
     :param project_id: Google Cloud Project where the job is running
     :param region: The Cloud Dataproc region in which to handle the request.
@@ -92,14 +101,20 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
     :param polling_interval_seconds: polling period in seconds to check for the status
     """
 
-    def __init__(self, job_id: str, **kwargs):
+    def __init__(self, job_id: str, dag_id: str, task_id: str, run_id: str | None, **kwargs):
         self.job_id = job_id
+        self.dag_id = dag_id
+        self.task_id = task_id
+        self.run_id = run_id
         super().__init__(**kwargs)
 
     def serialize(self):
         return (
             "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger",
             {
+                "dag_id": self.dag_id,
+                "task_id": self.task_id,
+                "run_id": self.run_id,
                 "job_id": self.job_id,
                 "project_id": self.project_id,
                 "region": self.region,
@@ -109,6 +124,38 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
                 "cancel_on_kill": self.cancel_on_kill,
             },
         )
+
+    @provide_session
+    def get_task_instance(self, session: Session) -> TaskInstance:
+        """
+        Get the task instance for the current task.
+
+        :param session: Sqlalchemy session
+        """
+        query = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == self.dag_id,
+            TaskInstance.task_id == self.task_id,
+            TaskInstance.run_id == self.run_id,
+        )
+        task_instance = query.one_or_none()
+        if task_instance is None:
+            raise AirflowException(
+                f"TaskInstance {self.dag_id}.{self.task_id} with run_id {self.run_id} not found"
+            )
+        return task_instance
+
+    def safe_to_cancel(self) -> bool:
+        """
+        Whether it is safe to cancel the external job which is being executed by this trigger.
+
+        This is to avoid the case that `asyncio.CancelledError` is called because the trigger itself is stopped.
+        Because in those cases, we should NOT cancel the external job.
+        """
+        task_instance = self.get_task_instance()  # type: ignore[call-arg]
+        return task_instance.state not in {
+            TaskInstanceState.RUNNING,
+            TaskInstanceState.DEFERRED,
+        }
 
     async def run(self):
         try:
@@ -125,7 +172,7 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
         except asyncio.CancelledError:
             self.log.info("Task got cancelled.")
             try:
-                if self.job_id and self.cancel_on_kill:
+                if self.job_id and self.cancel_on_kill and self.safe_to_cancel():
                     self.log.info("Cancelling the job: %s", self.job_id)
                     # The synchronous hook is utilized to delete the cluster when a task is cancelled. This
                     # is because the asynchronous hook deletion is not awaited when the trigger task is
