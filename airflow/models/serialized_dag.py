@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Collection
 
 import sqlalchemy_jsonfield
 from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_, exc, or_, select
-from sqlalchemy.orm import backref, foreign, relationship
+from sqlalchemy.orm import backref, relationship
 from sqlalchemy.sql.expression import func, literal
 
 from airflow.api_internal.internal_api_call import internal_api_call
@@ -34,7 +34,6 @@ from airflow.exceptions import TaskNotFound
 from airflow.models.base import ID_LEN, Base
 from airflow.models.dag import DagModel
 from airflow.models.dagcode import DagCode
-from airflow.models.dagrun import DagRun
 from airflow.serialization.serialized_objects import DagDependency, SerializedDAG
 from airflow.settings import COMPRESS_SERIALIZED_DAGS, MIN_SERIALIZED_DAG_UPDATE_INTERVAL, json
 from airflow.utils import timezone
@@ -88,9 +87,9 @@ class SerializedDagModel(Base):
     __table_args__ = (Index("idx_fileloc_hash", fileloc_hash, unique=False),)
 
     dag_runs = relationship(
-        DagRun,
-        primaryjoin=dag_id == foreign(DagRun.dag_id),  # type: ignore
-        backref=backref("serialized_dag", uselist=False, innerjoin=True),
+        "DagRun",
+        back_populates="serialized_dag",
+        primaryjoin="SerializedDagModel.dag_id == foreign(DagRun.dag_id)",
     )
 
     dag_model = relationship(

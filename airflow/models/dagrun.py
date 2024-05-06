@@ -201,6 +201,13 @@ class DagRun(Base, LoggingMixin):
         uselist=False,
         primaryjoin="Job.id == foreign(DagRun.creating_job_id)",
     )
+    serialized_dag = relationship(
+        "SerializedDagModel",
+        back_populates="dag_runs",
+        primaryjoin="SerializedDagModel.dag_id == foreign(DagRun.dag_id)",
+        uselist=False,
+        innerjoin=True,
+    )
 
     DEFAULT_DAGRUNS_TO_EXAMINE = airflow_conf.getint(
         "scheduler",
