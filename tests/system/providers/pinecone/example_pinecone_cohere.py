@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import time
 from datetime import datetime
 
 from airflow import DAG
@@ -45,6 +46,7 @@ with DAG(
         hook = PineconeHook()
         pod_spec = hook.get_pod_spec_obj()
         hook.create_index(index_name=index_name, dimension=768, spec=pod_spec)
+        time.sleep(60)
 
     embed_task = CohereEmbeddingOperator(
         task_id="embed_task",
