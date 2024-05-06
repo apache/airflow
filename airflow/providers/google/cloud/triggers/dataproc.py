@@ -22,16 +22,22 @@ from __future__ import annotations
 import asyncio
 import re
 import time
-from typing import Any, AsyncIterator, Sequence
+from typing import TYPE_CHECKING, Any, AsyncIterator, Sequence
 
 from google.api_core.exceptions import NotFound
 from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, JobStatus
 
 from airflow.exceptions import AirflowException
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.google.cloud.hooks.dataproc import DataprocAsyncHook, DataprocHook
 from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.utils.session import provide_session
+from airflow.utils.state import TaskInstanceState
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 
 class DataprocBaseTrigger(BaseTrigger):
@@ -160,14 +166,20 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
     :param polling_interval_seconds: polling period in seconds to check for the status
     """
 
-    def __init__(self, cluster_name: str, **kwargs):
+    def __init__(self, dag_id: str, task_id: str, run_id: str | None, cluster_name: str, **kwargs):
         super().__init__(**kwargs)
+        self.dag_id = dag_id
+        self.task_id = task_id
+        self.run_id = run_id
         self.cluster_name = cluster_name
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
             "airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger",
             {
+                "dag_id": self.dag_id,
+                "task_id": self.task_id,
+                "run_id": self.run_id,
                 "cluster_name": self.cluster_name,
                 "project_id": self.project_id,
                 "region": self.region,
@@ -177,6 +189,38 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
                 "delete_on_error": self.delete_on_error,
             },
         )
+
+    @provide_session
+    def get_task_instance(self, session: Session) -> TaskInstance:
+        """
+        Get the task instance for the current task.
+
+        :param session: Sqlalchemy session
+        """
+        query = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == self.dag_id,
+            TaskInstance.task_id == self.task_id,
+            TaskInstance.run_id == self.run_id,
+        )
+        task_instance = query.one_or_none()
+        if task_instance is None:
+            raise AirflowException(
+                f"TaskInstance {self.dag_id}.{self.task_id} with run_id {self.run_id} not found"
+            )
+        return task_instance
+
+    def safe_to_cancel(self) -> bool:
+        """
+        Whether it is safe to cancel the external job which is being executed by this trigger.
+
+        This is to avoid the case that `asyncio.CancelledError` is called because the trigger itself is stopped.
+        Because in those cases, we should NOT cancel the external job.
+        """
+        task_instance = self.get_task_instance()  # type: ignore[call-arg]
+        return task_instance.state not in {
+            TaskInstanceState.RUNNING,
+            TaskInstanceState.DEFERRED,
+        }
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         try:
@@ -207,7 +251,7 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
                 await asyncio.sleep(self.polling_interval_seconds)
         except asyncio.CancelledError:
             try:
-                if self.delete_on_error:
+                if self.delete_on_error and self.safe_to_cancel():
                     self.log.info("Deleting cluster %s.", self.cluster_name)
                     # The synchronous hook is utilized to delete the cluster when a task is cancelled.
                     # This is because the asynchronous hook deletion is not awaited when the trigger task

@@ -810,6 +810,9 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
                 else:
                     self.defer(
                         trigger=DataprocClusterTrigger(
+                            dag_id=self.dag_id,
+                            task_id=self.task_id,
+                            run_id=context.get("run_id"),
                             cluster_name=self.cluster_name,
                             project_id=self.project_id,
                             region=self.region,
@@ -2748,6 +2751,9 @@ class DataprocUpdateClusterOperator(GoogleCloudBaseOperator):
             if cluster.status.state != cluster.status.State.RUNNING:
                 self.defer(
                     trigger=DataprocClusterTrigger(
+                        dag_id=self.dag_id,
+                        task_id=self.task_id,
+                        run_id=context.get("run_id"),
                         cluster_name=self.cluster_name,
                         project_id=self.project_id,
                         region=self.region,
