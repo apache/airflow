@@ -207,7 +207,10 @@ class FileTaskHandler(logging.Handler):
         Some handlers emit "end of log" markers, and may not wish to do so when task defers.
         """
 
-    def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None | SetContextPropagate:
+    @provide_session
+    def set_context(
+        self, ti: TaskInstance, *, identifier: str | None = None, session=None
+    ) -> None | SetContextPropagate:
         """
         Provide task_instance context to airflow task handler.
 
@@ -221,7 +224,7 @@ class FileTaskHandler(logging.Handler):
         :param identifier: if set, adds suffix to log file. For use when relaying exceptional messages
             to task logs from a context other than task or trigger run
         """
-        local_loc = self._init_file(ti, identifier=identifier)
+        local_loc = self._init_file(ti, identifier=identifier, session=session)
         self.handler = NonCachingFileHandler(local_loc, encoding="utf-8")
         if self.formatter:
             self.handler.setFormatter(self.formatter)
@@ -280,11 +283,14 @@ class FileTaskHandler(logging.Handler):
             filename = render_template_to_string(jinja_tpl, context)
         return dag_run, ti, str_tpl, filename
 
+    @provide_session
     def _render_filename(
-        self, ti: TaskInstance | TaskInstanceKey | TaskInstancePydantic, try_number: int
+        self, ti: TaskInstance | TaskInstanceKey | TaskInstancePydantic, try_number: int, session=None
     ) -> str:
         """Return the worker log filename."""
-        dag_run, ti, str_tpl, filename = self._render_filename_db_access(ti=ti, try_number=try_number)
+        dag_run, ti, str_tpl, filename = self._render_filename_db_access(
+            ti=ti, try_number=try_number, session=session
+        )
         if filename:
             return filename
         if str_tpl:
@@ -504,7 +510,8 @@ class FileTaskHandler(logging.Handler):
             parent.mkdir(mode=new_folder_permissions, exist_ok=True)
         directory.mkdir(mode=new_folder_permissions, exist_ok=True)
 
-    def _init_file(self, ti, *, identifier: str | None = None):
+    @provide_session
+    def _init_file(self, ti, *, identifier: str | None = None, session=None):
         """
         Create log directory and give it permissions that are configured.
 
@@ -516,7 +523,7 @@ class FileTaskHandler(logging.Handler):
         new_file_permissions = int(
             conf.get("logging", "file_task_handler_new_file_permissions", fallback="0o664"), 8
         )
-        local_relative_path = self._render_filename(ti, ti.try_number)
+        local_relative_path = self._render_filename(ti, ti.try_number, session=session)
         full_path = os.path.join(self.local_base, local_relative_path)
         if identifier:
             full_path += f".{identifier}.log"

@@ -29,6 +29,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.operators.subdag import SubDagOperator
 from airflow.utils import timezone
 from airflow.utils.helpers import exactly_one
+from airflow.utils.log.task_context_logger import TaskContextLogger
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -157,7 +158,9 @@ def set_state(
         if sub_dag_run_ids:
             qry_sub_dag = all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates)
             tis_altered += session.scalars(qry_sub_dag.with_for_update()).all()
+        logger = TaskContextLogger("webserver")
         for task_instance in tis_altered:
+            logger.info("Task marked as %s from the UI", state, ti=task_instance, session=session)
             task_instance.set_state(state, session=session)
         session.flush()
     else:
