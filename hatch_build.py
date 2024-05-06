@@ -170,8 +170,7 @@ DOC_EXTRAS: dict[str, list[str]] = {
         "sphinx-design>=0.5.0",
         "sphinx-jinja>=2.0.2",
         "sphinx-rtd-theme>=2.0.0",
-        # Currently we are using sphinx 5 but we need to migrate to Sphinx 7
-        "sphinx>=5.3.0,<6.0.0",
+        "sphinx>7",
         "sphinxcontrib-applehelp>=1.0.4",
         "sphinxcontrib-devhelp>=1.0.2",
         "sphinxcontrib-htmlhelp>=2.0.1",
@@ -180,7 +179,7 @@ DOC_EXTRAS: dict[str, list[str]] = {
         "sphinxcontrib-jsmath>=1.0.1",
         "sphinxcontrib-qthelp>=1.0.3",
         "sphinxcontrib-redoc>=1.6.0",
-        "sphinxcontrib-serializinghtml==1.1.5",
+        "sphinxcontrib-serializinghtml>=1.1.5",
         "sphinxcontrib-spelling>=8.0.0",
     ],
     "doc-gen": [
