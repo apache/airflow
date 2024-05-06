@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from datetime import timezone as stdlib_timezone
 from unittest import mock
 from unittest.mock import Mock, call, patch
 
@@ -100,7 +101,7 @@ class TestSFTPSensor:
     @pytest.mark.parametrize(
         "newer_than", (
             datetime(2020, 1, 2),
-            datetime(2020, 1, 2, tzinfo=timezone.utc),
+            datetime(2020, 1, 2, tzinfo=stdlib_timezone.utc),
             "2020-01-02",
             "2020-01-02 00:00:00+00:00",
             "2020-01-02 00:00:00.001+00:00",
