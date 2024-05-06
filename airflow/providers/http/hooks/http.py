@@ -44,6 +44,7 @@ DEFAULT_AUTH_TYPES = frozenset(
         "requests.auth.HTTPBasicAuth",
         "requests.auth.HTTPProxyAuth",
         "requests.auth.HTTPDigestAuth",
+        "requests_kerberos.HTTPKerberosAuth",
         "aiohttp.BasicAuth",
     }
 )
