@@ -172,10 +172,6 @@ class PostgresHook(DbApiHook):
             ]:
                 conn_args[arg_name] = arg_val
 
-        client_encoding = conn.extra_dejson.get("client_encoding")
-        if isinstance(client_encoding, str):
-            conn_args["client_encoding"] = client_encoding
-
         self.conn = psycopg2.connect(**conn_args)
         return self.conn
 
