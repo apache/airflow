@@ -85,6 +85,10 @@ class LivyHook(HttpHook):
     conn_type = "livy"
     hook_name = "Apache Livy"
 
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        return super().get_connection_form_widgets()
+
     def __init__(
         self,
         livy_conn_id: str = default_conn_name,
