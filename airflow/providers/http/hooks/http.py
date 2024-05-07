@@ -83,7 +83,7 @@ def json_loads(value: str | dict | None, default: dict | None = None) -> dict:
     if value is not None:
         with suppress(JSONDecodeError):
             return json.loads(value)
-    return default | {}
+    return default or {}
 
 
 class HttpHookMixin:
@@ -95,6 +95,7 @@ class HttpHookMixin:
     http_conn_id: str
     conn_type: str
     base_url: str
+    auth_type: Any
     default_auth_type = HTTPBasicAuth
     get_connection: Callable
     log: Logger
