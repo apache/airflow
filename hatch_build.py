@@ -418,9 +418,7 @@ DEPENDENCIES = [
     # Blinker use for signals in Flask, this is an optional dependency in Flask 2.2 and lower.
     # In Flask 2.3 it becomes a mandatory dependency, and flask signals are always available.
     "blinker>=1.6.2",
-    # Colorlog 6.x merges TTYColoredFormatter into ColoredFormatter, breaking backwards compatibility with 4.x
-    # Update CustomTTYColoredFormatter to remove
-    "colorlog>=4.0.2, <5.0",
+    "colorlog>=6.8.2",
     "configupdater>=3.1.1",
     # `airflow/www/extensions/init_views` imports `connexion.decorators.validation.RequestBodyValidator`
     # connexion v3 has refactored the entire module to middleware, see: /spec-first/connexion/issues/1525
