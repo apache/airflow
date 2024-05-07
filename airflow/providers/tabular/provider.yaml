@@ -46,3 +46,8 @@ integrations:
     external-doc-url: https://tabular.io/docs/
     logo: /integration-logos/tabular/tabular.jpeg
     tags: [software]
+
+hooks:
+  - integration-name: Tabular (deprecated)
+    python-modules:
+      - airflow.providers.tabular.hooks.tabular
