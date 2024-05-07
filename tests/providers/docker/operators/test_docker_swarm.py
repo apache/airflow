@@ -284,6 +284,6 @@ class TestDockerSwarmOperator:
         types_mock.ContainerSpec.assert_called_once_with(
             image="ubuntu:latest",
             command="env",
-            args="--show",
+            args=["--show"],
             user="unittest",
         )
