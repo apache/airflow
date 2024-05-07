@@ -1999,7 +1999,7 @@ class TestKubernetesPodOperatorAsync:
 
     @pytest.mark.parametrize("get_logs", [True, False])
     @patch(KUB_OP_PATH.format("post_complete_action"))
-    @patch(KUB_OP_PATH.format("write_logs"))
+    @patch(KUB_OP_PATH.format("_write_logs"))
     @patch(POD_MANAGER_CLASS)
     @patch(HOOK_CLASS)
     def test_async_get_logs_should_execute_successfully(
@@ -2075,9 +2075,9 @@ class TestKubernetesPodOperatorAsync:
         with pytest.raises(AirflowException, match=expect_match):
             k.cleanup(pod, pod)
 
-    @mock.patch(f"{HOOK_CLASS}.get_pod")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_container_logs")
+    @patch(f"{HOOK_CLASS}.get_pod")
+    @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
+    @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_container_logs")
     def test_get_logs_running(
         self,
         fetch_container_logs,
@@ -2097,10 +2097,11 @@ class TestKubernetesPodOperatorAsync:
             )
         fetch_container_logs.is_called_with(pod, "base")
 
-    @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
-    @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.find_pod")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_container_logs")
-    def test_get_logs_not_running(self, fetch_container_logs, find_pod, cleanup):
+    @patch(KUB_OP_PATH.format("_write_logs"))
+    @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
+    @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.find_pod")
+    @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_container_logs")
+    def test_get_logs_not_running(self, fetch_container_logs, find_pod, cleanup, mock_write_log):
         pod = MagicMock()
         find_pod.return_value = pod
         op = KubernetesPodOperator(task_id="test_task", name="test-pod", get_logs=True)
@@ -2110,9 +2111,10 @@ class TestKubernetesPodOperatorAsync:
         )
         fetch_container_logs.is_called_with(pod, "base")
 
-    @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
-    @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.find_pod")
-    def test_trigger_error(self, find_pod, cleanup):
+    @patch(KUB_OP_PATH.format("_write_logs"))
+    @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
+    @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.find_pod")
+    def test_trigger_error(self, find_pod, cleanup, mock_write_log):
         """Assert that trigger_reentry raise exception in case of error"""
         find_pod.return_value = MagicMock()
         op = KubernetesPodOperator(task_id="test_task", name="test-pod", get_logs=True)

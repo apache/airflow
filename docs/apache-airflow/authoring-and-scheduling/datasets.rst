@@ -251,13 +251,13 @@ Airflow automatically collects all yielded metadata, and populates dataset event
 
 This can also be done in classic operators. The best way is to subclass the operator and override ``execute``. Alternatively, extras can also be added in a task's ``pre_execute`` or ``post_execute`` hook. If you choose to use hooks, however, remember that they are not rerun when a task is retried, and may cause the extra information to not match actual data in certain scenarios.
 
-Another way to achieve the same is by accessing ``dataset_events`` in a task's execution context directly:
+Another way to achieve the same is by accessing ``outlet_events`` in a task's execution context directly:
 
 .. code-block:: python
 
     @task(outlets=[example_s3_dataset])
-    def write_to_s3(*, dataset_events):
-        dataset_events[example_s3_dataset].extras = {"row_count": len(df)}
+    def write_to_s3(*, outlet_events):
+        outlet_events[example_s3_dataset].extras = {"row_count": len(df)}
 
 There's minimal magic here---Airflow simply writes the yielded values to the exact same accessor. This also works in classic operators, including ``execute``, ``pre_execute``, and ``post_execute``.
 

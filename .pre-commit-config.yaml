@@ -335,7 +335,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ["ruff==0.3.6"]
+        additional_dependencies: ["ruff==0.4.3"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
       - id: ruff-format
         name: Run 'ruff format' for extremely fast Python formatting
@@ -345,7 +345,7 @@ repos:
         types_or: [python, pyi]
         args: []
         require_serial: true
-        additional_dependencies: ["ruff==0.3.6"]
+        additional_dependencies: ["ruff==0.4.3"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^airflow/contrib/
       - id: replace-bad-characters
         name: Replace bad characters
@@ -1027,6 +1027,12 @@ repos:
         language: python
         files: CHANGELOG\.(rst|txt)$
         entry: ./scripts/ci/pre_commit/changelog_duplicates.py
+        pass_filenames: true
+      - id: check-changelog-format
+        name: Check changelog format
+        language: python
+        files: CHANGELOG\.(rst|txt)$
+        entry: ./scripts/ci/pre_commit/check_changelog_format.py
         pass_filenames: true
       - id: check-newsfragments-are-valid
         name: Check newsfragments are valid

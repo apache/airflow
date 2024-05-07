@@ -276,6 +276,13 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         """
         from airflow.models.taskinstance import _handle_failure
 
+        if TYPE_CHECKING:
+            assert self.task
+            assert self.task.dag
+        try:
+            fail_stop = self.task.dag.fail_stop
+        except Exception:
+            fail_stop = False
         _handle_failure(
             task_instance=self,
             error=error,
@@ -283,6 +290,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
             test_mode=test_mode,
             context=context,
             force_fail=force_fail,
+            fail_stop=fail_stop,
         )
 
     def refresh_from_task(self, task: Operator, pool_override: str | None = None) -> None:

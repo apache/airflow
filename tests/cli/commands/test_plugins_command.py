@@ -72,6 +72,7 @@ class TestPluginsCommand:
                     {
                         "name": "Test View",
                         "category": "Test Plugin",
+                        "label": "Test Label",
                         "view": "tests.plugins.test_plugin.PluginTestAppBuilderBaseView",
                     }
                 ],

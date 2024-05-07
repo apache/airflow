@@ -692,7 +692,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             ti_primary_key_to_try_number_map[ti_key.primary] = ti_key.try_number
 
             self.log.info("Received executor event with state %s for task instance %s", state, ti_key)
-            if state in (TaskInstanceState.FAILED, TaskInstanceState.SUCCESS, TaskInstanceState.QUEUED):
+            if state in (
+                TaskInstanceState.FAILED,
+                TaskInstanceState.SUCCESS,
+                TaskInstanceState.QUEUED,
+                TaskInstanceState.RUNNING,
+            ):
                 tis_with_right_state.append(ti_key)
 
         # Return if no finished tasks
@@ -711,7 +716,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             buffer_key = ti.key.with_try_number(try_number)
             state, info = event_buffer.pop(buffer_key)
 
-            if state == TaskInstanceState.QUEUED:
+            if state in (TaskInstanceState.QUEUED, TaskInstanceState.RUNNING):
                 ti.external_executor_id = info
                 self.log.info("Setting external_id for %s to %s", ti, info)
                 continue

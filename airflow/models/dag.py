@@ -3668,6 +3668,7 @@ class DagModel(Base):
     )
     schedule_dataset_references = relationship(
         "DagScheduleDatasetReference",
+        back_populates="dag",
         cascade="all, delete, delete-orphan",
     )
     schedule_datasets = association_proxy("schedule_dataset_references", "dataset")

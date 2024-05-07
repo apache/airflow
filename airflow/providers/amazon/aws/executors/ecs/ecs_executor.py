@@ -400,7 +400,12 @@ class AwsEcsExecutor(BaseExecutor):
             else:
                 task = run_task_response["tasks"][0]
                 self.active_workers.add_task(task, task_key, queue, cmd, exec_config, attempt_number)
-                self.queued(task_key, task.task_arn)
+                try:
+                    self.running_state(task_key, task.task_arn)
+                except AttributeError:
+                    # running_state is newly added, and only needed to support task adoption (an optional
+                    # executor feature).
+                    pass
         if failure_reasons:
             self.log.error(
                 "Pending ECS tasks failed to launch for the following reasons: %s. Retrying later.",

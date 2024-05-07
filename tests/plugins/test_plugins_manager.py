@@ -103,6 +103,7 @@ class TestPluginsRBAC:
         link = links[0]
         assert link.name == v_appbuilder_package["category"]
         assert link.childs[0].name == v_appbuilder_package["name"]
+        assert link.childs[0].label == v_appbuilder_package["label"]
 
     def test_flaskappbuilder_menu_links(self):
         from tests.plugins.test_plugin import appbuilder_mitem, appbuilder_mitem_toplevel

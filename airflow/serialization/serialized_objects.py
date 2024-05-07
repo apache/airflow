@@ -68,7 +68,7 @@ from airflow.task.priority_strategy import (
 )
 from airflow.triggers.base import BaseTrigger
 from airflow.utils.code_utils import get_python_source
-from airflow.utils.context import Context, DatasetEventAccessor, DatasetEventAccessors
+from airflow.utils.context import Context, OutletEventAccessor, OutletEventAccessors
 from airflow.utils.docs import get_docs_url
 from airflow.utils.helpers import exactly_one
 from airflow.utils.module_loading import import_string, qualname
@@ -536,12 +536,12 @@ class BaseSerialization:
         elif var.__class__.__name__ == "V1Pod" and _has_kubernetes() and isinstance(var, k8s.V1Pod):
             json_pod = PodGenerator.serialize_pod(var)
             return cls._encode(json_pod, type_=DAT.POD)
-        elif isinstance(var, DatasetEventAccessors):
+        elif isinstance(var, OutletEventAccessors):
             return cls._encode(
                 cls.serialize(var._dict, strict=strict, use_pydantic_models=use_pydantic_models),  # type: ignore[attr-defined]
                 type_=DAT.DATASET_EVENT_ACCESSORS,
             )
-        elif isinstance(var, DatasetEventAccessor):
+        elif isinstance(var, OutletEventAccessor):
             return cls._encode(
                 cls.serialize(var.extra, strict=strict, use_pydantic_models=use_pydantic_models),
                 type_=DAT.DATASET_EVENT_ACCESSOR,
@@ -693,11 +693,11 @@ class BaseSerialization:
         elif type_ == DAT.DICT:
             return {k: cls.deserialize(v, use_pydantic_models) for k, v in var.items()}
         elif type_ == DAT.DATASET_EVENT_ACCESSORS:
-            d = DatasetEventAccessors()  # type: ignore[assignment]
+            d = OutletEventAccessors()  # type: ignore[assignment]
             d._dict = cls.deserialize(var)  # type: ignore[attr-defined]
             return d
         elif type_ == DAT.DATASET_EVENT_ACCESSOR:
-            return DatasetEventAccessor(extra=cls.deserialize(var))
+            return OutletEventAccessor(extra=cls.deserialize(var))
         elif type_ == DAT.DAG:
             return SerializedDAG.deserialize_dag(var)
         elif type_ == DAT.OP:
