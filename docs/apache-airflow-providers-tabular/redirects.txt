@@ -1,3 +1,0 @@
-connections.rst ../apache-airflow-providers-apache-iceberg/connections.rst
-changelog.rst ../apache-airflow-providers-apache-iceberg/changelog.rst
-index.rst ../apache-airflow-providers-apache-iceberg/index.rst
