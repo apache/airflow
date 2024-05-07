@@ -416,7 +416,6 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         :param dag_run: the dag run to get the tasks from
         :param session: the database session object
         """
-        self.log.info("_task_instances_for_dag_run")
         tasks_to_run = {}
 
         if dag_run is None:
@@ -432,23 +431,14 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         dag_run.dag = dag
         info = dag_run.task_instance_scheduling_decisions(session=session)
         schedulable_tis = info.schedulable_tis
-        self.log.info("schedulable_tis: %s", schedulable_tis)
         try:
             for ti in dag_run.get_task_instances(session=session):
-                session.merge(ti)
                 if ti in schedulable_tis:
                     if not ti.state == TaskInstanceState.UP_FOR_RESCHEDULE:
                         ti.try_number += 1
                     ti.set_state(TaskInstanceState.SCHEDULED)
                 if ti.state != TaskInstanceState.REMOVED:
                     tasks_to_run[ti.key] = ti
-                if ti.state == TaskInstanceState.UP_FOR_RETRY and ti not in schedulable_tis:
-                    self.log.warning(
-                        "unexpected. task_id=%s has state=%s but is not in schedulable_tis=%s",
-                        ti.task_id,
-                        ti.state,
-                        schedulable_tis,
-                    )
             session.commit()
         except Exception:
             session.rollback()
