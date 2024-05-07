@@ -100,7 +100,7 @@ class CustomTTYColoredFormatter(ColoredFormatter, TimezoneAware):
 
     def format(self, record: LogRecord) -> str:
         try:
-            if self.stream.isatty():
+            if self.stream is not None and self.stream.isatty():
                 record = self._color_record_args(record)
                 record = self._color_record_traceback(record)
             return super().format(record)
