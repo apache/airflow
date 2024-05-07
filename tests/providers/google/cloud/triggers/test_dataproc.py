@@ -49,17 +49,11 @@ TEST_POLL_INTERVAL = 5
 TEST_GCP_CONN_ID = "google_cloud_default"
 TEST_OPERATION_NAME = "name"
 TEST_JOB_ID = "test-job-id"
-TEST_DAG_ID = "test_dag_id"
-TEST_TASK_ID = "test_task_id"
-TEST_RUN_ID = "test_run_id"
 
 
 @pytest.fixture
 def cluster_trigger():
     return DataprocClusterTrigger(
-        dag_id=TEST_DAG_ID,
-        task_id=TEST_TASK_ID,
-        run_id=TEST_RUN_ID,
         cluster_name=TEST_CLUSTER_NAME,
         project_id=TEST_PROJECT_ID,
         region=TEST_REGION,
@@ -162,9 +156,6 @@ class TestDataprocClusterTrigger:
         classpath, kwargs = cluster_trigger.serialize()
         assert classpath == "airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger"
         assert kwargs == {
-            "dag_id": TEST_DAG_ID,
-            "task_id": TEST_TASK_ID,
-            "run_id": TEST_RUN_ID,
             "cluster_name": TEST_CLUSTER_NAME,
             "project_id": TEST_PROJECT_ID,
             "region": TEST_REGION,
@@ -267,9 +258,6 @@ class TestDataprocClusterTrigger:
         mock_get_sync_hook.return_value.delete_cluster = mock_delete_cluster
 
         cluster_trigger = DataprocClusterTrigger(
-            dag_id="dag_id",
-            task_id="task_id",
-            run_id="run_id",
             cluster_name="cluster_name",
             project_id="project-id",
             region="region",
