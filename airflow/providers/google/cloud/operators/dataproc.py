@@ -1454,9 +1454,6 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
             if self.deferrable:
                 self.defer(
                     trigger=DataprocSubmitTrigger(
-                        dag_id=self.dag_id,
-                        task_id=self.task_id,
-                        run_id=context.get("run_id"),
                         job_id=job_id,
                         project_id=self.project_id,
                         region=self.region,
