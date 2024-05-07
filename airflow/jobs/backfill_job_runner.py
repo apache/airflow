@@ -572,7 +572,6 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                             # but i am not going to look too closely since we need
                             # to nuke the current backfill approach anyway.
                             ti.try_number += 1
-                            executor.heartbeat()
                         ti.state = TaskInstanceState.QUEUED
                         ti.queued_by_job_id = self.job.id
                         ti.queued_dttm = timezone.utcnow()
