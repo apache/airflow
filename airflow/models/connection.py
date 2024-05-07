@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import logging
 import warnings
+from contextlib import suppress
 from json import JSONDecodeError
 from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
@@ -474,18 +475,23 @@ class Connection(Base, LoggingMixin):
     @property
     def extra_dejson(self) -> dict:
         """Returns the extra property by deserializing json."""
-        obj = {}
+        extra = {}
+
         if self.extra:
             try:
-                obj = json.loads(self.extra)
-
+                for key, value in json.loads(self.extra).items():
+                    if isinstance(value, str):
+                        with suppress(JSONDecodeError):
+                            extra[key] = json.loads(value)
+                    else:
+                        extra[key] = value
             except JSONDecodeError:
                 self.log.exception("Failed parsing the json for conn_id %s", self.conn_id)
 
             # Mask sensitive keys from this list
-            mask_secret(obj)
+            mask_secret(extra)
 
-        return obj
+        return extra
 
     @classmethod
     def get_connection_from_secrets(cls, conn_id: str) -> Connection:

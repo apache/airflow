@@ -18,10 +18,7 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import warnings
-from contextlib import suppress
-from json import JSONDecodeError
 from logging import Logger
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -66,24 +63,6 @@ def get_auth_types() -> frozenset[str]:
     if extra_auth_types:
         auth_types |= frozenset({field.strip() for field in extra_auth_types.split(",")})
     return auth_types
-
-
-def json_loads(value: str | dict | None, default: dict | None = None) -> dict:
-    """Safely loads optional JSON.
-
-    Returns 'default' (None) if the object is None.
-    Return the object as-is if it is a dictionary.
-
-    This method is used to parse parameters passed in 'extra' into dict.
-    Those parameters can be None (when they are omitted), dict (when the Connection
-    is created via the API) or str (when Connection is created via the UI).
-    """
-    if isinstance(value, dict):
-        return value
-    if value is not None:
-        with suppress(JSONDecodeError):
-            return json.loads(value)
-    return default or {}
 
 
 class HttpHookMixin:
@@ -139,6 +118,14 @@ class HttpHookMixin:
                     "field instead."
                 ),
             ),
+        }
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom UI field behaviour for Hive Client Wrapper connection."""
+        return {
+            "hidden_fields": ["extra"],
+            "relabeling": {},
         }
 
     def load_connection_settings(self, *, headers: dict[Any, Any] | None = None) -> tuple[dict, Any, dict]:
@@ -215,7 +202,7 @@ class HttpHookMixin:
         )  # ignore this as only max_redirects is accepted in Session
         if allow_redirects is not None:
             session_conf["allow_redirects"] = allow_redirects
-        session_conf["proxies"] = json_loads(extra.pop("proxies", extra.pop("proxy", {})))
+        session_conf["proxies"] = extra.pop("proxies", extra.pop("proxy", {}))
         session_conf["stream"] = extra.pop("stream", False)
         session_conf["verify"] = extra.pop("verify", extra.pop("verify_ssl", True))
         session_conf["trust_env"] = extra.pop("trust_env", True)
@@ -224,8 +211,8 @@ class HttpHookMixin:
             session_conf["cert"] = cert
         session_conf["max_redirects"] = extra.pop("max_redirects", DEFAULT_REDIRECT_LIMIT)
         auth_type: str | None = extra.pop("auth_type", None)
-        auth_kwargs = json_loads(extra.pop("auth_kwargs", {}))
-        headers = json_loads(extra.pop("headers", {}))
+        auth_kwargs = extra.pop("auth_kwargs", {})
+        headers = extra.pop("headers", {})
 
         if extra:
             warnings.warn(
@@ -304,6 +291,10 @@ class HttpHook(HttpHookMixin, BaseHook):
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         return super().get_connection_form_widgets()
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        return super().get_ui_field_behaviour()
 
     def __init__(
         self,

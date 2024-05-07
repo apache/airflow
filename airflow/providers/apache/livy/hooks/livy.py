@@ -84,6 +84,10 @@ class LivyHook(HttpHook, LoggingMixin):
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         return super().get_connection_form_widgets()
 
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        return super().get_ui_field_behaviour()
+
     def __init__(
         self,
         livy_conn_id: str = default_conn_name,
