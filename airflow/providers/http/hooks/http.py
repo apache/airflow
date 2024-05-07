@@ -171,11 +171,9 @@ class HttpHookMixin:
             auth_kwargs: dict[str, Any] = conn_extra["auth_kwargs"]
             auth_type: Any = self.auth_type or self._load_conn_auth_type(module_name=conn_extra["auth_type"])
 
-            self.log.info("auth_type: %s", auth_type)
+            self.log.debug("auth_type: %s", auth_type)
 
             if auth_type:
-                self.log.info("auth_args: %s", auth_args)
-                self.log.info("auth_kwargs: %s", auth_kwargs)
                 if any(auth_args) or auth_kwargs:
                     _auth = auth_type(*auth_args, **auth_kwargs)
                 elif conn.login:
@@ -192,10 +190,13 @@ class HttpHookMixin:
         if headers:
             _headers.update(headers)
 
+        self.log.debug("headers: %s", _headers)
+        self.log.debug("auth: %s", _auth)
+        self.log.debug("session_conf: %s", _session_conf)
+
         return _headers, _auth, _session_conf
 
-    @staticmethod
-    def _parse_extra(conn_extra: dict) -> dict:
+    def _parse_extra(self, conn_extra: dict) -> dict:
         """Parse the settings from 'extra' into dict.
 
         The "auth_kwargs" and "headers" data from TextAreaField are returned as
@@ -256,14 +257,13 @@ class HttpHookMixin:
                     self.log.info("Loaded auth_type: %s", module_name)
                     return module
                 except ImportError as error:
-                    self.log.debug("Cannot import auth_type '%s' due to: %s", error)
+                    self.log.error("Cannot import auth_type '%s' due to: %s", module_name, error)
                     raise AirflowException(error)
-            else:
-                self.log.warning(
-                    "Skipping import of auth_type '%s'. The class should be listed in "
-                    "'extra_auth_types' config of the http provider.",
-                    module_name,
-                )
+            self.log.warning(
+                "Skipping import of auth_type '%s'. The class should be listed in "
+                "'extra_auth_types' config of the http provider.",
+                module_name,
+            )
         return None
 
     def url_from_endpoint(self, endpoint: str | None) -> str:
