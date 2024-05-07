@@ -498,7 +498,7 @@ class TestFileTaskLogHandler:
             t.task_instance = ti
         h = FileTaskHandler(base_log_folder=os.fspath(tmp_path))
         h.set_context(ti)
-        expected = "dag_id=test_fth/run_id=test/task_id=dummy/attempt=1.log"
+        expected = "dag_id=test_fth/run_id=test/task_id=dummy/attempt=0.log"
         if is_a_trigger:
             expected += f".trigger.{job.id}.log"
         actual = h.handler.baseFilename
