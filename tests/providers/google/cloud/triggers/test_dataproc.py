@@ -123,6 +123,7 @@ def submit_trigger():
         region=TEST_REGION,
         gcp_conn_id=TEST_GCP_CONN_ID,
         polling_interval_seconds=TEST_POLL_INTERVAL,
+        cancel_on_kill=True,
     )
 
 
@@ -536,14 +537,15 @@ class TestDataprocSubmitTrigger:
         assert event.payload == expected_event.payload
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("is_safe_to_cancel", [True, False])
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_async_hook")
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_sync_hook")
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.safe_to_cancel")
     async def test_submit_trigger_run_cancelled(
-        self, mock_safe_to_cancel, mock_get_sync_hook, mock_get_async_hook, submit_trigger
+        self, mock_safe_to_cancel, mock_get_sync_hook, mock_get_async_hook, submit_trigger, is_safe_to_cancel
     ):
         """Test the trigger correctly handles an asyncio.CancelledError."""
-        mock_safe_to_cancel.return_value = True
+        mock_safe_to_cancel.return_value = is_safe_to_cancel
         mock_async_hook = mock_get_async_hook.return_value
         mock_async_hook.get_job.side_effect = asyncio.CancelledError
 
@@ -567,7 +569,7 @@ class TestDataprocSubmitTrigger:
             pytest.fail(f"Unexpected exception raised: {e}")
 
         # Check if cancel_job was correctly called
-        if submit_trigger.cancel_on_kill:
+        if submit_trigger.cancel_on_kill and is_safe_to_cancel:
             mock_sync_hook.cancel_job.assert_called_once_with(
                 job_id=submit_trigger.job_id,
                 project_id=submit_trigger.project_id,
