@@ -24,7 +24,7 @@ from logging import Logger
 from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import provide_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -82,7 +82,7 @@ class TaskContextLogger:
         return h
 
     @provide_session
-    def _log(self, level: int, msg: str, *args, ti: TaskInstance, session: Session = NEW_SESSION):
+    def _log(self, level: int, msg: str, *args, ti: TaskInstance, session: Session = None):
         """
         Emit a log message to the task instance logs.
 
@@ -114,81 +114,89 @@ class TaskContextLogger:
             task_handler.close()
 
     @provide_session
-    def critical(self, msg: str, *args, ti: TaskInstance, session: Session = NEW_SESSION):
+    def critical(self, msg: str, *args, ti: TaskInstance, session: Session = None):
         """
         Emit a log message with level CRITICAL to the task instance logs.
 
         :param msg: the message to relay to task context log
         :param ti: the task instance
+        :param session: the database session to use
         """
         self._log(logging.CRITICAL, msg, *args, ti=ti, session=session)
 
     @provide_session
-    def fatal(self, msg: str, *args, ti: TaskInstance, session: Session = NEW_SESSION):
+    def fatal(self, msg: str, *args, ti: TaskInstance, session: Session = None):
         """
         Emit a log message with level FATAL to the task instance logs.
 
         :param msg: the message to relay to task context log
         :param ti: the task instance
+        :param session: the database session to use
         """
         self._log(logging.FATAL, msg, *args, ti=ti, session=session)
 
     @provide_session
-    def error(self, msg: str, *args, ti: TaskInstance, session: Session = NEW_SESSION):
+    def error(self, msg: str, *args, ti: TaskInstance, session: Session = None):
         """
         Emit a log message with level ERROR to the task instance logs.
 
         :param msg: the message to relay to task context log
         :param ti: the task instance
+        :param session: the database session to use
         """
         self._log(logging.ERROR, msg, *args, ti=ti, session=session)
 
     @provide_session
-    def warn(self, msg: str, *args, ti: TaskInstance, session: Session = NEW_SESSION):
+    def warn(self, msg: str, *args, ti: TaskInstance, session: Session = None):
         """
         Emit a log message with level WARN to the task instance logs.
 
         :param msg: the message to relay to task context log
         :param ti: the task instance
+        :param session: the database session to use
         """
         self._log(logging.WARNING, msg, *args, ti=ti, session=session)
 
     @provide_session
-    def warning(self, msg: str, *args, ti: TaskInstance, session: Session = NEW_SESSION):
+    def warning(self, msg: str, *args, ti: TaskInstance, session: Session = None):
         """
         Emit a log message with level WARNING to the task instance logs.
 
         :param msg: the message to relay to task context log
         :param ti: the task instance
+        :param session: the database session to use
         """
         self._log(logging.WARNING, msg, *args, ti=ti, session=session)
 
     @provide_session
-    def info(self, msg: str, *args, ti: TaskInstance, session: Session = NEW_SESSION):
+    def info(self, msg: str, *args, ti: TaskInstance, session: Session = None):
         """
         Emit a log message with level INFO to the task instance logs.
 
         :param msg: the message to relay to task context log
         :param ti: the task instance
+        :param session: the database session to use
         """
         self._log(logging.INFO, msg, *args, ti=ti, session=session)
 
     @provide_session
-    def debug(self, msg: str, *args, ti: TaskInstance, session: Session = NEW_SESSION):
+    def debug(self, msg: str, *args, ti: TaskInstance, session: Session = None):
         """
         Emit a log message with level DEBUG to the task instance logs.
 
         :param msg: the message to relay to task context log
         :param ti: the task instance
+        :param session: the database session to use
         """
         self._log(logging.DEBUG, msg, *args, ti=ti, session=session)
 
     @provide_session
-    def notset(self, msg: str, *args, ti: TaskInstance, session: Session = NEW_SESSION):
+    def notset(self, msg: str, *args, ti: TaskInstance, session: Session = None):
         """
         Emit a log message with level NOTSET to the task instance logs.
 
         :param msg: the message to relay to task context log
         :param ti: the task instance
+        :param session: the database session to use
         """
         self._log(logging.NOTSET, msg, *args, ti=ti, session=session)

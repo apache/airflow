@@ -41,10 +41,12 @@ from airflow.providers.elasticsearch.log.es_response import ElasticSearchRespons
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
-from airflow.utils.session import create_session
+from airflow.utils.session import create_session, provide_session
 
 if TYPE_CHECKING:
     from datetime import datetime
+
+    from sqlalchemy.orm import Session
 
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 
@@ -414,13 +416,17 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             setattr(record, self.offset_field, int(time.time() * (10**9)))
             self.handler.emit(record)
 
-    def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None:
+    @provide_session
+    def set_context(
+        self, ti: TaskInstance, *, identifier: str | None = None, session: Session = None
+    ) -> None:
         """
         Provide task_instance context to airflow task handler.
 
         :param ti: task instance object
         :param identifier: if set, identifies the Airflow component which is relaying logs from
             exceptional scenarios related to the task instance
+        :param session: the database session to use
         """
         is_trigger_log_context = getattr(ti, "is_trigger_log_context", None)
         is_ti_raw = getattr(ti, "raw", None)
@@ -452,7 +458,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             # todo: remove-at-min-airflow-version-2.8
             #   after Airflow 2.8 can always pass `identifier`
             if getattr(super(), "supports_task_context_logging", False):
-                super().set_context(ti, identifier=identifier)
+                super().set_context(ti, identifier=identifier, session=session)
             else:
                 super().set_context(ti)
         self.context_set = True

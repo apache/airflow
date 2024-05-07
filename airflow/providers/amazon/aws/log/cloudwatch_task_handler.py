@@ -28,8 +28,11 @@ from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.utils import datetime_to_epoch_utc_ms
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
     from airflow.models import TaskInstance
 
 
@@ -92,16 +95,18 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
             aws_conn_id=conf.get("logging", "REMOTE_LOG_CONN_ID"), region_name=self.region_name
         )
 
-    def _render_filename(self, ti, try_number):
+    @provide_session
+    def _render_filename(self, ti, try_number, session=None):
         # Replace unsupported log group name characters
-        return super()._render_filename(ti, try_number).replace(":", "_")
+        return super()._render_filename(ti, try_number, session=session).replace(":", "_")
 
-    def set_context(self, ti: TaskInstance, *, identifier: str | None = None):
-        super().set_context(ti)
+    @provide_session
+    def set_context(self, ti: TaskInstance, *, identifier: str | None = None, session: Session = None):
+        super().set_context(ti, identifier=identifier, session=session)
         _json_serialize = conf.getimport("aws", "cloudwatch_task_handler_json_serializer", fallback=None)
         self.handler = watchtower.CloudWatchLogHandler(
             log_group_name=self.log_group,
-            log_stream_name=self._render_filename(ti, ti.try_number),
+            log_stream_name=self._render_filename(ti, ti.try_number, session=session),
             use_queues=not getattr(ti, "is_trigger_log_context", False),
             boto3_client=self.hook.get_conn(),
             json_serialize_default=_json_serialize or json_serialize_legacy,
