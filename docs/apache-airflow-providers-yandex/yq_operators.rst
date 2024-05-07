@@ -18,10 +18,11 @@
 
 Yandex Query Operators
 ======================
-`Yandex Query <https://yandex.cloud/en/services/query>` __ is a service in the Yandex Cloud to process data from different sources such as
-Object Storage, MDB ClickHouse, MDB PostgreSQL, Yandex DataStreams using SQL scripts.
+`Yandex Query <https://yandex.cloud/en/services/query>`__ is a service in the Yandex Cloud to process data from different sources such as
+`Object Storage <https://yandex.cloud/ru/services/storage>`__, `MDB ClickHouse <https://yandex.cloud/ru/services/managed-clickhouse>`__,
+`MDB PostgreSQL <https://yandex.cloud/ru/services/managed-postgresql>`__, `Yandex DataStreams <https://yandex.cloud/ru/services/data-streams>`__ using SQL scripts.
 
 Using the operators
 ^^^^^^^^^^^^^^^^^^^
 To learn how to use Yandex Query operator,
-see `example DAG <https://github.com/apache/airflow/tree/providers-yandex/|version|/tests/system/providers/yandex/example_yandexcloud_yq.py>`_.
+see `example DAG <https://github.com/apache/airflow/tree/providers-yandex/|version|/tests/system/providers/yandex/example_yandexcloud_yq.py>`__.
