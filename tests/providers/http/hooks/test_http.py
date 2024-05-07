@@ -37,6 +37,8 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook, get_auth_types
 
+DEFAULT_HEADERS = "{\r\n \"Content-Type\": \"application/json\",\r\n  \"X-Requested-By\": \"Airflow\"\r\n}"
+
 
 @pytest.fixture
 def aioresponse():
@@ -48,10 +50,8 @@ def aioresponse():
 
 
 def get_airflow_connection(conn_id: str = "http_default"):
-    extra = ("{\"headers\": {\r\n \"Content-Type\": \"application/json\",\r\n  \"X-Requested-By\": "
-             "\"Airflow\"\r\n}}")
     return Connection(
-        conn_id=conn_id, conn_type="http", host="test:8080/", extra=extra
+        conn_id=conn_id, conn_type="http", host="test:8080/", extra={"headers": DEFAULT_HEADERS}
     )
 
 
@@ -132,14 +132,14 @@ class TestHttpHook:
 
     def test_hook_contains_header_from_extra_field(self):
         airflow_connection = get_airflow_connection_with_extra(
-            extra={"headers": {"Content-Type": "application/json", "X-Requested-By": "Airflow"}}
+            extra={"headers": DEFAULT_HEADERS}
         )
         with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
             expected_conn = get_airflow_connection()
             conn = self.get_hook.get_conn()
 
             conn_extra: dict = json.loads(expected_conn.extra)
-            headers = dict(conn.headers, **conn_extra.pop("headers", {}), **conn_extra)
+            headers = dict(conn.headers, **json.loads(conn_extra["headers"]))
             assert headers == conn.headers
             assert conn.headers["Content-Type"] == "application/json"
             assert conn.headers["X-Requested-By"] == "Airflow"
@@ -147,7 +147,7 @@ class TestHttpHook:
     def test_hook_ignore_max_redirects_from_extra_field_as_header(self):
         airflow_connection = get_airflow_connection_with_extra(
             extra={
-                "headers": {"Content-Type": "application/json", "X-Requested-By": "Airflow"},
+                "headers": DEFAULT_HEADERS,
                 "max_redirects": 3,
             }
         )
@@ -167,7 +167,7 @@ class TestHttpHook:
     def test_hook_ignore_proxies_from_extra_field_as_header(self):
         airflow_connection = get_airflow_connection_with_extra(
             extra={
-                "headers": {"Content-Type": "application/json", "X-Requested-By": "Airflow"},
+                "headers": DEFAULT_HEADERS,
                 "proxies": {"http": "http://proxy:80", "https": "https://proxy:80"},
             }
         )
@@ -207,7 +207,7 @@ class TestHttpHook:
     def test_hook_ignore_cert_from_extra_field_as_header(self):
         airflow_connection = get_airflow_connection_with_extra(
             extra={
-                "headers": {"Content-Type": "application/json", "X-Requested-By": "Airflow"},
+                "headers": DEFAULT_HEADERS,
                 "cert": "cert.crt",
             }
         )
@@ -227,7 +227,7 @@ class TestHttpHook:
     def test_hook_ignore_trust_env_from_extra_field_as_header(self):
         airflow_connection = get_airflow_connection_with_extra(
             extra={
-                "headers": {"Content-Type": "application/json", "X-Requested-By": "Airflow"},
+                "headers": DEFAULT_HEADERS,
                 "trust_env": False,
             }
         )
@@ -486,9 +486,9 @@ class TestHttpHook:
             conn_type="http",
             login="username",
             password="pass",
-            extra="""
-                {"auth_kwargs": {\r\n    "endpoint": "http://localhost"\r\n},
-                "headers": {\r\n    "some": "headers"\r\n}}
+            extra=f"""
+                {{"auth_kwargs": {{\r\n    "endpoint": "http://localhost"\r\n}},
+                "headers": {DEFAULT_HEADERS}}}
                 """,
         )
         mock_get_connection.return_value = conn
@@ -498,7 +498,8 @@ class TestHttpHook:
 
         auth.assert_called_once_with("username", "pass", endpoint="http://localhost")
         assert "auth_kwargs" not in session.headers
-        assert "some" in session.headers
+        assert session.headers["Content-Type"] == "application/json"
+        assert session.headers["X-Requested-By"] == "Airflow"
 
     @pytest.mark.parametrize("method", ["GET", "POST"])
     def test_json_request(self, method, requests_mock):
