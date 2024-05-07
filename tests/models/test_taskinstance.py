@@ -3437,7 +3437,7 @@ class TestTaskInstance:
             "end_date": run_date + datetime.timedelta(days=1, seconds=1, milliseconds=234),
             "duration": 1.234,
             "state": State.SUCCESS,
-            "_try_number": 1,
+            "try_number": 1,
             "max_tries": 1,
             "hostname": "some_unique_hostname",
             "unixname": "some_unique_unixname",
@@ -3463,7 +3463,7 @@ class TestTaskInstance:
             "task_display_name": "Test Refresh from DB Task",
         }
         # Make sure we aren't missing any new value in our expected_values list.
-        expected_keys = {f"task_instance.{key.lstrip('_')}" for key in expected_values}
+        expected_keys = {f"task_instance.{key}" for key in expected_values}
         assert {str(c) for c in TI.__table__.columns} == expected_keys, (
             "Please add all non-foreign values of TaskInstance to this list. "
             "This prevents refresh_from_db() from missing a field."
