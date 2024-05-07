@@ -480,11 +480,10 @@ class Connection(Base, LoggingMixin):
         if self.extra:
             try:
                 for key, value in json.loads(self.extra).items():
+                    extra[key] = value
                     if isinstance(value, str):
                         with suppress(JSONDecodeError):
                             extra[key] = json.loads(value)
-                    else:
-                        extra[key] = value
             except JSONDecodeError:
                 self.log.exception("Failed parsing the json for conn_id %s", self.conn_id)
 
