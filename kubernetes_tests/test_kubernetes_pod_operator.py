@@ -112,7 +112,7 @@ class TestKubernetesPodOperatorSystem:
                     "run_id": "manual__2016-01-01T0100000100-da4d1ce7b",
                     "dag_id": "dag",
                     "task_id": ANY,
-                    "try_number": "1",
+                    "try_number": "0",
                 },
             },
             "spec": {
