@@ -37,8 +37,7 @@
     Configuration <configurations-ref>
     Connection types <connections/yandexcloud>
     Lockbox Secret Backend <secrets-backends/yandex-cloud-lockbox-secret-backend>
-    Data Proc Operators <dataproc_operators>
-    Yandex Query Operators <yq_operators>
+    Operators <operators/index>
 
 .. toctree::
     :hidden:
