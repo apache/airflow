@@ -106,9 +106,7 @@ class HttpHookMixin:
                 widget=Select2Widget(),
                 default=default_auth_type,
             ),
-            "auth_kwargs": TextAreaField(
-                lazy_gettext("Auth kwargs"), widget=BS3TextAreaFieldWidget()
-            ),
+            "auth_kwargs": TextAreaField(lazy_gettext("Auth kwargs"), widget=BS3TextAreaFieldWidget()),
             "headers": TextAreaField(
                 lazy_gettext("Headers"),
                 widget=BS3TextAreaFieldWidget(),

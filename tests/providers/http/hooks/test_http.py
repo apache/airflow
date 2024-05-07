@@ -812,7 +812,9 @@ class TestHttpAsyncHook:
             "trust_env": False,
         }
 
-        actual = HttpAsyncHook()._parse_extra(conn_extra={**{"headers": DEFAULT_HEADERS_AS_STRING}, **session_conf})
+        actual = HttpAsyncHook()._parse_extra(
+            conn_extra={**{"headers": DEFAULT_HEADERS_AS_STRING}, **session_conf}
+        )
 
         assert actual == {
             "auth_type": None,
