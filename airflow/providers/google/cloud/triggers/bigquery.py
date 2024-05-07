@@ -97,7 +97,6 @@ class BigQueryInsertJobTrigger(BaseTrigger):
         This is to avoid the case that `asyncio.CancelledError` is called because the trigger itself is stopped.
         Because in those cases, we should NOT cancel the external job.
         """
-        self.log.info("Checking if it is safe to cancel the job.")
         return self.task_instance not in {
             TaskInstanceState.RUNNING,
             TaskInstanceState.DEFERRED,
@@ -221,12 +220,7 @@ class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
         (default: False).
     """
 
-    def __init__(
-        self,
-        as_dict: bool = False,
-        selected_fields: str | None = None,
-        **kwargs,
-    ):
+    def __init__(self, as_dict: bool = False, selected_fields: str | None = None, **kwargs):
         super().__init__(**kwargs)
         self.as_dict = as_dict
         self.selected_fields = selected_fields
