@@ -50,7 +50,7 @@ class HdfsTaskHandler(FileTaskHandler, LoggingMixin):
         """Returns WebHDFSHook."""
         return WebHDFSHook(webhdfs_conn_id=conf.get("logging", "REMOTE_LOG_CONN_ID"))
 
-    def set_context(self, ti):
+    def set_context(self, ti, **kwargs):
         super().set_context(ti)
         # Local location and remote location is needed to open and
         # upload local log file to HDFS storage.

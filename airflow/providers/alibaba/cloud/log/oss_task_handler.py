@@ -27,6 +27,7 @@ from airflow.configuration import conf
 from airflow.providers.alibaba.cloud.hooks.oss import OSSHook
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 
 
 class OSSTaskHandler(FileTaskHandler, LoggingMixin):
@@ -63,7 +64,8 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
                 remote_conn_id,
             )
 
-    def set_context(self, ti):
+    @provide_session
+    def set_context(self, ti, **kwargs):
         """Set the context of the handler."""
         super().set_context(ti)
         # Local location and remote location is needed to open and

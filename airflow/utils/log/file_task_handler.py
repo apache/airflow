@@ -45,6 +45,7 @@ from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
     from pendulum import DateTime
+    from sqlalchemy.orm import Session
 
     from airflow.models import DagRun
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
@@ -209,7 +210,7 @@ class FileTaskHandler(logging.Handler):
 
     @provide_session
     def set_context(
-        self, ti: TaskInstance, *, identifier: str | None = None, session=None
+        self, ti: TaskInstance, *, identifier: str | None = None, session: Session = None
     ) -> None | SetContextPropagate:
         """
         Provide task_instance context to airflow task handler.
@@ -223,6 +224,7 @@ class FileTaskHandler(logging.Handler):
         :param ti: task instance object
         :param identifier: if set, adds suffix to log file. For use when relaying exceptional messages
             to task logs from a context other than task or trigger run
+        :param session: the database session to use
         """
         local_loc = self._init_file(ti, identifier=identifier, session=session)
         self.handler = NonCachingFileHandler(local_loc, encoding="utf-8")

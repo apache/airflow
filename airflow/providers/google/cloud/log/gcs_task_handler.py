@@ -35,8 +35,11 @@ from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
     from airflow.models.taskinstance import TaskInstance
 
 _DEFAULT_SCOPESS = frozenset(
@@ -129,11 +132,14 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             project=self.project_id if self.project_id else project_id,
         )
 
-    def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None:
+    @provide_session
+    def set_context(
+        self, ti: TaskInstance, *, identifier: str | None = None, session: Session = None
+    ) -> None:
         # todo: remove-at-min-airflow-version-2.8
         #   after Airflow 2.8 can always pass `identifier`
         if getattr(super(), "supports_task_context_logging", False):
-            super().set_context(ti, identifier=identifier)
+            super().set_context(ti, identifier=identifier, session=session)
         else:
             super().set_context(ti)
         # Log relative path is used to construct local and remote

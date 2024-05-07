@@ -28,9 +28,12 @@ from azure.core.exceptions import HttpResponseError
 from airflow.configuration import conf
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 
 if TYPE_CHECKING:
     import logging
+
+    from sqlalchemy.orm import Session
 
     from airflow.models.taskinstance import TaskInstance
 
@@ -82,11 +85,14 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             )
             return None
 
-    def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None:
+    @provide_session
+    def set_context(
+        self, ti: TaskInstance, *, identifier: str | None = None, session: Session = None
+    ) -> None:
         # todo: remove-at-min-airflow-version-2.8
         #   after Airflow 2.8 can always pass `identifier`
         if getattr(super(), "supports_task_context_logging", False):
-            super().set_context(ti, identifier=identifier)
+            super().set_context(ti, identifier=identifier, session=session)
         else:
             super().set_context(ti)
         # Local location and remote location is needed to open and
