@@ -5196,7 +5196,7 @@ class TaskInstanceModelView(AirflowModelView):
         "pool",
         "queued_by_job_id",
     ]
-
+    # todo: don't use prev_attempted_tries; just use try_number
     label_columns = {"dag_run.execution_date": "Logical Date", "prev_attempted_tries": "Try Number"}
 
     search_columns = [

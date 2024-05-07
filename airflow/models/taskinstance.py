@@ -38,6 +38,7 @@ import dill
 import jinja2
 import lazy_object_proxy
 import pendulum
+from deprecated import deprecated
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import (
     Column,
@@ -1458,6 +1459,26 @@ class TaskInstance(Base, LoggingMixin):
         return hash((self.task_id, self.dag_id, self.run_id, self.map_index))
 
     @property
+    @deprecated(reason="Use try_number instead.", version="2.10.0", category=RemovedInAirflow3Warning)
+    def _try_number(self):
+        """
+        Do not use.  For semblance of backcompat.
+
+        :meta private:
+        """
+        return self.try_number
+
+    @_try_number.setter
+    @deprecated(reason="Use try_number instead.", version="2.10.0", category=RemovedInAirflow3Warning)
+    def _try_number(self, val):
+        """
+        Do not use.  For semblance of backcompat.
+
+        :meta private:
+        """
+        self.try_number = val
+
+    @property
     def stats_tags(self) -> dict[str, str]:
         """Returns task instance tags."""
         return _stats_tags(task_instance=self)
@@ -1499,13 +1520,14 @@ class TaskInstance(Base, LoggingMixin):
         self.test_mode = False  # can be changed when calling 'run'
 
     @property
+    @deprecated(reason="Use try_number instead.", version="2.10.0", category=RemovedInAirflow3Warning)
     def prev_attempted_tries(self) -> int:
         """
-        Calculate the number of previously attempted tries, defaulting to 0.
+        Calculate the total number of attempted tries, defaulting to 0.
 
-        Expose this for the Task Tries and Gantt graph views.
-        Using `try_number` throws off the counts for non-running tasks.
-        Also useful in error logging contexts to get the try number for the last try that was attempted.
+        This used to be necessary because try_number did not always tell the truth.
+
+        :meta private:
         """
         return self.try_number
 

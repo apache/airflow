@@ -37,12 +37,27 @@ from airflow.providers.openlineage.utils.utils import (
 from airflow.stats import Stats
 from airflow.utils.timeout import timeout
 
+try:
+    from airflow import __version__ as airflow_version
+except ImportError:
+    from airflow.version import version as airflow_version
+
+
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models import DagRun, TaskInstance
 
 _openlineage_listener: OpenLineageListener | None = None
+
+
+def _get_try_number_success(val):
+    from packaging.version import parse
+
+    if parse(parse(airflow_version).base_version) < parse("2.10.0"):
+        return val.try_number - 1
+    else:
+        return val.try_number
 
 
 class OpenLineageListener:
@@ -165,7 +180,7 @@ class OpenLineageListener:
                 dag_id=dag.dag_id,
                 task_id=task.task_id,
                 execution_date=task_instance.execution_date,
-                try_number=task_instance.try_number,
+                try_number=_get_try_number_success(task_instance.try_number),
             )
             event_type = RunState.COMPLETE.value.lower()
             operator_name = task.task_type.lower()

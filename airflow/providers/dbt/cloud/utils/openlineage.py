@@ -21,11 +21,25 @@ import re
 from contextlib import suppress
 from typing import TYPE_CHECKING
 
+try:
+    from airflow import __version__ as airflow_version
+except ImportError:
+    from airflow.version import version as airflow_version
+
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
     from airflow.providers.dbt.cloud.operators.dbt import DbtCloudRunJobOperator
     from airflow.providers.dbt.cloud.sensors.dbt import DbtCloudJobRunSensor
     from airflow.providers.openlineage.extractors.base import OperatorLineage
+
+
+def _get_try_number(val):
+    from packaging.version import parse
+
+    if parse(parse(airflow_version).base_version) < parse("2.10.0"):
+        return val.try_number - 1
+    else:
+        return val.try_number
 
 
 def generate_openlineage_events_from_dbt_cloud_run(
@@ -131,7 +145,7 @@ def generate_openlineage_events_from_dbt_cloud_run(
             dag_id=task_instance.dag_id,
             task_id=operator.task_id,
             execution_date=task_instance.execution_date,
-            try_number=task_instance.try_number,
+            try_number=_get_try_number(task_instance.try_number),
         )
 
         parent_job = ParentRunMetadata(
