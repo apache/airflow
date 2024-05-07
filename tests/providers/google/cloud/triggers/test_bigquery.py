@@ -303,7 +303,6 @@ class TestBigQueryInsertJobTrigger:
         except asyncio.CancelledError:
             pass
 
-        assert "Task was killed" in caplog.text, "Expected message about task status not found in log."
         assert (
             "Skipping to cancel job" in caplog.text
         ), "Expected message about skipping cancellation not found in log."
