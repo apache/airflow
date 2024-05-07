@@ -285,5 +285,10 @@ class TestDockerSwarmOperator:
             image="ubuntu:latest",
             command="env",
             args=["--show"],
-            user="unittest",
+            user= None,
+            mounts= [],
+            tty= False,
+            env={"AIRFLOW_TMP_DIR": "/tmp/airflow"},
+            configs= None,
+            secrets= None,
         )
