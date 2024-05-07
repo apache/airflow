@@ -129,6 +129,7 @@ spec:
     requests:
       storage: 5Gi
 """
+KUEUE_YAML_URL = "http://test-url/config.yaml"
 
 
 class TestGoogleCloudPlatformContainerOperator:
@@ -640,6 +641,27 @@ class TestGKEStartKueueInsideClusterOperator:
         hook = gke_op.cluster_hook
 
         assert hook.gcp_conn_id == "test_conn"
+
+    @mock.patch(f"{GKE_HOOK_MODULE_PATH}.requests")
+    @mock.patch(f"{GKE_HOOK_MODULE_PATH}.yaml")
+    def test_get_yaml_content_from_file(self, mock_yaml, mock_requests):
+        yaml_content_expected = [mock.MagicMock(), mock.MagicMock()]
+        mock_yaml.safe_load_all.return_value = yaml_content_expected
+        response_text_expected = "response test expected"
+        mock_requests.get.return_value = mock.MagicMock(status_code=200, text=response_text_expected)
+
+        yaml_content_actual = GKEStartKueueInsideClusterOperator._get_yaml_content_from_file(KUEUE_YAML_URL)
+
+        assert yaml_content_actual == yaml_content_expected
+        mock_requests.get.assert_called_once_with(KUEUE_YAML_URL, allow_redirects=True)
+        mock_yaml.safe_load_all.assert_called_once_with(response_text_expected)
+
+    @mock.patch(f"{GKE_HOOK_MODULE_PATH}.requests")
+    def test_get_yaml_content_from_file_exception(self, mock_requests):
+        mock_requests.get.return_value = mock.MagicMock(status_code=400)
+
+        with pytest.raises(AirflowException):
+            GKEStartKueueInsideClusterOperator._get_yaml_content_from_file(KUEUE_YAML_URL)
 
 
 class TestGKEPodOperatorAsync:

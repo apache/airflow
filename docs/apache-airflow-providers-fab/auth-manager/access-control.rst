@@ -107,6 +107,21 @@ users add-role`` CLI command.
 Permissions
 '''''''''''
 
+
+.. warning::
+
+  Airflow allows to define custom Roles with fine-grained RBAC permissions for the users. However,
+  there is no mechanism to make sure that the set of permissions assigned is fully consistent and not all
+  combinations of permissions are fully consistent. There are a number of cases where permissions for
+  particular resources are overlapping. Good examples are menu access permissions - lack of menu access
+  does not automatically disable access to functionality they are pointing at. Another examples is access to
+  Role views - which allows to access User information even if the user does not have "user view" access.
+  It is simply inconsistent to add access to Roles where you have no access to users.
+
+  When you decide to use custom set of resource-based permissions, the Deployment Manager should carefully
+  review if the final set of permissions granted to the roles is what they expect.
+
+
 Resource-Based permissions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
