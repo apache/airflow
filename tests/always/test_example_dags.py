@@ -75,7 +75,7 @@ def get_python_excluded_providers_folders() -> list[str]:
 
 
 def example_not_excluded_dags():
-    example_dirs = ["airflow/**/example_dags/example_*.py", "tests/system/providers/**/example_*.py"]
+    example_dirs = ["airflow/**/example_dags/example_*.py", "tests/system/**/example_*.py"]
     excluded_providers_folders = get_suspended_providers_folders()
     excluded_providers_folders.extend(get_python_excluded_providers_folders())
     possible_prefixes = ["airflow/providers/", "tests/system/providers/"]

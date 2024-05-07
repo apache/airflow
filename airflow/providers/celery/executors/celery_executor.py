@@ -368,8 +368,14 @@ class CeleryExecutor(BaseExecutor):
             if state:
                 self.update_task_state(key, state, info)
 
-    def change_state(self, key: TaskInstanceKey, state: TaskInstanceState, info=None) -> None:
-        super().change_state(key, state, info)
+    def change_state(
+        self, key: TaskInstanceKey, state: TaskInstanceState, info=None, remove_running=True
+    ) -> None:
+        try:
+            super().change_state(key, state, info, remove_running=remove_running)
+        except AttributeError:
+            # Earlier versions of the BaseExecutor don't accept the remove_running parameter for this method
+            super().change_state(key, state, info)
         self.tasks.pop(key, None)
 
     def update_task_state(self, key: TaskInstanceKey, state: str, info: Any) -> None:

@@ -32,8 +32,10 @@ from typing import (
     KeysView,
     Mapping,
     MutableMapping,
+    Sequence,
     SupportsIndex,
     ValuesView,
+    overload,
 )
 
 import attrs
@@ -44,7 +46,11 @@ from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+    from sqlalchemy.sql.expression import Select
+
     from airflow.models.baseoperator import BaseOperator
+    from airflow.models.dataset import DatasetEvent
 
 # NOTE: Please keep this in sync with the following:
 # * Context in airflow/utils/context.pyi.
@@ -56,13 +62,13 @@ KNOWN_CONTEXT_KEYS: set[str] = {
     "dag_run",
     "data_interval_end",
     "data_interval_start",
-    "dataset_events",
     "ds",
     "ds_nodash",
     "execution_date",
     "expanded_ti_count",
     "exception",
     "inlets",
+    "inlet_events",
     "logical_date",
     "macros",
     "map_index_template",
@@ -70,6 +76,7 @@ KNOWN_CONTEXT_KEYS: set[str] = {
     "next_ds_nodash",
     "next_execution_date",
     "outlets",
+    "outlet_events",
     "params",
     "prev_data_interval_start_success",
     "prev_data_interval_end_success",
@@ -150,17 +157,23 @@ class ConnectionAccessor:
 
 
 @attrs.define()
-class DatasetEventAccessor:
-    """Wrapper to access a DatasetEvent instance in template."""
+class OutletEventAccessor:
+    """Wrapper to access an outlet dataset event in template.
+
+    :meta private:
+    """
 
     extra: dict[str, Any]
 
 
-class DatasetEventAccessors(Mapping[str, DatasetEventAccessor]):
-    """Lazy mapping of dataset event accessors."""
+class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
+    """Lazy mapping of outlet dataset event accessors.
+
+    :meta private:
+    """
 
     def __init__(self) -> None:
-        self._dict: dict[str, DatasetEventAccessor] = {}
+        self._dict: dict[str, OutletEventAccessor] = {}
 
     def __iter__(self) -> Iterator[str]:
         return iter(self._dict)
@@ -168,10 +181,91 @@ class DatasetEventAccessors(Mapping[str, DatasetEventAccessor]):
     def __len__(self) -> int:
         return len(self._dict)
 
-    def __getitem__(self, key: str | Dataset) -> DatasetEventAccessor:
+    def __getitem__(self, key: str | Dataset) -> OutletEventAccessor:
         if (uri := coerce_to_uri(key)) not in self._dict:
-            self._dict[uri] = DatasetEventAccessor({})
+            self._dict[uri] = OutletEventAccessor({})
         return self._dict[uri]
+
+
+@attrs.define()
+class InletEventsAccessor(Sequence["DatasetEvent"]):
+    """Lazy sequence to access inlet dataset events.
+
+    :meta private:
+    """
+
+    _uri: str
+    _session: Session
+
+    def _get_select_stmt(self, *, reverse: bool = False) -> Select:
+        from sqlalchemy import select
+
+        from airflow.models.dataset import DatasetEvent, DatasetModel
+
+        stmt = select(DatasetEvent).join(DatasetEvent.dataset).where(DatasetModel.uri == self._uri)
+        if reverse:
+            return stmt.order_by(DatasetEvent.timestamp.desc())
+        return stmt.order_by(DatasetEvent.timestamp.asc())
+
+    def __reversed__(self) -> Iterator[DatasetEvent]:
+        return iter(self._session.scalar(self._get_select_stmt(reverse=True)))
+
+    def __iter__(self) -> Iterator[DatasetEvent]:
+        return iter(self._session.scalar(self._get_select_stmt()))
+
+    @overload
+    def __getitem__(self, key: int) -> DatasetEvent: ...
+
+    @overload
+    def __getitem__(self, key: slice) -> Sequence[DatasetEvent]: ...
+
+    def __getitem__(self, key: int | slice) -> DatasetEvent | Sequence[DatasetEvent]:
+        if not isinstance(key, int):
+            raise ValueError("non-index access is not supported")
+        if key >= 0:
+            stmt = self._get_select_stmt().offset(key)
+        else:
+            stmt = self._get_select_stmt(reverse=True).offset(-1 - key)
+        if (event := self._session.scalar(stmt.limit(1))) is not None:
+            return event
+        raise IndexError(key)
+
+    def __len__(self) -> int:
+        from sqlalchemy import func, select
+
+        return self._session.scalar(select(func.count()).select_from(self._get_select_stmt()))
+
+
+@attrs.define(init=False)
+class InletEventsAccessors(Mapping[str, InletEventsAccessor]):
+    """Lazy mapping for inlet dataset events accessors.
+
+    :meta private:
+    """
+
+    _inlets: list[Any]
+    _datasets: dict[str, Dataset]
+    _session: Session
+
+    def __init__(self, inlets: list, *, session: Session) -> None:
+        self._inlets = inlets
+        self._datasets = {inlet.uri: inlet for inlet in inlets if isinstance(inlet, Dataset)}
+        self._session = session
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._inlets)
+
+    def __len__(self) -> int:
+        return len(self._inlets)
+
+    def __getitem__(self, key: int | str | Dataset) -> InletEventsAccessor:
+        if isinstance(key, int):  # Support index access; it's easier for trivial cases.
+            dataset = self._inlets[key]
+            if not isinstance(dataset, Dataset):
+                raise IndexError(key)
+        else:
+            dataset = self._datasets[coerce_to_uri(key)]
+        return InletEventsAccessor(dataset.uri, session=self._session)
 
 
 class AirflowContextDeprecationWarning(RemovedInAirflow3Warning):
@@ -360,8 +454,8 @@ def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]:
     return {k: _create_value(k, v) for k, v in source._context.items()}
 
 
-def context_get_dataset_events(context: Context) -> DatasetEventAccessors:
+def context_get_outlet_events(context: Context) -> OutletEventAccessors:
     try:
-        return context["dataset_events"]
+        return context["outlet_events"]
     except KeyError:
-        return DatasetEventAccessors()
+        return OutletEventAccessors()

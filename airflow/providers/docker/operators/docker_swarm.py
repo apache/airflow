@@ -96,6 +96,10 @@ class DockerSwarmOperator(DockerOperator):
     :param networks: List of network names or IDs or NetworkAttachmentConfig to attach the service to.
     :param placement: Placement instructions for the scheduler. If a list is passed instead,
         it is assumed to be a list of constraints as part of a Placement object.
+    :param container_resources: Resources for the launched container.
+        The resources are Resources as per the docker api
+        [https://docker-py.readthedocs.io/en/stable/api.html#docker.types.Resources]_
+        This parameter has precedence on the mem_limit parameter.
     """
 
     def __init__(
@@ -108,6 +112,7 @@ class DockerSwarmOperator(DockerOperator):
         mode: types.ServiceMode | None = None,
         networks: list[str | types.NetworkAttachmentConfig] | None = None,
         placement: types.Placement | list[types.Placement] | None = None,
+        container_resources: types.Resources | None = None,
         **kwargs,
     ) -> None:
         super().__init__(image=image, **kwargs)
@@ -118,6 +123,7 @@ class DockerSwarmOperator(DockerOperator):
         self.mode = mode
         self.networks = networks
         self.placement = placement
+        self.container_resources = container_resources or types.Resources(mem_limit=self.mem_limit)
 
     def execute(self, context: Context) -> None:
         self.environment["AIRFLOW_TMP_DIR"] = self.tmp_dir
@@ -138,7 +144,7 @@ class DockerSwarmOperator(DockerOperator):
                     secrets=self.secrets,
                 ),
                 restart_policy=types.RestartPolicy(condition="none"),
-                resources=types.Resources(mem_limit=self.mem_limit),
+                resources=self.container_resources,
                 networks=self.networks,
                 placement=self.placement,
             ),

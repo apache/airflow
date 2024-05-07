@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+from json import JSONDecodeError
 from unittest.mock import patch
 
 import pytest
@@ -24,12 +25,17 @@ from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 from msgraph_core import APIVersion, NationalClouds
 
 from airflow.exceptions import AirflowBadRequest, AirflowException, AirflowNotFoundException
-from airflow.providers.microsoft.azure.hooks.msgraph import CallableResponseHandler, KiotaRequestAdapterHook
+from airflow.providers.microsoft.azure.hooks.msgraph import (
+    DefaultResponseHandler,
+    KiotaRequestAdapterHook,
+)
 from tests.providers.microsoft.conftest import (
     get_airflow_connection,
+    load_file,
     load_json,
     mock_connection,
     mock_json_response,
+    mock_response,
 )
 
 
@@ -95,45 +101,53 @@ class TestKiotaRequestAdapterHook:
 
 
 class TestResponseHandler:
-    def test_handle_response_async_when_ok(self):
+    def test_default_response_handler_when_json(self):
         users = load_json("resources", "users.json")
         response = mock_json_response(200, users)
 
-        actual = asyncio.run(
-            CallableResponseHandler(lambda response, error_map: response.json()).handle_response_async(
-                response, None
-            )
-        )
+        actual = asyncio.run(DefaultResponseHandler().handle_response_async(response, None))
 
         assert isinstance(actual, dict)
         assert actual == users
+
+    def test_default_response_handler_when_not_json(self):
+        response = mock_json_response(200, JSONDecodeError("", "", 0))
+
+        actual = asyncio.run(DefaultResponseHandler().handle_response_async(response, None))
+
+        assert actual == {}
+
+    def test_default_response_handler_when_content(self):
+        users = load_file("resources", "users.json").encode()
+        response = mock_response(200, users)
+
+        actual = asyncio.run(DefaultResponseHandler().handle_response_async(response, None))
+
+        assert isinstance(actual, bytes)
+        assert actual == users
+
+    def test_default_response_handler_when_no_content_but_headers(self):
+        response = mock_response(200, headers={"RequestId": "ffb6096e-d409-4826-aaeb-b5d4b165dc4d"})
+
+        actual = asyncio.run(DefaultResponseHandler().handle_response_async(response, None))
+
+        assert isinstance(actual, dict)
+        assert actual["requestid"] == "ffb6096e-d409-4826-aaeb-b5d4b165dc4d"
 
     def test_handle_response_async_when_bad_request(self):
         response = mock_json_response(400, {})
 
         with pytest.raises(AirflowBadRequest):
-            asyncio.run(
-                CallableResponseHandler(lambda response, error_map: response.json()).handle_response_async(
-                    response, None
-                )
-            )
+            asyncio.run(DefaultResponseHandler().handle_response_async(response, None))
 
     def test_handle_response_async_when_not_found(self):
         response = mock_json_response(404, {})
 
         with pytest.raises(AirflowNotFoundException):
-            asyncio.run(
-                CallableResponseHandler(lambda response, error_map: response.json()).handle_response_async(
-                    response, None
-                )
-            )
+            asyncio.run(DefaultResponseHandler().handle_response_async(response, None))
 
     def test_handle_response_async_when_internal_server_error(self):
         response = mock_json_response(500, {})
 
         with pytest.raises(AirflowException):
-            asyncio.run(
-                CallableResponseHandler(lambda response, error_map: response.json()).handle_response_async(
-                    response, None
-                )
-            )
+            asyncio.run(DefaultResponseHandler().handle_response_async(response, None))

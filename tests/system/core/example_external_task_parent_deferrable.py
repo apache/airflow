@@ -47,7 +47,7 @@ with DAG(
             "success",
             "failed",
         ],
-        execution_date="{{execution_date}}",
+        logical_date="{{ logical_date }}",
         poke_interval=5,
         reset_dag_run=True,
         wait_for_completion=True,
