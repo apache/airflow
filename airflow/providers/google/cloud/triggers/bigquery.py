@@ -132,7 +132,12 @@ class BigQueryInsertJobTrigger(BaseTrigger):
         except asyncio.CancelledError:
             self.log.info("Task was killed.")
             if self.job_id and self.cancel_on_kill and self.safe_to_cancel():
-                self.log.info("Cancelling job: %s:%s.%s", self.project_id, self.location, self.job_id)
+                self.log.info(
+                    "Cancelling job. Project ID: %s, Location: %s, Job ID: %s",
+                    self.project_id,
+                    self.location,
+                    self.job_id,
+                )
                 await hook.cancel_job(  # type: ignore[union-attr]
                     job_id=self.job_id, project_id=self.project_id, location=self.location
                 )
