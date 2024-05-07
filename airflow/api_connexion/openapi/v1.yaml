@@ -1091,7 +1091,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /dag/parse/{file_token}:
+  /parseDagFile/{file_token}:
     parameters:
       - $ref: "#/components/parameters/FileToken"
 
@@ -1100,7 +1100,7 @@ paths:
       description: >
         Request re-parsing of existing DAG files using a file token.
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_parsing
-      operationId: reparse_dags
+      operationId: reparse_dag_file
       tags: [ DAG ]
       responses:
         "201":

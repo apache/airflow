@@ -80,7 +80,7 @@ class TestDagParsingRequest:
         dagbag.sync_to_db()
         test_dag: DAG = dagbag.dags[TEST_DAG_ID]
 
-        url = f"/api/v1/dag/parse/{url_safe_serializer.dumps(test_dag.fileloc)}"
+        url = f"/api/v1/parseDagFile/{url_safe_serializer.dumps(test_dag.fileloc)}"
         response = self.client.put(
             url, headers={"Accept": "application/json"}, environ_overrides={"REMOTE_USER": "test"}
         )
@@ -97,7 +97,7 @@ class TestDagParsingRequest:
         assert parsing_requests == [DagPriorityParsingRequest(fileloc=test_dag.fileloc)]
 
     def test_bad_file_request(self, url_safe_serializer):
-        url = f"/api/v1/dag/parse/{url_safe_serializer.dumps('/some/random/file.py')}"
+        url = f"/api/v1/parseDagFile/{url_safe_serializer.dumps('/some/random/file.py')}"
         response = self.client.put(
             url, headers={"Accept": "application/json"}, environ_overrides={"REMOTE_USER": "test"}
         )
@@ -107,7 +107,7 @@ class TestDagParsingRequest:
         assert parsing_requests == []
 
     def test_bad_user_request(self, url_safe_serializer):
-        url = f"/api/v1/dag/parse/{url_safe_serializer.dumps('/some/random/file.py')}"
+        url = f"/api/v1/parseDagFile/{url_safe_serializer.dumps('/some/random/file.py')}"
         response = self.client.put(
             url,
             headers={"Accept": "application/json"},

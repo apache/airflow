@@ -273,9 +273,9 @@ export interface paths {
       };
     };
   };
-  "/dag/parse/{file_token}": {
-    /** Request re-parsing of existing DAGs */
-    put: operations["reparse_dags"];
+  "/parseDagFile/{file_token}": {
+    /** Request re-parsing of existing DAG files using a file token. */
+    put: operations["reparse_dag_file"];
     parameters: {
       path: {
         /**
@@ -3452,8 +3452,8 @@ export interface operations {
       404: components["responses"]["NotFound"];
     };
   };
-  /** Request re-parsing of existing DAGs */
-  reparse_dags: {
+  /** Request re-parsing of existing DAG files using a file token. */
+  reparse_dag_file: {
     parameters: {
       path: {
         /**
@@ -5423,8 +5423,8 @@ export type DeleteDagDatasetQueuedEventsVariables = CamelCasedPropertiesDeep<
   operations["delete_dag_dataset_queued_events"]["parameters"]["path"] &
     operations["delete_dag_dataset_queued_events"]["parameters"]["query"]
 >;
-export type ReparseDagsVariables = CamelCasedPropertiesDeep<
-  operations["reparse_dags"]["parameters"]["path"]
+export type ReparseDagFileVariables = CamelCasedPropertiesDeep<
+  operations["reparse_dag_file"]["parameters"]["path"]
 >;
 export type GetDatasetQueuedEventsVariables = CamelCasedPropertiesDeep<
   operations["get_dataset_queued_events"]["parameters"]["path"] &

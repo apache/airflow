@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 
 @security.requires_access_dag("PUT")
 @provide_session
-def reparse_dags(*, file_token: str, session: Session = NEW_SESSION) -> Response:
+def reparse_dag_file(*, file_token: str, session: Session = NEW_SESSION) -> Response:
     """Request re-parsing a DAG file."""
     secret_key = current_app.config["SECRET_KEY"]
     auth_s = URLSafeSerializer(secret_key)
