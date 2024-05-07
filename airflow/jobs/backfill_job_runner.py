@@ -858,15 +858,14 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         :param start_date: backfill start date
         :param session: the current session object
         """
-        self.log.info("_execute_dagruns")
         for dagrun_info in dagrun_infos:
             for dag in self._get_dag_with_subdags():
                 dag_run = self._get_dag_run(dagrun_info, dag, session=session)
                 if dag_run is not None:
                     tis_map = self._task_instances_for_dag_run(dag, dag_run, session=session)
-                    self.log.info("tis_map=%s", tis_map)
                     ti_status.active_runs.add(dag_run)
                     ti_status.to_run.update(tis_map or {})
+
         processed_dag_run_dates = self._process_backfill_task_instances(
             ti_status=ti_status,
             executor=executor,
