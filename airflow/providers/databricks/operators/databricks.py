@@ -1066,14 +1066,18 @@ class DatabricksNotebookOperator(BaseOperator):
                 "task %s %s", self._get_databricks_task_id(self.task_id), run_state.life_cycle_state
             )
             self.log.info("Current state of the job: %s", run_state.life_cycle_state)
-        if run_state.is_successful:
-            self.log.info("Task succeeded. Final state %s.", run_state.result_state)
-        else:
+        if run_state.life_cycle_state != "TERMINATED":
+            raise AirflowException(
+                f"Databricks job failed with state {run_state.life_cycle_state}. "
+                f"Message: {run_state.state_message}"
+            )
+        if not run_state.is_successful:
             raise AirflowException(
                 "Task failed. Final state %s. Reason: %s",
                 run_state.result_state,
                 run_state.state_message,
             )
+        self.log.info("Task succeeded. Final state %s.", run_state.result_state)
 
     def execute(self, context: Context) -> None:
         self.launch_notebook_job()
@@ -1081,4 +1085,16 @@ class DatabricksNotebookOperator(BaseOperator):
             self.monitor_databricks_job()
 
     def execute_complete(self, context: dict | None, event: dict) -> None:
-        _handle_deferrable_databricks_operator_completion(event, self.log)
+        run_state = RunState.from_json(event["run_state"])
+        if run_state.life_cycle_state != "TERMINATED":
+            raise AirflowException(
+                f"Databricks job failed with state {run_state.life_cycle_state}. "
+                f"Message: {run_state.state_message}"
+            )
+        if not run_state.is_successful:
+            raise AirflowException(
+                "Task failed. Final state %s. Reason: %s",
+                run_state.result_state,
+                run_state.state_message,
+            )
+        self.log.info("Task succeeded. Final state %s.", run_state.result_state)
