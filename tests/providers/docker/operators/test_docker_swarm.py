@@ -84,6 +84,7 @@ class TestDockerSwarmOperator:
         types_mock.ContainerSpec.assert_called_once_with(
             image="ubuntu:latest",
             command="env",
+            args=None,
             user="unittest",
             mounts=[types.Mount(source="/host/path", target="/container/path", type="bind")],
             tty=True,
