@@ -958,7 +958,7 @@ class TestBackfillJob:
         actual = []
         for batch in executor.history:
             this_batch = []
-            for cmd, idx, queue, ti in batch:
+            for cmd, idx, queue, ti in batch:  # noqa: B007
                 key = ti.key
                 this_batch.append((key.task_id, key.run_id))
             actual.append(sorted(this_batch))
