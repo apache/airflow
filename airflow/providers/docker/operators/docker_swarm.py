@@ -242,10 +242,11 @@ class DockerSwarmOperator(DockerOperator):
 
         :return: the args as list
         """
-        if isinstance(args, str) and args.strip().startswith("["):
-            args = ast.literal_eval(args)
-        else:
-            args = shlex.split(args)
+        if isinstance(args, str):
+            if args.strip().startswith("["):
+                return ast.literal_eval(args)
+            else:
+                return shlex.split(args)
         return args
 
     def on_kill(self) -> None:
