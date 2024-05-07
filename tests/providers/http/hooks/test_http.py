@@ -37,7 +37,8 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook, get_auth_types
 
-DEFAULT_HEADERS = "{\r\n \"Content-Type\": \"application/json\",\r\n  \"X-Requested-By\": \"Airflow\"\r\n}"
+DEFAULT_HEADERS_AS_STRING = '{\r\n "Content-Type": "application/json",\r\n  "X-Requested-By": "Airflow"\r\n}'
+DEFAULT_HEADERS = json.loads(DEFAULT_HEADERS_AS_STRING)
 
 
 @pytest.fixture
@@ -131,23 +132,20 @@ class TestHttpHook:
             assert resp.text == '{"status":{"status": 404}}'
 
     def test_hook_contains_header_from_extra_field(self):
-        airflow_connection = get_airflow_connection_with_extra(
-            extra={"headers": DEFAULT_HEADERS}
-        )
+        airflow_connection = get_airflow_connection_with_extra(extra={"headers": DEFAULT_HEADERS_AS_STRING})
         with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
             expected_conn = get_airflow_connection()
             conn = self.get_hook.get_conn()
 
             conn_extra: dict = json.loads(expected_conn.extra)
-            headers = dict(conn.headers, **json.loads(conn_extra["headers"]))
-            assert headers == conn.headers
+            assert dict(conn.headers, **conn_extra["headers"]) == conn.headers
             assert conn.headers["Content-Type"] == "application/json"
             assert conn.headers["X-Requested-By"] == "Airflow"
 
     def test_hook_ignore_max_redirects_from_extra_field_as_header(self):
         airflow_connection = get_airflow_connection_with_extra(
             extra={
-                "headers": DEFAULT_HEADERS,
+                "headers": DEFAULT_HEADERS_AS_STRING,
                 "max_redirects": 3,
             }
         )
@@ -488,7 +486,7 @@ class TestHttpHook:
             password="pass",
             extra=f"""
                 {{"auth_kwargs": {{\r\n    "endpoint": "http://localhost"\r\n}},
-                "headers": {DEFAULT_HEADERS}}}
+                "headers": {DEFAULT_HEADERS_AS_STRING}}}
                 """,
         )
         mock_get_connection.return_value = conn
@@ -767,9 +765,7 @@ class TestHttpAsyncHook:
             with mock.patch("aiohttp.ClientSession.post", new_callable=mock.AsyncMock) as mocked_function:
                 await hook.run("v1/test")
                 _headers = mocked_function.call_args.kwargs.get("headers")
-                assert all(
-                    key in _headers and _headers[key] == value for key, value in headers.items()
-                )
+                assert all(key in headers and headers[key] == value for key, value in _headers.items())
 
     @pytest.mark.asyncio
     async def test_async_request_uses_connection_extra_with_requests_parameters(self):
@@ -778,7 +774,7 @@ class TestHttpAsyncHook:
         proxy = {"http": "http://proxy:80", "https": "https://proxy:80"}
         airflow_connection = get_airflow_connection_with_extra(
             extra={
-                **{"headers": headers},
+                **{"headers": DEFAULT_HEADERS},
                 **{
                     "proxies": proxy,
                     "timeout": 60,
@@ -795,9 +791,7 @@ class TestHttpAsyncHook:
             with mock.patch("aiohttp.ClientSession.post", new_callable=mock.AsyncMock) as mocked_function:
                 await hook.run("v1/test")
                 _headers = mocked_function.call_args.kwargs.get("headers")
-                assert all(
-                    key in headers and headers[key] == value for key, value in _headers.items()
-                )
+                assert all(key in headers and headers[key] == value for key, value in _headers.items())
                 assert mocked_function.call_args.kwargs.get("proxy") == proxy
                 assert mocked_function.call_args.kwargs.get("timeout") == 60
                 assert mocked_function.call_args.kwargs.get("verify_ssl") is False
@@ -807,7 +801,6 @@ class TestHttpAsyncHook:
 
     def test_parse_extra(self):
         proxy = {"http": "http://proxy:80", "https": "https://proxy:80"}
-        headers = "{\r\n \"Content-Type\": \"application/json\",\r\n  \"X-Requested-By\": \"Airflow\"\r\n}"
         session_conf = {
             "stream": True,
             "cert": "cert.crt",
@@ -819,13 +812,13 @@ class TestHttpAsyncHook:
             "trust_env": False,
         }
 
-        actual = HttpAsyncHook()._parse_extra(conn_extra={**{"headers": headers}, **session_conf})
+        actual = HttpAsyncHook()._parse_extra(conn_extra={**{"headers": DEFAULT_HEADERS_AS_STRING}, **session_conf})
 
         assert actual == {
             "auth_type": None,
             "auth_kwargs": {},
             "session_conf": session_conf,
-            "headers": json.loads(headers),
+            "headers": DEFAULT_HEADERS,
         }
 
     @pytest.mark.asyncio
