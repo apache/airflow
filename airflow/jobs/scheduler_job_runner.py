@@ -776,7 +776,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     "Executor reports task instance %s finished (%s) although the "
                     "task says it's %s. (Info: %s) Was the task killed externally?"
                 )
-                self._task_context_logger.error(msg, ti, state, ti.state, info, ti=ti)
+                self._task_context_logger.error(msg, ti, state, ti.state, info, ti=ti, session=session)
 
                 # Get task from the Serialized DAG
                 try:
@@ -1577,6 +1577,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         "If the task instance has available retries, it will be retried.",
                         ti,
                         ti=ti,
+                        session=session,
                     )
         except NotImplementedError:
             self.log.debug("Executor doesn't support cleanup of stuck queued tasks. Skipping.")
@@ -1750,7 +1751,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "(See https://airflow.apache.org/docs/apache-airflow/"
                 "stable/core-concepts/tasks.html#zombie-undead-tasks)"
             )
-            self._task_context_logger.error(log_message, ti=ti)
+            self._task_context_logger.error(log_message, ti=ti, session=session)
             self.job.executor.send_callback(request)
             Stats.incr("zombies_killed", tags={"dag_id": ti.dag_id, "task_id": ti.task_id})
 
