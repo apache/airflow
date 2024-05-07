@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, NamedTuple
 
 from marshmallow import Schema, fields
 
+from airflow.api_connexion.schemas.dag_schema import DAGSchema
 from airflow.api_connexion.schemas.common_schema import (
     ClassReferenceSchema,
     ColorField,
@@ -32,7 +33,6 @@ if TYPE_CHECKING:
     from airflow.models.operator import Operator
 
 class SubDagMixin:
-    from airflow.api_connexion.schemas.dag_schema import DAGSchema
     sub_dag = fields.Nested(DAGSchema, dump_only=True)
 
 class TaskSchema(Schema, SubDagMixin):
