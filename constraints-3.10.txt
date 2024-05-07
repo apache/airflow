@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-05-06T22:33:10.436964
+# This constraints file was automatically generated on 2024-05-07T02:41:16.052376
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -197,7 +197,7 @@ asyncssh==2.14.2
 atlasclient==1.0.0
 atlassian-python-api==3.41.11
 attrs==23.2.0
-aws-sam-translator==1.87.0
+aws-sam-translator==1.88.0
 aws-xray-sdk==2.13.0
 azure-batch==14.2.0
 azure-common==1.1.28
