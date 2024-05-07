@@ -107,10 +107,11 @@ class BigQueryInsertJobTrigger(BaseTrigger):
         task_instance = query.one_or_none()
         if task_instance is None:
             raise AirflowException(
-                "TaskInstance %s, %s with run_id %s not found",
+                "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
                 self.task_instance.dag_id,
                 self.task_instance.task_id,
                 self.task_instance.run_id,
+                self.task_instance.map_index,
             )
         return task_instance
 
