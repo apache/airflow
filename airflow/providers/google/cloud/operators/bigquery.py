@@ -315,9 +315,6 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
                 self.defer(
                     timeout=self.execution_timeout,
                     trigger=BigQueryCheckTrigger(
-                        dag_id=self.dag_id,
-                        task_id=self.task_id,
-                        run_id=context.get("run_id"),
                         conn_id=self.gcp_conn_id,
                         job_id=job.job_id,
                         project_id=hook.project_id,
@@ -456,9 +453,6 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
                 self.defer(
                     timeout=self.execution_timeout,
                     trigger=BigQueryValueCheckTrigger(
-                        dag_id=self.dag_id,
-                        task_id=self.task_id,
-                        run_id=context.get("run_id"),
                         conn_id=self.gcp_conn_id,
                         job_id=job.job_id,
                         project_id=hook.project_id,
@@ -614,9 +608,6 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
             self.defer(
                 timeout=self.execution_timeout,
                 trigger=BigQueryIntervalCheckTrigger(
-                    dag_id=self.dag_id,
-                    task_id=self.task_id,
-                    run_id=context.get("run_id"),
                     conn_id=self.gcp_conn_id,
                     first_job_id=job_1.job_id,
                     second_job_id=job_2.job_id,
@@ -1133,9 +1124,6 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         self.defer(
             timeout=self.execution_timeout,
             trigger=BigQueryGetDataTrigger(
-                dag_id=self.dag_id,
-                task_id=self.task_id,
-                run_id=context.get("run_id"),
                 conn_id=self.gcp_conn_id,
                 job_id=job.job_id,
                 dataset_id=self.dataset_id,
@@ -2968,9 +2956,6 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
                 self.defer(
                     timeout=self.execution_timeout,
                     trigger=BigQueryInsertJobTrigger(
-                        dag_id=self.dag_id,
-                        task_id=self.task_id,
-                        run_id=context.get("run_id"),
                         conn_id=self.gcp_conn_id,
                         job_id=self.job_id,
                         project_id=self.project_id,
