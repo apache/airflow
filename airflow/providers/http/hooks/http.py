@@ -18,7 +18,10 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import warnings
+from contextlib import suppress
+from json import JSONDecodeError
 from logging import Logger
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -65,6 +68,24 @@ def get_auth_types() -> frozenset[str]:
     return auth_types
 
 
+def json_loads(value: str | dict | None, default: dict | None = None) -> dict:
+    """Safely loads optional JSON.
+
+    Returns 'default' (None) if the object is None.
+    Return the object as-is if it is a dictionary.
+
+    This method is used to parse parameters passed in 'extra' into dict.
+    Those parameters can be None (when they are omitted), dict (when the Connection
+    is created via the API) or str (when Connection is created via the UI).
+    """
+    if isinstance(value, dict):
+        return value
+    if value is not None:
+        with suppress(JSONDecodeError):
+            return json.loads(value)
+    return default | {}
+
+
 class HttpHookMixin:
     """Common superclass for the HttpHook and HttpAsyncHook.
 
@@ -74,7 +95,6 @@ class HttpHookMixin:
     http_conn_id: str
     conn_type: str
     base_url: str
-    auth_type: Any
     default_auth_type = HTTPBasicAuth
     get_connection: Callable
     log: Logger
@@ -82,20 +102,35 @@ class HttpHookMixin:
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Return connection widgets to add to the connection form."""
-        from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, BS3TextFieldWidget
+        from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, BS3TextFieldWidget, Select2Widget
         from flask_babel import lazy_gettext
-        from wtforms import StringField
+        from wtforms.fields import BooleanField, SelectField, StringField, TextAreaField
 
-        from airflow.www.validators import ValidJson
+        default_auth_type: str = ""
+        auth_types_choices = frozenset({default_auth_type}) | get_auth_types()
 
         return {
-            f"extra__{cls.conn_type}__auth_type": StringField(lazy_gettext("Auth type"), widget=BS3TextFieldWidget()),
-            f"extra__{cls.conn_type}__auth_kwargs": StringField(
-                lazy_gettext("Auth kwargs"), validators=[ValidJson()], widget=BS3TextAreaFieldWidget()
+            "timeout": StringField(lazy_gettext("Timeout"), widget=BS3TextFieldWidget()),
+            "allow_redirects": BooleanField(lazy_gettext("Allow redirects"), default=True),
+            "proxies": TextAreaField(lazy_gettext("Proxies"), widget=BS3TextAreaFieldWidget()),
+            "stream": BooleanField(lazy_gettext("Stream"), default=False),
+            "verify": BooleanField(lazy_gettext("Verify"), default=True),
+            "trust_env": BooleanField(lazy_gettext("Trust env"), default=True),
+            "cert": StringField(lazy_gettext("Cert"), widget=BS3TextFieldWidget()),
+            "max_redirects": StringField(
+                lazy_gettext("Max redirects"), widget=BS3TextFieldWidget(), default=DEFAULT_REDIRECT_LIMIT
             ),
-            f"extra__{cls.conn_type}__headers": StringField(
+            "auth_type": SelectField(
+                lazy_gettext("Auth type"),
+                choices=[(clazz, clazz) for clazz in auth_types_choices],
+                widget=Select2Widget(),
+                default=default_auth_type,
+            ),
+            "auth_kwargs": TextAreaField(
+                lazy_gettext("Auth kwargs"), widget=BS3TextAreaFieldWidget()
+            ),
+            "headers": TextAreaField(
                 lazy_gettext("Headers"),
-                validators=[ValidJson()],
                 widget=BS3TextAreaFieldWidget(),
                 description=(
                     "Warning: Passing headers parameters directly in 'Extra' field is deprecated, and "
@@ -136,7 +171,11 @@ class HttpHookMixin:
             auth_kwargs: dict[str, Any] = conn_extra["auth_kwargs"]
             auth_type: Any = self.auth_type or self._load_conn_auth_type(module_name=conn_extra["auth_type"])
 
+            self.log.info("auth_type: %s", auth_type)
+
             if auth_type:
+                self.log.info("auth_args: %s", auth_args)
+                self.log.info("auth_kwargs: %s", auth_kwargs)
                 if any(auth_args) or auth_kwargs:
                     _auth = auth_type(*auth_args, **auth_kwargs)
                 elif conn.login:
@@ -174,7 +213,7 @@ class HttpHookMixin:
         )  # ignore this as only max_redirects is accepted in Session
         if allow_redirects is not None:
             session_conf["allow_redirects"] = allow_redirects
-        session_conf["proxies"] = extra.pop("proxies", extra.pop("proxy", {}))
+        session_conf["proxies"] = json_loads(extra.pop("proxies", extra.pop("proxy", {})))
         session_conf["stream"] = extra.pop("stream", False)
         session_conf["verify"] = extra.pop("verify", extra.pop("verify_ssl", True))
         session_conf["trust_env"] = extra.pop("trust_env", True)
@@ -183,8 +222,8 @@ class HttpHookMixin:
             session_conf["cert"] = cert
         session_conf["max_redirects"] = extra.pop("max_redirects", DEFAULT_REDIRECT_LIMIT)
         auth_type: str | None = extra.pop("auth_type", None)
-        auth_kwargs = extra.pop("auth_kwargs", {})
-        headers = extra.pop("headers", {})
+        auth_kwargs = json_loads(extra.pop("auth_kwargs", {}))
+        headers = json_loads(extra.pop("headers", {}))
 
         if extra:
             warnings.warn(
