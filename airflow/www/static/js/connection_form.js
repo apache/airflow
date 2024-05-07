@@ -363,9 +363,9 @@ $(document).ready(() => {
   changeConnType(connTypeElem.value);
 
   // Get all textarea elements
-  const textAreas= document.getElementsByTagName("textarea");
+  const textAreas = document.getElementsByTagName("textarea");
 
-  Array.from(textAreas).forEach(textArea => {
+  Array.from(textAreas).forEach((textArea) => {
     // Change TextArea widget to CodeMirror
     editor = CodeMirror.fromTextArea(textArea, {
       mode: { name: "javascript", json: true },
