@@ -955,10 +955,14 @@ class TestBackfillJob:
         runid1 = f"backfill__{(DEFAULT_DATE + datetime.timedelta(days=1)).isoformat()}"
         runid2 = f"backfill__{(DEFAULT_DATE + datetime.timedelta(days=2)).isoformat()}"
 
-        # test executor history keeps a list
-        history = executor.history
-
-        assert [sorted(item[-1].key[1:3] for item in batch) for batch in history] == [
+        actual = []
+        for batch in executor.history:
+            this_batch = []
+            for cmd, idx, queue, ti in batch:
+                key = ti.key
+                this_batch.append((key.task_id, key.run_id))
+            actual.append(sorted(this_batch))
+        assert actual == [
             [
                 ("leave1", runid0),
                 ("leave1", runid1),
@@ -967,9 +971,21 @@ class TestBackfillJob:
                 ("leave2", runid1),
                 ("leave2", runid2),
             ],
-            [("upstream_level_1", runid0), ("upstream_level_1", runid1), ("upstream_level_1", runid2)],
-            [("upstream_level_2", runid0), ("upstream_level_2", runid1), ("upstream_level_2", runid2)],
-            [("upstream_level_3", runid0), ("upstream_level_3", runid1), ("upstream_level_3", runid2)],
+            [
+                ("upstream_level_1", runid0),
+                ("upstream_level_1", runid1),
+                ("upstream_level_1", runid2),
+            ],
+            [
+                ("upstream_level_2", runid0),
+                ("upstream_level_2", runid1),
+                ("upstream_level_2", runid2),
+            ],
+            [
+                ("upstream_level_3", runid0),
+                ("upstream_level_3", runid1),
+                ("upstream_level_3", runid2),
+            ],
         ]
 
     def test_backfill_pooled_tasks(self):
