@@ -16,13 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-import os
 from datetime import datetime
 
 from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.yandex.operators.yq import YQExecuteQueryOperator
-from airflow.operators.python import PythonOperator
 
 from tests.system.utils import get_test_env_id
 
