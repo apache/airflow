@@ -83,9 +83,6 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
     """
     DataprocSubmitTrigger run on the trigger worker to perform create Build operation.
 
-    :param dag_id: The DAG ID.
-    :param task_id: The task ID.
-    :param run_id: The run ID.
     :param job_id: The ID of a Dataproc job.
     :param project_id: Google Cloud Project where the job is running
     :param region: The Cloud Dataproc region in which to handle the request.
@@ -101,20 +98,14 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
     :param polling_interval_seconds: polling period in seconds to check for the status
     """
 
-    def __init__(self, job_id: str, dag_id: str, task_id: str, run_id: str | None, **kwargs):
+    def __init__(self, job_id: str, **kwargs):
         self.job_id = job_id
-        self.dag_id = dag_id
-        self.task_id = task_id
-        self.run_id = run_id
         super().__init__(**kwargs)
 
     def serialize(self):
         return (
             "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger",
             {
-                "dag_id": self.dag_id,
-                "task_id": self.task_id,
-                "run_id": self.run_id,
                 "job_id": self.job_id,
                 "project_id": self.project_id,
                 "region": self.region,
@@ -133,14 +124,19 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
         :param session: Sqlalchemy session
         """
         query = session.query(TaskInstance).filter(
-            TaskInstance.dag_id == self.dag_id,
-            TaskInstance.task_id == self.task_id,
-            TaskInstance.run_id == self.run_id,
+            TaskInstance.dag_id == self.task_instance.dag_id,
+            TaskInstance.task_id == self.task_instance.task_id,
+            TaskInstance.run_id == self.task_instance.run_id,
+            TaskInstance.map_index == self.task_instance.map_index,
         )
         task_instance = query.one_or_none()
         if task_instance is None:
             raise AirflowException(
-                f"TaskInstance {self.dag_id}.{self.task_id} with run_id {self.run_id} not found"
+                "TaskInstance with dag_id: %s,task_id: %s, run_id: %s and map_index: %s is not found",
+                self.task_instance.dag_id,
+                self.task_instance.task_id,
+                self.task_instance.run_id,
+                self.task_instance.map_index,
             )
         return task_instance
 
@@ -151,11 +147,9 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
         This is to avoid the case that `asyncio.CancelledError` is called because the trigger itself is stopped.
         Because in those cases, we should NOT cancel the external job.
         """
+        # Database query is needed to get the latest state of the task instance.
         task_instance = self.get_task_instance()  # type: ignore[call-arg]
-        return task_instance.state not in {
-            TaskInstanceState.RUNNING,
-            TaskInstanceState.DEFERRED,
-        }
+        return task_instance.state != TaskInstanceState.DEFERRED
 
     async def run(self):
         try:
@@ -173,6 +167,10 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
             self.log.info("Task got cancelled.")
             try:
                 if self.job_id and self.cancel_on_kill and self.safe_to_cancel():
+                    self.log.info(
+                        "Cancelling the job as it is safe to do so. Note that the airflow TaskInstance is not"
+                        " in deferred state."
+                    )
                     self.log.info("Cancelling the job: %s", self.job_id)
                     # The synchronous hook is utilized to delete the cluster when a task is cancelled. This
                     # is because the asynchronous hook deletion is not awaited when the trigger task is
