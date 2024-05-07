@@ -768,7 +768,7 @@ class TestKubernetesPodOperatorSystem:
             "run_id": "manual__2016-01-01T0100000100-da4d1ce7b",
             "kubernetes_pod_operator": "True",
             "task_id": mock.ANY,
-            "try_number": "1",
+            "try_number": "0",
         }
         assert k.pod.spec.containers[0].env == [k8s.V1EnvVar(name="env_name", value="value")]
         assert result == {"hello": "world"}
@@ -808,7 +808,7 @@ class TestKubernetesPodOperatorSystem:
             "run_id": "manual__2016-01-01T0100000100-da4d1ce7b",
             "kubernetes_pod_operator": "True",
             "task_id": mock.ANY,
-            "try_number": "1",
+            "try_number": "0",
         }
         assert k.pod.spec.containers[0].env == [k8s.V1EnvVar(name="env_name", value="value")]
         assert result == {"hello": "world"}
@@ -853,7 +853,7 @@ class TestKubernetesPodOperatorSystem:
             "run_id": "manual__2016-01-01T0100000100-da4d1ce7b",
             "kubernetes_pod_operator": "True",
             "task_id": mock.ANY,
-            "try_number": "1",
+            "try_number": "0",
         }
         assert k.pod.spec.containers[0].env == [k8s.V1EnvVar(name="env_name", value="value")]
         assert result == {"hello": "world"}
@@ -974,7 +974,7 @@ class TestKubernetesPodOperatorSystem:
                     "run_id": "manual__2016-01-01T0100000100-da4d1ce7b",
                     "kubernetes_pod_operator": "True",
                     "task_id": mock.ANY,
-                    "try_number": "1",
+                    "try_number": "0",
                 },
                 "name": "memory-demo",
                 "namespace": "mem-example",
