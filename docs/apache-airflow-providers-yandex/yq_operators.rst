@@ -19,7 +19,7 @@
 Yandex Query Operators
 ======================
 `Yandex Query <https://yandex.cloud/en/services/query>` __ is a service in the Yandex Cloud to process data from different sources such as
-Object Storage, MDB Clickhouse, MDB PostgreSQL, Yandex DataStreams using SQL scripts.
+Object Storage, MDB ClickHouse, MDB PostgreSQL, Yandex DataStreams using SQL scripts.
 
 Using the operators
 ^^^^^^^^^^^^^^^^^^^
