@@ -500,20 +500,20 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                 task = self.dag.get_task(ti.task_id, include_subdags=True)
                 ti.task = task
 
-                self.log.info("Task instance to run %s state %s", ti, ti.state)
+                self.log.debug("Task instance to run %s state %s", ti, ti.state)
 
                 # The task was already marked successful or skipped by a
                 # different Job. Don't rerun it.
                 if ti.state == TaskInstanceState.SUCCESS:
                     ti_status.succeeded.add(key)
-                    self.log.info("Task instance %s succeeded. Don't rerun.", ti)
+                    self.log.debug("Task instance %s succeeded. Don't rerun.", ti)
                     ti_status.to_run.pop(key)
                     if key in ti_status.running:
                         ti_status.running.pop(key)
                     return
                 elif ti.state == TaskInstanceState.SKIPPED:
                     ti_status.skipped.add(key)
-                    self.log.info("Task instance %s skipped. Don't rerun.", ti)
+                    self.log.debug("Task instance %s skipped. Don't rerun.", ti)
                     ti_status.to_run.pop(key)
                     if key in ti_status.running:
                         ti_status.running.pop(key)
@@ -522,7 +522,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                 if self.rerun_failed_tasks:
                     # Rerun failed tasks or upstreamed failed tasks
                     if ti.state in (TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED):
-                        self.log.info("Task instance %s with state %s", ti, ti.state)
+                        self.log.error("Task instance %s with state %s", ti, ti.state)
                         if key in ti_status.running:
                             ti_status.running.pop(key)
                         # Reset the failed task in backfill to scheduled state
