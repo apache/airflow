@@ -755,6 +755,7 @@ class TaskDecoratorCollection:
         """
     @overload
     def bash(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    def __getattr__(self, name: str) -> TaskDecorator: ...
 
 task: TaskDecoratorCollection
 setup: Callable
