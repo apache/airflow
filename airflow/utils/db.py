@@ -415,9 +415,7 @@ def create_default_connections(session: Session = NEW_SESSION):
         Connection(
             conn_id="iceberg_default",
             conn_type="iceberg",
-            host="localhost",
-            login="iceberg_login",
-            password="iceberg_password",
+            host="https://api.iceberg.io/ws/v1",
         ),
         session,
     )
