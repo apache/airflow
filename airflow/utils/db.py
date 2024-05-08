@@ -1914,7 +1914,7 @@ def get_query_count(query_stmt: Select, *, session: Session) -> int:
     return session.scalar(count_stmt)
 
 
-def get_query_exists(query_stmt: Select, *, session: Session) -> bool:
+def check_query_exists(query_stmt: Select, *, session: Session) -> bool:
     """Check whether there is at least one row matching a query.
 
     A SELECT 1 FROM is issued against the subquery built from the given
@@ -2020,7 +2020,7 @@ class LazySelectSequence(Sequence[T]):
         self._session = get_current_task_instance_session()
 
     def __bool__(self) -> bool:
-        return get_query_exists(self._select_asc, session=self._session)
+        return check_query_exists(self._select_asc, session=self._session)
 
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, collections.abc.Sequence):
