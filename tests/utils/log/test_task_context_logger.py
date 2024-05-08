@@ -66,12 +66,12 @@ def test_task_handler_not_supports_task_context_logging(mock_handler, supported)
 
 @pytest.mark.db_test
 @pytest.mark.parametrize("supported", [True, False])
-def test_task_context_log_with_correct_arguments(ti, mock_handler, supported):
+def test_task_context_log_with_correct_arguments(ti, mock_handler, supported, session):
     mock_handler.supports_task_context_logging = supported
     t = TaskContextLogger(component_name="test_component")
-    t.info("test message with args %s, %s", "a", "b", ti=ti)
+    t.info("test message with args %s, %s", "a", "b", ti=ti, session=session)
     if supported:
-        mock_handler.set_context.assert_called_once_with(ti, identifier="test_component")
+        mock_handler.set_context.assert_called_once_with(ti, identifier="test_component", session=session)
         mock_handler.emit.assert_called_once()
     else:
         mock_handler.set_context.assert_not_called()
