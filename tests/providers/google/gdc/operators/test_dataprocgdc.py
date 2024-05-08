@@ -31,9 +31,9 @@ from airflow.providers.google.gdc.operators.dataprocgdc import (
 
 
 class TestDataprocGDCSparkSubmitKrmOperator:
-    @patch("airflow.providers.google.cloud.operators.dataprocgdc.Watch.stream")
-    @patch("airflow.providers.google.cloud.operators.dataprocgdc._load_body_to_dict")
-    @patch("airflow.providers.google.cloud.operators.dataprocgdc.KubernetesHook")
+    @patch("airflow.providers.google.gdc.operators.dataprocgdc.Watch.stream")
+    @patch("airflow.providers.google.gdc.operators.dataprocgdc._load_body_to_dict")
+    @patch("airflow.providers.google.gdc.operators.dataprocgdc.KubernetesHook")
     def test_submit_spark_app_with_watch(self, mock_kubernetes_hook, mock_load_body_to_dict, mock_stream):
         mock_load_body_to_dict.return_value = {"metadata": {"name": "spark-app"}}
 
@@ -79,11 +79,11 @@ class TestDataprocGDCSparkSubmitKrmOperator:
         }
 
     @patch(
-        "airflow.providers.google.cloud.operators.dataprocgdc.DataprocGDCSubmitSparkJobKrmOperator.on_kill"
+        "airflow.providers.google.gdc.operators.dataprocgdc.DataprocGDCSubmitSparkJobKrmOperator.on_kill"
     )
-    @patch("airflow.providers.google.cloud.operators.dataprocgdc.Watch.stream")
-    @patch("airflow.providers.google.cloud.operators.dataprocgdc._load_body_to_dict")
-    @patch("airflow.providers.google.cloud.operators.dataprocgdc.KubernetesHook")
+    @patch("airflow.providers.google.gdc.operators.dataprocgdc.Watch.stream")
+    @patch("airflow.providers.google.gdc.operators.dataprocgdc._load_body_to_dict")
+    @patch("airflow.providers.google.gdc.operators.dataprocgdc.KubernetesHook")
     def test_fail_spark_app(self, mock_kubernetes_hook, mock_load_body_to_dict, mock_stream, mock_on_kill):
         mock_load_body_to_dict.return_value = {"metadata": {"name": "spark-app"}}
 
@@ -106,8 +106,8 @@ class TestDataprocGDCSparkSubmitKrmOperator:
 
         assert mock_on_kill.has_called_once()
 
-    @patch("airflow.providers.google.cloud.operators.dataprocgdc._load_body_to_dict")
-    @patch("airflow.providers.google.cloud.operators.dataprocgdc.KubernetesHook")
+    @patch("airflow.providers.google.gdc.operators.dataprocgdc._load_body_to_dict")
+    @patch("airflow.providers.google.gdc.operators.dataprocgdc.KubernetesHook")
     def test_submit_spark_app_without_watch(self, mock_kubernetes_hook, mock_load_body_to_dict):
         mock_load_body_to_dict.return_value = {"metadata": {"name": "spark-app"}}
 
@@ -130,8 +130,8 @@ class TestDataprocGDCSparkSubmitKrmOperator:
             "metadata": {"name": "spark-app", "creationTimestamp": "2024-01-01T00:00:00Z"}
         }
 
-    @patch("airflow.providers.google.cloud.operators.dataprocgdc._load_body_to_dict")
-    @patch("airflow.providers.google.cloud.operators.dataprocgdc.KubernetesHook")
+    @patch("airflow.providers.google.gdc.operators.dataprocgdc._load_body_to_dict")
+    @patch("airflow.providers.google.gdc.operators.dataprocgdc.KubernetesHook")
     def test_on_kill(self, mock_kubernetes_hook, mock_load_body_to_dict):
         mock_load_body_to_dict.return_value = {"metadata": {"name": "spark-app"}}
         mock_kubernetes_hook.return_value.get_namespace.return_value = "default"
@@ -150,8 +150,8 @@ class TestDataprocGDCSparkSubmitKrmOperator:
 
 
 class TestDataprocGDCCreateAppEnvironmentKrmOperator:
-    @patch("airflow.providers.google.cloud.operators.dataprocgdc._load_body_to_dict")
-    @patch("airflow.providers.google.cloud.operators.dataprocgdc.KubernetesHook")
+    @patch("airflow.providers.google.gdc.operators.dataprocgdc._load_body_to_dict")
+    @patch("airflow.providers.google.gdc.operators.dataprocgdc.KubernetesHook")
     def test_create_app_env(self, mock_kubernetes_hook, mock_load_body_to_dict):
         mock_load_body_to_dict.return_value = {"metadata": {"name": "app-env"}}
 

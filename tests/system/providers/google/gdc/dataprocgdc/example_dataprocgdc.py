@@ -36,7 +36,6 @@ DAG_ID = "example_dag_dpgdc-krm"
 with DAG(
     DAG_ID, schedule="@once", catchup=False, start_date=datetime(2024, 2, 5), tags=["example", "dataprocgdc"]
 ) as dag:
-
     # [START howto_operator_dataprocGDC_submit_spark]
     submit_spark_job_operator = DataprocGDCSubmitSparkJobKrmOperator(
         task_id="example-dataprocgdc-submitspark-operator",

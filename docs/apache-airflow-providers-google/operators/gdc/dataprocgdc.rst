@@ -21,7 +21,7 @@ Dataproc on Google Distributed Cloud Operators
 Google Distributed Cloud (GDC) extends Google Cloud's infrastructure and services to customer edge locations and data centers. We intend to bring Dataproc as a managed service offering to GDC. This opens new market opportunities for Dataproc to support customer hybrid cloud strategies, satisfy strict data residency requirements that prevent sending data to GCP and implement a subset of computation at local edge sites, closer to where the data is generated.
 
 Submit a Spark job to a GDC cluster
-----------------------------------
+-----------------------------------
 
 * :class:`~airflow.providers.google.gdc.operators.dataprocgdc.DataprocGDCSubmitSparkJobKrmOperator`
   This class allows you to create and run dataproc spark job on a GDC cluster. This operator simplifies the interface and accepts different parameters to configure and run the DPGDC spark job.
