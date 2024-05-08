@@ -2101,7 +2101,7 @@ def _coerce_slice(key: slice) -> tuple[int, int | None, bool]:
     """Check slice content and convert it for SQL.
 
     See CPython documentation on this:
-    https://docs.python.org/3/reference/datamodel.html#object.__index__
+    https://docs.python.org/3/reference/datamodel.html#slice-objects
     """
     if key.step is None or key.step == 1:
         reverse = False
