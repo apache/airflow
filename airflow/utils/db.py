@@ -2000,7 +2000,7 @@ class LazySelectSequence(Sequence[T]):
 
     def __str__(self) -> str:
         counter = "item" if (length := len(self)) == 1 else "items"
-        return f"[... {length} {counter} ...]"
+        return f"LazySelectSequence([{length} {counter}])"
 
     def __getstate__(self) -> Any:
         # We don't want to go to the trouble of serializing SQLAlchemy objects.
