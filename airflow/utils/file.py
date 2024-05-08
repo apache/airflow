@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -200,6 +199,7 @@ def _find_path_from_directory(
     base_dir_path: str,
     ignore_file_name: str,
     ignore_rule_type: Type[_IgnoreRule],
+    include_file_name: str = ".airflowinclude",
 ) -> Generator[str, None, None]:
     """
     Recursively search the base path and return the list of file paths that should not be ignored by
@@ -210,60 +210,70 @@ def _find_path_from_directory(
 
     :return: a generator of file paths which should not be ignored.
     """
-    # A Dict of patterns, keyed using resolved, absolute paths
 
-    patterns_by_dir: Dict[Path, List[_IgnoreRule]] = {}
+    include_file_path = Path(base_dir_path) / include_file_name
+    if include_file_path.is_file():
+        with open(include_file_path) as ifile:
+            for line in ifile:
+                line = line.strip()
+                # Skip empty lines and comments
+                if line and not line.startswith('#'):
+                    yield line
+    else:
+        # A Dict of patterns, keyed using resolved, absolute paths
 
-    # set this rather than import from lyft_etl to avoid any circular import errors
-    is_tars = "tars" in os.environ.get("SERVICE", "")
-    is_kyte = "kyte" in os.environ.get("SERVICE", "")
-    is_loadtest_env = "loadtest" in os.environ.get("SERVICE_FACET", "").lower()
+        patterns_by_dir: Dict[Path, List[_IgnoreRule]] = {}
 
-    for root, dirs, files in os.walk(base_dir_path, followlinks=True):
-        patterns: List[_IgnoreRule] = patterns_by_dir.get(Path(root).resolve(), [])
+        # set this rather than import from lyft_etl to avoid any circular import errors
+        is_tars = "tars" in os.environ.get("SERVICE", "")
+        is_kyte = "kyte" in os.environ.get("SERVICE", "")
+        is_loadtest_env = "loadtest" in os.environ.get("SERVICE_FACET", "").lower()
 
-        ignore_file_path = Path(root) / ignore_file_name
-        if ignore_file_path.is_file():
-            with open(ignore_file_path) as ifile:
-                lines_no_comments = [re.sub(r"\s*#.*", "", line) for line in ifile.read().split("\n")]
-                # append new patterns and filter out "None" objects, which are invalid patterns
-                patterns += [
-                    p
-                    for p in [
-                        ignore_rule_type.compile(line, Path(base_dir_path), ignore_file_path)
-                        for line in lines_no_comments
-                        if line
+        for root, dirs, files in os.walk(base_dir_path, followlinks=True):
+            patterns: List[_IgnoreRule] = patterns_by_dir.get(Path(root).resolve(), [])
+
+            ignore_file_path = Path(root) / ignore_file_name
+            if ignore_file_path.is_file():
+                with open(ignore_file_path) as ifile:
+                    lines_no_comments = [re.sub(r"\s*#.*", "", line) for line in ifile.read().split("\n")]
+                    # append new patterns and filter out "None" objects, which are invalid patterns
+                    patterns += [
+                        p
+                        for p in [
+                            ignore_rule_type.compile(line, Path(base_dir_path), ignore_file_path)
+                            for line in lines_no_comments
+                            if line
+                        ]
+                        if p is not None
                     ]
-                    if p is not None
-                ]
-                # evaluation order of patterns is important with negation
-                # so that later patterns can override earlier patterns
-                patterns = list(OrderedDict.fromkeys(patterns).keys())
+                    # evaluation order of patterns is important with negation
+                    # so that later patterns can override earlier patterns
+                    patterns = list(OrderedDict.fromkeys(patterns).keys())
 
-        dirs[:] = [subdir for subdir in dirs if not ignore_rule_type.match(Path(root) / subdir, patterns)]
+            dirs[:] = [subdir for subdir in dirs if not ignore_rule_type.match(Path(root) / subdir, patterns)]
 
-        # explicit loop for infinite recursion detection since we are following symlinks in this walk
-        for sd in dirs:
-            dirpath = (Path(root) / sd).resolve()
-            # ignore on TARS due to symlinking
-            if dirpath in patterns_by_dir and not is_tars:
-                # ignore symlinked test directories + hive_dags (DATAOR-942)
-                if 'etl/sql/hive' in str(dirpath) or '/tests/unit' in str(dirpath):
+            # explicit loop for infinite recursion detection since we are following symlinks in this walk
+            for sd in dirs:
+                dirpath = (Path(root) / sd).resolve()
+                # ignore on TARS due to symlinking
+                if dirpath in patterns_by_dir and not is_tars:
+                    # ignore symlinked test directories + hive_dags (DATAOR-942)
+                    if 'etl/sql/hive' in str(dirpath) or '/tests/unit' in str(dirpath):
+                        continue
+                    raise RuntimeError(
+                        "Detected recursive loop when walking DAG directory "
+                        f"{base_dir_path}: {dirpath} has appeared more than once."
+                    )
+                patterns_by_dir.update({dirpath: patterns.copy()})
+
+            for file in files:
+                if file == ignore_file_name:
                     continue
-                raise RuntimeError(
-                    "Detected recursive loop when walking DAG directory "
-                    f"{base_dir_path}: {dirpath} has appeared more than once."
-                )
-            patterns_by_dir.update({dirpath: patterns.copy()})
+                abs_file_path = Path(root) / file
+                if ignore_rule_type.match(abs_file_path, patterns):
+                    continue
 
-        for file in files:
-            if file == ignore_file_name:
-                continue
-            abs_file_path = Path(root) / file
-            if ignore_rule_type.match(abs_file_path, patterns):
-                continue
-
-            yield str(abs_file_path)
+                yield str(abs_file_path)
 
 
 def find_path_from_directory(
