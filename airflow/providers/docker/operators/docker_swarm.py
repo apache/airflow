@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 import shlex
 from datetime import datetime
@@ -235,18 +234,14 @@ class DockerSwarmOperator(DockerOperator):
     def format_args(args: list[str] | str | None) -> list[str] | None:
         """Retrieve args.
 
-        The args string is parsed to a list. If it starts with ``[``,
-        the string is treated as a Python literal and parsed into a list.
+        The args string is parsed to a list.
 
         :param args: args to the docker service
 
         :return: the args as list
         """
         if isinstance(args, str):
-            if args.strip().startswith("["):
-                return json.loads(args)
-            else:
-                return shlex.split(args)
+            return shlex.split(args)
         return args
 
     def on_kill(self) -> None:
