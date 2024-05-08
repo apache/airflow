@@ -145,7 +145,7 @@ def generate_openlineage_events_from_dbt_cloud_run(
             dag_id=task_instance.dag_id,
             task_id=operator.task_id,
             execution_date=task_instance.execution_date,
-            try_number=_get_try_number(task_instance.try_number),
+            try_number=_get_try_number(task_instance),
         )
 
         parent_job = ParentRunMetadata(

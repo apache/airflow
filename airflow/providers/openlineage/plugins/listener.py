@@ -180,7 +180,7 @@ class OpenLineageListener:
                 dag_id=dag.dag_id,
                 task_id=task.task_id,
                 execution_date=task_instance.execution_date,
-                try_number=_get_try_number_success(task_instance.try_number),
+                try_number=_get_try_number_success(task_instance),
             )
             event_type = RunState.COMPLETE.value.lower()
             operator_name = task.task_type.lower()
