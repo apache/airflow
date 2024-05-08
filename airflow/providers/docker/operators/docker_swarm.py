@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-import ast
+import json
 import re
 import shlex
 from datetime import datetime
@@ -244,7 +244,7 @@ class DockerSwarmOperator(DockerOperator):
         """
         if isinstance(args, str):
             if args.strip().startswith("["):
-                return ast.literal_eval(args)
+                return json.loads(args)
             else:
                 return shlex.split(args)
         return args
