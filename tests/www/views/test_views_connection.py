@@ -431,9 +431,9 @@ def test_process_form_invalid_extra_removed(admin_client):
 
     Note: This can only be tested with a Hook which does not have any custom fields (otherwise
     the custom fields override the extra data when editing a Connection). Thus, this is currently
-    tested with livy.
+    tested with ftp.
     """
-    conn_details = {"conn_id": "test_conn", "conn_type": "livy"}
+    conn_details = {"conn_id": "test_conn", "conn_type": "ftp"}
     conn = Connection(**conn_details, extra='{"foo": "bar"}')
     conn.id = 1
 
