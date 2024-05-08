@@ -52,13 +52,9 @@ try:
         lazy_load_command,
     )
 except ImportError:
-    try:
-        from airflow import __version__ as airflow_version
-    except ImportError:
-        from airflow.version import version as airflow_version
-
     import packaging.version
 
+    from airflow import __version__ as airflow_version
     from airflow.exceptions import AirflowOptionalProviderFeatureException
 
     base_version = packaging.version.parse(airflow_version).base_version
