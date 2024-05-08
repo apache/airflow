@@ -734,7 +734,7 @@ class DagFileProcessorManager(LoggingMixin):
     def _refresh_requested_filelocs(self, session=NEW_SESSION) -> None:
         """Refresh filepaths from dag dir as requested by users via APIs."""
         # Get values from DB table
-        requests = DagPriorityParsingRequest.get_requests()
+        requests = session.scalars(select(DagPriorityParsingRequest)).all()
         for request in requests:
             # Check if fileloc is in valid file paths. Parsing any
             # filepaths can be a security issue.

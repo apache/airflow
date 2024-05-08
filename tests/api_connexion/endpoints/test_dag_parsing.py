@@ -20,6 +20,7 @@ import os
 from typing import TYPE_CHECKING
 
 import pytest
+from sqlalchemy import select
 
 from airflow.models import DagBag
 from airflow.models.dagbag import DagPriorityParsingRequest
@@ -75,7 +76,7 @@ class TestDagParsingRequest:
     def clear_db():
         clear_db_dag_parsing_requests()
 
-    def test_201_and_400_requests(self, url_safe_serializer):
+    def test_201_and_400_requests(self, url_safe_serializer, session):
         dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
         dagbag.sync_to_db()
         test_dag: DAG = dagbag.dags[TEST_DAG_ID]
@@ -85,7 +86,7 @@ class TestDagParsingRequest:
             url, headers={"Accept": "application/json"}, environ_overrides={"REMOTE_USER": "test"}
         )
         assert 201 == response.status_code
-        parsing_requests = DagPriorityParsingRequest.get_requests()
+        parsing_requests = session.scalars(select(DagPriorityParsingRequest)).all()
         assert parsing_requests[0].fileloc == test_dag.fileloc
 
         # Duplicate file parsing request
@@ -93,20 +94,20 @@ class TestDagParsingRequest:
             url, headers={"Accept": "application/json"}, environ_overrides={"REMOTE_USER": "test"}
         )
         assert 409 == response.status_code
-        parsing_requests = DagPriorityParsingRequest.get_requests()
+        parsing_requests = session.scalars(select(DagPriorityParsingRequest)).all()
         assert parsing_requests[0].fileloc == test_dag.fileloc
 
-    def test_bad_file_request(self, url_safe_serializer):
+    def test_bad_file_request(self, url_safe_serializer, session):
         url = f"/api/v1/parseDagFile/{url_safe_serializer.dumps('/some/random/file.py')}"
         response = self.client.put(
             url, headers={"Accept": "application/json"}, environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 404
 
-        parsing_requests = DagPriorityParsingRequest.get_requests()
+        parsing_requests = session.scalars(select(DagPriorityParsingRequest)).all()
         assert parsing_requests == []
 
-    def test_bad_user_request(self, url_safe_serializer):
+    def test_bad_user_request(self, url_safe_serializer, session):
         url = f"/api/v1/parseDagFile/{url_safe_serializer.dumps('/some/random/file.py')}"
         response = self.client.put(
             url,
@@ -115,5 +116,5 @@ class TestDagParsingRequest:
         )
         assert response.status_code == 403
 
-        parsing_requests = DagPriorityParsingRequest.get_requests()
+        parsing_requests = session.scalars(select(DagPriorityParsingRequest)).all()
         assert parsing_requests == []

@@ -34,7 +34,6 @@ from typing import TYPE_CHECKING, NamedTuple
 from sqlalchemy import (
     Column,
     String,
-    select,
 )
 from sqlalchemy.exc import OperationalError
 from tabulate import tabulate
@@ -760,11 +759,6 @@ class DagPriorityParsingRequest(Base):
     def __init__(self, fileloc: str) -> None:
         super().__init__()
         self.fileloc = fileloc
-
-    @staticmethod
-    @provide_session
-    def get_requests(session: Session = NEW_SESSION):
-        return session.scalars(select(DagPriorityParsingRequest)).all()
 
     def __repr__(self) -> str:
         return f"<DagPriorityParsingRequest: fileloc={self.fileloc}>"
