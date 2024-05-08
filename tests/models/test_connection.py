@@ -263,12 +263,11 @@ class TestConnection:
             port=100,
             schema="https",
             extra=extra,
-        ),
+        )
 
         assert connection.extra_dejson == {
             "trust_env": False,
             "verify": False,
             "stream": True,
-            "headers": {"Content-Type": "application", "X-Requested-By": "Airflow"}
+            "headers": {"Content-Type": "application/json", "X-Requested-By": "Airflow"},
         }
-
