@@ -21,6 +21,7 @@ import json
 import logging
 import warnings
 from contextlib import suppress
+from functools import cached_property
 from json import JSONDecodeError
 from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
@@ -472,7 +473,7 @@ class Connection(Base, LoggingMixin):
 
         return status, message
 
-    @property
+    @cached_property
     def extra_dejson(self) -> dict:
         """Returns the extra property by deserializing json."""
         extra = {}
