@@ -29,7 +29,7 @@ def test_iceberg_hook():
     access_token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSU"
     with requests_mock.Mocker() as m:
         m.post(
-            "https://api.tabulardata.io/ws/v1/oauth/tokens",
+            "https://api.iceberg.io/ws/v1/oauth/tokens",
             json={
                 "access_token": access_token,
                 "token_type": "Bearer",
