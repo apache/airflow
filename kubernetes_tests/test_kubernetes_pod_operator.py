@@ -62,6 +62,7 @@ def create_context(task) -> Context:
     task_instance = TaskInstance(task=task)
     task_instance.dag_run = dag_run
     task_instance.dag_id = dag.dag_id
+    task_instance.try_number = 1
     task_instance.xcom_push = mock.Mock()  # type: ignore
     return Context(
         dag=dag,
@@ -112,7 +113,7 @@ class TestKubernetesPodOperatorSystem:
                     "run_id": "manual__2016-01-01T0100000100-da4d1ce7b",
                     "dag_id": "dag",
                     "task_id": ANY,
-                    "try_number": "0",
+                    "try_number": "1",
                 },
             },
             "spec": {
@@ -768,7 +769,7 @@ class TestKubernetesPodOperatorSystem:
             "run_id": "manual__2016-01-01T0100000100-da4d1ce7b",
             "kubernetes_pod_operator": "True",
             "task_id": mock.ANY,
-            "try_number": "0",
+            "try_number": "1",
         }
         assert k.pod.spec.containers[0].env == [k8s.V1EnvVar(name="env_name", value="value")]
         assert result == {"hello": "world"}
@@ -808,7 +809,7 @@ class TestKubernetesPodOperatorSystem:
             "run_id": "manual__2016-01-01T0100000100-da4d1ce7b",
             "kubernetes_pod_operator": "True",
             "task_id": mock.ANY,
-            "try_number": "0",
+            "try_number": "1",
         }
         assert k.pod.spec.containers[0].env == [k8s.V1EnvVar(name="env_name", value="value")]
         assert result == {"hello": "world"}
@@ -853,7 +854,7 @@ class TestKubernetesPodOperatorSystem:
             "run_id": "manual__2016-01-01T0100000100-da4d1ce7b",
             "kubernetes_pod_operator": "True",
             "task_id": mock.ANY,
-            "try_number": "0",
+            "try_number": "1",
         }
         assert k.pod.spec.containers[0].env == [k8s.V1EnvVar(name="env_name", value="value")]
         assert result == {"hello": "world"}
