@@ -73,7 +73,7 @@ from airflow.models.taskinstance import (
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
-from airflow.models.xcom import LazyXComAccess, XCom
+from airflow.models.xcom import LazyXComSelectSequence, XCom
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
@@ -93,6 +93,7 @@ from airflow.utils.module_loading import qualname
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
+from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.types import DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.models import DEFAULT_DATE, TEST_DAGS_FOLDER
@@ -4355,20 +4356,22 @@ def test_lazy_xcom_access_does_not_pickle_session(dag_maker, session):
     run: DagRun = dag_maker.create_dagrun()
     run.get_task_instance("t", session=session).xcom_push("xxx", 123, session=session)
 
-    query = session.query(XCom.value).filter_by(
-        dag_id=run.dag_id,
-        run_id=run.run_id,
-        task_id="t",
-        map_index=-1,
-        key="xxx",
-    )
-
-    original = LazyXComAccess.build_from_xcom_query(query)
-    processed = pickle.loads(pickle.dumps(original))
+    with set_current_task_instance_session(session=session):
+        original = LazyXComSelectSequence.from_select(
+            select(XCom.value).filter_by(
+                dag_id=run.dag_id,
+                run_id=run.run_id,
+                task_id="t",
+                map_index=-1,
+                key="xxx",
+            ),
+            order_by=(),
+        )
+        processed = pickle.loads(pickle.dumps(original))
 
     # After the object went through pickling, the underlying ORM query should be
     # replaced by one backed by a literal SQL string with all variables binded.
-    sql_lines = [line.strip() for line in str(processed._query.statement.compile(None)).splitlines()]
+    sql_lines = [line.strip() for line in str(processed._select_asc.compile(None)).splitlines()]
     assert sql_lines == _get_lazy_xcom_access_expected_sql_lines()
 
     assert len(processed) == 1
@@ -4398,7 +4401,7 @@ def test_ti_xcom_pull_on_mapped_operator_return_lazy_iterable(mock_deserialize_v
 
     # Simply pulling the joined XCom value should not deserialize.
     joined = ti_2.xcom_pull("task_1", session=session)
-    assert isinstance(joined, LazyXComAccess)
+    assert isinstance(joined, LazyXComSelectSequence)
     assert mock_deserialize_value.call_count == 0
 
     # Only when we go through the iterable does deserialization happen.

@@ -33,9 +33,6 @@
 - tests/always/test_connection.py::TestConnection::test_connection_get_uri_from_conn
 - tests/always/test_connection.py::TestConnection::test_connection_get_uri_from_uri
 - tests/always/test_connection.py::TestConnection::test_from_json_extra
-# `test_should_be_importable` and `test_should_not_do_database_queries` should be resolved together
-- tests/always/test_example_dags.py::test_should_be_importable
-- tests/always/test_example_dags.py::test_should_not_do_database_queries
 
 
 # API
