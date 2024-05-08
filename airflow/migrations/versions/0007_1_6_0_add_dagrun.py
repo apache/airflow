@@ -18,7 +18,7 @@
 """Add ``dag_run`` table.
 
 Revision ID: 1b38cef5b76e
-Revises: 52d714495f0
+Revises: 502898887f84
 Create Date: 2015-10-27 08:31:48.475140
 
 """

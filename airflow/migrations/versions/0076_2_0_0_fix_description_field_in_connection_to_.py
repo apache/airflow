@@ -18,7 +18,7 @@
 """Fix description field in ``connection`` to be ``text``.
 
 Revision ID: 64a7d6477aae
-Revises: f5b5ec089444
+Revises: 61ec73d9401f
 Create Date: 2020-11-25 08:56:11.866607
 
 """
