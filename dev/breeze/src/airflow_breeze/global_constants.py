@@ -476,11 +476,19 @@ BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str]] = [
         "python-version": "3.8",
         "airflow-version": "2.7.1",
         "remove-providers": _exclusion(["common.io", "fab"]),
+        "run-tests": "false",
     },
     {
         "python-version": "3.8",
         "airflow-version": "2.8.0",
         "remove-providers": _exclusion(["fab"]),
+        "run-tests": "false",
+    },
+    {
+        "python-version": "3.8",
+        "airflow-version": "2.9.1",
+        "remove-providers": _exclusion([]),
+        "run-tests": "true",
     },
 ]
 
