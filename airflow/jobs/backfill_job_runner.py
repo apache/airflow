@@ -434,7 +434,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         try:
             for ti in dag_run.get_task_instances(session=session):
                 if ti in schedulable_tis:
-                    if not ti.state == TaskInstanceState.UP_FOR_RESCHEDULE:
+                    if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
                         ti.try_number += 1
                     ti.set_state(TaskInstanceState.SCHEDULED)
                 if ti.state != TaskInstanceState.REMOVED:
