@@ -411,6 +411,13 @@ def create_default_connections(session: Session = NEW_SESSION):
         ),
         session,
     )
+    merge_conn(
+        Connection(
+            conn_id="iceberg_default",
+            conn_type="iceberg",
+        ),
+        session,
+    )
     merge_conn(Connection(conn_id="impala_default", conn_type="impala", host="localhost", port=21050))
     merge_conn(
         Connection(
@@ -672,8 +679,8 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
     merge_conn(
         Connection(
-            conn_id="iceberg_default",
-            conn_type="iceberg",
+            conn_id="tabular_default",
+            conn_type="tabular",
             host="https://api.tabulardata.io/ws/v1",
         ),
         session,
