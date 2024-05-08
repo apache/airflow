@@ -474,9 +474,9 @@ class Connection(Base, LoggingMixin):
 
     def get_extra_dejson(self, nested: bool = False) -> dict:
         """
-        Returns the extra property by deserializing json.
+        Deserialize extra property to JSON.
 
-        :param nested: Determines whether nested structures are also deserialized into json (default False).
+        :param nested: Determines whether nested structures are also deserialized into JSON (default False).
         """
         extra = {}
 
