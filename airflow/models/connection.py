@@ -21,7 +21,6 @@ import json
 import logging
 import warnings
 from contextlib import suppress
-from functools import cached_property
 from json import JSONDecodeError
 from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
@@ -473,18 +472,24 @@ class Connection(Base, LoggingMixin):
 
         return status, message
 
-    @cached_property
-    def extra_dejson(self) -> dict:
-        """Returns the extra property by deserializing json."""
+    def get_extra_dejson(self, nested: bool = False) -> dict:
+        """
+        Returns the extra property by deserializing json.
+
+        :param nested: Determines whether nested structures are also deserialized into json (default False).
+        """
         extra = {}
 
         if self.extra:
             try:
-                for key, value in json.loads(self.extra).items():
-                    extra[key] = value
-                    if isinstance(value, str):
-                        with suppress(JSONDecodeError):
-                            extra[key] = json.loads(value)
+                if nested:
+                    for key, value in json.loads(self.extra).items():
+                        extra[key] = value
+                        if isinstance(value, str):
+                            with suppress(JSONDecodeError):
+                                extra[key] = json.loads(value)
+                else:
+                    extra = json.loads(self.extra)
             except JSONDecodeError:
                 self.log.exception("Failed parsing the json for conn_id %s", self.conn_id)
 
@@ -492,6 +497,11 @@ class Connection(Base, LoggingMixin):
             mask_secret(extra)
 
         return extra
+
+    @property
+    def extra_dejson(self) -> dict:
+        """Returns the extra property by deserializing json."""
+        return self.get_extra_dejson()
 
     @classmethod
     def get_connection_from_secrets(cls, conn_id: str) -> Connection:

@@ -151,7 +151,7 @@ class HttpHookMixin:
             if conn.port:
                 self.base_url += f":{conn.port}"
 
-            conn_extra: dict = self._parse_extra(conn_extra=conn.extra_dejson)
+            conn_extra: dict = self._parse_extra(conn_extra=conn.get_extra_dejson(nested=True))
             _session_conf = conn_extra["session_conf"]
             auth_args: list[str | None] = [conn.login, conn.password]
             auth_kwargs: dict[str, Any] = conn_extra["auth_kwargs"]
