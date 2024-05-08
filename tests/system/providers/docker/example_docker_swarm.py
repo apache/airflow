@@ -38,7 +38,7 @@ with models.DAG(
         docker_url="unix://var/run/docker.sock",  # Set your docker URL
         command="/bin/sleep 10",
         image="centos:latest",
-        auto_remove=True,
+        auto_remove="success",
         task_id="sleep_with_swarm",
     )
 
