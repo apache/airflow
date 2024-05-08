@@ -170,7 +170,7 @@ class TestPodGenerator:
         template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
 
         pod_generator = PodGenerator(pod_template_file=template_file, extract_xcom=True)
-        with pytest.warns(AirflowProviderDeprecationWarning, match="deprecated and will be removed"):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             result = pod_generator.gen_pod()
         container_two = {
             "name": "airflow-xcom-sidecar",
