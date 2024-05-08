@@ -2480,7 +2480,18 @@ class TestTaskInstance:
         assert not dr.task_instance_scheduling_decisions(session=session).schedulable_tis
         assert read_task_evaluated
 
-    def test_inlet_dataset_extra_slice(self, dag_maker, session):
+    @pytest.mark.parametrize(
+        "slicer, expected",
+        [
+            (lambda x: x[-2:], [{"from": 8}, {"from": 9}]),
+            (lambda x: x[-5:-3], [{"from": 5}, {"from": 6}]),
+            (lambda x: x[:-8], [{"from": 0}, {"from": 1}]),
+            (lambda x: x[1:-7], [{"from": 1}, {"from": 2}]),
+            (lambda x: x[-8:4], [{"from": 2}, {"from": 3}]),
+            (lambda x: x[-5:5], []),
+        ],
+    )
+    def test_inlet_dataset_extra_slice(self, dag_maker, session, slicer, expected):
         from airflow.datasets import Dataset
 
         ds_uri = "test_inlet_dataset_extra_slice"
@@ -2502,21 +2513,14 @@ class TestTaskInstance:
             for ti in dr.get_task_instances(session=session):
                 ti.run(session=session)
 
-        read_task_evaluated = False
+        result = "the task does not run"
 
         with dag_maker(dag_id="read", schedule=None, session=session):
 
             @task(inlets=Dataset(ds_uri))
             def read(*, inlet_events):
-                assert [e.extra for e in inlet_events[ds_uri][-2:]] == [{"from": 8}, {"from": 9}]
-                assert [e.extra for e in inlet_events[ds_uri][-5:-3]] == [{"from": 5}, {"from": 6}]
-                assert [e.extra for e in inlet_events[ds_uri][:-8]] == [{"from": 0}, {"from": 1}]
-                assert [e.extra for e in inlet_events[ds_uri][1:-7]] == [{"from": 1}, {"from": 2}]
-                assert [e.extra for e in inlet_events[ds_uri][-8:4]] == [{"from": 2}, {"from": 3}]
-                assert [e.extra for e in inlet_events[ds_uri][-5:5]] == []
-
-                nonlocal read_task_evaluated
-                read_task_evaluated = True
+                nonlocal result
+                result = [e.extra for e in slicer(inlet_events[ds_uri])]
 
             read()
 
@@ -2527,7 +2531,7 @@ class TestTaskInstance:
 
         # Should be done.
         assert not dr.task_instance_scheduling_decisions(session=session).schedulable_tis
-        assert read_task_evaluated
+        assert result == expected
 
     def test_changing_of_dataset_when_ddrq_is_already_populated(self, dag_maker):
         """
