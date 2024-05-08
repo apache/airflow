@@ -522,3 +522,15 @@ This means ``explicit_defaults_for_timestamp`` is disabled in your mysql server 
 
 #. Set ``explicit_defaults_for_timestamp = 1`` under the ``mysqld`` section in your ``my.cnf`` file.
 #. Restart the Mysql server.
+
+Does Airflow collect any telemetry data?
+----------------------------------------
+
+Airflow integrates `Scarf <https://about.scarf.sh/>`__ to collect basic telemetry data during operation.
+This data assists Airflow maintainers in better understanding how Airflow is used.
+Insights gained from this telemetry are critical for prioritizing patches, minor releases, and
+security fixes. Additionally, this information supports key decisions related to the development Roadmap.
+
+Users can easily opt out of analytics in various ways documented
+`here <https://docs.scarf.sh/gateway/#do-not-track>`__ and by setting the :ref:`config:scarf_analytics__enabled` option
+to ``False``. Airflow also respects ``SCARF_ANALYTICS=false`` environment variable.

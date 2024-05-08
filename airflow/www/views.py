@@ -27,6 +27,7 @@ import logging
 import math
 import operator
 import os
+import platform
 import sys
 import traceback
 import warnings
@@ -1034,6 +1035,19 @@ class Airflow(AirflowBaseView):
                     "warning",
                 )
 
+        scarf_url = ""
+        if settings.IS_SCARF_ANALYTICS_ENABLED:
+            scarf_url = (
+                f"https://apacheairflow.gateway.scarf.sh/web?version={version}"
+                f"&python_version={platform.python_version()}"
+                f"&platform={platform.system()}"
+                f"&arch={platform.machine()}"
+                f"&database={settings.engine.dialect.name}"
+                f"&db_version={settings.engine.dialect.server_version_info}"
+                f"&executor={conf.get('core', 'EXECUTOR')}"
+                f"&num_dags={all_dags_count}"
+            )
+
         return self.render_template(
             "airflow/dags.html",
             dags=dags,
@@ -1072,6 +1086,7 @@ class Airflow(AirflowBaseView):
             sorting_direction=arg_sorting_direction,
             auto_refresh_interval=conf.getint("webserver", "auto_refresh_interval"),
             dataset_triggered_next_run_info=dataset_triggered_next_run_info,
+            scarf_url=scarf_url,
         )
 
     @expose("/datasets")

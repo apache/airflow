@@ -666,3 +666,7 @@ _ENABLE_AIP_44: bool = os.environ.get("AIRFLOW_ENABLE_AIP_44", "false").lower() 
     "y",
     "1",
 }
+
+IS_SCARF_ANALYTICS_ENABLED = conf.getboolean("scarf_analytics", "enabled", fallback=True) and (
+    os.getenv("SCARF_ANALYTICS") != "false"
+)

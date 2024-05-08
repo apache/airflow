@@ -2591,3 +2591,22 @@ sensors:
       type: float
       example: ~
       default: "604800"
+scarf_analytics:
+  description: |
+    Airflow integrates `Scarf <https://about.scarf.sh/>`__ to collect basic telemetry data during operation.
+    This data assists Airflow maintainers in better understanding how Airflow is used.
+    Insights gained from this telemetry are critical for prioritizing patches, minor releases, and
+    security fixes. Additionally, this information supports key decisions related to the development Roadmap.
+
+    Users can easily opt out of analytics in various ways documented
+    `here <https://docs.scarf.sh/gateway/#do-not-track>`__ and by setting the ``enabled`` option
+    to ``False``. Airflow also respects ``SCARF_ANALYTICS=false`` environment variable.
+
+  options:
+    enabled:
+      description: |
+        Enable or disable telemetry data collection and sending via Scarf.
+      version_added: 2.10.0
+      type: boolean
+      example: ~
+      default: "True"
