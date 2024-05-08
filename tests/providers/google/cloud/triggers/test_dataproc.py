@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from asyncio import Future
+from asyncio import CancelledError, Future, sleep
 from unittest import mock
 
 import pytest
@@ -60,6 +60,7 @@ def cluster_trigger():
         gcp_conn_id=TEST_GCP_CONN_ID,
         impersonation_chain=None,
         polling_interval_seconds=TEST_POLL_INTERVAL,
+        delete_on_error=True,
     )
 
 
@@ -123,6 +124,7 @@ def submit_trigger():
         region=TEST_REGION,
         gcp_conn_id=TEST_GCP_CONN_ID,
         polling_interval_seconds=TEST_POLL_INTERVAL,
+        cancel_on_kill=True,
     )
 
 
@@ -326,6 +328,38 @@ class TestDataprocClusterTrigger:
 
         await cluster_trigger.delete_when_error_occurred(mock_cluster)
 
+        mock_delete_cluster.assert_not_called()
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.get_async_hook")
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.get_sync_hook")
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.safe_to_cancel")
+    async def test_cluster_trigger_run_cancelled_not_safe_to_cancel(
+        self, mock_safe_to_cancel, mock_get_sync_hook, mock_get_async_hook, cluster_trigger
+    ):
+        """Test the trigger's cancellation behavior when it is not safe to cancel."""
+        mock_safe_to_cancel.return_value = False
+        cluster = Cluster(status=ClusterStatus(state=ClusterStatus.State.RUNNING))
+        future_cluster = asyncio.Future()
+        future_cluster.set_result(cluster)
+        mock_get_async_hook.return_value.get_cluster.return_value = future_cluster
+
+        mock_delete_cluster = mock.MagicMock()
+        mock_get_sync_hook.return_value.delete_cluster = mock_delete_cluster
+
+        cluster_trigger.delete_on_error = True
+
+        async_gen = cluster_trigger.run()
+        task = asyncio.create_task(async_gen.__anext__())
+        await sleep(0)
+        task.cancel()
+
+        try:
+            await task
+        except CancelledError:
+            pass
+
+        assert mock_delete_cluster.call_count == 0
         mock_delete_cluster.assert_not_called()
 
 
@@ -536,12 +570,15 @@ class TestDataprocSubmitTrigger:
         assert event.payload == expected_event.payload
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("is_safe_to_cancel", [True, False])
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_async_hook")
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_sync_hook")
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.safe_to_cancel")
     async def test_submit_trigger_run_cancelled(
-        self, mock_get_sync_hook, mock_get_async_hook, submit_trigger
+        self, mock_safe_to_cancel, mock_get_sync_hook, mock_get_async_hook, submit_trigger, is_safe_to_cancel
     ):
         """Test the trigger correctly handles an asyncio.CancelledError."""
+        mock_safe_to_cancel.return_value = is_safe_to_cancel
         mock_async_hook = mock_get_async_hook.return_value
         mock_async_hook.get_job.side_effect = asyncio.CancelledError
 
@@ -565,7 +602,7 @@ class TestDataprocSubmitTrigger:
             pytest.fail(f"Unexpected exception raised: {e}")
 
         # Check if cancel_job was correctly called
-        if submit_trigger.cancel_on_kill:
+        if submit_trigger.cancel_on_kill and is_safe_to_cancel:
             mock_sync_hook.cancel_job.assert_called_once_with(
                 job_id=submit_trigger.job_id,
                 project_id=submit_trigger.project_id,

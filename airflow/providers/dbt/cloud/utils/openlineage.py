@@ -47,7 +47,14 @@ def generate_openlineage_events_from_dbt_cloud_run(
     """
     from openlineage.common.provider.dbt import DbtCloudArtifactProcessor, ParentRunMetadata
 
-    from airflow.providers.openlineage.conf import namespace
+    try:
+        from airflow.providers.openlineage.conf import namespace
+    except ModuleNotFoundError as e:
+        from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+        msg = "Please install `apache-airflow-providers-openlineage>=1.7.0`"
+        raise AirflowOptionalProviderFeatureException(e, msg)
+
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.plugins.adapter import (
         _PRODUCER,
