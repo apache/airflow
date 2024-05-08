@@ -34,6 +34,7 @@ if TYPE_CHECKING:
 
 
 def _get_try_number(val):
+    # todo: remove when min airflow version >= 2.10.0
     from packaging.version import parse
 
     if parse(parse(airflow_version).base_version) < parse("2.10.0"):

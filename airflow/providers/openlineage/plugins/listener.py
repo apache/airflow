@@ -52,6 +52,7 @@ _openlineage_listener: OpenLineageListener | None = None
 
 
 def _get_try_number_success(val):
+    # todo: remove when min airflow version >= 2.10.0
     from packaging.version import parse
 
     if parse(parse(airflow_version).base_version) < parse("2.10.0"):
