@@ -807,3 +807,60 @@ class BedrockRaGOperator(AwsBaseOperator[BedrockAgentRuntimeHook]):
             result["citations"],
         )
         return result
+
+
+class BedrockRetrieveOperator(AwsBaseOperator[BedrockAgentRuntimeHook]):
+    """
+    Query a knowledge base and retrieve results with source citations.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockRetrieveOperator`
+
+    :param retrieval_query: The query to be made to the knowledge base. (templated)
+    :param knowledge_base_id: The unique identifier of the knowledge base that is queried. (templated)
+            Can only be specified if source_type='KNOWLEDGE_BASE'.
+    :param vector_search_config: How the results from the vector search should be returned. (templated)
+        Can only be specified if source_type='KNOWLEDGE_BASE'.
+        For more information, see https://docs.aws.amazon.com/bedrock/latest/userguide/kb-test-config.html.
+    :param retrieve_kwargs: Additional keyword arguments to pass to the  API call. (templated)
+    """
+
+    aws_hook_class = BedrockAgentRuntimeHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "retrieval_query",
+        "knowledge_base_id",
+        "vector_search_config",
+        "retrieve_kwargs",
+    )
+
+    def __init__(
+        self,
+        retrieval_query: str,
+        knowledge_base_id: str,
+        vector_search_config: dict[str, Any] | None = None,
+        retrieve_kwargs: dict[str, Any] | None = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.retrieval_query = retrieval_query
+        self.knowledge_base_id = knowledge_base_id
+        self.vector_search_config = vector_search_config
+        self.retrieve_kwargs = retrieve_kwargs or {}
+
+    def execute(self, context: Context) -> Any:
+        retrieval_configuration = (
+            {"retrievalConfiguration": {"vectorSearchConfiguration": self.vector_search_config}}
+            if self.vector_search_config
+            else {}
+        )
+
+        result = self.hook.conn.retrieve(
+            retrievalQuery={"text": self.retrieval_query},
+            knowledgeBaseId=self.knowledge_base_id,
+            **retrieval_configuration,
+            **self.retrieve_kwargs,
+        )
+
+        self.log.info("\nQuery: %s\nRetrieved: %s", self.retrieval_query, result["retrievalResults"])
+        return result

@@ -44,6 +44,7 @@ from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockCreateKnowledgeBaseOperator,
     BedrockIngestDataOperator,
     BedrockRaGOperator,
+    BedrockRetrieveOperator,
 )
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.sensors.bedrock import (
@@ -492,6 +493,14 @@ with DAG(
     )
     # [END howto_operator_bedrock_retrieve_and_generate]
 
+    # [START howto_operator_bedrock_retrieve]
+    retrieve = BedrockRetrieveOperator(
+        task_id="retrieve",
+        knowledge_base_id=create_knowledge_base.output,
+        retrieval_query="Who was the CEO of Amazon in 1997?",
+    )
+    # [END howto_operator_bedrock_retrieve]
+
     delete_bucket = S3DeleteBucketOperator(
         task_id="delete_bucket",
         trigger_rule=TriggerRule.ALL_DONE,
@@ -515,6 +524,7 @@ with DAG(
         ingest_data,
         await_ingest,
         retrieve_and_generate,
+        retrieve,
         delete_data_source(
             knowledge_base_id=create_knowledge_base.output,
             data_source_id=create_data_source.output,
