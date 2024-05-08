@@ -1533,6 +1533,7 @@ class TaskInstance(Base, LoggingMixin):
 
     @property
     def next_try_number(self) -> int:
+        # todo (dstandish): deprecate this property; we don't need a property that is just + 1
         return self.try_number + 1
 
     @property
