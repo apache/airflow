@@ -52,7 +52,6 @@ IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
     "tests/system/providers/amazon/aws/example_emr.py",
     "tests/system/providers/amazon/aws/example_emr_notebook_execution.py",
     "tests/system/providers/dbt/cloud/example_dbt_cloud.py",
-    "tests/system/providers/docker/example_docker_swarm.py",
     "tests/system/providers/google/cloud/azure/example_azure_fileshare_to_gcs.py",
     "tests/system/providers/google/cloud/bigquery/example_bigquery_operations.py",
     "tests/system/providers/google/cloud/bigquery/example_bigquery_sensors.py",
