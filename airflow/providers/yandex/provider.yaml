@@ -62,14 +62,14 @@ integrations:
   - integration-name: Yandex.Cloud Dataproc
     external-doc-url: https://cloud.yandex.com/dataproc
     how-to-guide:
-      - /docs/apache-airflow-providers-yandex/operators.rst
+      - /docs/apache-airflow-providers-yandex/operators/dataproc.rst
     logo: /integration-logos/yandex/Yandex-Cloud.png
     tags: [service]
 
   - integration-name: Yandex.Cloud YQ
     external-doc-url: https://cloud.yandex.com/en/services/query
     how-to-guide:
-      - /docs/apache-airflow-providers-yandex/operators.rst
+      - /docs/apache-airflow-providers-yandex/operators/yq.rst
     logo: /integration-logos/yandex/Yandex-Cloud.png
     tags: [service]
 
