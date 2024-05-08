@@ -252,8 +252,10 @@ class TestConnection:
         assert connection.conn_id == expected_conn_id
 
     def test_extra_dejson(self):
-        extra = ('{"trust_env": false, "verify": false, "stream": true, "headers":'
-                 '{\r\n "Content-Type": "application/json",\r\n  "X-Requested-By": "Airflow"\r\n}}')
+        extra = (
+            '{"trust_env": false, "verify": false, "stream": true, "headers":'
+            '{\r\n "Content-Type": "application/json",\r\n  "X-Requested-By": "Airflow"\r\n}}'
+        )
         connection = Connection(
             conn_id="pokeapi",
             conn_type="http",
