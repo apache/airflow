@@ -21,10 +21,7 @@ import re
 from contextlib import suppress
 from typing import TYPE_CHECKING
 
-try:
-    from airflow import __version__ as airflow_version
-except ImportError:
-    from airflow.version import version as airflow_version
+from airflow import __version__ as airflow_version
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance

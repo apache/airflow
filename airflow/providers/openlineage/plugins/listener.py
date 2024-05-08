@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 
 from openlineage.client.serde import Serde
 
+from airflow import __version__ as airflow_version
 from airflow.listeners import hookimpl
 from airflow.providers.openlineage.extractors import ExtractorManager
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter, RunState
@@ -36,12 +37,6 @@ from airflow.providers.openlineage.utils.utils import (
 )
 from airflow.stats import Stats
 from airflow.utils.timeout import timeout
-
-try:
-    from airflow import __version__ as airflow_version
-except ImportError:
-    from airflow.version import version as airflow_version
-
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
