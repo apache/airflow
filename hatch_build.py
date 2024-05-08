@@ -259,7 +259,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         # Coverage 7.4.0 added experimental support for Python 3.12 PEP669 which we use in Airflow
         "coverage>=7.4.0",
         "jmespath",
-        "pytest-asyncio>=0.23.3",
+        "pytest-asyncio>=0.23.6",
         "pytest-cov>=4.1.0",
         "pytest-custom-exit-code>=0.3.0",
         "pytest-icdiff>=0.9",
@@ -268,9 +268,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "pytest-rerunfailures>=13.0",
         "pytest-timeouts>=1.2.1",
         "pytest-xdist>=3.5.0",
-        # Temporary upper limmit to <8, not all dependencies at that moment ready to use 8.0
-        # Internal meta-task for track https://github.com/apache/airflow/issues/37156
-        "pytest>=7.4.4,<8.0",
+        "pytest>=8.2,<9",
         "requests_mock>=1.11.0",
         "time-machine>=2.13.0",
         "wheel>=0.42.0",
