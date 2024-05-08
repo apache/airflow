@@ -1472,7 +1472,7 @@ class TaskInstance(Base, LoggingMixin):
     @deprecated(reason="Use try_number instead.", version="2.10.0", category=RemovedInAirflow3Warning)
     def _try_number(self, val):
         """
-        Do not use.  For semblance of backcompat.
+        Do not use. For semblance of backcompat.
 
         :meta private:
         """

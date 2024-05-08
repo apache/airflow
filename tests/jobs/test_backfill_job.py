@@ -185,7 +185,7 @@ class TestBackfillJob:
 
         assert task_instances_list
 
-    # @pytest.mark.backend("postgres", "mysql")
+    @pytest.mark.backend("postgres", "mysql")
     def test_backfill_multi_dates(self):
         dag = self.dagbag.get_dag("miscellaneous_test_dag")
 
@@ -1544,7 +1544,7 @@ class TestBackfillJob:
         # match what's in the in-memory ti_status.running map. This is the same
         # for skipped, failed and retry states.
         ti_status.running[ti.key] = ti  # Task is queued and marked as running
-        ti.try_number += 1  # Try number is increased during ti.run()
+        ti.try_number += 1
         ti.set_state(State.SUCCESS, session)  # Task finishes with success state
         job_runner._update_counters(ti_status=ti_status, session=session)  # Update counters
         assert len(ti_status.running) == 0
