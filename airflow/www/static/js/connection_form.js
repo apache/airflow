@@ -366,20 +366,22 @@ $(document).ready(() => {
   const textAreas = document.getElementsByTagName("textarea");
 
   Array.from(textAreas).forEach((textArea) => {
-    // Change TextArea widget to CodeMirror
-    editor = CodeMirror.fromTextArea(textArea, {
-      mode: { name: "javascript", json: true },
-      gutters: ["CodeMirror-lint-markers"],
-      lineWrapping: true,
-      lint: true,
-    });
+    if (textArea.id !== "description") {
+      // Change TextArea widget to CodeMirror
+      editor = CodeMirror.fromTextArea(textArea, {
+        mode: {name: "javascript", json: true},
+        gutters: ["CodeMirror-lint-markers"],
+        lineWrapping: true,
+        lint: true,
+      });
 
-    // beautify JSON but only if it is not equal to default value of empty string
-    const jsonData = editor.getValue();
-    if (jsonData !== "") {
-      const data = JSON.parse(jsonData);
-      const formattedData = JSON.stringify(data, null, 2);
-      editor.setValue(formattedData);
+      // beautify JSON but only if it is not equal to default value of empty string
+      const jsonData = editor.getValue();
+      if (jsonData !== "") {
+        const data = JSON.parse(jsonData);
+        const formattedData = JSON.stringify(data, null, 2);
+        editor.setValue(formattedData);
+      }
     }
   });
 });
