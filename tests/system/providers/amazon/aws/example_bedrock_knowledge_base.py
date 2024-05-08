@@ -43,6 +43,7 @@ from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockCreateDataSourceOperator,
     BedrockCreateKnowledgeBaseOperator,
     BedrockIngestDataOperator,
+    BedrockRaGOperator,
 )
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.sensors.bedrock import (
@@ -56,11 +57,12 @@ from airflow.utils.helpers import chain
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
-###############################################################################
-# NOTE:  The account running this test must first manually request access to
-#   the `Titan Embeddings G1 - Text` foundation model via the Bedrock console.
-#   Gaining access to the model can take 24 hours from the time of request.
-###############################################################################
+###########################################################################################################
+# NOTE:
+#  The account running this test must first manually request access to the `Titan Embeddings G1 - Text`
+#  and `Anthropic Claude v2.0` foundation models via the Bedrock console.  Gaining access to the models
+#  can take 24 hours from the time of request.
+###########################################################################################################
 
 # Externally fetched variables:
 ROLE_ARN_KEY = "ROLE_ARN"
@@ -480,6 +482,16 @@ with DAG(
     )
     # [END howto_sensor_bedrock_ingest_data]
 
+    # [START howto_operator_bedrock_retrieve_and_generate]
+    retrieve_and_generate = BedrockRaGOperator(
+        task_id="retrieve_and_generate",
+        input="Who was the CEO of Amazon on 2022?",
+        source_type="KNOWLEDGE_BASE",
+        model_arn=f"arn:aws:bedrock:{region_name}::foundation-model/anthropic.claude-v2",
+        knowledge_base_id=create_knowledge_base.output,
+    )
+    # [END howto_operator_bedrock_retrieve_and_generate]
+
     delete_bucket = S3DeleteBucketOperator(
         task_id="delete_bucket",
         trigger_rule=TriggerRule.ALL_DONE,
@@ -502,6 +514,7 @@ with DAG(
         create_data_source,
         ingest_data,
         await_ingest,
+        retrieve_and_generate,
         delete_data_source(
             knowledge_base_id=create_knowledge_base.output,
             data_source_id=create_data_source.output,
