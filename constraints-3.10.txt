@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-05-07T14:17:15.665717
+# This constraints file was automatically generated on 2024-05-08T08:00:13.161701
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -259,7 +259,7 @@ cohere==4.57
 colorama==0.4.6
 colorlog==6.8.2
 comm==0.2.2
-confluent-kafka==2.3.0
+confluent-kafka==2.4.0
 connexion==2.14.2
 coverage==7.5.1
 crcmod==1.7
@@ -313,7 +313,7 @@ gitdb==4.0.11
 google-ads==24.0.0
 google-analytics-admin==0.22.7
 google-api-core==2.19.0
-google-api-python-client==2.127.0
+google-api-python-client==2.128.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.0
 google-auth==2.29.0
@@ -321,7 +321,7 @@ google-cloud-aiplatform==1.50.0
 google-cloud-appengine-logging==1.4.3
 google-cloud-audit-log==0.2.5
 google-cloud-automl==2.13.3
-google-cloud-batch==0.17.18
+google-cloud-batch==0.17.19
 google-cloud-bigquery-datatransfer==3.15.2
 google-cloud-bigquery==3.22.0
 google-cloud-bigtable==2.23.1
@@ -335,8 +335,8 @@ google-cloud-dataform==0.5.9
 google-cloud-dataplex==1.13.0
 google-cloud-dataproc-metastore==1.15.3
 google-cloud-dataproc==5.9.3
-google-cloud-dlp==3.16.0
-google-cloud-kms==2.21.4
+google-cloud-dlp==3.17.0
+google-cloud-kms==2.22.0
 google-cloud-language==2.13.3
 google-cloud-logging==3.10.0
 google-cloud-memcache==1.9.3
@@ -436,7 +436,7 @@ limits==3.11.0
 linkify-it-py==2.0.3
 lockfile==0.12.2
 loguru==0.7.2
-looker-sdk==24.4.0
+looker-sdk==24.8.0
 lxml==5.2.1
 lz4==4.3.3
 markdown-it-py==3.0.0
@@ -518,7 +518,7 @@ pexpect==4.9.0
 pgvector==0.2.5
 pinecone-client==2.2.4
 pinotdb==5.2.0
-pipdeptree==2.19.1
+pipdeptree==2.20.0
 pipx==1.5.0
 pkginfo==1.10.0
 platformdirs==4.2.1
@@ -560,7 +560,7 @@ pygraphviz==1.12
 pyiceberg==0.6.1
 pyjsparser==2.7.1
 pykerberos==1.2.4
-pymongo==4.7.1
+pymongo==4.7.2
 pymssql==2.3.0
 pyodbc==5.1.0
 pyparsing==3.1.2
