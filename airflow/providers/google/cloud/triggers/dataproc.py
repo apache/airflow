@@ -116,6 +116,41 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
             },
         )
 
+    @provide_session
+    def get_task_instance(self, session: Session) -> TaskInstance:
+        """
+        Get the task instance for the current task.
+
+        :param session: Sqlalchemy session
+        """
+        query = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == self.task_instance.dag_id,
+            TaskInstance.task_id == self.task_instance.task_id,
+            TaskInstance.run_id == self.task_instance.run_id,
+            TaskInstance.map_index == self.task_instance.map_index,
+        )
+        task_instance = query.one_or_none()
+        if task_instance is None:
+            raise AirflowException(
+                "TaskInstance with dag_id: %s,task_id: %s, run_id: %s and map_index: %s is not found",
+                self.task_instance.dag_id,
+                self.task_instance.task_id,
+                self.task_instance.run_id,
+                self.task_instance.map_index,
+            )
+        return task_instance
+
+    def safe_to_cancel(self) -> bool:
+        """
+        Whether it is safe to cancel the external job which is being executed by this trigger.
+
+        This is to avoid the case that `asyncio.CancelledError` is called because the trigger itself is stopped.
+        Because in those cases, we should NOT cancel the external job.
+        """
+        # Database query is needed to get the latest state of the task instance.
+        task_instance = self.get_task_instance()  # type: ignore[call-arg]
+        return task_instance.state != TaskInstanceState.DEFERRED
+
     async def run(self):
         try:
             while True:
@@ -131,7 +166,11 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
         except asyncio.CancelledError:
             self.log.info("Task got cancelled.")
             try:
-                if self.job_id and self.cancel_on_kill:
+                if self.job_id and self.cancel_on_kill and self.safe_to_cancel():
+                    self.log.info(
+                        "Cancelling the job as it is safe to do so. Note that the airflow TaskInstance is not"
+                        " in deferred state."
+                    )
                     self.log.info("Cancelling the job: %s", self.job_id)
                     # The synchronous hook is utilized to delete the cluster when a task is cancelled. This
                     # is because the asynchronous hook deletion is not awaited when the trigger task is
