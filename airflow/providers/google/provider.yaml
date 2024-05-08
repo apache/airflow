@@ -104,8 +104,10 @@ dependencies:
   - gcsfs>=2023.10.0
   - google-ads>=23.1.0
   - google-analytics-admin
-  # Google-api-core 2.16.0 back-compat issue: https://github.com/googleapis/python-api-core/issues/576
-  - google-api-core>=2.11.0,!=2.16.0
+  # Google-api-core 2.16.0 back-compat issue:
+  # - https://github.com/googleapis/python-api-core/issues/576
+  # - https://github.com/apache/airflow/issues/39394
+  - google-api-core>=2.11.0,!=2.16.0,!=2.18.0
   - google-api-python-client>=1.6.0
   - google-auth>=1.0.0
   - google-auth-httplib2>=0.0.1
