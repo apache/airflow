@@ -768,9 +768,3 @@ class DagPriorityParsingRequest(Base):
 
     def __repr__(self) -> str:
         return f"<DagPriorityParsingRequest: fileloc={self.fileloc}>"
-
-    def __eq__(self, other):
-        if isinstance(other, (self.__class__, DagPriorityParsingRequest)):
-            return self.fileloc == other.fileloc
-        else:
-            return NotImplemented

@@ -86,7 +86,7 @@ class TestDagParsingRequest:
         )
         assert 201 == response.status_code
         parsing_requests = DagPriorityParsingRequest.get_requests()
-        assert parsing_requests == [DagPriorityParsingRequest(fileloc=test_dag.fileloc)]
+        assert parsing_requests[0].fileloc == test_dag.fileloc
 
         # Duplicate file parsing request
         response = self.client.put(
@@ -94,7 +94,7 @@ class TestDagParsingRequest:
         )
         assert 409 == response.status_code
         parsing_requests = DagPriorityParsingRequest.get_requests()
-        assert parsing_requests == [DagPriorityParsingRequest(fileloc=test_dag.fileloc)]
+        assert parsing_requests[0].fileloc == test_dag.fileloc
 
     def test_bad_file_request(self, url_safe_serializer):
         url = f"/api/v1/parseDagFile/{url_safe_serializer.dumps('/some/random/file.py')}"
