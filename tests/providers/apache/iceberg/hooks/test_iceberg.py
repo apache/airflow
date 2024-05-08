@@ -25,7 +25,7 @@ from airflow.providers.apache.iceberg.hooks.iceberg import IcebergHook
 pytestmark = pytest.mark.db_test
 
 
-def test_tabular_hook():
+def test_iceberg_hook():
     access_token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSU"
     with requests_mock.Mocker() as m:
         m.post(
