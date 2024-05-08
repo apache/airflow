@@ -368,7 +368,7 @@ $(document).ready(() => {
   Array.from(textAreas).forEach((textArea) => {
     if (textArea.id !== "description") {
       // Change TextArea widget to CodeMirror
-      editor = CodeMirror.fromTextArea(textArea, {
+      const editor = CodeMirror.fromTextArea(textArea, {
         mode: {name: "javascript", json: true},
         gutters: ["CodeMirror-lint-markers"],
         lineWrapping: true,
