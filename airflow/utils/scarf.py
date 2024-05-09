@@ -27,7 +27,7 @@ from airflow.configuration import conf
 
 
 def scarf_analytics():
-    if not settings.is_scarf_analytics_enabled():
+    if not settings.is_telemetry_collection_enabled():
         return
 
     # Exclude pre-releases and dev versions

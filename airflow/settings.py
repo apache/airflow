@@ -576,9 +576,9 @@ def initialize():
     atexit.register(dispose_orm)
 
 
-def is_scarf_analytics_enabled() -> bool:
+def is_telemetry_collection_enabled() -> bool:
     """Check if scarf analytics is enabled."""
-    return conf.getboolean("scarf_analytics", "enabled", fallback=True) and (
+    return conf.getboolean("telemetry_collection", "enabled", fallback=True) and (
         os.getenv("SCARF_ANALYTICS") != "false"
     )
 

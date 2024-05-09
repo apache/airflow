@@ -1036,7 +1036,7 @@ class Airflow(AirflowBaseView):
                 )
 
         scarf_url = ""
-        if settings.is_scarf_analytics_enabled():
+        if settings.is_telemetry_collection_enabled():
             scarf_domain = "https://apacheairflow.gateway.scarf.sh"
 
             python_version = platform.python_version()

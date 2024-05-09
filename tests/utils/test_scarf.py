@@ -30,17 +30,17 @@ from airflow.utils.scarf import scarf_analytics
 @pytest.mark.parametrize("is_enabled, is_prerelease", [(False, True), (True, True)])
 @mock.patch("httpx.get")
 def test_scarf_analytics_disabled(mock_get, is_enabled, is_prerelease):
-    with mock.patch("airflow.settings.is_scarf_analytics_enabled", return_value=is_enabled), mock.patch(
+    with mock.patch("airflow.settings.is_telemetry_collection_enabled", return_value=is_enabled), mock.patch(
         "airflow.utils.scarf._version_is_prerelease", return_value=is_prerelease
     ):
         scarf_analytics()
     mock_get.assert_not_called()
 
 
-@mock.patch("airflow.settings.is_scarf_analytics_enabled", return_value=True)
+@mock.patch("airflow.settings.is_telemetry_collection_enabled", return_value=True)
 @mock.patch("airflow.utils.scarf._version_is_prerelease", return_value=False)
 @mock.patch("httpx.get")
-def test_scarf_analytics(mock_get, mock_is_scarf_analytics_enabled, mock_version_is_prerelease):
+def test_scarf_analytics(mock_get, mock_is_telemetry_collection_enabled, mock_version_is_prerelease):
     platform_sys = platform.system()
     platform_machine = platform.machine()
     python_version = platform.python_version()
