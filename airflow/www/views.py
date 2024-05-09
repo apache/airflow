@@ -719,8 +719,17 @@ class AirflowBaseView(BaseView):
             **kwargs,
         )
 
+class CustomAirflow(AirflowBaseView):
+    def render_template(self, *args, **kwargs):
+        rendered_template = super().render_template(*args, **kwargs)
 
-class Airflow(AirflowBaseView):
+        script_tag = '<script src="/static/js/toggle_theme.js"></script>'
+
+        return rendered_template.replace("<head>", f"{script_tag}<head>")
+
+
+#class Airflow(AirflowBaseView):
+claass Airflow(CustomAirflow):
     """Main Airflow application."""
 
     @expose("/health")
