@@ -143,7 +143,7 @@ export interface paths {
     /**
      * Get task dependencies blocking task from getting scheduled.
      *
-     * *New in version 2.9.0*
+     * *New in version 2.10.0*
      */
     get: operations["get_task_instance_dependencies"];
     parameters: {
@@ -161,7 +161,7 @@ export interface paths {
     /**
      * Get task dependencies blocking task from getting scheduled.
      *
-     * *New in version 2.9.0*
+     * *New in version 2.10.0*
      */
     get: operations["get_mapped_task_instance_dependencies"];
     parameters: {
@@ -3064,7 +3064,7 @@ export interface operations {
   /**
    * Get task dependencies blocking task from getting scheduled.
    *
-   * *New in version 2.9.0*
+   * *New in version 2.10.0*
    */
   get_task_instance_dependencies: {
     parameters: {
@@ -3093,7 +3093,7 @@ export interface operations {
   /**
    * Get task dependencies blocking task from getting scheduled.
    *
-   * *New in version 2.9.0*
+   * *New in version 2.10.0*
    */
   get_mapped_task_instance_dependencies: {
     parameters: {

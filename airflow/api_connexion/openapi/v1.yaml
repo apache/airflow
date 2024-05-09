@@ -690,7 +690,7 @@ paths:
       description: |
         Get task dependencies blocking task from getting scheduled.
 
-        *New in version 2.9.0*
+        *New in version 2.10.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
       operationId: get_task_instance_dependencies
       tags: [TaskInstance]
@@ -723,7 +723,7 @@ paths:
       description: |
         Get task dependencies blocking task from getting scheduled.
 
-        *New in version 2.9.0*
+        *New in version 2.10.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
       operationId: get_mapped_task_instance_dependencies
       tags: [TaskInstance]
