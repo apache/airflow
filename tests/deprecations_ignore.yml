@@ -668,7 +668,6 @@
 - tests/providers/sftp/operators/test_sftp.py::TestSFTPOperator::test_json_file_transfer_put
 - tests/providers/sftp/operators/test_sftp.py::TestSFTPOperator::test_pickle_file_transfer_get
 - tests/providers/sftp/operators/test_sftp.py::TestSFTPOperator::test_pickle_file_transfer_put
-- tests/providers/slack/operators/test_slack.py::TestSlackAPIFileOperator::test_both_channel_and_channels_set
 - tests/providers/snowflake/operators/test_snowflake.py::TestSnowflakeOperator::test_snowflake_operator
 - tests/providers/snowflake/operators/test_snowflake.py::TestSnowflakeOperatorForParams::test_overwrite_params
 - tests/providers/snowflake/operators/test_snowflake_sql.py::test_exec_success
