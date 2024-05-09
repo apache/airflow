@@ -83,7 +83,8 @@ def test_hook_usage(docker_hook_patcher, docker_conn_id, tls_params: dict):
         **tls_params,
     )
     hook = op.hook
-    assert hook is op.get_hook()
+    with pytest.warns(AirflowProviderDeprecationWarning, match="use `hook` property instead"):
+        assert hook is op.get_hook()
 
     docker_hook_patcher.assert_called_once_with(
         docker_conn_id=docker_conn_id,

@@ -367,7 +367,6 @@
 - tests/providers/databricks/operators/test_databricks.py::TestDatabricksSubmitRunDeferrableOperator::test_execute_task_deferred
 - tests/providers/databricks/sensors/test_databricks_partition.py::TestDatabricksPartitionSensor::test_unsupported_conn_type
 - tests/providers/databricks/sensors/test_databricks_sql.py::TestDatabricksSqlSensor::test_unsupported_conn_type
-- tests/providers/docker/operators/test_docker.py::test_hook_usage
 - tests/providers/elasticsearch/log/test_es_task_handler.py::test_retrieve_retry_on_timeout
 - tests/providers/google/common/auth_backend/test_google_openid.py::TestGoogleOpenID::test_success
 - tests/providers/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_api_resource_configs
