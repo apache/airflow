@@ -34,9 +34,8 @@ devel-dependencies:
   - pyiceberg>=0.5.0
 
 integrations:
-  - integration-name: Tabular
-    external-doc-url: https://tabular.io/docs/
-    logo: /integration-logos/tabular/tabular.jpeg
+  - integration-name: Iceberg
+    logo: /integration-logos/iceberg/iceberg.png
     tags: [software]
 
 hooks:
