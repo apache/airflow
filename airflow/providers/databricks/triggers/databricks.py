@@ -18,10 +18,17 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+from airflow.exceptions import AirflowException
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.utils.session import provide_session
+from airflow.utils.state import TaskInstanceState
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm.session import Session
 
 
 class DatabricksExecutionTrigger(BaseTrigger):
@@ -79,6 +86,35 @@ class DatabricksExecutionTrigger(BaseTrigger):
                 "repair_run": self.repair_run,
             },
         )
+    
+    @provide_session
+    def get_task_instance(self, session: Session) -> TaskInstance:
+        query = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == self.task_instance.dag_id,
+            TaskInstance.task_id == self.task_instance.task_id,
+            TaskInstance.run_id == self.task_instance.run_id,
+            TaskInstance.map_index == self.task_instance.map_index,
+        )
+        task_instance = query.one_or_none()
+        if task_instance is None:
+            raise AirflowException(
+                "TaskInstance with dag_id: %s,task_id: %s, run_id: %s and map_index: %s is not found.",
+                self.task_instance.dag_id,
+                self.task_instance.task_id,
+                self.task_instance.run_id,
+                self.task_instance.map_index,
+            )
+        return task_instance
+    
+    def safe_to_cancel(self) -> bool:
+        """
+        Defermines whether it's safe to cancel the external job which is being executed by this trigger.
+
+        This is to avoid the case that `asyncio.CancelledError` is called because the trigger itself is stopped
+        In these cases, we should NOT cancel the external job.
+        """
+        task_instance = self.get_task_instance()
+        return task_instance.state != TaskInstanceState.DEFERRED
 
     async def run(self):
         async with self.hook:
@@ -87,7 +123,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
                     run_state = await self.hook.a_get_run_state(self.run_id)
                     if not run_state.is_terminal:
                         self.log.info(
-                            "run-id %s in run state %s. sleeping for %s seconds",
+                            "run_id %s in run state %s. sleeping for %s seconds",
                             self.run_id,
                             run_state,
                             self.polling_period_seconds,
@@ -121,16 +157,16 @@ class DatabricksExecutionTrigger(BaseTrigger):
                     )
                     return
             except asyncio.CancelledError:
-                self.log.info("run-id %s is being terminated, checking latest job state", self.run_id)
+                if self.safe_to_cancel():
+                    self.log.info("run_id %s is being terminated, checking latest job state", self.run_id)
 
-                run_state = await self.hook.a_get_run_state(self.run_id)
-                if not run_state.is_terminal:
-                    self.log.info(
-                        "Latest state for run-id %s is %s, cancelling job...",
-                        self.run_id,
-                        run_state,
-                    )
+                    run_state = await self.hook.a_get_run_state(self.run_id)
+                    if not run_state.is_terminal:
+                        self.log.info(
+                            "Latest state for run_id %s is %s, cancelling job...",
+                            self.run_id,
+                            run_state,
+                        )
 
-                    await self.hook.a_cancel_run(self.run_id)
-                    self.log.info("run-id %s was cancelled", self.run_id)
-                return
+                        await self.hook.a_cancel_run(self.run_id)
+                        self.log.info("run_id %s was cancelled", self.run_id)
