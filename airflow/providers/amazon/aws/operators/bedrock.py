@@ -686,7 +686,7 @@ class BedrockRaGOperator(AwsBaseOperator[BedrockAgentRuntimeHook]):
         If set to `EXTERNAL_SOURCES` then `sources` must also be provided.
     :param model_arn: The ARN of the foundation model used to generate a response. (templated)
     :param prompt_template: The template for the prompt that's sent to the model for response generation.
-        You can include prompt placeholders, which become replaced before the prompt is sent to the model
+        You can include prompt placeholders, which are replaced before the prompt is sent to the model
         to provide instructions and context to the model. In addition, you can include XML tags to delineate
         meaningful sections of the prompt template. (templated)
     :param knowledge_base_id: The unique identifier of the knowledge base that is queried. (templated)
@@ -819,9 +819,7 @@ class BedrockRetrieveOperator(AwsBaseOperator[BedrockAgentRuntimeHook]):
 
     :param retrieval_query: The query to be made to the knowledge base. (templated)
     :param knowledge_base_id: The unique identifier of the knowledge base that is queried. (templated)
-            Can only be specified if source_type='KNOWLEDGE_BASE'.
     :param vector_search_config: How the results from the vector search should be returned. (templated)
-        Can only be specified if source_type='KNOWLEDGE_BASE'.
         For more information, see https://docs.aws.amazon.com/bedrock/latest/userguide/kb-test-config.html.
     :param retrieve_kwargs: Additional keyword arguments to pass to the  API call. (templated)
     """

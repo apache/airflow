@@ -182,10 +182,13 @@ To add data from an Amazon S3 bucket into an Amazon Bedrock Data Source, you can
 Amazon Bedrock Retrieve
 =======================
 
-To query a knowledge base, you can use :class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockRaGOperator`.
+To query a knowledge base, you can use :class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockRetrieveOperator`.
 
-The response includes citations to sources that are relevant to the query.  For more information on which models
-support retrieving information from a knowledge base, see
+The response will only contain citations to sources that are relevant to the query.  If you
+would like to pass the results through an LLM in order to generate a text response, see
+:class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockRaGOperator`
+
+For more information on which models support retrieving information from a knowledge base, see
 https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base-supported.html
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock_knowledge_base.py
@@ -199,11 +202,11 @@ https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base-supported.ht
 Amazon Bedrock Retrieve and Generate (RaG)
 ==========================================
 
-To query a knowledge base and generate a response based on the retrieved results, you can use
+To query a knowledge base and generate a text response based on the retrieved results, you can use
 :class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockRaGOperator`.
 
-The response only cites sources that are relevant to the query.  For more information on which models
-support retrieving information from a knowledge base, see
+The response will contain citations to sources that are relevant to the query as well as a generated text reply.
+For more information on which models support retrieving information from a knowledge base, see
 https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base-supported.html
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock_knowledge_base.py

@@ -376,6 +376,14 @@ class TestBedrockRaGOperator:
             ),
             pytest.param(
                 "KNOWLEDGE_BASE",
+                None,
+                KNOWLEDGE_BASE_ID,
+                None,
+                True,
+                id="KNOWLEDGE_BASE_passes",
+            ),
+            pytest.param(
+                "KNOWLEDGE_BASE",
                 VECTOR_SEARCH_CONFIG,
                 KNOWLEDGE_BASE_ID,
                 SOURCES,
@@ -388,7 +396,7 @@ class TestBedrockRaGOperator:
                 KNOWLEDGE_BASE_ID,
                 None,
                 True,
-                id="KNOWLEDGE_BASE_passes",
+                id="KNOWLEDGE_BASE_with_vector_config_passes",
             ),
             pytest.param(
                 "EXTERNAL_SOURCES",
