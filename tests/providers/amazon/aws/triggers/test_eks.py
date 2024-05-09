@@ -21,7 +21,9 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.triggers.eks import EksCreateClusterTrigger
+from airflow.providers.amazon.aws.triggers.eks import (
+    EksCreateClusterTrigger,
+)
 from airflow.triggers.base import TriggerEvent
 
 EXCEPTION_MOCK = AirflowException("MOCK ERROR")
@@ -30,80 +32,66 @@ WAITER_DELAY = 1
 WAITER_MAX_ATTEMPTS = 10
 AWS_CONN_ID = "test_conn_id"
 REGION_NAME = "test-region"
+FARGATE_PROFILES = ["p1", "p2"]
 
 
-class TestEksCreateClusterTrigger:
-    @pytest.mark.asyncio
-    @patch("airflow.providers.amazon.aws.hooks.eks.EksHook.async_conn")
-    @patch("airflow.providers.amazon.aws.triggers.eks.async_wait", return_value=True)
-    async def test_when_cluster_is_created_run_should_return_a_success_event(
-        self, mock_async_wait, mock_async_conn
-    ):
-        mock = AsyncMock()
-        mock_async_conn.__aenter__.return_value = mock
+class TestEksTrigger:
+    def setup_method(self):
+        self.async_conn_patcher = patch("airflow.providers.amazon.aws.hooks.eks.EksHook.async_conn")
+        self.mock_async_conn = self.async_conn_patcher.start()
 
-        trigger = EksCreateClusterTrigger(
+        self.mock_client = AsyncMock()
+        self.mock_async_conn.__aenter__.return_value = self.mock_client
+
+        self.async_wait_patcher = patch(
+            "airflow.providers.amazon.aws.triggers.eks.async_wait", return_value=True
+        )
+        self.mock_async_wait = self.async_wait_patcher.start()
+
+    def teardown_method(self):
+        self.async_conn_patcher.stop()
+        self.async_wait_patcher.stop()
+
+
+class TestEksCreateClusterTrigger(TestEksTrigger):
+    def setup_method(self):
+        super().setup_method()
+
+        self.trigger = EksCreateClusterTrigger(
             cluster_name=CLUSTER_NAME,
             waiter_delay=WAITER_DELAY,
             waiter_max_attempts=WAITER_MAX_ATTEMPTS,
             aws_conn_id=AWS_CONN_ID,
             region_name=REGION_NAME,
         )
+        self.trigger.log.error = Mock()
 
-        generator = trigger.run()
+    @pytest.mark.asyncio
+    async def test_when_cluster_is_created_run_should_return_a_success_event(self):
+        generator = self.trigger.run()
         response = await generator.asend(None)
 
         assert response == TriggerEvent({"status": "success"})
 
     @pytest.mark.asyncio
-    @patch("airflow.providers.amazon.aws.hooks.eks.EksHook.async_conn")
-    @patch(
-        "airflow.providers.amazon.aws.triggers.eks.async_wait",
-        side_effect=EXCEPTION_MOCK,
-    )
-    async def test_when_run_raises_exception_it_should_return_a_failure_event(
-        self, mock_async_wait, mock_async_conn
-    ):
-        mock = AsyncMock()
-        mock_async_conn.__aenter__.return_value = mock
+    async def test_when_run_raises_exception_it_should_return_a_failure_event(self):
+        self.mock_async_wait.side_effect = EXCEPTION_MOCK
 
-        trigger = EksCreateClusterTrigger(
-            cluster_name=CLUSTER_NAME,
-            waiter_delay=WAITER_DELAY,
-            waiter_max_attempts=WAITER_MAX_ATTEMPTS,
-            aws_conn_id=AWS_CONN_ID,
-            region_name=REGION_NAME,
-        )
-        trigger.log.error = Mock()
-
-        generator = trigger.run()
+        generator = self.trigger.run()
         response = await generator.asend(None)
 
         assert response == TriggerEvent({"status": "failed"})
-        trigger.log.error.assert_called_once_with("Error creating cluster: %s", EXCEPTION_MOCK)
+        self.trigger.log.error.assert_called_once_with("Error creating cluster: %s", EXCEPTION_MOCK)
 
     @pytest.mark.asyncio
-    @patch("airflow.providers.amazon.aws.hooks.eks.EksHook.async_conn")
-    @patch("airflow.providers.amazon.aws.triggers.eks.async_wait", return_value=True)
-    async def test_run_parameterizes_async_wait_correctly(self, mock_async_wait, mock_async_conn):
-        mock = AsyncMock()
-        mock_async_conn.__aenter__.return_value = mock
-        client = mock_async_conn.__aenter__.return_value
-        client.get_waiter = Mock(return_value="waiter")
+    async def test_run_parameterizes_async_wait_correctly(self):
+        self.mock_client.get_waiter = Mock(return_value="waiter")
 
-        trigger = EksCreateClusterTrigger(
-            cluster_name=CLUSTER_NAME,
-            waiter_delay=WAITER_DELAY,
-            waiter_max_attempts=WAITER_MAX_ATTEMPTS,
-            aws_conn_id=AWS_CONN_ID,
-            region_name=REGION_NAME,
-        )
-
-        generator = trigger.run()
+        generator = self.trigger.run()
         await generator.asend(None)
 
-        client.get_waiter.assert_called_once_with("cluster_active")
-        mock_async_wait.assert_called_once_with(
+        self.mock_client.get_waiter.assert_called_once_with("cluster_active")
+        self.mock_async_wait.assert_called_once_with(
             "waiter",
             WAITER_DELAY,
             WAITER_MAX_ATTEMPTS,
