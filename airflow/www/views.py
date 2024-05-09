@@ -1036,16 +1036,27 @@ class Airflow(AirflowBaseView):
                 )
 
         scarf_url = ""
-        if settings.IS_SCARF_ANALYTICS_ENABLED:
+        if settings.is_scarf_analytics_enabled():
+            scarf_domain = "https://apacheairflow.gateway.scarf.sh"
+
+            python_version = platform.python_version()
+            platform_sys = platform.system()
+            platform_arch = platform.machine()
+            db_name = settings.engine.dialect.name
+            db_version = settings.engine.dialect.server_version_info
+            if db_version:
+                # Example: (1, 2, 3) -> "1.2.3"
+                db_version = ".".join(map(str, db_version))
+            executor = conf.get("core", "EXECUTOR")
+
+            # Path Format:
+            # /{version}/{python_version}/{platform}/{arch}/{database}/{db_version}/{executor}/{num_dags}
+            #
+            # This path redirects to a Pixel tracking URL
             scarf_url = (
-                f"https://apacheairflow.gateway.scarf.sh/web?version={version}"
-                f"&python_version={platform.python_version()}"
-                f"&platform={platform.system()}"
-                f"&arch={platform.machine()}"
-                f"&database={settings.engine.dialect.name}"
-                f"&db_version={settings.engine.dialect.server_version_info}"
-                f"&executor={conf.get('core', 'EXECUTOR')}"
-                f"&num_dags={all_dags_count}"
+                f"{scarf_domain}/webserver"
+                f"/{version}/{python_version}"
+                f"/{platform_sys}/{platform_arch}/{db_name}/{db_version}/{executor}/{all_dags_count}"
             )
 
         return self.render_template(

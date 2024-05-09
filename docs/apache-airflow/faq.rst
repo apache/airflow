@@ -526,11 +526,23 @@ This means ``explicit_defaults_for_timestamp`` is disabled in your mysql server 
 Does Airflow collect any telemetry data?
 ----------------------------------------
 
+.. _airflow-telemetry-faq:
+
 Airflow integrates `Scarf <https://about.scarf.sh/>`__ to collect basic telemetry data during operation.
 This data assists Airflow maintainers in better understanding how Airflow is used.
 Insights gained from this telemetry are critical for prioritizing patches, minor releases, and
-security fixes. Additionally, this information supports key decisions related to the development Roadmap.
+security fixes. Additionally, this information supports key decisions related to the development roadmap.
 
-Users can easily opt out of analytics in various ways documented
-`here <https://docs.scarf.sh/gateway/#do-not-track>`__ and by setting the :ref:`config:scarf_analytics__enabled` option
-to ``False``. Airflow also respects ``SCARF_ANALYTICS=false`` environment variable.
+Deployments can opt-out of analytics by setting the :ref:`[scarf_analytics] enabled <config:scarf_analytics__enabled>`
+option to ``False``, or the ``SCARF_ANALYTICS=false`` environment variable.
+Individual users can easily opt-out of analytics in various ways documented in the
+`Scarf Do Not Track docs <https://docs.scarf.sh/gateway/#do-not-track>`__.
+
+The telemetry data collected is limited to the following:
+
+- Airflow version
+- Python version
+- Operating system & machine architecture
+- Executor
+- Metadata DB type & their version
+- Number of DAGs

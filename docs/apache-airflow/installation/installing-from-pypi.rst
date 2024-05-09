@@ -334,13 +334,8 @@ dependencies compatible with just airflow core at the moment Airflow was release
 .. note::
 
     Airflow uses `Scarf <https://about.scarf.sh/>`__ to collect basic telemetry data during operation.
-    This data assists Airflow maintainers in better understanding how Airflow is used.
-    Insights gained from this telemetry are critical for prioritizing patches, minor releases, and
-    security fixes. Additionally, this information supports key decisions related to the development Roadmap.
-
-    Users can easily opt out of analytics in various ways documented
-    `here <https://docs.scarf.sh/gateway/#do-not-track>`__ and by setting the :ref:`config:scarf_analytics__enabled` option
-    to ``False``. Airflow also respects ``SCARF_ANALYTICS=false`` environment variable.
+    Check the :ref:`Airflow telemetry FAQ <airflow-telemetry-faq>` for more information about the data collected
+    and how to opt-out.
 
 Troubleshooting
 '''''''''''''''

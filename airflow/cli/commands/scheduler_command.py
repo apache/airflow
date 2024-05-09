@@ -33,6 +33,7 @@ from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import process_subdir
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
+from airflow.utils.scarf import scarf_analytics
 from airflow.utils.scheduler_health import serve_health_check
 
 log = logging.getLogger(__name__)
@@ -54,6 +55,8 @@ def _run_scheduler_job(args) -> None:
 def scheduler(args: Namespace):
     """Start Airflow Scheduler."""
     print(settings.HEADER)
+
+    scarf_analytics()
 
     run_command_with_daemon_option(
         args=args,

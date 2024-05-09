@@ -576,6 +576,13 @@ def initialize():
     atexit.register(dispose_orm)
 
 
+def is_scarf_analytics_enabled() -> bool:
+    """Check if scarf analytics is enabled."""
+    return conf.getboolean("scarf_analytics", "enabled", fallback=True) and (
+        os.getenv("SCARF_ANALYTICS") != "false"
+    )
+
+
 # Const stuff
 
 KILOBYTE = 1024
@@ -666,7 +673,3 @@ _ENABLE_AIP_44: bool = os.environ.get("AIRFLOW_ENABLE_AIP_44", "false").lower() 
     "y",
     "1",
 }
-
-IS_SCARF_ANALYTICS_ENABLED = conf.getboolean("scarf_analytics", "enabled", fallback=True) and (
-    os.getenv("SCARF_ANALYTICS") != "false"
-)
