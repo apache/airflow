@@ -297,12 +297,14 @@ def test_adapter_complete_task_is_called_with_proper_arguments(
     listener.on_task_instance_success(None, task_instance, None)
     # This run_id will be different as we did NOT simulate increase of the try_number attribute,
     # which happens in Airflow.
-    listener.adapter.complete_task.assert_called_once_with(
+    calls = listener.adapter.complete_task.call_args_list
+    assert len(calls) == 1
+    assert calls[0][1] == dict(
         end_time="2023-01-03T13:01:01",
         job_name="job_name",
         parent_job_name="dag_id",
         parent_run_id="dag_id.dag_run_run_id",
-        run_id="dag_id.task_id.execution_date.0",
+        run_id="dag_id.task_id.execution_date.1",
         task=listener.extractor_manager.extract_metadata(),
     )
 
@@ -310,12 +312,14 @@ def test_adapter_complete_task_is_called_with_proper_arguments(
     listener.adapter.complete_task.reset_mock()
     task_instance.try_number += 1
     listener.on_task_instance_success(None, task_instance, None)
-    listener.adapter.complete_task.assert_called_once_with(
+    calls = listener.adapter.complete_task.call_args_list
+    assert len(calls) == 1
+    assert calls[0][1] == dict(
         end_time="2023-01-03T13:01:01",
         job_name="job_name",
         parent_job_name="dag_id",
         parent_run_id="dag_id.dag_run_run_id",
-        run_id="dag_id.task_id.execution_date.1",
+        run_id="dag_id.task_id.execution_date.2",
         task=listener.extractor_manager.extract_metadata(),
     )
 
@@ -334,24 +338,23 @@ def test_run_id_is_constant_across_all_methods(mocked_adapter):
 
     listener, task_instance = _create_listener_and_task_instance()
     mocked_adapter.build_task_instance_run_id.side_effect = mock_task_id
-
+    expected_run_id_1 = "dag_id.task_id.execution_date.1"
+    expected_run_id_2 = "dag_id.task_id.execution_date.2"
     listener.on_task_instance_running(None, task_instance, None)
-    expected_run_id = listener.adapter.start_task.call_args.kwargs["run_id"]
-    assert expected_run_id == "dag_id.task_id.execution_date.1"
+    assert listener.adapter.start_task.call_args.kwargs["run_id"] == expected_run_id_1
 
     listener.on_task_instance_failed(None, task_instance, None)
-    assert listener.adapter.fail_task.call_args.kwargs["run_id"] == expected_run_id
+    assert listener.adapter.fail_task.call_args.kwargs["run_id"] == expected_run_id_1
 
-    # This run_id will be different as we did NOT simulate increase of the try_number attribute,
-    # which happens in Airflow.
+    # This run_id will not be different as we did NOT simulate increase of the try_number attribute,
     listener.on_task_instance_success(None, task_instance, None)
-    assert listener.adapter.complete_task.call_args.kwargs["run_id"] == "dag_id.task_id.execution_date.0"
+    assert listener.adapter.complete_task.call_args.kwargs["run_id"] == expected_run_id_1
 
     # Now we simulate the increase of try_number, and the run_id should reflect that change.
     # This is how airflow works, and that's why we expect the run_id to remain constant across all methods.
     task_instance.try_number += 1
     listener.on_task_instance_success(None, task_instance, None)
-    assert listener.adapter.complete_task.call_args.kwargs["run_id"] == expected_run_id
+    assert listener.adapter.complete_task.call_args.kwargs["run_id"] == expected_run_id_2
 
 
 def test_running_task_correctly_calls_openlineage_adapter_run_id_method():
@@ -403,7 +406,7 @@ def test_successful_task_correctly_calls_openlineage_adapter_run_id_method(mock_
         dag_id="dag_id",
         task_id="task_id",
         execution_date="execution_date",
-        try_number=0,
+        try_number=1,
     )
 
 
@@ -428,16 +431,16 @@ def test_listener_on_task_instance_failed_is_called_before_try_number_increment(
 
     _, task_instance = _create_test_dag_and_task(fail_callable, "failure")
     # try_number before execution
-    assert task_instance.try_number == 1
+    assert task_instance.try_number == 0
     with suppress(CustomError):
         task_instance.run()
 
     # try_number at the moment of function being called
-    assert captured_try_numbers["running"] == 1
-    assert captured_try_numbers["failed"] == 1
+    assert captured_try_numbers["running"] == 0
+    assert captured_try_numbers["failed"] == 0
 
     # try_number after task has been executed
-    assert task_instance.try_number == 2
+    assert task_instance.try_number == 0
 
 
 @mock.patch("airflow.models.taskinstance.get_listener_manager")
@@ -457,15 +460,15 @@ def test_listener_on_task_instance_success_is_called_after_try_number_increment(
 
     _, task_instance = _create_test_dag_and_task(success_callable, "success")
     # try_number before execution
-    assert task_instance.try_number == 1
+    assert task_instance.try_number == 0
     task_instance.run()
 
     # try_number at the moment of function being called
-    assert captured_try_numbers["running"] == 1
-    assert captured_try_numbers["success"] == 2
+    assert captured_try_numbers["running"] == 0
+    assert captured_try_numbers["success"] == 0
 
     # try_number after task has been executed
-    assert task_instance.try_number == 2
+    assert task_instance.try_number == 0
 
 
 @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
