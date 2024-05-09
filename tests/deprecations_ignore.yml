@@ -256,23 +256,6 @@
 - tests/www/views/test_views_tasks.py::test_xcom_return_value_is_not_bytes
 
 
-# Unclassified (OTHER)
-- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_dag_file_processor_only_collect_emails_from_sla_missed_tasks
-- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_dag_file_processor_sla_miss_callback
-- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_dag_file_processor_sla_miss_callback_exception
-- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_dag_file_processor_sla_miss_callback_invalid_sla
-- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_dag_file_processor_sla_miss_callback_sent_notification
-- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_dag_file_processor_sla_miss_continue_checking_the_task_instances_after_recording_missing_sla
-- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_dag_file_processor_sla_miss_deleted_task
-- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_dag_file_processor_sla_miss_doesnot_raise_integrity_error
-- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_dag_file_processor_sla_miss_email_exception
-- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_execute_on_failure_callbacks
-- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_execute_on_failure_callbacks_without_dag
-- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_failure_callbacks_should_not_drop_hostname
-- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_process_file_should_failure_callback
-- tests/triggers/test_external_task.py::TestTaskStateTrigger::test_task_state_trigger_success
-
-
 # Providers
 - tests/providers/amazon/aws/deferrable/hooks/test_base_aws.py::TestAwsBaseAsyncHook::test_get_client_async
 - tests/providers/amazon/aws/deferrable/hooks/test_redshift_cluster.py::TestRedshiftAsyncHook::test_cluster_status
