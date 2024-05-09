@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import json
 import time
+import warnings
 from enum import Enum
 from functools import cached_property, wraps
 from inspect import signature
@@ -38,6 +39,8 @@ if TYPE_CHECKING:
     from requests.models import PreparedRequest, Response
 
     from airflow.models import Connection
+
+DBT_CAUSE_MAX_LENGTH = 255
 
 
 def fallback_to_default_account(func: Callable) -> Callable:
@@ -419,6 +422,15 @@ class DbtCloudHook(HttpHook):
         """
         if additional_run_config is None:
             additional_run_config = {}
+
+        if cause is not None and len(cause) > DBT_CAUSE_MAX_LENGTH:
+            warnings.warn(
+                f"Cause `{cause}` exceeds limit of {DBT_CAUSE_MAX_LENGTH}"
+                f" characters and will be truncated.",
+                UserWarning,
+                stacklevel=2,
+            )
+            cause = cause[:DBT_CAUSE_MAX_LENGTH]
 
         payload = {
             "cause": cause,

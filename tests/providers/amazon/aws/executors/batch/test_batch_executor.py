@@ -56,6 +56,7 @@ def set_env_vars():
         (CONFIG_GROUP_NAME, AllBatchConfigKeys.JOB_QUEUE): "some-job-queue",
         (CONFIG_GROUP_NAME, AllBatchConfigKeys.JOB_DEFINITION): "some-job-def",
         (CONFIG_GROUP_NAME, AllBatchConfigKeys.MAX_SUBMIT_JOB_ATTEMPTS): "3",
+        (CONFIG_GROUP_NAME, AllBatchConfigKeys.CHECK_HEALTH_ON_STARTUP): "True",
     }
     with conf_vars(overrides):
         yield
@@ -510,15 +511,12 @@ class TestAwsBatchExecutor:
         batch_mock.describe_jobs.return_value = {}
         executor.batch = batch_mock
 
-        caplog.set_level(logging.DEBUG)
-
-        executor.start()
+        caplog.clear()
+        with caplog.at_level(logging.DEBUG):
+            executor.start()
 
         assert "succeeded" in caplog.text
 
-    @mock.patch(
-        "airflow.providers.amazon.aws.executors.batch.boto_schema.BatchDescribeJobsResponseSchema.load"
-    )
     def test_health_check_failure(self, mock_executor, set_env_vars):
         mock_executor.batch.describe_jobs.side_effect = Exception("Test_failure")
         executor = AwsBatchExecutor()
@@ -537,11 +535,9 @@ class TestAwsBatchExecutor:
         batch_mock.describe_jobs.side_effect = {}
         executor.batch = batch_mock
 
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.CHECK_HEALTH_ON_STARTUP}".upper()] = (
-            "False"
-        )
-
-        executor.start()
+        env_var_key = f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.CHECK_HEALTH_ON_STARTUP}".upper()
+        with mock.patch.dict(os.environ, {env_var_key: "False"}):
+            executor.start()
 
         batch_mock.describe_jobs.assert_not_called()
 

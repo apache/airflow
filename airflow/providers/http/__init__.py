@@ -23,16 +23,15 @@
 #
 from __future__ import annotations
 
+import importlib.metadata
+
 import packaging.version
 
 __all__ = ["__version__"]
 
 __version__ = "4.11.0"
 
-try:
-    from airflow import __version__ as airflow_version
-except ImportError:
-    from airflow.version import version as airflow_version
+airflow_version = importlib.metadata.version("apache-airflow")
 
 if packaging.version.parse(packaging.version.parse(airflow_version).base_version) < packaging.version.parse(
     "2.7.0"

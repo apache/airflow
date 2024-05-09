@@ -1310,6 +1310,7 @@ class TestDatabricksRunNowOperator:
                 "tasks": [
                     {
                         "run_id": 2,
+                        "task_key": "first_task",
                         "state": {
                             "life_cycle_state": "TERMINATED",
                             "result_state": "FAILED",
@@ -1321,10 +1322,8 @@ class TestDatabricksRunNowOperator:
         )
         db_mock.get_run_output = mock_dict({"error": "Exception: Something went wrong..."})
 
-        with pytest.raises(AirflowException) as exc_info:
+        with pytest.raises(AirflowException, match="Exception: Something went wrong"):
             op.execute(None)
-
-        assert exc_info.value.args[0].endswith(" Exception: Something went wrong...")
 
         expected = utils.normalise_json_content(
             {
@@ -1341,6 +1340,76 @@ class TestDatabricksRunNowOperator:
             retry_args=None,
             caller="DatabricksRunNowOperator",
         )
+        db_mock.run_now.assert_called_once_with(expected)
+        db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
+        db_mock.get_run.assert_called_once_with(RUN_ID)
+        assert RUN_ID == op.run_id
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_exec_multiple_failures_with_message(self, db_mock_class):
+        """
+        Test the execute function in case where the run failed.
+        """
+        run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = RUN_ID
+        db_mock.get_run = mock_dict(
+            {
+                "job_id": JOB_ID,
+                "run_id": 1,
+                "state": {
+                    "life_cycle_state": "TERMINATED",
+                    "result_state": "FAILED",
+                    "state_message": "failed",
+                },
+                "tasks": [
+                    {
+                        "run_id": 2,
+                        "task_key": "first_task",
+                        "state": {
+                            "life_cycle_state": "TERMINATED",
+                            "result_state": "FAILED",
+                            "state_message": "failed",
+                        },
+                    },
+                    {
+                        "run_id": 3,
+                        "task_key": "second_task",
+                        "state": {
+                            "life_cycle_state": "TERMINATED",
+                            "result_state": "FAILED",
+                            "state_message": "failed",
+                        },
+                    },
+                ],
+            }
+        )
+        db_mock.get_run_output = mock_dict({"error": "Exception: Something went wrong..."})
+
+        with pytest.raises(
+            AirflowException,
+            match="(?=.*Exception: Something went wrong.*)(?=.*Exception: Something went wrong.*)",
+        ):
+            op.execute(None)
+
+        expected = utils.normalise_json_content(
+            {
+                "notebook_params": NOTEBOOK_PARAMS,
+                "notebook_task": NOTEBOOK_TASK,
+                "jar_params": JAR_PARAMS,
+                "job_id": JOB_ID,
+            }
+        )
+        db_mock_class.assert_called_once_with(
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
+            caller="DatabricksRunNowOperator",
+        )
+        db_mock.get_run_output.assert_called()
+        assert db_mock.get_run_output.call_count == 2
         db_mock.run_now.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run.assert_called_once_with(RUN_ID)

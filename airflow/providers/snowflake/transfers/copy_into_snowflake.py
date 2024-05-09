@@ -42,8 +42,6 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
     :param prefix: cloud storage location specified to limit the set of files to load
     :param files: files to load into table
     :param pattern: pattern to load files from external location to table
-    :param copy_into_postifx: optional sql postfix for INSERT INTO query
-           such as `formatTypeOptions` and `copyOptions`
     :param snowflake_conn_id:  Reference to :ref:`Snowflake connection id<howto/connection:snowflake>`
     :param account: snowflake account name
     :param warehouse: name of snowflake warehouse

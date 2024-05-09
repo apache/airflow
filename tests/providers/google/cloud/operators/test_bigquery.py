@@ -75,6 +75,7 @@ TEST_GCP_PROJECT_ID = "test-project"
 TEST_JOB_PROJECT_ID = "test-job-project"
 TEST_DELETE_CONTENTS = True
 TEST_TABLE_ID = "test-table-id"
+TEST_JOB_ID = "test-job-id"
 TEST_GCS_BUCKET = "test-bucket"
 TEST_GCS_CSV_DATA = ["dir1/*.csv"]
 TEST_SOURCE_CSV_FORMAT = "CSV"
@@ -866,7 +867,7 @@ class TestBigQueryOperator:
 class TestBigQueryGetDataOperator:
     @pytest.mark.parametrize("as_dict", [True, False])
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_execute(self, mock_hook, as_dict):
+    def test_execute__table(self, mock_hook, as_dict):
         max_results = 100
         selected_fields = "DATE"
         operator = BigQueryGetDataOperator(
@@ -891,6 +892,48 @@ class TestBigQueryGetDataOperator:
             selected_fields=selected_fields,
             location=TEST_DATASET_LOCATION,
         )
+
+    @pytest.mark.parametrize("as_dict", [True, False])
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute__job_id(self, mock_hook, as_dict):
+        max_results = 100
+        selected_fields = "DATE"
+        operator = BigQueryGetDataOperator(
+            job_project_id=TEST_JOB_PROJECT_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            task_id=TASK_ID,
+            job_id=TEST_JOB_ID,
+            max_results=max_results,
+            selected_fields=selected_fields,
+            location=TEST_DATASET_LOCATION,
+            as_dict=as_dict,
+        )
+        operator.execute(None)
+        mock_hook.return_value.get_query_results.assert_called_once_with(
+            job_id=TEST_JOB_ID,
+            location=TEST_DATASET_LOCATION,
+            max_results=max_results,
+            project_id=TEST_JOB_PROJECT_ID,
+            selected_fields=selected_fields,
+        )
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute__job_id_table_id_mutual_exclusive_exception(self, _):
+        max_results = 100
+        selected_fields = "DATE"
+        operator = BigQueryGetDataOperator(
+            gcp_conn_id=GCP_CONN_ID,
+            task_id=TASK_ID,
+            dataset_id=TEST_DATASET,
+            table_id=TEST_TABLE_ID,
+            table_project_id=TEST_GCP_PROJECT_ID,
+            job_id=TEST_JOB_ID,
+            max_results=max_results,
+            selected_fields=selected_fields,
+            location=TEST_DATASET_LOCATION,
+        )
+        with pytest.raises(AirflowException, match="mutually exclusive"):
+            operator.execute(None)
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_generate_query__with_table_project_id(self, mock_hook):

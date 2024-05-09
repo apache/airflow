@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,27 +15,33 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+"""add new executor field to db.
+
+Revision ID: 677fdbb7fc54
+Revises: 686269002441
+Create Date: 2024-04-01 15:26:59.186579
+
+"""
+
 from __future__ import annotations
 
-from datetime import datetime
+import sqlalchemy as sa
+from alembic import op
 
-from airflow import DAG
-from airflow.operators.bash import BashOperator
-
-with DAG(
-    dag_id="child_dag",
-    start_date=datetime(2022, 1, 1),
-    schedule="@once",
-    catchup=False,
-    tags=["example", "async", "core"],
-) as dag:
-    dummy_task = BashOperator(
-        task_id="child_task",
-        bash_command="echo 1; sleep 1; echo 2; sleep 2; echo 3; sleep 3",
-    )
+# revision identifiers, used by Alembic.
+revision = "677fdbb7fc54"
+down_revision = "686269002441"
+branch_labels = None
+depends_on = None
+airflow_version = "2.10.0"
 
 
-from tests.system.utils import get_test_run
+def upgrade():
+    """Apply add executor field to task instance."""
+    op.add_column("task_instance", sa.Column("executor", sa.String(length=1000), default=None))
 
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
-test_run = get_test_run(dag)
+
+def downgrade():
+    """Unapply add executor field to task instance."""
+    op.drop_column("task_instance", "executor")

@@ -54,7 +54,7 @@ def get_session() -> sa.orm.Session:
 def upgrade():
     """Update trigger kwargs type to string and encrypt."""
     with op.batch_alter_table("trigger") as batch_op:
-        batch_op.alter_column("kwargs", type_=sa.Text())
+        batch_op.alter_column("kwargs", type_=sa.Text(), existing_nullable=False)
 
     if not context.is_offline_mode():
         session = get_session()
@@ -87,4 +87,6 @@ def downgrade():
             session.close()
 
     with op.batch_alter_table("trigger") as batch_op:
-        batch_op.alter_column("kwargs", type_=ExtendedJSON(), postgresql_using="kwargs::json")
+        batch_op.alter_column(
+            "kwargs", type_=ExtendedJSON(), postgresql_using="kwargs::json", existing_nullable=False
+        )

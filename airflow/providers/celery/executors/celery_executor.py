@@ -52,15 +52,13 @@ try:
         lazy_load_command,
     )
 except ImportError:
-    try:
-        from airflow import __version__ as airflow_version
-    except ImportError:
-        from airflow.version import version as airflow_version
+    import importlib.metadata
 
     import packaging.version
 
     from airflow.exceptions import AirflowOptionalProviderFeatureException
 
+    airflow_version = importlib.metadata.version("apache-airflow")
     base_version = packaging.version.parse(airflow_version).base_version
 
     if packaging.version.parse(base_version) < packaging.version.parse("2.7.0"):
@@ -368,8 +366,14 @@ class CeleryExecutor(BaseExecutor):
             if state:
                 self.update_task_state(key, state, info)
 
-    def change_state(self, key: TaskInstanceKey, state: TaskInstanceState, info=None) -> None:
-        super().change_state(key, state, info)
+    def change_state(
+        self, key: TaskInstanceKey, state: TaskInstanceState, info=None, remove_running=True
+    ) -> None:
+        try:
+            super().change_state(key, state, info, remove_running=remove_running)
+        except AttributeError:
+            # Earlier versions of the BaseExecutor don't accept the remove_running parameter for this method
+            super().change_state(key, state, info)
         self.tasks.pop(key, None)
 
     def update_task_state(self, key: TaskInstanceKey, state: str, info: Any) -> None:

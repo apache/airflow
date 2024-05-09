@@ -16,46 +16,28 @@
 # under the License.
 from __future__ import annotations
 
-from airflow import DAG
+from datetime import datetime
+
+from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.trigger_dagrun import TriggerDagRunOperator
-from airflow.sensors.external_task import ExternalTaskSensor
-from airflow.utils.timezone import datetime
+from airflow.providers.yandex.operators.yq import YQExecuteQueryOperator
+from tests.system.utils import get_test_env_id
+
+ENV_ID = get_test_env_id()
+DAG_ID = "example_yandexcloud_yq"
 
 with DAG(
-    dag_id="example_external_task",
-    start_date=datetime(2022, 1, 1),
-    schedule="@once",
-    catchup=False,
-    tags=["example", "async", "core"],
+    DAG_ID,
+    schedule=None,
+    start_date=datetime(2021, 1, 1),
+    tags=["example"],
 ) as dag:
-    start = EmptyOperator(task_id="start")
-
-    # [START howto_external_task_async_sensor]
-    external_task_sensor = ExternalTaskSensor(
-        task_id="parent_task_sensor",
-        external_task_id="child_task",
-        external_dag_id="child_dag",
-        deferrable=True,
-    )
-    # [END howto_external_task_async_sensor]
-
-    trigger_child_task = TriggerDagRunOperator(
-        task_id="trigger_child_task",
-        trigger_dag_id="child_dag",
-        allowed_states=[
-            "success",
-            "failed",
-        ],
-        execution_date="{{execution_date}}",
-        poke_interval=5,
-        reset_dag_run=True,
-        wait_for_completion=True,
+    run_this_last = EmptyOperator(
+        task_id="run_this_last",
     )
 
-    end = EmptyOperator(task_id="end")
-
-    start >> [trigger_child_task, external_task_sensor] >> end
+    yq_operator = YQExecuteQueryOperator(task_id="sample_query", sql="select 33 as d, 44 as t")
+    yq_operator >> run_this_last
 
     from tests.system.utils.watcher import watcher
 
@@ -63,8 +45,7 @@ with DAG(
     # when "teardown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
 
-
-from tests.system.utils import get_test_run
+from tests.system.utils import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)

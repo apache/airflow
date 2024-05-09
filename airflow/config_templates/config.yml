@@ -848,7 +848,7 @@ logging:
         Specify prefix pattern like mentioned below with stream handler TaskHandlerWithCustomFormatter
       version_added: 2.0.0
       type: string
-      example: "{ti.dag_id}-{ti.task_id}-{execution_date}-{try_number}"
+      example: "{{ti.dag_id}}-{{ti.task_id}}-{{execution_date}}-{{ti.try_number}}"
       is_template: true
       default: ""
     log_filename_template:
@@ -979,6 +979,22 @@ logging:
       type: boolean
       example: ~
       default: "True"
+    color_log_error_keywords:
+      description: |
+        A comma separated list of keywords related to errors whose presence should display the line in red
+        color in UI
+      version_added: 2.10.0
+      type: string
+      example: ~
+      default: "error,exception"
+    color_log_warning_keywords:
+      description: |
+        A comma separated list of keywords related to warning whose presence should display the line in yellow
+        color in UI
+      version_added: 2.10.0
+      type: string
+      example: ~
+      default: "warn"
 metrics:
   description: |
     StatsD (https://github.com/etsy/statsd) integration settings.
