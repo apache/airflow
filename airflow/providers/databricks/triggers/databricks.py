@@ -86,7 +86,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
                 "repair_run": self.repair_run,
             },
         )
-    
+
     @provide_session
     def get_task_instance(self, session: Session) -> TaskInstance:
         query = session.query(TaskInstance).filter(
@@ -105,7 +105,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
                 self.task_instance.map_index,
             )
         return task_instance
-    
+
     def safe_to_cancel(self) -> bool:
         """
         Defermines whether it's safe to cancel the external job which is being executed by this trigger.
@@ -113,7 +113,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
         This is to avoid the case that `asyncio.CancelledError` is called because the trigger itself is stopped
         In these cases, we should NOT cancel the external job.
         """
-        task_instance = self.get_task_instance()
+        task_instance = self.get_task_instance()  # type: ignore[call-arg]
         return task_instance.state != TaskInstanceState.DEFERRED
 
     async def run(self):
