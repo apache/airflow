@@ -160,7 +160,7 @@ def set_state(
             tis_altered += session.scalars(qry_sub_dag.with_for_update()).all()
         logger = TaskContextLogger("webserver")
         for task_instance in tis_altered:
-            logger.info("Task marked as %s from the UI", state, ti=task_instance, session=session)
+            logger.info("Task was manually marked as %s", state, ti=task_instance, session=session)
             task_instance.set_state(state, session=session)
         session.flush()
     else:

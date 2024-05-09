@@ -273,7 +273,7 @@ def clear_task_instances(
         if ti.state == TaskInstanceState.RUNNING:
             if ti.job_id:
                 logger.info(
-                    "Manually clearing a running task instance, state set to RESTARTING",
+                    "Manually cleared a running task",
                     ti=ti,
                     session=session,
                 )
@@ -283,6 +283,7 @@ def clear_task_instances(
                 job_ids.append(ti.job_id)
                 # Log this on the start of the next run
                 logger.info("Task was manually cleared, rerunning", ti=ti, session=session)
+                session.merge(ti)
 
         else:
             logger.info("Task was manually cleared, rerunning", ti=ti, session=session)

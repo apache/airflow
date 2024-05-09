@@ -125,6 +125,7 @@ from airflow.utils.docs import get_doc_url_for_provider, get_docs_url
 from airflow.utils.helpers import exactly_one
 from airflow.utils.log import secrets_masker
 from airflow.utils.log.log_reader import TaskLogReader
+from airflow.utils.log.task_context_logger import TaskContextLogger
 from airflow.utils.net import get_hostname
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -5414,9 +5415,11 @@ class TaskInstanceModelView(AirflowModelView):
         session: Session = NEW_SESSION,
     ) -> None:
         """Set task instance state."""
+        logger = TaskContextLogger("Webserver")
         try:
             count = len(tis)
             for ti in tis:
+                logger.info("Task was manually marked as %s", target_state, ti=ti, session=session)
                 ti.set_state(target_state, session)
             session.commit()
             flash(f"{count} task instances were set to '{target_state}'")
