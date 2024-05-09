@@ -36,6 +36,7 @@ devel-dependencies:
 integrations:
   - integration-name: Iceberg
     logo: /integration-logos/iceberg/iceberg.png
+    external-doc-url: https://iceberg.apache.org/
     tags: [software]
 
 hooks:
