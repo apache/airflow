@@ -16,13 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest import mock
 
 import pytest
 from attrs import Factory, define, field
-from openlineage.client.facet import BaseFacet, ParentRunFacet, SqlJobFacet
-from openlineage.client.run import Dataset
+from openlineage.client.event_v2 import Dataset
+from openlineage.client.facet_v2 import BaseFacet, JobFacet, parent_run, sql_job
 
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.python import PythonOperator
@@ -34,23 +34,27 @@ from airflow.providers.openlineage.extractors.base import (
 from airflow.providers.openlineage.extractors.manager import ExtractorManager
 from airflow.providers.openlineage.extractors.python import PythonExtractor
 
+if TYPE_CHECKING:
+    from openlineage.client.facet_v2 import RunFacet
 pytestmark = pytest.mark.db_test
 
 
 INPUTS = [Dataset(namespace="database://host:port", name="inputtable")]
 OUTPUTS = [Dataset(namespace="database://host:port", name="inputtable")]
-RUN_FACETS: dict[str, BaseFacet] = {
-    "parent": ParentRunFacet.create("3bb703d1-09c1-4a42-8da5-35a0b3216072", "namespace", "parentjob")
+RUN_FACETS: dict[str, RunFacet] = {
+    "parent": parent_run.ParentRunFacet.create(
+        "3bb703d1-09c1-4a42-8da5-35a0b3216072", "namespace", "parentjob"
+    )
 }
-JOB_FACETS: dict[str, BaseFacet] = {"sql": SqlJobFacet(query="SELECT * FROM inputtable")}
+JOB_FACETS: dict[str, JobFacet] = {"sql": sql_job.SQLJobFacet(query="SELECT * FROM inputtable")}
 
 
 @define
-class CompleteRunFacet(BaseFacet):
+class CompleteRunFacet(JobFacet):
     finished: bool = field(default=False)
 
 
-FINISHED_FACETS: dict[str, BaseFacet] = {"complete": CompleteRunFacet(True)}
+FINISHED_FACETS: dict[str, JobFacet] = {"complete": CompleteRunFacet(True)}
 
 
 class ExampleExtractor(BaseExtractor):

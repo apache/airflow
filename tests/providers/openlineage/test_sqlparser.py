@@ -20,14 +20,8 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
-from openlineage.client.facet import (
-    ColumnLineageDatasetFacet,
-    ColumnLineageDatasetFacetFieldsAdditional,
-    ColumnLineageDatasetFacetFieldsAdditionalInputFields,
-    SchemaDatasetFacet,
-    SchemaField,
-)
-from openlineage.client.run import Dataset
+from openlineage.client.event_v2 import Dataset
+from openlineage.client.facet_v2 import column_lineage_dataset, schema_dataset, sql_job
 from openlineage.common.sql import DbTableMeta
 
 from airflow.providers.openlineage.sqlparser import DatabaseInfo, GetTableSchemasParams, SQLParser
@@ -199,13 +193,13 @@ class TestSQLParser:
             rows("popular_orders_day_of_week"),
         ]
 
-        expected_schema_facet = SchemaDatasetFacet(
+        expected_schema_facet = schema_dataset.SchemaDatasetFacet(
             fields=[
-                SchemaField(name="ID", type="int4"),
-                SchemaField(name="AMOUNT_OFF", type="int4"),
-                SchemaField(name="CUSTOMER_EMAIL", type="varchar"),
-                SchemaField(name="STARTS_ON", type="timestamp"),
-                SchemaField(name="ENDS_ON", type="timestamp"),
+                schema_dataset.SchemaDatasetFacetFields(name="ID", type="int4"),
+                schema_dataset.SchemaDatasetFacetFields(name="AMOUNT_OFF", type="int4"),
+                schema_dataset.SchemaDatasetFacetFields(name="CUSTOMER_EMAIL", type="varchar"),
+                schema_dataset.SchemaDatasetFacetFields(name="STARTS_ON", type="timestamp"),
+                schema_dataset.SchemaDatasetFacetFields(name="ENDS_ON", type="timestamp"),
             ]
         )
 
@@ -324,11 +318,11 @@ class TestSQLParser:
                 namespace="myscheme://host:port",
                 name=f"{expected_schema}.top_delivery_times",
                 facets={
-                    "schema": SchemaDatasetFacet(
+                    "schema": schema_dataset.SchemaDatasetFacet(
                         fields=[
-                            SchemaField(name="order_id", type="int4"),
-                            SchemaField(name="order_placed_on", type="timestamp"),
-                            SchemaField(name="customer_email", type="varchar"),
+                            schema_dataset.SchemaDatasetFacetFields(name="order_id", type="int4"),
+                            schema_dataset.SchemaDatasetFacetFields(name="order_placed_on", type="timestamp"),
+                            schema_dataset.SchemaDatasetFacetFields(name="customer_email", type="varchar"),
                         ]
                     )
                 },
@@ -337,18 +331,18 @@ class TestSQLParser:
         assert len(metadata.outputs) == 1
         assert metadata.outputs[0].namespace == "myscheme://host:port"
         assert metadata.outputs[0].name == f"{expected_schema}.popular_orders_day_of_week"
-        assert metadata.outputs[0].facets["schema"] == SchemaDatasetFacet(
+        assert metadata.outputs[0].facets["schema"] == schema_dataset.SchemaDatasetFacet(
             fields=[
-                SchemaField(name="order_day_of_week", type="varchar"),
-                SchemaField(name="order_placed_on", type="timestamp"),
-                SchemaField(name="orders_placed", type="int4"),
+                schema_dataset.SchemaDatasetFacetFields(name="order_day_of_week", type="varchar"),
+                schema_dataset.SchemaDatasetFacetFields(name="order_placed_on", type="timestamp"),
+                schema_dataset.SchemaDatasetFacetFields(name="orders_placed", type="int4"),
             ]
         )
-        assert metadata.outputs[0].facets["columnLineage"] == ColumnLineageDatasetFacet(
+        assert metadata.outputs[0].facets["columnLineage"] == column_lineage_dataset.ColumnLineageDatasetFacet(
             fields={
-                "order_day_of_week": ColumnLineageDatasetFacetFieldsAdditional(
+                "order_day_of_week": column_lineage_dataset.Fields(
                     inputFields=[
-                        ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                        column_lineage_dataset.InputField(
                             namespace="myscheme://host:port",
                             name=f"{expected_schema}.top_delivery_times",
                             field="order_placed_on",
