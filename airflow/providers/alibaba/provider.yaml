@@ -54,6 +54,7 @@ dependencies:
   - oss2>=2.14.0
   - alibabacloud_adb20211201>=1.0.0
   - alibabacloud_tea_openapi>=0.3.7
+  - alibabacloud_emr_serverless_spark20230808>=1.0.0
 
 integrations:
   - integration-name: Alibaba Cloud OSS
@@ -67,6 +68,12 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-alibaba/operators/analyticdb_spark.rst
     tags: [alibaba]
+  - integration-name: Alibaba Cloud EMR Serverless Spark
+    external-doc-url: https://api.alibabacloud.com/api-tools/sdk/emr-serverless-spark?version=2023-08-08&language=python-tea&tab=primer-doc
+    # todo: fix this
+    how-to-guide:
+      - /docs/apache-airflow-providers-alibaba/operators/emr.rst
+    tags: [ alibaba ]
 
 operators:
   - integration-name: Alibaba Cloud OSS
@@ -75,6 +82,9 @@ operators:
   - integration-name: Alibaba Cloud AnalyticDB Spark
     python-modules:
       - airflow.providers.alibaba.cloud.operators.analyticdb_spark
+  - integration-name: Alibaba Cloud EMR Serverless Spark
+    python-modules:
+      - airflow.providers.alibaba.cloud.operators.emr
 
 sensors:
   - integration-name: Alibaba Cloud OSS
@@ -83,6 +93,9 @@ sensors:
   - integration-name: Alibaba Cloud AnalyticDB Spark
     python-modules:
       - airflow.providers.alibaba.cloud.sensors.analyticdb_spark
+#  - integration-name: Alibaba Cloud EMR Serverless Spark
+#    python-modules:
+#      - airflow.providers.alibaba.cloud.sensors.emr
 
 hooks:
   - integration-name: Alibaba Cloud OSS
@@ -91,13 +104,17 @@ hooks:
   - integration-name: Alibaba Cloud AnalyticDB Spark
     python-modules:
       - airflow.providers.alibaba.cloud.hooks.analyticdb_spark
-
+  - integration-name: Alibaba Cloud EMR Serverless Spark
+    python-modules:
+      - airflow.providers.alibaba.cloud.hooks.emr
 
 connection-types:
   - hook-class-name: airflow.providers.alibaba.cloud.hooks.oss.OSSHook
     connection-type: oss
   - hook-class-name: airflow.providers.alibaba.cloud.hooks.analyticdb_spark.AnalyticDBSparkHook
     connection-type: adb_spark
+  - hook-class-name: airflow.providers.alibaba.cloud.hooks.emr.EmrServerlessSparkHook
+    connection-type: emr_serverless_spark
 
 logging:
   - airflow.providers.alibaba.cloud.log.oss_task_handler.OSSTaskHandler
