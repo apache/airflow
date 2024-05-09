@@ -45,7 +45,7 @@ from sqlalchemy import (
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import declared_attr, joinedload, relationship, synonym, validates
-from sqlalchemy.sql.expression import false, select, true
+from sqlalchemy.sql.expression import case, false, select, true
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
@@ -1545,7 +1545,8 @@ class DagRun(Base, LoggingMixin):
                 and not ti.task.on_success_callback
                 and not ti.task.outlets
             ):
-                ti._try_number += 1
+                if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
+                    ti.try_number += 1
                 ti.defer_task(
                     defer=TaskDeferred(trigger=ti.task.start_trigger, method_name=ti.task.next_method),
                     session=session,
@@ -1567,7 +1568,16 @@ class DagRun(Base, LoggingMixin):
                         TI.run_id == self.run_id,
                         tuple_in_condition((TI.task_id, TI.map_index), schedulable_ti_ids_chunk),
                     )
-                    .values(state=TaskInstanceState.SCHEDULED)
+                    .values(
+                        state=TaskInstanceState.SCHEDULED,
+                        try_number=case(
+                            (
+                                or_(TI.state.is_(None), TI.state != TaskInstanceState.UP_FOR_RESCHEDULE),
+                                TI.try_number + 1,
+                            ),
+                            else_=TI.try_number,
+                        ),
+                    )
                     .execution_options(synchronize_session=False)
                 ).rowcount
 

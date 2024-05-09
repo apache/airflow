@@ -1179,7 +1179,7 @@ class TestAwsEcsExecutor:
         orphaned_tasks[1].external_executor_id = "002"  # Matches a running task_arn
         orphaned_tasks[2].external_executor_id = None  # One orphaned task has no external_executor_id
         for task in orphaned_tasks:
-            task.prev_attempted_tries = 1
+            task.try_number = 1
 
         not_adopted_tasks = mock_executor.try_adopt_task_instances(orphaned_tasks)
 
