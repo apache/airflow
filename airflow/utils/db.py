@@ -2043,15 +2043,70 @@ class LazySelectSequence(Sequence[T]):
     def __getitem__(self, key: int) -> T: ...
 
     @overload
-    def __getitem__(self, key: slice) -> Self: ...
+    def __getitem__(self, key: slice) -> Sequence[T]: ...
 
-    def __getitem__(self, key: int | slice) -> T | Self:
-        if not isinstance(key, int):
-            raise ValueError("non-index access is not supported")
-        if key >= 0:
-            stmt = self._select_asc.offset(key)
-        else:
-            stmt = self._select_desc.offset(-1 - key)
-        if (row := self._session.execute(stmt.limit(1)).one_or_none()) is None:
-            raise IndexError(key)
-        return self._process_row(row)
+    def __getitem__(self, key: int | slice) -> T | Sequence[T]:
+        if isinstance(key, int):
+            if key >= 0:
+                stmt = self._select_asc.offset(key)
+            else:
+                stmt = self._select_desc.offset(-1 - key)
+            if (row := self._session.execute(stmt.limit(1)).one_or_none()) is None:
+                raise IndexError(key)
+            return self._process_row(row)
+        elif isinstance(key, slice):
+            # This implements the slicing syntax. We want to optimize negative
+            # slicing (e.g. seq[-10:]) by not doing an additional COUNT query
+            # if possible. We can do this unless the start and stop have
+            # different signs (i.e. one is positive and another negative).
+            start, stop, reverse = _coerce_slice(key)
+            if start >= 0:
+                if stop is None:
+                    stmt = self._select_asc.offset(start)
+                elif stop >= 0:
+                    stmt = self._select_asc.slice(start, stop)
+                else:
+                    stmt = self._select_asc.slice(start, len(self) + stop)
+                rows = [self._process_row(row) for row in self._session.execute(stmt)]
+                if reverse:
+                    rows.reverse()
+            else:
+                if stop is None:
+                    stmt = self._select_desc.limit(-start)
+                elif stop < 0:
+                    stmt = self._select_desc.slice(-stop, -start)
+                else:
+                    stmt = self._select_desc.slice(len(self) - stop, -start)
+                rows = [self._process_row(row) for row in self._session.execute(stmt)]
+                if not reverse:
+                    rows.reverse()
+            return rows
+        raise TypeError(f"Sequence indices must be integers or slices, not {type(key).__name__}")
+
+
+def _coerce_index(value: Any) -> int | None:
+    """Check slice attribute's type and convert it to int.
+
+    See CPython documentation on this:
+    https://docs.python.org/3/reference/datamodel.html#object.__index__
+    """
+    if value is None or isinstance(value, int):
+        return value
+    if (index := getattr(value, "__index__", None)) is not None:
+        return index()
+    raise TypeError("slice indices must be integers or None or have an __index__ method")
+
+
+def _coerce_slice(key: slice) -> tuple[int, int | None, bool]:
+    """Check slice content and convert it for SQL.
+
+    See CPython documentation on this:
+    https://docs.python.org/3/reference/datamodel.html#slice-objects
+    """
+    if key.step is None or key.step == 1:
+        reverse = False
+    elif key.step == -1:
+        reverse = True
+    else:
+        raise ValueError("non-trivial slice step not supported")
+    return _coerce_index(key.start) or 0, _coerce_index(key.stop), reverse
