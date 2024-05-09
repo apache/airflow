@@ -30,10 +30,7 @@ from openlineage.client.utils import RedactMixin  # TODO: move this maybe to Air
 from airflow.models import DAG, BaseOperator, MappedOperator
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.plugins.facets import (
-    AirflowMappedTaskRunFacet,
     AirflowRunFacet,
-    UnknownOperatorAttributeRunFacet,
-    UnknownOperatorInstance,
 )
 from airflow.providers.openlineage.utils.selective_enable import (
     is_dag_lineage_enabled,
@@ -58,15 +55,6 @@ def get_operator_class(task: BaseOperator) -> type:
 
 def get_job_name(task: TaskInstance) -> str:
     return f"{task.dag_id}.{task.task_id}"
-
-
-def get_custom_facets(task_instance: TaskInstance | None = None) -> dict[str, Any]:
-    custom_facets = {}
-    # check for -1 comes from SmartSensor compatibility with dynamic task mapping
-    # this comes from Airflow code
-    if hasattr(task_instance, "map_index") and getattr(task_instance, "map_index") != -1:
-        custom_facets["airflow_mappedTask"] = AirflowMappedTaskRunFacet.from_task_instance(task_instance)
-    return custom_facets
 
 
 def get_fully_qualified_class_name(operator: BaseOperator | MappedOperator) -> str:
@@ -263,23 +251,6 @@ def get_airflow_run_facet(
                 taskInstance=TaskInstanceInfo(task_instance),
                 task=TaskInfo(task),
                 taskUuid=task_uuid,
-            )
-        )
-    }
-
-
-def get_unknown_source_attribute_run_facet(task: BaseOperator, name: str | None = None):
-    if not name:
-        name = get_operator_class(task).__name__
-    return {
-        "unknownSourceAttribute": attrs.asdict(
-            UnknownOperatorAttributeRunFacet(
-                unknownItems=[
-                    UnknownOperatorInstance(
-                        name=name,
-                        properties=TaskInfo(task),
-                    )
-                ]
             )
         )
     }

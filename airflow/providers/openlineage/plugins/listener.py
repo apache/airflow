@@ -29,7 +29,6 @@ from airflow.providers.openlineage.extractors import ExtractorManager
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter, RunState
 from airflow.providers.openlineage.utils.utils import (
     get_airflow_run_facet,
-    get_custom_facets,
     get_job_name,
     is_operator_disabled,
     is_selective_lineage_enabled,
@@ -137,7 +136,6 @@ class OpenLineageListener:
                 owners=dag.owner.split(", "),
                 task=task_metadata,
                 run_facets={
-                    **get_custom_facets(task_instance),
                     **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
                 },
             )

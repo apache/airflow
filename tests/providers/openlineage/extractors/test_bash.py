@@ -49,15 +49,7 @@ def test_extract_operator_bash_command_disabled(mocked_source_enabled):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", AirflowProviderDeprecationWarning)
         result = BashExtractor(operator).extract()
-    assert "sourceCode" not in result.job_facets
-    assert "unknownSourceAttribute" in result.run_facets
-    unknown_items = result.run_facets["unknownSourceAttribute"]["unknownItems"]
-    assert len(unknown_items) == 1
-    assert unknown_items[0]["name"] == "BashOperator"
-    assert "bash_command" not in unknown_items[0]["properties"]
-    assert "env" not in unknown_items[0]["properties"]
-    assert "append_env" not in unknown_items[0]["properties"]
-    assert "task_id" in unknown_items[0]["properties"]
+    assert not result.job_facets
 
 
 @patch("airflow.providers.openlineage.conf.is_source_enabled")
@@ -67,12 +59,5 @@ def test_extract_operator_bash_command_enabled(mocked_source_enabled):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", AirflowProviderDeprecationWarning)
         result = BashExtractor(operator).extract()
+    assert len(result.job_facets) == 1
     assert result.job_facets["sourceCode"] == SourceCodeJobFacet("bash", "exit 0;")
-    assert "unknownSourceAttribute" in result.run_facets
-    unknown_items = result.run_facets["unknownSourceAttribute"]["unknownItems"]
-    assert len(unknown_items) == 1
-    assert unknown_items[0]["name"] == "BashOperator"
-    assert "bash_command" not in unknown_items[0]["properties"]
-    assert "env" not in unknown_items[0]["properties"]
-    assert "append_env" not in unknown_items[0]["properties"]
-    assert "task_id" in unknown_items[0]["properties"]

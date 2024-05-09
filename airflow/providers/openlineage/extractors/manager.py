@@ -24,7 +24,6 @@ from airflow.providers.openlineage.extractors import BaseExtractor, OperatorLine
 from airflow.providers.openlineage.extractors.base import DefaultExtractor
 from airflow.providers.openlineage.extractors.bash import BashExtractor
 from airflow.providers.openlineage.extractors.python import PythonExtractor
-from airflow.providers.openlineage.utils.utils import get_unknown_source_attribute_run_facet
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
 
@@ -108,14 +107,10 @@ class ExtractorManager(LoggingMixin):
                 )
         else:
             self.log.debug("Unable to find an extractor %s", task_info)
-
-            # Only include the unkonwnSourceAttribute facet if there is no extractor
-            task_metadata = OperatorLineage(
-                run_facets=get_unknown_source_attribute_run_facet(task=task),
+            task_metadata = OperatorLineage()
+            self.extract_inlets_and_outlets(
+                task_metadata=task_metadata, inlets=task.get_inlet_defs(), outlets=task.get_outlet_defs()
             )
-            inlets = task.get_inlet_defs()
-            outlets = task.get_outlet_defs()
-            self.extract_inlets_and_outlets(task_metadata, inlets, outlets)
             return task_metadata
 
         return OperatorLineage()

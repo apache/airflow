@@ -17,34 +17,25 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
+from unittest.mock import MagicMock
 
-from airflow.decorators import task_group
-from airflow.models.taskinstance import TaskInstance as TI
-from airflow.operators.empty import EmptyOperator
-from airflow.providers.openlineage.plugins.facets import AirflowMappedTaskRunFacet
-from airflow.providers.openlineage.utils.utils import get_custom_facets
-from airflow.utils import timezone
-
-DEFAULT_DATE = timezone.datetime(2016, 1, 1)
+from airflow.operators.bash import BashOperator
+from airflow.providers.openlineage.utils.utils import get_fully_qualified_class_name, get_job_name
 
 
-@pytest.mark.db_test
-def test_get_custom_facets(dag_maker):
-    with dag_maker(dag_id="dag_test_get_custom_facets") as dag:
+def test_get_job_name_correct_format():
+    task_instance = MagicMock(dag_id="example_dag", task_id="example_task")
+    expected_result = "example_dag.example_task"
+    assert get_job_name(task_instance) == expected_result
 
-        @task_group
-        def task_group_op(k):
-            EmptyOperator(task_id="empty_operator")
 
-        task_group_op.expand(k=[0])
+def test_get_job_name_with_empty_ids():
+    task_instance = MagicMock(dag_id="", task_id="")
+    expected_result = "."
+    assert get_job_name(task_instance) == expected_result
 
-        dag_maker.create_dagrun()
-        ti_0 = TI(dag.get_task("task_group_op.empty_operator"), execution_date=DEFAULT_DATE, map_index=0)
 
-        assert ti_0.map_index == 0
-
-        assert get_custom_facets(ti_0)["airflow_mappedTask"] == AirflowMappedTaskRunFacet(
-            mapIndex=0,
-            operatorClass=f"{ti_0.task.operator_class.__module__}.{ti_0.task.operator_class.__name__}",
-        )
+def test_get_fully_qualified_class_name_bash_operator():
+    result = get_fully_qualified_class_name(BashOperator(task_id="test", bash_command="echo 0;"))
+    expected_result = "airflow.operators.bash.BashOperator"
+    assert result == expected_result

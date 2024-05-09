@@ -199,10 +199,9 @@ def _create_listener_and_task_instance() -> tuple[OpenLineageListener, TaskInsta
 
 @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
 @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
-@mock.patch("airflow.providers.openlineage.plugins.listener.get_custom_facets")
 @mock.patch("airflow.providers.openlineage.plugins.listener.get_job_name")
 def test_adapter_start_task_is_called_with_proper_arguments(
-    mock_get_job_name, mock_get_custom_facets, mock_get_airflow_run_facet, mock_disabled
+    mock_get_job_name, mock_get_airflow_run_facet, mock_disabled
 ):
     """Tests that the 'start_task' method of the OpenLineageAdapter is invoked with the correct arguments.
 
@@ -214,7 +213,6 @@ def test_adapter_start_task_is_called_with_proper_arguments(
     """
     listener, task_instance = _create_listener_and_task_instance()
     mock_get_job_name.return_value = "job_name"
-    mock_get_custom_facets.return_value = {"custom_facet": 2}
     mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
     mock_disabled.return_value = False
 
@@ -232,7 +230,6 @@ def test_adapter_start_task_is_called_with_proper_arguments(
         owners=["Test Owner"],
         task=listener.extractor_manager.extract_metadata(),
         run_facets={
-            "custom_facet": 2,
             "airflow_run_facet": 3,
         },
     )
@@ -473,14 +470,12 @@ def test_listener_on_task_instance_success_is_called_after_try_number_increment(
 
 @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
 @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
-@mock.patch("airflow.providers.openlineage.plugins.listener.get_custom_facets")
 @mock.patch("airflow.providers.openlineage.plugins.listener.get_job_name")
 def test_listener_on_task_instance_running_do_not_call_adapter_when_disabled_operator(
-    mock_get_job_name, mock_get_custom_facets, mock_get_airflow_run_facet, mock_disabled
+    mock_get_job_name, mock_get_airflow_run_facet, mock_disabled
 ):
     listener, task_instance = _create_listener_and_task_instance()
     mock_get_job_name.return_value = "job_name"
-    mock_get_custom_facets.return_value = {"custom_facet": 2}
     mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
     mock_disabled.return_value = True
 
