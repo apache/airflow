@@ -697,7 +697,6 @@
 - tests/providers/teradata/hooks/test_teradata.py::TestTeradataHook::test_bulk_insert_rows_without_fields
 - tests/providers/teradata/hooks/test_teradata.py::TestTeradataHook::test_bulk_insert_rows_no_rows
 - tests/providers/trino/operators/test_trino.py::test_execute_openlineage_events
-- tests/providers/vertica/operators/test_vertica.py::TestVerticaOperator::test_execute
 - tests/providers/weaviate/operators/test_weaviate.py::TestWeaviateIngestOperator::test_constructor
 - tests/providers/weaviate/operators/test_weaviate.py::TestWeaviateIngestOperator::test_execute_with_input_json
 - tests/providers/yandex/hooks/test_yandex.py::TestYandexHook::test_provider_user_agent
