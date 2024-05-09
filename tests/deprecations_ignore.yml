@@ -25,16 +25,6 @@
 - tests/dags_with_system_exit/
 
 
-# Always
-- tests/always/test_connection.py::TestConnection::test_connection_extra_no_encryption
-- tests/always/test_connection.py::TestConnection::test_connection_extra_with_encryption
-- tests/always/test_connection.py::TestConnection::test_connection_extra_with_encryption_rotate_fernet_key
-- tests/always/test_connection.py::TestConnection::test_connection_from_uri
-- tests/always/test_connection.py::TestConnection::test_connection_get_uri_from_conn
-- tests/always/test_connection.py::TestConnection::test_connection_get_uri_from_uri
-- tests/always/test_connection.py::TestConnection::test_from_json_extra
-
-
 # API
 - tests/api_connexion/endpoints/test_connection_endpoint.py::TestGetConnection::test_should_respond_200
 - tests/api_connexion/endpoints/test_connection_endpoint.py::TestPatchConnection::test_patch_should_respond_200
