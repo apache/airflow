@@ -27,7 +27,6 @@ import logging
 import math
 import operator
 import os
-import platform
 import sys
 import traceback
 import warnings
@@ -118,7 +117,7 @@ from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import DataInterval, TimeRestriction
 from airflow.timetables.simple import ContinuousTimetable
-from airflow.utils import json as utils_json, timezone, yaml
+from airflow.utils import json as utils_json, scarf, timezone, yaml
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.db import get_query_count
@@ -216,6 +215,32 @@ def get_safe_url(url):
 
     # This will ensure we only redirect to the right scheme/netloc
     return redirect_url.geturl()
+
+
+def build_scarf_url(dags_count: int) -> str:
+    """Build the URL for the Scarf telemetry collection."""
+    if not settings.is_telemetry_collection_enabled():
+        return ""
+
+    scarf_domain = "https://apacheairflow.gateway.scarf.sh"
+
+    platform_sys, platform_arch = scarf.get_platform_info()
+    db_version = scarf.get_database_version()
+    db_name = scarf.get_database_name()
+    executor = scarf.get_executor()
+    python_version = scarf.get_python_version()
+
+    # Path Format:
+    # /{version}/{python_version}/{platform}/{arch}/{database}/{db_version}/{executor}/{num_dags}
+    #
+    # This path redirects to a Pixel tracking URL
+    scarf_url = (
+        f"{scarf_domain}/webserver"
+        f"/{version}/{python_version}"
+        f"/{platform_sys}/{platform_arch}/{db_name}/{db_version}/{executor}/{dags_count}"
+    )
+
+    return scarf_url
 
 
 def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
@@ -1035,29 +1060,7 @@ class Airflow(AirflowBaseView):
                     "warning",
                 )
 
-        scarf_url = ""
-        if settings.is_telemetry_collection_enabled():
-            scarf_domain = "https://apacheairflow.gateway.scarf.sh"
-
-            python_version = platform.python_version()
-            platform_sys = platform.system()
-            platform_arch = platform.machine()
-            db_name = settings.engine.dialect.name
-            db_version = settings.engine.dialect.server_version_info
-            if db_version:
-                # Example: (1, 2, 3) -> "1.2.3"
-                db_version = ".".join(map(str, db_version))
-            executor = conf.get("core", "EXECUTOR")
-
-            # Path Format:
-            # /{version}/{python_version}/{platform}/{arch}/{database}/{db_version}/{executor}/{num_dags}
-            #
-            # This path redirects to a Pixel tracking URL
-            scarf_url = (
-                f"{scarf_domain}/webserver"
-                f"/{version}/{python_version}"
-                f"/{platform_sys}/{platform_arch}/{db_name}/{db_version}/{executor}/{all_dags_count}"
-            )
+        scarf_url = build_scarf_url(dags_count=all_dags_count)
 
         return self.render_template(
             "airflow/dags.html",

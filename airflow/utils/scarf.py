@@ -36,20 +36,21 @@ def scarf_analytics():
 
     scarf_domain = "https://apacheairflow.gateway.scarf.sh/scheduler"
 
-    db_version = settings.engine.dialect.server_version_info
-    if db_version:
-        # Example: (1, 2, 3) -> "1.2.3"
-        db_version = ".".join(map(str, db_version))
+    platform_sys, arch = get_platform_info()
+    db_version = get_database_version()
+    db_name = get_database_name()
+    executor = get_executor()
+    python_version = get_python_version()
 
     try:
         scarf_url = (
             f"{scarf_domain}?version={airflow_version}"
-            f"&python_version={platform.python_version()}"
-            f"&platform={platform.system()}"
-            f"&arch={platform.machine()}"
-            f"&database={settings.engine.dialect.name}"
+            f"&python_version={python_version}"
+            f"&platform={platform_sys}"
+            f"&arch={arch}"
+            f"&database={db_name}"
             f"&db_version={db_version}"
-            f"&executor={conf.get('core', 'EXECUTOR')}"
+            f"&executor={executor}"
         )
 
         httpx.get(scarf_url, timeout=5.0)
@@ -59,3 +60,25 @@ def scarf_analytics():
 
 def _version_is_prerelease(version: str) -> bool:
     return parse(version).is_prerelease
+
+
+def get_platform_info() -> tuple[str, str]:
+    return platform.system(), platform.machine()
+
+
+def get_database_version() -> str:
+    version_info = settings.engine.dialect.server_version_info
+    # Example: (1, 2, 3) -> "1.2.3"
+    return ".".join(map(str, version_info)) if version_info else "None"
+
+
+def get_database_name() -> str:
+    return settings.engine.dialect.name
+
+
+def get_executor() -> str:
+    return conf.get("core", "EXECUTOR")
+
+
+def get_python_version() -> str:
+    return platform.python_version()

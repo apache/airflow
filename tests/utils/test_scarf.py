@@ -24,7 +24,7 @@ import pytest
 
 from airflow import __version__ as airflow_version, settings
 from airflow.configuration import conf
-from airflow.utils.scarf import scarf_analytics
+from airflow.utils.scarf import get_database_version, scarf_analytics
 
 
 @pytest.mark.parametrize("is_enabled, is_prerelease", [(False, True), (True, True)])
@@ -62,3 +62,17 @@ def test_scarf_analytics(mock_get, mock_is_telemetry_collection_enabled, mock_ve
     )
 
     mock_get.assert_called_once_with(expected_scarf_url, timeout=5.0)
+
+
+@pytest.mark.parametrize(
+    "version_info, expected_version",
+    [
+        ((1, 2, 3), "1.2.3"),  # Normal version tuple
+        (None, "None"),  # No version info available
+        ((1,), "1"),  # Single element version tuple
+        ((1, 2, 3, "beta", 4), "1.2.3.beta.4"),  # Complex version tuple with strings
+    ],
+)
+def test_get_database_version(version_info, expected_version):
+    with mock.patch("airflow.settings.engine.dialect.server_version_info", new=version_info):
+        assert get_database_version() == expected_version
