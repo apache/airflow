@@ -72,7 +72,6 @@ class TestProjectStructure:
             "tests/providers/amazon/aws/sensors/test_emr.py",
             "tests/providers/amazon/aws/sensors/test_sagemaker.py",
             "tests/providers/amazon/aws/test_exceptions.py",
-            "tests/providers/amazon/aws/triggers/test_eks.py",
             "tests/providers/amazon/aws/triggers/test_step_function.py",
             "tests/providers/amazon/aws/utils/test_rds.py",
             "tests/providers/amazon/aws/utils/test_sagemaker.py",
