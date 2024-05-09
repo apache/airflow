@@ -332,7 +332,6 @@
 - tests/providers/amazon/aws/triggers/test_redshift_cluster.py::TestRedshiftClusterTrigger::test_redshift_cluster_sensor_trigger_resuming_status
 - tests/providers/amazon/aws/triggers/test_redshift_cluster.py::TestRedshiftClusterTrigger::test_redshift_cluster_sensor_trigger_success
 - tests/providers/amazon/aws/utils/test_connection_wrapper.py::TestAwsConnectionWrapper::test_get_endpoint_url_from_extra
-- tests/providers/apache/livy/operators/test_livy.py::TestLivyOperator::test_execution_with_extra_options
 - tests/providers/apache/spark/operators/test_spark_sql.py::TestSparkSqlOperator::test_execute
 - tests/providers/atlassian/jira/operators/test_jira.py::TestJiraOperator::test_issue_search
 - tests/providers/atlassian/jira/operators/test_jira.py::TestJiraOperator::test_project_issue_count
