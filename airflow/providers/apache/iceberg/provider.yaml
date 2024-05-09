@@ -40,7 +40,7 @@ integrations:
     tags: [software]
 
 hooks:
-  - integration-name: iceberg
+  - integration-name: Iceberg
     python-modules:
       - airflow.providers.apache.iceberg.hooks.iceberg
 
