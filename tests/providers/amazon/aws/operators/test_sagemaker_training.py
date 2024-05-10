@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 from botocore.exceptions import ClientError
-from openlineage.client.run import Dataset
+from openlineage.client.event_v2 import Dataset
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.sagemaker import LogState, SageMakerHook

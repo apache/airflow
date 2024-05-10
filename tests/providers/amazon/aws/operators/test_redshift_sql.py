@@ -20,15 +20,8 @@ from __future__ import annotations
 from unittest.mock import MagicMock, PropertyMock, call, patch
 
 import pytest
-from openlineage.client.facet import (
-    ColumnLineageDatasetFacet,
-    ColumnLineageDatasetFacetFieldsAdditional,
-    ColumnLineageDatasetFacetFieldsAdditionalInputFields,
-    SchemaDatasetFacet,
-    SchemaField,
-    SqlJobFacet,
-)
-from openlineage.client.run import Dataset
+from openlineage.client.event_v2 import Dataset
+from openlineage.client.facet_v2 import column_lineage_dataset, schema_dataset, sql_job
 
 from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook as OriginalRedshiftSQLHook
@@ -208,66 +201,69 @@ class TestRedshiftSQLOpenLineage:
             assert dbapi_hook.get_conn.return_value.cursor.return_value.execute.mock_calls == []
         expected_namespace = f"redshift://{expected_identity}:5439"
 
-        if is_over_210:
-            assert lineage.inputs == [
-                Dataset(
-                    namespace=expected_namespace,
-                    name=f"{ANOTHER_DB_NAME}.{ANOTHER_DB_SCHEMA}.popular_orders_day_of_week",
-                    facets={
-                        "schema": SchemaDatasetFacet(
-                            fields=[
-                                SchemaField(name="order_day_of_week", type="varchar"),
-                                SchemaField(name="order_placed_on", type="timestamp"),
-                                SchemaField(name="orders_placed", type="int4"),
-                            ]
-                        )
-                    },
-                ),
-                Dataset(
-                    namespace=expected_namespace,
-                    name=f"{DB_NAME}.{DB_SCHEMA_NAME}.little_table",
-                    facets={
-                        "schema": SchemaDatasetFacet(
-                            fields=[
-                                SchemaField(name="order_day_of_week", type="varchar"),
-                                SchemaField(name="additional_constant", type="varchar"),
-                            ]
-                        )
-                    },
-                ),
-            ]
-            assert lineage.outputs == [
-                Dataset(
-                    namespace=expected_namespace,
-                    name=f"{DB_NAME}.{DB_SCHEMA_NAME}.test_table",
-                    facets={
-                        "schema": SchemaDatasetFacet(
-                            fields=[
-                                SchemaField(name="order_day_of_week", type="varchar"),
-                                SchemaField(name="order_placed_on", type="timestamp"),
-                                SchemaField(name="orders_placed", type="int4"),
-                                SchemaField(name="additional_constant", type="varchar"),
-                            ]
-                        ),
-                        "columnLineage": ColumnLineageDatasetFacet(
-                            fields={
-                                "additional_constant": ColumnLineageDatasetFacetFieldsAdditional(
-                                    inputFields=[
-                                        ColumnLineageDatasetFacetFieldsAdditionalInputFields(
-                                            namespace=expected_namespace,
-                                            name="database.public.little_table",
-                                            field="additional_constant",
-                                        )
-                                    ],
-                                    transformationDescription="",
-                                    transformationType="",
-                                )
-                            }
-                        ),
-                    },
-                )
-            ]
+        assert lineage.inputs == [
+            Dataset(
+                namespace=expected_namespace,
+                name=f"{ANOTHER_DB_NAME}.{ANOTHER_DB_SCHEMA}.popular_orders_day_of_week",
+                facets={
+                    "schema": schema_dataset.SchemaDatasetFacet(
+                        fields=[
+                            schema_dataset.SchemaDatasetFacetFields(name="order_day_of_week", type="varchar"),
+                            schema_dataset.SchemaDatasetFacetFields(name="order_placed_on", type="timestamp"),
+                            schema_dataset.SchemaDatasetFacetFields(name="orders_placed", type="int4"),
+                        ]
+                    )
+                },
+            ),
+            Dataset(
+                namespace=expected_namespace,
+                name=f"{DB_NAME}.{DB_SCHEMA_NAME}.little_table",
+                facets={
+                    "schema": schema_dataset.SchemaDatasetFacet(
+                        fields=[
+                            schema_dataset.SchemaDatasetFacetFields(name="order_day_of_week", type="varchar"),
+                            schema_dataset.SchemaDatasetFacetFields(
+                                name="additional_constant", type="varchar"
+                            ),
+                        ]
+                    )
+                },
+            ),
+        ]
+        assert lineage.outputs == [
+            Dataset(
+                namespace=expected_namespace,
+                name=f"{DB_NAME}.{DB_SCHEMA_NAME}.test_table",
+                facets={
+                    "schema": schema_dataset.SchemaDatasetFacet(
+                        fields=[
+                            schema_dataset.SchemaDatasetFacetFields(name="order_day_of_week", type="varchar"),
+                            schema_dataset.SchemaDatasetFacetFields(name="order_placed_on", type="timestamp"),
+                            schema_dataset.SchemaDatasetFacetFields(name="orders_placed", type="int4"),
+                            schema_dataset.SchemaDatasetFacetFields(
+                                name="additional_constant", type="varchar"
+                            ),
+                        ]
+                    ),
+                    "columnLineage": column_lineage_dataset.ColumnLineageDatasetFacet(
+                        fields={
+                            "additional_constant": column_lineage_dataset.Fields(
+                                inputFields=[
+                                    column_lineage_dataset.InputField(
+                                        namespace=expected_namespace,
+                                        name="database.public.little_table",
+                                        field="additional_constant",
+                                    )
+                                ],
+                                transformationDescription="",
+                                transformationType="",
+                            )
+                        }
+                    ),
+                },
+            )
+        ]
 
-        assert lineage.job_facets == {"sql": SqlJobFacet(query=sql)}
+        assert lineage.job_facets == {"sql": sql_job.SQLJobFacet(query=sql)}
 
         assert lineage.run_facets["extractionError"].failedTasks == 1

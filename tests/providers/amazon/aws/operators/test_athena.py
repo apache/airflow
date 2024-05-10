@@ -20,15 +20,8 @@ import json
 from unittest import mock
 
 import pytest
-from openlineage.client.facet import (
-    ExternalQueryRunFacet,
-    SchemaDatasetFacet,
-    SchemaField,
-    SqlJobFacet,
-    SymlinksDatasetFacet,
-    SymlinksDatasetFacetIdentifiers,
-)
-from openlineage.client.run import Dataset
+from openlineage.client.event_v2 import Dataset
+from openlineage.client.facet_v2 import external_query_run, schema_dataset, sql_job, symlinks_dataset
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
@@ -312,38 +305,38 @@ class TestAthenaOperator:
                     namespace="awsathena://athena.eu-west-1.amazonaws.com",
                     name="AwsDataCatalog.TEST_DATABASE.DISCOUNTS",
                     facets={
-                        "symlinks": SymlinksDatasetFacet(
+                        "symlinks": symlinks_dataset.SymlinksDatasetFacet(
                             identifiers=[
-                                SymlinksDatasetFacetIdentifiers(
+                                symlinks_dataset.Identifier(
                                     namespace="s3://bucket",
                                     name="/discount/data/path/",
                                     type="TABLE",
                                 )
                             ],
                         ),
-                        "schema": SchemaDatasetFacet(
+                        "schema": schema_dataset.SchemaDatasetFacet(
                             fields=[
-                                SchemaField(
+                                schema_dataset.SchemaDatasetFacetFields(
                                     name="ID",
                                     type="int",
                                     description="from deserializer",
                                 ),
-                                SchemaField(
+                                schema_dataset.SchemaDatasetFacetFields(
                                     name="AMOUNT_OFF",
                                     type="int",
                                     description="from deserializer",
                                 ),
-                                SchemaField(
+                                schema_dataset.SchemaDatasetFacetFields(
                                     name="CUSTOMER_EMAIL",
                                     type="varchar",
                                     description="from deserializer",
                                 ),
-                                SchemaField(
+                                schema_dataset.SchemaDatasetFacetFields(
                                     name="STARTS_ON",
                                     type="timestamp",
                                     description="from deserializer",
                                 ),
-                                SchemaField(
+                                schema_dataset.SchemaDatasetFacetFields(
                                     name="ENDS_ON",
                                     type="timestamp",
                                     description="from deserializer",
@@ -358,18 +351,18 @@ class TestAthenaOperator:
                     namespace="awsathena://athena.eu-west-1.amazonaws.com",
                     name="AwsDataCatalog.TEST_DATABASE.TEST_TABLE",
                     facets={
-                        "symlinks": SymlinksDatasetFacet(
+                        "symlinks": symlinks_dataset.SymlinksDatasetFacet(
                             identifiers=[
-                                SymlinksDatasetFacetIdentifiers(
+                                symlinks_dataset.Identifier(
                                     namespace="s3://bucket",
                                     name="/data/test_table/data/path",
                                     type="TABLE",
                                 )
                             ],
                         ),
-                        "schema": SchemaDatasetFacet(
+                        "schema": schema_dataset.SchemaDatasetFacet(
                             fields=[
-                                SchemaField(
+                                schema_dataset.SchemaDatasetFacetFields(
                                     name="column",
                                     type="string",
                                     description="from deserializer",
@@ -381,10 +374,14 @@ class TestAthenaOperator:
                 Dataset(namespace="s3://test_s3_bucket", name="/"),
             ],
             job_facets={
-                "sql": SqlJobFacet(
+                "sql": sql_job.SQLJobFacet(
                     query="INSERT INTO TEST_TABLE SELECT CUSTOMER_EMAIL FROM DISCOUNTS",
                 )
             },
-            run_facets={"externalQuery": ExternalQueryRunFacet(externalQueryId="12345", source="awsathena")},
+            run_facets={
+                "externalQuery": external_query_run.ExternalQueryRunFacet(
+                    externalQueryId="12345", source="awsathena"
+                )
+            },
         )
         assert op.get_openlineage_facets_on_complete(None) == expected_lineage

@@ -324,7 +324,7 @@ class S3CopyObjectOperator(BaseOperator):
         )
 
     def get_openlineage_facets_on_start(self):
-        from openlineage.client.run import Dataset
+        from openlineage.client.event_v2 import Dataset
 
         from airflow.providers.openlineage.extractors import OperatorLineage
 
@@ -439,7 +439,7 @@ class S3CreateObjectOperator(BaseOperator):
             s3_hook.load_bytes(self.data, s3_key, s3_bucket, self.replace, self.encrypt, self.acl_policy)
 
     def get_openlineage_facets_on_start(self):
-        from openlineage.client.run import Dataset
+        from openlineage.client.event_v2 import Dataset
 
         from airflow.providers.openlineage.extractors import OperatorLineage
 
@@ -546,12 +546,8 @@ class S3DeleteObjectsOperator(BaseOperator):
 
     def get_openlineage_facets_on_complete(self, task_instance):
         """Implement _on_complete because object keys are resolved in execute()."""
-        from openlineage.client.facet import (
-            LifecycleStateChange,
-            LifecycleStateChangeDatasetFacet,
-            LifecycleStateChangeDatasetFacetPreviousIdentifier,
-        )
-        from openlineage.client.run import Dataset
+        from openlineage.client.event_v2 import Dataset
+        from openlineage.client.facet_v2 import lifecycle_state_change_dataset
 
         from airflow.providers.openlineage.extractors import OperatorLineage
 
@@ -568,9 +564,9 @@ class S3DeleteObjectsOperator(BaseOperator):
                 namespace=bucket_url,
                 name=key,
                 facets={
-                    "lifecycleStateChange": LifecycleStateChangeDatasetFacet(
-                        lifecycleStateChange=LifecycleStateChange.DROP.value,
-                        previousIdentifier=LifecycleStateChangeDatasetFacetPreviousIdentifier(
+                    "lifecycleStateChange": lifecycle_state_change_dataset.LifecycleStateChangeDatasetFacet(
+                        lifecycleStateChange=lifecycle_state_change_dataset.LifecycleStateChange.DROP.value,
+                        previousIdentifier=lifecycle_state_change_dataset.PreviousIdentifier(
                             namespace=bucket_url,
                             name=key,
                         ),
@@ -725,7 +721,7 @@ class S3FileTransformOperator(BaseOperator):
             self.log.info("Upload successful")
 
     def get_openlineage_facets_on_start(self):
-        from openlineage.client.run import Dataset
+        from openlineage.client.event_v2 import Dataset
 
         from airflow.providers.openlineage.extractors import OperatorLineage
 

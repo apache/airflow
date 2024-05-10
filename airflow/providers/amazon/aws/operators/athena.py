@@ -30,8 +30,8 @@ from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
-    from openlineage.client.facet import BaseFacet
-    from openlineage.client.run import Dataset
+    from openlineage.client.event_v2 import Dataset
+    from openlineage.client.facet_v2 import BaseFacet
 
     from airflow.providers.openlineage.extractors.base import OperatorLineage
     from airflow.utils.context import Context
@@ -217,20 +217,17 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
         path where the results are saved (user's prefix + some UUID), we are creating a dataset with the
         user-provided path only. This should make it easier to match this dataset across different processes.
         """
-        from openlineage.client.facet import (
-            ExternalQueryRunFacet,
-            ExtractionError,
-            ExtractionErrorRunFacet,
-            SqlJobFacet,
-        )
-        from openlineage.client.run import Dataset
+        from openlineage.client.event_v2 import Dataset
+        from openlineage.client.facet_v2 import extraction_error_run, external_query_run, sql_job
 
         from airflow.providers.openlineage.extractors.base import OperatorLineage
         from airflow.providers.openlineage.sqlparser import SQLParser
 
         sql_parser = SQLParser(dialect="generic")
 
-        job_facets: dict[str, BaseFacet] = {"sql": SqlJobFacet(query=sql_parser.normalize_sql(self.query))}
+        job_facets: dict[str, BaseFacet] = {
+            "sql": sql_job.SQLJobFacet(query=sql_parser.normalize_sql(self.query))
+        }
         parse_result = sql_parser.parse(sql=self.query)
 
         if not parse_result:
@@ -238,11 +235,11 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
 
         run_facets: dict[str, BaseFacet] = {}
         if parse_result.errors:
-            run_facets["extractionError"] = ExtractionErrorRunFacet(
+            run_facets["extractionError"] = extraction_error_run.ExtractionErrorRunFacet(
                 totalTasks=len(self.query) if isinstance(self.query, list) else 1,
                 failedTasks=len(parse_result.errors),
                 errors=[
-                    ExtractionError(
+                    extraction_error_run.Error(
                         errorMessage=error.message,
                         stackTrace=None,
                         task=error.origin_statement,
@@ -273,7 +270,7 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
         )
 
         if self.query_execution_id:
-            run_facets["externalQuery"] = ExternalQueryRunFacet(
+            run_facets["externalQuery"] = external_query_run.ExternalQueryRunFacet(
                 externalQueryId=self.query_execution_id, source="awsathena"
             )
 
@@ -284,13 +281,8 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
         return OperatorLineage(job_facets=job_facets, run_facets=run_facets, inputs=inputs, outputs=outputs)
 
     def get_openlineage_dataset(self, database, table) -> Dataset | None:
-        from openlineage.client.facet import (
-            SchemaDatasetFacet,
-            SchemaField,
-            SymlinksDatasetFacet,
-            SymlinksDatasetFacetIdentifiers,
-        )
-        from openlineage.client.run import Dataset
+        from openlineage.client.event_v2 import Dataset
+        from openlineage.client.facet_v2 import schema_dataset, symlinks_dataset
 
         client = self.hook.get_conn()
         try:
@@ -302,9 +294,9 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
             s3_location = table_metadata["TableMetadata"]["Parameters"]["location"]
             parsed_path = urlparse(s3_location)
             facets: dict[str, BaseFacet] = {
-                "symlinks": SymlinksDatasetFacet(
+                "symlinks": symlinks_dataset.SymlinksDatasetFacet(
                     identifiers=[
-                        SymlinksDatasetFacetIdentifiers(
+                        symlinks_dataset.Identifier(
                             namespace=f"{parsed_path.scheme}://{parsed_path.netloc}",
                             name=str(parsed_path.path),
                             type="TABLE",
@@ -313,11 +305,13 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
                 )
             }
             fields = [
-                SchemaField(name=column["Name"], type=column["Type"], description=column.get("Comment"))
+                schema_dataset.SchemaDatasetFacetFields(
+                    name=column["Name"], type=column["Type"], description=column["Comment"]
+                )
                 for column in table_metadata["TableMetadata"]["Columns"]
             ]
             if fields:
-                facets["schema"] = SchemaDatasetFacet(fields=fields)
+                facets["schema"] = schema_dataset.SchemaDatasetFacet(fields=fields)
             return Dataset(
                 namespace=f"awsathena://athena.{self.hook.region_name}.amazonaws.com",
                 name=".".join(filter(None, (self.catalog, database, table))),

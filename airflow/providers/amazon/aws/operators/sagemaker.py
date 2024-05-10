@@ -46,7 +46,7 @@ from airflow.utils.helpers import prune_dict
 from airflow.utils.json import AirflowJsonEncoder
 
 if TYPE_CHECKING:
-    from openlineage.client.run import Dataset
+    from openlineage.client.event_v2 import Dataset
 
     from airflow.providers.openlineage.extractors.base import OperatorLineage
     from airflow.utils.context import Context
@@ -208,7 +208,7 @@ class SageMakerBaseOperator(BaseOperator):
 
     @staticmethod
     def path_to_s3_dataset(path) -> Dataset:
-        from openlineage.client.run import Dataset
+        from openlineage.client.event_v2 import Dataset
 
         path = path.replace("s3://", "")
         split_path = path.split("/")
