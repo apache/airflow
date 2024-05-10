@@ -768,7 +768,10 @@ workers:
   ## Creates placeHolder for Workers in Kubernetes Executor Mode
   placeHolder:
     enabled: true
+    replicas: 2
     placeHolderPriority: ~
+    annotations:
+      cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
 
     podDisruptionBudget:
       config: ~

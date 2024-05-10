@@ -2151,7 +2151,7 @@
                         "additionalProperties": false
                     }
                 },
-                
+
                 "placeHolder": {
                     "description": "Creates place holders with lower priority class for workers.",
                     "type": "object",
@@ -2162,11 +2162,24 @@
                             "type": "boolean",
                             "default": false
                         },
+                        "replicas": {
+                            "description": "Quantity of place holder slots.",
+                            "type": "integer",
+                            "default": 2
+                        },
                         "placeHolderPriority": {
                             "description": "Value for PriorityClass of PlaceHolder: should be lower than worker PC",
                             "type": ["null","integer"] ,
                             "default": 10
 
+                        },
+                        "annotations": {
+                            "description": "Annotations to add to PlaceHolder Deployment.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         },
                         "podDisruptionBudget": {
                             "description": "Default",

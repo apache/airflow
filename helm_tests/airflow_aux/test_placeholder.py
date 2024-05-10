@@ -27,29 +27,22 @@ class TestPlaceHolder:
     def test_priority_class_name(self):
         docs = render_chart(
             values={
-                "flower": {"enabled": True, "priorityClassName": "low-priority-flower"},
-                "pgbouncer": {"enabled": True, "priorityClassName": "low-priority-pgbouncer"},
-                "scheduler": {"priorityClassName": "low-priority-scheduler"},
-                "statsd": {"priorityClassName": "low-priority-statsd"},
-                "triggerer": {"priorityClassName": "low-priority-triggerer"},
-                "dagProcessor": {"priorityClassName": "low-priority-dag-processor"},
-                "webserver": {"priorityClassName": "low-priority-webserver"},
-                "workers": {"priorityClassName": "low-priority-worker"},
+                "executor": "KubernetesExecutor",
+                "workers": {"placeHolder": {"enabled": True}},
             },
             show_only=[
-                "templates/flower/flower-deployment.yaml",
-                "templates/pgbouncer/pgbouncer-deployment.yaml",
-                "templates/scheduler/scheduler-deployment.yaml",
-                "templates/statsd/statsd-deployment.yaml",
-                "templates/triggerer/triggerer-deployment.yaml",
-                "templates/dag-processor/dag-processor-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
-                "templates/workers/worker-deployment.yaml",
+                "templates/workers/placeholder/placeholder-deployment.yaml",
+                "templates/workers/placeholder/placeholder-poddisruptionbudget.yaml",
+                "templates/workers/placeholder/placeholder-priorityclass.yaml",
             ],
         )
-        assert 7 == len(docs)
-        for doc in docs:
-            component = doc["metadata"]["labels"]["component"]
-            priority = doc["spec"]["template"]["spec"]["priorityClassName"]
-
-            assert priority == f"low-priority-{component}"
+        assert 3 == len(docs)
+        assert "Deployment" == jmespath.search("kind", docs[0])
+        assert "release-name-place-holder" == jmespath.search("metadata.name", docs[0])
+        assert 2 == jmespath.search("spec.replicas", docs[0])
+        assert "placeholder" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
+        assert "release-name-placeholder-pc" == jmespath.search("spec.template.spec.priorityClassName", docs[0])
+        assert "PriorityClass" == jmespath.search("kind", docs[1])
+        assert "release-name-placeholder-pc" == jmespath.search("metadata.name", docs[1])
+        assert "PodDisruptionBudget" == jmespath.search("kind", docs[2])
+        assert "release-name-placeholder-pdb" == jmespath.search("metadata.name", docs[2])
