@@ -26,7 +26,8 @@ import pandas as pd
 import pytest
 from google.cloud.bigquery import DEFAULT_RETRY, ScalarQueryParameter
 from google.cloud.exceptions import Conflict
-from openlineage.client.facet import ErrorMessageRunFacet, ExternalQueryRunFacet, SqlJobFacet
+from openlineage.client.facet import DataSourceDatasetFacet, ExternalQueryRunFacet
+from openlineage.client.facet_v2 import sql_job
 from openlineage.client.run import Dataset
 
 from airflow.exceptions import (
@@ -1852,7 +1853,7 @@ class TestBigQueryInsertJobOperator:
             "bigQueryJob": mock.ANY,
             "externalQuery": ExternalQueryRunFacet(externalQueryId=mock.ANY, source="bigquery"),
         }
-        assert lineage.job_facets == {"sql": SqlJobFacet(query="SELECT * FROM test_table")}
+        assert lineage.job_facets == {"sql": sql_job.SQLJobFacet(query="SELECT * FROM test_table")}
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute_fails_openlineage_events(self, mock_hook):

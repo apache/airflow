@@ -152,7 +152,7 @@ As there is some processing made in ``execute`` method, and there is no relevant
         This means we won't have to normalize self.source_object and self.source_objects,
         destination bucket and so on.
         """
-        from openlineage.client.run import Dataset
+        from openlineage.client.event_v2 import Dataset
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         return OperatorLineage(
@@ -303,8 +303,8 @@ like extracting column level lineage and inputs/outputs from SQL query with SQL 
 
 .. code-block:: python
 
-    from openlineage.client.facet import BaseFacet, ExternalQueryRunFacet, SqlJobFacet
-    from openlineage.client.run import Dataset
+    from openlineage.client.facet_v2 import BaseFacet, external_query_run, sql_job
+    from openlineage.client.event_v2 import Dataset
 
     from airflow.models.baseoperator import BaseOperator
     from airflow.providers.openlineage.extractors.base import BaseExtractor
@@ -333,7 +333,7 @@ like extracting column level lineage and inputs/outputs from SQL query with SQL 
                 inputs=[Dataset(namespace="bigquery", name=self.bq_table_reference)],
                 outputs=[Dataset(namespace=self.s3_path, name=self.s3_file_name)],
                 job_facets={
-                    "sql": SqlJobFacet(
+                    "sql": sql_job.SQLJobFacet(
                         query="EXPORT INTO ... OPTIONS(FORMAT=csv, SEP=';' ...) AS SELECT * FROM ... "
                     )
                 },
@@ -343,7 +343,9 @@ like extracting column level lineage and inputs/outputs from SQL query with SQL 
             """Add what we received after Operator's extract call."""
             lineage_metadata = self.extract()
             lineage_metadata.run_facets = {
-                "parent": ExternalQueryRunFacet(externalQueryId=self._job_id, source="bigquery")
+                "parent": external_query_run.ExternalQueryRunFacet(
+                    externalQueryId=self._job_id, source="bigquery"
+                )
             }
             return lineage_metadata
 

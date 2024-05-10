@@ -22,12 +22,8 @@ from pathlib import Path
 from unittest import mock
 
 import pytest
-from openlineage.client.facet import (
-    LifecycleStateChange,
-    LifecycleStateChangeDatasetFacet,
-    LifecycleStateChangeDatasetFacetPreviousIdentifier,
-)
-from openlineage.client.run import Dataset
+from openlineage.client.event_v2 import Dataset
+from openlineage.client.facet_v2 import lifecycle_state_change_dataset
 
 from airflow.providers.google.cloud.operators.gcs import (
     GCSBucketCreateAclEntryOperator,
@@ -206,9 +202,9 @@ class TestGCSDeleteObjectsOperator:
                 namespace=bucket_url,
                 name=name,
                 facets={
-                    "lifecycleStateChange": LifecycleStateChangeDatasetFacet(
-                        lifecycleStateChange=LifecycleStateChange.DROP.value,
-                        previousIdentifier=LifecycleStateChangeDatasetFacetPreviousIdentifier(
+                    "lifecycleStateChange": lifecycle_state_change_dataset.LifecycleStateChangeDatasetFacet(
+                        lifecycleStateChange=lifecycle_state_change_dataset.LifecycleStateChange.DROP.value,
+                        previousIdentifier=lifecycle_state_change_dataset.PreviousIdentifier(
                             namespace=bucket_url,
                             name=name,
                         ),
@@ -224,7 +220,8 @@ class TestGCSDeleteObjectsOperator:
         lineage = operator.get_openlineage_facets_on_start()
         assert len(lineage.inputs) == len(inputs)
         assert len(lineage.outputs) == 0
-        assert sorted(lineage.inputs) == sorted(expected_inputs)
+        assert all(element in lineage.inputs for element in expected_inputs)
+        assert all(element in expected_inputs for element in lineage.inputs)
 
 
 class TestGoogleCloudStorageListOperator:
@@ -619,8 +616,10 @@ class TestGCSTimeSpanFileTransformOperator:
         lineage = op.get_openlineage_facets_on_complete(None)
         assert len(lineage.inputs) == len(inputs)
         assert len(lineage.outputs) == len(outputs)
-        assert sorted(lineage.inputs) == sorted(inputs)
-        assert sorted(lineage.outputs) == sorted(outputs)
+        assert all(element in lineage.inputs for element in inputs)
+        assert all(element in inputs for element in lineage.inputs)
+        assert all(element in lineage.outputs for element in outputs)
+        assert all(element in outputs for element in lineage.outputs)
 
 
 class TestGCSDeleteBucketOperator:

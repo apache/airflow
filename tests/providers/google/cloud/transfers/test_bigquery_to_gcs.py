@@ -23,18 +23,14 @@ from unittest.mock import MagicMock
 import pytest
 from google.cloud.bigquery.retry import DEFAULT_RETRY
 from google.cloud.bigquery.table import Table
-from openlineage.client.facet import (
-    ColumnLineageDatasetFacet,
-    ColumnLineageDatasetFacetFieldsAdditional,
-    ColumnLineageDatasetFacetFieldsAdditionalInputFields,
-    DocumentationDatasetFacet,
-    ExternalQueryRunFacet,
-    SchemaDatasetFacet,
-    SchemaField,
-    SymlinksDatasetFacet,
-    SymlinksDatasetFacetIdentifiers,
+from openlineage.client.event_v2 import Dataset
+from openlineage.client.facet_v2 import (
+    column_lineage_dataset,
+    documentation_dataset,
+    external_query_run,
+    schema_dataset,
+    symlinks_dataset,
 )
-from openlineage.client.run import Dataset
 
 from airflow.exceptions import TaskDeferred
 from airflow.providers.google.cloud.transfers.bigquery_to_gcs import BigQueryToGCSOperator
@@ -267,13 +263,17 @@ class TestBigQueryToGCSOperator:
         source_project_dataset_table = f"{PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}"
 
         expected_input_dataset_facets = {
-            "schema": SchemaDatasetFacet(
+            "schema": schema_dataset.SchemaDatasetFacet(
                 fields=[
-                    SchemaField(name="field1", type="STRING", description="field1 description"),
-                    SchemaField(name="field2", type="INTEGER"),
+                    schema_dataset.SchemaDatasetFacetFields(
+                        name="field1", type="STRING", description="field1 description"
+                    ),
+                    schema_dataset.SchemaDatasetFacetFields(name="field2", type="INTEGER"),
                 ]
             ),
-            "documentation": DocumentationDatasetFacet(description="Table description."),
+            "documentation": documentation_dataset.DocumentationDatasetFacet(
+                description="Table description."
+            ),
         }
 
         mock_hook.return_value.split_tablename.return_value = (PROJECT_ID, TEST_DATASET, TEST_TABLE_ID)
@@ -300,8 +300,8 @@ class TestBigQueryToGCSOperator:
         source_project_dataset_table = f"{PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}"
 
         expected_input_dataset_facets = {
-            "schema": SchemaDatasetFacet(fields=[]),
-            "documentation": DocumentationDatasetFacet(description=""),
+            "schema": schema_dataset.SchemaDatasetFacet(fields=[]),
+            "documentation": documentation_dataset.DocumentationDatasetFacet(description=""),
         }
 
         mock_hook.return_value.split_tablename.return_value = (PROJECT_ID, TEST_DATASET, TEST_TABLE_ID)
@@ -331,13 +331,13 @@ class TestBigQueryToGCSOperator:
         bq_namespace = "bigquery"
 
         expected_input_facets = {
-            "schema": SchemaDatasetFacet(fields=[]),
-            "documentation": DocumentationDatasetFacet(description=""),
+            "schema": schema_dataset.SchemaDatasetFacet(fields=[]),
+            "documentation": documentation_dataset.DocumentationDatasetFacet(description=""),
         }
 
         expected_output_facets = {
-            "schema": SchemaDatasetFacet(fields=[]),
-            "columnLineage": ColumnLineageDatasetFacet(fields={}),
+            "schema": schema_dataset.SchemaDatasetFacet(fields=[]),
+            "columnLineage": column_lineage_dataset.ColumnLineageDatasetFacet(fields={}),
         }
 
         mock_hook.return_value.split_tablename.return_value = (PROJECT_ID, TEST_DATASET, TEST_TABLE_ID)
@@ -365,7 +365,9 @@ class TestBigQueryToGCSOperator:
             facets=expected_output_facets,
         )
         assert lineage.run_facets == {
-            "externalQuery": ExternalQueryRunFacet(externalQueryId=real_job_id, source=bq_namespace)
+            "externalQuery": external_query_run.ExternalQueryRunFacet(
+                externalQueryId=real_job_id, source=bq_namespace
+            )
         }
         assert lineage.job_facets == {}
 
@@ -376,33 +378,37 @@ class TestBigQueryToGCSOperator:
         real_job_id = "123456_hash"
         bq_namespace = "bigquery"
 
-        schema_facet = SchemaDatasetFacet(
+        schema_facet = schema_dataset.SchemaDatasetFacet(
             fields=[
-                SchemaField(name="field1", type="STRING", description="field1 description"),
-                SchemaField(name="field2", type="INTEGER"),
+                schema_dataset.SchemaDatasetFacetFields(
+                    name="field1", type="STRING", description="field1 description"
+                ),
+                schema_dataset.SchemaDatasetFacetFields(name="field2", type="INTEGER"),
             ]
         )
         expected_input_facets = {
             "schema": schema_facet,
-            "documentation": DocumentationDatasetFacet(description="Table description."),
+            "documentation": documentation_dataset.DocumentationDatasetFacet(
+                description="Table description."
+            ),
         }
 
         expected_output_facets = {
             "schema": schema_facet,
-            "columnLineage": ColumnLineageDatasetFacet(
+            "columnLineage": column_lineage_dataset.ColumnLineageDatasetFacet(
                 fields={
-                    "field1": ColumnLineageDatasetFacetFieldsAdditional(
+                    "field1": column_lineage_dataset.Fields(
                         inputFields=[
-                            ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                            column_lineage_dataset.InputField(
                                 namespace=bq_namespace, name=source_project_dataset_table, field="field1"
                             )
                         ],
                         transformationType="IDENTITY",
                         transformationDescription="identical",
                     ),
-                    "field2": ColumnLineageDatasetFacetFieldsAdditional(
+                    "field2": column_lineage_dataset.Fields(
                         inputFields=[
-                            ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                            column_lineage_dataset.InputField(
                                 namespace=bq_namespace, name=source_project_dataset_table, field="field2"
                             )
                         ],
@@ -411,9 +417,9 @@ class TestBigQueryToGCSOperator:
                     ),
                 }
             ),
-            "symlink": SymlinksDatasetFacet(
+            "symlink": symlinks_dataset.SymlinksDatasetFacet(
                 identifiers=[
-                    SymlinksDatasetFacetIdentifiers(
+                    symlinks_dataset.Identifier(
                         namespace=f"gs://{TEST_BUCKET}",
                         name=f"{TEST_FOLDER}/{TEST_OBJECT_WILDCARD}",
                         type="file",
@@ -445,6 +451,8 @@ class TestBigQueryToGCSOperator:
             namespace=f"gs://{TEST_BUCKET}", name=TEST_FOLDER, facets=expected_output_facets
         )
         assert lineage.run_facets == {
-            "externalQuery": ExternalQueryRunFacet(externalQueryId=real_job_id, source=bq_namespace)
+            "externalQuery": external_query_run.ExternalQueryRunFacet(
+                externalQueryId=real_job_id, source=bq_namespace
+            )
         }
         assert lineage.job_facets == {}

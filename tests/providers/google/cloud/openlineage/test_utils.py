@@ -21,15 +21,8 @@ from unittest.mock import MagicMock
 
 import pytest
 from google.cloud.bigquery.table import Table
-from openlineage.client.facet import (
-    ColumnLineageDatasetFacet,
-    ColumnLineageDatasetFacetFieldsAdditional,
-    ColumnLineageDatasetFacetFieldsAdditionalInputFields,
-    DocumentationDatasetFacet,
-    SchemaDatasetFacet,
-    SchemaField,
-)
-from openlineage.client.run import Dataset
+from openlineage.client.event_v2 import Dataset
+from openlineage.client.facet_v2 import column_lineage_dataset, documentation_dataset, schema_dataset
 
 from airflow.providers.google.cloud.openlineage.utils import (
     get_facets_from_bq_table,
@@ -76,13 +69,15 @@ class TableMock(MagicMock):
 
 def test_get_facets_from_bq_table():
     expected_facets = {
-        "schema": SchemaDatasetFacet(
+        "schema": schema_dataset.SchemaDatasetFacet(
             fields=[
-                SchemaField(name="field1", type="STRING", description="field1 description"),
-                SchemaField(name="field2", type="INTEGER"),
+                schema_dataset.SchemaDatasetFacetFields(
+                    name="field1", type="STRING", description="field1 description"
+                ),
+                schema_dataset.SchemaDatasetFacetFields(name="field2", type="INTEGER"),
             ]
         ),
-        "documentation": DocumentationDatasetFacet(description="Table description."),
+        "documentation": documentation_dataset.DocumentationDatasetFacet(description="Table description."),
     }
     result = get_facets_from_bq_table(TEST_TABLE)
     assert result == expected_facets
@@ -90,8 +85,8 @@ def test_get_facets_from_bq_table():
 
 def test_get_facets_from_empty_bq_table():
     expected_facets = {
-        "schema": SchemaDatasetFacet(fields=[]),
-        "documentation": DocumentationDatasetFacet(description=""),
+        "schema": schema_dataset.SchemaDatasetFacet(fields=[]),
+        "documentation": documentation_dataset.DocumentationDatasetFacet(description=""),
     }
     result = get_facets_from_bq_table(TEST_EMPTY_TABLE)
     assert result == expected_facets
@@ -103,16 +98,16 @@ def test_get_identity_column_lineage_facet_multiple_input_datasets():
         Dataset(namespace="gs://first_bucket", name="dir1"),
         Dataset(namespace="gs://second_bucket", name="dir2"),
     ]
-    expected_facet = ColumnLineageDatasetFacet(
+    expected_facet = column_lineage_dataset.ColumnLineageDatasetFacet(
         fields={
-            "field1": ColumnLineageDatasetFacetFieldsAdditional(
+            "field1": column_lineage_dataset.Fields(
                 inputFields=[
-                    ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                    column_lineage_dataset.InputField(
                         namespace="gs://first_bucket",
                         name="dir1",
                         field="field1",
                     ),
-                    ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                    column_lineage_dataset.InputField(
                         namespace="gs://second_bucket",
                         name="dir2",
                         field="field1",
@@ -121,14 +116,14 @@ def test_get_identity_column_lineage_facet_multiple_input_datasets():
                 transformationType="IDENTITY",
                 transformationDescription="identical",
             ),
-            "field2": ColumnLineageDatasetFacetFieldsAdditional(
+            "field2": column_lineage_dataset.Fields(
                 inputFields=[
-                    ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                    column_lineage_dataset.InputField(
                         namespace="gs://first_bucket",
                         name="dir1",
                         field="field2",
                     ),
-                    ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                    column_lineage_dataset.InputField(
                         namespace="gs://second_bucket",
                         name="dir2",
                         field="field2",
@@ -149,8 +144,10 @@ def test_get_identity_column_lineage_facet_no_field_names():
         Dataset(namespace="gs://first_bucket", name="dir1"),
         Dataset(namespace="gs://second_bucket", name="dir2"),
     ]
-    expected_facet = ColumnLineageDatasetFacet(fields={})
-    result = get_identity_column_lineage_facet(field_names=field_names, input_datasets=input_datasets)
+    expected_facet = column_lineage_dataset.ColumnLineageDatasetFacet(fields={})
+    result = get_identity_column_lineage_facet(
+        field_names=field_names, input_datasets=input_datasets
+    )
     assert result == expected_facet
 
 

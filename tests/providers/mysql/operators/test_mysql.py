@@ -22,8 +22,8 @@ from contextlib import closing
 from unittest.mock import MagicMock
 
 import pytest
-from openlineage.client.facet import SchemaDatasetFacet, SchemaField, SqlJobFacet
-from openlineage.client.run import Dataset
+from openlineage.client.event_v2 import Dataset
+from openlineage.client.facet_v2 import schema_dataset, sql_job
 
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
@@ -167,17 +167,17 @@ FORGOT TO COMMENT"""
             namespace=f"mysql://host:{connection_port or 3306}",
             name="PUBLIC.popular_orders_day_of_week",
             facets={
-                "schema": SchemaDatasetFacet(
+                "schema": schema_dataset.SchemaDatasetFacet(
                     fields=[
-                        SchemaField(name="order_day_of_week", type="varchar"),
-                        SchemaField(name="order_placed_on", type="timestamp"),
-                        SchemaField(name="orders_placed", type="int4"),
+                        schema_dataset.SchemaDatasetFacetFields(name="order_day_of_week", type="varchar"),
+                        schema_dataset.SchemaDatasetFacetFields(name="order_placed_on", type="timestamp"),
+                        schema_dataset.SchemaDatasetFacetFields(name="orders_placed", type="int4"),
                     ]
                 )
             },
         )
     ]
 
-    assert lineage.job_facets == {"sql": SqlJobFacet(query=sql)}
+    assert lineage.job_facets == {"sql": sql_job.SQLJobFacet(query=sql)}
 
     assert lineage.run_facets["extractionError"].failedTasks == 1

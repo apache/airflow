@@ -31,7 +31,7 @@ from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     from openlineage.client.event_v2 import Dataset
-    from openlineage.client.facet_v2 import BaseFacet
+    from openlineage.client.facet_v2 import BaseFacet, DatasetFacet
 
     from airflow.providers.openlineage.extractors.base import OperatorLineage
     from airflow.utils.context import Context
@@ -293,7 +293,7 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
             # Dataset has also its' physical location which we can add in symlink facet.
             s3_location = table_metadata["TableMetadata"]["Parameters"]["location"]
             parsed_path = urlparse(s3_location)
-            facets: dict[str, BaseFacet] = {
+            facets: dict[str, DatasetFacet] = {
                 "symlinks": symlinks_dataset.SymlinksDatasetFacet(
                     identifiers=[
                         symlinks_dataset.Identifier(

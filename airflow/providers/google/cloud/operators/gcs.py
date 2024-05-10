@@ -336,12 +336,8 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
             hook.delete(bucket_name=self.bucket_name, object_name=object_name)
 
     def get_openlineage_facets_on_start(self):
-        from openlineage.client.facet import (
-            LifecycleStateChange,
-            LifecycleStateChangeDatasetFacet,
-            LifecycleStateChangeDatasetFacetPreviousIdentifier,
-        )
-        from openlineage.client.run import Dataset
+        from openlineage.client.event_v2 import Dataset
+        from openlineage.client.facet_v2 import lifecycle_state_change_dataset
 
         from airflow.providers.openlineage.extractors import OperatorLineage
 
@@ -363,9 +359,9 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
                 namespace=bucket_url,
                 name=object_name,
                 facets={
-                    "lifecycleStateChange": LifecycleStateChangeDatasetFacet(
-                        lifecycleStateChange=LifecycleStateChange.DROP.value,
-                        previousIdentifier=LifecycleStateChangeDatasetFacetPreviousIdentifier(
+                    "lifecycleStateChange": lifecycle_state_change_dataset.LifecycleStateChangeDatasetFacet(
+                        lifecycleStateChange=lifecycle_state_change_dataset.LifecycleStateChange.DROP.value,
+                        previousIdentifier=lifecycle_state_change_dataset.PreviousIdentifier(
                             namespace=bucket_url,
                             name=object_name,
                         ),
@@ -645,7 +641,7 @@ class GCSFileTransformOperator(GoogleCloudBaseOperator):
             )
 
     def get_openlineage_facets_on_start(self):
-        from openlineage.client.run import Dataset
+        from openlineage.client.event_v2 import Dataset
 
         from airflow.providers.openlineage.extractors import OperatorLineage
 
@@ -921,7 +917,7 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
 
     def get_openlineage_facets_on_complete(self, task_instance):
         """Implement on_complete as execute() resolves object prefixes."""
-        from openlineage.client.run import Dataset
+        from openlineage.client.event_v2 import Dataset
 
         from airflow.providers.openlineage.extractors import OperatorLineage
 

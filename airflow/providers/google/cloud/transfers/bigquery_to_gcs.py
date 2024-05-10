@@ -289,12 +289,8 @@ class BigQueryToGCSOperator(BaseOperator):
         """Implement on_complete as we will include final BQ job id."""
         from pathlib import Path
 
-        from openlineage.client.facet import (
-            ExternalQueryRunFacet,
-            SymlinksDatasetFacet,
-            SymlinksDatasetFacetIdentifiers,
-        )
-        from openlineage.client.run import Dataset
+        from openlineage.client.event_v2 import Dataset
+        from openlineage.client.facet_v2 import external_query_run, symlinks_dataset
 
         from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url
         from airflow.providers.google.cloud.openlineage.utils import (
@@ -334,11 +330,9 @@ class BigQueryToGCSOperator(BaseOperator):
                 # If wildcard ("*") is used in gcs path, we want the name of dataset to be directory name,
                 # but we create a symlink to the full object path with wildcard.
                 additional_facets = {
-                    "symlink": SymlinksDatasetFacet(
+                    "symlink": symlinks_dataset.SymlinksDatasetFacet(
                         identifiers=[
-                            SymlinksDatasetFacetIdentifiers(
-                                namespace=f"gs://{bucket}", name=blob, type="file"
-                            )
+                            symlinks_dataset.Identifier(namespace=f"gs://{bucket}", name=blob, type="file")
                         ]
                     ),
                 }
@@ -357,7 +351,9 @@ class BigQueryToGCSOperator(BaseOperator):
         run_facets = {}
         if self.job_id:
             run_facets = {
-                "externalQuery": ExternalQueryRunFacet(externalQueryId=self.job_id, source="bigquery"),
+                "externalQuery": external_query_run.ExternalQueryRunFacet(
+                    externalQueryId=self.job_id, source="bigquery"
+                ),
             }
 
         return OperatorLineage(inputs=[input_dataset], outputs=output_datasets, run_facets=run_facets)

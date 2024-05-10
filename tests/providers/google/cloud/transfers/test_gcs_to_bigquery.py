@@ -24,18 +24,14 @@ from unittest.mock import MagicMock, call
 import pytest
 from google.cloud.bigquery import DEFAULT_RETRY, Table
 from google.cloud.exceptions import Conflict
-from openlineage.client.facet import (
-    ColumnLineageDatasetFacet,
-    ColumnLineageDatasetFacetFieldsAdditional,
-    ColumnLineageDatasetFacetFieldsAdditionalInputFields,
-    DocumentationDatasetFacet,
-    ExternalQueryRunFacet,
-    SchemaDatasetFacet,
-    SchemaField,
-    SymlinksDatasetFacet,
-    SymlinksDatasetFacetIdentifiers,
+from openlineage.client.event_v2 import Dataset
+from openlineage.client.facet_v2 import (
+    column_lineage_dataset,
+    documentation_dataset,
+    external_query_run,
+    schema_dataset,
+    symlinks_dataset,
 )
-from openlineage.client.run import Dataset
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG
@@ -1257,9 +1253,9 @@ class TestGCSToBigQueryOperator:
             destination_project_dataset_table=TEST_EXPLICIT_DEST,
         )
 
-        expected_symlink = SymlinksDatasetFacet(
+        expected_symlink = symlinks_dataset.SymlinksDatasetFacet(
             identifiers=[
-                SymlinksDatasetFacetIdentifiers(
+                symlinks_dataset.Identifier(
                     namespace=f"gs://{TEST_BUCKET}",
                     name=source_object,
                     type="file",
@@ -1298,9 +1294,9 @@ class TestGCSToBigQueryOperator:
         assert len(lineage.inputs) == 4
         assert lineage.inputs[0].name == TEST_OBJECT_NO_WILDCARD
         assert lineage.inputs[1].name == "/"
-        assert lineage.inputs[1].facets.get("symlink") == SymlinksDatasetFacet(
+        assert lineage.inputs[1].facets.get("symlink") == symlinks_dataset.SymlinksDatasetFacet(
             identifiers=[
-                SymlinksDatasetFacetIdentifiers(
+                symlinks_dataset.Identifier(
                     namespace=f"gs://{TEST_BUCKET}",
                     name=TEST_OBJECT_WILDCARD,
                     type="file",
@@ -1309,9 +1305,9 @@ class TestGCSToBigQueryOperator:
         )
         assert lineage.inputs[2].name == f"{TEST_FOLDER}1/{TEST_OBJECT_NO_WILDCARD}"
         assert lineage.inputs[3].name == f"{TEST_FOLDER}2"
-        assert lineage.inputs[3].facets.get("symlink") == SymlinksDatasetFacet(
+        assert lineage.inputs[3].facets.get("symlink") == symlinks_dataset.SymlinksDatasetFacet(
             identifiers=[
-                SymlinksDatasetFacetIdentifiers(
+                symlinks_dataset.Identifier(
                     namespace=f"gs://{TEST_BUCKET}",
                     name=f"{TEST_FOLDER}2/{TEST_OBJECT_WILDCARD}",
                     type="file",
@@ -1326,27 +1322,29 @@ class TestGCSToBigQueryOperator:
         hook.return_value.get_client.return_value.get_table.return_value = TEST_TABLE
 
         expected_output_dataset_facets = {
-            "schema": SchemaDatasetFacet(
+            "schema": schema_dataset.SchemaDatasetFacet(
                 fields=[
-                    SchemaField(name="field1", type="STRING", description="field1 description"),
-                    SchemaField(name="field2", type="INTEGER"),
+                    schema_dataset.SchemaDatasetFacetFields(
+                        name="field1", type="STRING", description="field1 description"
+                    ),
+                    schema_dataset.SchemaDatasetFacetFields(name="field2", type="INTEGER"),
                 ]
             ),
-            "documentation": DocumentationDatasetFacet(description="Test Description"),
-            "columnLineage": ColumnLineageDatasetFacet(
+            "documentation": documentation_dataset.DocumentationDatasetFacet(description="Test Description"),
+            "columnLineage": column_lineage_dataset.ColumnLineageDatasetFacet(
                 fields={
-                    "field1": ColumnLineageDatasetFacetFieldsAdditional(
+                    "field1": column_lineage_dataset.Fields(
                         inputFields=[
-                            ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                            column_lineage_dataset.InputField(
                                 namespace=f"gs://{TEST_BUCKET}", name=TEST_OBJECT_NO_WILDCARD, field="field1"
                             )
                         ],
                         transformationType="IDENTITY",
                         transformationDescription="identical",
                     ),
-                    "field2": ColumnLineageDatasetFacetFieldsAdditional(
+                    "field2": column_lineage_dataset.Fields(
                         inputFields=[
-                            ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                            column_lineage_dataset.InputField(
                                 namespace=f"gs://{TEST_BUCKET}", name=TEST_OBJECT_NO_WILDCARD, field="field2"
                             )
                         ],
@@ -1382,33 +1380,35 @@ class TestGCSToBigQueryOperator:
         hook.return_value.get_client.return_value.get_table.return_value = TEST_TABLE
 
         expected_output_dataset_facets = {
-            "schema": SchemaDatasetFacet(
+            "schema": schema_dataset.SchemaDatasetFacet(
                 fields=[
-                    SchemaField(name="field1", type="STRING", description="field1 description"),
-                    SchemaField(name="field2", type="INTEGER"),
+                    schema_dataset.SchemaDatasetFacetFields(
+                        name="field1", type="STRING", description="field1 description"
+                    ),
+                    schema_dataset.SchemaDatasetFacetFields(name="field2", type="INTEGER"),
                 ]
             ),
-            "documentation": DocumentationDatasetFacet(description="Test Description"),
-            "columnLineage": ColumnLineageDatasetFacet(
+            "documentation": documentation_dataset.DocumentationDatasetFacet(description="Test Description"),
+            "columnLineage": column_lineage_dataset.ColumnLineageDatasetFacet(
                 fields={
-                    "field1": ColumnLineageDatasetFacetFieldsAdditional(
+                    "field1": column_lineage_dataset.Fields(
                         inputFields=[
-                            ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                            column_lineage_dataset.InputField(
                                 namespace=f"gs://{TEST_BUCKET}", name=TEST_OBJECT_NO_WILDCARD, field="field1"
                             ),
-                            ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                            column_lineage_dataset.InputField(
                                 namespace=f"gs://{TEST_BUCKET}", name="/", field="field1"
                             ),
                         ],
                         transformationType="IDENTITY",
                         transformationDescription="identical",
                     ),
-                    "field2": ColumnLineageDatasetFacetFieldsAdditional(
+                    "field2": column_lineage_dataset.Fields(
                         inputFields=[
-                            ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                            column_lineage_dataset.InputField(
                                 namespace=f"gs://{TEST_BUCKET}", name=TEST_OBJECT_NO_WILDCARD, field="field2"
                             ),
-                            ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                            column_lineage_dataset.InputField(
                                 namespace=f"gs://{TEST_BUCKET}", name="/", field="field2"
                             ),
                         ],
@@ -1444,9 +1444,9 @@ class TestGCSToBigQueryOperator:
         hook.return_value.get_client.return_value.get_table.return_value = TEST_EMPTY_TABLE
 
         expected_output_dataset_facets = {
-            "schema": SchemaDatasetFacet(fields=[]),
-            "documentation": DocumentationDatasetFacet(description=""),
-            "columnLineage": ColumnLineageDatasetFacet(fields={}),
+            "schema": schema_dataset.SchemaDatasetFacet(fields=[]),
+            "documentation": documentation_dataset.DocumentationDatasetFacet(description=""),
+            "columnLineage": column_lineage_dataset.ColumnLineageDatasetFacet(fields={}),
         }
 
         operator = GCSToBigQueryOperator(
@@ -1470,16 +1470,16 @@ class TestGCSToBigQueryOperator:
         assert lineage.inputs[0] == Dataset(
             namespace=f"gs://{TEST_BUCKET}",
             name=TEST_OBJECT_NO_WILDCARD,
-            facets={"schema": SchemaDatasetFacet(fields=[])},
+            facets={"schema": schema_dataset.SchemaDatasetFacet(fields=[])},
         )
         assert lineage.inputs[1] == Dataset(
             namespace=f"gs://{TEST_BUCKET}",
             name="/",
             facets={
-                "schema": SchemaDatasetFacet(fields=[]),
-                "symlink": SymlinksDatasetFacet(
+                "schema": schema_dataset.SchemaDatasetFacet(fields=[]),
+                "symlink": symlinks_dataset.SymlinksDatasetFacet(
                     identifiers=[
-                        SymlinksDatasetFacetIdentifiers(
+                        symlinks_dataset.Identifier(
                             namespace=f"gs://{TEST_BUCKET}",
                             name=TEST_OBJECT_WILDCARD,
                             type="file",
@@ -1496,18 +1496,20 @@ class TestGCSToBigQueryOperator:
         hook.return_value.get_client.return_value.get_table.return_value = TEST_TABLE
         hook.return_value.generate_job_id.return_value = REAL_JOB_ID
 
-        schema_facet = SchemaDatasetFacet(
+        schema_facet = schema_dataset.SchemaDatasetFacet(
             fields=[
-                SchemaField(name="field1", type="STRING", description="field1 description"),
-                SchemaField(name="field2", type="INTEGER"),
+                schema_dataset.SchemaDatasetFacetFields(
+                    name="field1", type="STRING", description="field1 description"
+                ),
+                schema_dataset.SchemaDatasetFacetFields(name="field2", type="INTEGER"),
             ]
         )
 
         expected_input_wildcard_dataset_facets = {
             "schema": schema_facet,
-            "symlink": SymlinksDatasetFacet(
+            "symlink": symlinks_dataset.SymlinksDatasetFacet(
                 identifiers=[
-                    SymlinksDatasetFacetIdentifiers(
+                    symlinks_dataset.Identifier(
                         namespace=f"gs://{TEST_BUCKET}",
                         name=TEST_OBJECT_WILDCARD,
                         type="file",
@@ -1519,27 +1521,27 @@ class TestGCSToBigQueryOperator:
 
         expected_output_dataset_facets = {
             "schema": schema_facet,
-            "documentation": DocumentationDatasetFacet(description="Test Description"),
-            "columnLineage": ColumnLineageDatasetFacet(
+            "documentation": documentation_dataset.DocumentationDatasetFacet(description="Test Description"),
+            "columnLineage": column_lineage_dataset.ColumnLineageDatasetFacet(
                 fields={
-                    "field1": ColumnLineageDatasetFacetFieldsAdditional(
+                    "field1": column_lineage_dataset.Fields(
                         inputFields=[
-                            ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                            column_lineage_dataset.InputField(
                                 namespace=f"gs://{TEST_BUCKET}", name=TEST_OBJECT_NO_WILDCARD, field="field1"
                             ),
-                            ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                            column_lineage_dataset.InputField(
                                 namespace=f"gs://{TEST_BUCKET}", name="/", field="field1"
                             ),
                         ],
                         transformationType="IDENTITY",
                         transformationDescription="identical",
                     ),
-                    "field2": ColumnLineageDatasetFacetFieldsAdditional(
+                    "field2": column_lineage_dataset.Fields(
                         inputFields=[
-                            ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                            column_lineage_dataset.InputField(
                                 namespace=f"gs://{TEST_BUCKET}", name=TEST_OBJECT_NO_WILDCARD, field="field2"
                             ),
-                            ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                            column_lineage_dataset.InputField(
                                 namespace=f"gs://{TEST_BUCKET}", name="/", field="field2"
                             ),
                         ],
@@ -1576,7 +1578,9 @@ class TestGCSToBigQueryOperator:
             namespace=f"gs://{TEST_BUCKET}", name="/", facets=expected_input_wildcard_dataset_facets
         )
         assert lineage.run_facets == {
-            "externalQuery": ExternalQueryRunFacet(externalQueryId=REAL_JOB_ID, source="bigquery")
+            "externalQuery": external_query_run.ExternalQueryRunFacet(
+                externalQueryId=REAL_JOB_ID, source="bigquery"
+            )
         }
         assert lineage.job_facets == {}
 

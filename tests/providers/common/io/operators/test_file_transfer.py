@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from unittest import mock
 
-from openlineage.client.run import Dataset
+from openlineage.client.event_v2 import Dataset
 
 from tests.test_utils.compat import ignore_provider_compatibility_error
 

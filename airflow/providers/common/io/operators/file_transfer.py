@@ -75,7 +75,7 @@ class FileTransferOperator(BaseOperator):
         src.copy(dst)
 
     def get_openlineage_facets_on_start(self) -> OperatorLineage:
-        from openlineage.client.run import Dataset
+        from openlineage.client.event_v2 import Dataset
 
         from airflow.providers.openlineage.extractors import OperatorLineage
 

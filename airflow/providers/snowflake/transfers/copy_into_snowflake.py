@@ -228,13 +228,8 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
         """Implement _on_complete because we rely on return value of a query."""
         import re
 
-        from openlineage.client.facet import (
-            ExternalQueryRunFacet,
-            ExtractionError,
-            ExtractionErrorRunFacet,
-            SqlJobFacet,
-        )
-        from openlineage.client.run import Dataset
+        from openlineage.client.event_v2 import Dataset
+        from openlineage.client.facet_v2 import external_query_run, extraction_error_run, sql_job
 
         from airflow.providers.openlineage.extractors import OperatorLineage
         from airflow.providers.openlineage.sqlparser import SQLParser
@@ -257,11 +252,11 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
                 "Unable to extract Dataset namespace and name for the following files: `%s`.",
                 extraction_error_files,
             )
-            run_facets["extractionError"] = ExtractionErrorRunFacet(
+            run_facets["extractionError"] = extraction_error_run.ExtractionErrorRunFacet(
                 totalTasks=len(query_results),
                 failedTasks=len(extraction_error_files),
                 errors=[
-                    ExtractionError(
+                    extraction_error_run.Error(
                         errorMessage="Unable to extract Dataset namespace and name.",
                         stackTrace=None,
                         task=file_uri,
@@ -286,13 +281,13 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
         query = SQLParser.normalize_sql(self._sql)
         query = re.sub(r"\n+", "\n", re.sub(r" +", " ", query))
 
-        run_facets["externalQuery"] = ExternalQueryRunFacet(
+        run_facets["externalQuery"] = external_query_run.ExternalQueryRunFacet(
             externalQueryId=self.hook.query_ids[0], source=snowflake_namespace
         )
 
         return OperatorLineage(
             inputs=input_datasets,
             outputs=[Dataset(namespace=snowflake_namespace, name=dest_name)],
-            job_facets={"sql": SqlJobFacet(query=query)},
+            job_facets={"sql": sql_job.SQLJobFacet(query=query)},
             run_facets=run_facets,
         )

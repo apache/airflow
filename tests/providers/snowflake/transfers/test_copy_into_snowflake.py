@@ -20,13 +20,8 @@ from typing import Callable
 from unittest import mock
 
 import pytest
-from openlineage.client.facet import (
-    ExternalQueryRunFacet,
-    ExtractionError,
-    ExtractionErrorRunFacet,
-    SqlJobFacet,
-)
-from openlineage.client.run import Dataset
+from openlineage.client.event_v2 import Dataset
+from openlineage.client.facet_v2 import external_query_run, extraction_error_run, sql_job
 
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.sqlparser import DatabaseInfo
@@ -124,11 +119,11 @@ class TestCopyFromExternalStageToSnowflake:
             inputs=expected_inputs,
             outputs=expected_outputs,
             run_facets={
-                "externalQuery": ExternalQueryRunFacet(
+                "externalQuery": external_query_run.ExternalQueryRunFacet(
                     externalQueryId="query_id_123", source="snowflake_scheme://authority"
                 )
             },
-            job_facets={"sql": SqlJobFacet(query=expected_sql)},
+            job_facets={"sql": sql_job.SQLJobFacet(query=expected_sql)},
         )
 
     @pytest.mark.parametrize("rows", (None, []))
@@ -160,11 +155,11 @@ class TestCopyFromExternalStageToSnowflake:
             inputs=[],
             outputs=expected_outputs,
             run_facets={
-                "externalQuery": ExternalQueryRunFacet(
+                "externalQuery": external_query_run.ExternalQueryRunFacet(
                     externalQueryId="query_id_123", source="snowflake_scheme://authority"
                 )
             },
-            job_facets={"sql": SqlJobFacet(query=expected_sql)},
+            job_facets={"sql": sql_job.SQLJobFacet(query=expected_sql)},
         )
 
     @mock.patch("airflow.providers.snowflake.transfers.copy_into_snowflake.SnowflakeHook")
@@ -190,17 +185,17 @@ class TestCopyFromExternalStageToSnowflake:
         ]
         expected_sql = """COPY INTO schema.table\n FROM @stage/\n FILE_FORMAT=CSV"""
         expected_run_facets = {
-            "extractionError": ExtractionErrorRunFacet(
+            "extractionError": extraction_error_run.ExtractionErrorRunFacet(
                 totalTasks=4,
                 failedTasks=2,
                 errors=[
-                    ExtractionError(
+                    extraction_error_run.Error(
                         errorMessage="Unable to extract Dataset namespace and name.",
                         stackTrace=None,
                         task="azure://my_account.another_weird-url.net/con/file.csv",
                         taskNumber=None,
                     ),
-                    ExtractionError(
+                    extraction_error_run.Error(
                         errorMessage="Unable to extract Dataset namespace and name.",
                         stackTrace=None,
                         task="azure://my_account.weird-url.net/azure_container/dir3/file.csv",
@@ -208,7 +203,7 @@ class TestCopyFromExternalStageToSnowflake:
                     ),
                 ],
             ),
-            "externalQuery": ExternalQueryRunFacet(
+            "externalQuery": external_query_run.ExternalQueryRunFacet(
                 externalQueryId="query_id_123", source="snowflake_scheme://authority"
             ),
         }
@@ -227,5 +222,5 @@ class TestCopyFromExternalStageToSnowflake:
             inputs=expected_inputs,
             outputs=expected_outputs,
             run_facets=expected_run_facets,
-            job_facets={"sql": SqlJobFacet(query=expected_sql)},
+            job_facets={"sql": sql_job.SQLJobFacet(query=expected_sql)},
         )

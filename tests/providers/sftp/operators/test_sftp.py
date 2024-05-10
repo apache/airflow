@@ -25,7 +25,7 @@ from unittest import mock
 
 import paramiko
 import pytest
-from openlineage.client.run import Dataset
+from openlineage.client.event_v2 import Dataset
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import DAG, Connection
