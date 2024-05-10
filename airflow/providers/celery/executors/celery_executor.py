@@ -30,12 +30,13 @@ import operator
 import time
 from collections import Counter
 from concurrent.futures import ProcessPoolExecutor
-from importlib.metadata import version as importlib_version
 from multiprocessing import cpu_count
 from typing import TYPE_CHECKING, Any, Optional, Sequence, Tuple
 
 from celery import states as celery_states
 from packaging.version import Version
+
+from airflow import __version__ as airflow_version
 
 try:
     from airflow.cli.cli_config import (
@@ -52,13 +53,10 @@ try:
         lazy_load_command,
     )
 except ImportError:
-    import importlib.metadata
-
     import packaging.version
 
     from airflow.exceptions import AirflowOptionalProviderFeatureException
 
-    airflow_version = importlib.metadata.version("apache-airflow")
     base_version = packaging.version.parse(airflow_version).base_version
 
     if packaging.version.parse(base_version) < packaging.version.parse("2.7.0"):
@@ -178,11 +176,9 @@ ARG_WITHOUT_GOSSIP = Arg(
     action="store_true",
 )
 
-AIRFLOW_VERSION = Version(importlib_version("apache-airflow"))
-
 CELERY_CLI_COMMAND_PATH = (
     "airflow.providers.celery.cli.celery_command"
-    if AIRFLOW_VERSION >= Version("2.8.0")
+    if Version(airflow_version) >= Version("2.8.0")
     else "airflow.cli.commands.celery_command"
 )
 
