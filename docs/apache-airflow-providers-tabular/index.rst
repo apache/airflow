@@ -39,6 +39,13 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/tabular/index>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
     :caption: Resources
 
     Example DAGs <https://github.com/apache/airflow/tree/providers-tabular/|version|/tests/system/providers/tabular>
@@ -58,7 +65,7 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-tabular
+apache-airflow-providers-tabular package
 ------------------------------------------------------
 
 `Tabular <https://tabular.io/>`__
@@ -69,25 +76,23 @@ Release: 1.5.0
 Provider package
 ----------------
 
-This provider is deprecated. Please use ``apache.iceberg`` provider.
-
-This is a provider package for ``tabular`` provider. All classes for this provider package
-are in ``airflow.providers.tabular`` python package.
+This package is for the ``tabular`` provider.
+All classes for this package are included in the ``airflow.providers.tabular`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-tabular``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-tabular``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.6.0``
+``apache-airflow``  ``>=2.7.0``
 ==================  ==================
