@@ -531,7 +531,7 @@ Does Airflow collect any telemetry data?
 Airflow integrates `Scarf <https://about.scarf.sh/>`__ to collect basic telemetry data during operation.
 This data assists Airflow maintainers in better understanding how Airflow is used.
 Insights gained from this telemetry are critical for prioritizing patches, minor releases, and
-security fixes. Additionally, this information supports key decisions related to the development roadmap.
+security fixes. Additionally, this information supports key decisions related to the development road map.
 
 Deployments can opt-out of analytics by setting the :ref:`[telemetry_collection] enabled <config:telemetry_collection__enabled>`
 option to ``False``, or the ``SCARF_ANALYTICS=false`` environment variable.

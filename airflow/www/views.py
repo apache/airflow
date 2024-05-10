@@ -1060,7 +1060,10 @@ class Airflow(AirflowBaseView):
                     "warning",
                 )
 
-        scarf_url = build_scarf_url(dags_count=all_dags_count)
+        try:
+            scarf_url = build_scarf_url(dags_count=all_dags_count)
+        except Exception:
+            scarf_url = ""
 
         return self.render_template(
             "airflow/dags.html",

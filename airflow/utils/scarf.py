@@ -36,13 +36,13 @@ def scarf_analytics():
 
     scarf_domain = "https://apacheairflow.gateway.scarf.sh/scheduler"
 
-    platform_sys, arch = get_platform_info()
-    db_version = get_database_version()
-    db_name = get_database_name()
-    executor = get_executor()
-    python_version = get_python_version()
-
     try:
+        platform_sys, arch = get_platform_info()
+        db_version = get_database_version()
+        db_name = get_database_name()
+        executor = get_executor()
+        python_version = get_python_version()
+
         scarf_url = (
             f"{scarf_domain}?version={airflow_version}"
             f"&python_version={python_version}"
@@ -67,12 +67,17 @@ def get_platform_info() -> tuple[str, str]:
 
 
 def get_database_version() -> str:
+    if settings.engine is None:
+        return "None"
+
     version_info = settings.engine.dialect.server_version_info
     # Example: (1, 2, 3) -> "1.2.3"
     return ".".join(map(str, version_info)) if version_info else "None"
 
 
 def get_database_name() -> str:
+    if settings.engine is None:
+        return "None"
     return settings.engine.dialect.name
 
 

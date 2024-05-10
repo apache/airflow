@@ -22,7 +22,7 @@ from unittest import mock
 
 import pytest
 
-from airflow import __version__ as airflow_version, settings
+from airflow import __version__ as airflow_version
 from airflow.configuration import conf
 from airflow.utils.scarf import get_database_version, scarf_analytics
 
@@ -39,14 +39,19 @@ def test_scarf_analytics_disabled(mock_get, is_enabled, is_prerelease):
 
 @mock.patch("airflow.settings.is_telemetry_collection_enabled", return_value=True)
 @mock.patch("airflow.utils.scarf._version_is_prerelease", return_value=False)
+@mock.patch("airflow.utils.scarf.get_database_version", return_value="12.3")
+@mock.patch("airflow.utils.scarf.get_database_name", return_value="postgres")
 @mock.patch("httpx.get")
-def test_scarf_analytics(mock_get, mock_is_telemetry_collection_enabled, mock_version_is_prerelease):
+def test_scarf_analytics(
+    mock_get,
+    mock_is_telemetry_collection_enabled,
+    mock_version_is_prerelease,
+    get_database_version,
+    get_database_name,
+):
     platform_sys = platform.system()
     platform_machine = platform.machine()
     python_version = platform.python_version()
-    version_info = settings.engine.dialect.server_version_info
-    version_info = ".".join(map(str, version_info)) if version_info else ""
-    database = settings.engine.dialect.name
     executor = conf.get("core", "EXECUTOR")
     scarf_endpoint = "https://apacheairflow.gateway.scarf.sh/scheduler"
     scarf_analytics()
@@ -56,14 +61,15 @@ def test_scarf_analytics(mock_get, mock_is_telemetry_collection_enabled, mock_ve
         f"&python_version={python_version}"
         f"&platform={platform_sys}"
         f"&arch={platform_machine}"
-        f"&database={database}"
-        f"&db_version={version_info}"
+        f"&database=postgres"
+        f"&db_version=12.3"
         f"&executor={executor}"
     )
 
     mock_get.assert_called_once_with(expected_scarf_url, timeout=5.0)
 
 
+@pytest.mark.db_test
 @pytest.mark.parametrize(
     "version_info, expected_version",
     [
