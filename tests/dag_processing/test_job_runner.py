@@ -577,21 +577,21 @@ class TestDagProcessorJobRunner:
             )
 
     @mock.patch("sqlalchemy.orm.session.Session.delete")
-    @mock.patch("airflow.models.dagbag.DagPriorityParsingRequest.get_requests")
     @mock.patch("zipfile.is_zipfile", return_value=True)
     @mock.patch("airflow.utils.file.might_contain_dag", return_value=True)
     @mock.patch("airflow.utils.file.find_path_from_directory", return_value=True)
     @mock.patch("airflow.utils.file.os.path.isfile", return_value=True)
     def test_file_paths_in_queue_sorted_by_priority(
-        self, mock_isfile, mock_find_path, mock_might_contain_dag, mock_zipfile, get_requests, session_delete
+        self, mock_isfile, mock_find_path, mock_might_contain_dag, mock_zipfile, session_delete
     ):
         from airflow.models.dagbag import DagPriorityParsingRequest
 
-        request_1 = DagPriorityParsingRequest(fileloc="file_1.py")
-        request_1.id = 1
+        parsing_request = DagPriorityParsingRequest(fileloc="file_1.py")
+        with create_session() as session:
+            session.add(parsing_request)
+            session.commit()
 
         """Test dag files are sorted by priority"""
-        get_requests.return_value = [request_1]
         dag_files = ["file_3.py", "file_2.py", "file_4.py", "file_1.py"]
         mock_find_path.return_value = dag_files
 
@@ -614,7 +614,7 @@ class TestDagProcessorJobRunner:
         assert manager.processor._file_path_queue == deque(
             ["file_1.py", "file_2.py", "file_3.py", "file_4.py"]
         )
-        session_delete.assert_called_with(request_1)
+        session_delete.assert_called_with(parsing_request)
 
     def test_scan_stale_dags(self):
         """
