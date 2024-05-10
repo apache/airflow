@@ -29,6 +29,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.operators.subdag import SubDagOperator
 from airflow.utils import timezone
 from airflow.utils.helpers import exactly_one
+from airflow.utils.log.task_context_logger import TaskContextLogger
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -158,11 +159,13 @@ def set_state(
     qry_dag = get_all_dag_task_query(dag, session, state, task_id_map_index_list, dag_run_ids)
 
     if commit:
+        logger = TaskContextLogger("webserver")
         tis_altered = session.scalars(qry_dag.with_for_update()).all()
         if sub_dag_run_ids:
             qry_sub_dag = all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates)
             tis_altered += session.scalars(qry_sub_dag.with_for_update()).all()
         for task_instance in tis_altered:
+            logger.info("Task was manually marked as %s", state, ti=task_instance)
             task_instance.set_state(state, session=session)
         session.flush()
     else:

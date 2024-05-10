@@ -31,11 +31,13 @@ from typing import TYPE_CHECKING, Any, Callable, Iterable
 from urllib.parse import urljoin
 
 import pendulum
+from sqlalchemy import select
 
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.models import DagRun
 from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
 from airflow.utils.log.logging_mixin import SetContextPropagate
@@ -46,7 +48,6 @@ from airflow.utils.state import State, TaskInstanceState
 if TYPE_CHECKING:
     from pendulum import DateTime
 
-    from airflow.models import DagRun
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
     from airflow.serialization.pydantic.dag_run import DagRunPydantic
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
@@ -267,8 +268,8 @@ class FileTaskHandler(logging.Handler):
     def _render_filename_db_access(
         *, ti, try_number: int, session=None
     ) -> tuple[DagRun | DagRunPydantic, TaskInstance | TaskInstancePydantic, str | None, str | None]:
-        ti = _ensure_ti(ti, session)
-        dag_run = ti.get_dagrun(session=session)
+        # ti = _ensure_ti(ti, session)
+        dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == ti.dag_id, DagRun.run_id == ti.run_id))
         template = dag_run.get_log_template(session=session).filename
         str_tpl, jinja_tpl = parse_template_string(template)
         filename = None

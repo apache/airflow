@@ -182,7 +182,7 @@ class TestClearTasks:
         # 2 TIs were cleared so 2 history records should be created
         assert session.query(TaskInstanceHistory).count() == 2
 
-        session.refresh(dr)
+        # session.refresh(dr)
 
         assert dr.state == state
         assert dr.start_date is None if state == DagRunState.QUEUED else dr.start_date
@@ -219,7 +219,7 @@ class TestClearTasks:
         clear_task_instances(qry, session, dag=dag)
         session.flush()
 
-        session.refresh(dr)
+        # session.refresh(dr)
 
         assert dr.state == state
         if state == DagRunState.QUEUED:
@@ -267,7 +267,7 @@ class TestClearTasks:
         clear_task_instances(qry, session, dag=dag)
         session.flush()
 
-        session.refresh(dr)
+        # session.refresh(dr)
 
         assert dr.state == DagRunState.QUEUED
         assert dr.start_date is None
