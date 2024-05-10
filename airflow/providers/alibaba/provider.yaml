@@ -22,7 +22,7 @@ description: |
     Alibaba Cloud integration (including `Alibaba Cloud <https://www.alibabacloud.com/>`__).
 
 state: ready
-source-date-epoch: 1714475295
+source-date-epoch: 1715384389
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 2.8.0

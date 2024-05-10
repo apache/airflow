@@ -22,7 +22,7 @@ description: |
     `Apache Flink <https://flink.apache.org/>`__
 
 state: ready
-source-date-epoch: 1714475556
+source-date-epoch: 1715384398
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 1.4.0

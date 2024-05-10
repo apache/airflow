@@ -22,7 +22,7 @@ description: |
     `Pagerduty <https://www.pagerduty.com/>`__
 
 state: ready
-source-date-epoch: 1714477147
+source-date-epoch: 1715384465
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 3.7.0

@@ -22,7 +22,7 @@ description: |
     `Datadog <https://www.datadoghq.com/>`__
 
 state: ready
-source-date-epoch: 1714476202
+source-date-epoch: 1715384423
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 3.6.0
