@@ -20,16 +20,16 @@ from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.operators.bash import BashOperator
-from airflow.providers.tabular.hooks.tabular import TabularHook
+from airflow.providers.apache.iceberg.hooks.iceberg import IcebergHook
 
 bash_command = f"""
-echo "Our token: {TabularHook().get_token_macro()}"
+echo "Our token: {IcebergHook().get_token_macro()}"
 echo "Also as an environment variable:"
 env | grep TOKEN
 """
 
 with DAG(
-    "tabular_example",
+    "iceberg_example",
     default_args={
         "owner": "airflow",
         "depends_on_past": False,
@@ -43,9 +43,9 @@ with DAG(
 ) as dag:
     # This also works for the SparkSubmit operator
     BashOperator(
-        task_id="with_tabular_environment_variable",
+        task_id="with_iceberg_environment_variable",
         bash_command=bash_command,
-        env={"TOKEN": TabularHook().get_token_macro()},
+        env={"TOKEN": IcebergHook().get_token_macro()},
     )
 
 

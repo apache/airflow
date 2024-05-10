@@ -1,3 +1,4 @@
+
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -21,4 +22,4 @@
  ..  IF YOU WANT TO MODIFY THIS FILE, YOU SHOULD MODIFY THE TEMPLATE
      `PROVIDER_CHANGELOG_TEMPLATE.rst.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 
-.. include:: ../../airflow/providers/tabular/CHANGELOG.rst
+.. include:: ../../airflow/providers/apache/iceberg/CHANGELOG.rst

@@ -159,6 +159,7 @@ class TestProjectStructure:
             "tests/providers/redis/sensors/test_redis_key.py",
             "tests/providers/slack/notifications/test_slack_notifier.py",
             "tests/providers/snowflake/triggers/test_snowflake_trigger.py",
+            "tests/providers/tabular/hooks/test_tabular.py",
         ]
 
         # TODO: Should we extend this test to cover other directories?

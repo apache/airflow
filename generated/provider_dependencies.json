@@ -166,6 +166,17 @@
     "excluded-python-versions": [],
     "state": "ready"
   },
+  "apache.iceberg": {
+    "deps": [
+      "apache-airflow>=2.7.0"
+    ],
+    "devel-deps": [
+      "pyiceberg>=0.5.0"
+    ],
+    "cross-providers-deps": [],
+    "excluded-python-versions": [],
+    "state": "ready"
+  },
   "apache.impala": {
     "deps": [
       "apache-airflow>=2.7.0",
@@ -1108,12 +1119,15 @@
   },
   "tabular": {
     "deps": [
+      "apache-airflow-providers-apache-iceberg",
       "apache-airflow>=2.7.0"
     ],
     "devel-deps": [
       "pyiceberg>=0.5.0"
     ],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "apache.iceberg"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
