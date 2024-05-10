@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Sequence
 
 from flask import Response, current_app
 from itsdangerous import BadSignature, URLSafeSerializer
-from sqlalchemy import exc
+from sqlalchemy import exc, select
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound, PermissionDenied
@@ -45,19 +45,16 @@ def reparse_dag_file(*, file_token: str, session: Session = NEW_SESSION) -> Resp
     auth_s = URLSafeSerializer(secret_key)
     try:
         path = auth_s.loads(file_token)
-        dag_ids = session.query(DagModel.dag_id).filter(DagModel.fileloc == path).all()
-        if len(dag_ids) == 0:
-            raise FileNotFoundError
-    except (BadSignature, FileNotFoundError):
+    except BadSignature:
         raise NotFound("File not found")
 
     requests: Sequence[IsAuthorizedDagRequest] = [
-        {
-            "method": "PUT",
-            "details": DagDetails(id=dag_id[0]),
-        }
-        for dag_id in dag_ids
+        {"method": "PUT", "details": DagDetails(id=dag_id)}
+        for dag_id in session.scalars(select(DagModel.dag_id).where(DagModel.fileloc == path))
     ]
+    if not requests:
+        raise NotFound("File not found")
+
     # Check if user has read access to all the DAGs defined in the file
     if not get_auth_manager().batch_is_authorized_dag(requests):
         raise PermissionDenied()
@@ -69,5 +66,4 @@ def reparse_dag_file(*, file_token: str, session: Session = NEW_SESSION) -> Resp
     except exc.IntegrityError:
         session.rollback()
         return Response("Duplicate request", HTTPStatus.CONFLICT)
-
     return Response(status=HTTPStatus.CREATED)
