@@ -428,6 +428,13 @@ option_skip_provider_tests = click.option(
     is_flag=True,
     envvar="SKIP_PROVIDER_TESTS",
 )
+option_skip_providers = click.option(
+    "--skip-providers",
+    help="Coma separated list of providers to skip when running tests",
+    type=str,
+    default="",
+    envvar="SKIP_PROVIDERS",
+)
 option_test_timeout = click.option(
     "--test-timeout",
     help="Test timeout in seconds. Set the pytest setup, execution and teardown timeouts to this value",
@@ -512,6 +519,7 @@ option_force_sa_warnings = click.option(
 @option_skip_db_tests
 @option_skip_docker_compose_down
 @option_skip_provider_tests
+@option_skip_providers
 @option_test_timeout
 @option_test_type
 @option_upgrade_boto
@@ -562,6 +570,7 @@ def command_for_tests(**kwargs):
 @option_skip_cleanup
 @option_skip_docker_compose_down
 @option_skip_provider_tests
+@option_skip_providers
 @option_test_timeout
 @option_upgrade_boto
 @option_use_airflow_version
@@ -617,6 +626,7 @@ def command_for_db_tests(**kwargs):
 @option_skip_cleanup
 @option_skip_docker_compose_down
 @option_skip_provider_tests
+@option_skip_providers
 @option_test_timeout
 @option_upgrade_boto
 @option_use_airflow_version
@@ -672,6 +682,7 @@ def _run_test_command(
     skip_db_tests: bool,
     skip_docker_compose_down: bool,
     skip_provider_tests: bool,
+    skip_providers: str,
     test_timeout: int,
     test_type: str,
     upgrade_boto: bool,
@@ -735,6 +746,12 @@ def _run_test_command(
         # https://docs.pytest.org/en/stable/reference/exit-codes.html
         # https://github.com/apache/airflow/pull/38402#issuecomment-2014938950
         extra_pytest_args = (*extra_pytest_args, "--suppress-no-test-exit-code")
+    if skip_providers:
+        ignored_path_list = [
+            f"--ignore=tests/providers/{provider_id.replace('.','/')}"
+            for provider_id in skip_providers.split(",")
+        ]
+        extra_pytest_args = (*extra_pytest_args, *ignored_path_list)
     if run_in_parallel:
         if test_type != "Default":
             get_console().print(
