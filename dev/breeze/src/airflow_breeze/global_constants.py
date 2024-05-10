@@ -101,8 +101,9 @@ MOUNT_SELECTED = "selected"
 MOUNT_ALL = "all"
 MOUNT_SKIP = "skip"
 MOUNT_REMOVE = "remove"
+MOUNT_TESTS = "tests"
 
-ALLOWED_MOUNT_OPTIONS = [MOUNT_SELECTED, MOUNT_ALL, MOUNT_SKIP, MOUNT_REMOVE]
+ALLOWED_MOUNT_OPTIONS = [MOUNT_SELECTED, MOUNT_ALL, MOUNT_SKIP, MOUNT_REMOVE, MOUNT_TESTS]
 ALLOWED_POSTGRES_VERSIONS = ["12", "13", "14", "15", "16"]
 # Oracle introduced new release model for MySQL
 # - LTS: Long Time Support releases, new release approx every 2 year,
