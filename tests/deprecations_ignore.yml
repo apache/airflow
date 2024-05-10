@@ -16,15 +16,6 @@
 # under the License.
 ---
 
-# Skip: Integration and System Tests
-- tests/integration/
-- tests/system/
-# Skip: DAGs for tests
-- tests/dags/
-- tests/dags_corrupted/
-- tests/dags_with_system_exit/
-
-
 # API
 - tests/api_connexion/endpoints/test_connection_endpoint.py::TestGetConnection::test_should_respond_200
 - tests/api_connexion/endpoints/test_connection_endpoint.py::TestPatchConnection::test_patch_should_respond_200

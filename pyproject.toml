@@ -529,6 +529,14 @@ filterwarnings = [
     'ignore:jsonschema\.exceptions\.RefResolutionError:DeprecationWarning:connexion.json_schema',
     'ignore:Accessing jsonschema\.draft4_format_checker:DeprecationWarning:connexion.decorators.validation',
 ]
+# We cannot add warnings from the airflow package into `filterwarnings`,
+# because it invokes import airflow before we set up test environment which breaks the tests.
+# Instead of that, we use a separate parameter and dynamically add it into `filterwarnings` marker.
+forbidden_warnings = [
+    "airflow.exceptions.RemovedInAirflow3Warning",
+    "airflow.utils.context.AirflowContextDeprecationWarning",
+    "airflow.exceptions.AirflowProviderDeprecationWarning",
+]
 python_files = [
     "test_*.py",
     "example_*.py",
