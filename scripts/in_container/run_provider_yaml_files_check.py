@@ -55,6 +55,8 @@ DEPRECATED_MODULES = [
 
 KNOWN_DEPRECATED_CLASSES = [
     "airflow.providers.google.cloud.links.dataproc.DataprocLink",
+    "airflow.providers.google.cloud.operators.automl.AutoMLTablesUpdateDatasetOperator",
+    "airflow.providers.google.cloud.operators.automl.AutoMLDeployModelOperator",
 ]
 
 try:

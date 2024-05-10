@@ -944,6 +944,7 @@ hooks:
       - airflow.providers.google.cloud.hooks.vertex_ai.model_service
       - airflow.providers.google.cloud.hooks.vertex_ai.pipeline_job
       - airflow.providers.google.cloud.hooks.vertex_ai.generative_model
+      - airflow.providers.google.cloud.hooks.vertex_ai.prediction_service
   - integration-name: Google Looker
     python-modules:
       - airflow.providers.google.cloud.hooks.looker
