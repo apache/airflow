@@ -65,5 +65,5 @@ def reparse_dag_file(*, file_token: str, session: Session = NEW_SESSION) -> Resp
         session.commit()
     except exc.IntegrityError:
         session.rollback()
-        return Response("Duplicate request", HTTPStatus.CONFLICT)
+        return Response("Duplicate request", HTTPStatus.CREATED)
     return Response(status=HTTPStatus.CREATED)

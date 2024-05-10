@@ -3470,7 +3470,6 @@ export interface operations {
       401: components["responses"]["Unauthenticated"];
       403: components["responses"]["PermissionDenied"];
       404: components["responses"]["NotFound"];
-      409: components["responses"]["AlreadyExists"];
     };
   };
   /**
