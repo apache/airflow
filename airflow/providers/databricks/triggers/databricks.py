@@ -108,7 +108,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
 
     def safe_to_cancel(self) -> bool:
         """
-        Defermines whether it's safe to cancel the external job which is being executed by this trigger.
+        Determines whether it's safe to cancel the external job which is being executed by this trigger.
 
         This is to avoid the case that `asyncio.CancelledError` is called because the trigger itself is stopped
         In these cases, we should NOT cancel the external job.
