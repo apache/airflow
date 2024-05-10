@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-05-08T22:38:07.829393
+# This constraints file was automatically generated on 2024-05-09T23:53:45.832464
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -76,7 +76,7 @@ aioresponses==0.7.6
 aiosignal==1.3.1
 alabaster==0.7.16
 alembic==1.13.1
-alibabacloud-adb20211201==1.3.3
+alibabacloud-adb20211201==1.3.4
 alibabacloud-tea==0.3.6
 alibabacloud_credentials==0.3.2
 alibabacloud_endpoint_util==0.0.3
@@ -235,7 +235,7 @@ celery==5.4.0
 certifi==2024.2.2
 cffi==1.16.0
 cfgv==3.4.0
-cfn-lint==0.87.1
+cfn-lint==0.87.2
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.3.2
@@ -460,12 +460,12 @@ nh3==0.2.17
 nodeenv==1.8.0
 numpy==1.26.4
 oauthlib==3.2.2
-openai==1.27.0
+openai==1.28.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
-openlineage-integration-common==1.13.1
-openlineage-python==1.13.1
-openlineage_sql==1.13.1
+openlineage-integration-common==1.14.0
+openlineage-python==1.14.0
+openlineage_sql==1.14.0
 openpyxl==3.1.2
 opensearch-py==2.4.2
 opentelemetry-api==1.24.0
@@ -533,7 +533,7 @@ pydata-google-auth==1.8.2
 pydruid==0.6.8
 pyenchant==3.2.2
 pyexasol==0.25.2
-pygraphviz==1.12
+pygraphviz==1.13
 pyiceberg==0.6.1
 pykerberos==1.2.4
 pymongo==4.7.2
