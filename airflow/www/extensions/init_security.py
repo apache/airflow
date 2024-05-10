@@ -66,6 +66,15 @@ def init_api_experimental_auth(app):
         raise AirflowException(err)
 
 
+def init_cache_control(app):
+    def apply_cache_control(response):
+        if "Cache-Control" not in response.headers:
+            response.headers["Cache-Control"] = "no-store"
+        return response
+
+    app.after_request(apply_cache_control)
+
+
 def init_check_user_active(app):
     @app.before_request
     def check_user_active():
