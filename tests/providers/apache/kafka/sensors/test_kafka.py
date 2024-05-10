@@ -27,6 +27,9 @@ from airflow.models import Connection
 from airflow.providers.apache.kafka.sensors.kafka import AwaitMessageSensor, AwaitMessageTriggerFunctionSensor
 from airflow.utils import db
 
+pytestmark = pytest.mark.db_test
+
+
 log = logging.getLogger(__name__)
 
 

@@ -26,7 +26,7 @@ import boto3
 import pytest
 from botocore.exceptions import ClientError, WaiterError
 from botocore.waiter import SingleWaiterConfig, WaiterModel
-from moto import mock_batch
+from moto import mock_aws
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_waiters import BatchWaitersHook
@@ -45,13 +45,12 @@ def aws_region():
     return AWS_REGION
 
 
-@mock_batch
+@mock_aws
 @pytest.fixture
 def patch_hook(monkeypatch, aws_region):
     """Patch hook object by dummy boto3 Batch client."""
     batch_client = boto3.client("batch", region_name=aws_region)
     monkeypatch.setattr(BatchWaitersHook, "conn", batch_client)
-    yield
 
 
 def test_batch_waiters(aws_region):
@@ -130,7 +129,6 @@ class TestBatchWaiters:
         self.batch_waiters.add_jitter = mock_jitter
 
         with mock.patch.object(self.batch_waiters, "get_waiter") as get_waiter:
-
             self.batch_waiters.wait_for_job(self.job_id)
 
             assert get_waiter.call_args_list == [
@@ -148,7 +146,6 @@ class TestBatchWaiters:
             assert mock_config.max_attempts == sys.maxsize
 
     def test_wait_for_job_with_cloudwatch_logs(self):
-
         # mock delay for speedy test
         mock_jitter = mock.Mock(return_value=0)
         self.batch_waiters.add_jitter = mock_jitter
@@ -167,7 +164,6 @@ class TestBatchWaiters:
         ) as mock_fetcher_stop, mock.patch.object(
             batch_log_fetcher, "join", thread_join
         ) as mock_fetcher_join:
-
             # Run the wait_for_job method
             self.batch_waiters.wait_for_job(self.job_id, get_batch_log_fetcher=mock_get_batch_log_fetcher)
 
@@ -244,7 +240,7 @@ class TestBatchJobWaiters:
 
         return {"jobs": [{"jobId": job_id, "status": status}]}
 
-    @pytest.mark.parametrize("status", ALL_STATES)
+    @pytest.mark.parametrize("status", sorted(ALL_STATES))
     def test_job_exists_waiter_exists(self, status: str):
         """Test `JobExists` when response return dictionary regardless state."""
         self.mock_describe_jobs.return_value = self.describe_jobs_response(

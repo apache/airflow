@@ -22,6 +22,9 @@ from unittest import mock
 
 import pytest
 
+# TODO: FIXME  - Not sure why but this context manager gets tricky typing issues
+# mypy: disable-error-code="arg-type,misc"
+
 
 @contextmanager
 def _mocker_context(o, additional_modules: list | None = None) -> AbstractContextManager[mock.MagicMock]:

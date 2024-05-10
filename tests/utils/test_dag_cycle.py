@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import pytest
 
-from airflow import DAG
 from airflow.exceptions import AirflowDagCycleException
+from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.edgemodifier import Label

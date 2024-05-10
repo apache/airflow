@@ -31,6 +31,8 @@ from airflow.secrets.metastore import MetastoreBackend
 from tests.test_utils import db
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
 
 class TestVariable:
     @pytest.fixture(autouse=True)

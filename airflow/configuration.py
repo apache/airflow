@@ -19,7 +19,6 @@ from __future__ import annotations
 import contextlib
 import datetime
 import functools
-import io
 import itertools
 import json
 import logging
@@ -35,6 +34,7 @@ from base64 import b64encode
 from configparser import ConfigParser, NoOptionError, NoSectionError
 from contextlib import contextmanager
 from copy import deepcopy
+from io import StringIO
 from json.decoder import JSONDecodeError
 from typing import IO, TYPE_CHECKING, Any, Dict, Generator, Iterable, Pattern, Set, Tuple, Union
 from urllib.parse import urlsplit
@@ -62,10 +62,6 @@ if not sys.warnoptions:
     warnings.filterwarnings(action="default", category=DeprecationWarning, module="airflow")
     warnings.filterwarnings(action="default", category=PendingDeprecationWarning, module="airflow")
 
-    # Temporarily suppress warnings from pydantic until we upgrade minimum version of pydantic to v2
-    # Which should happen in Airflow 2.8.0
-    warnings.filterwarnings(action="ignore", category=UserWarning, module=r"pydantic._internal._config")
-
 _SQLITE3_VERSION_PATTERN = re2.compile(r"(?P<version>^\d+(?:\.\d+)*)\D?.*$")
 
 ConfigType = Union[str, int, float, bool]
@@ -84,13 +80,11 @@ def _parse_sqlite_version(s: str) -> tuple[int, ...]:
 
 
 @overload
-def expand_env_var(env_var: None) -> None:
-    ...
+def expand_env_var(env_var: None) -> None: ...
 
 
 @overload
-def expand_env_var(env_var: str) -> str:
-    ...
+def expand_env_var(env_var: str) -> str: ...
 
 
 def expand_env_var(env_var: str | None) -> str | None:
@@ -263,12 +257,14 @@ class AirflowConfigParser(ConfigParser):
                 if not self.is_template(section, key) and "{" in value:
                     errors = True
                     log.error(
-                        f"The {section}.{key} value {value} read from string contains "
-                        "variable. This is not supported"
+                        "The %s.%s value %s read from string contains variable. This is not supported",
+                        section,
+                        key,
+                        value,
                     )
                 self._default_values.set(section, key, value)
             if errors:
-                raise Exception(
+                raise AirflowConfigException(
                     f"The string config passed as default contains variables. "
                     f"This is not supported. String config: {config_string}"
                 )
@@ -314,7 +310,11 @@ class AirflowConfigParser(ConfigParser):
             for s, s_c in self.configuration_description.items()
             for k, item in s_c.get("options").items()  # type: ignore[union-attr]
         }
-        sensitive = {(section, key) for (section, key), v in flattened.items() if v.get("sensitive") is True}
+        sensitive = {
+            (section.lower(), key.lower())
+            for (section, key), v in flattened.items()
+            if v.get("sensitive") is True
+        }
         depr_option = {self.deprecated_options[x][:-1] for x in sensitive if x in self.deprecated_options}
         depr_section = {
             (self.deprecated_sections[s][0], k) for s, k in sensitive if s in self.deprecated_sections
@@ -468,8 +468,8 @@ class AirflowConfigParser(ConfigParser):
         ("logging", "logging_level"): _available_logging_levels,
         ("logging", "fab_logging_level"): _available_logging_levels,
         # celery_logging_level can be empty, which uses logging_level as fallback
-        ("logging", "celery_logging_level"): _available_logging_levels + [""],
-        ("webserver", "analytical_tool"): ["google_analytics", "metarouter", "segment", ""],
+        ("logging", "celery_logging_level"): [*_available_logging_levels, ""],
+        ("webserver", "analytical_tool"): ["google_analytics", "metarouter", "segment", "matomo", ""],
     }
 
     upgraded_values: dict[tuple[str, str], str]
@@ -717,7 +717,6 @@ class AirflowConfigParser(ConfigParser):
     def validate(self):
         self._validate_sqlite3_version()
         self._validate_enums()
-        self._validate_max_tis_per_query()
 
         for section, replacement in self.deprecated_values.items():
             for name, info in replacement.items():
@@ -738,26 +737,6 @@ class AirflowConfigParser(ConfigParser):
         self._upgrade_auth_backends()
         self._upgrade_postgres_metastore_conn()
         self.is_validated = True
-
-    def _validate_max_tis_per_query(self) -> None:
-        """
-        Check if config ``scheduler.max_tis_per_query`` is not greater than ``core.parallelism``.
-
-        If not met, a warning message is printed to guide the user to correct it.
-
-        More info: https://github.com/apache/airflow/pull/32572
-        """
-        max_tis_per_query = self.getint("scheduler", "max_tis_per_query")
-        parallelism = self.getint("core", "parallelism")
-
-        if max_tis_per_query > parallelism:
-            warnings.warn(
-                f"Config scheduler.max_tis_per_query (value: {max_tis_per_query}) "
-                f"should NOT be greater than core.parallelism (value: {parallelism}). "
-                "Will now use core.parallelism as the max task instances per query "
-                "instead of specified value.",
-                UserWarning,
-            )
 
     def _upgrade_auth_backends(self):
         """
@@ -784,6 +763,7 @@ class AirflowConfigParser(ConfigParser):
                 "in the running config, which is needed by the UI. Please update your config before "
                 "Apache Airflow 3.0.",
                 FutureWarning,
+                stacklevel=1,
             )
 
     def _upgrade_postgres_metastore_conn(self):
@@ -804,6 +784,7 @@ class AirflowConfigParser(ConfigParser):
                 "As of SQLAlchemy 1.4 (adopted in Airflow 2.3) this is no longer supported.  You must "
                 f"change to `{good_scheme}` before the next Airflow release.",
                 FutureWarning,
+                stacklevel=1,
             )
             self.upgraded_values[(section, key)] = old_value
             new_value = re2.sub("^" + re2.escape(f"{parsed.scheme}://"), f"{good_scheme}://", old_value)
@@ -862,6 +843,7 @@ class AirflowConfigParser(ConfigParser):
             f"This value has been changed to {new_value!r} in the running config, but "
             f"please update your config before Apache Airflow {version}.",
             FutureWarning,
+            stacklevel=3,
         )
 
     def _env_var_name(self, section: str, key: str) -> str:
@@ -941,13 +923,17 @@ class AirflowConfigParser(ConfigParser):
             raise ValueError(f"The value {section}/{key} should be set!")
         return value
 
-    @overload  # type: ignore[override]
-    def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str:
-        ...
+    def get_mandatory_list_value(self, section: str, key: str, **kwargs) -> list[str]:
+        value = self.getlist(section, key, **kwargs)
+        if value is None:
+            raise ValueError(f"The value {section}/{key} should be set!")
+        return value
 
     @overload  # type: ignore[override]
-    def get(self, section: str, key: str, **kwargs) -> str | None:
-        ...
+    def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str: ...
+
+    @overload  # type: ignore[override]
+    def get(self, section: str, key: str, **kwargs) -> str | None: ...
 
     def get(  # type: ignore[override,misc]
         self,
@@ -1197,6 +1183,21 @@ class AirflowConfigParser(ConfigParser):
                 f'Current value: "{val}".'
             )
 
+    def getlist(self, section: str, key: str, delimiter=",", **kwargs):
+        val = self.get(section, key, **kwargs)
+        if val is None:
+            raise AirflowConfigException(
+                f"Failed to convert value None to list. "
+                f'Please check "{key}" key in "{section}" section is set.'
+            )
+        try:
+            return [item.strip() for item in val.split(delimiter)]
+        except Exception:
+            raise AirflowConfigException(
+                f'Failed to parse value to a list. Please check "{key}" key in "{section}" section. '
+                f'Current value: "{val}".'
+            )
+
     def getimport(self, section: str, key: str, **kwargs) -> Any:
         """
         Read options, import the full qualified name, and return the object.
@@ -1212,7 +1213,7 @@ class AirflowConfigParser(ConfigParser):
         try:
             return import_string(full_qualified_path)
         except ImportError as e:
-            log.error(e)
+            log.warning(e)
             raise AirflowConfigException(
                 f'The object could not be loaded. Please check "{key}" key in "{section}" section. '
                 f'Current value: "{full_qualified_path}".'
@@ -1792,7 +1793,7 @@ class AirflowConfigParser(ConfigParser):
         unit_test_config_file = pathlib.Path(__file__).parent / "config_templates" / "unit_tests.cfg"
         unit_test_config = unit_test_config_file.read_text()
         self.remove_all_read_configurations()
-        with io.StringIO(unit_test_config) as test_config_file:
+        with StringIO(unit_test_config) as test_config_file:
             self.read_file(test_config_file)
         # set fernet key to a random value
         global FERNET_KEY
@@ -1855,8 +1856,8 @@ class AirflowConfigParser(ConfigParser):
                     raise AirflowConfigException(
                         f"The provider {provider} is attempting to contribute "
                         f"configuration section {provider_section} that "
-                        f"has already been added before. The source of it: {section_source}."
-                        "This is forbidden. A provider can only add new sections. It"
+                        f"has already been added before. The source of it: {section_source}. "
+                        "This is forbidden. A provider can only add new sections. It "
                         "cannot contribute options to existing sections or override other "
                         "provider's configuration.",
                         UserWarning,
@@ -1892,7 +1893,8 @@ class AirflowConfigParser(ConfigParser):
                 stacklevel=4 + extra_stacklevel,
             )
 
-    def __getstate__(self):
+    def __getstate__(self) -> dict[str, Any]:
+        """Return the state of the object as a dictionary for pickling."""
         return {
             name: getattr(self, name)
             for name in [
@@ -1904,8 +1906,9 @@ class AirflowConfigParser(ConfigParser):
             ]
         }
 
-    def __setstate__(self, state):
-        self.__init__()
+    def __setstate__(self, state) -> None:
+        """Restore the state of the object from a dictionary representation."""
+        self.__init__()  # type: ignore[misc]
         config = state.pop("_sections")
         self.read_dict(config)
         self.__dict__.update(state)
@@ -1976,9 +1979,29 @@ def create_pre_2_7_defaults() -> ConfigParser:
 
 
 def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
-    if not os.path.isfile(AIRFLOW_CONFIG):
-        log.debug("Creating new Airflow config file in: %s", AIRFLOW_CONFIG)
-        pathlib.Path(AIRFLOW_HOME).mkdir(parents=True, exist_ok=True)
+    airflow_config = pathlib.Path(AIRFLOW_CONFIG)
+    if airflow_config.is_dir():
+        msg = (
+            "Airflow config expected to be a path to the configuration file, "
+            f"but got a directory {airflow_config.__fspath__()!r}."
+        )
+        raise IsADirectoryError(msg)
+    elif not airflow_config.exists():
+        log.debug("Creating new Airflow config file in: %s", airflow_config.__fspath__())
+        config_directory = airflow_config.parent
+        if not config_directory.exists():
+            # Compatibility with Python 3.8, ``PurePath.is_relative_to`` was added in Python 3.9
+            try:
+                config_directory.relative_to(AIRFLOW_HOME)
+            except ValueError:
+                msg = (
+                    f"Config directory {config_directory.__fspath__()!r} not exists "
+                    f"and it is not relative to AIRFLOW_HOME {AIRFLOW_HOME!r}. "
+                    "Please create this directory first."
+                )
+                raise FileNotFoundError(msg) from None
+            log.debug("Create directory %r for Airflow config", config_directory.__fspath__())
+            config_directory.mkdir(parents=True, exist_ok=True)
         if conf.get("core", "fernet_key", fallback=None) is None:
             # We know that FERNET_KEY is not set, so we can generate it, set as global key
             # and also write it to the config file so that same key will be used next time
@@ -1986,7 +2009,9 @@ def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
             FERNET_KEY = _generate_fernet_key()
             conf.remove_option("core", "fernet_key")
             conf.set("core", "fernet_key", FERNET_KEY)
-        with open(AIRFLOW_CONFIG, "w") as file:
+        pathlib.Path(airflow_config.__fspath__()).touch()
+        make_group_other_inaccessible(airflow_config.__fspath__())
+        with open(airflow_config, "w") as file:
             conf.write(
                 file,
                 include_sources=False,
@@ -1995,7 +2020,6 @@ def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
                 extra_spacing=True,
                 only_defaults=True,
             )
-        make_group_other_inaccessible(AIRFLOW_CONFIG)
     return conf
 
 
@@ -2020,18 +2044,19 @@ def load_standard_airflow_configuration(airflow_config_parser: AirflowConfigPars
             "environment variable and remove the config file entry."
         )
         if "AIRFLOW_HOME" in os.environ:
-            warnings.warn(msg, category=DeprecationWarning)
+            warnings.warn(msg, category=DeprecationWarning, stacklevel=1)
         elif airflow_config_parser.get("core", "airflow_home") == AIRFLOW_HOME:
             warnings.warn(
                 "Specifying airflow_home in the config file is deprecated. As you "
                 "have left it at the default value you should remove the setting "
                 "from your airflow.cfg and suffer no change in behaviour.",
                 category=DeprecationWarning,
+                stacklevel=1,
             )
         else:
             # there
             AIRFLOW_HOME = airflow_config_parser.get("core", "airflow_home")  # type: ignore[assignment]
-            warnings.warn(msg, category=DeprecationWarning)
+            warnings.warn(msg, category=DeprecationWarning, stacklevel=1)
 
 
 def initialize_config() -> AirflowConfigParser:
@@ -2077,19 +2102,6 @@ def make_group_other_inaccessible(file_path: str):
             "Continuing with original permissions: %s",
             e,
         )
-
-
-# Historical convenience functions to access config entries
-def load_test_config():
-    """Historical load_test_config."""
-    warnings.warn(
-        "Accessing configuration method 'load_test_config' directly from the configuration module is "
-        "deprecated. Please access the configuration from the 'configuration.conf' object via "
-        "'conf.load_test_config'",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    conf.load_test_config()
 
 
 def get(*args, **kwargs) -> ConfigType | None:

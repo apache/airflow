@@ -16,7 +16,7 @@
 # under the License.
 [tool.towncrier]
 name = "Airflow"
-filename = "../RELEASE_NOTES.rst"
+filename = "RELEASE_NOTES.rst"
 underlines = ["-", '^']
 
 [[tool.towncrier.type]]

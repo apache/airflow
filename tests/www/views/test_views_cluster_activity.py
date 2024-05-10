@@ -26,6 +26,8 @@ from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_runs
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture(autouse=True, scope="module")
 def examples_dag_bag():
@@ -45,7 +47,6 @@ def clean():
 @pytest.fixture
 def freeze_time_for_dagruns(time_machine):
     time_machine.move_to("2023-05-02T00:00:00+00:00", tick=False)
-    yield
 
 
 @pytest.fixture
@@ -115,6 +116,7 @@ def test_historical_metrics_data(admin_client, session, time_machine):
             "restarting": 0,
             "running": 0,
             "scheduled": 0,
+            "shutdown": 0,
             "skipped": 0,
             "success": 2,
             "up_for_reschedule": 0,
@@ -143,6 +145,7 @@ def test_historical_metrics_data_date_filters(admin_client, session):
             "restarting": 0,
             "running": 0,
             "scheduled": 0,
+            "shutdown": 0,
             "skipped": 0,
             "success": 0,
             "up_for_reschedule": 0,

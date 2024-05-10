@@ -18,12 +18,13 @@
 """
 Example Airflow DAG for DataprocSubmitJobOperator with pig job.
 """
+
 from __future__ import annotations
 
 import os
 from datetime import datetime
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataproc import (
     DataprocCreateClusterOperator,
     DataprocDeleteClusterOperator,
@@ -63,7 +64,7 @@ PIG_JOB = {
 # [END how_to_cloud_dataproc_pig_config]
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

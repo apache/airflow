@@ -31,7 +31,7 @@ TaskFlow takes care of moving inputs and outputs between your Tasks using XComs 
     def get_ip():
         return my_ip_service.get_main_ip()
 
-    @task
+    @task(multiple_outputs=True)
     def compose_email(external_ip):
         return {
             'subject':f'Server connected from {external_ip}',

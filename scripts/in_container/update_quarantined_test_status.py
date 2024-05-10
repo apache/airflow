@@ -20,8 +20,8 @@ from __future__ import annotations
 import os
 import re
 import sys
-from datetime import datetime
-from os.path import dirname, join, realpath
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import NamedTuple
 from urllib.parse import urlsplit
 
@@ -152,7 +152,7 @@ def get_history_status(history: TestHistory):
         return "Stable"
     if all(history.states[0 : num_runs - 1]):
         return "Just one more"
-    if all(history.states[0 : int(num_runs / 2)]):
+    if all(history.states[0 : num_runs // 2]):
         return "Almost there"
     return "Flaky"
 
@@ -202,14 +202,14 @@ if __name__ == "__main__":
     print(f"Token: {token}")
     github_repository = os.environ.get("GITHUB_REPOSITORY")
     if not github_repository:
-        raise Exception("GitHub Repository must be defined!")
+        raise RuntimeError("GitHub Repository must be defined!")
     user, repo = github_repository.split("/")
     print(f"User: {user}, Repo: {repo}")
     issue_id = int(os.environ.get("ISSUE_ID", 0))
     num_runs = int(os.environ.get("NUM_RUNS", 10))
 
     if issue_id == 0:
-        raise Exception("You need to define ISSUE_ID as environment variable")
+        raise RuntimeError("You need to define ISSUE_ID as environment variable")
 
     gh = login(token=token)
 
@@ -234,9 +234,9 @@ if __name__ == "__main__":
     print()
     print(table)
     print()
-    with open(join(dirname(realpath(__file__)), "quarantine_issue_header.md")) as f:
+    with Path(__file__).resolve().with_name("quarantine_issue_header.md").open() as f:
         header = jinja2.Template(f.read(), autoescape=True, undefined=StrictUndefined).render(
-            DATE_UTC_NOW=datetime.utcnow()
+            DATE_UTC_NOW=datetime.now(tz=timezone.utc).isoformat("T", timespec="seconds")
         )
     quarantined_issue.edit(
         title=None, body=f"{header}\n\n{table}", state="open" if test_results else "closed"

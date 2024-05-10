@@ -75,7 +75,7 @@ class SalesforceToS3Operator(BaseOperator):
         include_deleted: bool = False,
         coerce_to_timestamp: bool = False,
         record_time_added: bool = False,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         replace: bool = False,
         encrypt: bool = False,
         gzip: bool = False,

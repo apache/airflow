@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import datetime
 
-from airflow import DAG
 from airflow.decorators import task
+from airflow.models.dag import DAG
 from airflow.sensors.date_time import DateTimeSensor
 from airflow.utils import timezone
 

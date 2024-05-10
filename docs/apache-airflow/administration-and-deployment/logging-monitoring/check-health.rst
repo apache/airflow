@@ -135,7 +135,7 @@ HTTP monitoring for Celery Cluster
 
 You can optionally use Flower to monitor the health of the Celery cluster. It also provides an HTTP API that you can use to build a health check for your environment.
 
-For details about installation, see: :ref:`executor:CeleryExecutor`. For details about usage, see: `The Flower project documentation <https://flower.readthedocs.io/>`__.
+For details about installation, see: :doc:`apache-airflow-providers-celery:celery_executor`. For details about usage, see: `The Flower project documentation <https://flower.readthedocs.io/>`__.
 
 CLI Check for Celery Workers
 ----------------------------

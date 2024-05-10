@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+operators/athena.rst operators/athena/athena_boto.rst
 operators/s3_to_redshift.rst transfer/s3_to_redshift.rst
 operators/google_api_to_s3_transfer.rst transfer/google_api_to_s3.rst
 operators/imap_attachment_to_s3.rst transfer/imap_attachment_to_s3.rst

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Example DAG demonstrating the usage of the PigOperator."""
+
 from __future__ import annotations
 
 import os
@@ -34,7 +35,6 @@ with DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
-
     # [START create_pig]
     run_this = PigOperator(
         task_id="run_example_pig_script",

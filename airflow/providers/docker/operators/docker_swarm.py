@@ -15,8 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """Run ephemeral Docker Swarm services."""
+
 from __future__ import annotations
 
+import re
+from datetime import datetime
+from time import sleep
 from typing import TYPE_CHECKING
 
 from docker import types
@@ -55,7 +59,8 @@ class DockerSwarmOperator(DockerOperator):
         The default is False.
     :param command: Command to be run in the container. (templated)
     :param docker_url: URL of the host running the docker daemon.
-        Default is unix://var/run/docker.sock
+        Default is the value of the ``DOCKER_HOST`` environment variable or unix://var/run/docker.sock
+        if it is unset.
     :param environment: Environment variables to set in the container. (templated)
     :param force_pull: Pull the docker image on every run. Default is False.
     :param mem_limit: Maximum amount of memory the container can use.
@@ -91,6 +96,10 @@ class DockerSwarmOperator(DockerOperator):
     :param networks: List of network names or IDs or NetworkAttachmentConfig to attach the service to.
     :param placement: Placement instructions for the scheduler. If a list is passed instead,
         it is assumed to be a list of constraints as part of a Placement object.
+    :param container_resources: Resources for the launched container.
+        The resources are Resources as per the docker api
+        [https://docker-py.readthedocs.io/en/stable/api.html#docker.types.Resources]_
+        This parameter has precedence on the mem_limit parameter.
     """
 
     def __init__(
@@ -103,6 +112,7 @@ class DockerSwarmOperator(DockerOperator):
         mode: types.ServiceMode | None = None,
         networks: list[str | types.NetworkAttachmentConfig] | None = None,
         placement: types.Placement | list[types.Placement] | None = None,
+        container_resources: types.Resources | None = None,
         **kwargs,
     ) -> None:
         super().__init__(image=image, **kwargs)
@@ -113,6 +123,7 @@ class DockerSwarmOperator(DockerOperator):
         self.mode = mode
         self.networks = networks
         self.placement = placement
+        self.container_resources = container_resources or types.Resources(mem_limit=self.mem_limit)
 
     def execute(self, context: Context) -> None:
         self.environment["AIRFLOW_TMP_DIR"] = self.tmp_dir
@@ -133,7 +144,7 @@ class DockerSwarmOperator(DockerOperator):
                     secrets=self.secrets,
                 ),
                 restart_policy=types.RestartPolicy(condition="none"),
-                resources=types.Resources(mem_limit=self.mem_limit),
+                resources=self.container_resources,
                 networks=self.networks,
                 placement=self.placement,
             ),
@@ -142,8 +153,8 @@ class DockerSwarmOperator(DockerOperator):
             mode=self.mode,
         )
         if self.service is None:
-            raise Exception("Service should be set here")
-        self.log.info("Service started: %s", str(self.service))
+            raise RuntimeError("Service should be set here")
+        self.log.info("Service started: %s", self.service)
 
         # wait for the service to start the task
         while not self.cli.tasks(filters={"service": self.service["ID"]}):
@@ -164,12 +175,12 @@ class DockerSwarmOperator(DockerOperator):
             raise AirflowException(f"Service did not complete: {self.service!r}")
         elif self.auto_remove == "success":
             if not self.service:
-                raise Exception("The 'service' should be initialized before!")
+                raise RuntimeError("The 'service' should be initialized before!")
             self.cli.remove_service(self.service["ID"])
 
     def _service_status(self) -> str | None:
         if not self.service:
-            raise Exception("The 'service' should be initialized before!")
+            raise RuntimeError("The 'service' should be initialized before!")
         return self.cli.tasks(filters={"service": self.service["ID"]})[0]["Status"]["State"]
 
     def _has_service_terminated(self) -> bool:
@@ -178,24 +189,41 @@ class DockerSwarmOperator(DockerOperator):
 
     def _stream_logs_to_output(self) -> None:
         if not self.service:
-            raise Exception("The 'service' should be initialized before!")
-        logs = self.cli.service_logs(
-            self.service["ID"], follow=True, stdout=True, stderr=True, is_tty=self.tty
-        )
-        line = ""
-        for log in logs:
-            try:
-                log = log.decode()
-            except UnicodeDecodeError:
-                continue
-            if log == "\n":
-                self.log.info(line)
-                line = ""
-            else:
-                line += log
-        # flush any remaining log stream
-        if line:
-            self.log.info(line)
+            raise RuntimeError("The 'service' should be initialized before!")
+        last_line_logged, last_timestamp = "", 0
+
+        def stream_new_logs(last_line_logged, since=0):
+            logs = self.cli.service_logs(
+                self.service["ID"],
+                follow=False,
+                stdout=True,
+                stderr=True,
+                is_tty=self.tty,
+                since=since,
+                timestamps=True,
+            )
+            logs = b"".join(logs).decode().splitlines()
+            if last_line_logged in logs:
+                logs = logs[logs.index(last_line_logged) + 1 :]
+            for line in logs:
+                match = re.match(r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{6,}Z) (.*)", line)
+                timestamp, message = match.groups()
+                self.log.info(message)
+
+            if len(logs) == 0:
+                return last_line_logged, since
+
+            last_line_logged = line
+
+            # Floor nanoseconds to microseconds
+            last_timestamp = re.sub(r"(\.\d{6})\d+Z", r"\1Z", timestamp)
+            last_timestamp = datetime.strptime(last_timestamp, "%Y-%m-%dT%H:%M:%S.%fZ")
+            last_timestamp = last_timestamp.timestamp()
+            return last_line_logged, last_timestamp
+
+        while not self._has_service_terminated():
+            sleep(2)
+            last_line_logged, last_timestamp = stream_new_logs(last_line_logged, since=last_timestamp)
 
     def on_kill(self) -> None:
         if self.hook.client_created and self.service is not None:

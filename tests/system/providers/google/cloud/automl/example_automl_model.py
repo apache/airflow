@@ -19,28 +19,26 @@
 """
 Example Airflow DAG for Google AutoML service testing model operations.
 """
+
 from __future__ import annotations
 
 import os
-from copy import deepcopy
 from datetime import datetime
 
 from google.protobuf.struct_pb2 import Value
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.operators.automl import (
     AutoMLBatchPredictOperator,
     AutoMLCreateDatasetOperator,
     AutoMLDeleteDatasetOperator,
     AutoMLDeleteModelOperator,
-    AutoMLDeployModelOperator,
     AutoMLGetModelOperator,
     AutoMLImportDataOperator,
     AutoMLPredictOperator,
     AutoMLTablesListColumnSpecsOperator,
     AutoMLTablesListTableSpecsOperator,
-    AutoMLTablesUpdateDatasetOperator,
     AutoMLTrainModelOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import (
@@ -110,7 +108,7 @@ def get_target_column_spec(columns_specs: list[dict], column_name: str) -> str:
     raise Exception(f"Unknown target column: {column_name}")
 
 
-with models.DAG(
+with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
@@ -169,18 +167,6 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
     )
 
-    update = deepcopy(DATASET)
-    update["name"] = '{{ task_instance.xcom_pull("create_dataset")["name"] }}'
-    update["tables_dataset_metadata"][  # type: ignore
-        "target_column_spec_id"
-    ] = "{{ get_target_column_spec(task_instance.xcom_pull('list_columns_spec'), target) }}"
-
-    update_dataset = AutoMLTablesUpdateDatasetOperator(
-        task_id="update_dataset",
-        dataset=update,
-        location=GCP_AUTOML_LOCATION,
-    )
-
     # [START howto_operator_automl_create_model]
     create_model = AutoMLTrainModelOperator(
         task_id="create_model",
@@ -199,15 +185,6 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
     )
     # [END howto_operator_get_model]
-
-    # [START howto_operator_deploy_model]
-    deploy_model = AutoMLDeployModelOperator(
-        task_id="deploy_model",
-        model_id=model_id,
-        location=GCP_AUTOML_LOCATION,
-        project_id=GCP_PROJECT_ID,
-    )
-    # [END howto_operator_deploy_model]
 
     # [START howto_operator_prediction]
     predict_task = AutoMLPredictOperator(
@@ -261,11 +238,9 @@ with models.DAG(
         >> import_dataset
         >> list_tables_spec
         >> list_columns_spec
-        >> update_dataset
         # TEST BODY
         >> create_model
         >> get_model
-        >> deploy_model
         >> predict_task
         >> batch_predict_task
         # TEST TEARDOWN

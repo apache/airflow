@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Storage to Google Drive transfer operator."""
+
 from __future__ import annotations
 
 import tempfile
@@ -79,6 +80,9 @@ class GCSToGoogleDriveOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param delegate_to: (Optional) The account to impersonate using domain-wide delegation
+        of authority, if any. For this to work, the service account making the
+        request must have domain-wide delegation enabled. This only applies to the Google Drive connection.
     """
 
     template_fields: Sequence[str] = (
@@ -95,10 +99,11 @@ class GCSToGoogleDriveOperator(BaseOperator):
         source_bucket: str,
         source_object: str,
         destination_object: str | None = None,
-        destination_folder_id: str | None = None,
+        destination_folder_id: str = "root",
         move_object: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -110,11 +115,11 @@ class GCSToGoogleDriveOperator(BaseOperator):
         self.move_object = move_object
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.delegate_to = delegate_to
         self.gcs_hook: GCSHook | None = None
         self.gdrive_hook: GoogleDriveHook | None = None
 
     def execute(self, context: Context):
-
         self.gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -122,6 +127,7 @@ class GCSToGoogleDriveOperator(BaseOperator):
         self.gdrive_hook = GoogleDriveHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
+            delegate_to=self.delegate_to,
         )
 
         if WILDCARD in self.source_object:

@@ -16,69 +16,106 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
-
 from airflow.providers.amazon.aws.triggers.rds import (
     RdsDbAvailableTrigger,
     RdsDbDeletedTrigger,
     RdsDbStoppedTrigger,
 )
-from airflow.providers.amazon.aws.utils.rds import RdsDbType
-
-TEST_DB_INSTANCE_IDENTIFIER = "test-db-instance-identifier"
-TEST_WAITER_DELAY = 10
-TEST_WAITER_MAX_ATTEMPTS = 10
-TEST_AWS_CONN_ID = "test-aws-id"
-TEST_REGION = "sa-east-1"
-TEST_RESPONSE = {
-    "DBInstance": {
-        "DBInstanceIdentifier": "test-db-instance-identifier",
-        "DBInstanceStatus": "test-db-instance-status",
-    }
-}
 
 
-class TestRdsTriggers:
-    @pytest.mark.parametrize(
-        "trigger",
-        [
-            RdsDbAvailableTrigger(
-                db_identifier=TEST_DB_INSTANCE_IDENTIFIER,
-                waiter_delay=TEST_WAITER_DELAY,
-                waiter_max_attempts=TEST_WAITER_MAX_ATTEMPTS,
-                aws_conn_id=TEST_AWS_CONN_ID,
-                region_name=TEST_REGION,
-                response=TEST_RESPONSE,
-                db_type=RdsDbType.INSTANCE,
-            ),
-            RdsDbDeletedTrigger(
-                db_identifier=TEST_DB_INSTANCE_IDENTIFIER,
-                waiter_delay=TEST_WAITER_DELAY,
-                waiter_max_attempts=TEST_WAITER_MAX_ATTEMPTS,
-                aws_conn_id=TEST_AWS_CONN_ID,
-                region_name=TEST_REGION,
-                response=TEST_RESPONSE,
-                db_type=RdsDbType.INSTANCE,
-            ),
-            RdsDbStoppedTrigger(
-                db_identifier=TEST_DB_INSTANCE_IDENTIFIER,
-                waiter_delay=TEST_WAITER_DELAY,
-                waiter_max_attempts=TEST_WAITER_MAX_ATTEMPTS,
-                aws_conn_id=TEST_AWS_CONN_ID,
-                region_name=TEST_REGION,
-                response=TEST_RESPONSE,
-                db_type=RdsDbType.INSTANCE,
-            ),
-        ],
-    )
-    def test_serialize_recreate(self, trigger):
-        class_path, args = trigger.serialize()
+class TestRdsDbAvailableTrigger:
+    def test_serialization(self):
+        db_identifier = "test_db_identifier"
+        waiter_delay = 30
+        waiter_max_attempts = 60
+        aws_conn_id = "aws_default"
+        response = {"key": "value"}
+        db_type = "instance"  # or use an instance of RdsDbType if available
+        region_name = "us-west-2"
 
-        class_name = class_path.split(".")[-1]
-        clazz = globals()[class_name]
-        instance = clazz(**args)
+        trigger = RdsDbAvailableTrigger(
+            db_identifier=db_identifier,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+            response=response,
+            db_type=db_type,
+            region_name=region_name,
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.amazon.aws.triggers.rds.RdsDbAvailableTrigger"
+        assert kwargs == {
+            "db_identifier": "test_db_identifier",
+            "db_type": "instance",
+            "response": {"key": "value"},
+            "waiter_delay": 30,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+            "region_name": "us-west-2",
+        }
 
-        class_path2, args2 = instance.serialize()
 
-        assert class_path == class_path2
-        assert args == args2
+class TestRdsDbDeletedTrigger:
+    def test_serialization(self):
+        db_identifier = "test_db_identifier"
+        waiter_delay = 30
+        waiter_max_attempts = 60
+        aws_conn_id = "aws_default"
+        response = {"key": "value"}
+        db_type = "instance"
+        region_name = "us-west-2"
+
+        trigger = RdsDbDeletedTrigger(
+            db_identifier=db_identifier,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+            response=response,
+            db_type=db_type,
+            region_name=region_name,
+        )
+
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.amazon.aws.triggers.rds.RdsDbDeletedTrigger"
+        assert kwargs == {
+            "db_identifier": "test_db_identifier",
+            "db_type": "instance",
+            "response": {"key": "value"},
+            "waiter_delay": 30,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+            "region_name": "us-west-2",
+        }
+
+
+class TestRdsDbStoppedTrigger:
+    def test_serialization(self):
+        db_identifier = "test_db_identifier"
+        waiter_delay = 30
+        waiter_max_attempts = 60
+        aws_conn_id = "aws_default"
+        response = {"key": "value"}
+        db_type = "instance"
+        region_name = "us-west-2"
+
+        trigger = RdsDbStoppedTrigger(
+            db_identifier=db_identifier,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+            response=response,
+            db_type=db_type,
+            region_name=region_name,
+        )
+
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.amazon.aws.triggers.rds.RdsDbStoppedTrigger"
+        assert kwargs == {
+            "db_identifier": "test_db_identifier",
+            "db_type": "instance",
+            "response": {"key": "value"},
+            "waiter_delay": 30,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+            "region_name": "us-west-2",
+        }

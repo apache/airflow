@@ -26,7 +26,9 @@ from typing import TYPE_CHECKING, Any, Iterable, Union
 import psycopg2
 import psycopg2.extensions
 import psycopg2.extras
+from deprecated import deprecated
 from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor
+from sqlalchemy.engine import URL
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.hooks.sql import DbApiHook
@@ -73,6 +75,7 @@ class PostgresHook(DbApiHook):
     conn_type = "postgres"
     hook_name = "Postgres"
     supports_autocommit = True
+    supports_executemany = True
 
     def __init__(self, *args, options: str | None = None, **kwargs) -> None:
         if "schema" in kwargs:
@@ -90,37 +93,54 @@ class PostgresHook(DbApiHook):
         self.options = options
 
     @property
-    def schema(self):
-        warnings.warn(
+    @deprecated(
+        reason=(
             'The "schema" variable has been renamed to "database" as it contained the database name.'
-            'Please use "database" to get the database name.',
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
+            'Please use "database" to get the database name.'
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
+    def schema(self):
         return self.database
 
     @schema.setter
-    def schema(self, value):
-        warnings.warn(
+    @deprecated(
+        reason=(
             'The "schema" variable has been renamed to "database" as it contained the database name.'
-            'Please use "database" to set the database name.',
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
+            'Please use "database" to set the database name.'
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
+    def schema(self, value):
         self.database = value
+
+    @property
+    def sqlalchemy_url(self) -> URL:
+        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        return URL.create(
+            drivername="postgresql",
+            username=conn.login,
+            password=conn.password,
+            host=conn.host,
+            port=conn.port,
+            database=self.database or conn.schema,
+        )
 
     def _get_cursor(self, raw_cursor: str) -> CursorType:
         _cursor = raw_cursor.lower()
-        if _cursor == "dictcursor":
-            return psycopg2.extras.DictCursor
-        if _cursor == "realdictcursor":
-            return psycopg2.extras.RealDictCursor
-        if _cursor == "namedtuplecursor":
-            return psycopg2.extras.NamedTupleCursor
-        raise ValueError(f"Invalid cursor passed {_cursor}")
+        cursor_types = {
+            "dictcursor": psycopg2.extras.DictCursor,
+            "realdictcursor": psycopg2.extras.RealDictCursor,
+            "namedtuplecursor": psycopg2.extras.NamedTupleCursor,
+        }
+        if _cursor in cursor_types:
+            return cursor_types[_cursor]
+        else:
+            valid_cursors = ", ".join(cursor_types.keys())
+            raise ValueError(f"Invalid cursor passed {_cursor}. Valid options are: {valid_cursors}")
 
     def get_conn(self) -> connection:
-        """Establishes a connection to a postgres database."""
+        """Establish a connection to a postgres database."""
         conn_id = getattr(self, self.conn_name_attr)
         conn = deepcopy(self.connection or self.get_connection(conn_id))
 
@@ -156,7 +176,7 @@ class PostgresHook(DbApiHook):
         return self.conn
 
     def copy_expert(self, sql: str, filename: str) -> None:
-        """Executes SQL using psycopg2's ``copy_expert`` method.
+        """Execute SQL using psycopg2's ``copy_expert`` method.
 
         Necessary to execute COPY command without access to a superuser.
 
@@ -179,19 +199,16 @@ class PostgresHook(DbApiHook):
     def get_uri(self) -> str:
         """Extract the URI from the connection.
 
-        :return: the extracted uri.
+        :return: the extracted URI in Sqlalchemy URI format.
         """
-        conn = self.get_connection(getattr(self, self.conn_name_attr))
-        conn.schema = self.database or conn.schema
-        uri = conn.get_uri().replace("postgres://", "postgresql://")
-        return uri
+        return self.sqlalchemy_url.render_as_string(hide_password=False)
 
     def bulk_load(self, table: str, tmp_file: str) -> None:
-        """Loads a tab-delimited file into a database table."""
+        """Load a tab-delimited file into a database table."""
         self.copy_expert(f"COPY {table} FROM STDIN", tmp_file)
 
     def bulk_dump(self, table: str, tmp_file: str) -> None:
-        """Dumps a database table into a tab-delimited file."""
+        """Dump a database table into a tab-delimited file."""
         self.copy_expert(f"COPY {table} TO STDOUT", tmp_file)
 
     @staticmethod
@@ -272,9 +289,8 @@ class PostgresHook(DbApiHook):
         pk_columns = [row[0] for row in self.get_records(sql, (schema, table))]
         return pk_columns or None
 
-    @classmethod
     def _generate_insert_sql(
-        cls, table: str, values: tuple[str, ...], target_fields: Iterable[str], replace: bool, **kwargs
+        self, table: str, values: tuple[str, ...], target_fields: Iterable[str], replace: bool, **kwargs
     ) -> str:
         """Generate the INSERT SQL statement.
 
@@ -289,7 +305,7 @@ class PostgresHook(DbApiHook):
         :return: The generated INSERT or REPLACE SQL statement
         """
         placeholders = [
-            cls.placeholder,
+            self.placeholder,
         ] * len(values)
         replace_index = kwargs.get("replace_index")
 
@@ -321,7 +337,7 @@ class PostgresHook(DbApiHook):
         return sql
 
     def get_openlineage_database_info(self, connection) -> DatabaseInfo:
-        """Returns Postgres/Redshift specific information for OpenLineage."""
+        """Return Postgres/Redshift specific information for OpenLineage."""
         from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
         is_redshift = connection.extra_dejson.get("redshift", False)
@@ -329,7 +345,9 @@ class PostgresHook(DbApiHook):
         if is_redshift:
             authority = self._get_openlineage_redshift_authority_part(connection)
         else:
-            authority = DbApiHook.get_openlineage_authority_part(connection, default_port=5432)
+            authority = DbApiHook.get_openlineage_authority_part(  # type: ignore[attr-defined]
+                connection, default_port=5432
+            )
 
         return DatabaseInfo(
             scheme="postgres" if not is_redshift else "redshift",
@@ -356,9 +374,18 @@ class PostgresHook(DbApiHook):
         return f"{cluster_identifier}.{region_name}:{port}"
 
     def get_openlineage_database_dialect(self, connection) -> str:
-        """Returns postgres/redshift dialect."""
+        """Return postgres/redshift dialect."""
         return "redshift" if connection.extra_dejson.get("redshift", False) else "postgres"
 
     def get_openlineage_default_schema(self) -> str | None:
-        """Returns current schema. This is usually changed with ``SEARCH_PATH`` parameter."""
+        """Return current schema. This is usually changed with ``SEARCH_PATH`` parameter."""
         return self.get_first("SELECT CURRENT_SCHEMA;")[0]
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        return {
+            "hidden_fields": [],
+            "relabeling": {
+                "schema": "Database",
+            },
+        }

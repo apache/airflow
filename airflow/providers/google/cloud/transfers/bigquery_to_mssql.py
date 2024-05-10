@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google BigQuery to MSSQL operator."""
+
 from __future__ import annotations
 
 import warnings
@@ -62,11 +63,9 @@ class BigQueryToMsSqlOperator(BigQueryToSqlBaseOperator):
     ) -> None:
         if mssql_table is not None:
             warnings.warn(
-                # fmt: off
-                "The `mssql_table` parameter has been deprecated. "
-                "Use `target_table_name` instead.",
-                # fmt: on
+                "The `mssql_table` parameter has been deprecated. Use `target_table_name` instead.",
                 AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
 
             if target_table_name is not None:
@@ -92,7 +91,7 @@ class BigQueryToMsSqlOperator(BigQueryToSqlBaseOperator):
         self.source_project_dataset_table = source_project_dataset_table
 
     def get_sql_hook(self) -> MsSqlHook:
-        return MsSqlHook(schema=self.database, mysql_conn_id=self.mssql_conn_id)
+        return MsSqlHook(schema=self.database, mssql_conn_id=self.mssql_conn_id)
 
     def persist_links(self, context: Context) -> None:
         project_id, dataset_id, table_id = self.source_project_dataset_table.split(".")

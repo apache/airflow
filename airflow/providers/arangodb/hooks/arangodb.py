@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module allows connecting to a ArangoDB."""
+
 from __future__ import annotations
 
 from functools import cached_property
@@ -23,7 +24,7 @@ from typing import TYPE_CHECKING, Any
 
 from arango import AQLQueryExecuteError, ArangoClient as ArangoDBClient
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
@@ -134,8 +135,8 @@ class ArangoDBHook(BaseHook):
             self.log.info("Graph already exists: %s", name)
             return False
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         return {
             "hidden_fields": ["port", "extra"],
             "relabeling": {

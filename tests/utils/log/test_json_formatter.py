@@ -18,6 +18,7 @@
 """
 Module for all tests airflow.utils.log.json_formatter.JSONFormatter
 """
+
 from __future__ import annotations
 
 import json

@@ -21,14 +21,16 @@ import ast
 import json
 import socket
 import time
+from functools import cached_property
 from typing import Any, Iterable, Mapping, Sequence, Union
 from urllib.error import HTTPError, URLError
 
 import jenkins
+from deprecated.classic import deprecated
 from jenkins import Jenkins, JenkinsException
 from requests import Request
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 
@@ -182,9 +184,15 @@ class JenkinsJobTriggerOperator(BaseOperator):
                 f"{self.max_try_before_job_appears} times"
             )
 
-    def get_hook(self) -> JenkinsHook:
+    @cached_property
+    def hook(self) -> JenkinsHook:
         """Instantiate the Jenkins hook."""
         return JenkinsHook(self.jenkins_connection_id)
+
+    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
+    def get_hook(self) -> JenkinsHook:
+        """Instantiate the Jenkins hook."""
+        return self.hook
 
     def execute(self, context: Mapping[Any, Any]) -> str | None:
         self.log.info(
@@ -193,7 +201,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
             self.jenkins_connection_id,
             self.parameters,
         )
-        jenkins_server = self.get_hook().get_jenkins_server()
+        jenkins_server = self.hook.get_jenkins_server()
         jenkins_response = self.build_job(jenkins_server, self.parameters)
         if jenkins_response:
             build_number = self.poll_job_in_queue(jenkins_response["headers"]["Location"], jenkins_server)

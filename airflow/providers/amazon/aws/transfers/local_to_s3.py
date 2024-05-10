@@ -72,7 +72,7 @@ class LocalFilesystemToS3Operator(BaseOperator):
         filename: str,
         dest_key: str,
         dest_bucket: str | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         verify: str | bool | None = None,
         replace: bool = False,
         encrypt: bool = False,

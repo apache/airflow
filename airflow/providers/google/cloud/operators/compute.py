@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Compute Engine operators."""
+
 from __future__ import annotations
 
 from copy import deepcopy
@@ -35,6 +36,7 @@ from airflow.providers.google.cloud.links.compute import (
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.utils.field_sanitizer import GcpBodyFieldSanitizer
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
@@ -49,8 +51,8 @@ class ComputeEngineBaseOperator(GoogleCloudBaseOperator):
         self,
         *,
         zone: str,
-        resource_id: str,
-        project_id: str | None = None,
+        resource_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -127,6 +129,7 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
         "gcp_conn_id",
         "api_version",
         "impersonation_chain",
+        "resource_id",
     )
     # [END gce_instance_insert_fields]
 
@@ -136,7 +139,7 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
         body: dict,
         zone: str,
         resource_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         request_id: str | None = None,
         retry: Retry | None = None,
         timeout: float | None = None,
@@ -150,7 +153,8 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
         self.body = body
         self.zone = zone
         self.request_id = request_id
-        self.resource_id = self.body["name"] if "name" in body else resource_id
+        if "name" in body:
+            resource_id = self.body["name"]
         self._field_validator = None  # Optional[GcpBodyFieldValidator]
         self.retry = retry
         self.timeout = timeout
@@ -162,7 +166,7 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
             )
         self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
         super().__init__(
-            resource_id=self.resource_id,
+            resource_id=resource_id,
             zone=zone,
             project_id=project_id,
             gcp_conn_id=gcp_conn_id,
@@ -214,7 +218,7 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
             )
         except exceptions.NotFound as e:
             # We actually expect to get 404 / Not Found here as the should not yet exist
-            if not e.code == 404:
+            if e.code != 404:
                 raise e
         else:
             self.log.info("The %s Instance already exists", self.resource_id)
@@ -306,6 +310,7 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
         "gcp_conn_id",
         "api_version",
         "impersonation_chain",
+        "resource_id",
     )
     # [END gce_instance_insert_from_template_fields]
 
@@ -316,7 +321,7 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
         body: dict,
         zone: str,
         resource_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         request_id: str | None = None,
         retry: Retry | None = None,
         timeout: float | None = None,
@@ -330,7 +335,8 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
         self.source_instance_template = source_instance_template
         self.body = body
         self.zone = zone
-        self.resource_id = self.body["name"] if "name" in body else resource_id
+        if "name" in body:
+            resource_id = self.body["name"]
         self.request_id = request_id
         self._field_validator = None  # Optional[GcpBodyFieldValidator]
         self.retry = retry
@@ -343,7 +349,7 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
             )
         self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
         super().__init__(
-            resource_id=self.resource_id,
+            resource_id=resource_id,
             zone=zone,
             project_id=project_id,
             gcp_conn_id=gcp_conn_id,
@@ -384,7 +390,7 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
         except exceptions.NotFound as e:
             # We actually expect to get 404 / Not Found here as the template should
             # not yet exist
-            if not e.code == 404:
+            if e.code != 404:
                 raise e
         else:
             self.log.info("The %s Instance already exists", self.resource_id)
@@ -472,7 +478,7 @@ class ComputeEngineDeleteInstanceOperator(ComputeEngineBaseOperator):
         resource_id: str,
         zone: str,
         request_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | None = None,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -716,7 +722,7 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
         zone: str,
         resource_id: str,
         body: dict,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
         validate_body: bool = True,
@@ -869,6 +875,7 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
         "gcp_conn_id",
         "api_version",
         "impersonation_chain",
+        "resource_id",
     )
     # [END gce_instance_template_insert_fields]
 
@@ -876,7 +883,7 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
         self,
         *,
         body: dict,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         resource_id: str | None = None,
         request_id: str | None = None,
         retry: Retry | None = None,
@@ -890,7 +897,8 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
     ) -> None:
         self.body = body
         self.request_id = request_id
-        self.resource_id = self.body["name"] if "name" in body else resource_id
+        if "name" in body:
+            resource_id = self.body["name"]
         self._field_validator = None  # Optional[GcpBodyFieldValidator]
         self.retry = retry
         self.timeout = timeout
@@ -904,7 +912,7 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
         super().__init__(
             project_id=project_id,
             zone="global",
-            resource_id=self.resource_id,
+            resource_id=resource_id,
             gcp_conn_id=gcp_conn_id,
             api_version=api_version,
             impersonation_chain=impersonation_chain,
@@ -957,7 +965,7 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
         except exceptions.NotFound as e:
             # We actually expect to get 404 / Not Found here as the template should
             # not yet exist
-            if not e.code == 404:
+            if e.code != 404:
                 raise e
         else:
             self.log.info("The %s Template already exists.", existing_template)
@@ -1037,7 +1045,7 @@ class ComputeEngineDeleteInstanceTemplateOperator(ComputeEngineBaseOperator):
         *,
         resource_id: str,
         request_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | None = None,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -1157,7 +1165,7 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
         *,
         resource_id: str,
         body_patch: dict,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         request_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
@@ -1219,7 +1227,7 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
         except exceptions.NotFound as e:
             # We actually expect to get 404 / Not Found here as the template should
             # not yet exist
-            if not e.code == 404:
+            if e.code != 404:
                 raise e
         else:
             self.log.info(
@@ -1316,7 +1324,7 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
         zone: str,
         source_template: str,
         destination_template: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         update_policy: dict[str, Any] | None = None,
         request_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -1338,7 +1346,7 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
             )
         super().__init__(
             project_id=project_id,
-            zone=self.zone,
+            zone=zone,
             resource_id=resource_id,
             gcp_conn_id=gcp_conn_id,
             api_version=api_version,
@@ -1452,6 +1460,7 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
         "gcp_conn_id",
         "api_version",
         "impersonation_chain",
+        "resource_id",
     )
     # [END gce_igm_insert_fields]
 
@@ -1460,7 +1469,7 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
         *,
         body: dict,
         zone: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         resource_id: str | None = None,
         request_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -1473,9 +1482,9 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
         **kwargs,
     ) -> None:
         self.body = body
-        self.zone = zone
         self.request_id = request_id
-        self.resource_id = self.body["name"] if "name" in body else resource_id
+        if "name" in body:
+            resource_id = self.body["name"]
         self._field_validator = None  # Optional[GcpBodyFieldValidator]
         self.retry = retry
         self.timeout = timeout
@@ -1488,7 +1497,7 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
         super().__init__(
             project_id=project_id,
             zone=zone,
-            resource_id=self.resource_id,
+            resource_id=resource_id,
             gcp_conn_id=gcp_conn_id,
             api_version=api_version,
             impersonation_chain=impersonation_chain,
@@ -1537,7 +1546,7 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
         except exceptions.NotFound as e:
             # We actually expect to get 404 / Not Found here as the Instance Group Manager should
             # not yet exist
-            if not e.code == 404:
+            if e.code != 404:
                 raise e
         else:
             self.log.info("The %s Instance Group Manager already exists", existing_instance_group_manager)
@@ -1622,7 +1631,7 @@ class ComputeEngineDeleteInstanceGroupManagerOperator(ComputeEngineBaseOperator)
         *,
         resource_id: str,
         zone: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         request_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         api_version="v1",

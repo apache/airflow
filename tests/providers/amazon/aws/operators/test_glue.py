@@ -21,7 +21,6 @@ from unittest import mock
 
 import pytest
 
-from airflow.configuration import conf
 from airflow.exceptions import TaskDeferred
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -38,10 +37,7 @@ JOB_RUN_ID = "11111"
 
 
 class TestGlueJobOperator:
-    @pytest.fixture(autouse=True)
-    def setup_method(self):
-        conf.load_test_config()
-
+    @pytest.mark.db_test
     def test_render_template(self, create_task_instance_of_operator):
         ti: TaskInstance = create_task_instance_of_operator(
             GlueJobOperator,
@@ -275,4 +271,27 @@ class TestGlueJobOperator:
         mock_glue_hook.batch_stop_job_run.assert_called_once_with(
             JobName=JOB_NAME,
             JobRunIds=[JOB_RUN_ID],
+        )
+
+    @mock.patch.object(GlueJobHook, "get_job_state")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    @mock.patch.object(GlueJobHook, "conn")
+    @mock.patch.object(S3Hook, "load_file")
+    def test_replace_script_file(
+        self, mock_load_file, mock_conn, mock_get_connection, mock_initialize_job, mock_get_job_state
+    ):
+        glue = GlueJobOperator(
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="folder/file",
+            s3_bucket="bucket_name",
+            iam_role_name="role_arn",
+            replace_script_file=True,
+        )
+        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
+        mock_get_job_state.return_value = "SUCCEEDED"
+        glue.execute(mock.MagicMock())
+        mock_load_file.assert_called_once_with(
+            "folder/file", "artifacts/glue-scripts/file", bucket_name="bucket_name", replace=True
         )

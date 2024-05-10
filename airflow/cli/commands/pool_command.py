@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Pools sub-commands."""
+
 from __future__ import annotations
 
 import json

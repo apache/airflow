@@ -15,9 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """Config sub-commands."""
+
 from __future__ import annotations
 
-import io
+from io import StringIO
 
 import pygments
 from pygments.lexers.configs import IniLexer
@@ -31,7 +32,7 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 @providers_configuration_loaded
 def show_config(args):
     """Show current application configuration."""
-    with io.StringIO() as output:
+    with StringIO() as output:
         conf.write(
             output,
             section=args.section,
@@ -44,9 +45,9 @@ def show_config(args):
             only_defaults=args.defaults,
         )
         code = output.getvalue()
-        if should_use_colors(args):
-            code = pygments.highlight(code=code, formatter=get_terminal_formatter(), lexer=IniLexer())
-        print(code)
+    if should_use_colors(args):
+        code = pygments.highlight(code=code, formatter=get_terminal_formatter(), lexer=IniLexer())
+    print(code)
 
 
 @providers_configuration_loaded

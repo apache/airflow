@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``sensor_instance`` table
+"""Add ``sensor_instance`` table.
 
 Revision ID: e38be357a868
 Revises: 8d48763f6d53
 Create Date: 2019-06-07 04:03:17.003939
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -39,7 +40,6 @@ airflow_version = "2.0.0"
 
 
 def upgrade():
-
     conn = op.get_bind()
     inspector = inspect(conn)
     tables = inspector.get_table_names()

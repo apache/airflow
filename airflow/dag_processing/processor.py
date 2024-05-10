@@ -28,7 +28,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Iterable, Iterator
 
 from setproctitle import setproctitle
-from sqlalchemy import delete, exc, func, or_, select
+from sqlalchemy import delete, func, or_, select
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
@@ -39,12 +39,14 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskNotFound
-from airflow.models import SlaMiss, errors
-from airflow.models.dag import DagModel
+from airflow.models import SlaMiss
+from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.dagwarning import DagWarning, DagWarningType
-from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.errors import ParseImportError
+from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.taskinstance import TaskInstance, TaskInstance as TI
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.email import get_email_address_list, send_email
@@ -62,7 +64,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.callbacks.callback_requests import CallbackRequest
-    from airflow.models.dag import DAG
     from airflow.models.operator import Operator
 
 
@@ -177,7 +178,7 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
                 # gets sent to logs and logs are sent to stdout, this leads to an infinite loop. This
                 # necessitates this conditional based on the value of DAG_PROCESSOR_LOG_TARGET.
                 with redirect_stdout(StreamLogWriter(log, logging.INFO)), redirect_stderr(
-                    StreamLogWriter(log, logging.WARN)
+                    StreamLogWriter(log, logging.WARNING)
                 ), Stats.timer() as timer:
                     _handle_dag_file_processing()
             log.info("Processing %s took %.3f seconds", file_path, timer.duration)
@@ -478,7 +479,6 @@ class DagFileProcessor(LoggingMixin):
                 if (ti.dag_id, ti.task_id, next_info.logical_date) in recorded_slas_query:
                     continue
                 if next_info.logical_date + task.sla < ts:
-
                     sla_miss = SlaMiss(
                         task_id=ti.task_id,
                         dag_id=ti.dag_id,
@@ -593,7 +593,10 @@ class DagFileProcessor(LoggingMixin):
     @internal_api_call
     @provide_session
     def update_import_errors(
-        file_last_changed: dict[str, datetime], import_errors: dict[str, str], session: Session = NEW_SESSION
+        file_last_changed: dict[str, datetime],
+        import_errors: dict[str, str],
+        processor_subdir: str | None,
+        session: Session = NEW_SESSION,
     ) -> None:
         """
         Update any import errors to be displayed in the UI.
@@ -611,24 +614,29 @@ class DagFileProcessor(LoggingMixin):
         # that no longer have errors
         for dagbag_file in files_without_error:
             session.execute(
-                delete(errors.ImportError)
-                .where(errors.ImportError.filename.startswith(dagbag_file))
+                delete(ParseImportError)
+                .where(ParseImportError.filename.startswith(dagbag_file))
                 .execution_options(synchronize_session="fetch")
             )
 
         # files that still have errors
-        existing_import_error_files = [x.filename for x in session.query(errors.ImportError.filename).all()]
+        existing_import_error_files = [x.filename for x in session.query(ParseImportError.filename).all()]
 
         # Add the errors of the processed files
         for filename, stacktrace in import_errors.items():
             if filename in existing_import_error_files:
-                session.query(errors.ImportError).filter(errors.ImportError.filename == filename).update(
+                session.query(ParseImportError).filter(ParseImportError.filename == filename).update(
                     {"filename": filename, "timestamp": timezone.utcnow(), "stacktrace": stacktrace},
                     synchronize_session="fetch",
                 )
             else:
                 session.add(
-                    errors.ImportError(filename=filename, timestamp=timezone.utcnow(), stacktrace=stacktrace)
+                    ParseImportError(
+                        filename=filename,
+                        timestamp=timezone.utcnow(),
+                        stacktrace=stacktrace,
+                        processor_subdir=processor_subdir,
+                    )
                 )
             (
                 session.query(DagModel)
@@ -736,25 +744,28 @@ class DagFileProcessor(LoggingMixin):
     @provide_session
     def _execute_dag_callbacks(self, dagbag: DagBag, request: DagCallbackRequest, session: Session):
         dag = dagbag.dags[request.dag_id]
-        dag_run = dag.get_dagrun(run_id=request.run_id, session=session)
-        dag.handle_callback(
-            dagrun=dag_run, success=not request.is_failure_callback, reason=request.msg, session=session
-        )
+        callbacks, context = DAG.fetch_callback(
+            dag=dag,
+            dag_run_id=request.run_id,
+            success=not request.is_failure_callback,
+            reason=request.msg,
+            session=session,
+        ) or (None, None)
+
+        if callbacks and context:
+            DAG.execute_callback(callbacks, context, dag.dag_id)
 
     def _execute_task_callbacks(self, dagbag: DagBag | None, request: TaskCallbackRequest, session: Session):
         if not request.is_failure_callback:
             return
 
         simple_ti = request.simple_task_instance
-        ti: TI | None = (
-            session.query(TI)
-            .filter_by(
-                dag_id=simple_ti.dag_id,
-                run_id=simple_ti.run_id,
-                task_id=simple_ti.task_id,
-                map_index=simple_ti.map_index,
-            )
-            .one_or_none()
+        ti = TaskInstance.get_task_instance(
+            dag_id=simple_ti.dag_id,
+            run_id=simple_ti.run_id,
+            task_id=simple_ti.task_id,
+            map_index=simple_ti.map_index,
+            session=session,
         )
         if not ti:
             return
@@ -770,14 +781,10 @@ class DagFileProcessor(LoggingMixin):
             # `handle_failure` so that the state of the TI gets progressed.
             #
             # Since handle_failure _really_ wants a task, we do our best effort to give it one
-            from airflow.models.serialized_dag import SerializedDagModel
+            task = SerializedDagModel.get_serialized_dag(
+                dag_id=simple_ti.dag_id, task_id=simple_ti.task_id, session=session
+            )
 
-            try:
-                model = session.get(SerializedDagModel, simple_ti.dag_id)
-                if model:
-                    task = model.dag.get_task(simple_ti.task_id)
-            except (exc.NoResultFound, TaskNotFound):
-                pass
         if task:
             ti.refresh_from_task(task)
 
@@ -831,12 +838,13 @@ class DagFileProcessor(LoggingMixin):
             return 0, 0
 
         if dagbag.dags:
-            self.log.info("DAG(s) %s retrieved from %s", dagbag.dags.keys(), file_path)
+            self.log.info("DAG(s) %s retrieved from %s", ", ".join(map(repr, dagbag.dags)), file_path)
         else:
             self.log.warning("No viable dags retrieved from %s", file_path)
             DagFileProcessor.update_import_errors(
                 file_last_changed=dagbag.file_last_changed,
                 import_errors=dagbag.import_errors,
+                processor_subdir=self._dag_directory,
                 session=session,
             )
             if callback_requests:
@@ -862,6 +870,7 @@ class DagFileProcessor(LoggingMixin):
             DagFileProcessor.update_import_errors(
                 file_last_changed=dagbag.file_last_changed,
                 import_errors=dagbag.import_errors,
+                processor_subdir=self._dag_directory,
                 session=session,
             )
         except Exception:
@@ -884,7 +893,6 @@ class DagFileProcessor(LoggingMixin):
         pickle_dags: bool = False,
         session=NEW_SESSION,
     ):
-
         import_errors = DagBag._sync_to_db(dags=dags, processor_subdir=dag_directory, session=session)
         session.commit()
 

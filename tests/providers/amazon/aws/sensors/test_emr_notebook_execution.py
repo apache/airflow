@@ -65,12 +65,13 @@ class TestEmrNotebookExecutionSensor:
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.conn")
     def test_emr_notebook_execution_sensor_success_state_multiple(self, mock_conn):
         return_values = [self._generate_response("PENDING") for i in range(2)]
-        return_values = return_values.append(self._generate_response("FINISHED"))
-        mock_conn.describe_notebook_execution.side_effects = return_values
+        return_values.append(self._generate_response("FINISHED"))
+        mock_conn.describe_notebook_execution.side_effect = return_values
         sensor = EmrNotebookExecutionSensor(
             task_id="test_task",
             poke_interval=0,
             notebook_execution_id="test-execution-id",
         )
-        sensor.poke(None)
-        mock_conn.describe_notebook_execution.call_count == 3
+        while not sensor.poke(None):
+            pass
+        assert mock_conn.describe_notebook_execution.call_count == 3

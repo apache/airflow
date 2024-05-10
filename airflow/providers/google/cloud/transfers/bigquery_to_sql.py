@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Base operator for BigQuery to SQL operators."""
+
 from __future__ import annotations
 
 import abc
@@ -68,6 +69,8 @@ class BigQueryToSqlBaseOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "target_table_name",
         "impersonation_chain",
+        "dataset_id",
+        "table_id",
     )
 
     def __init__(
@@ -82,6 +85,8 @@ class BigQueryToSqlBaseOperator(BaseOperator):
         batch_size: int = 1000,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        dataset_id: str | None = None,
+        table_id: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -93,6 +98,8 @@ class BigQueryToSqlBaseOperator(BaseOperator):
         self.batch_size = batch_size
         self.location = location
         self.impersonation_chain = impersonation_chain
+        self.dataset_id = dataset_id
+        self.table_id = table_id
         try:
             self.dataset_id, self.table_id = dataset_table.split(".")
         except ValueError:
@@ -103,7 +110,7 @@ class BigQueryToSqlBaseOperator(BaseOperator):
         """Return a concrete SQL Hook (a PostgresHook for instance)."""
 
     def persist_links(self, context: Context) -> None:
-        """This function persists the connection to the SQL provider."""
+        """Persist the connection to the SQL provider."""
 
     def execute(self, context: Context) -> None:
         big_query_hook = BigQueryHook(
@@ -126,4 +133,5 @@ class BigQueryToSqlBaseOperator(BaseOperator):
                 rows=rows,
                 target_fields=self.selected_fields,
                 replace=self.replace,
+                commit_every=self.batch_size,
             )

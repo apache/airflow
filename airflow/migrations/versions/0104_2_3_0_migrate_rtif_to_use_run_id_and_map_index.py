@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Migrate RTIF to use run_id and map_index
+"""Migrate RTIF to use run_id and map_index.
 
 Revision ID: 4eaab2fe6582
 Revises: c97c2ab6aa23
 Create Date: 2022-03-03 17:48:29.955821
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -99,7 +100,7 @@ def _multi_table_update(dialect_name, target, column):
     if dialect_name == "sqlite":
         # Most SQLite versions don't support multi table update (and SQLA doesn't know about it anyway), so we
         # need to do a Correlated subquery update
-        sub_q = select(dag_run.c[column.name]).where(condition)
+        sub_q = select(dag_run.c[column.name]).where(condition).scalar_subquery()
 
         return target.update().values({column: sub_q})
     else:

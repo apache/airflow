@@ -1,0 +1,189 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: Unit tests
+on:  # yamllint disable-line rule:truthy
+  workflow_call:
+    inputs:
+      runs-on-as-json-default:
+        description: "The array of labels (in json form) determining default runner used for the build."
+        required: true
+        type: string
+      backend:
+        description: "The backend to run the tests on"
+        required: true
+        type: string
+      test-scope:
+        description: "The scope of the test to run: ('DB', 'Non-DB', 'All', 'ARM collection')"
+        required: true
+        type: string
+      test-name:
+        description: "The name of the test to run"
+        required: true
+        type: string
+      test-name-separator:
+        description: "The separator to use after the test name"
+        required: false
+        default: ":"
+        type: string
+      image-tag:
+        description: "Tag to set for the image"
+        required: true
+        type: string
+      python-versions:
+        description: "The list of python versions (stringified JSON array) to run the tests on."
+        required: true
+        type: string
+      backend-versions:
+        description: "The list of backend versions (stringified JSON array) to run the tests on."
+        required: true
+        type: string
+      excludes:
+        description: "Excluded combos (stringified JSON array of python-version/backend-version dicts)"
+        required: true
+        type: string
+      parallel-test-types-list-as-string:
+        description: "The list of parallel test types to run separated by spaces"
+        required: true
+        type: string
+      run-migration-tests:
+        description: "Whether to run migration tests or not (true/false)"
+        required: false
+        default: "false"
+        type: string
+      run-coverage:
+        description: "Whether to run coverage or not (true/false)"
+        required: true
+        type: string
+      debug-resources:
+        description: "Whether to debug resources or not (true/false)"
+        required: true
+        type: string
+      include-success-outputs:
+        description: "Whether to include success outputs or not (true/false)"
+        required: false
+        default: "false"
+        type: string
+      downgrade-sqlalchemy:
+        description: "Whether to downgrade SQLAlchemy or not (true/false)"
+        required: false
+        default: "false"
+        type: string
+      upgrade-boto:
+        description: "Whether to upgrade boto or not (true/false)"
+        required: false
+        default: "false"
+        type: string
+      pydantic:
+        description: "The version of pydantic to use"
+        required: false
+        default: "v2"
+        type: string
+      downgrade-pendulum:
+        description: "Whether to downgrade pendulum or not (true/false)"
+        required: false
+        default: "false"
+        type: string
+      enable-aip-44:
+        description: "Whether to enable AIP-44 or not (true/false)"
+        required: false
+        default: "true"
+        type: string
+jobs:
+  tests:
+    timeout-minutes: 120
+    name: "\
+      ${{ inputs.test-scope }}:\
+      ${{ inputs.test-name }}${{ inputs.test-name-separator }}${{ matrix.backend-version }}:\
+      ${{matrix.python-version}}: ${{ inputs.parallel-test-types-list-as-string }}"
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: "${{fromJSON(inputs.python-versions)}}"
+        backend-version: "${{fromJSON(inputs.backend-versions)}}"
+        exclude: "${{fromJSON(inputs.excludes)}}"
+    env:
+      # yamllint disable rule:line-length
+      AIRFLOW_ENABLE_AIP_44: "${{ inputs.enable-aip-44 }}"
+      BACKEND: "${{ inputs.backend }}"
+      BACKEND_VERSION: "${{ matrix.backend-version }}"
+      DB_RESET: "true"
+      DEBUG_RESOURCES: "${{ inputs.debug-resources }}"
+      DOWNGRADE_SQLALCHEMY: "${{ inputs.downgrade-sqlalchemy }}"
+      DOWNGRADE_PENDULUM: "${{ inputs.downgrade-pendulum }}"
+      ENABLE_COVERAGE: "${{ inputs.run-coverage }}"
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      IMAGE_TAG: "${{ inputs.image-tag }}"
+      INCLUDE_SUCCESS_OUTPUTS: ${{ inputs.include-success-outputs }}
+      # yamllint disable rule:line-length
+      JOB_ID: "${{ inputs.test-scope }}-${{ inputs.test-name }}-${{inputs.backend}}-${{ matrix.backend-version }}-${{ matrix.python-version }}"
+      MOUNT_SOURCES: "skip"
+      PARALLEL_TEST_TYPES: "${{ inputs.parallel-test-types-list-as-string }}"
+      PYDANTIC: "${{ inputs.pydantic }}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
+      UPGRADE_BOTO: "${{ inputs.upgrade-boto }}"
+      VERBOSE: "true"
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Prepare breeze & CI image: ${{matrix.python-version}}:${{ inputs.image-tag }}"
+        uses: ./.github/actions/prepare_breeze_and_image
+      - name: >
+          Migration Tests:
+          ${{ matrix.python-version }}:${{ inputs.parallel-test-types-list-as-string }}
+        uses: ./.github/actions/migration_tests
+        if: inputs.run-migration-tests == 'true'
+      - name: >
+          ${{ inputs.test-scope }} Tests ${{ inputs.test-name }} ${{ matrix.backend-version }}
+          Py${{ matrix.python-version }}:${{ inputs.parallel-test-types-list-as-string}}
+        run: |
+          if [[ "${{ inputs.test-scope }}" == "DB" ]]; then
+            breeze testing db-tests \
+              --parallel-test-types "${{ inputs.parallel-test-types-list-as-string }}"
+          elif [[ "${{ inputs.test-scope }}" == "Non-DB" ]]; then
+            breeze testing non-db-tests \
+              --parallel-test-types "${{ inputs.parallel-test-types-list-as-string }}"
+          elif [[ "${{ inputs.test-scope }}" == "All" ]]; then
+            breeze testing tests --run-in-parallel \
+              --parallel-test-types "${{ inputs.parallel-test-types-list-as-string }}"
+          elif [[ "${{ inputs.test-scope }}" == "Quarantined" ]]; then
+            breeze testing tests --test-type "All-Quarantined" || true
+          elif [[ "${{ inputs.test-scope }}" == "ARM collection" ]]; then
+            breeze testing tests --collect-only --remove-arm-packages
+          elif [[ "${{ inputs.test-scope }}" == "System" ]]; then
+            breeze testing tests tests/system/example_empty.py --system core
+          else
+            echo "Unknown test scope: ${{ inputs.test-scope }}"
+            exit 1
+          fi
+      - name: "Post Tests success"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: "Post Tests failure"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()

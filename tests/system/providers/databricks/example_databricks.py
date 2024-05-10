@@ -30,13 +30,19 @@ The definition of a successful run is if the run has a result_state of "SUCCESS"
 For more information about the state of a run refer to
 https://docs.databricks.com/api/latest/jobs.html#runstate
 """
+
 from __future__ import annotations
 
 import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.databricks.operators.databricks import DatabricksSubmitRunOperator
+from airflow.providers.databricks.operators.databricks import (
+    DatabricksCreateJobsOperator,
+    DatabricksNotebookOperator,
+    DatabricksRunNowOperator,
+    DatabricksSubmitRunOperator,
+)
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_databricks_operator"
@@ -48,6 +54,69 @@ with DAG(
     tags=["example"],
     catchup=False,
 ) as dag:
+    # [START howto_operator_databricks_jobs_create_json]
+    # Example of using the JSON parameter to initialize the operator.
+    job = {
+        "tasks": [
+            {
+                "task_key": "test",
+                "job_cluster_key": "job_cluster",
+                "notebook_task": {
+                    "notebook_path": "/Shared/test",
+                },
+            },
+        ],
+        "job_clusters": [
+            {
+                "job_cluster_key": "job_cluster",
+                "new_cluster": {
+                    "spark_version": "7.3.x-scala2.12",
+                    "node_type_id": "i3.xlarge",
+                    "num_workers": 2,
+                },
+            },
+        ],
+    }
+
+    jobs_create_json = DatabricksCreateJobsOperator(task_id="jobs_create_json", json=job)
+    # [END howto_operator_databricks_jobs_create_json]
+
+    # [START howto_operator_databricks_jobs_create_named]
+    # Example of using the named parameters to initialize the operator.
+    tasks = [
+        {
+            "task_key": "test",
+            "job_cluster_key": "job_cluster",
+            "notebook_task": {
+                "notebook_path": "/Shared/test",
+            },
+        },
+    ]
+    job_clusters = [
+        {
+            "job_cluster_key": "job_cluster",
+            "new_cluster": {
+                "spark_version": "7.3.x-scala2.12",
+                "node_type_id": "i3.xlarge",
+                "num_workers": 2,
+            },
+        },
+    ]
+
+    jobs_create_named = DatabricksCreateJobsOperator(
+        task_id="jobs_create_named", tasks=tasks, job_clusters=job_clusters
+    )
+    # [END howto_operator_databricks_jobs_create_named]
+
+    # [START howto_operator_databricks_run_now]
+    # Example of using the DatabricksRunNowOperator after creating a job with DatabricksCreateJobsOperator.
+    run_now = DatabricksRunNowOperator(
+        task_id="run_now", job_id="{{ ti.xcom_pull(task_ids='jobs_create_named') }}"
+    )
+
+    jobs_create_named >> run_now
+    # [END howto_operator_databricks_run_now]
+
     # [START howto_operator_databricks_json]
     # Example of using the JSON parameter to initialize the operator.
     new_cluster = {
@@ -78,6 +147,59 @@ with DAG(
     )
     # [END howto_operator_databricks_named]
     notebook_task >> spark_jar_task
+
+    # [START howto_operator_databricks_notebook_new_cluster]
+    new_cluster_spec = {
+        "cluster_name": "",
+        "spark_version": "11.3.x-scala2.12",
+        "aws_attributes": {
+            "first_on_demand": 1,
+            "availability": "SPOT_WITH_FALLBACK",
+            "zone_id": "us-east-2b",
+            "spot_bid_price_percent": 100,
+            "ebs_volume_count": 0,
+        },
+        "node_type_id": "i3.xlarge",
+        "spark_env_vars": {"PYSPARK_PYTHON": "/databricks/python3/bin/python3"},
+        "enable_elastic_disk": False,
+        "data_security_mode": "LEGACY_SINGLE_USER_STANDARD",
+        "runtime_engine": "STANDARD",
+        "num_workers": 8,
+    }
+
+    notebook_1 = DatabricksNotebookOperator(
+        task_id="notebook_1",
+        notebook_path="/Shared/Notebook_1",
+        notebook_packages=[
+            {
+                "pypi": {
+                    "package": "simplejson==3.18.0",
+                    "repo": "https://pypi.org/simple",
+                }
+            },
+            {"pypi": {"package": "Faker"}},
+        ],
+        source="WORKSPACE",
+        new_cluster=new_cluster_spec,
+    )
+    # [END howto_operator_databricks_notebook_new_cluster]
+
+    # [START howto_operator_databricks_notebook_existing_cluster]
+    notebook_2 = DatabricksNotebookOperator(
+        task_id="notebook_2",
+        notebook_path="/Shared/Notebook_2",
+        notebook_packages=[
+            {
+                "pypi": {
+                    "package": "simplejson==3.18.0",
+                    "repo": "https://pypi.org/simple",
+                }
+            },
+        ],
+        source="WORKSPACE",
+        existing_cluster_id="existing_cluster_id",
+    )
+    # [END howto_operator_databricks_notebook_existing_cluster]
 
     from tests.system.utils.watcher import watcher
 

@@ -20,16 +20,23 @@ from airflow.providers.amazon.aws.triggers.athena import AthenaTrigger
 
 
 class TestAthenaTrigger:
-    def test_serialize_recreate(self):
-        trigger = AthenaTrigger("query_id", 1, 5, "aws connection")
+    def test_serialization(self):
+        query_execution_id = "test_query_execution_id"
+        waiter_delay = 30
+        waiter_max_attempts = 60
+        aws_conn_id = "aws_default"
 
-        class_path, args = trigger.serialize()
-
-        class_name = class_path.split(".")[-1]
-        clazz = globals()[class_name]
-        instance = clazz(**args)
-
-        class_path2, args2 = instance.serialize()
-
-        assert class_path == class_path2
-        assert args == args2
+        trigger = AthenaTrigger(
+            query_execution_id=query_execution_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.amazon.aws.triggers.athena.AthenaTrigger"
+        assert kwargs == {
+            "query_execution_id": "test_query_execution_id",
+            "waiter_delay": 30,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+        }

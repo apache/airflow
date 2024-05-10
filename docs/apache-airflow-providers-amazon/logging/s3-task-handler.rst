@@ -63,7 +63,7 @@ This step is creating IAM role and service account using `eksctl <https://eksctl
 Also, note that this example is using managed policy with full S3 permissions attached to the IAM role. This is only used for testing purpose.
 We highly recommend you to create a restricted S3 IAM policy and use it with ``--attach-policy-arn``.
 
-Alternatively, you can use other IaC tools like Terraform. For deploying Airflow with Terraform including IRSA. Checkout this example `link <https://github.com/awslabs/data-on-eks/tree/main/schedulers/self-managed-airflow>`_.
+Alternatively, you can use other IaC tools like Terraform. For deploying Airflow with Terraform including IRSA. Checkout this example `link <https://github.com/awslabs/data-on-eks/tree/main/schedulers/terraform/self-managed-airflow>`_.
 
 Execute the following command by providing all the necessary inputs.
 
@@ -76,6 +76,12 @@ Example with sample inputs
 .. code-block:: bash
 
     eksctl create iamserviceaccount --cluster=airflow-eks-cluster --name=airflow-sa --namespace=airflow --attach-policy-arn=arn:aws:iam::aws:policy/AmazonS3FullAccess --approve
+
+If you create your own IAM policy (as is strongly recommended), it should include the following permissions.
+
+- ``s3:ListBucket`` (for the S3 bucket to which logs are written)
+- ``s3:GetObject`` (for all objects in the prefix under which logs are written)
+- ``s3:PutObject`` (for all objects in the prefix under which logs are written)
 
 
 Step2: Update Helm Chart values.yaml with Service Account

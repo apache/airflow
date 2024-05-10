@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Interact with AWS DataSync, using the AWS ``boto3`` library."""
+
 from __future__ import annotations
 
 import time
@@ -57,9 +58,10 @@ class DataSyncHook(AwsBaseHook):
         self.locations: list = []
         self.tasks: list = []
         # wait_interval_seconds = 0 is used during unit tests
-        if wait_interval_seconds < 0 or wait_interval_seconds > 15 * 60:
+        if 0 <= wait_interval_seconds <= 15 * 60:
+            self.wait_interval_seconds = wait_interval_seconds
+        else:
             raise ValueError(f"Invalid wait_interval_seconds {wait_interval_seconds}")
-        self.wait_interval_seconds = wait_interval_seconds
 
     def create_location(self, location_uri: str, **create_location_kwargs) -> str:
         """

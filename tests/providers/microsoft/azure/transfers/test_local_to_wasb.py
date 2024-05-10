@@ -27,7 +27,6 @@ from airflow.providers.microsoft.azure.transfers.local_to_wasb import LocalFiles
 
 
 class TestLocalFilesystemToWasbOperator:
-
     _config = {
         "file_path": "file",
         "container_name": "container",

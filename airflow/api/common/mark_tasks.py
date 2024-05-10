@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Marks tasks APIs."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Collection, Iterable, Iterator, NamedTuple
@@ -157,10 +158,6 @@ def set_state(
             qry_sub_dag = all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates)
             tis_altered += session.scalars(qry_sub_dag.with_for_update()).all()
         for task_instance in tis_altered:
-            # The try_number was decremented when setting to up_for_reschedule and deferred.
-            # Increment it back when changing the state again
-            if task_instance.state in (TaskInstanceState.DEFERRED, TaskInstanceState.UP_FOR_RESCHEDULE):
-                task_instance._try_number += 1
             task_instance.set_state(state, session=session)
         session.flush()
     else:
@@ -366,11 +363,6 @@ def _set_dag_run_state(dag_id: str, run_id: str, state: DagRunState, session: SA
         select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
     ).scalar_one()
     dag_run.state = state
-    if state == DagRunState.RUNNING:
-        dag_run.start_date = timezone.utcnow()
-        dag_run.end_date = None
-    else:
-        dag_run.end_date = timezone.utcnow()
     session.merge(dag_run)
 
 
@@ -541,14 +533,13 @@ def __set_dag_run_state_to_running_or_queued(
     """
     res: list[TaskInstance] = []
 
-    if not (execution_date is None) ^ (run_id is None):
+    if not exactly_one(execution_date, run_id):
         return res
 
     if not dag:
         return res
 
     if execution_date:
-
         if not timezone.is_localized(execution_date):
             raise ValueError(f"Received non-localized date {execution_date}")
         dag_run = dag.get_dagrun(execution_date=execution_date)

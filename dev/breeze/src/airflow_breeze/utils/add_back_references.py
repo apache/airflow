@@ -93,6 +93,9 @@ def create_back_reference_html(back_ref_url: str, target_path: Path):
 
 
 def generate_back_references(link: str, base_path: Path):
+    if not base_path.exists():
+        get_console().print("[blue]The provider is not yet released.Skipping.")
+        return
     is_downloaded, file_name = download_file(link)
     if not is_downloaded:
         old_to_new: list[tuple[str, str]] = []
@@ -125,22 +128,25 @@ def generate_back_references(link: str, base_path: Path):
                 create_back_reference_html(relative_path, dest_file_path)
 
 
-def start_generating_back_references(airflow_site_directory: Path, short_provider_package_ids: list[str]):
+def start_generating_back_references(airflow_site_directory: Path, short_provider_ids: list[str]):
     docs_archive_path = airflow_site_directory / "docs-archive"
     airflow_docs_path = docs_archive_path / "apache-airflow"
     helm_docs_path = docs_archive_path / "helm-chart"
-    if "apache-airflow" in short_provider_package_ids:
+    if "apache-airflow" in short_provider_ids:
         generate_back_references(airflow_redirects_link, airflow_docs_path)
-        short_provider_package_ids.remove("apache-airflow")
-    if "helm-chart" in short_provider_package_ids:
+        short_provider_ids.remove("apache-airflow")
+    if "helm-chart" in short_provider_ids:
         generate_back_references(helm_redirects_link, helm_docs_path)
-        short_provider_package_ids.remove("helm-chart")
-    if "docker-stack" in short_provider_package_ids:
+        short_provider_ids.remove("helm-chart")
+    if "docker-stack" in short_provider_ids:
         get_console().print("[info]Skipping docker-stack package. No back-reference needed.")
-        short_provider_package_ids.remove("docker-stack")
-    if short_provider_package_ids:
+        short_provider_ids.remove("docker-stack")
+    if "apache-airflow-providers" in short_provider_ids:
+        get_console().print("[info]Skipping apache-airflow-providers package. No back-reference needed.")
+        short_provider_ids.remove("apache-airflow-providers")
+    if short_provider_ids:
         all_providers = [
-            f"apache-airflow-providers-{package.replace('.','-')}" for package in short_provider_package_ids
+            f"apache-airflow-providers-{package.replace('.','-')}" for package in short_provider_ids
         ]
         for p in all_providers:
             get_console().print(f"Processing airflow provider: {p}")

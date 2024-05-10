@@ -41,7 +41,7 @@ log = logging.getLogger(__name__)
 
 def return_on_error(return_value: RT):
     """
-    Helper decorator which suppress any ``Exception`` raised in decorator function.
+    Suppress any ``Exception`` raised in decorator function.
 
     Main use-case when functional is optional, however any error on functions/methods might
     raise any error which are subclass of ``Exception``.

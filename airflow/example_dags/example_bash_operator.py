@@ -16,13 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """Example DAG demonstrating the usage of the BashOperator."""
+
 from __future__ import annotations
 
 import datetime
 
 import pendulum
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 
@@ -42,7 +43,7 @@ with DAG(
     # [START howto_operator_bash]
     run_this = BashOperator(
         task_id="run_after_loop",
-        bash_command="echo 1",
+        bash_command="ls -alh --color=always / && echo https://airflow.apache.org/  && echo 'some <code>html</code>'",
     )
     # [END howto_operator_bash]
 

@@ -18,8 +18,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow import DAG
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerCreateNotebookOperator,
     SageMakerDeleteNotebookOperator,
@@ -42,7 +42,6 @@ with DAG(
     tags=["example"],
     catchup=False,
 ) as dag:
-
     test_context = sys_test_context_task()
 
     instance_name: str = f"{test_context[ENV_ID_KEY]}-test-notebook"

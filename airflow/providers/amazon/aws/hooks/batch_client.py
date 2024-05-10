@@ -24,11 +24,12 @@ A client for AWS Batch services.
     - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/batch.html
     - https://docs.aws.amazon.com/batch/latest/APIReference/Welcome.html
 """
+
 from __future__ import annotations
 
 import itertools
-from random import uniform
-from time import sleep
+import random
+import time
 from typing import TYPE_CHECKING, Callable
 
 import botocore.client
@@ -396,6 +397,8 @@ class BatchClientHook(AwsBaseHook):
             try:
                 response = self.get_conn().describe_jobs(jobs=[job_id])
                 return self.parse_job_description(job_id, response)
+            except AirflowException as err:
+                self.log.warning(err)
             except botocore.exceptions.ClientError as err:
                 # Allow it to retry in case of exceeded quota limit of requests to AWS API
                 if err.response.get("Error", {}).get("Code") != "TooManyRequestsException":
@@ -438,7 +441,7 @@ class BatchClientHook(AwsBaseHook):
             return None
         if len(all_info) > 1:
             self.log.warning(
-                f"AWS Batch job ({job_id}) has more than one log stream, only returning the first one."
+                "AWS Batch job (%s) has more than one log stream, only returning the first one.", job_id
             )
         return all_info[0]
 
@@ -474,7 +477,7 @@ class BatchClientHook(AwsBaseHook):
         # If the user selected another logDriver than "awslogs", then CloudWatch logging is disabled.
         if any(c.get("logDriver", "awslogs") != "awslogs" for c in log_configs):
             self.log.warning(
-                f"AWS Batch job ({job_id}) uses non-aws log drivers. AWS CloudWatch logging disabled."
+                "AWS Batch job (%s) uses non-aws log drivers. AWS CloudWatch logging disabled.", job_id
             )
             return []
 
@@ -482,7 +485,7 @@ class BatchClientHook(AwsBaseHook):
             # If this method is called very early after starting the AWS Batch job,
             # there is a possibility that the AWS CloudWatch Stream Name would not exist yet.
             # This can also happen in case of misconfiguration.
-            self.log.warning(f"AWS Batch job ({job_id}) doesn't have any AWS CloudWatch Stream.")
+            self.log.warning("AWS Batch job (%s) doesn't have any AWS CloudWatch Stream.", job_id)
             return []
 
         # Try to get user-defined log configuration options
@@ -529,7 +532,7 @@ class BatchClientHook(AwsBaseHook):
         minima = abs(minima)
         lower = max(minima, delay - width)
         upper = delay + width
-        return uniform(lower, upper)
+        return random.uniform(lower, upper)
 
     @staticmethod
     def delay(delay: int | float | None = None) -> None:
@@ -546,10 +549,10 @@ class BatchClientHook(AwsBaseHook):
             when many concurrent tasks request job-descriptions.
         """
         if delay is None:
-            delay = uniform(BatchClientHook.DEFAULT_DELAY_MIN, BatchClientHook.DEFAULT_DELAY_MAX)
+            delay = random.uniform(BatchClientHook.DEFAULT_DELAY_MIN, BatchClientHook.DEFAULT_DELAY_MAX)
         else:
             delay = BatchClientHook.add_jitter(delay)
-        sleep(delay)
+        time.sleep(delay)
 
     @staticmethod
     def exponential_delay(tries: int) -> float:
@@ -594,4 +597,4 @@ class BatchClientHook(AwsBaseHook):
         max_interval = 600.0  # results in 3 to 10 minute delay
         delay = 1 + pow(tries * 0.6, 2)
         delay = min(max_interval, delay)
-        return uniform(delay / 3, delay)
+        return random.uniform(delay / 3, delay)

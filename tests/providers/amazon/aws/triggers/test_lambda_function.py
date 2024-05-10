@@ -16,39 +16,33 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
-
 from airflow.providers.amazon.aws.triggers.lambda_function import LambdaCreateFunctionCompleteTrigger
 
-TEST_FUNCTION_NAME = "test-function-name"
-TEST_FUNCTION_ARN = "test-function-arn"
-TEST_WAITER_DELAY = 10
-TEST_WAITER_MAX_ATTEMPTS = 10
-TEST_AWS_CONN_ID = "test-conn-id"
-TEST_REGION_NAME = "test-region-name"
 
+class TestLambdaCreateFunctionCompleteTrigger:
+    def test_serialization(self):
+        function_name = "test_function_name"
+        function_arn = "test_function_arn"
+        waiter_delay = 60
+        waiter_max_attempts = 30
+        aws_conn_id = "aws_default"
 
-class TestLambdaFunctionTriggers:
-    @pytest.mark.parametrize(
-        "trigger",
-        [
-            LambdaCreateFunctionCompleteTrigger(
-                function_name=TEST_FUNCTION_NAME,
-                function_arn=TEST_FUNCTION_ARN,
-                aws_conn_id=TEST_AWS_CONN_ID,
-                waiter_delay=TEST_WAITER_DELAY,
-                waiter_max_attempts=TEST_WAITER_MAX_ATTEMPTS,
-            )
-        ],
-    )
-    def test_serialize_recreate(self, trigger):
-        class_path, args = trigger.serialize()
-
-        class_name = class_path.split(".")[-1]
-        clazz = globals()[class_name]
-        instance = clazz(**args)
-
-        class_path2, args2 = instance.serialize()
-
-        assert class_path == class_path2
-        assert args == args2
+        trigger = LambdaCreateFunctionCompleteTrigger(
+            function_name=function_name,
+            function_arn=function_arn,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+        classpath, kwargs = trigger.serialize()
+        assert (
+            classpath
+            == "airflow.providers.amazon.aws.triggers.lambda_function.LambdaCreateFunctionCompleteTrigger"
+        )
+        assert kwargs == {
+            "function_name": "test_function_name",
+            "function_arn": "test_function_arn",
+            "waiter_delay": 60,
+            "waiter_max_attempts": 30,
+            "aws_conn_id": "aws_default",
+        }

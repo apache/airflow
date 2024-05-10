@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import os
 import uuid
 from datetime import datetime
 
@@ -32,6 +31,7 @@ from airflow.providers.yandex.operators.yandexcloud_dataproc import (
 
 # Name of the datacenter where Dataproc cluster will be created
 from airflow.utils.trigger_rule import TriggerRule
+from tests.system.utils import get_test_env_id
 
 # should be filled with appropriate ids
 
@@ -41,7 +41,7 @@ AVAILABILITY_ZONE_ID = "ru-central1-c"
 # Dataproc cluster jobs will produce logs in specified s3 bucket
 S3_BUCKET_NAME_FOR_JOB_LOGS = ""
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = get_test_env_id()
 DAG_ID = "example_yandexcloud_dataproc_operator"
 
 with DAG(

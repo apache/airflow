@@ -21,9 +21,13 @@ import functools
 import json
 import logging
 from typing import TYPE_CHECKING, Any, Callable
+from uuid import uuid4
 
 from flask import Response
 
+from airflow.jobs.job import Job, most_recent_job
+from airflow.models.taskinstance import _get_template_context, _update_rtif
+from airflow.sensors.base import _orig_start_date
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils.session import create_session
 
@@ -35,14 +39,25 @@ log = logging.getLogger(__name__)
 
 @functools.lru_cache
 def _initialize_map() -> dict[str, Callable]:
+    from airflow.cli.commands.task_command import _get_ti_db_access
     from airflow.dag_processing.manager import DagFileProcessorManager
     from airflow.dag_processing.processor import DagFileProcessor
     from airflow.models import Trigger, Variable, XCom
-    from airflow.models.dag import DagModel
+    from airflow.models.dag import DAG, DagModel
+    from airflow.models.dagrun import DagRun
     from airflow.models.dagwarning import DagWarning
+    from airflow.models.serialized_dag import SerializedDagModel
+    from airflow.models.taskinstance import TaskInstance
     from airflow.secrets.metastore import MetastoreBackend
+    from airflow.utils.cli_action_loggers import _default_action_log_internal
+    from airflow.utils.log.file_task_handler import FileTaskHandler
 
     functions: list[Callable] = [
+        _default_action_log_internal,
+        _get_template_context,
+        _get_ti_db_access,
+        _update_rtif,
+        _orig_start_date,
         DagFileProcessor.update_import_errors,
         DagFileProcessor.manage_slas,
         DagFileProcessorManager.deactivate_stale_dags,
@@ -51,6 +66,13 @@ def _initialize_map() -> dict[str, Callable]:
         DagModel.get_current,
         DagFileProcessorManager.clear_nonexistent_import_errors,
         DagWarning.purge_inactive_dag_warnings,
+        FileTaskHandler._render_filename_db_access,
+        Job._add_to_db,
+        Job._fetch_from_db,
+        Job._kill,
+        Job._update_heartbeat,
+        Job._update_in_db,
+        most_recent_job,
         MetastoreBackend._fetch_connection,
         MetastoreBackend._fetch_variable,
         XCom.get_value,
@@ -60,6 +82,22 @@ def _initialize_map() -> dict[str, Callable]:
         Variable.set,
         Variable.update,
         Variable.delete,
+        DAG.fetch_callback,
+        DAG.fetch_dagrun,
+        DagRun.fetch_task_instances,
+        DagRun.get_previous_dagrun,
+        DagRun.get_previous_scheduled_dagrun,
+        DagRun.fetch_task_instance,
+        DagRun._get_log_template,
+        SerializedDagModel.get_serialized_dag,
+        TaskInstance._check_and_change_state_before_execution,
+        TaskInstance.get_task_instance,
+        TaskInstance._get_dagrun,
+        TaskInstance._set_state,
+        TaskInstance.fetch_handle_failure_context,
+        TaskInstance.save_to_db,
+        TaskInstance._schedule_downstream_tasks,
+        TaskInstance._clear_xcom_data,
         Trigger.from_object,
         Trigger.bulk_fetch,
         Trigger.clean_unused,
@@ -71,32 +109,36 @@ def _initialize_map() -> dict[str, Callable]:
     return {f"{func.__module__}.{func.__qualname__}": func for func in functions}
 
 
+def log_and_build_error_response(message, status):
+    error_id = uuid4()
+    server_message = message + f" error_id={error_id}"
+    log.exception(server_message)
+    client_message = message + f" The server side traceback may be identified with error_id={error_id}"
+    return Response(response=client_message, status=status)
+
+
 def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     """Handle Internal API /internal_api/v1/rpcapi endpoint."""
     log.debug("Got request")
     json_rpc = body.get("jsonrpc")
     if json_rpc != "2.0":
-        log.error("Not jsonrpc-2.0 request.")
-        return Response(response="Expected jsonrpc 2.0 request.", status=400)
+        return log_and_build_error_response(message="Expected jsonrpc 2.0 request.", status=400)
 
     methods_map = _initialize_map()
     method_name = body.get("method")
     if method_name not in methods_map:
-        log.error("Unrecognized method: %s.", method_name)
-        return Response(response=f"Unrecognized method: {method_name}.", status=400)
+        return log_and_build_error_response(message=f"Unrecognized method: {method_name}.", status=400)
 
     handler = methods_map[method_name]
     params = {}
     try:
         if body.get("params"):
-            params_json = json.loads(str(body.get("params")))
+            params_json = body.get("params")
             params = BaseSerialization.deserialize(params_json, use_pydantic_models=True)
-    except Exception as e:
-        log.error("Error when deserializing parameters for method: %s.", method_name)
-        log.exception(e)
-        return Response(response="Error deserializing parameters.", status=400)
+    except Exception:
+        return log_and_build_error_response(message="Error deserializing parameters.", status=400)
 
-    log.debug("Calling method %s.", method_name)
+    log.debug("Calling method %s\nparams: %s", method_name, params)
     try:
         # Session must be created there as it may be needed by serializer for lazy-loaded fields.
         with create_session() as session:
@@ -104,7 +146,5 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
             output_json = BaseSerialization.serialize(output, use_pydantic_models=True)
             response = json.dumps(output_json) if output_json is not None else None
             return Response(response=response, headers={"Content-Type": "application/json"})
-    except Exception as e:
-        log.error("Error executing method: %s.", method_name)
-        log.exception(e)
-        return Response(response=f"Error executing method: {method_name}.", status=500)
+    except Exception:
+        return log_and_build_error_response(message=f"Error executing method '{method_name}'.", status=500)

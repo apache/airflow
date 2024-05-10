@@ -20,7 +20,7 @@
 ################################
 ## Airflow Scheduler Deployment/StatefulSet
 #################################
-
+{{- if .Values.scheduler.enabled }}
 # Are we using a local executor?
 {{- $local := contains "Local" .Values.executor }}
 # Is persistence enabled on the _workers_?
@@ -42,7 +42,6 @@
 {{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values.scheduler.waitForMigrations) }}
 {{- $containerSecurityContextLogGroomerSidecar := include "containerSecurityContext" (list . .Values.scheduler.logGroomerSidecar) }}
 {{- $containerLifecycleHooks := or .Values.scheduler.containerLifecycleHooks .Values.containerLifecycleHooks }}
-{{- $containerLifecycleHooksWaitForMigrations := or .Values.scheduler.waitForMigrations.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerLifecycleHooksLogGroomerSidecar := or .Values.scheduler.logGroomerSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
 apiVersion: apps/v1
 kind: {{ if $stateful }}StatefulSet{{ else }}Deployment{{ end }}
@@ -109,6 +108,9 @@ spec:
       {{- if .Values.scheduler.priorityClassName }}
       priorityClassName: {{ .Values.scheduler.priorityClassName }}
       {{- end }}
+      {{- if .Values.schedulerName }}
+      schedulerName: {{ .Values.schedulerName }}
+      {{- end }}
       nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
       affinity:
         {{- if $affinity }}
@@ -143,9 +145,6 @@ spec:
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 12 }}
-          {{- if $containerLifecycleHooksWaitForMigrations  }}
-          lifecycle: {{- tpl (toYaml $containerLifecycleHooksWaitForMigrations) . | nindent 12 }}
-          {{- end }}
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if .Values.volumeMounts }}
@@ -266,6 +265,8 @@ spec:
           env:
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.scheduler.logGroomerSidecar.retentionDays }}"
+            - name: AIRFLOW_HOME
+              value: "{{ .Values.airflowHome }}"
           {{- end }}
           volumeMounts:
             - name: logs
@@ -281,7 +282,7 @@ spec:
             {{- end }}
           {{- end }}
         {{- if .Values.scheduler.extraContainers }}
-          {{- toYaml .Values.scheduler.extraContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.scheduler.extraContainers) . | nindent 8 }}
         {{- end }}
       volumes:
         - name: config
@@ -299,7 +300,7 @@ spec:
             claimName: {{ template "airflow_dags_volume_claim" . }}
         {{- else if .Values.dags.gitSync.enabled }}
         - name: dags
-          emptyDir: {}
+          emptyDir: {{- toYaml (default (dict) .Values.dags.gitSync.emptyDirConfig) | nindent 12 }}
         {{- if .Values.dags.gitSync.sshKeySecret }}
           {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
@@ -317,7 +318,7 @@ spec:
             claimName: {{ template "airflow_logs_volume_claim" . }}
   {{- else if not $stateful }}
         - name: logs
-          emptyDir: {}
+          emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }}
   {{- else }}
   volumeClaimTemplates:
     - metadata:
@@ -327,10 +328,11 @@ spec:
         {{- end }}
       spec:
       {{- if .Values.workers.persistence.storageClassName }}
-        storageClassName: {{ .Values.workers.persistence.storageClassName }}
+        storageClassName: {{ tpl .Values.workers.persistence.storageClassName . | quote }}
       {{- end }}
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
             storage: {{ .Values.workers.persistence.size }}
+  {{- end }}
   {{- end }}

@@ -16,15 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-import collections
 import functools
 import logging
+import sys
+from collections import defaultdict
 from typing import Iterator, Tuple
 
-try:
-    import importlib_metadata as metadata
-except ImportError:
-    from importlib import metadata  # type: ignore[no-redef]
+if sys.version_info >= (3, 12):
+    from importlib import metadata
+else:
+    import importlib_metadata as metadata  # type: ignore[no-redef]
 
 log = logging.getLogger(__name__)
 
@@ -33,7 +34,7 @@ EPnD = Tuple[metadata.EntryPoint, metadata.Distribution]
 
 @functools.lru_cache(maxsize=None)
 def _get_grouped_entry_points() -> dict[str, list[EPnD]]:
-    mapping: dict[str, list[EPnD]] = collections.defaultdict(list)
+    mapping: dict[str, list[EPnD]] = defaultdict(list)
     for dist in metadata.distributions():
         try:
             for e in dist.entry_points:

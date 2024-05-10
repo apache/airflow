@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Drive sensors."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
@@ -68,7 +69,6 @@ class GoogleDriveFileExistenceSensor(BaseSensorOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
         self.folder_id = folder_id
         self.file_name = file_name

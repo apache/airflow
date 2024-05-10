@@ -53,7 +53,7 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
         self.token_renewal_delta = token_renewal_delta
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes SnowflakeSqlApiTrigger arguments and classpath."""
+        """Serialize SnowflakeSqlApiTrigger arguments and classpath."""
         return (
             "airflow.providers.snowflake.triggers.snowflake_trigger.SnowflakeSqlApiTrigger",
             {

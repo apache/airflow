@@ -45,7 +45,6 @@ Take a look at the following snippet of code:
 
     # A DAG represents a workflow, a collection of tasks
     with DAG(dag_id="demo", start_date=datetime(2022, 1, 1), schedule="0 0 * * *") as dag:
-
         # Tasks are represented as operators
         hello = BashOperator(task_id="hello", bash_command="echo hello")
 
@@ -176,3 +175,10 @@ so coding will always be required.
 
     Database Migrations <migrations-ref>
     Database ERD Schema <database-erd-ref>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: System tests
+
+    System Tests <_api/tests/system/core/index>

@@ -51,11 +51,11 @@ def normalise_json_content(content, json_path: str = "json") -> str | bool | lis
 
 def validate_trigger_event(event: dict):
     """
-    Validates correctness of the event received from DatabricksExecutionTrigger.
+    Validate correctness of the event received from DatabricksExecutionTrigger.
 
     See: :class:`~airflow.providers.databricks.triggers.databricks.DatabricksExecutionTrigger`.
     """
-    keys_to_check = ["run_id", "run_page_url", "run_state"]
+    keys_to_check = ["run_id", "run_page_url", "run_state", "errors"]
     for key in keys_to_check:
         if key not in event:
             raise AirflowException(f"Could not find `{key}` in the event: {event}")

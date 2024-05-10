@@ -20,6 +20,7 @@ import asyncio
 from typing import Any, AsyncIterator, Sequence
 
 from airflow.providers.google.cloud.hooks.mlengine import MLEngineAsyncHook
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -45,7 +46,7 @@ class MLEngineStartTrainingJobTrigger(BaseTrigger):
         runtime_version: str | None = None,
         python_version: str | None = None,
         job_dir: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         labels: dict[str, str] | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -69,7 +70,7 @@ class MLEngineStartTrainingJobTrigger(BaseTrigger):
         self.impersonation_chain = impersonation_chain
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes MLEngineStartTrainingJobTrigger arguments and classpath."""
+        """Serialize MLEngineStartTrainingJobTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.mlengine.MLEngineStartTrainingJobTrigger",
             {
@@ -89,7 +90,7 @@ class MLEngineStartTrainingJobTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current job execution status and yields a TriggerEvent."""
+        """Get current job execution status and yields a TriggerEvent."""
         hook = self._get_async_hook()
         try:
             while True:
@@ -103,12 +104,14 @@ class MLEngineStartTrainingJobTrigger(BaseTrigger):
                             "message": "Job completed",
                         }
                     )
+                    return
                 elif response_from_hook == "pending":
                     self.log.info("Job is still running...")
                     self.log.info("Sleeping for %s seconds.", self.poll_interval)
                     await asyncio.sleep(self.poll_interval)
                 else:
                     yield TriggerEvent({"status": "error", "message": response_from_hook})
+                    return
 
         except Exception as e:
             self.log.exception("Exception occurred while checking for query completion")

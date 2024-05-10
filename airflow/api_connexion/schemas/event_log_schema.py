@@ -36,6 +36,7 @@ class EventLogSchema(SQLAlchemySchema):
     dttm = auto_field(data_key="when", dump_only=True)
     dag_id = auto_field(dump_only=True)
     task_id = auto_field(dump_only=True)
+    run_id = auto_field(dump_only=True)
     event = auto_field(dump_only=True)
     execution_date = auto_field(dump_only=True)
     owner = auto_field(dump_only=True)

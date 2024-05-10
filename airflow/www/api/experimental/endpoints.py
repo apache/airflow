@@ -24,7 +24,8 @@ from typing import TYPE_CHECKING, Callable, TypeVar, cast
 from flask import Blueprint, current_app, g, jsonify, request, url_for
 
 from airflow import models
-from airflow.api.common.experimental import delete_dag as delete, pool as pool_api, trigger_dag as trigger
+from airflow.api.common import delete_dag as delete, trigger_dag as trigger
+from airflow.api.common.experimental import pool as pool_api
 from airflow.api.common.experimental.get_code import get_code
 from airflow.api.common.experimental.get_dag_run_state import get_dag_run_state
 from airflow.api.common.experimental.get_dag_runs import get_dag_runs
@@ -46,7 +47,7 @@ T = TypeVar("T", bound=Callable)
 
 
 def requires_authentication(function: T):
-    """Decorator for functions that require authentication."""
+    """Mark a function as requiring authentication."""
 
     @wraps(function)
     def decorated(*args, **kwargs):
@@ -158,7 +159,7 @@ def delete_dag(dag_id):
 @requires_authentication
 def dag_runs(dag_id):
     """
-    Returns a list of Dag Runs for a specific DAG ID.
+    Return a list of Dag Runs for a specific DAG ID.
 
     :query param state: a query string parameter '?state=queued|running|success...'
 
@@ -209,7 +210,7 @@ def get_dag_code(dag_id):
 @api_experimental.route("/dags/<string:dag_id>/tasks/<string:task_id>", methods=["GET"])
 @requires_authentication
 def task_info(dag_id, task_id):
-    """Returns a JSON with a task's public instance variables."""
+    """Return a JSON with a task's public instance variables."""
     try:
         t_info = get_task(dag_id, task_id)
     except AirflowException as err:
@@ -227,7 +228,7 @@ def task_info(dag_id, task_id):
 @api_experimental.route("/dags/<string:dag_id>/paused/<string:paused>", methods=["GET"])
 @requires_authentication
 def dag_paused(dag_id, paused):
-    """(Un)pauses a dag."""
+    """(Un)pause a dag."""
     is_paused = bool(paused == "true")
 
     models.DagModel.get_dagmodel(dag_id).set_is_paused(
@@ -252,7 +253,7 @@ def dag_is_paused(dag_id):
 @requires_authentication
 def task_instance_info(dag_id, execution_date, task_id):
     """
-    Returns a JSON with a task instance's public instance variables.
+    Return a JSON with a task instance's public instance variables.
 
     The format for the exec_date is expected to be
     "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15". This will
@@ -289,7 +290,7 @@ def task_instance_info(dag_id, execution_date, task_id):
 @requires_authentication
 def dag_run_status(dag_id, execution_date):
     """
-    Returns a JSON with a dag_run's public instance variables.
+    Return a JSON with a dag_run's public instance variables.
 
     The format for the exec_date is expected to be
     "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15". This will
@@ -323,7 +324,7 @@ def dag_run_status(dag_id, execution_date):
 @api_experimental.route("/latest_runs", methods=["GET"])
 @requires_authentication
 def latest_dag_runs():
-    """Returns the latest DagRun for each DAG formatted for the UI."""
+    """Return the latest DagRun for each DAG formatted for the UI."""
     from airflow.models import DagRun
 
     dagruns = DagRun.get_latest_runs()

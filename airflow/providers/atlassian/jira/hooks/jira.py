@@ -16,13 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for JIRA."""
+
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
 from atlassian import Jira
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 
@@ -56,12 +58,21 @@ class JiraHook(BaseHook):
             conn = self.get_connection(self.jira_conn_id)
             if conn.extra is not None:
                 extra_options = conn.extra_dejson
+                verify = extra_options.get("verify", verify)
                 # only required attributes are taken for now,
                 # more can be added ex: timeout, cloud, session
 
                 # verify
-                if "verify" in extra_options and extra_options["verify"].lower() == "false":
-                    verify = False
+                if isinstance(verify, str):
+                    warnings.warn(
+                        "Extra parameter `verify` using str is deprecated and will be removed "
+                        "in a future release. Please use `verify` using bool instead.",
+                        AirflowProviderDeprecationWarning,
+                        stacklevel=2,
+                    )
+                    verify = True
+                    if extra_options["verify"].lower() == "false":
+                        verify = False
 
             self.client = Jira(
                 url=conn.host,
@@ -72,3 +83,21 @@ class JiraHook(BaseHook):
             )
 
         return self.client
+
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to Atlassian Jira Connection form."""
+        from flask_babel import lazy_gettext
+        from wtforms import BooleanField
+
+        return {
+            "verify": BooleanField(lazy_gettext("Verify SSL"), default=True),
+        }
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom UI field behaviour for Atlassian Jira Connection."""
+        return {
+            "hidden_fields": ["schema", "extra"],
+            "relabeling": {},
+        }

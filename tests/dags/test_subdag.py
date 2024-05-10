@@ -18,6 +18,7 @@
 """
 A DAG with subdag for testing purpose.
 """
+
 from __future__ import annotations
 
 import warnings
@@ -63,12 +64,15 @@ with DAG(
     default_args=DEFAULT_TASK_ARGS,
     schedule=timedelta(minutes=1),
 ):
-
     start = EmptyOperator(
         task_id="start",
     )
 
-    with warnings.catch_warnings(record=True):
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message=r"This class is deprecated\. Please use `airflow\.utils\.task_group\.TaskGroup`\.",
+        )
         section_1 = SubDagOperator(
             task_id="section-1",
             subdag=subdag(DAG_NAME, "section-1", DEFAULT_TASK_ARGS),

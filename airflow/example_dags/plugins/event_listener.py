@@ -48,6 +48,9 @@ def on_task_instance_running(previous_state: TaskInstanceState, task_instance: T
 
     task = task_instance.task
 
+    if TYPE_CHECKING:
+        assert task
+
     dag = task.dag
     dag_name = None
     if dag:
@@ -57,6 +60,7 @@ def on_task_instance_running(previous_state: TaskInstanceState, task_instance: T
 
 
 # [END howto_listen_ti_running_task]
+
 
 # [START howto_listen_ti_success_task]
 @hookimpl
@@ -82,9 +86,12 @@ def on_task_instance_success(previous_state: TaskInstanceState, task_instance: T
 
 # [END howto_listen_ti_success_task]
 
+
 # [START howto_listen_ti_failure_task]
 @hookimpl
-def on_task_instance_failed(previous_state: TaskInstanceState, task_instance: TaskInstance, session):
+def on_task_instance_failed(
+    previous_state: TaskInstanceState, task_instance: TaskInstance, error: None | str | BaseException, session
+):
     """
     This method is called when task state changes to FAILED.
     Through callback, parameters like previous_task_state, task_instance object can be accessed.
@@ -101,13 +108,19 @@ def on_task_instance_failed(previous_state: TaskInstanceState, task_instance: Ta
 
     task = task_instance.task
 
-    dag = task_instance.task.dag
+    if TYPE_CHECKING:
+        assert task
+
+    dag = task.dag
 
     print(f"Task start:{start_date} end:{end_date} duration:{duration}")
     print(f"Task:{task} dag:{dag} dagrun:{dagrun}")
+    if error:
+        print(f"Failure caused by {error}")
 
 
 # [END howto_listen_ti_failure_task]
+
 
 # [START howto_listen_dagrun_success_task]
 @hookimpl
@@ -124,6 +137,7 @@ def on_dag_run_success(dag_run: DagRun, msg: str):
 
 # [END howto_listen_dagrun_success_task]
 
+
 # [START howto_listen_dagrun_failure_task]
 @hookimpl
 def on_dag_run_failed(dag_run: DagRun, msg: str):
@@ -136,9 +150,11 @@ def on_dag_run_failed(dag_run: DagRun, msg: str):
     external_trigger = dag_run.external_trigger
 
     print(f"Dag information:{dag_id} Run id: {run_id} external trigger: {external_trigger}")
+    print(f"Failed with message: {msg}")
 
 
 # [END howto_listen_dagrun_failure_task]
+
 
 # [START howto_listen_dagrun_running_task]
 @hookimpl

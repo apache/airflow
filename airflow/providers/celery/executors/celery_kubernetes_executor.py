@@ -169,7 +169,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
 
     def has_task(self, task_instance: TaskInstance) -> bool:
         """
-        Checks if a task is either queued or running in either celery or kubernetes executor.
+        Check if a task is either queued or running in either celery or kubernetes executor.
 
         :param task_instance: TaskInstance
         :return: True if the task is known to this executor
@@ -243,14 +243,15 @@ class CeleryKubernetesExecutor(LoggingMixin):
         return self.celery_executor
 
     def debug_dump(self) -> None:
-        """Called in response to SIGUSR2 by the scheduler."""
+        """Debug dump; called in response to SIGUSR2 by the scheduler."""
         self.log.info("Dumping CeleryExecutor state")
         self.celery_executor.debug_dump()
         self.log.info("Dumping KubernetesExecutor state")
         self.kubernetes_executor.debug_dump()
 
     def send_callback(self, request: CallbackRequest) -> None:
-        """Sends callback for execution.
+        """
+        Send callback for execution.
 
         :param request: Callback request to be executed.
         """

@@ -23,12 +23,10 @@ from unittest.mock import AsyncMock
 import pytest
 from botocore.exceptions import WaiterError
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.triggers.ecs import (
-    ClusterActiveTrigger,
-    ClusterInactiveTrigger,
     TaskDoneTrigger,
 )
 
@@ -53,11 +51,9 @@ class TestTaskDoneTrigger:
         a_mock.get_waiter().wait = wait_mock
 
         trigger = TaskDoneTrigger("cluster", "task_arn", 0, 10, None, None)
-
+        generator = trigger.run()
         with pytest.raises(WaiterError):
-            generator = trigger.run()
             await generator.asend(None)
-
         assert wait_mock.call_count == 3
 
     @pytest.mark.asyncio
@@ -72,9 +68,8 @@ class TestTaskDoneTrigger:
         a_mock.get_waiter().wait = wait_mock
 
         trigger = TaskDoneTrigger("cluster", "task_arn", 0, 10, None, None)
-
+        generator = trigger.run()
         with pytest.raises(AirflowException) as err:
-            generator = trigger.run()
             await generator.asend(None)
 
         assert wait_mock.call_count == 10
@@ -97,36 +92,3 @@ class TestTaskDoneTrigger:
 
         assert response.payload["status"] == "success"
         assert response.payload["task_arn"] == "my_task_arn"
-
-
-class TestClusterTriggers:
-    @pytest.mark.parametrize(
-        "trigger",
-        [
-            ClusterActiveTrigger(
-                cluster_arn="my_arn",
-                aws_conn_id="my_conn",
-                waiter_delay=1,
-                waiter_max_attempts=2,
-                region_name="my_region",
-            ),
-            ClusterInactiveTrigger(
-                cluster_arn="my_arn",
-                aws_conn_id="my_conn",
-                waiter_delay=1,
-                waiter_max_attempts=2,
-                region_name="my_region",
-            ),
-        ],
-    )
-    def test_serialize_recreate(self, trigger):
-        class_path, args = trigger.serialize()
-
-        class_name = class_path.split(".")[-1]
-        clazz = globals()[class_name]
-        instance = clazz(**args)
-
-        class_path2, args2 = instance.serialize()
-
-        assert class_path == class_path2
-        assert args == args2

@@ -16,15 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import importlib.metadata
+
 import packaging.version
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 
-try:
-    from airflow import __version__ as airflow_version
-except ImportError:
-    from airflow.version import version as airflow_version
-
+airflow_version = importlib.metadata.version("apache-airflow")
 base_version = packaging.version.parse(airflow_version).base_version
 
 if packaging.version.parse(base_version) < packaging.version.parse("2.7.0"):

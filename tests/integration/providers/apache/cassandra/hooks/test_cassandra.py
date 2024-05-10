@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from unittest import mock
 
 import pytest
@@ -232,3 +233,19 @@ class TestCassandraHook:
 
         session.shutdown()
         hook.shutdown_cluster()
+
+    def test_possible_sql_injection(self):
+        hook = CassandraHook("cassandra_default_with_schema")
+        session = hook.get_conn()
+        cqls = [
+            "DROP TABLE IF EXISTS t",
+            "CREATE TABLE t (pk1 text, pk2 text, c text, PRIMARY KEY (pk1, pk2))",
+            "INSERT INTO t (pk1, pk2, c) VALUES ('foo', 'bar', 'baz')",
+        ]
+        for cql in cqls:
+            session.execute(cql)
+
+        assert hook.record_exists("t", {"pk1": "foo", "pk2": "bar"})
+        assert not hook.record_exists("tt", {"pk1": "foo", "pk2": "bar"})
+        with pytest.raises(ValueError, match=re.escape("Invalid input: t; DROP TABLE t; SELECT * FROM t")):
+            hook.record_exists("t; DROP TABLE t; SELECT * FROM t", {"pk1": "foo", "pk2": "baz"})

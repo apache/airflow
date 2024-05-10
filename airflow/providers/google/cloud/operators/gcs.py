@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Storage Bucket operator."""
+
 from __future__ import annotations
 
 import datetime
@@ -27,6 +28,8 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TYPE_CHECKING, Sequence
 
 import pendulum
+
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -90,7 +93,7 @@ class GCSCreateBucketOperator(GoogleCloudBaseOperator):
 
     .. code-block:: python
 
-        CreateBucket = GoogleCloudStorageCreateBucketOperator(
+        CreateBucket = GCSCreateBucketOperator(
             task_id="CreateNewBucket",
             bucket_name="test-bucket",
             storage_class="MULTI_REGIONAL",
@@ -118,7 +121,7 @@ class GCSCreateBucketOperator(GoogleCloudBaseOperator):
         resource: dict | None = None,
         storage_class: str = "MULTI_REGIONAL",
         location: str = "US",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         labels: dict | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -187,12 +190,12 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
         The following Operator would list all the Avro files from ``sales/sales-2017``
         folder in ``data`` bucket. ::
 
-            GCS_Files = GoogleCloudStorageListOperator(
-                task_id='GCS_Files',
-                bucket='data',
-                prefix='sales/sales-2017/',
-                match_glob='**/*/.avro',
-                gcp_conn_id=google_cloud_conn_id
+            GCS_Files = GCSListOperator(
+                task_id="GCS_Files",
+                bucket="data",
+                prefix="sales/sales-2017/",
+                match_glob="**/*/.avro",
+                gcp_conn_id=google_cloud_conn_id,
             )
     """
 
@@ -296,7 +299,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         *,
         bucket_name: str,
         objects: list[str] | None = None,
-        prefix: str | None = None,
+        prefix: str | list[str] | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -308,9 +311,12 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
 
         if objects is None and prefix is None:
-            err_message = "(Task {task_id}) Either object or prefix should be set. Both are None.".format(
+            err_message = "(Task {task_id}) Either objects or prefix should be set. Both are None.".format(
                 **kwargs
             )
+            raise ValueError(err_message)
+        if objects is not None and prefix is not None:
+            err_message = "(Task {task_id}) Objects or prefix should be set. Both provided.".format(**kwargs)
             raise ValueError(err_message)
 
         super().__init__(**kwargs)
@@ -328,6 +334,48 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         self.log.info("Deleting %s objects from %s", len(objects), self.bucket_name)
         for object_name in objects:
             hook.delete(bucket_name=self.bucket_name, object_name=object_name)
+
+    def get_openlineage_facets_on_start(self):
+        from openlineage.client.facet import (
+            LifecycleStateChange,
+            LifecycleStateChangeDatasetFacet,
+            LifecycleStateChangeDatasetFacetPreviousIdentifier,
+        )
+        from openlineage.client.run import Dataset
+
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        objects = []
+        if self.objects is not None:
+            objects = self.objects
+        elif self.prefix is not None:
+            prefixes = [self.prefix] if isinstance(self.prefix, str) else self.prefix
+            for pref in prefixes:
+                # Use parent if not a file (dot not in name) and not a dir (ends with slash)
+                if "." not in pref.split("/")[-1] and not pref.endswith("/"):
+                    pref = Path(pref).parent.as_posix()
+                pref = "/" if pref in (".", "", "/") else pref.rstrip("/")
+                objects.append(pref)
+
+        bucket_url = f"gs://{self.bucket_name}"
+        input_datasets = [
+            Dataset(
+                namespace=bucket_url,
+                name=object_name,
+                facets={
+                    "lifecycleStateChange": LifecycleStateChangeDatasetFacet(
+                        lifecycleStateChange=LifecycleStateChange.DROP.value,
+                        previousIdentifier=LifecycleStateChangeDatasetFacetPreviousIdentifier(
+                            namespace=bucket_url,
+                            name=object_name,
+                        ),
+                    )
+                },
+            )
+            for object_name in objects
+        ]
+
+        return OperatorLineage(inputs=input_datasets)
 
 
 class GCSBucketCreateAclEntryOperator(GoogleCloudBaseOperator):
@@ -596,6 +644,22 @@ class GCSFileTransformOperator(GoogleCloudBaseOperator):
                 filename=destination_file.name,
             )
 
+    def get_openlineage_facets_on_start(self):
+        from openlineage.client.run import Dataset
+
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        input_dataset = Dataset(
+            namespace=f"gs://{self.source_bucket}",
+            name=self.source_object,
+        )
+        output_dataset = Dataset(
+            namespace=f"gs://{self.destination_bucket}",
+            name=self.destination_object,
+        )
+
+        return OperatorLineage(inputs=[input_dataset], outputs=[output_dataset])
+
 
 class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
     """
@@ -722,6 +786,9 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
         self.upload_continue_on_fail = upload_continue_on_fail
         self.upload_num_attempts = upload_num_attempts
 
+        self._source_prefix_interp: str | None = None
+        self._destination_prefix_interp: str | None = None
+
     def execute(self, context: Context) -> list[str]:
         # Define intervals and prefixes.
         try:
@@ -748,11 +815,11 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
         timespan_start = timespan_start.in_timezone(timezone.utc)
         timespan_end = timespan_end.in_timezone(timezone.utc)
 
-        source_prefix_interp = GCSTimeSpanFileTransformOperator.interpolate_prefix(
+        self._source_prefix_interp = GCSTimeSpanFileTransformOperator.interpolate_prefix(
             self.source_prefix,
             timespan_start,
         )
-        destination_prefix_interp = GCSTimeSpanFileTransformOperator.interpolate_prefix(
+        self._destination_prefix_interp = GCSTimeSpanFileTransformOperator.interpolate_prefix(
             self.destination_prefix,
             timespan_start,
         )
@@ -775,7 +842,7 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
         # Fetch list of files.
         blobs_to_transform = source_hook.list_by_timespan(
             bucket_name=self.source_bucket,
-            prefix=source_prefix_interp,
+            prefix=self._source_prefix_interp,
             timespan_start=timespan_start,
             timespan_end=timespan_end,
         )
@@ -831,8 +898,8 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
 
                 upload_file_name = str(upload_file.relative_to(temp_output_dir_path))
 
-                if self.destination_prefix is not None:
-                    upload_file_name = f"{destination_prefix_interp}/{upload_file_name}"
+                if self._destination_prefix_interp is not None:
+                    upload_file_name = f"{self._destination_prefix_interp.rstrip('/')}/{upload_file_name}"
 
                 self.log.info("Uploading file %s to %s", upload_file, upload_file_name)
 
@@ -850,6 +917,40 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
                         raise
 
             return files_uploaded
+
+    def get_openlineage_facets_on_complete(self, task_instance):
+        """Implement on_complete as execute() resolves object prefixes."""
+        from openlineage.client.run import Dataset
+
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        def _parse_prefix(pref):
+            # Use parent if not a file (dot not in name) and not a dir (ends with slash)
+            if "." not in pref.split("/")[-1] and not pref.endswith("/"):
+                pref = Path(pref).parent.as_posix()
+            return "/" if pref in (".", "/", "") else pref.rstrip("/")
+
+        input_prefix, output_prefix = "/", "/"
+        if self._source_prefix_interp is not None:
+            input_prefix = _parse_prefix(self._source_prefix_interp)
+
+        if self._destination_prefix_interp is not None:
+            output_prefix = _parse_prefix(self._destination_prefix_interp)
+
+        return OperatorLineage(
+            inputs=[
+                Dataset(
+                    namespace=f"gs://{self.source_bucket}",
+                    name=input_prefix,
+                )
+            ],
+            outputs=[
+                Dataset(
+                    namespace=f"gs://{self.destination_bucket}",
+                    name=output_prefix,
+                )
+            ],
+        )
 
 
 class GCSDeleteBucketOperator(GoogleCloudBaseOperator):
@@ -919,7 +1020,7 @@ class GCSSynchronizeBucketsOperator(GoogleCloudBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GCSSynchronizeBuckets`
+        :ref:`howto/operator:GCSSynchronizeBucketsOperator`
 
     :param source_bucket: The name of the bucket containing the source objects.
     :param destination_bucket: The name of the bucket containing the destination objects.

@@ -29,7 +29,6 @@ with DAG(
     tags=["example", "cncf", "kubernetes"],
     catchup=False,
 ) as dag:
-
     # [START howto_operator_kubernetes]
     @task.kubernetes(
         image="python:3.8-slim-buster",
@@ -50,7 +49,7 @@ with DAG(
         for i in range(n):
             # inner loop to handle number of columns
             # values changing acc. to outer loop
-            for j in range(i + 1):
+            for _ in range(i + 1):
                 # printing stars
                 print("* ", end="")
 

@@ -19,15 +19,18 @@
 """
 Module to update db migration information in Airflow
 """
+
 from __future__ import annotations
 
 import os
 import re
+import textwrap
 from pathlib import Path
-from textwrap import wrap
 from typing import TYPE_CHECKING, Iterable
 
+import re2
 from alembic.script import ScriptDirectory
+from rich.console import Console
 from tabulate import tabulate
 
 from airflow import __version__ as airflow_version
@@ -35,6 +38,8 @@ from airflow.utils.db import _get_alembic_config
 
 if TYPE_CHECKING:
     from alembic.script import Script
+
+console = Console(width=400, color_system="standard")
 
 airflow_version = re.match(r"(\d+\.\d+\.\d+).*", airflow_version).group(1)  # type: ignore
 project_root = Path(__file__).parents[2].resolve()
@@ -104,7 +109,8 @@ def revision_suffix(rev: Script):
 
 def ensure_airflow_version(revisions: Iterable[Script]):
     for rev in revisions:
-        assert rev.module.__file__ is not None  # For Mypy.
+        if TYPE_CHECKING:  # For mypy
+            assert rev.module.__file__ is not None
         file = Path(rev.module.__file__)
         content = file.read_text()
         if not has_version(content):
@@ -125,7 +131,7 @@ def update_docs(revisions: Iterable[Script]):
                 revision=wrap_backticks(rev.revision) + revision_suffix(rev),
                 down_revision=wrap_backticks(rev.down_revision),
                 version=wrap_backticks(rev.module.airflow_version),  # type: ignore
-                description="\n".join(wrap(rev.doc, width=60)),
+                description="\n".join(textwrap.wrap(rev.doc, width=60)),
             )
         )
 
@@ -135,22 +141,18 @@ def update_docs(revisions: Iterable[Script]):
     )
 
 
-def num_to_prefix(idx: int) -> str:
-    return f"000{idx+1}"[-4:] + "_"
-
-
 def ensure_mod_prefix(mod_name, idx, version):
-    prefix = num_to_prefix(idx) + "_".join(version) + "_"
+    parts = [f"{idx + 1:04}", *version]
     match = re.match(r"([0-9]+)_([0-9]+)_([0-9]+)_([0-9]+)_(.+)", mod_name)
     if match:
         # previously standardized file, rebuild the name
-        mod_name = match.group(5)
+        parts.append(match.group(5))
     else:
         # new migration file, standard format
         match = re.match(r"([a-z0-9]+)_(.+)", mod_name)
         if match:
-            mod_name = match.group(2)
-    return prefix + mod_name
+            parts.append(match.group(2))
+    return "_".join(parts)
 
 
 def ensure_filenames_are_sorted(revisions):
@@ -175,18 +177,48 @@ def ensure_filenames_are_sorted(revisions):
             "alembic merge -m 'merge heads " + ", ".join(head_prefixes) + "' " + " ".join(unmerged_heads)
         )
         raise SystemExit(
-            "You have multiple alembic heads; please merge them with the `alembic merge` command "
-            f"and re-run pre-commit. It should fail once more before succeeding. "
-            f"\nhint: `{alembic_command}`"
+            "You have multiple alembic heads; please merge them with by running `alembic merge` command under "
+            f'"airflow" directory (where alembic.ini located) and re-run pre-commit. '
+            f"It should fail once more before succeeding.\nhint: `{alembic_command}`"
         )
     for old, new in renames:
         os.rename(old, new)
 
 
+def correct_mismatching_revision_nums(revisions: Iterable[Script]):
+    revision_pattern = r'revision = "([a-fA-F0-9]+)"'
+    down_revision_pattern = r'down_revision = "([a-fA-F0-9]+)"'
+    revision_id_pattern = r"Revision ID: ([a-fA-F0-9]+)"
+    revises_id_pattern = r"Revises: ([a-fA-F0-9]+)"
+    for rev in revisions:
+        if TYPE_CHECKING:  # For mypy
+            assert rev.module.__file__ is not None
+        file = Path(rev.module.__file__)
+        content = file.read_text()
+        revision_match = re2.search(
+            revision_pattern,
+            content,
+        )
+        revision_id_match = re2.search(revision_id_pattern, content)
+        new_content = content.replace(revision_id_match.group(1), revision_match.group(1), 1)
+        down_revision_match = re2.search(down_revision_pattern, new_content)
+        revises_id_match = re2.search(revises_id_pattern, new_content)
+        if down_revision_match:
+            new_content = new_content.replace(revises_id_match.group(1), down_revision_match.group(1), 1)
+        file.write_text(new_content)
+
+
 if __name__ == "__main__":
+    console.print("[bright_blue]Updating migration reference")
     revisions = list(reversed(list(get_revisions())))
+    console.print("[bright_blue]Making sure airflow version updated")
     ensure_airflow_version(revisions=revisions)
+    console.print("[bright_blue]Making sure there's no mismatching revision numbers")
+    correct_mismatching_revision_nums(revisions=revisions)
     revisions = list(reversed(list(get_revisions())))
+    console.print("[bright_blue]Making sure filenames are sorted")
     ensure_filenames_are_sorted(revisions=revisions)
     revisions = list(get_revisions())
+    console.print("[bright_blue]Updating documentation")
     update_docs(revisions=revisions)
+    console.print("[green]Migrations OK")

@@ -19,14 +19,18 @@
 
 /* global moment */
 
-import { Box, Button, Flex, Input, Select } from "@chakra-ui/react";
+import { Box, Button, Flex, Select } from "@chakra-ui/react";
+import MultiSelect from "src/components/MultiSelect";
 import React from "react";
 import type { DagRun, RunState, TaskState } from "src/types";
 import AutoRefresh from "src/components/AutoRefresh";
+import type { Size } from "chakra-react-select";
+import { useChakraSelectProps } from "chakra-react-select";
 
 import { useTimezone } from "src/context/timezone";
 import { isoFormatWithoutTZ } from "src/datetime_utils";
 import useFilters from "src/dag/useFilters";
+import DateTimeInput from "src/components/DateTimeInput";
 
 declare const filtersOptions: {
   dagStates: RunState[];
@@ -35,86 +39,135 @@ declare const filtersOptions: {
   taskStates: TaskState[];
 };
 
+const now = new Date();
+
 const FilterBar = () => {
   const {
-    filters,
+    filters: {
+      baseDate,
+      numRuns,
+      runState,
+      runStateOptions,
+      runType,
+      runTypeOptions,
+    },
     onBaseDateChange,
     onNumRunsChange,
     onRunTypeChange,
     onRunStateChange,
     clearFilters,
+    transformArrayToMultiSelectOptions,
   } = useFilters();
+
+  // @ts-ignore
+  const isBaseDateDefault = moment(now).isSame(baseDate, "minute");
+  const isRunStateDefault = !runState || !runState.length;
+  const isRunTypeDefault = !runType || !runType.length;
+  const areFiltersDefault =
+    isBaseDateDefault && isRunTypeDefault && isRunStateDefault;
 
   const { timezone } = useTimezone();
   // @ts-ignore
-  const time = moment(filters.baseDate);
+  const time = moment(baseDate);
   // @ts-ignore
   const formattedTime = time.tz(timezone).format(isoFormatWithoutTZ);
 
-  const inputStyles = { backgroundColor: "white", size: "lg" };
+  const inputStyles: { backgroundColor: string; size: Size } = {
+    backgroundColor: "white",
+    size: "lg",
+  };
+
+  const multiSelectBoxStyle = { minWidth: "160px", zIndex: 3 };
+
+  const multiSelectStyles: Record<string, any> = {
+    size: "lg",
+    isMulti: true,
+    tagVariant: "solid",
+    hideSelectedOptions: false,
+    isClearable: false,
+    selectedOptionStyle: "check",
+  };
+
+  const filteredStyles = {
+    borderColor: "blue.400",
+    borderWidth: 2,
+  };
+
+  const runTypeStyles = useChakraSelectProps({
+    ...multiSelectStyles,
+    chakraStyles: {
+      control: (provided) => ({
+        ...provided,
+        bg: "white",
+        ...(isRunTypeDefault ? {} : filteredStyles),
+        _hover: {
+          ...(isRunTypeDefault ? {} : filteredStyles),
+        },
+      }),
+    },
+  });
+
+  const runStateStyles = useChakraSelectProps({
+    ...multiSelectStyles,
+    chakraStyles: {
+      control: (provided) => ({
+        ...provided,
+        bg: "white",
+        ...(isRunStateDefault ? {} : filteredStyles),
+        _hover: {
+          ...(isRunStateDefault ? {} : filteredStyles),
+        },
+      }),
+    },
+  });
 
   return (
-    <Flex
-      backgroundColor="blackAlpha.200"
-      mt={4}
-      p={4}
-      justifyContent="space-between"
-    >
+    <Flex backgroundColor="blackAlpha.200" p={4} justifyContent="space-between">
       <Flex>
         <Box px={2}>
-          <Input
+          <DateTimeInput
             {...inputStyles}
-            type="datetime-local"
             value={formattedTime || ""}
             onChange={(e) => onBaseDateChange(e.target.value)}
+            {...(isBaseDateDefault ? {} : filteredStyles)}
           />
         </Box>
-        <Box px={2}>
-          <Select
-            {...inputStyles}
-            placeholder="Runs"
-            value={filters.numRuns || ""}
-            onChange={(e) => onNumRunsChange(e.target.value)}
-          >
-            {filtersOptions.numRuns.map((value) => (
-              <option value={value} key={value}>
-                {value}
-              </option>
-            ))}
-          </Select>
-        </Box>
-        <Box px={2}>
-          <Select
-            {...inputStyles}
-            value={filters.runType || ""}
-            onChange={(e) => onRunTypeChange(e.target.value)}
-          >
-            <option value="" key="all">
-              All Run Types
-            </option>
-            {filtersOptions.runTypes.map((value) => (
-              <option value={value.toString()} key={value}>
-                {value}
-              </option>
-            ))}
-          </Select>
+        <Box px={2} style={multiSelectBoxStyle}>
+          <MultiSelect
+            {...runTypeStyles}
+            value={transformArrayToMultiSelectOptions(runType)}
+            onChange={(typeOptions) => {
+              if (
+                Array.isArray(typeOptions) &&
+                typeOptions.every((typeOption) => "value" in typeOption)
+              ) {
+                onRunTypeChange(
+                  typeOptions.map((typeOption) => typeOption.value)
+                );
+              }
+            }}
+            options={transformArrayToMultiSelectOptions(runTypeOptions)}
+            placeholder="All Run Types"
+          />
         </Box>
         <Box />
-        <Box px={2}>
-          <Select
-            {...inputStyles}
-            value={filters.runState || ""}
-            onChange={(e) => onRunStateChange(e.target.value)}
-          >
-            <option value="" key="all">
-              All Run States
-            </option>
-            {filtersOptions.dagStates.map((value) => (
-              <option value={value} key={value}>
-                {value}
-              </option>
-            ))}
-          </Select>
+        <Box px={2} style={multiSelectBoxStyle}>
+          <MultiSelect
+            {...runStateStyles}
+            value={transformArrayToMultiSelectOptions(runState)}
+            onChange={(stateOptions) => {
+              if (
+                Array.isArray(stateOptions) &&
+                stateOptions.every((stateOption) => "value" in stateOption)
+              ) {
+                onRunStateChange(
+                  stateOptions.map((stateOption) => stateOption.value)
+                );
+              }
+            }}
+            options={transformArrayToMultiSelectOptions(runStateOptions)}
+            placeholder="All Run States"
+          />
         </Box>
         <Box px={2}>
           <Button
@@ -123,13 +176,31 @@ const FilterBar = () => {
             background="white"
             variant="outline"
             onClick={clearFilters}
+            disabled={areFiltersDefault}
             size="lg"
           >
             Clear Filters
           </Button>
         </Box>
       </Flex>
-      <AutoRefresh />
+      <Flex>
+        <AutoRefresh />
+        <Box px={2}>
+          <Select
+            {...inputStyles}
+            placeholder="Runs"
+            value={numRuns || ""}
+            onChange={(e) => onNumRunsChange(e.target.value)}
+            aria-label="Number of runs to display in grid"
+          >
+            {filtersOptions.numRuns.map((value) => (
+              <option value={value} key={value}>
+                {value}
+              </option>
+            ))}
+          </Select>
+        </Box>
+      </Flex>
     </Flex>
   );
 };

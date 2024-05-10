@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This package is deprecated. Please use `airflow.sensors` or `airflow.providers.*.sensors`."""
+
 from __future__ import annotations
 
 import warnings
@@ -85,12 +86,10 @@ __deprecated_classes = {
         "FTPSSensor": "airflow.providers.ftp.sensors.ftp.FTPSSensor",
     },
     "gcp_transfer_sensor": {
-        "CloudDataTransferServiceJobStatusSensor":
-            "airflow.providers.google.cloud.sensors.cloud_storage_transfer_service."
-            "CloudDataTransferServiceJobStatusSensor",
-        "GCPTransferServiceWaitForJobStatusSensor":
-            "airflow.providers.google.cloud.sensors.cloud_storage_transfer_service."
-            "CloudDataTransferServiceJobStatusSensor",
+        "CloudDataTransferServiceJobStatusSensor": "airflow.providers.google.cloud.sensors.cloud_storage_transfer_service."
+        "CloudDataTransferServiceJobStatusSensor",
+        "GCPTransferServiceWaitForJobStatusSensor": "airflow.providers.google.cloud.sensors.cloud_storage_transfer_service."
+        "CloudDataTransferServiceJobStatusSensor",
     },
     "gcs_sensor": {
         "GCSObjectExistenceSensor": "airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSensor",
@@ -129,11 +128,6 @@ __deprecated_classes = {
     },
     "python_sensor": {
         "PythonSensor": "airflow.sensors.python.PythonSensor",
-    },
-    "qubole_sensor": {
-        "QuboleFileSensor": "airflow.providers.qubole.sensors.qubole.QuboleFileSensor",
-        "QubolePartitionSensor": "airflow.providers.qubole.sensors.qubole.QubolePartitionSensor",
-        "QuboleSensor": "airflow.providers.qubole.sensors.qubole.QuboleSensor",
     },
     "redis_key_sensor": {
         "RedisKeySensor": "airflow.providers.redis.sensors.redis_key.RedisKeySensor",

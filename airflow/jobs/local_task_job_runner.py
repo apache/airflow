@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 
     from airflow.jobs.job import Job
     from airflow.models.taskinstance import TaskInstance
-    from airflow.serialization.pydantic.job import JobPydantic
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 SIGSEGV_MESSAGE = """
 ******************************************* Received SIGSEGV *******************************************
@@ -74,15 +74,15 @@ macOS
 ********************************************************************************************************"""
 
 
-class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
+class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
     """LocalTaskJob runs a single task instance."""
 
     job_type = "LocalTaskJob"
 
     def __init__(
         self,
-        job: Job | JobPydantic,
-        task_instance: TaskInstance,  # TODO add TaskInstancePydantic
+        job: Job,
+        task_instance: TaskInstance | TaskInstancePydantic,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
         wait_for_past_depends_before_skipping: bool = False,
@@ -115,6 +115,9 @@ class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
         from airflow.task.task_runner import get_task_runner
 
         self.task_runner = get_task_runner(self)
+
+        # Print a marker post execution for internals of post task processing
+        self.log.info("::group::Pre task execution logs")
 
         def signal_handler(signum, frame):
             """Set kill signal handler."""
@@ -215,6 +218,9 @@ class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
                     )
             return return_code
         finally:
+            # Print a marker for log grouping of details before task execution
+            self.log.info("::endgroup::")
+
             self.on_kill()
 
     def handle_task_exit(self, return_code: int) -> None:
@@ -233,7 +239,7 @@ class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
         else:
             self.log.info("Task exited with return code %s", return_code)
 
-        if not self.task_instance.test_mode and not is_deferral:
+        if not (self.task_instance.test_mode or is_deferral):
             if conf.getboolean("scheduler", "schedule_after_task_execution", fallback=True):
                 self.task_instance.schedule_downstream_tasks(max_tis_per_query=self.job.max_tis_per_query)
 
@@ -251,6 +257,8 @@ class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
 
         self.task_instance.refresh_from_db()
         ti = self.task_instance
+        if TYPE_CHECKING:
+            assert ti.task
 
         if ti.state == TaskInstanceState.RUNNING:
             fqdn = get_hostname()
@@ -285,7 +293,9 @@ class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
             if ti.state == TaskInstanceState.SKIPPED:
                 # A DagRun timeout will cause tasks to be externally marked as skipped.
                 dagrun = ti.get_dagrun(session=session)
-                execution_time = (dagrun.end_date or timezone.utcnow()) - dagrun.start_date
+                execution_time = (dagrun.end_date or timezone.utcnow()) - (
+                    dagrun.start_date or timezone.utcnow()
+                )
                 if ti.task.dag is not None:
                     dagrun_timeout = ti.task.dag.dagrun_timeout
                 else:

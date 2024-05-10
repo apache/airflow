@@ -20,32 +20,33 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.cloud_composer import (
     CloudComposerCreateEnvironmentOperator,
     CloudComposerDeleteEnvironmentOperator,
     CloudComposerGetEnvironmentOperator,
     CloudComposerListEnvironmentsOperator,
     CloudComposerListImageVersionsOperator,
+    CloudComposerRunAirflowCLICommandOperator,
     CloudComposerUpdateEnvironmentOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
 DAG_ID = "example_composer"
-
 REGION = "us-central1"
 
 # [START howto_operator_composer_simple_environment]
 
 ENVIRONMENT_ID = f"test-{DAG_ID}-{ENV_ID}".replace("_", "-")
+ENVIRONMENT_ID_ASYNC = f"test-deferrable-{DAG_ID}-{ENV_ID}".replace("_", "-")
 
 ENVIRONMENT = {
     "config": {
-        "software_config": {"image_version": "composer-2.0.28-airflow-2.2.5"},
+        "software_config": {"image_version": "composer-2.5.0-airflow-2.5.3"},
     }
 }
 # [END howto_operator_composer_simple_environment]
@@ -53,14 +54,16 @@ ENVIRONMENT = {
 # [START howto_operator_composer_update_environment]
 UPDATED_ENVIRONMENT = {
     "labels": {
-        "label1": "testing",
+        "label": "testing",
     }
 }
-UPDATE_MASK = {"paths": ["labels.label1"]}
+UPDATE_MASK = {"paths": ["labels.label"]}
 # [END howto_operator_composer_update_environment]
 
+COMMAND = "dags list -o json --verbose"
 
-with models.DAG(
+
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
@@ -84,6 +87,17 @@ with models.DAG(
         environment=ENVIRONMENT,
     )
     # [END howto_operator_create_composer_environment]
+
+    # [START howto_operator_create_composer_environment_deferrable_mode]
+    defer_create_env = CloudComposerCreateEnvironmentOperator(
+        task_id="defer_create_env",
+        project_id=PROJECT_ID,
+        region=REGION,
+        environment_id=ENVIRONMENT_ID_ASYNC,
+        environment=ENVIRONMENT,
+        deferrable=True,
+    )
+    # [END howto_operator_create_composer_environment_deferrable_mode]
 
     # [START howto_operator_list_composer_environments]
     list_envs = CloudComposerListEnvironmentsOperator(
@@ -111,6 +125,39 @@ with models.DAG(
     )
     # [END howto_operator_update_composer_environment]
 
+    # [START howto_operator_update_composer_environment_deferrable_mode]
+    defer_update_env = CloudComposerUpdateEnvironmentOperator(
+        task_id="defer_update_env",
+        project_id=PROJECT_ID,
+        region=REGION,
+        environment_id=ENVIRONMENT_ID_ASYNC,
+        update_mask=UPDATE_MASK,
+        environment=UPDATED_ENVIRONMENT,
+        deferrable=True,
+    )
+    # [END howto_operator_update_composer_environment_deferrable_mode]
+
+    # [START howto_operator_run_airflow_cli_command]
+    run_airflow_cli_cmd = CloudComposerRunAirflowCLICommandOperator(
+        task_id="run_airflow_cli_cmd",
+        project_id=PROJECT_ID,
+        region=REGION,
+        environment_id=ENVIRONMENT_ID,
+        command=COMMAND,
+    )
+    # [END howto_operator_run_airflow_cli_command]
+
+    # [START howto_operator_run_airflow_cli_command_deferrable_mode]
+    defer_run_airflow_cli_cmd = CloudComposerRunAirflowCLICommandOperator(
+        task_id="defer_run_airflow_cli_cmd",
+        project_id=PROJECT_ID,
+        region=REGION,
+        environment_id=ENVIRONMENT_ID_ASYNC,
+        command=COMMAND,
+        deferrable=True,
+    )
+    # [END howto_operator_run_airflow_cli_command_deferrable_mode]
+
     # [START howto_operator_delete_composer_environment]
     delete_env = CloudComposerDeleteEnvironmentOperator(
         task_id="delete_env",
@@ -121,7 +168,26 @@ with models.DAG(
     # [END howto_operator_delete_composer_environment]
     delete_env.trigger_rule = TriggerRule.ALL_DONE
 
-    chain(image_versions, create_env, list_envs, get_env, update_env, delete_env)
+    # [START howto_operator_delete_composer_environment_deferrable_mode]
+    defer_delete_env = CloudComposerDeleteEnvironmentOperator(
+        task_id="defer_delete_env",
+        project_id=PROJECT_ID,
+        region=REGION,
+        environment_id=ENVIRONMENT_ID_ASYNC,
+        deferrable=True,
+    )
+    # [END howto_operator_delete_composer_environment_deferrable_mode]
+    defer_delete_env.trigger_rule = TriggerRule.ALL_DONE
+
+    chain(
+        image_versions,
+        [create_env, defer_create_env],
+        list_envs,
+        get_env,
+        [update_env, defer_update_env],
+        [run_airflow_cli_cmd, defer_run_airflow_cli_cmd],
+        [delete_env, defer_delete_env],
+    )
 
     from tests.system.utils.watcher import watcher
 

@@ -28,6 +28,7 @@ import { StatusWithNotes } from "src/dag/StatusBox";
 import { Table } from "src/components/Table";
 import Time from "src/components/Time";
 import { useOffsetTop } from "src/utils";
+import type { CellProps } from "src/components/Table";
 
 interface Props {
   dagId: string;
@@ -46,9 +47,7 @@ const MappedInstances = ({ dagId, runId, taskId, onRowClicked }: Props) => {
   const sort = sortBy[0];
 
   const orderBy =
-    sort && (sort.id === "state" || sort.id === "mapIndex")
-      ? `${sort.desc ? "-" : ""}${snakeCase(sort.id)}`
-      : "";
+    sort && sort.id ? `${sort.desc ? "-" : ""}${snakeCase(sort.id)}` : "";
 
   const {
     data: { taskInstances = [], totalEntries = 0 } = {
@@ -69,6 +68,7 @@ const MappedInstances = ({ dagId, runId, taskId, onRowClicked }: Props) => {
     () =>
       taskInstances.map((mi) => ({
         ...mi,
+        renderedMapIndex: mi.renderedMapIndex,
         state: (
           <Flex alignItems="center">
             <StatusWithNotes
@@ -94,6 +94,8 @@ const MappedInstances = ({ dagId, runId, taskId, onRowClicked }: Props) => {
       {
         Header: "Map Index",
         accessor: "mapIndex",
+        Cell: ({ cell: { row } }: CellProps) =>
+          row.original.renderedMapIndex || row.original.mapIndex,
       },
       {
         Header: "State",
@@ -102,16 +104,18 @@ const MappedInstances = ({ dagId, runId, taskId, onRowClicked }: Props) => {
       {
         Header: "Duration",
         accessor: "duration",
-        disableSortBy: true,
       },
       {
         Header: "Start Date",
         accessor: "startDate",
-        disableSortBy: true,
       },
       {
         Header: "End Date",
         accessor: "endDate",
+      },
+      {
+        Header: "Try Number",
+        accessor: "tryNumber",
         disableSortBy: true,
       },
     ],

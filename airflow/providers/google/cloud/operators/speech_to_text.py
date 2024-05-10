@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Speech to Text operator."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
@@ -26,6 +27,7 @@ from google.protobuf.json_format import MessageToDict
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.speech_to_text import CloudSpeechToTextHook, RecognitionAudio
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.providers.google.common.links.storage import FileDetailsLink
 
 if TYPE_CHECKING:
@@ -83,7 +85,7 @@ class CloudSpeechToTextRecognizeSpeechOperator(GoogleCloudBaseOperator):
         *,
         audio: RecognitionAudio,
         config: RecognitionConfig,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,

@@ -65,9 +65,9 @@ Starting Non-templated pipeline
 
 To create a new pipeline using the source file (JAR in Java or Python file) use
 the create job operators. The source file can be located on GCS or on the local filesystem.
-:class:`~airflow.providers.google.cloud.operators.dataflow.DataflowCreateJavaJobOperator`
+:class:`~airflow.providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`
 or
-:class:`~airflow.providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator`
+:class:`~airflow.providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator`
 
 .. _howto/operator:DataflowCreateJavaJobOperator:
 
@@ -75,7 +75,7 @@ Java SDK pipelines
 """"""""""""""""""
 
 For Java pipeline the ``jar`` argument must be specified for
-:class:`~airflow.providers.google.cloud.operators.dataflow.DataflowCreateJavaJobOperator`
+:class:`~airflow.providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`
 as it contains the pipeline to be executed on Dataflow. The JAR can be available on GCS that Airflow
 has the ability to download or available on the local filesystem (provide the absolute path to it).
 
@@ -86,6 +86,14 @@ Here is an example of creating and running a pipeline in Java with jar stored on
     :dedent: 4
     :start-after: [START howto_operator_start_java_job_jar_on_gcs]
     :end-before: [END howto_operator_start_java_job_jar_on_gcs]
+
+Here is an example of creating and running a pipeline in Java with jar stored on GCS in deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_native_java.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_start_java_job_jar_on_gcs_deferrable]
+    :end-before: [END howto_operator_start_java_job_jar_on_gcs_deferrable]
 
 Here is an example of creating and running a pipeline in Java with jar stored on local file system:
 
@@ -101,7 +109,7 @@ Python SDK pipelines
 """"""""""""""""""""
 
 The ``py_file`` argument must be specified for
-:class:`~airflow.providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator`
+:class:`~airflow.providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator`
 as it contains the pipeline to be executed on Dataflow. The Python file can be available on GCS that Airflow
 has the ability to download or available on the local filesystem (provide the absolute path to it).
 
@@ -129,8 +137,8 @@ Dataflow has multiple options of executing pipelines. It can be done in the foll
 batch asynchronously (fire and forget), batch blocking (wait until completion), or streaming (run indefinitely).
 In Airflow it is best practice to use asynchronous batch pipelines or streams and use sensors to listen for expected job state.
 
-By default :class:`~airflow.providers.google.cloud.operators.dataflow.DataflowCreateJavaJobOperator`,
-:class:`~airflow.providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator`,
+By default :class:`~airflow.providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`,
+:class:`~airflow.providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator`,
 :class:`~airflow.providers.google.cloud.operators.dataflow.DataflowTemplatedJobStartOperator` and
 :class:`~airflow.providers.google.cloud.operators.dataflow.DataflowStartFlexTemplateOperator`
 have argument ``wait_until_finished`` set to ``None`` which cause different behaviour depends on the type of pipeline:
@@ -175,6 +183,12 @@ Streaming execution
 To execute a streaming Dataflow job, ensure the streaming option is set (for Python) or read from an unbounded data
 source, such as Pub/Sub, in your pipeline (for Java).
 
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_streaming_python.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_start_streaming_python_job]
+    :end-before: [END howto_operator_start_streaming_python_job]
+
 Setting argument ``drain_pipeline`` to ``True`` allows to stop streaming job by draining it
 instead of canceling during killing task instance.
 
@@ -194,7 +208,7 @@ from the staging and execution steps. There are two types of templates for Dataf
 See the `official documentation for Dataflow templates
 <https://cloud.google.com/dataflow/docs/concepts/dataflow-templates>`_ for more information.
 
-Here is an example of running Classic template with
+Here is an example of running a Dataflow job using a Classic Template with
 :class:`~airflow.providers.google.cloud.operators.dataflow.DataflowTemplatedJobStartOperator`:
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_template.py
@@ -203,10 +217,18 @@ Here is an example of running Classic template with
     :start-after: [START howto_operator_start_template_job]
     :end-before: [END howto_operator_start_template_job]
 
+Also for this action you can use the operator in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_template.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_start_template_job_deferrable]
+    :end-before: [END howto_operator_start_template_job_deferrable]
+
 See the `list of Google-provided templates that can be used with this operator
 <https://cloud.google.com/dataflow/docs/guides/templates/provided-templates>`_.
 
-Here is an example of running Flex template with
+Here is an example of running a Dataflow job using a Flex Template with
 :class:`~airflow.providers.google.cloud.operators.dataflow.DataflowStartFlexTemplateOperator`:
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_template.py
@@ -214,6 +236,14 @@ Here is an example of running Flex template with
     :dedent: 4
     :start-after: [START howto_operator_start_flex_template_job]
     :end-before: [END howto_operator_start_flex_template_job]
+
+Also for this action you can use the operator in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_template.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_start_flex_template_job_deferrable]
+    :end-before: [END howto_operator_start_flex_template_job_deferrable]
 
 .. _howto/operator:DataflowStartSqlJobOperator:
 
@@ -274,6 +304,14 @@ When job is triggered asynchronously sensors may be used to run checks for speci
     :start-after: [START howto_sensor_wait_for_job_status]
     :end-before: [END howto_sensor_wait_for_job_status]
 
+This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_sensors_deferrable.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_wait_for_job_status_deferrable]
+    :end-before: [END howto_sensor_wait_for_job_status_deferrable]
+
 :class:`~airflow.providers.google.cloud.sensors.dataflow.DataflowJobMetricsSensor`.
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_native_python_async.py
@@ -281,6 +319,14 @@ When job is triggered asynchronously sensors may be used to run checks for speci
     :dedent: 4
     :start-after: [START howto_sensor_wait_for_job_metric]
     :end-before: [END howto_sensor_wait_for_job_metric]
+
+This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_sensors_deferrable.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_wait_for_job_metric_deferrable]
+    :end-before: [END howto_sensor_wait_for_job_metric_deferrable]
 
 :class:`~airflow.providers.google.cloud.sensors.dataflow.DataflowJobMessagesSensor`.
 
@@ -290,6 +336,14 @@ When job is triggered asynchronously sensors may be used to run checks for speci
     :start-after: [START howto_sensor_wait_for_job_message]
     :end-before: [END howto_sensor_wait_for_job_message]
 
+This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_sensors_deferrable.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_wait_for_job_message_deferrable]
+    :end-before: [END howto_sensor_wait_for_job_message_deferrable]
+
 :class:`~airflow.providers.google.cloud.sensors.dataflow.DataflowJobAutoScalingEventsSensor`.
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_native_python_async.py
@@ -297,6 +351,14 @@ When job is triggered asynchronously sensors may be used to run checks for speci
     :dedent: 4
     :start-after: [START howto_sensor_wait_for_job_autoscaling_event]
     :end-before: [END howto_sensor_wait_for_job_autoscaling_event]
+
+This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_sensors_deferrable.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_wait_for_job_autoscaling_event_deferrable]
+    :end-before: [END howto_sensor_wait_for_job_autoscaling_event_deferrable]
 
 Reference
 ^^^^^^^^^

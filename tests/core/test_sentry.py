@@ -38,7 +38,7 @@ DATA_INTERVAL = (EXECUTION_DATE, EXECUTION_DATE + SCHEDULE_INTERVAL)
 DAG_ID = "test_dag"
 TASK_ID = "test_task"
 OPERATOR = "PythonOperator"
-TRY_NUMBER = 1
+TRY_NUMBER = 0
 STATE = State.SUCCESS
 TEST_SCOPE = {
     "dag_id": DAG_ID,
@@ -56,7 +56,7 @@ TASK_DATA = {
     "duration": None,
 }
 
-CRUMB_DATE = datetime.datetime(2019, 5, 15)
+CRUMB_DATE = datetime.datetime(2019, 5, 15, tzinfo=datetime.timezone.utc)
 CRUMB = {
     "timestamp": CRUMB_DATE,
     "type": "default",
@@ -141,6 +141,7 @@ class TestSentryHook:
 
         importlib.reload(sentry)
 
+    @pytest.mark.db_test
     def test_add_tagging(self, sentry, task_instance):
         """
         Test adding tags.
@@ -148,8 +149,9 @@ class TestSentryHook:
         sentry.add_tagging(task_instance=task_instance)
         with configure_scope() as scope:
             for key, value in scope._tags.items():
-                assert TEST_SCOPE[key] == value
+                assert value == TEST_SCOPE[key]
 
+    @pytest.mark.db_test
     @time_machine.travel(CRUMB_DATE)
     def test_add_breadcrumbs(self, sentry, task_instance):
         """

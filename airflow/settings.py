@@ -23,23 +23,24 @@ import json
 import logging
 import os
 import sys
+import traceback
 import warnings
 from typing import TYPE_CHECKING, Any, Callable
 
-import pendulum
 import pluggy
-import sqlalchemy
 from sqlalchemy import create_engine, exc, text
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
 from airflow import policies
-from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F401
-from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # noqa: F401
+from airflow.exceptions import AirflowInternalRuntimeError, RemovedInAirflow3Warning
 from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
+from airflow.utils.sqlalchemy import is_sqlalchemy_v1
 from airflow.utils.state import State
+from airflow.utils.timezone import local_timezone, parse_timezone, utc
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
@@ -49,16 +50,14 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-
-TIMEZONE = pendulum.tz.timezone("UTC")
 try:
-    tz = conf.get_mandatory_value("core", "default_timezone")
-    if tz == "system":
-        TIMEZONE = pendulum.tz.local_timezone()
+    if (tz := conf.get_mandatory_value("core", "default_timezone")) != "system":
+        TIMEZONE = parse_timezone(tz)
     else:
-        TIMEZONE = pendulum.tz.timezone(tz)
+        TIMEZONE = local_timezone()
 except Exception:
-    pass
+    TIMEZONE = utc
+
 log.info("Configured default timezone %s", TIMEZONE)
 
 
@@ -107,6 +106,7 @@ STATE_COLORS = {
     "up_for_reschedule": "turquoise",
     "up_for_retry": "gold",
     "upstream_failed": "orange",
+    "shutdown": "blue",
 }
 
 
@@ -194,6 +194,7 @@ def configure_vars():
     global PLUGINS_FOLDER
     global DONOT_MODIFY_HANDLERS
     SQL_ALCHEMY_CONN = conf.get("database", "SQL_ALCHEMY_CONN")
+
     DAGS_FOLDER = os.path.expanduser(conf.get("core", "DAGS_FOLDER"))
 
     PLUGINS_FOLDER = conf.get("core", "plugins_folder", fallback=os.path.join(AIRFLOW_HOME, "plugins"))
@@ -206,13 +207,82 @@ def configure_vars():
     DONOT_MODIFY_HANDLERS = conf.getboolean("logging", "donot_modify_handlers", fallback=False)
 
 
+class SkipDBTestsSession:
+    """
+    This fake session is used to skip DB tests when `_AIRFLOW_SKIP_DB_TESTS` is set.
+
+    :meta private:
+    """
+
+    def __init__(self):
+        raise AirflowInternalRuntimeError(
+            "Your test accessed the DB but `_AIRFLOW_SKIP_DB_TESTS` is set.\n"
+            "Either make sure your test does not use database or mark the test with `@pytest.mark.db_test`\n"
+            "See https://github.com/apache/airflow/blob/main/contributing-docs/testing/unit_tests.rst#"
+            "best-practices-for-db-tests on how "
+            "to deal with it and consult examples."
+        )
+
+    def remove(*args, **kwargs):
+        pass
+
+
+class TracebackSession:
+    """
+    Session that throws error when you try to use it.
+
+    Also stores stack at instantiation call site.
+
+    :meta private:
+    """
+
+    def __init__(self):
+        self.traceback = traceback.extract_stack()
+
+    def __getattr__(self, item):
+        raise RuntimeError(
+            "TracebackSession object was used but internal API is enabled. "
+            "You'll need to ensure you are making only RPC calls with this object. "
+            "The stack list below will show where the TracebackSession object was created."
+            + "\n".join(traceback.format_list(self.traceback))
+        )
+
+    def remove(*args, **kwargs):
+        pass
+
+
 def configure_orm(disable_connection_pool=False, pool_class=None):
     """Configure ORM using SQLAlchemy."""
     from airflow.utils.log.secrets_masker import mask_secret
 
-    log.debug("Setting up DB connection pool (PID %s)", os.getpid())
-    global engine
+    if (
+        SQL_ALCHEMY_CONN
+        and SQL_ALCHEMY_CONN.startswith("sqlite")
+        and not SQL_ALCHEMY_CONN.startswith("sqlite:////")
+        # In memory is not useful for production, but useful for writing tests against Airflow for extensions
+        and SQL_ALCHEMY_CONN != "sqlite://"
+    ):
+        from airflow.exceptions import AirflowConfigException
+
+        raise AirflowConfigException(
+            f"Cannot use relative path: `{SQL_ALCHEMY_CONN}` to connect to sqlite. "
+            "Please use absolute path such as `sqlite:////tmp/airflow.db`."
+        )
+
     global Session
+    global engine
+    from airflow.api_internal.internal_api_call import InternalApiConfig
+
+    if InternalApiConfig.get_use_internal_api():
+        Session = TracebackSession
+        engine = None
+        return
+    elif os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
+        # Skip DB initialization in unit tests, if DB tests are skipped
+        Session = SkipDBTestsSession
+        engine = None
+        return
+    log.debug("Setting up DB connection pool (PID %s)", os.getpid())
     engine_args = prepare_engine_args(disable_connection_pool, pool_class)
 
     if conf.has_option("database", "sql_alchemy_connect_args"):
@@ -234,33 +304,12 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
             expire_on_commit=False,
         )
     )
-    if engine.dialect.name == "mssql":
-        session = Session()
-        try:
-            result = session.execute(
-                sqlalchemy.text(
-                    "SELECT is_read_committed_snapshot_on FROM sys.databases WHERE name=:database_name"
-                ),
-                params={"database_name": engine.url.database},
-            )
-            data = result.fetchone()[0]
-            if data != 1:
-                log.critical("MSSQL database MUST have READ_COMMITTED_SNAPSHOT enabled.")
-                log.critical("The database %s has it disabled.", engine.url.database)
-                log.critical("This will cause random deadlocks, Refusing to start.")
-                log.critical(
-                    "See https://airflow.apache.org/docs/apache-airflow/stable/howto/"
-                    "set-up-database.html#setting-up-a-mssql-database"
-                )
-                raise Exception("MSSQL database MUST have READ_COMMITTED_SNAPSHOT enabled.")
-        finally:
-            session.close()
 
 
 DEFAULT_ENGINE_ARGS = {
     "postgresql": {
-        "executemany_mode": "values",
-        "executemany_values_page_size": 10000,
+        "executemany_mode": "values_plus_batch",
+        "executemany_values_page_size" if is_sqlalchemy_v1() else "insertmanyvalues_page_size": 10000,
         "executemany_batch_page_size": 2000,
     },
 }
@@ -274,9 +323,7 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
             default_args = default.copy()
             break
 
-    engine_args: dict = conf.getjson(
-        "database", "sql_alchemy_engine_args", fallback=default_args
-    )  # type: ignore
+    engine_args: dict = conf.getjson("database", "sql_alchemy_engine_args", fallback=default_args)  # type: ignore
 
     if pool_class:
         # Don't use separate settings for size etc, only those from sql_alchemy_engine_args
@@ -312,7 +359,7 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
         # Typically, this is a simple statement like "SELECT 1", but may also make use
         # of some DBAPI-specific method to test the connection for liveness.
         # More information here:
-        # https://docs.sqlalchemy.org/en/13/core/pooling.html#disconnect-handling-pessimistic
+        # https://docs.sqlalchemy.org/en/14/core/pooling.html#disconnect-handling-pessimistic
         pool_pre_ping = conf.getboolean("database", "SQL_ALCHEMY_POOL_PRE_PING", fallback=True)
 
         log.debug(
@@ -334,17 +381,14 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
     # More information here:
     # https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html"
 
-    # Similarly MSSQL default isolation level should be set to READ COMMITTED.
-    # We also make sure that READ_COMMITTED_SNAPSHOT option is on, in order to avoid deadlocks when
-    # Select queries are running. This is by default enforced during init/upgrade. More information:
-    # https://docs.microsoft.com/en-us/sql/t-sql/statements/set-transaction-isolation-level-transact-sql
-
-    if SQL_ALCHEMY_CONN.startswith(("mysql", "mssql")):
+    if SQL_ALCHEMY_CONN.startswith("mysql"):
         engine_args["isolation_level"] = "READ COMMITTED"
 
-    # Allow the user to specify an encoding for their DB otherwise default
-    # to utf-8 so jobs & users with non-latin1 characters can still use us.
-    engine_args["encoding"] = conf.get("database", "SQL_ENGINE_ENCODING", fallback="utf-8")
+    if is_sqlalchemy_v1():
+        # Allow the user to specify an encoding for their DB otherwise default
+        # to utf-8 so jobs & users with non-latin1 characters can still use us.
+        # This parameter was removed in SQLAlchemy 2.x.
+        engine_args["encoding"] = conf.get("database", "SQL_ENGINE_ENCODING", fallback="utf-8")
 
     return engine_args
 
@@ -449,6 +493,7 @@ def get_session_lifetime_config():
             "session lifetime in minutes. The `force_log_out_after` option has been removed "
             "from `[webserver]` section. Please update your configuration.",
             category=RemovedInAirflow3Warning,
+            stacklevel=2,
         )
         if session_lifetime_days:
             session_lifetime_minutes = minutes_per_day * int(session_lifetime_days)
@@ -457,7 +502,7 @@ def get_session_lifetime_config():
         session_lifetime_days = 30
         session_lifetime_minutes = minutes_per_day * session_lifetime_days
 
-    logging.debug("User session lifetime is set to %s minutes.", session_lifetime_minutes)
+    log.debug("User session lifetime is set to %s minutes.", session_lifetime_minutes)
 
     return int(session_lifetime_minutes)
 
@@ -579,6 +624,10 @@ IS_K8S_OR_K8SCELERY_EXECUTOR = conf.get("core", "EXECUTOR") in {
     executor_constants.CELERY_KUBERNETES_EXECUTOR,
     executor_constants.LOCAL_KUBERNETES_EXECUTOR,
 }
+
+# Executors can set this to true to configure logging correctly for
+# containerized executors.
+IS_EXECUTOR_CONTAINER = bool(os.environ.get("AIRFLOW_IS_EXECUTOR_CONTAINER", ""))
 IS_K8S_EXECUTOR_POD = bool(os.environ.get("AIRFLOW_IS_K8S_EXECUTOR_POD", ""))
 """Will be True if running in kubernetes executor pod."""
 
@@ -607,7 +656,6 @@ DASHBOARD_UIALERTS: list[UIAlert] = []
 AIRFLOW_MOVED_TABLE_PREFIX = "_airflow_moved"
 
 DAEMON_UMASK: str = conf.get("core", "daemon_umask", fallback="0o077")
-
 
 # AIP-44: internal_api (experimental)
 # This feature is not complete yet, so we disable it by default.

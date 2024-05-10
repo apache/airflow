@@ -16,13 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Data Pipelines operators."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.datapipeline import DEFAULT_DATAPIPELINE_LOCATION, DataPipelineHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -57,7 +59,7 @@ class CreateDataPipelineOperator(GoogleCloudBaseOperator):
         self,
         *,
         body: dict,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str = DEFAULT_DATAPIPELINE_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -119,7 +121,7 @@ class RunDataPipelineOperator(GoogleCloudBaseOperator):
     def __init__(
         self,
         data_pipeline_name: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str = DEFAULT_DATAPIPELINE_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
         **kwargs,

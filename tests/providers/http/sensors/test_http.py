@@ -23,11 +23,15 @@ from unittest.mock import patch
 import pytest
 import requests
 
-from airflow.exceptions import AirflowException, AirflowSensorTimeout
+from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSkipException, TaskDeferred
 from airflow.models.dag import DAG
-from airflow.providers.http.operators.http import SimpleHttpOperator
+from airflow.providers.http.operators.http import HttpOperator
 from airflow.providers.http.sensors.http import HttpSensor
+from airflow.providers.http.triggers.http import HttpSensorTrigger
 from airflow.utils.timezone import datetime
+
+pytestmark = pytest.mark.db_test
+
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -59,6 +63,33 @@ class TestHttpSensor:
             poke_interval=1,
         )
         with pytest.raises(AirflowException, match="AirflowException raised here!"):
+            task.execute(context={})
+
+    @patch("airflow.providers.http.hooks.http.requests.Session.send")
+    def test_poke_exception_with_soft_fail(self, mock_session_send, create_task_of_operator):
+        """
+        Exception occurs in poke function should be skipped if soft_fail is True.
+        """
+        response = requests.Response()
+        response.status_code = 200
+        mock_session_send.return_value = response
+
+        def resp_check(_):
+            raise AirflowException("AirflowException raised here!")
+
+        task = create_task_of_operator(
+            HttpSensor,
+            dag_id="http_sensor_poke_exception",
+            task_id="http_sensor_poke_exception",
+            http_conn_id="http_default",
+            endpoint="",
+            request_params={},
+            response_check=resp_check,
+            timeout=5,
+            poke_interval=1,
+            soft_fail=True,
+        )
+        with pytest.raises(AirflowSkipException):
             task.execute(context={})
 
     @patch("airflow.providers.http.hooks.http.requests.Session.send")
@@ -263,7 +294,7 @@ class TestHttpOpSensor:
 
     @mock.patch("requests.Session", FakeSession)
     def test_get(self):
-        op = SimpleHttpOperator(
+        op = HttpOperator(
             task_id="get_op",
             method="GET",
             endpoint="/search",
@@ -275,7 +306,7 @@ class TestHttpOpSensor:
 
     @mock.patch("requests.Session", FakeSession)
     def test_get_response_check(self):
-        op = SimpleHttpOperator(
+        op = HttpOperator(
             task_id="get_op",
             method="GET",
             endpoint="/search",
@@ -300,3 +331,54 @@ class TestHttpOpSensor:
             dag=self.dag,
         )
         sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+
+class TestHttpSensorAsync:
+    @mock.patch("airflow.providers.http.sensors.http.HttpSensor.defer")
+    @mock.patch(
+        "airflow.providers.http.sensors.http.HttpSensor.poke",
+        return_value=True,
+    )
+    def test_execute_finished_before_deferred(
+        self,
+        mock_poke,
+        mock_defer,
+    ):
+        """
+        Asserts that a task is not deferred when task is already finished
+        """
+
+        task = HttpSensor(task_id="run_now", endpoint="test-endpoint", deferrable=True)
+
+        task.execute({})
+        assert not mock_defer.called
+
+    @mock.patch(
+        "airflow.providers.http.sensors.http.HttpSensor.poke",
+        return_value=False,
+    )
+    def test_execute_is_deferred(self, mock_poke):
+        """
+        Asserts that a task is deferred and a HttpTrigger will be fired
+        when the HttpSensor is executed in deferrable mode.
+        """
+
+        task = HttpSensor(task_id="run_now", endpoint="test-endpoint", deferrable=True)
+
+        with pytest.raises(TaskDeferred) as exc:
+            task.execute({})
+
+        assert isinstance(exc.value.trigger, HttpSensorTrigger), "Trigger is not a HttpTrigger"
+
+    @mock.patch("airflow.providers.http.sensors.http.HttpSensor.defer")
+    @mock.patch("airflow.sensors.base.BaseSensorOperator.execute")
+    def test_execute_not_defer_when_response_check_is_not_none(self, mock_execute, mock_defer):
+        task = HttpSensor(
+            task_id="run_now",
+            endpoint="test-endpoint",
+            response_check=lambda response: "httpbin" in response.text,
+            deferrable=True,
+        )
+        task.execute({})
+        mock_execute.assert_called_once()
+        mock_defer.assert_not_called()

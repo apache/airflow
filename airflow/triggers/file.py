@@ -20,6 +20,7 @@ import asyncio
 import datetime
 import os
 import typing
+import warnings
 from glob import glob
 from typing import Any
 
@@ -34,18 +35,29 @@ class FileTrigger(BaseTrigger):
         be a glob.
     :param recursive: when set to ``True``, enables recursive directory matching behavior of
         ``**`` in glob filepath parameter. Defaults to ``False``.
+    :param poke_interval: Time that the job should wait in between each try
     """
 
     def __init__(
         self,
         filepath: str,
         recursive: bool = False,
-        poll_interval: float = 5.0,
+        poke_interval: float = 5.0,
+        **kwargs,
     ):
         super().__init__()
         self.filepath = filepath
         self.recursive = recursive
-        self.poll_interval = poll_interval
+        if kwargs.get("poll_interval") is not None:
+            warnings.warn(
+                "`poll_interval` has been deprecated and will be removed in future."
+                "Please use `poke_interval` instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            self.poke_interval: float = kwargs["poll_interval"]
+        else:
+            self.poke_interval = poke_interval
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize FileTrigger arguments and classpath."""
@@ -54,7 +66,7 @@ class FileTrigger(BaseTrigger):
             {
                 "filepath": self.filepath,
                 "recursive": self.recursive,
-                "poll_interval": self.poll_interval,
+                "poke_interval": self.poke_interval,
             },
         )
 
@@ -67,7 +79,9 @@ class FileTrigger(BaseTrigger):
                     mod_time = datetime.datetime.fromtimestamp(mod_time_f).strftime("%Y%m%d%H%M%S")
                     self.log.info("Found File %s last modified: %s", path, mod_time)
                     yield TriggerEvent(True)
+                    return
                 for _, _, files in os.walk(self.filepath):
                     if files:
                         yield TriggerEvent(True)
-            await asyncio.sleep(self.poll_interval)
+                        return
+            await asyncio.sleep(self.poke_interval)

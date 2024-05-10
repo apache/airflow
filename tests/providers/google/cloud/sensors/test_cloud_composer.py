@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
 from airflow.providers.google.cloud.sensors.cloud_composer import CloudComposerEnvironmentSensor
 from airflow.providers.google.cloud.triggers.cloud_composer import CloudComposerExecutionTrigger
 
@@ -31,6 +31,7 @@ TEST_REGION = "region"
 
 
 class TestCloudComposerEnvironmentSensor:
+    @pytest.mark.db_test
     def test_cloud_composer_existence_sensor_async(self):
         """
         Asserts that a task is deferred and a CloudComposerExecutionTrigger will be fired
@@ -48,15 +49,19 @@ class TestCloudComposerEnvironmentSensor:
             exc.value.trigger, CloudComposerExecutionTrigger
         ), "Trigger is not a CloudComposerExecutionTrigger"
 
-    def test_cloud_composer_existence_sensor_async_execute_failure(self):
-        """Tests that an AirflowException is raised in case of error event."""
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    def test_cloud_composer_existence_sensor_async_execute_failure(self, soft_fail, expected_exception):
+        """Tests that an expected exception is raised in case of error event."""
         task = CloudComposerEnvironmentSensor(
             task_id="task_id",
             project_id=TEST_PROJECT_ID,
             region=TEST_REGION,
             operation_name=TEST_OPERATION_NAME,
+            soft_fail=soft_fail,
         )
-        with pytest.raises(AirflowException, match="No event received in trigger callback"):
+        with pytest.raises(expected_exception, match="No event received in trigger callback"):
             task.execute_complete(context={}, event=None)
 
     def test_cloud_composer_existence_sensor_async_execute_complete(self):

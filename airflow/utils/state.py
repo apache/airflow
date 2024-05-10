@@ -58,6 +58,14 @@ class TaskInstanceState(str, Enum):
     SKIPPED = "skipped"  # Skipped by branching or some other mechanism
     DEFERRED = "deferred"  # Deferrable operator waiting on a trigger
 
+    # Not used anymore, kept for compatibility.
+    # TODO: Remove in Airflow 3.0.
+    SHUTDOWN = "shutdown"
+    """The task instance is being shut down.
+
+    :meta private:
+    """
+
     def __str__(self) -> str:
         return self.value
 
@@ -100,10 +108,18 @@ class State:
     SKIPPED = TaskInstanceState.SKIPPED
     DEFERRED = TaskInstanceState.DEFERRED
 
+    # Not used anymore, kept for compatibility.
+    # TODO: Remove in Airflow 3.0.
+    SHUTDOWN = TaskInstanceState.SHUTDOWN
+    """The task instance is being shut down.
+
+    :meta private:
+    """
+
     finished_dr_states: frozenset[DagRunState] = frozenset([DagRunState.SUCCESS, DagRunState.FAILED])
     unfinished_dr_states: frozenset[DagRunState] = frozenset([DagRunState.QUEUED, DagRunState.RUNNING])
 
-    task_states: tuple[TaskInstanceState | None, ...] = (None,) + tuple(TaskInstanceState)
+    task_states: tuple[TaskInstanceState | None, ...] = (None, *TaskInstanceState)
 
     dag_states: tuple[DagRunState, ...] = (
         DagRunState.QUEUED,
@@ -188,6 +204,15 @@ class State:
     )
     """
     A list of states indicating that a task or dag is a success state.
+    """
+
+    # Kept for compatibility. DO NOT USE.
+    # TODO: Remove in Airflow 3.0.
+    terminating_states = frozenset([TaskInstanceState.SHUTDOWN, TaskInstanceState.RESTARTING])
+    """
+    A list of states indicating that a task has been terminated.
+
+    :meta private:
     """
 
     adoptable_states = frozenset(

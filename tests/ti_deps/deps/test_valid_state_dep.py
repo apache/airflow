@@ -26,6 +26,8 @@ from airflow.exceptions import AirflowException
 from airflow.ti_deps.deps.valid_state_dep import ValidStateDep
 from airflow.utils.state import State
 
+pytestmark = pytest.mark.db_test
+
 
 class TestValidStateDep:
     def test_valid_state(self):

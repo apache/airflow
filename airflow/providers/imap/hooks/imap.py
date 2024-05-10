@@ -20,6 +20,7 @@ This module provides everything to search mail for a specific attachment and dow
 
 It uses the imaplib library that is already integrated in python 3.
 """
+
 from __future__ import annotations
 
 import email
@@ -120,7 +121,7 @@ class ImapHook(BaseHook):
         self, name: str, *, check_regex: bool = False, mail_folder: str = "INBOX", mail_filter: str = "All"
     ) -> bool:
         """
-        Checks the mail folder for mails containing attachments with the given name.
+        Check the mail folder for mails containing attachments with the given name.
 
         :param name: The name of the attachment that will be searched for.
         :param check_regex: Checks the name for a regular expression.
@@ -145,7 +146,7 @@ class ImapHook(BaseHook):
         not_found_mode: str = "raise",
     ) -> list[tuple]:
         """
-        Retrieves mail's attachments in the mail folder by its name.
+        Retrieve mail's attachments in the mail folder by its name.
 
         :param name: The name of the attachment that will be downloaded.
         :param check_regex: Checks the name for a regular expression.
@@ -181,7 +182,7 @@ class ImapHook(BaseHook):
         not_found_mode: str = "raise",
     ) -> None:
         """
-        Downloads mail's attachments in the mail folder by its name to the local directory.
+        Download mail's attachments in the mail folder by its name to the local directory.
 
         :param name: The name of the attachment that will be downloaded.
         :param local_output_directory: The output directory on the local machine
@@ -218,7 +219,7 @@ class ImapHook(BaseHook):
         self, name: str, check_regex: bool, latest_only: bool, mail_folder: str, mail_filter: str
     ) -> list:
         if not self.mail_client:
-            raise Exception("The 'mail_client' should be initialized before!")
+            raise RuntimeError("The 'mail_client' should be initialized before!")
 
         all_matching_attachments = []
 
@@ -239,14 +240,14 @@ class ImapHook(BaseHook):
 
     def _list_mail_ids_desc(self, mail_filter: str) -> Iterable[str]:
         if not self.mail_client:
-            raise Exception("The 'mail_client' should be initialized before!")
+            raise RuntimeError("The 'mail_client' should be initialized before!")
         _, data = self.mail_client.search(None, mail_filter)
         mail_ids = data[0].split()
         return reversed(mail_ids)
 
     def _fetch_mail_body(self, mail_id: str) -> str:
         if not self.mail_client:
-            raise Exception("The 'mail_client' should be initialized before!")
+            raise RuntimeError("The 'mail_client' should be initialized before!")
         _, data = self.mail_client.fetch(mail_id, "(RFC822)")
         mail_body = data[0][1]  # type: ignore # The mail body is always in this specific location
         mail_body_str = mail_body.decode("utf-8")  # type: ignore
@@ -304,7 +305,7 @@ class Mail(LoggingMixin):
 
     def has_attachments(self) -> bool:
         """
-        Checks the mail for a attachments.
+        Check the mail for a attachments.
 
         :returns: True if it has attachments and False if not.
         """
@@ -314,7 +315,7 @@ class Mail(LoggingMixin):
         self, name: str, check_regex: bool, find_first: bool = False
     ) -> list[tuple[Any, Any]]:
         """
-        Gets all attachments by name for the mail.
+        Get all attachments by name for the mail.
 
         :param name: The name of the attachment to look for.
         :param check_regex: Checks the name for a regular expression.
@@ -356,7 +357,7 @@ class MailPart:
 
     def is_attachment(self) -> bool:
         """
-        Checks if the part is a valid mail attachment.
+        Check if the part is a valid mail attachment.
 
         :returns: True if it is an attachment and False if not.
         """
@@ -364,7 +365,7 @@ class MailPart:
 
     def has_matching_name(self, name: str) -> tuple[Any, Any] | None:
         """
-        Checks if the given name matches the part's name.
+        Check if the given name matches the part's name.
 
         :param name: The name to look for.
         :returns: True if it matches the name (including regular expression).
@@ -373,7 +374,7 @@ class MailPart:
 
     def has_equal_name(self, name: str) -> bool:
         """
-        Checks if the given name is equal to the part's name.
+        Check if the given name is equal to the part's name.
 
         :param name: The name to look for.
         :returns: True if it is equal to the given name.
@@ -382,7 +383,7 @@ class MailPart:
 
     def get_file(self) -> tuple:
         """
-        Gets the file including name and payload.
+        Get the file including name and payload.
 
         :returns: the part's name and payload.
         """

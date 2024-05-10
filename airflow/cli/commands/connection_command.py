@@ -15,11 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """Connection sub-commands."""
+
 from __future__ import annotations
 
 import json
 import os
-import sys
 import warnings
 from pathlib import Path
 from typing import Any
@@ -29,7 +29,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import exc
 
 from airflow.cli.simple_table import AirflowConsole
-from airflow.cli.utils import is_stdout
+from airflow.cli.utils import is_stdout, print_export_output
 from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
@@ -162,7 +162,9 @@ def connections_export(args):
     """Export all connections to a file."""
     file_formats = [".yaml", ".json", ".env"]
     if args.format:
-        warnings.warn("Option `--format` is deprecated.  Use `--file-format` instead.", DeprecationWarning)
+        warnings.warn(
+            "Option `--format` is deprecated. Use `--file-format` instead.", DeprecationWarning, stacklevel=3
+        )
     if args.format and args.file_format:
         raise SystemExit("Option `--format` is deprecated.  Use `--file-format` instead.")
     default_format = ".json"
@@ -171,7 +173,7 @@ def connections_export(args):
         provided_file_format = f".{(args.format or args.file_format).lower()}"
 
     with args.file as f:
-        if file_is_stdout := is_stdout(f):
+        if is_stdout(f):
             filetype = provided_file_format or default_format
         elif provided_file_format:
             filetype = provided_file_format
@@ -182,7 +184,7 @@ def connections_export(args):
                     f"Unsupported file format. The file must have the extension {', '.join(file_formats)}."
                 )
 
-        if args.serialization_format and not filetype == ".env":
+        if args.serialization_format and filetype != ".env":
             raise SystemExit("Option `--serialization-format` may only be used with file type `env`.")
 
         with create_session() as session:
@@ -196,10 +198,7 @@ def connections_export(args):
 
         f.write(msg)
 
-    if file_is_stdout:
-        print("\nConnections successfully exported.", file=sys.stderr)
-    else:
-        print(f"Connections successfully exported to {args.file.name}.")
+    print_export_output("Connections", connections, f)
 
 
 alternative_conn_specs = ["conn_type", "conn_host", "conn_login", "conn_password", "conn_schema", "conn_port"]
@@ -226,10 +225,14 @@ def connections_add(args):
         raise SystemExit("Cannot supply both conn-uri and conn-json")
 
     if has_type and args.conn_type not in _get_connection_types():
-        warnings.warn(f"The type provided to --conn-type is invalid: {args.conn_type}")
+        warnings.warn(
+            f"The type provided to --conn-type is invalid: {args.conn_type}", UserWarning, stacklevel=4
+        )
         warnings.warn(
             f"Supported --conn-types are:{_get_connection_types()}."
-            "Hence overriding the conn-type with generic"
+            "Hence overriding the conn-type with generic",
+            UserWarning,
+            stacklevel=4,
         )
         args.conn_type = "generic"
 

@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 from deprecated import deprecated
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.triggers.batch import BatchJobTrigger
 from airflow.sensors.base import BaseSensorOperator
@@ -42,6 +42,10 @@ class BatchSensor(BaseSensorOperator):
 
     :param job_id: Batch job_id to check the state for
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param region_name: aws region name associated with the client
     :param deferrable: Run sensor in the deferrable mode.
     :param poke_interval: polling period in seconds to check for the status of the job.
@@ -57,11 +61,11 @@ class BatchSensor(BaseSensorOperator):
         self,
         *,
         job_id: str,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        poke_interval: float = 5,
-        max_retries: int = 5,
+        poke_interval: float = 30,
+        max_retries: int = 4200,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -83,9 +87,17 @@ class BatchSensor(BaseSensorOperator):
             return False
 
         if state == BatchClientHook.FAILURE_STATE:
-            raise AirflowException(f"Batch sensor failed. AWS Batch job status: {state}")
+            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+            message = f"Batch sensor failed. AWS Batch job status: {state}"
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
 
-        raise AirflowException(f"Batch sensor failed. Unknown AWS Batch job status: {state}")
+        # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+        message = f"Batch sensor failed. Unknown AWS Batch job status: {state}"
+        if self.soft_fail:
+            raise AirflowSkipException(message)
+        raise AirflowException(message)
 
     def execute(self, context: Context) -> None:
         if not self.deferrable:
@@ -117,14 +129,14 @@ class BatchSensor(BaseSensorOperator):
         if event["status"] != "success":
             message = f"Error while running job: {event}"
             # TODO: remove this if-else block when min_airflow_version is set to higher than the version that
-            # changed in https://github.com/apache/airflow/pull/33424 is released
+            # changed in https://github.com/apache/airflow/pull/33424 is released (2.7.1)
             if self.soft_fail:
                 raise AirflowSkipException(message)
             raise AirflowException(message)
         job_id = event["job_id"]
         self.log.info("Batch Job %s complete", job_id)
 
-    @deprecated(reason="use `hook` property instead.")
+    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
     def get_hook(self) -> BatchClientHook:
         """Create and return a BatchClientHook."""
         return self.hook
@@ -148,6 +160,10 @@ class BatchComputeEnvironmentSensor(BaseSensorOperator):
     :param compute_environment: Batch compute environment name
 
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
 
     :param region_name: aws region name associated with the client
     """
@@ -159,7 +175,7 @@ class BatchComputeEnvironmentSensor(BaseSensorOperator):
     def __init__(
         self,
         compute_environment: str,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
         **kwargs,
     ):
@@ -182,7 +198,11 @@ class BatchComputeEnvironmentSensor(BaseSensorOperator):
         )
 
         if not response["computeEnvironments"]:
-            raise AirflowException(f"AWS Batch compute environment {self.compute_environment} not found")
+            message = f"AWS Batch compute environment {self.compute_environment} not found"
+            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
 
         status = response["computeEnvironments"][0]["status"]
 
@@ -192,9 +212,11 @@ class BatchComputeEnvironmentSensor(BaseSensorOperator):
         if status in BatchClientHook.COMPUTE_ENVIRONMENT_INTERMEDIATE_STATUS:
             return False
 
-        raise AirflowException(
-            f"AWS Batch compute environment failed. AWS Batch compute environment status: {status}"
-        )
+        # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+        message = f"AWS Batch compute environment failed. AWS Batch compute environment status: {status}"
+        if self.soft_fail:
+            raise AirflowSkipException(message)
+        raise AirflowException(message)
 
 
 class BatchJobQueueSensor(BaseSensorOperator):
@@ -211,6 +233,10 @@ class BatchJobQueueSensor(BaseSensorOperator):
         queue and as such a valid case.
 
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
 
     :param region_name: aws region name associated with the client
     """
@@ -223,7 +249,7 @@ class BatchJobQueueSensor(BaseSensorOperator):
         self,
         job_queue: str,
         treat_non_existing_as_deleted: bool = False,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
         **kwargs,
     ):
@@ -250,7 +276,11 @@ class BatchJobQueueSensor(BaseSensorOperator):
             if self.treat_non_existing_as_deleted:
                 return True
             else:
-                raise AirflowException(f"AWS Batch job queue {self.job_queue} not found")
+                # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+                message = f"AWS Batch job queue {self.job_queue} not found"
+                if self.soft_fail:
+                    raise AirflowSkipException(message)
+                raise AirflowException(message)
 
         status = response["jobQueues"][0]["status"]
 
@@ -260,4 +290,7 @@ class BatchJobQueueSensor(BaseSensorOperator):
         if status in BatchClientHook.JOB_QUEUE_INTERMEDIATE_STATUS:
             return False
 
-        raise AirflowException(f"AWS Batch job queue failed. AWS Batch job queue status: {status}")
+        message = f"AWS Batch job queue failed. AWS Batch job queue status: {status}"
+        if self.soft_fail:
+            raise AirflowSkipException(message)
+        raise AirflowException(message)

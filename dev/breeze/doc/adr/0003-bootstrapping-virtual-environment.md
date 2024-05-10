@@ -101,7 +101,7 @@ version of Breeze will remain as part of the Airflow's source code.
 The decision is to implement Breeze in a subfolder (`dev/breeze2/`) of
 Apache Airflow as a Python project following the standard setuptools
 enabled project. The project contains setup.py and dependencies described
-in setup.cfg and contains both source code and tests for Breeze code.
+in pyproject.toml and contains both source code and tests for Breeze code.
 
 The sub-project could be used in the future to produce a  PyPI package
 (we reserved such package in PyPI), however its main purpose is
@@ -116,7 +116,7 @@ of Airflow) performs the following tasks:
 
 * when run for the first time it creates `.build/breeze2/venv` virtual
   environment (Python3.6+ based) - with locally installed `dev`
-  project in editable mode (`pip install -e .`) - this makes sure
+  project in editable mode (`pip install -e ".[devel]"`) - this makes sure
   that the users of Breeze will use the latest version of Breeze
   available in their version of the repository
 * when run subsequently, it will check if setup files changed for
@@ -154,7 +154,7 @@ of Airflow) performs the following tasks:
   Another drawback of `pipx` is that installs one global
   version of breeze for all projects, where it is quite
   possible that someone has two different versions of
-  Airflow repository checked out and the bootstraping
+  Airflow repository checked out and the bootstrapping
   script provides this capability.
 
 The bootstrapping script is temporary measure, until the

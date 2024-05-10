@@ -112,6 +112,8 @@ class DagScheduleDatasetReference(Base):
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
     dataset = relationship("DatasetModel", back_populates="consuming_dags")
+    dag = relationship("DagModel", back_populates="schedule_dataset_references")
+
     queue_records = relationship(
         "DatasetDagRunQueue",
         primaryjoin="""and_(
@@ -123,7 +125,7 @@ class DagScheduleDatasetReference(Base):
 
     __tablename__ = "dag_schedule_dataset_reference"
     __table_args__ = (
-        PrimaryKeyConstraint(dataset_id, dag_id, name="dsdr_pkey", mssql_clustered=True),
+        PrimaryKeyConstraint(dataset_id, dag_id, name="dsdr_pkey"),
         ForeignKeyConstraint(
             (dataset_id,),
             ["dataset.id"],
@@ -173,7 +175,7 @@ class TaskOutletDatasetReference(Base):
             name="todr_dataset_fkey",
             ondelete="CASCADE",
         ),
-        PrimaryKeyConstraint(dataset_id, dag_id, task_id, name="todr_pkey", mssql_clustered=True),
+        PrimaryKeyConstraint(dataset_id, dag_id, task_id, name="todr_pkey"),
         ForeignKeyConstraint(
             columns=(dag_id,),
             refcolumns=["dag.dag_id"],
@@ -208,10 +210,10 @@ class DatasetDagRunQueue(Base):
     dataset_id = Column(Integer, primary_key=True, nullable=False)
     target_dag_id = Column(StringID(), primary_key=True, nullable=False)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
-
+    dataset = relationship("DatasetModel", viewonly=True)
     __tablename__ = "dataset_dag_run_queue"
     __table_args__ = (
-        PrimaryKeyConstraint(dataset_id, target_dag_id, name="datasetdagrunqueue_pkey", mssql_clustered=True),
+        PrimaryKeyConstraint(dataset_id, target_dag_id, name="datasetdagrunqueue_pkey"),
         ForeignKeyConstraint(
             (dataset_id,),
             ["dataset.id"],

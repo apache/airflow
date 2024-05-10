@@ -39,7 +39,7 @@ When masking is enabled, Airflow will always mask the password field of every Co
 task.
 
 It will also mask the value of a Variable, or the field of a Connection's extra JSON blob if the name contains
-any words in ('access_token', 'api_key', 'apikey','authorization', 'passphrase', 'passwd',
+any words in ('access_token', 'api_key', 'apikey', 'authorization', 'passphrase', 'passwd',
 'password', 'private_key', 'secret', 'token'). This list can also be extended:
 
 .. code-block:: ini
@@ -50,7 +50,7 @@ any words in ('access_token', 'api_key', 'apikey','authorization', 'passphrase',
 Adding your own masks
 """""""""""""""""""""
 
-If you want to mask an additional secret that is already masked by one of the above methods, you can do it in
+If you want to mask an additional secret that is not already masked by one of the above methods, you can do it in
 your DAG file or operator's ``execute`` function using the ``mask_secret`` function. For example:
 
 .. code-block:: python

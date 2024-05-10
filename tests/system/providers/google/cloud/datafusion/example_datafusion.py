@@ -17,13 +17,14 @@
 """
 Example Airflow DAG that shows how to use DataFusion.
 """
+
 from __future__ import annotations
 
 import os
 from datetime import datetime
 
-from airflow import models
 from airflow.decorators import task
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.hooks.datafusion import DataFusionHook
 from airflow.providers.google.cloud.operators.datafusion import (
     CloudDataFusionCreateInstanceOperator,
@@ -159,10 +160,13 @@ PIPELINE = {
 }
 # [END howto_data_fusion_env_variables]
 
-CloudDataFusionCreatePipelineOperator.template_fields += ("pipeline",)
+CloudDataFusionCreatePipelineOperator.template_fields = (
+    *CloudDataFusionCreatePipelineOperator.template_fields,
+    "pipeline",
+)
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
     catchup=False,
@@ -212,7 +216,7 @@ with models.DAG(
     # [END howto_cloud_data_fusion_update_instance_operator]
 
     @task(task_id="get_artifacts_versions")
-    def get_artifacts_versions(ti) -> dict:
+    def get_artifacts_versions(ti=None):
         hook = DataFusionHook()
         instance_url = ti.xcom_pull(task_ids="get_instance", key="return_value")["apiEndpoint"]
         artifacts = hook.get_instance_artifacts(instance_url=instance_url, namespace="default")

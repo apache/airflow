@@ -22,7 +22,7 @@ from typing import Any, Sequence
 from googleapiclient.discovery import Resource, build
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 
 class GoogleDeploymentManagerHook(GoogleBaseHook):
@@ -49,19 +49,19 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):
         )
 
     def get_conn(self) -> Resource:
-        """Returns a Google Deployment Manager service object."""
+        """Return a Google Deployment Manager service object."""
         http_authorized = self._authorize()
         return build("deploymentmanager", "v2", http=http_authorized, cache_discovery=False)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def list_deployments(
         self,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         deployment_filter: str | None = None,
         order_by: str | None = None,
     ) -> list[dict[str, Any]]:
         """
-        Lists deployments in a google cloud project.
+        List deployments in a google cloud project.
 
         :param project_id: The project ID for this request.
         :param deployment_filter: A filter expression which limits resources returned in the response.
@@ -84,7 +84,7 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):
         self, project_id: str | None, deployment: str | None = None, delete_policy: str | None = None
     ) -> None:
         """
-        Deletes a deployment and all associated resources in a google cloud project.
+        Delete a deployment and all associated resources in a google cloud project.
 
         :param project_id: The project ID for this request.
         :param deployment: The name of the deployment for this request.

@@ -22,7 +22,8 @@ import logging
 import pytest
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.models import DAG, TaskInstance
+from airflow.models.dag import DAG
+from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.log.logging_mixin import set_context
 from airflow.utils.state import DagRunState
@@ -30,6 +31,9 @@ from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs
+
+pytestmark = pytest.mark.db_test
+
 
 DEFAULT_DATE = datetime(2019, 1, 1)
 TASK_HANDLER = "task"
@@ -54,31 +58,52 @@ def custom_task_log_handler_config():
     logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
 
 
-@pytest.fixture()
+@pytest.fixture
 def task_instance():
     dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
     task = EmptyOperator(task_id=TASK_ID, dag=dag)
-    dagrun = dag.create_dagrun(DagRunState.RUNNING, execution_date=DEFAULT_DATE, run_type=DagRunType.MANUAL)
+    dagrun = dag.create_dagrun(
+        DagRunState.RUNNING,
+        execution_date=DEFAULT_DATE,
+        run_type=DagRunType.MANUAL,
+        data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
+    )
     ti = TaskInstance(task=task, run_id=dagrun.run_id)
     ti.log.disabled = False
     yield ti
     clear_db_runs()
 
 
-def assert_prefix(task_instance: TaskInstance, prefix: str) -> None:
+def assert_prefix_once(task_instance: TaskInstance, prefix: str) -> None:
     handler = next((h for h in task_instance.log.handlers if h.name == TASK_HANDLER), None)
     assert handler is not None, "custom task log handler not set up correctly"
     assert handler.formatter is not None, "custom task log formatter not set up correctly"
+    previous_formatter = handler.formatter
     expected_format = f"{prefix}:{handler.formatter._fmt}"
     set_context(task_instance.log, task_instance)
     assert expected_format == handler.formatter._fmt
+    handler.setFormatter(previous_formatter)
+
+
+def assert_prefix_multiple(task_instance: TaskInstance, prefix: str) -> None:
+    handler = next((h for h in task_instance.log.handlers if h.name == TASK_HANDLER), None)
+    assert handler is not None, "custom task log handler not set up correctly"
+    assert handler.formatter is not None, "custom task log formatter not set up correctly"
+    previous_formatter = handler.formatter
+    expected_format = f"{prefix}:{handler.formatter._fmt}"
+    set_context(task_instance.log, task_instance)
+    set_context(task_instance.log, task_instance)
+    set_context(task_instance.log, task_instance)
+    assert expected_format == handler.formatter._fmt
+    handler.setFormatter(previous_formatter)
 
 
 def test_custom_formatter_default_format(task_instance):
     """The default format provides no prefix."""
-    assert_prefix(task_instance, "")
+    assert_prefix_once(task_instance, "")
 
 
-@conf_vars({("logging", "task_log_prefix_template"): "{{ti.dag_id }}-{{ ti.task_id }}"})
+@conf_vars({("logging", "task_log_prefix_template"): "{{ ti.dag_id }}-{{ ti.task_id }}"})
 def test_custom_formatter_custom_format_not_affected_by_config(task_instance):
-    assert_prefix(task_instance, f"{DAG_ID}-{TASK_ID}")
+    """Certifies that the prefix is only added once, even after repeated calls"""
+    assert_prefix_multiple(task_instance, f"{DAG_ID}-{TASK_ID}")

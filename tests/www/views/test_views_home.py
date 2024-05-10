@@ -32,6 +32,8 @@ from tests.test_utils.api_connexion_utils import create_user
 from tests.test_utils.db import clear_db_dags, clear_db_import_errors, clear_db_serialized_dags
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
 
+pytestmark = pytest.mark.db_test
+
 
 def clean_db():
     clear_db_dags()
@@ -55,7 +57,7 @@ def test_home(capture_templates, admin_client):
             '"deferred": "mediumpurple", "failed": "red", '
             '"null": "lightblue", "queued": "gray", '
             '"removed": "lightgrey", "restarting": "violet", "running": "lime", '
-            '"scheduled": "tan", '
+            '"scheduled": "tan", "shutdown": "blue", '
             '"skipped": "hotpink", '
             '"success": "green", "up_for_reschedule": "turquoise", '
             '"up_for_retry": "gold", "upstream_failed": "orange"};'
@@ -67,6 +69,25 @@ def test_home(capture_templates, admin_client):
     state_color_mapping = State.state_color.copy()
     state_color_mapping["null"] = state_color_mapping.pop(None)
     assert templates[0].local_context["state_color"] == state_color_mapping
+
+
+@mock.patch("airflow.www.views.AirflowBaseView.render_template")
+def test_home_dags_count(render_template_mock, admin_client, working_dags, session):
+    from sqlalchemy import update
+
+    from airflow.models.dag import DagModel
+
+    def call_kwargs():
+        return render_template_mock.call_args.kwargs
+
+    admin_client.get("home", follow_redirects=True)
+    assert call_kwargs()["status_count_all"] == 4
+
+    update_stmt = update(DagModel).where(DagModel.dag_id == "filter_test_1").values(is_active=False)
+    session.execute(update_stmt)
+
+    admin_client.get("home", follow_redirects=True)
+    assert call_kwargs()["status_count_all"] == 3
 
 
 def test_home_status_filter_cookie(admin_client):
@@ -91,6 +112,30 @@ def test_home_status_filter_cookie(admin_client):
 
 
 @pytest.fixture(scope="module")
+def user_no_importerror(app):
+    """Create User that cannot access Import Errors"""
+    return create_user(
+        app,
+        username="user_no_importerrors",
+        role_name="role_no_importerrors",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        ],
+    )
+
+
+@pytest.fixture
+def client_no_importerror(app, user_no_importerror):
+    """Client for User that cannot access Import Errors"""
+    return client_with_login(
+        app,
+        username="user_no_importerrors",
+        password="user_no_importerrors",
+    )
+
+
+@pytest.fixture(scope="module")
 def user_single_dag(app):
     """Create User that can only access the first DAG from TEST_FILTER_DAG_IDS"""
     return create_user(
@@ -99,12 +144,13 @@ def user_single_dag(app):
         role_name="role_single_dag",
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
             (permissions.ACTION_CAN_READ, permissions.resource_name_for_dag(TEST_FILTER_DAG_IDS[0])),
         ],
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def client_single_dag(app, user_single_dag):
     """Client for User that can only access the first DAG from TEST_FILTER_DAG_IDS"""
     return client_with_login(
@@ -129,7 +175,7 @@ def user_single_dag_edit(app):
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def client_single_dag_edit(app, user_single_dag_edit):
     """Client for User that can only edit the first DAG from TEST_FILTER_DAG_IDS"""
     return client_with_login(
@@ -148,7 +194,7 @@ def _process_file(file_path, session):
     dag_file_processor.process_file(file_path, [], False, session)
 
 
-@pytest.fixture()
+@pytest.fixture
 def working_dags(tmp_path):
     dag_contents_template = "from airflow import DAG\ndag = DAG('{}', tags=['{}'])"
 
@@ -159,7 +205,7 @@ def working_dags(tmp_path):
             _process_file(path, session)
 
 
-@pytest.fixture()
+@pytest.fixture
 def working_dags_with_read_perm(tmp_path):
     dag_contents_template = "from airflow import DAG\ndag = DAG('{}', tags=['{}'])"
     dag_contents_template_with_read_perm = (
@@ -176,7 +222,7 @@ def working_dags_with_read_perm(tmp_path):
             _process_file(path, session)
 
 
-@pytest.fixture()
+@pytest.fixture
 def working_dags_with_edit_perm(tmp_path):
     dag_contents_template = "from airflow import DAG\ndag = DAG('{}', tags=['{}'])"
     dag_contents_template_with_read_perm = (
@@ -193,7 +239,7 @@ def working_dags_with_edit_perm(tmp_path):
             _process_file(path, session)
 
 
-@pytest.fixture()
+@pytest.fixture
 def broken_dags(tmp_path, working_dags):
     with create_session() as session:
         for dag_id in TEST_FILTER_DAG_IDS:
@@ -202,13 +248,31 @@ def broken_dags(tmp_path, working_dags):
             _process_file(path, session)
 
 
-@pytest.fixture()
+@pytest.fixture
 def broken_dags_with_read_perm(tmp_path, working_dags_with_read_perm):
     with create_session() as session:
         for dag_id in TEST_FILTER_DAG_IDS:
             path = tmp_path / f"{dag_id}.py"
             path.write_text("airflow DAG")
             _process_file(path, session)
+
+
+@pytest.fixture
+def broken_dags_after_working(tmp_path):
+    # First create and process a DAG file that works
+    path = tmp_path / "all_in_one.py"
+    with create_session() as session:
+        contents = "from airflow import DAG\n"
+        for i, dag_id in enumerate(TEST_FILTER_DAG_IDS):
+            contents += f"dag{i} = DAG('{dag_id}')\n"
+        path.write_text(contents)
+        _process_file(path, session)
+
+    # Then break it!
+    with create_session() as session:
+        contents += "foobar()"
+        path.write_text(contents)
+        _process_file(path, session)
 
 
 def test_home_filter_tags(working_dags, admin_client):
@@ -228,6 +292,12 @@ def test_home_importerrors(broken_dags, user_client):
         check_content_in_response(f"/{dag_id}.py", resp)
 
 
+def test_home_no_importerrors_perm(broken_dags, client_no_importerror):
+    # Users without "can read on import errors" don't see any import errors
+    resp = client_no_importerror.get("home", follow_redirects=True)
+    check_content_not_in_response("Import Errors", resp)
+
+
 @pytest.mark.parametrize(
     "page",
     [
@@ -245,9 +315,21 @@ def test_home_importerrors_filtered_singledag_user(broken_dags_with_read_perm, c
     check_content_in_response("Import Errors", resp)
     # They can see the first DAGs import error
     check_content_in_response(f"/{TEST_FILTER_DAG_IDS[0]}.py", resp)
+    check_content_in_response("Traceback", resp)
     # But not the rest
     for dag_id in TEST_FILTER_DAG_IDS[1:]:
         check_content_not_in_response(f"/{dag_id}.py", resp)
+
+
+def test_home_importerrors_missing_read_on_all_dags_in_file(broken_dags_after_working, client_single_dag):
+    # If a user doesn't have READ on all DAGs in a file, that files traceback is redacted
+    resp = client_single_dag.get("home", follow_redirects=True)
+    check_content_in_response("Import Errors", resp)
+    # They can see the DAG file has an import error
+    check_content_in_response("all_in_one.py", resp)
+    # And the traceback is redacted
+    check_content_not_in_response("Traceback", resp)
+    check_content_in_response("REDACTED", resp)
 
 
 def test_home_dag_list(working_dags, user_client):
@@ -352,11 +434,6 @@ def test_dashboard_flash_messages_type(user_client):
         resp = user_client.get("home", follow_redirects=True)
     check_content_in_response("hello world", resp)
     check_content_in_response("alert-foo", resp)
-
-
-def test_audit_log_view(user_client, working_dags):
-    resp = user_client.get("/dags/filter_test_1/audit_log")
-    check_content_in_response("Dag Audit Log", resp)
 
 
 @pytest.mark.parametrize(

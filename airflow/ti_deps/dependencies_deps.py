@@ -20,7 +20,6 @@ from airflow.ti_deps.dependencies_states import (
     BACKFILL_QUEUEABLE_STATES,
     QUEUEABLE_STATES,
     RUNNABLE_STATES,
-    SCHEDULEABLE_STATES,
 )
 from airflow.ti_deps.deps.dag_ti_slots_available_dep import DagTISlotsAvailableDep
 from airflow.ti_deps.deps.dag_unpaused_dep import DagUnpausedDep
@@ -32,14 +31,6 @@ from airflow.ti_deps.deps.runnable_exec_date_dep import RunnableExecDateDep
 from airflow.ti_deps.deps.task_concurrency_dep import TaskConcurrencyDep
 from airflow.ti_deps.deps.task_not_running_dep import TaskNotRunningDep
 from airflow.ti_deps.deps.valid_state_dep import ValidStateDep
-
-# Context to get the dependencies that need to be met in order for a task instance to be
-# set to 'scheduled' state.
-SCHEDULED_DEPS = {
-    RunnableExecDateDep(),
-    ValidStateDep(SCHEDULEABLE_STATES),
-    TaskNotRunningDep(),
-}
 
 # Dependencies that if met, task instance should be re-queued.
 REQUEUEABLE_DEPS = {

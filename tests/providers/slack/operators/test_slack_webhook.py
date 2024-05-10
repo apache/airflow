@@ -23,6 +23,8 @@ import pytest
 
 from airflow.providers.slack.operators.slack_webhook import SlackWebhookOperator
 
+DEFAULT_HOOKS_PARAMETERS = {"timeout": None, "proxy": None, "retry_handlers": None}
+
 
 class TestSlackWebhookOperator:
     def setup_method(self):
@@ -34,14 +36,28 @@ class TestSlackWebhookOperator:
             "icon_url": None,
         }
 
-    @pytest.mark.parametrize("proxy", [None, "https://localhost:9999"])
     @mock.patch("airflow.providers.slack.operators.slack_webhook.SlackWebhookHook")
-    def test_hook(self, mock_slackwebhook_cls, proxy):
+    @pytest.mark.parametrize(
+        "slack_op_kwargs, hook_extra_kwargs",
+        [
+            pytest.param({}, DEFAULT_HOOKS_PARAMETERS, id="default-hook-parameters"),
+            pytest.param(
+                {"timeout": 42, "proxy": "http://spam.egg", "retry_handlers": []},
+                {"timeout": 42, "proxy": "http://spam.egg", "retry_handlers": []},
+                id="with-extra-hook-parameters",
+            ),
+        ],
+    )
+    def test_hook(self, mock_slackwebhook_cls, slack_op_kwargs, hook_extra_kwargs):
         """Test get cached ``SlackWebhookHook`` hook."""
-        op = SlackWebhookOperator(task_id="test_hook", slack_webhook_conn_id="test_conn_id", proxy=proxy)
+        op = SlackWebhookOperator(
+            task_id="test_hook", slack_webhook_conn_id="test_conn_id", **slack_op_kwargs
+        )
         hook = op.hook
         assert hook is op.hook, "Expected cached hook"
-        mock_slackwebhook_cls.assert_called_once_with(slack_webhook_conn_id="test_conn_id", proxy=proxy)
+        mock_slackwebhook_cls.assert_called_once_with(
+            slack_webhook_conn_id="test_conn_id", **hook_extra_kwargs
+        )
 
     def test_assert_templated_fields(self):
         """Test expected templated fields."""

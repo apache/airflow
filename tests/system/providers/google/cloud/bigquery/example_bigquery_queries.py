@@ -18,12 +18,13 @@
 """
 Example Airflow DAG for Google BigQuery service.
 """
+
 from __future__ import annotations
 
 import os
 from datetime import datetime
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCheckOperator,
@@ -68,7 +69,7 @@ for index, location in enumerate(locations, 1):
     )
     # [END howto_operator_bigquery_query]
 
-    with models.DAG(
+    with DAG(
         DAG_ID,
         schedule="@once",
         start_date=datetime(2021, 1, 1),

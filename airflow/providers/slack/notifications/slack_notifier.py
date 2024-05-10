@@ -15,12 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.slack.notifications.slack`."""
+
 from __future__ import annotations
 
 import warnings
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.slack.notifications.slack import SlackNotifier  # noqa
+from airflow.providers.slack.notifications.slack import SlackNotifier  # noqa: F401
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.slack.notifications.slack`",

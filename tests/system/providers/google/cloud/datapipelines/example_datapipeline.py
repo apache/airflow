@@ -19,13 +19,14 @@
 """
 Example Airflow DAG for testing Google DataPipelines Create Data Pipeline Operator.
 """
+
 from __future__ import annotations
 
 import os
 from datetime import datetime
 from pathlib import Path
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.datapipeline import (
     CreateDataPipelineOperator,
     RunDataPipelineOperator,
@@ -56,7 +57,7 @@ OUTPUT = f"gs://{BUCKET_NAME}/results/hello"
 FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / FILE_NAME)
 TEMPLATE_LOCAL_PATH = str(Path(__file__).parent / "resources" / TEMPLATE_FILE)
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

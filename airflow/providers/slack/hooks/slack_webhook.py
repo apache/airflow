@@ -35,7 +35,7 @@ LEGACY_INTEGRATION_PARAMS = ("channel", "username", "icon_emoji", "icon_url")
 
 
 def check_webhook_response(func: Callable) -> Callable:
-    """Function decorator that check WebhookResponse and raise an error if status code != 200."""
+    """Check WebhookResponse and raise an error if status code != 200."""
 
     @wraps(func)
     def wrapper(*args, **kwargs) -> Callable:
@@ -48,32 +48,6 @@ def check_webhook_response(func: Callable) -> Callable:
         return resp
 
     return wrapper
-
-
-def _ensure_prefixes(conn_type):
-    # TODO: Remove when provider min airflow version >= 2.5.0 since
-    #       this is handled by provider manager from that version.
-
-    def dec(func):
-        @wraps(func)
-        def inner(cls):
-            field_behaviors = func(cls)
-            conn_attrs = {"host", "schema", "login", "password", "port", "extra"}
-
-            def _ensure_prefix(field):
-                if field not in conn_attrs and not field.startswith("extra__"):
-                    return f"extra__{conn_type}__{field}"
-                else:
-                    return field
-
-            if "placeholders" in field_behaviors:
-                placeholders = field_behaviors["placeholders"]
-                field_behaviors["placeholders"] = {_ensure_prefix(k): v for k, v in placeholders.items()}
-            return field_behaviors
-
-        return inner
-
-    return dec
 
 
 class SlackWebhookHook(BaseHook):
@@ -201,7 +175,7 @@ class SlackWebhookHook(BaseHook):
     @check_webhook_response
     def send_dict(self, body: dict[str, Any] | str, *, headers: dict[str, str] | None = None):
         """
-        Performs a Slack Incoming Webhook request with given JSON data block.
+        Perform a Slack Incoming Webhook request with given JSON data block.
 
         :param body: JSON data structure, expected dict or JSON-string.
         :param headers: Request headers for this request.
@@ -246,7 +220,7 @@ class SlackWebhookHook(BaseHook):
         **kwargs,
     ):
         """
-        Performs a Slack Incoming Webhook request with given arguments.
+        Perform a Slack Incoming Webhook request with given arguments.
 
         :param text: The text message
             (even when having blocks, setting this as well is recommended as it works as fallback).
@@ -257,7 +231,7 @@ class SlackWebhookHook(BaseHook):
         :param unfurl_links: Option to indicate whether text url should unfurl.
         :param unfurl_media: Option to indicate whether media url should unfurl.
         :param headers: Request headers for this request.
-        :param attachments: A collection of attachments.
+        :param attachments: (legacy) A collection of attachments.
         """
         body = {
             "text": text,
@@ -283,7 +257,7 @@ class SlackWebhookHook(BaseHook):
         headers: dict[str, str] | None = None,
     ):
         """
-        Performs a Slack Incoming Webhook request with given text.
+        Perform a Slack Incoming Webhook request with given text.
 
         :param text: The text message.
         :param unfurl_links: Option to indicate whether text url should unfurl.
@@ -294,7 +268,7 @@ class SlackWebhookHook(BaseHook):
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns dictionary of widgets to be added for the hook to handle extra values."""
+        """Return dictionary of widgets to be added for the hook to handle extra values."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import IntegerField, StringField
@@ -316,9 +290,8 @@ class SlackWebhookHook(BaseHook):
         }
 
     @classmethod
-    @_ensure_prefixes(conn_type="slackwebhook")
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["login", "port", "extra"],
             "relabeling": {

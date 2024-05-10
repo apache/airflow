@@ -17,18 +17,19 @@
 # under the License.
 from __future__ import annotations
 
-import os.path
+import os
 import urllib.parse
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow import AirflowException
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
 from airflow.providers.amazon.aws.triggers.glue import GlueJobCompleteTrigger
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -63,6 +64,7 @@ class GlueJobOperator(BaseOperator):
         (default: False)
     :param verbose: If True, Glue Job Run logs show in the Airflow Task Logs.  (default: False)
     :param update_config: If True, Operator will update job configuration.  (default: False)
+    :param replace_script_file: If True, the script file will be replaced in S3. (default: False)
     :param stop_job_run_on_kill: If True, Operator will stop the job run when task is killed.
     """
 
@@ -94,7 +96,7 @@ class GlueJobOperator(BaseOperator):
         script_args: dict | None = None,
         retry_limit: int = 0,
         num_of_dpus: int | float | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
         s3_bucket: str | None = None,
         iam_role_name: str | None = None,
@@ -104,6 +106,7 @@ class GlueJobOperator(BaseOperator):
         wait_for_completion: bool = True,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         verbose: bool = False,
+        replace_script_file: bool = False,
         update_config: bool = False,
         job_poll_interval: int | float = 6,
         stop_job_run_on_kill: bool = False,
@@ -129,6 +132,7 @@ class GlueJobOperator(BaseOperator):
         self.wait_for_completion = wait_for_completion
         self.verbose = verbose
         self.update_config = update_config
+        self.replace_script_file = replace_script_file
         self.deferrable = deferrable
         self.job_poll_interval = job_poll_interval
         self.stop_job_run_on_kill = stop_job_run_on_kill
@@ -142,7 +146,10 @@ class GlueJobOperator(BaseOperator):
             s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
             script_name = os.path.basename(self.script_location)
             s3_hook.load_file(
-                self.script_location, self.s3_artifacts_prefix + script_name, bucket_name=self.s3_bucket
+                self.script_location,
+                self.s3_artifacts_prefix + script_name,
+                bucket_name=self.s3_bucket,
+                replace=self.replace_script_file,
             )
             s3_script_location = f"s3://{self.s3_bucket}/{self.s3_artifacts_prefix}{script_name}"
         else:
@@ -215,7 +222,9 @@ class GlueJobOperator(BaseOperator):
             self.log.info("AWS Glue Job: %s. Run Id: %s", self.job_name, self._job_run_id)
         return self._job_run_id
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             raise AirflowException(f"Error in glue job: {event}")
         return event["value"]

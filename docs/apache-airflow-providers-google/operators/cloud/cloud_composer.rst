@@ -57,7 +57,7 @@ With this configuration we can create the environment:
 or you can define the same operator in the deferrable mode:
 :class:`~airflow.providers.google.cloud.operators.cloud_composer.CloudComposerCreateEnvironmentOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/composer/example_cloud_composer_deferrable.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/composer/example_cloud_composer.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_composer_environment_deferrable_mode]
@@ -116,7 +116,7 @@ To update a service you can use:
 or you can define the same operator in the deferrable mode:
 :class:`~airflow.providers.google.cloud.operators.cloud_composer.CloudComposerCreateEnvironmentOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/composer/example_cloud_composer_deferrable.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/composer/example_cloud_composer.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_update_composer_environment_deferrable_mode]
@@ -138,7 +138,7 @@ To delete a service you can use:
 or you can define the same operator in the deferrable mode:
 :class:`~airflow.providers.google.cloud.operators.cloud_composer.CloudComposerDeleteEnvironmentOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/composer/example_cloud_composer_deferrable.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/composer/example_cloud_composer.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_delete_composer_environment_deferrable_mode]
@@ -157,3 +157,23 @@ You can also list all supported Cloud Composer images:
     :dedent: 4
     :start-after: [START howto_operator_composer_image_list]
     :end-before: [END howto_operator_composer_image_list]
+
+Run Airflow CLI commands
+------------------------
+
+You can run Airflow CLI commands in your environments, use:
+:class:`~airflow.providers.google.cloud.operators.cloud_composer.CloudComposerRunAirflowCLICommandOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/composer/example_cloud_composer.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_run_airflow_cli_command]
+    :end-before: [END howto_operator_run_airflow_cli_command]
+
+or you can define the same operator in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/composer/example_cloud_composer.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_run_airflow_cli_command_deferrable_mode]
+    :end-before: [END howto_operator_run_airflow_cli_command_deferrable_mode]

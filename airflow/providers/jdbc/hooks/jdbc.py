@@ -17,6 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+import traceback
+import warnings
+from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
 import jaydebeapi
@@ -25,6 +28,19 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
+
+
+@contextmanager
+def suppress_and_warn(*exceptions: type[BaseException]):
+    """Context manager that suppresses the given exceptions and logs a warning message."""
+    try:
+        yield
+    except exceptions as e:
+        warnings.warn(
+            f"Exception suppressed: {e}\n{traceback.format_exc()}",
+            category=UserWarning,
+            stacklevel=3,
+        )
 
 
 class JdbcHook(DbApiHook):
@@ -44,7 +60,7 @@ class JdbcHook(DbApiHook):
            configuration, you should make sure that you trust the users who can edit connections in the UI
            to not use it maliciously.
         4. Patch the ``JdbcHook.default_driver_path`` and/or ``JdbcHook.default_driver_class`` values in the
-           "local_settings.py" file.
+           ``local_settings.py`` file.
 
     See :doc:`/connections/jdbc` for full documentation.
 
@@ -74,8 +90,8 @@ class JdbcHook(DbApiHook):
         self._driver_path = driver_path
         self._driver_class = driver_class
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Get custom field behaviour."""
         return {
             "hidden_fields": ["port", "schema"],
@@ -152,7 +168,8 @@ class JdbcHook(DbApiHook):
         :param conn: The connection.
         :param autocommit: The connection's autocommit setting.
         """
-        conn.jconn.setAutoCommit(autocommit)
+        with suppress_and_warn(jaydebeapi.Error):
+            conn.jconn.setAutoCommit(autocommit)
 
     def get_autocommit(self, conn: jaydebeapi.Connection) -> bool:
         """Get autocommit setting for the provided connection.
@@ -162,4 +179,6 @@ class JdbcHook(DbApiHook):
             to True on the connection. False if it is either not set, set to
             False, or the connection does not support auto-commit.
         """
-        return conn.jconn.getAutoCommit()
+        with suppress_and_warn(jaydebeapi.Error):
+            return conn.jconn.getAutoCommit()
+        return False

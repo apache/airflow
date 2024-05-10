@@ -45,9 +45,12 @@ with DAG(
     catchup=False,
     tags=["example", "sftp"],
 ) as dag:
-
     # [START howto_operator_sftp_sensor_decorator]
-    @task.sftp_sensor(task_id="sftp_sensor", path=FULL_FILE_PATH, poke_interval=10)
+    @task.sftp_sensor(  # type: ignore[attr-defined]
+        task_id="sftp_sensor",  # type: ignore[attr-defined]
+        path=FULL_FILE_PATH,
+        poke_interval=10,
+    )
     def sftp_sensor_decorator():
         print("Files were successfully found!")
         # add your logic
@@ -73,8 +76,18 @@ with DAG(
     sftp_with_operator = SFTPSensor(task_id="sftp_operator", path=FULL_FILE_PATH, poke_interval=10)
     # [END howto_operator_sftp_sensor]
 
+    # [START howto_sensor_sftp_deferrable]
+    sftp_sensor_with_async = SFTPSensor(
+        task_id="sftp_operator_async", path=FULL_FILE_PATH, poke_interval=10, deferrable=True
+    )
+    # [END howto_sensor_sftp_deferrable]
+
     remove_file_task_start >> sleep_task >> create_decoy_file_task
-    remove_file_task_start >> [sftp_with_operator, sftp_with_sensor] >> remove_file_task_end
+    (
+        remove_file_task_start
+        >> [sftp_with_operator, sftp_sensor_with_async, sftp_with_sensor]
+        >> remove_file_task_end
+    )
 
     from tests.system.utils.watcher import watcher
 

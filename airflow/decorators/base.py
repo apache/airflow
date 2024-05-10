@@ -18,16 +18,15 @@ from __future__ import annotations
 
 import inspect
 import itertools
+import textwrap
 import warnings
 from functools import cached_property
-from textwrap import dedent
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
     ClassVar,
     Collection,
-    Dict,
     Generic,
     Iterator,
     Mapping,
@@ -41,8 +40,7 @@ import attr
 import re2
 import typing_extensions
 
-from airflow import Dataset
-from airflow.exceptions import AirflowException
+from airflow.datasets import Dataset
 from airflow.models.abstractoperator import DEFAULT_RETRIES, DEFAULT_RETRY_DELAY
 from airflow.models.baseoperator import (
     BaseOperator,
@@ -196,7 +194,6 @@ class DecoratedOperator(BaseOperator):
         task_id: str,
         op_args: Collection[Any] | None = None,
         op_kwargs: Mapping[str, Any] | None = None,
-        multiple_outputs: bool = False,
         kwargs_to_upstream: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
@@ -211,11 +208,38 @@ class DecoratedOperator(BaseOperator):
         # since values for those will be provided when the task is run. Since
         # we're not actually running the function, None is good enough here.
         signature = inspect.signature(python_callable)
+
+        # Don't allow context argument defaults other than None to avoid ambiguities.
+        faulty_parameters = [
+            param.name
+            for param in signature.parameters.values()
+            if param.name in KNOWN_CONTEXT_KEYS and param.default not in (None, inspect.Parameter.empty)
+        ]
+        if faulty_parameters:
+            message = f"Context key parameter {faulty_parameters[0]} can't have a default other than None"
+            raise ValueError(message)
+
         parameters = [
             param.replace(default=None) if param.name in KNOWN_CONTEXT_KEYS else param
             for param in signature.parameters.values()
         ]
-        signature = signature.replace(parameters=parameters)
+        try:
+            signature = signature.replace(parameters=parameters)
+        except ValueError as err:
+            message = textwrap.dedent(
+                f"""
+                The function signature broke while assigning defaults to context key parameters.
+
+                The decorator is replacing the signature
+                > {python_callable.__name__}({', '.join(str(param) for param in signature.parameters.values())})
+
+                with
+                > {python_callable.__name__}({', '.join(str(param) for param in parameters)})
+
+                which isn't valid: {err}
+                """
+            )
+            raise ValueError(message) from err
 
         # Check that arguments can be binded. There's a slight difference when
         # we do validation for task-mapping: Since there's no guarantee we can
@@ -228,7 +252,6 @@ class DecoratedOperator(BaseOperator):
         else:
             signature.bind(*op_args, **op_kwargs)
 
-        self.multiple_outputs = multiple_outputs
         self.op_args = op_args
         self.op_kwargs = op_kwargs
         super().__init__(task_id=task_id, **kwargs_to_upstream, **kwargs)
@@ -258,23 +281,6 @@ class DecoratedOperator(BaseOperator):
             for item in return_value:
                 if isinstance(item, Dataset):
                     self.outlets.append(item)
-        if not self.multiple_outputs or return_value is None:
-            return return_value
-        if isinstance(return_value, dict):
-            for key in return_value.keys():
-                if not isinstance(key, str):
-                    raise AirflowException(
-                        "Returned dictionary keys must be strings when using "
-                        f"multiple_outputs, found {key} ({type(key)}) instead"
-                    )
-            for key, value in return_value.items():
-                if isinstance(value, Dataset):
-                    self.outlets.append(value)
-                xcom_push(context, key, value)
-        else:
-            raise AirflowException(
-                f"Returned output was type {type(return_value)} expected dictionary for multiple_outputs"
-            )
         return return_value
 
     def _hook_apply_defaults(self, *args, **kwargs):
@@ -293,7 +299,7 @@ class DecoratedOperator(BaseOperator):
 
     def get_python_source(self):
         raw_source = inspect.getsource(self.python_callable)
-        res = dedent(raw_source)
+        res = textwrap.dedent(raw_source)
         res = remove_task_decorator(res, self.custom_operator_name)
         return res
 
@@ -335,8 +341,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
 
         try:
             # We only care about the return annotation, not anything about the parameters
-            def fake():
-                ...
+            def fake(): ...
 
             fake.__annotations__ = {"return": self.function.__annotations__["return"]}
 
@@ -351,7 +356,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         except TypeError:  # Can't evaluate return type.
             return False
         ttype = getattr(return_type, "__origin__", return_type)
-        return ttype == dict or ttype == Dict
+        return isinstance(ttype, type) and issubclass(ttype, Mapping)
 
     def __attrs_post_init__(self):
         if "self" in self.function_signature.parameters:
@@ -504,6 +509,8 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             # task's expand() contribute to the op_kwargs operator argument, not
             # the operator arguments themselves, and should expand against it.
             expand_input_attr="op_kwargs_expand_input",
+            start_trigger=self.operator_class.start_trigger,
+            next_method=self.operator_class.next_method,
         )
         return XComArg(operator=operator)
 
@@ -544,7 +551,8 @@ class DecoratedMappedOperator(MappedOperator):
 
     def _expand_mapped_kwargs(self, context: Context, session: Session) -> tuple[Mapping[str, Any], set[int]]:
         # We only use op_kwargs_expand_input so this must always be empty.
-        assert self.expand_input is EXPAND_INPUT_EMPTY
+        if self.expand_input is not EXPAND_INPUT_EMPTY:
+            raise AssertionError(f"unexpected expand_input: {self.expand_input}")
         op_kwargs, resolved_oids = super()._expand_mapped_kwargs(context, session)
         return {"op_kwargs": op_kwargs}, resolved_oids
 
@@ -579,20 +587,15 @@ class Task(Protocol, Generic[FParams, FReturn]):
     function: Callable[FParams, FReturn]
 
     @property
-    def __wrapped__(self) -> Callable[FParams, FReturn]:
-        ...
+    def __wrapped__(self) -> Callable[FParams, FReturn]: ...
 
-    def partial(self, **kwargs: Any) -> Task[FParams, FReturn]:
-        ...
+    def partial(self, **kwargs: Any) -> Task[FParams, FReturn]: ...
 
-    def expand(self, **kwargs: OperatorExpandArgument) -> XComArg:
-        ...
+    def expand(self, **kwargs: OperatorExpandArgument) -> XComArg: ...
 
-    def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg:
-        ...
+    def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg: ...
 
-    def override(self, **kwargs: Any) -> Task[FParams, FReturn]:
-        ...
+    def override(self, **kwargs: Any) -> Task[FParams, FReturn]: ...
 
 
 class TaskDecorator(Protocol):
@@ -614,8 +617,7 @@ class TaskDecorator(Protocol):
     ) -> Callable[[Callable[FParams, FReturn]], Task[FParams, FReturn]]:
         """For the decorator factory ``@task()`` case."""
 
-    def override(self, **kwargs: Any) -> Task[FParams, FReturn]:
-        ...
+    def override(self, **kwargs: Any) -> Task[FParams, FReturn]: ...
 
 
 def task_decorator_factory(

@@ -41,10 +41,7 @@ class TestGenerateUuid:
 
     def test_deterministic(self):
         """Test that result is deterministic and a valid UUID object"""
-        args = [
-            "".join(random.choice(string.ascii_letters) for _ in range(random.randint(3, 13)))
-            for _ in range(100)
-        ]
+        args = ["".join(random.choices(string.ascii_letters, k=random.randint(3, 13))) for _ in range(100)]
         result = generate_uuid(*args, **self.kwargs)
         assert result == generate_uuid(*args, **self.kwargs)
         assert uuid.UUID(result).version == 5, "Should generate UUID v5"

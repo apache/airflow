@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.databricks.operators.databricks_repos import (
     DatabricksReposCreateOperator,
     DatabricksReposDeleteOperator,
@@ -220,8 +220,8 @@ class TestDatabricksReposCreateOperator:
             f"repo_path should have form of /Repos/{{folder}}/{{repo-name}}, got '{repo_path}'"
         )
 
+        op = DatabricksReposCreateOperator(task_id=TASK_ID, git_url=git_url, repo_path=repo_path)
         with pytest.raises(AirflowException, match=exception_message):
-            op = DatabricksReposCreateOperator(task_id=TASK_ID, git_url=git_url, repo_path=repo_path)
             op.execute(None)
 
         with pytest.raises(

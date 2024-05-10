@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from time import sleep
+import time
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -160,7 +160,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
 
                 self.log.info("Poke retry %s. Sleep time %s seconds. Sleeping...", num_tries, sleep_time)
 
-                sleep(sleep_time)
+                time.sleep(sleep_time)
 
                 sleep_time *= exponential_back_off_factor
 
@@ -240,7 +240,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
 
                 self.log.info("Poke retry %s. Sleep time %s seconds. Sleeping...", num_tries, sleep_time)
 
-                sleep(sleep_time)
+                time.sleep(sleep_time)
 
                 sleep_time *= exponential_back_off_factor
 

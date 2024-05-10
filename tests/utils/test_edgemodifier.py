@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator

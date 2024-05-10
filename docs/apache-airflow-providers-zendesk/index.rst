@@ -32,6 +32,13 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
+    :caption: Guides
+
+    Connection types <connections>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/zendesk/index>
@@ -63,35 +70,35 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-zendesk
+apache-airflow-providers-zendesk package
 ------------------------------------------------------
 
 `Zendesk <https://www.zendesk.com/>`__
 
 
-Release: 4.3.1
+Release: 4.7.0
 
 Provider package
 ----------------
 
-This is a provider package for ``zendesk`` provider. All classes for this provider package
-are in ``airflow.providers.zendesk`` python package.
+This package is for the ``zendesk`` provider.
+All classes for this package are included in the ``airflow.providers.zendesk`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-zendesk``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-zendesk``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.4.0``
-``zenpy``           ``>=2.0.24``
+``apache-airflow``  ``>=2.7.0``
+``zenpy``           ``>=2.0.40``
 ==================  ==================

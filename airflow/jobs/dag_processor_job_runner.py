@@ -31,7 +31,7 @@ def empty_callback(_: Any) -> None:
     pass
 
 
-class DagProcessorJobRunner(BaseJobRunner[Job], LoggingMixin):
+class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
     """
     DagProcessorJobRunner is a job runner that runs a DagFileProcessorManager processor.
 

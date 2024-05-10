@@ -33,7 +33,7 @@ export default function useUpstreamDatasetEvents({ runId }: Props) {
     const upstreamEventsUrl = (
       getMetaValue("upstream_dataset_events_api") ||
       `api/v1/dags/${dagId}/dagRuns/_DAG_RUN_ID_/upstreamDatasetEvents`
-    ).replace("_DAG_RUN_ID_", runId);
+    ).replace("_DAG_RUN_ID_", encodeURIComponent(runId));
     return axios.get<AxiosResponse, API.DatasetEventCollection>(
       upstreamEventsUrl
     );

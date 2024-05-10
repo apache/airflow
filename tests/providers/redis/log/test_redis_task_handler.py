@@ -30,6 +30,8 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
 
 class TestRedisTaskHandler:
     @pytest.fixture

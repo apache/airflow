@@ -19,6 +19,8 @@ services:
   airflow:
     stdin_open: true  # docker run -i
     tty: true  # docker run -t
+    environment:
+      - AIRFLOW__CORE__PLUGINS_FOLDER=/files/plugins
     # We need to mount files and directories individually because some files
     # such apache_airflow.egg-info should not be mounted from host
     # we only mount those files, so that it makes sense to edit while developing

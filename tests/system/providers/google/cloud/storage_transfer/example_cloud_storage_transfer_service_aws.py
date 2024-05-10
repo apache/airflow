@@ -18,14 +18,14 @@
 """
 Example Airflow DAG that demonstrates interactions with Google Cloud Transfer.
 """
+
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta
+from copy import deepcopy
+from datetime import datetime, timedelta, timezone
 
-from pydantic.main import deepcopy
-
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
@@ -87,7 +87,7 @@ aws_to_gcs_transfer_body = {
     SCHEDULE: {
         SCHEDULE_START_DATE: datetime(2015, 1, 1).date(),
         SCHEDULE_END_DATE: datetime(2030, 1, 1).date(),
-        START_TIME_OF_DAY: (datetime.utcnow() + timedelta(minutes=1)).time(),
+        START_TIME_OF_DAY: (datetime.now(tz=timezone.utc) + timedelta(minutes=1)).time(),
     },
     TRANSFER_SPEC: {
         AWS_S3_DATA_SOURCE: {BUCKET_NAME: BUCKET_SOURCE_AWS},
@@ -100,7 +100,7 @@ aws_to_gcs_transfer_body = {
 aws_to_gcs_transfer_body_2 = deepcopy(aws_to_gcs_transfer_body)
 aws_to_gcs_transfer_body_2[JOB_NAME] = GCP_TRANSFER_JOB_2_NAME
 
-with models.DAG(
+with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
     catchup=False,
@@ -113,7 +113,7 @@ with models.DAG(
     upload_file_to_s3 = GCSToS3Operator(
         task_id="upload_file_to_s3",
         gcp_user_project=GCP_PROJECT_ID,
-        bucket=EXAMPLE_BUCKET,
+        gcs_bucket=EXAMPLE_BUCKET,
         prefix=EXAMPLE_FILE,
         dest_s3_key=f"s3://{BUCKET_SOURCE_AWS}",
         replace=True,

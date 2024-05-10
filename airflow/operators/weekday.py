@@ -44,7 +44,7 @@ class BranchDayOfWeekOperator(BaseBranchOperator):
         monday = EmptyOperator(task_id="monday")
         other_day = EmptyOperator(task_id="other_day")
 
-        monday_check = DayOfWeekSensor(
+        monday_check = BranchDayOfWeekOperator(
             task_id="monday_check",
             week_day="Monday",
             use_task_logical_date=True,

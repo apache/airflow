@@ -16,19 +16,19 @@
 # under the License.
 from __future__ import annotations
 
-from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
-from airflow import AirflowException
-from airflow.models import BaseOperator
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.eventbridge import EventBridgeHook
+from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class EventBridgePutEventsOperator(BaseOperator):
+class EventBridgePutEventsOperator(AwsBaseOperator[EventBridgeHook]):
     """
     Put Events onto Amazon EventBridge.
 
@@ -38,35 +38,27 @@ class EventBridgePutEventsOperator(BaseOperator):
 
     :param entries: the list of events to be put onto EventBridge, each event is a dict (required)
     :param endpoint_id: the URL subdomain of the endpoint
-    :param aws_conn_id: the AWS connection to use
-    :param region_name: the region where events are to be sent
-
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.htmlt
     """
 
-    template_fields: Sequence[str] = ("entries", "endpoint_id", "aws_conn_id", "region_name")
+    aws_hook_class = EventBridgeHook
+    template_fields: Sequence[str] = aws_template_fields("entries", "endpoint_id")
 
-    def __init__(
-        self,
-        *,
-        entries: list[dict],
-        endpoint_id: str | None = None,
-        aws_conn_id: str = "aws_default",
-        region_name: str | None = None,
-        **kwargs,
-    ):
+    def __init__(self, *, entries: list[dict], endpoint_id: str | None = None, **kwargs):
         super().__init__(**kwargs)
         self.entries = entries
         self.endpoint_id = endpoint_id
-        self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
-
-    @cached_property
-    def hook(self) -> EventBridgeHook:
-        """Create and return an EventBridgeHook."""
-        return EventBridgeHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
     def execute(self, context: Context):
-
         response = self.hook.conn.put_events(
             **prune_dict(
                 {
@@ -91,7 +83,7 @@ class EventBridgePutEventsOperator(BaseOperator):
             return [e["EventId"] for e in response["Entries"]]
 
 
-class EventBridgePutRuleOperator(BaseOperator):
+class EventBridgePutRuleOperator(AwsBaseOperator[EventBridgeHook]):
     """
     Create or update a specified EventBridge rule.
 
@@ -107,12 +99,20 @@ class EventBridgePutRuleOperator(BaseOperator):
     :param schedule_expression: the scheduling expression (for example, a cron or rate expression)
     :param state: indicates whether rule is set to be "ENABLED" or "DISABLED"
     :param tags: list of key-value pairs to associate with the rule
-    :param region: the region where rule is to be created or updated
-
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.htmlt
     """
 
-    template_fields: Sequence[str] = (
-        "aws_conn_id",
+    aws_hook_class = EventBridgeHook
+    template_fields: Sequence[str] = aws_template_fields(
         "name",
         "description",
         "event_bus_name",
@@ -121,7 +121,6 @@ class EventBridgePutRuleOperator(BaseOperator):
         "schedule_expression",
         "state",
         "tags",
-        "region_name",
     )
 
     def __init__(
@@ -135,8 +134,6 @@ class EventBridgePutRuleOperator(BaseOperator):
         schedule_expression: str | None = None,
         state: str | None = None,
         tags: list | None = None,
-        region_name: str | None = None,
-        aws_conn_id: str = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -145,19 +142,11 @@ class EventBridgePutRuleOperator(BaseOperator):
         self.event_bus_name = event_bus_name
         self.event_pattern = event_pattern
         self.role_arn = role_arn
-        self.region_name = region_name
         self.schedule_expression = schedule_expression
         self.state = state
         self.tags = tags
-        self.aws_conn_id = aws_conn_id
-
-    @cached_property
-    def hook(self) -> EventBridgeHook:
-        """Create and return an EventBridgeHook."""
-        return EventBridgeHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
     def execute(self, context: Context):
-
         self.log.info('Sending rule "%s" to EventBridge.', self.name)
 
         return self.hook.put_rule(
@@ -172,7 +161,7 @@ class EventBridgePutRuleOperator(BaseOperator):
         )
 
 
-class EventBridgeEnableRuleOperator(BaseOperator):
+class EventBridgeEnableRuleOperator(AwsBaseOperator[EventBridgeHook]):
     """
     Enable an EventBridge Rule.
 
@@ -182,32 +171,25 @@ class EventBridgeEnableRuleOperator(BaseOperator):
 
     :param name: the name of the rule to enable
     :param event_bus_name: the name or ARN of the event bus associated with the rule (default if omitted)
-    :param aws_conn_id: the AWS connection to use
-    :param region_name: the region of the rule to be enabled
-
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.htmlt
     """
 
-    template_fields: Sequence[str] = ("name", "event_bus_name", "region_name", "aws_conn_id")
+    aws_hook_class = EventBridgeHook
+    template_fields: Sequence[str] = aws_template_fields("name", "event_bus_name")
 
-    def __init__(
-        self,
-        *,
-        name: str,
-        event_bus_name: str | None = None,
-        region_name: str | None = None,
-        aws_conn_id: str = "aws_default",
-        **kwargs,
-    ):
+    def __init__(self, *, name: str, event_bus_name: str | None = None, **kwargs):
         super().__init__(**kwargs)
         self.name = name
         self.event_bus_name = event_bus_name
-        self.region_name = region_name
-        self.aws_conn_id = aws_conn_id
-
-    @cached_property
-    def hook(self) -> EventBridgeHook:
-        """Create and return an EventBridgeHook."""
-        return EventBridgeHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
     def execute(self, context: Context):
         self.hook.conn.enable_rule(
@@ -222,7 +204,7 @@ class EventBridgeEnableRuleOperator(BaseOperator):
         self.log.info('Enabled rule "%s"', self.name)
 
 
-class EventBridgeDisableRuleOperator(BaseOperator):
+class EventBridgeDisableRuleOperator(AwsBaseOperator[EventBridgeHook]):
     """
     Disable an EventBridge Rule.
 
@@ -232,35 +214,27 @@ class EventBridgeDisableRuleOperator(BaseOperator):
 
     :param name: the name of the rule to disable
     :param event_bus_name: the name or ARN of the event bus associated with the rule (default if omitted)
-    :param aws_conn_id: the AWS connection to use
-    :param region_name: the region of the rule to be disabled
-
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.htmlt
     """
 
-    template_fields: Sequence[str] = ("name", "event_bus_name", "region_name", "aws_conn_id")
+    aws_hook_class = EventBridgeHook
+    template_fields: Sequence[str] = aws_template_fields("name", "event_bus_name")
 
-    def __init__(
-        self,
-        *,
-        name: str,
-        event_bus_name: str | None = None,
-        region_name: str | None = None,
-        aws_conn_id: str = "aws_default",
-        **kwargs,
-    ):
+    def __init__(self, *, name: str, event_bus_name: str | None = None, **kwargs):
         super().__init__(**kwargs)
         self.name = name
         self.event_bus_name = event_bus_name
-        self.region_name = region_name
-        self.aws_conn_id = aws_conn_id
-
-    @cached_property
-    def hook(self) -> EventBridgeHook:
-        """Create and return an EventBridgeHook."""
-        return EventBridgeHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
     def execute(self, context: Context):
-
         self.hook.conn.disable_rule(
             **prune_dict(
                 {

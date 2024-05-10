@@ -17,6 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
+
+import pytest
+from dateutil import relativedelta
+
 from airflow.jobs.job import Job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.models.dag import DagModel
@@ -31,12 +36,18 @@ from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.serialization.pydantic.dataset import DatasetEventPydantic
 from airflow.serialization.pydantic.job import JobPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
+from airflow.settings import _ENABLE_AIP_44
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
 
+pytestmark = pytest.mark.db_test
 
+pytest.importorskip("pydantic", minversion="2.0.0")
+
+
+@pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 def test_serializing_pydantic_task_instance(session, create_task_instance):
     dag_id = "test-dag"
     ti = create_task_instance(dag_id=dag_id, session=session)
@@ -57,6 +68,7 @@ def test_serializing_pydantic_task_instance(session, create_task_instance):
     assert deserialized_model.next_kwargs == {"foo": "bar"}
 
 
+@pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 def test_serializing_pydantic_dagrun(session, create_task_instance):
     dag_id = "test-dag"
     ti = create_task_instance(dag_id=dag_id, session=session)
@@ -73,23 +85,31 @@ def test_serializing_pydantic_dagrun(session, create_task_instance):
     assert deserialized_model.state == State.RUNNING
 
 
-def test_serializing_pydantic_dagmodel():
+@pytest.mark.parametrize(
+    "schedule_interval",
+    [
+        None,
+        "*/10 * * *",
+        datetime.timedelta(days=1),
+        relativedelta.relativedelta(days=+12),
+    ],
+)
+def test_serializing_pydantic_dagmodel(schedule_interval):
     dag_model = DagModel(
         dag_id="test-dag",
         fileloc="/tmp/dag_1.py",
-        schedule_interval="2 2 * * *",
+        schedule_interval=schedule_interval,
         is_active=True,
         is_paused=False,
     )
 
     pydantic_dag_model = DagModelPydantic.model_validate(dag_model)
     json_string = pydantic_dag_model.model_dump_json()
-    print(json_string)
 
     deserialized_model = DagModelPydantic.model_validate_json(json_string)
     assert deserialized_model.dag_id == "test-dag"
     assert deserialized_model.fileloc == "/tmp/dag_1.py"
-    assert deserialized_model.schedule_interval == "2 2 * * *"
+    assert deserialized_model.schedule_interval == schedule_interval
     assert deserialized_model.is_active is True
     assert deserialized_model.is_paused is False
 
@@ -104,7 +124,6 @@ def test_serializing_pydantic_local_task_job(session, create_task_instance):
     pydantic_job = JobPydantic.model_validate(ltj)
 
     json_string = pydantic_job.model_dump_json()
-    print(json_string)
 
     deserialized_model = JobPydantic.model_validate_json(json_string)
     assert deserialized_model.dag_id == dag_id
@@ -112,6 +131,7 @@ def test_serializing_pydantic_local_task_job(session, create_task_instance):
     assert deserialized_model.state == State.RUNNING
 
 
+@pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 def test_serializing_pydantic_dataset_event(session, create_task_instance, create_dummy_dag):
     ds1 = DatasetModel(id=1, uri="one", extra={"foo": "bar"})
     ds2 = DatasetModel(id=2, uri="two")
@@ -139,8 +159,12 @@ def test_serializing_pydantic_dataset_event(session, create_task_instance, creat
     ds2_event_1 = DatasetEvent(dataset_id=2)
     ds2_event_2 = DatasetEvent(dataset_id=2)
 
-    DagScheduleDatasetReference(dag_id=dag.dag_id, dataset=ds1)
-    TaskOutletDatasetReference(task_id=task1.task_id, dag_id=dag.dag_id, dataset=ds1)
+    dag_ds_ref = DagScheduleDatasetReference(dag_id=dag.dag_id)
+    session.add(dag_ds_ref)
+    dag_ds_ref.dataset = ds1
+    task_ds_ref = TaskOutletDatasetReference(task_id=task1.task_id, dag_id=dag.dag_id)
+    session.add(task_ds_ref)
+    task_ds_ref.dataset = ds1
 
     dr.consumed_dataset_events.append(ds1_event)
     dr.consumed_dataset_events.append(ds2_event_1)

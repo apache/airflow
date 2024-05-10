@@ -143,10 +143,9 @@ class TestGCPTransferServiceHookWithPassedName:
             httplib2.Response({"status": TEST_HTTP_ERR_CODE}), TEST_HTTP_ERR_CONTENT
         )
 
+        get_transfer_job.return_value = TEST_RESULT_STATUS_DELETED
         with pytest.raises(HttpError):
-
             # check status DELETED generates new job name
-            get_transfer_job.return_value = TEST_RESULT_STATUS_DELETED
             self.gct_hook.create_transfer_job(body=body)
 
         # check status DISABLED changes to status ENABLED
@@ -437,7 +436,7 @@ class TestGCPTransferServiceHookWithPassedProjectId:
 
         with pytest.raises(AirflowException):
             self.gct_hook.wait_for_transfer_job({PROJECT_ID: TEST_PROJECT_ID, NAME: "transferJobs/test-job"})
-            assert list_method.called
+        assert list_method.called
 
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
@@ -476,15 +475,6 @@ class TestGCPTransferServiceHookWithPassedProjectId:
     @pytest.mark.parametrize(
         "statuses, expected_statuses",
         [
-            ([GcpTransferOperationStatus.ABORTED], (GcpTransferOperationStatus.IN_PROGRESS,)),
-            (
-                [GcpTransferOperationStatus.SUCCESS, GcpTransferOperationStatus.ABORTED],
-                (GcpTransferOperationStatus.IN_PROGRESS,),
-            ),
-            (
-                [GcpTransferOperationStatus.PAUSED, GcpTransferOperationStatus.ABORTED],
-                (GcpTransferOperationStatus.IN_PROGRESS,),
-            ),
             ([GcpTransferOperationStatus.ABORTED], (GcpTransferOperationStatus.IN_PROGRESS,)),
             (
                 [GcpTransferOperationStatus.SUCCESS, GcpTransferOperationStatus.ABORTED],

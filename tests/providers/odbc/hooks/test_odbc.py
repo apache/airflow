@@ -19,36 +19,68 @@ from __future__ import annotations
 
 import json
 import logging
+from dataclasses import dataclass
 from unittest import mock
 from unittest.mock import patch
 from urllib.parse import quote_plus, urlsplit
 
 import pyodbc
+import pytest
 
-from airflow.models import Connection
 from airflow.providers.odbc.hooks.odbc import OdbcHook
+from tests.providers.common.sql.test_utils import mock_hook
+
+
+@pytest.fixture
+def pyodbc_row_mock():
+    """Mock a pyodbc.Row instantiated object.
+
+    This object is used in the tests to replace the real pyodbc.Row object.
+    pyodbc.Row is a C object that can only be created from C API of pyodbc.
+
+    This mock implements the two features used by the hook:
+        - cursor_description: which return column names and type
+        - __iter__: which allows exploding a row instance (*row)
+    """
+
+    @dataclass
+    class Row:
+        key: int
+        column: str
+
+        def __iter__(self):
+            yield self.key
+            yield self.column
+
+        @property
+        def cursor_description(self):
+            return [
+                ("key", int, None, 11, 11, 0, None),
+                ("column", str, None, 256, 256, 0, None),
+            ]
+
+    return Row
+
+
+@pytest.fixture
+def pyodbc_instancecheck():
+    """Mock a pyodbc.Row class which returns True to any isinstance() checks."""
+
+    class PyodbcRowMeta(type):
+        def __instancecheck__(self, instance):
+            return True
+
+    class PyodbcRow(metaclass=PyodbcRowMeta):
+        pass
+
+    return PyodbcRow
 
 
 class TestOdbcHook:
-    def get_hook(self=None, hook_params=None, conn_params=None):
-        hook_params = hook_params or {}
-        conn_params = conn_params or {}
-        connection = Connection(
-            **{
-                **dict(login="login", password="password", host="host", schema="schema", port=1234),
-                **conn_params,
-            }
-        )
-
-        hook = OdbcHook(**hook_params)
-        hook.get_connection = mock.Mock()
-        hook.get_connection.return_value = connection
-        return hook
-
     def test_driver_in_extra_not_used(self):
         conn_params = dict(extra=json.dumps(dict(Driver="Fake Driver", Fake_Param="Fake Param")))
         hook_params = {"driver": "ParamDriver"}
-        hook = self.get_hook(conn_params=conn_params, hook_params=hook_params)
+        hook = mock_hook(OdbcHook, conn_params=conn_params, hook_params=hook_params)
         expected = (
             "DRIVER={ParamDriver};"
             "SERVER=host;"
@@ -63,7 +95,7 @@ class TestOdbcHook:
     def test_driver_in_both(self):
         conn_params = dict(extra=json.dumps(dict(Driver="Fake Driver", Fake_Param="Fake Param")))
         hook_params = dict(driver="ParamDriver")
-        hook = self.get_hook(hook_params=hook_params, conn_params=conn_params)
+        hook = mock_hook(OdbcHook, conn_params=conn_params, hook_params=hook_params)
         expected = (
             "DRIVER={ParamDriver};"
             "SERVER=host;"
@@ -77,7 +109,7 @@ class TestOdbcHook:
 
     def test_dsn_in_extra(self):
         conn_params = dict(extra=json.dumps(dict(DSN="MyDSN", Fake_Param="Fake Param")))
-        hook = self.get_hook(conn_params=conn_params)
+        hook = mock_hook(OdbcHook, conn_params=conn_params)
         expected = (
             "DSN=MyDSN;SERVER=host;DATABASE=schema;UID=login;PWD=password;PORT=1234;Fake_Param=Fake Param;"
         )
@@ -86,7 +118,7 @@ class TestOdbcHook:
     def test_dsn_in_both(self):
         conn_params = dict(extra=json.dumps(dict(DSN="MyDSN", Fake_Param="Fake Param")))
         hook_params = dict(driver="ParamDriver", dsn="ParamDSN")
-        hook = self.get_hook(hook_params=hook_params, conn_params=conn_params)
+        hook = mock_hook(OdbcHook, conn_params=conn_params, hook_params=hook_params)
         expected = (
             "DRIVER={ParamDriver};"
             "DSN=ParamDSN;"
@@ -102,7 +134,7 @@ class TestOdbcHook:
     def test_get_uri(self):
         conn_params = dict(extra=json.dumps(dict(DSN="MyDSN", Fake_Param="Fake Param")))
         hook_params = dict(dsn="ParamDSN")
-        hook = self.get_hook(hook_params=hook_params, conn_params=conn_params)
+        hook = mock_hook(OdbcHook, conn_params=conn_params, hook_params=hook_params)
         uri_param = quote_plus(
             "DSN=ParamDSN;SERVER=host;DATABASE=schema;UID=login;PWD=password;PORT=1234;Fake_Param=Fake Param;"
         )
@@ -110,7 +142,8 @@ class TestOdbcHook:
         assert hook.get_uri() == expected
 
     def test_connect_kwargs_from_hook(self):
-        hook = self.get_hook(
+        hook = mock_hook(
+            OdbcHook,
             hook_params=dict(
                 connect_kwargs={
                     "attrs_before": {
@@ -142,7 +175,7 @@ class TestOdbcHook:
             )
         )
 
-        hook = self.get_hook(conn_params=dict(extra=extra))
+        hook = mock_hook(OdbcHook, conn_params=dict(extra=extra))
         assert hook.connect_kwargs == {
             "attrs_before": {1: 2, pyodbc.SQL_TXN_ISOLATION: pyodbc.SQL_TXN_READ_UNCOMMITTED},
             "readonly": True,
@@ -159,7 +192,7 @@ class TestOdbcHook:
             connect_kwargs={"attrs_before": {3: 5, pyodbc.SQL_TXN_ISOLATION: 0}, "readonly": True}
         )
 
-        hook = self.get_hook(conn_params=dict(extra=conn_extra), hook_params=hook_params)
+        hook = mock_hook(OdbcHook, conn_params=dict(extra=conn_extra), hook_params=hook_params)
         assert hook.connect_kwargs == {
             "attrs_before": {1: 2, 3: 5, pyodbc.SQL_TXN_ISOLATION: 0},
             "readonly": True,
@@ -170,68 +203,139 @@ class TestOdbcHook:
         Bools will be parsed from uri as strings
         """
         conn_extra = json.dumps(dict(connect_kwargs={"ansi": True}))
-        hook = self.get_hook(conn_params=dict(extra=conn_extra))
+        hook = mock_hook(OdbcHook, conn_params=dict(extra=conn_extra))
         assert hook.connect_kwargs == {
             "ansi": True,
         }
 
     def test_driver(self):
-        hook = self.get_hook(hook_params=dict(driver="Blah driver"))
+        hook = mock_hook(OdbcHook, hook_params=dict(driver="Blah driver"))
         assert hook.driver == "Blah driver"
-        hook = self.get_hook(hook_params=dict(driver="{Blah driver}"))
+        hook = mock_hook(OdbcHook, hook_params=dict(driver="{Blah driver}"))
         assert hook.driver == "Blah driver"
 
     def test_driver_extra_raises_warning_by_default(self, caplog):
         with caplog.at_level(logging.WARNING, logger="airflow.providers.odbc.hooks.test_odbc"):
-            driver = self.get_hook(conn_params=dict(extra='{"driver": "Blah driver"}')).driver
+            driver = mock_hook(OdbcHook, conn_params=dict(extra='{"driver": "Blah driver"}')).driver
             assert "You have supplied 'driver' via connection extra but it will not be used" in caplog.text
             assert driver is None
 
     @mock.patch.dict("os.environ", {"AIRFLOW__PROVIDERS_ODBC__ALLOW_DRIVER_IN_EXTRA": "TRUE"})
     def test_driver_extra_works_when_allow_driver_extra(self):
-        hook = self.get_hook(
-            conn_params=dict(extra='{"driver": "Blah driver"}'), hook_params=dict(allow_driver_extra=True)
+        hook = mock_hook(
+            OdbcHook,
+            conn_params=dict(extra='{"driver": "Blah driver"}'),
+            hook_params=dict(allow_driver_extra=True),
         )
         assert hook.driver == "Blah driver"
 
     def test_default_driver_set(self):
         with patch.object(OdbcHook, "default_driver", "Blah driver"):
-            hook = self.get_hook()
+            hook = mock_hook(OdbcHook)
             assert hook.driver == "Blah driver"
 
     def test_driver_extra_works_when_default_driver_set(self):
         with patch.object(OdbcHook, "default_driver", "Blah driver"):
-            hook = self.get_hook()
+            hook = mock_hook(OdbcHook)
             assert hook.driver == "Blah driver"
 
     def test_driver_none_by_default(self):
-        hook = self.get_hook()
+        hook = mock_hook(OdbcHook)
         assert hook.driver is None
 
     def test_driver_extra_raises_warning_and_returns_default_driver_by_default(self, caplog):
         with patch.object(OdbcHook, "default_driver", "Blah driver"):
             with caplog.at_level(logging.WARNING, logger="airflow.providers.odbc.hooks.test_odbc"):
-                driver = self.get_hook(conn_params=dict(extra='{"driver": "Blah driver2"}')).driver
+                driver = mock_hook(OdbcHook, conn_params=dict(extra='{"driver": "Blah driver2"}')).driver
                 assert "have supplied 'driver' via connection extra but it will not be used" in caplog.text
                 assert driver == "Blah driver"
 
     def test_database(self):
-        hook = self.get_hook(hook_params=dict(database="abc"))
+        hook = mock_hook(OdbcHook, hook_params=dict(database="abc"))
         assert hook.database == "abc"
-        hook = self.get_hook()
+        hook = mock_hook(OdbcHook)
         assert hook.database == "schema"
 
     def test_sqlalchemy_scheme_default(self):
-        hook = self.get_hook()
+        hook = mock_hook(OdbcHook)
         uri = hook.get_uri()
         assert urlsplit(uri).scheme == "mssql+pyodbc"
 
     def test_sqlalchemy_scheme_param(self):
-        hook = self.get_hook(hook_params=dict(sqlalchemy_scheme="my-scheme"))
+        hook = mock_hook(OdbcHook, hook_params=dict(sqlalchemy_scheme="my-scheme"))
         uri = hook.get_uri()
         assert urlsplit(uri).scheme == "my-scheme"
 
     def test_sqlalchemy_scheme_extra(self):
-        hook = self.get_hook(conn_params=dict(extra=json.dumps(dict(sqlalchemy_scheme="my-scheme"))))
+        hook = mock_hook(OdbcHook, conn_params=dict(extra=json.dumps(dict(sqlalchemy_scheme="my-scheme"))))
         uri = hook.get_uri()
         assert urlsplit(uri).scheme == "my-scheme"
+
+    def test_pyodbc_mock(self):
+        """Ensure that pyodbc.Row object has a `cursor_description` method.
+
+        In subsequent tests, pyodbc.Row is replaced by the 'pyodbc_row_mock' fixture, which implements the
+        `cursor_description` method. We want to detect any breaking change in the pyodbc object. If this test
+        fails, the 'pyodbc_row_mock' fixture needs to be updated.
+        """
+        assert hasattr(pyodbc.Row, "cursor_description")
+
+    def test_query_return_serializable_result_with_fetchall(
+        self, pyodbc_row_mock, monkeypatch, pyodbc_instancecheck
+    ):
+        """
+        Simulate a cursor.fetchall which returns an iterable of pyodbc.Row object, and check if this iterable
+        get converted into a list of tuples.
+        """
+        pyodbc_result = [pyodbc_row_mock(key=1, column="value1"), pyodbc_row_mock(key=2, column="value2")]
+        hook_result = [(1, "value1"), (2, "value2")]
+
+        def mock_handler(*_):
+            return pyodbc_result
+
+        hook = mock_hook(OdbcHook)
+        with monkeypatch.context() as patcher:
+            patcher.setattr("pyodbc.Row", pyodbc_instancecheck)
+            result = hook.run("SQL", handler=mock_handler)
+        assert hook_result == result
+
+    def test_query_return_serializable_result_empty(self, pyodbc_row_mock, monkeypatch, pyodbc_instancecheck):
+        """
+        Simulate a cursor.fetchall which returns an iterable of pyodbc.Row object, and check if this iterable
+        get converted into a list of tuples.
+        """
+        pyodbc_result = []
+        hook_result = []
+
+        def mock_handler(*_):
+            return pyodbc_result
+
+        hook = mock_hook(OdbcHook)
+        with monkeypatch.context() as patcher:
+            patcher.setattr("pyodbc.Row", pyodbc_instancecheck)
+            result = hook.run("SQL", handler=mock_handler)
+        assert hook_result == result
+
+    def test_query_return_serializable_result_with_fetchone(
+        self, pyodbc_row_mock, monkeypatch, pyodbc_instancecheck
+    ):
+        """
+        Simulate a cursor.fetchone which returns one single pyodbc.Row object, and check if this object gets
+        converted into a tuple.
+        """
+        pyodbc_result = pyodbc_row_mock(key=1, column="value1")
+        hook_result = (1, "value1")
+
+        def mock_handler(*_):
+            return pyodbc_result
+
+        hook = mock_hook(OdbcHook)
+        with monkeypatch.context() as patcher:
+            patcher.setattr("pyodbc.Row", pyodbc_instancecheck)
+            result = hook.run("SQL", handler=mock_handler)
+        assert hook_result == result
+
+    def test_query_no_handler_return_none(self):
+        hook = mock_hook(OdbcHook)
+        result = hook.run("SQL")
+        assert result is None

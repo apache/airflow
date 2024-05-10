@@ -36,6 +36,7 @@ const useMarkTaskDryRun = ({
   upstream,
   downstream,
   mapIndexes = [],
+  enabled = false,
 }: {
   dagId: string;
   runId: string;
@@ -47,6 +48,7 @@ const useMarkTaskDryRun = ({
   upstream: boolean;
   downstream: boolean;
   mapIndexes?: number[];
+  enabled?: boolean;
 }) =>
   useQuery(
     [
@@ -84,7 +86,8 @@ const useMarkTaskDryRun = ({
       return axios.get<AxiosResponse, MinimalTaskInstance[]>(confirmUrl, {
         params,
       });
-    }
+    },
+    { enabled }
   );
 
 export default useMarkTaskDryRun;

@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Custom logging formatter for Airflow."""
+
 from __future__ import annotations
 
 import logging
@@ -29,6 +30,9 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
 
 
+logger = logging.getLogger(__name__)
+
+
 class TaskHandlerWithCustomFormatter(logging.StreamHandler):
     """Custom implementation of StreamHandler, a class which writes logging records for Airflow."""
 
@@ -41,7 +45,8 @@ class TaskHandlerWithCustomFormatter(logging.StreamHandler):
         :param ti:
         :return:
         """
-        if ti.raw or self.formatter is None:
+        # Returns if there is no formatter or if the prefix has already been set
+        if ti.raw or self.formatter is None or self.prefix_jinja_template is not None:
             return
         prefix = conf.get("logging", "task_log_prefix_template")
 
@@ -58,5 +63,5 @@ class TaskHandlerWithCustomFormatter(logging.StreamHandler):
         if self.prefix_jinja_template:
             jinja_context = ti.get_template_context()
             return render_template_to_string(self.prefix_jinja_template, jinja_context)
-        logging.warning("'task_log_prefix_template' is in invalid format, ignoring the variable value")
+        logger.warning("'task_log_prefix_template' is in invalid format, ignoring the variable value")
         return ""

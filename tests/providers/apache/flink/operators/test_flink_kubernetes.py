@@ -22,10 +22,15 @@ from __future__ import annotations
 import json
 from unittest.mock import patch
 
+import pytest
+
 from airflow import DAG
 from airflow.models import Connection
 from airflow.providers.apache.flink.operators.flink_kubernetes import FlinkKubernetesOperator
 from airflow.utils import db, timezone
+
+pytestmark = pytest.mark.db_test
+
 
 TEST_VALID_APPLICATION_YAML = """
 apiVersion: flink.apache.org/v1beta1

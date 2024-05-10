@@ -184,7 +184,7 @@ class CassandraToGCSOperator(BaseOperator):
 
     def _write_local_data_files(self, cursor):
         """
-        Takes a cursor, and writes results to a local file.
+        Take a cursor, and writes results to a local file.
 
         :return: A dictionary where keys are filenames to be used as object
             names in GCS, and values are file handles to local files that
@@ -218,7 +218,7 @@ class CassandraToGCSOperator(BaseOperator):
 
     def _write_local_schema_file(self, cursor):
         """
-        Takes a cursor, and writes the BigQuery schema for the results to a local file system.
+        Take a cursor, and writes the BigQuery schema for the results to a local file system.
 
         :return: A dictionary where key is a filename to be used as an object
             name in GCS, and values are file handles to local files that
@@ -253,7 +253,7 @@ class CassandraToGCSOperator(BaseOperator):
         )
 
     def generate_data_dict(self, names: Iterable[str], values: Any) -> dict[str, Any]:
-        """Generates data structure that will be stored as file in GCS."""
+        """Generate data structure that will be stored as file in GCS."""
         return {n: self.convert_value(v) for n, v in zip(names, values)}
 
     def convert_value(self, value: Any | None) -> Any | None:
@@ -285,12 +285,12 @@ class CassandraToGCSOperator(BaseOperator):
             raise AirflowException(f"Unexpected value: {value}")
 
     def convert_array_types(self, value: list[Any] | SortedSet) -> list[Any]:
-        """Maps convert_value over array."""
+        """Map convert_value over array."""
         return [self.convert_value(nested_value) for nested_value in value]
 
     def convert_user_type(self, value: Any) -> dict[str, Any]:
         """
-        Converts a user type to RECORD that contains n fields, where n is the number of attributes.
+        Convert a user type to RECORD that contains n fields, where n is the number of attributes.
 
         Each element in the user type class will be converted to its corresponding data type in BQ.
         """
@@ -300,7 +300,7 @@ class CassandraToGCSOperator(BaseOperator):
 
     def convert_tuple_type(self, values: tuple[Any]) -> dict[str, Any]:
         """
-        Converts a tuple to RECORD that contains n fields.
+        Convert a tuple to RECORD that contains n fields.
 
         Each field will be converted to its corresponding data type in bq and
         will be named 'field_<index>', where index is determined by the order
@@ -311,7 +311,7 @@ class CassandraToGCSOperator(BaseOperator):
 
     def convert_map_type(self, value: OrderedMapSerializedKey) -> list[dict[str, Any]]:
         """
-        Converts a map to a repeated RECORD that contains two fields: 'key' and 'value'.
+        Convert a map to a repeated RECORD that contains two fields: 'key' and 'value'.
 
         Each will be converted to its corresponding data type in BQ.
         """
@@ -322,7 +322,7 @@ class CassandraToGCSOperator(BaseOperator):
 
     @classmethod
     def generate_schema_dict(cls, name: str, type_: Any) -> dict[str, Any]:
-        """Generates BQ schema."""
+        """Generate BQ schema."""
         field_schema: dict[str, Any] = {}
         field_schema.update({"name": name})
         field_schema.update({"type_": cls.get_bq_type(type_)})
@@ -334,7 +334,7 @@ class CassandraToGCSOperator(BaseOperator):
 
     @classmethod
     def get_bq_fields(cls, type_: Any) -> list[dict[str, Any]]:
-        """Converts non simple type value to BQ representation."""
+        """Convert non simple type value to BQ representation."""
         if cls.is_simple_type(type_):
             return []
 
@@ -367,12 +367,12 @@ class CassandraToGCSOperator(BaseOperator):
 
     @staticmethod
     def is_record_type(type_: Any) -> bool:
-        """Checks the record type."""
+        """Check the record type."""
         return type_.cassname in ["UserType", "TupleType", "MapType"]
 
     @classmethod
     def get_bq_type(cls, type_: Any) -> str:
-        """Converts type to equivalent BQ type."""
+        """Convert type to equivalent BQ type."""
         if cls.is_simple_type(type_):
             return CassandraToGCSOperator.CQL_TYPE_MAP[type_.cassname]
         elif cls.is_record_type(type_):
@@ -384,7 +384,7 @@ class CassandraToGCSOperator(BaseOperator):
 
     @classmethod
     def get_bq_mode(cls, type_: Any) -> str:
-        """Converts type to equivalent BQ mode."""
+        """Convert type to equivalent BQ mode."""
         if cls.is_array_type(type_) or type_.cassname == "MapType":
             return "REPEATED"
         elif cls.is_record_type(type_) or cls.is_simple_type(type_):

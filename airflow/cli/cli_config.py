@@ -156,9 +156,7 @@ ARG_EXECUTION_DATE_OR_RUN_ID_OPTIONAL = Arg(
     nargs="?",
     help="The execution_date of the DAG or run_id of the DAGRun (optional)",
 )
-ARG_TASK_REGEX = Arg(
-    ("-t", "--task-regex"), help="The regex to filter specific task_ids to backfill (optional)"
-)
+ARG_TASK_REGEX = Arg(("-t", "--task-regex"), help="The regex to filter specific task_ids (optional)")
 ARG_SUBDIR = Arg(
     ("-S", "--subdir"),
     help=(
@@ -384,11 +382,19 @@ ARG_RUN_BACKWARDS = Arg(
     ),
     action="store_true",
 )
+
 ARG_TREAT_DAG_AS_REGEX = Arg(
     ("--treat-dag-as-regex",),
+    help=("Deprecated -- use `--treat-dag-id-as-regex` instead"),
+    action="store_true",
+)
+
+ARG_TREAT_DAG_ID_AS_REGEX = Arg(
+    ("--treat-dag-id-as-regex",),
     help=("if set, dag_id will be treated as regex instead of an exact string"),
     action="store_true",
 )
+
 # test_dag
 ARG_SHOW_DAGRUN = Arg(
     ("--show-dagrun",),
@@ -545,6 +551,12 @@ ARG_VAR_VALUE = Arg(("value",), metavar="VALUE", help="Variable value")
 ARG_DEFAULT = Arg(
     ("-d", "--default"), metavar="VAL", default=None, help="Default value returned if variable does not exist"
 )
+ARG_VAR_DESCRIPTION = Arg(
+    ("--description",),
+    default=None,
+    required=False,
+    help="Variable description, optional when setting a variable",
+)
 ARG_DESERIALIZE_JSON = Arg(("-j", "--json"), help="Deserialize JSON variable", action="store_true")
 ARG_SERIALIZE_JSON = Arg(("-j", "--json"), help="Serialize JSON variable", action="store_true")
 ARG_VAR_IMPORT = Arg(("file",), help="Import variables from JSON file")
@@ -563,6 +575,9 @@ ARG_VAR_ACTION_ON_EXISTING_KEY = Arg(
 # kerberos
 ARG_PRINCIPAL = Arg(("principal",), help="kerberos principal", nargs="?")
 ARG_KEYTAB = Arg(("-k", "--keytab"), help="keytab", nargs="?", default=conf.get("kerberos", "keytab"))
+ARG_KERBEROS_ONE_TIME_MODE = Arg(
+    ("-o", "--one-time"), help="Run airflow kerberos one time instead of forever", action="store_true"
+)
 # run
 ARG_INTERACTIVE = Arg(
     ("-N", "--interactive"),
@@ -676,6 +691,12 @@ ARG_DB_SKIP_INIT = Arg(
     action="store_true",
     default=False,
 )
+ARG_DB_USE_MIGRATION_FILES = Arg(
+    ("-m", "--use-migration-files"),
+    help="Use migration files to perform migration",
+    action="store_true",
+    default=False,
+)
 
 # webserver
 ARG_PORT = Arg(
@@ -764,7 +785,7 @@ ARG_INTERNAL_API_WORKER_TIMEOUT = Arg(
 )
 ARG_INTERNAL_API_HOSTNAME = Arg(
     ("-H", "--hostname"),
-    default="0.0.0.0",
+    default="0.0.0.0",  # nosec
     help="Set the hostname on which to run the web server",
 )
 ARG_INTERNAL_API_ACCESS_LOGFILE = Arg(
@@ -979,6 +1000,13 @@ ARG_CLEAR_ONLY = Arg(
     help="If passed, serialized DAGs will be cleared but not reserialized.",
 )
 
+ARG_DAG_LIST_COLUMNS = Arg(
+    ("--columns",),
+    type=string_list_type,
+    help="List of columns to render. (default: ['dag_id', 'fileloc', 'owner', 'is_paused'])",
+    default=("dag_id", "fileloc", "owners", "is_paused"),
+)
+
 ALTERNATIVE_CONN_SPECS_ARGS = [
     ARG_CONN_TYPE,
     ARG_CONN_DESCRIPTION,
@@ -1025,7 +1053,7 @@ DAGS_COMMANDS = (
         name="list",
         help="List all the DAGs",
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_list_dags"),
-        args=(ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE, ARG_DAG_LIST_COLUMNS),
     ),
     ActionCommand(
         name="list-import-errors",
@@ -1084,15 +1112,25 @@ DAGS_COMMANDS = (
     ),
     ActionCommand(
         name="pause",
-        help="Pause a DAG",
+        help="Pause DAG(s)",
+        description=(
+            "Pause one or more DAGs. This command allows to halt the execution of specified DAGs, "
+            "disabling further task scheduling. Use `--treat-dag-id-as-regex` to target multiple DAGs by "
+            "treating the `--dag-id` as a regex pattern."
+        ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_pause"),
-        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_TREAT_DAG_ID_AS_REGEX, ARG_YES, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="unpause",
-        help="Resume a paused DAG",
+        help="Resume paused DAG(s)",
+        description=(
+            "Resume one or more DAGs. This command allows to restore the execution of specified "
+            "DAGs, enabling further task scheduling. Use `--treat-dag-id-as-regex` to target multiple DAGs "
+            "treating the `--dag-id` as a regex pattern."
+        ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_unpause"),
-        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_TREAT_DAG_ID_AS_REGEX, ARG_YES, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="trigger",
@@ -1208,6 +1246,7 @@ DAGS_COMMANDS = (
             ARG_RERUN_FAILED_TASKS,
             ARG_RUN_BACKWARDS,
             ARG_TREAT_DAG_AS_REGEX,
+            ARG_TREAT_DAG_ID_AS_REGEX,
         ),
     ),
     ActionCommand(
@@ -1444,7 +1483,7 @@ VARIABLES_COMMANDS = (
         name="set",
         help="Set variable",
         func=lazy_load_command("airflow.cli.commands.variable_command.variables_set"),
-        args=(ARG_VAR, ARG_VAR_VALUE, ARG_SERIALIZE_JSON, ARG_VERBOSE),
+        args=(ARG_VAR, ARG_VAR_VALUE, ARG_VAR_DESCRIPTION, ARG_SERIALIZE_JSON, ARG_VERBOSE),
     ),
     ActionCommand(
         name="delete",
@@ -1492,7 +1531,7 @@ DB_COMMANDS = (
         name="reset",
         help="Burn down and rebuild the metadata database",
         func=lazy_load_command("airflow.cli.commands.db_command.resetdb"),
-        args=(ARG_YES, ARG_DB_SKIP_INIT, ARG_VERBOSE),
+        args=(ARG_YES, ARG_DB_SKIP_INIT, ARG_DB_USE_MIGRATION_FILES, ARG_VERBOSE),
     ),
     ActionCommand(
         name="upgrade",
@@ -1512,6 +1551,7 @@ DB_COMMANDS = (
             ARG_DB_FROM_REVISION,
             ARG_DB_FROM_VERSION,
             ARG_DB_RESERIALIZE_DAGS,
+            ARG_DB_USE_MIGRATION_FILES,
             ARG_VERBOSE,
         ),
         hide=True,
@@ -1535,6 +1575,7 @@ DB_COMMANDS = (
             ARG_DB_FROM_REVISION,
             ARG_DB_FROM_VERSION,
             ARG_DB_RESERIALIZE_DAGS,
+            ARG_DB_USE_MIGRATION_FILES,
             ARG_VERBOSE,
         ),
     ),
@@ -1621,7 +1662,7 @@ CONNECTIONS_COMMANDS = (
         name="add",
         help="Add a connection",
         func=lazy_load_command("airflow.cli.commands.connection_command.connections_add"),
-        args=(ARG_CONN_ID, ARG_CONN_URI, ARG_CONN_JSON, ARG_CONN_EXTRA) + tuple(ALTERNATIVE_CONN_SPECS_ARGS),
+        args=(ARG_CONN_ID, ARG_CONN_URI, ARG_CONN_JSON, ARG_CONN_EXTRA, *ALTERNATIVE_CONN_SPECS_ARGS),
     ),
     ActionCommand(
         name="delete",
@@ -1772,6 +1813,12 @@ PROVIDERS_COMMANDS = (
         func=lazy_load_command("airflow.cli.commands.provider_command.lazy_loaded"),
         args=(ARG_VERBOSE,),
     ),
+    ActionCommand(
+        name="auth-managers",
+        help="Get information about auth managers provided",
+        func=lazy_load_command("airflow.cli.commands.provider_command.auth_managers_list"),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
+    ),
 )
 
 
@@ -1891,6 +1938,7 @@ core_commands: list[CLICommand] = [
             ARG_KEYTAB,
             ARG_PID,
             ARG_DAEMON,
+            ARG_KERBEROS_ONE_TIME_MODE,
             ARG_STDOUT,
             ARG_STDERR,
             ARG_LOG_FILE,

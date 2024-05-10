@@ -21,12 +21,12 @@ from unittest import mock
 from unittest.mock import ANY, patch
 
 import pytest
-from moto import mock_logs
+from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 
 
-@mock_logs
+@mock_aws
 class TestAwsLogsHook:
     @pytest.mark.parametrize(
         "get_log_events_response, num_skip_events, expected_num_events, end_time",

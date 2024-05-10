@@ -21,16 +21,16 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy import or_
 
-from airflow import configuration, models
+from airflow import models
 from airflow.providers.mysql.transfers.s3_to_mysql import S3ToMySqlOperator
 from airflow.utils import db
 from airflow.utils.session import create_session
 
+pytestmark = pytest.mark.db_test
+
 
 class TestS3ToMySqlTransfer:
     def setup_method(self):
-        configuration.conf.load_test_config()
-
         db.merge_conn(
             models.Connection(
                 conn_id="s3_test",
@@ -85,9 +85,9 @@ class TestS3ToMySqlTransfer:
     @patch("airflow.providers.mysql.transfers.s3_to_mysql.MySqlHook.bulk_load_custom")
     @patch("airflow.providers.mysql.transfers.s3_to_mysql.os.remove")
     def test_execute_exception(self, mock_remove, mock_bulk_load_custom, mock_download_file):
-        mock_bulk_load_custom.side_effect = Exception
+        mock_bulk_load_custom.side_effect = RuntimeError("Some exception occurred")
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="Some exception occurred"):
             S3ToMySqlOperator(**self.s3_to_mysql_transfer_kwargs).execute({})
 
         mock_download_file.assert_called_once_with(key=self.s3_to_mysql_transfer_kwargs["s3_source_key"])

@@ -21,11 +21,13 @@ import pendulum
 import pytest
 from dateutil.tz import UTC
 
-from airflow import Dataset
+from airflow.datasets import Dataset
 from airflow.models.dataset import DatasetEvent, DatasetModel
 from airflow.operators.empty import EmptyOperator
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_datasets
+
+pytestmark = pytest.mark.db_test
 
 
 class TestDatasetEndpoint:
@@ -440,3 +442,14 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
 
         assert response.status_code == 200
         assert len(response.json["datasets"]) == 50
+
+
+class TestGetDatasetNextRunSummary(TestDatasetEndpoint):
+    def test_next_run_dataset_summary(self, dag_maker, admin_client):
+        with dag_maker(dag_id="upstream", schedule=[Dataset(uri="s3://bucket/key/1")], serialized=True):
+            EmptyOperator(task_id="task1")
+
+        response = admin_client.post("/next_run_datasets_summary", data={"dag_ids": ["upstream"]})
+
+        assert response.status_code == 200
+        assert response.json == {"upstream": {"ready": 0, "total": 1, "uri": "s3://bucket/key/1"}}

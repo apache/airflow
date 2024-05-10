@@ -21,9 +21,9 @@ from typing import TYPE_CHECKING
 
 import boto3
 
-from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.glue import GlueJobOperator
 from airflow.providers.amazon.aws.operators.glue_crawler import GlueCrawlerOperator
 from airflow.providers.amazon.aws.operators.s3 import (
@@ -144,6 +144,7 @@ with DAG(
         crawler_name=glue_crawler_name,
     )
     # [END howto_sensor_glue_crawler]
+    wait_for_crawl.timeout = 500
 
     # [START howto_operator_glue]
     submit_glue_job = GlueJobOperator(

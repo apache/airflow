@@ -17,20 +17,19 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 from collections import defaultdict
 from datetime import timedelta
 from typing import TYPE_CHECKING
-from unittest import mock
 from unittest.mock import patch
 
 import pendulum
 import pytest
+from sqlalchemy import select
 
 from airflow.decorators import setup, task, task_group, teardown
 from airflow.exceptions import AirflowSkipException
-from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
@@ -39,11 +38,14 @@ from airflow.models.xcom_arg import XComArg
 from airflow.operators.python import PythonOperator
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_group import TaskGroup
+from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.models import DEFAULT_DATE
 from tests.test_utils.mapping import expand_mapped_task
 from tests.test_utils.mock_operators import MockOperator, MockOperatorWithNestedFields, NestedFields
+
+pytestmark = pytest.mark.db_test
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -70,8 +72,6 @@ def test_task_mapping_with_dag():
 
 @patch("airflow.models.abstractoperator.AbstractOperator.render_template")
 def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template, caplog):
-    caplog.set_level(logging.INFO)
-
     class UnrenderableClass:
         def __bool__(self):
             raise ValueError("Similar to Pandas DataFrames, this class raises an exception.")
@@ -92,7 +92,6 @@ def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template
         mapped = CustomOperator.partial(task_id="task_2").expand(arg=unrenderable_values)
         task1 >> mapped
     dag.test()
-    assert caplog.text.count("task_2 ran successfully") == 2
     assert (
         "Unable to check if the value of type 'UnrenderableClass' is False for task 'task_2', field 'arg'"
         in caplog.text
@@ -402,110 +401,118 @@ def test_mapped_expand_against_params(dag_maker, dag_params, task_params, expect
     assert t.expand_input.value == {"params": [{"c": "x"}, {"d": 1}]}
 
 
-def test_mapped_render_template_fields_validating_operator(dag_maker, session):
-    class MyOperator(BaseOperator):
-        template_fields = ("partial_template", "map_template", "file_template")
-        template_ext = (".ext",)
+def test_mapped_render_template_fields_validating_operator(dag_maker, session, tmp_path):
+    file_template_dir = tmp_path / "path" / "to"
+    file_template_dir.mkdir(parents=True, exist_ok=True)
+    file_template = file_template_dir / "file.ext"
+    file_template.write_text("loaded data")
 
-        def __init__(
-            self, partial_template, partial_static, map_template, map_static, file_template, **kwargs
-        ):
-            for value in [partial_template, partial_static, map_template, map_static, file_template]:
-                assert isinstance(value, str), "value should have been resolved before unmapping"
-            super().__init__(**kwargs)
-            self.partial_template = partial_template
-            self.partial_static = partial_static
-            self.map_template = map_template
-            self.map_static = map_static
-            self.file_template = file_template
+    with set_current_task_instance_session(session=session):
 
-        def execute(self, context):
-            pass
+        class MyOperator(BaseOperator):
+            template_fields = ("partial_template", "map_template", "file_template")
+            template_ext = (".ext",)
 
-    with dag_maker(session=session):
-        task1 = BaseOperator(task_id="op1")
-        output1 = task1.output
-        mapped = MyOperator.partial(
-            task_id="a", partial_template="{{ ti.task_id }}", partial_static="{{ ti.task_id }}"
-        ).expand(map_template=output1, map_static=output1, file_template=["/path/to/file.ext"])
-
-    dr = dag_maker.create_dagrun()
-    ti: TaskInstance = dr.get_task_instance(task1.task_id, session=session)
-
-    ti.xcom_push(key=XCOM_RETURN_KEY, value=["{{ ds }}"], session=session)
-
-    session.add(
-        TaskMap(
-            dag_id=dr.dag_id,
-            task_id=task1.task_id,
-            run_id=dr.run_id,
-            map_index=-1,
-            length=1,
-            keys=None,
-        )
-    )
-    session.flush()
-
-    mapped_ti: TaskInstance = dr.get_task_instance(mapped.task_id, session=session)
-    mapped_ti.map_index = 0
-
-    assert isinstance(mapped_ti.task, MappedOperator)
-    with patch("builtins.open", mock.mock_open(read_data=b"loaded data")), patch(
-        "os.path.isfile", return_value=True
-    ), patch("os.path.getmtime", return_value=0):
-        mapped.render_template_fields(context=mapped_ti.get_template_context(session=session))
-    assert isinstance(mapped_ti.task, MyOperator)
-
-    assert mapped_ti.task.partial_template == "a", "Should be templated!"
-    assert mapped_ti.task.partial_static == "{{ ti.task_id }}", "Should not be templated!"
-    assert mapped_ti.task.map_template == "{{ ds }}", "Should not be templated!"
-    assert mapped_ti.task.map_static == "{{ ds }}", "Should not be templated!"
-    assert mapped_ti.task.file_template == "loaded data", "Should be templated!"
-
-
-def test_mapped_expand_kwargs_render_template_fields_validating_operator(dag_maker, session):
-    class MyOperator(BaseOperator):
-        template_fields = ("partial_template", "map_template", "file_template")
-        template_ext = (".ext",)
-
-        def __init__(
-            self, partial_template, partial_static, map_template, map_static, file_template, **kwargs
-        ):
-            for value in [partial_template, partial_static, map_template, map_static, file_template]:
-                assert isinstance(value, str), "value should have been resolved before unmapping"
-            super().__init__(**kwargs)
-            self.partial_template = partial_template
-            self.partial_static = partial_static
-            self.map_template = map_template
-            self.map_static = map_static
-            self.file_template = file_template
+            def __init__(
+                self, partial_template, partial_static, map_template, map_static, file_template, **kwargs
+            ):
+                for value in [partial_template, partial_static, map_template, map_static, file_template]:
+                    assert isinstance(value, str), "value should have been resolved before unmapping"
+                    super().__init__(**kwargs)
+                    self.partial_template = partial_template
+                self.partial_static = partial_static
+                self.map_template = map_template
+                self.map_static = map_static
+                self.file_template = file_template
 
         def execute(self, context):
             pass
 
-    with dag_maker(session=session):
-        mapped = MyOperator.partial(
-            task_id="a", partial_template="{{ ti.task_id }}", partial_static="{{ ti.task_id }}"
-        ).expand_kwargs(
-            [{"map_template": "{{ ds }}", "map_static": "{{ ds }}", "file_template": "/path/to/file.ext"}]
+        with dag_maker(session=session, template_searchpath=tmp_path.__fspath__()):
+            task1 = BaseOperator(task_id="op1")
+            output1 = task1.output
+            mapped = MyOperator.partial(
+                task_id="a", partial_template="{{ ti.task_id }}", partial_static="{{ ti.task_id }}"
+            ).expand(map_template=output1, map_static=output1, file_template=["/path/to/file.ext"])
+
+        dr = dag_maker.create_dagrun()
+        ti: TaskInstance = dr.get_task_instance(task1.task_id, session=session)
+
+        ti.xcom_push(key=XCOM_RETURN_KEY, value=["{{ ds }}"], session=session)
+
+        session.add(
+            TaskMap(
+                dag_id=dr.dag_id,
+                task_id=task1.task_id,
+                run_id=dr.run_id,
+                map_index=-1,
+                length=1,
+                keys=None,
+            )
         )
+        session.flush()
 
-    dr = dag_maker.create_dagrun()
+        mapped_ti: TaskInstance = dr.get_task_instance(mapped.task_id, session=session)
+        mapped_ti.map_index = 0
 
-    mapped_ti: TaskInstance = dr.get_task_instance(mapped.task_id, session=session, map_index=0)
-
-    assert isinstance(mapped_ti.task, MappedOperator)
-    with patch("builtins.open", mock.mock_open(read_data=b"loaded data")), patch(
-        "os.path.isfile", return_value=True
-    ), patch("os.path.getmtime", return_value=0):
+        assert isinstance(mapped_ti.task, MappedOperator)
         mapped.render_template_fields(context=mapped_ti.get_template_context(session=session))
-    assert isinstance(mapped_ti.task, MyOperator)
+        assert isinstance(mapped_ti.task, MyOperator)
 
-    assert mapped_ti.task.partial_template == "a", "Should be templated!"
-    assert mapped_ti.task.partial_static == "{{ ti.task_id }}", "Should not be templated!"
-    assert mapped_ti.task.map_template == "2016-01-01", "Should be templated!"
-    assert mapped_ti.task.map_static == "{{ ds }}", "Should not be templated!"
-    assert mapped_ti.task.file_template == "loaded data", "Should be templated!"
+        assert mapped_ti.task.partial_template == "a", "Should be templated!"
+        assert mapped_ti.task.partial_static == "{{ ti.task_id }}", "Should not be templated!"
+        assert mapped_ti.task.map_template == "{{ ds }}", "Should not be templated!"
+        assert mapped_ti.task.map_static == "{{ ds }}", "Should not be templated!"
+        assert mapped_ti.task.file_template == "loaded data", "Should be templated!"
+
+
+def test_mapped_expand_kwargs_render_template_fields_validating_operator(dag_maker, session, tmp_path):
+    file_template_dir = tmp_path / "path" / "to"
+    file_template_dir.mkdir(parents=True, exist_ok=True)
+    file_template = file_template_dir / "file.ext"
+    file_template.write_text("loaded data")
+
+    with set_current_task_instance_session(session=session):
+
+        class MyOperator(BaseOperator):
+            template_fields = ("partial_template", "map_template", "file_template")
+            template_ext = (".ext",)
+
+            def __init__(
+                self, partial_template, partial_static, map_template, map_static, file_template, **kwargs
+            ):
+                for value in [partial_template, partial_static, map_template, map_static, file_template]:
+                    assert isinstance(value, str), "value should have been resolved before unmapping"
+                super().__init__(**kwargs)
+                self.partial_template = partial_template
+                self.partial_static = partial_static
+                self.map_template = map_template
+                self.map_static = map_static
+                self.file_template = file_template
+
+            def execute(self, context):
+                pass
+
+        with dag_maker(session=session, template_searchpath=tmp_path.__fspath__()):
+            mapped = MyOperator.partial(
+                task_id="a", partial_template="{{ ti.task_id }}", partial_static="{{ ti.task_id }}"
+            ).expand_kwargs(
+                [{"map_template": "{{ ds }}", "map_static": "{{ ds }}", "file_template": "/path/to/file.ext"}]
+            )
+
+        dr = dag_maker.create_dagrun()
+
+        mapped_ti: TaskInstance = dr.get_task_instance(mapped.task_id, session=session, map_index=0)
+
+        assert isinstance(mapped_ti.task, MappedOperator)
+        mapped.render_template_fields(context=mapped_ti.get_template_context(session=session))
+        assert isinstance(mapped_ti.task, MyOperator)
+
+        assert mapped_ti.task.partial_template == "a", "Should be templated!"
+        assert mapped_ti.task.partial_static == "{{ ti.task_id }}", "Should not be templated!"
+        assert mapped_ti.task.map_template == "2016-01-01", "Should be templated!"
+        assert mapped_ti.task.map_static == "{{ ds }}", "Should not be templated!"
+        assert mapped_ti.task.file_template == "loaded data", "Should be templated!"
 
 
 def test_mapped_render_nested_template_fields(dag_maker, session):
@@ -599,6 +606,106 @@ def test_expand_kwargs_mapped_task_instance(dag_maker, session, num_existing_tis
     assert indices == expected
 
 
+def _create_mapped_with_name_template_classic(*, task_id, map_names, template):
+    class HasMapName(BaseOperator):
+        def __init__(self, *, map_name: str, **kwargs):
+            super().__init__(**kwargs)
+            self.map_name = map_name
+
+        def execute(self, context):
+            context["map_name"] = self.map_name
+
+    return HasMapName.partial(task_id=task_id, map_index_template=template).expand(
+        map_name=map_names,
+    )
+
+
+def _create_mapped_with_name_template_taskflow(*, task_id, map_names, template):
+    from airflow.operators.python import get_current_context
+
+    @task(task_id=task_id, map_index_template=template)
+    def task1(map_name):
+        context = get_current_context()
+        context["map_name"] = map_name
+
+    return task1.expand(map_name=map_names)
+
+
+def _create_named_map_index_renders_on_failure_classic(*, task_id, map_names, template):
+    class HasMapName(BaseOperator):
+        def __init__(self, *, map_name: str, **kwargs):
+            super().__init__(**kwargs)
+            self.map_name = map_name
+
+        def execute(self, context):
+            context["map_name"] = self.map_name
+            raise AirflowSkipException("Imagine this task failed!")
+
+    return HasMapName.partial(task_id=task_id, map_index_template=template).expand(
+        map_name=map_names,
+    )
+
+
+def _create_named_map_index_renders_on_failure_taskflow(*, task_id, map_names, template):
+    from airflow.operators.python import get_current_context
+
+    @task(task_id=task_id, map_index_template=template)
+    def task1(map_name):
+        context = get_current_context()
+        context["map_name"] = map_name
+        raise AirflowSkipException("Imagine this task failed!")
+
+    return task1.expand(map_name=map_names)
+
+
+@pytest.mark.parametrize(
+    "template, expected_rendered_names",
+    [
+        pytest.param(None, [None, None], id="unset"),
+        pytest.param("", ["", ""], id="constant"),
+        pytest.param("{{ ti.task_id }}-{{ ti.map_index }}", ["task1-0", "task1-1"], id="builtin"),
+        pytest.param("{{ ti.task_id }}-{{ map_name }}", ["task1-a", "task1-b"], id="custom"),
+    ],
+)
+@pytest.mark.parametrize(
+    "create_mapped_task",
+    [
+        pytest.param(_create_mapped_with_name_template_classic, id="classic"),
+        pytest.param(_create_mapped_with_name_template_taskflow, id="taskflow"),
+        pytest.param(_create_named_map_index_renders_on_failure_classic, id="classic-failure"),
+        pytest.param(_create_named_map_index_renders_on_failure_taskflow, id="taskflow-failure"),
+    ],
+)
+def test_expand_mapped_task_instance_with_named_index(
+    dag_maker,
+    session,
+    create_mapped_task,
+    template,
+    expected_rendered_names,
+) -> None:
+    """Test that the correct number of downstream tasks are generated when mapping with an XComArg"""
+    with dag_maker("test-dag", session=session, start_date=DEFAULT_DATE):
+        create_mapped_task(task_id="task1", map_names=["a", "b"], template=template)
+
+    dr = dag_maker.create_dagrun()
+    tis = dr.get_task_instances()
+    for ti in tis:
+        ti.run()
+    session.flush()
+
+    indices = session.scalars(
+        select(TaskInstance.rendered_map_index)
+        .where(
+            TaskInstance.dag_id == "test-dag",
+            TaskInstance.task_id == "task1",
+            TaskInstance.run_id == dr.run_id,
+        )
+        .order_by(TaskInstance.map_index)
+    ).all()
+
+    assert indices == expected_rendered_names
+
+
 @pytest.mark.parametrize(
     "map_index, expected",
     [
@@ -607,35 +714,36 @@ def test_expand_kwargs_mapped_task_instance(dag_maker, session, num_existing_tis
     ],
 )
 def test_expand_kwargs_render_template_fields_validating_operator(dag_maker, session, map_index, expected):
-    with dag_maker(session=session):
-        task1 = BaseOperator(task_id="op1")
-        mapped = MockOperator.partial(task_id="a", arg2="{{ ti.task_id }}").expand_kwargs(task1.output)
+    with set_current_task_instance_session(session=session):
+        with dag_maker(session=session):
+            task1 = BaseOperator(task_id="op1")
+            mapped = MockOperator.partial(task_id="a", arg2="{{ ti.task_id }}").expand_kwargs(task1.output)
 
-    dr = dag_maker.create_dagrun()
-    ti: TaskInstance = dr.get_task_instance(task1.task_id, session=session)
+        dr = dag_maker.create_dagrun()
+        ti: TaskInstance = dr.get_task_instance(task1.task_id, session=session)
 
-    ti.xcom_push(key=XCOM_RETURN_KEY, value=[{"arg1": "{{ ds }}"}, {"arg1": 2}], session=session)
+        ti.xcom_push(key=XCOM_RETURN_KEY, value=[{"arg1": "{{ ds }}"}, {"arg1": 2}], session=session)
 
-    session.add(
-        TaskMap(
-            dag_id=dr.dag_id,
-            task_id=task1.task_id,
-            run_id=dr.run_id,
-            map_index=-1,
-            length=2,
-            keys=None,
+        session.add(
+            TaskMap(
+                dag_id=dr.dag_id,
+                task_id=task1.task_id,
+                run_id=dr.run_id,
+                map_index=-1,
+                length=2,
+                keys=None,
+            )
         )
-    )
-    session.flush()
+        session.flush()
 
-    ti: TaskInstance = dr.get_task_instance(mapped.task_id, session=session)
-    ti.refresh_from_task(mapped)
-    ti.map_index = map_index
-    assert isinstance(ti.task, MappedOperator)
-    mapped.render_template_fields(context=ti.get_template_context(session=session))
-    assert isinstance(ti.task, MockOperator)
-    assert ti.task.arg1 == expected
-    assert ti.task.arg2 == "a"
+        ti: TaskInstance = dr.get_task_instance(mapped.task_id, session=session)
+        ti.refresh_from_task(mapped)
+        ti.map_index = map_index
+        assert isinstance(ti.task, MappedOperator)
+        mapped.render_template_fields(context=ti.get_template_context(session=session))
+        assert isinstance(ti.task, MockOperator)
+        assert ti.task.arg1 == expected
+        assert ti.task.arg2 == "a"
 
 
 def test_xcomarg_property_of_mapped_operator(dag_maker):
@@ -804,7 +912,6 @@ class TestMappedSetupTeardown:
                 t = my_teardown.expand(op_args=my_setup.output)
                 with t.as_teardown(setups=my_setup):
                     my_work(my_setup.output)
-            return dag
 
         dr = dag.test()
         states = self.get_states(dr)
@@ -1558,5 +1665,62 @@ class TestMappedSetupTeardown:
             "tg_2.my_setup": "skipped",
             "tg_2.my_teardown": "skipped",
             "tg_2.my_work": "skipped",
+        }
+        assert states == expected
+
+    def test_skip_one_mapped_task_from_task_group_with_generator(self, dag_maker):
+        with dag_maker() as dag:
+
+            @task
+            def make_list():
+                return [1, 2, 3]
+
+            @task
+            def double(n):
+                if n == 2:
+                    raise AirflowSkipException()
+                return n * 2
+
+            @task
+            def last(n): ...
+
+            @task_group
+            def group(n: int) -> None:
+                last(double(n))
+
+            group.expand(n=make_list())
+
+        dr = dag.test()
+        states = self.get_states(dr)
+        expected = {
+            "group.double": {0: "success", 1: "skipped", 2: "success"},
+            "group.last": {0: "success", 1: "skipped", 2: "success"},
+            "make_list": "success",
+        }
+        assert states == expected
+
+    def test_skip_one_mapped_task_from_task_group(self, dag_maker):
+        with dag_maker() as dag:
+
+            @task
+            def double(n):
+                if n == 2:
+                    raise AirflowSkipException()
+                return n * 2
+
+            @task
+            def last(n): ...
+
+            @task_group
+            def group(n: int) -> None:
+                last(double(n))
+
+            group.expand(n=[1, 2, 3])
+
+        dr = dag.test()
+        states = self.get_states(dr)
+        expected = {
+            "group.double": {0: "success", 1: "skipped", 2: "success"},
+            "group.last": {0: "success", 1: "skipped", 2: "success"},
         }
         assert states == expected

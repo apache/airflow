@@ -17,12 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest import mock
-from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.amazon.aws.sensors.step_function import StepFunctionExecutionSensor
 
 TASK_ID = "step_function_execution_sensor"
@@ -34,57 +34,63 @@ AWS_CONN_ID = "aws_non_default"
 REGION_NAME = "us-west-2"
 
 
-class TestStepFunctionExecutionSensor:
-    def setup_method(self):
-        self.mock_context = MagicMock()
+@pytest.fixture
+def mocked_context():
+    return mock.MagicMock(name="FakeContext")
 
+
+class TestStepFunctionExecutionSensor:
     def test_init(self):
         sensor = StepFunctionExecutionSensor(
-            task_id=TASK_ID, execution_arn=EXECUTION_ARN, aws_conn_id=AWS_CONN_ID, region_name=REGION_NAME
+            task_id=TASK_ID,
+            execution_arn=EXECUTION_ARN,
+            aws_conn_id=AWS_CONN_ID,
+            region_name=REGION_NAME,
+            verify=True,
+            botocore_config={"read_timeout": 42},
         )
+        assert sensor.execution_arn == EXECUTION_ARN
+        assert sensor.hook.aws_conn_id == AWS_CONN_ID
+        assert sensor.hook._region_name == REGION_NAME
+        assert sensor.hook._verify is True
+        assert sensor.hook._config is not None
+        assert sensor.hook._config.read_timeout == 42
 
-        assert TASK_ID == sensor.task_id
-        assert EXECUTION_ARN == sensor.execution_arn
-        assert AWS_CONN_ID == sensor.aws_conn_id
-        assert REGION_NAME == sensor.region_name
+        sensor = StepFunctionExecutionSensor(task_id=TASK_ID, execution_arn=EXECUTION_ARN)
+        assert sensor.hook.aws_conn_id == "aws_default"
+        assert sensor.hook._region_name is None
+        assert sensor.hook._verify is None
+        assert sensor.hook._config is None
 
-    @pytest.mark.parametrize("mock_status", ["FAILED", "TIMED_OUT", "ABORTED"])
-    @mock.patch("airflow.providers.amazon.aws.sensors.step_function.StepFunctionHook")
-    def test_exceptions(self, mock_hook, mock_status):
-        hook_response = {"status": mock_status}
+    @mock.patch.object(StepFunctionExecutionSensor, "hook")
+    @pytest.mark.parametrize("status", StepFunctionExecutionSensor.INTERMEDIATE_STATES)
+    def test_running(self, mocked_hook, status, mocked_context):
+        mocked_hook.describe_execution.return_value = {"status": status}
+        sensor = StepFunctionExecutionSensor(task_id=TASK_ID, execution_arn=EXECUTION_ARN, aws_conn_id=None)
+        assert sensor.poke(mocked_context) is False
 
-        hook_instance = mock_hook.return_value
-        hook_instance.describe_execution.return_value = hook_response
+    @mock.patch.object(StepFunctionExecutionSensor, "hook")
+    @pytest.mark.parametrize("status", StepFunctionExecutionSensor.SUCCESS_STATES)
+    def test_succeeded(self, mocked_hook, status, mocked_context):
+        mocked_hook.describe_execution.return_value = {"status": status}
+        sensor = StepFunctionExecutionSensor(task_id=TASK_ID, execution_arn=EXECUTION_ARN, aws_conn_id=None)
+        assert sensor.poke(mocked_context) is True
 
+    @mock.patch.object(StepFunctionExecutionSensor, "hook")
+    @pytest.mark.parametrize("status", StepFunctionExecutionSensor.FAILURE_STATES)
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception",
+        [
+            pytest.param(True, AirflowSkipException, id="soft-fail"),
+            pytest.param(False, AirflowException, id="non-soft-fail"),
+        ],
+    )
+    def test_failure(self, mocked_hook, status, soft_fail, expected_exception, mocked_context):
+        output = {"test": "test"}
+        mocked_hook.describe_execution.return_value = {"status": status, "output": json.dumps(output)}
         sensor = StepFunctionExecutionSensor(
-            task_id=TASK_ID, execution_arn=EXECUTION_ARN, aws_conn_id=AWS_CONN_ID, region_name=REGION_NAME
+            task_id=TASK_ID, execution_arn=EXECUTION_ARN, aws_conn_id=None, soft_fail=soft_fail
         )
-
-        with pytest.raises(AirflowException):
-            sensor.poke(self.mock_context)
-
-    @mock.patch("airflow.providers.amazon.aws.sensors.step_function.StepFunctionHook")
-    def test_running(self, mock_hook):
-        hook_response = {"status": "RUNNING"}
-
-        hook_instance = mock_hook.return_value
-        hook_instance.describe_execution.return_value = hook_response
-
-        sensor = StepFunctionExecutionSensor(
-            task_id=TASK_ID, execution_arn=EXECUTION_ARN, aws_conn_id=AWS_CONN_ID, region_name=REGION_NAME
-        )
-
-        assert not sensor.poke(self.mock_context)
-
-    @mock.patch("airflow.providers.amazon.aws.sensors.step_function.StepFunctionHook")
-    def test_succeeded(self, mock_hook):
-        hook_response = {"status": "SUCCEEDED"}
-
-        hook_instance = mock_hook.return_value
-        hook_instance.describe_execution.return_value = hook_response
-
-        sensor = StepFunctionExecutionSensor(
-            task_id=TASK_ID, execution_arn=EXECUTION_ARN, aws_conn_id=AWS_CONN_ID, region_name=REGION_NAME
-        )
-
-        assert sensor.poke(self.mock_context)
+        message = f"Step Function sensor failed. State Machine Output: {output}"
+        with pytest.raises(expected_exception, match=message):
+            sensor.poke(mocked_context)

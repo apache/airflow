@@ -14,51 +14,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-import pytest
-
-from airflow.providers.amazon.aws.triggers.batch import (
-    BatchCreateComputeEnvironmentTrigger,
-    BatchJobTrigger,
-)
-
-BATCH_JOB_ID = "job_id"
-POLL_INTERVAL = 5
-MAX_ATTEMPT = 5
-AWS_CONN_ID = "aws_batch_job_conn"
-AWS_REGION = "us-east-2"
-pytest.importorskip("aiobotocore")
+from airflow.providers.amazon.aws.triggers.batch import BatchJobTrigger
 
 
-class TestBatchTrigger:
-    @pytest.mark.parametrize(
-        "trigger",
-        [
-            BatchJobTrigger(
-                job_id=BATCH_JOB_ID,
-                waiter_delay=POLL_INTERVAL,
-                waiter_max_attempts=MAX_ATTEMPT,
-                aws_conn_id=AWS_CONN_ID,
-                region_name=AWS_REGION,
-            ),
-            BatchCreateComputeEnvironmentTrigger(
-                compute_env_arn="my_arn",
-                waiter_delay=POLL_INTERVAL,
-                waiter_max_attempts=MAX_ATTEMPT,
-                aws_conn_id=AWS_CONN_ID,
-                region_name=AWS_REGION,
-            ),
-        ],
-    )
-    def test_serialize_recreate(self, trigger):
-        class_path, args = trigger.serialize()
+class TestBatchJobTrigger:
+    def test_serialization(self):
+        job_id = "test_job_id"
+        aws_conn_id = "aws_default"
+        region_name = "us-west-2"
 
-        class_name = class_path.split(".")[-1]
-        clazz = globals()[class_name]
-        instance = clazz(**args)
+        trigger = BatchJobTrigger(
+            job_id=job_id,
+            aws_conn_id=aws_conn_id,
+            region_name=region_name,
+        )
 
-        class_path2, args2 = instance.serialize()
-
-        assert class_path == class_path2
-        assert args == args2
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.amazon.aws.triggers.batch.BatchJobTrigger"
+        assert kwargs == {
+            "job_id": "test_job_id",
+            "waiter_delay": 5,
+            "waiter_max_attempts": 720,
+            "aws_conn_id": "aws_default",
+            "region_name": "us-west-2",
+        }

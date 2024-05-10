@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import sys
 import uuid
 from unittest import mock
 
@@ -64,13 +63,13 @@ class TestSecret:
 
     @mock.patch("uuid.uuid4")
     @mock.patch("airflow.providers.cncf.kubernetes.pod_generator.rand_str")
-    def test_attach_to_pod(self, mock_rand_str, mock_uuid):
+    def test_attach_to_pod(self, mock_rand_str, mock_uuid, data_file):
         static_uuid = uuid.UUID("cf4a56d2-8101-4217-b027-2af6216feb48")
         mock_uuid.return_value = static_uuid
         rand_str = "abcd1234"
         mock_rand_str.return_value = rand_str
-        path = sys.path[0] + "/tests/providers/cncf/kubernetes/pod_generator_base.yaml"
-        pod = PodGenerator(pod_template_file=path).ud_pod
+        template_file = data_file("pods/generator_base.yaml").as_posix()
+        pod = PodGenerator(pod_template_file=template_file).ud_pod
         secrets = [
             # This should be a secretRef
             Secret("env", None, "secret_a"),

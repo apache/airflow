@@ -21,7 +21,7 @@ from copy import deepcopy
 from typing import TYPE_CHECKING
 from unittest import mock
 
-from moto import mock_sts
+from moto import mock_aws
 from moto.core import DEFAULT_ACCOUNT_ID
 
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
@@ -114,7 +114,7 @@ class TestGlueCrawlerHook:
         assert self.hook.has_crawler(mock_crawler_name) is False
         mock_get_conn.return_value.get_crawler.assert_called_once_with(Name=mock_crawler_name)
 
-    @mock_sts
+    @mock_aws
     @mock.patch.object(GlueCrawlerHook, "get_conn")
     def test_update_crawler_needed(self, mock_get_conn):
         mock_get_conn.return_value.get_crawler.return_value = {"Crawler": mock_config}
@@ -126,7 +126,7 @@ class TestGlueCrawlerHook:
         mock_get_conn.return_value.get_crawler.assert_called_once_with(Name=mock_crawler_name)
         mock_get_conn.return_value.update_crawler.assert_called_once_with(**mock_config_two)
 
-    @mock_sts
+    @mock_aws
     @mock.patch.object(GlueCrawlerHook, "get_conn")
     def test_update_crawler_missing_keys(self, mock_get_conn):
         mock_config_missing_configuration = deepcopy(mock_config)
@@ -139,7 +139,7 @@ class TestGlueCrawlerHook:
         mock_get_conn.return_value.get_crawler.assert_called_once_with(Name=mock_crawler_name)
         mock_get_conn.return_value.update_crawler.assert_called_once_with(**mock_config_two)
 
-    @mock_sts
+    @mock_aws
     @mock.patch.object(GlueCrawlerHook, "get_conn")
     def test_update_tags_not_needed(self, mock_get_conn):
         mock_get_conn.return_value.get_crawler.return_value = {"Crawler": mock_config}
@@ -150,7 +150,7 @@ class TestGlueCrawlerHook:
         mock_get_conn.return_value.tag_resource.assert_not_called()
         mock_get_conn.return_value.untag_resource.assert_not_called()
 
-    @mock_sts
+    @mock_aws
     @mock.patch.object(GlueCrawlerHook, "get_conn")
     def test_remove_all_tags(self, mock_get_conn):
         mock_get_conn.return_value.get_crawler.return_value = {"Crawler": mock_config}
@@ -163,7 +163,7 @@ class TestGlueCrawlerHook:
             ResourceArn=self.crawler_arn, TagsToRemove=["test", "bar"]
         )
 
-    @mock_sts
+    @mock_aws
     @mock.patch.object(GlueCrawlerHook, "get_conn")
     def test_update_missing_tags(self, mock_get_conn):
         mock_config_missing_tags = deepcopy(mock_config)
@@ -175,7 +175,7 @@ class TestGlueCrawlerHook:
         mock_get_conn.return_value.tag_resource.assert_not_called()
         mock_get_conn.return_value.untag_resource.assert_not_called()
 
-    @mock_sts
+    @mock_aws
     @mock.patch.object(GlueCrawlerHook, "get_conn")
     def test_replace_tag(self, mock_get_conn):
         mock_get_conn.return_value.get_crawler.return_value = {"Crawler": mock_config}
@@ -188,7 +188,7 @@ class TestGlueCrawlerHook:
             ResourceArn=self.crawler_arn, TagsToAdd={"test": "bla"}
         )
 
-    @mock_sts
+    @mock_aws
     @mock.patch.object(GlueCrawlerHook, "get_conn")
     def test_update_crawler_not_needed(self, mock_get_conn):
         mock_get_conn.return_value.get_crawler.return_value = {"Crawler": mock_config}

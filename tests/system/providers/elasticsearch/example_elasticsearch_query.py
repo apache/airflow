@@ -17,6 +17,7 @@
 """
 Example Airflow DAG for Elasticsearch Query.
 """
+
 from __future__ import annotations
 
 import os

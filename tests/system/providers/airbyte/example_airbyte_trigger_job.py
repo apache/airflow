@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Example DAG demonstrating the usage of the AirbyteTriggerSyncOperator."""
+
 from __future__ import annotations
 
 import os
@@ -37,7 +38,6 @@ with DAG(
     tags=["example"],
     catchup=False,
 ) as dag:
-
     # [START howto_operator_airbyte_synchronous]
     sync_source_destination = AirbyteTriggerSyncOperator(
         task_id="airbyte_sync_source_dest_example",

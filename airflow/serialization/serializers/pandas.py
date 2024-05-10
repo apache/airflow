@@ -57,14 +57,14 @@ def deserialize(classname: str, version: int, data: object) -> pd.DataFrame:
     if version > __version__:
         raise TypeError(f"serialized {version} of {classname} > {__version__}")
 
-    import io
-
     from pyarrow import parquet as pq
 
     if not isinstance(data, str):
         raise TypeError(f"serialized {classname} has wrong data type {type(data)}")
 
-    buf = io.BytesIO(bytes.fromhex(data))
-    df = pq.read_table(buf).to_pandas()
+    from io import BytesIO
+
+    with BytesIO(bytes.fromhex(data)) as buf:
+        df = pq.read_table(buf).to_pandas()
 
     return df

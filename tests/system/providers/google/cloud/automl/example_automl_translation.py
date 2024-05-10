@@ -18,16 +18,18 @@
 """
 Example Airflow DAG that uses Google AutoML services.
 """
+
 from __future__ import annotations
 
 import os
 from datetime import datetime
 from typing import cast
 
-from google.cloud import storage
+# The storage module cannot be imported yet https://github.com/googleapis/python-storage/issues/393
+from google.cloud import storage  # type: ignore[attr-defined]
 
-from airflow import models
 from airflow.decorators import task
+from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.operators.automl import (
@@ -74,7 +76,7 @@ extract_object_id = CloudAutoMLHook.extract_object_id
 
 
 # Example DAG for AutoML Translation
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

@@ -53,7 +53,7 @@ if TYPE_CHECKING:
 RESOURCE_EVENT_PREFIX = "connection"
 
 
-@security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_CONNECTION)])
+@security.requires_access_connection("DELETE")
 @provide_session
 @action_logging(
     event=action_event_from_permission(
@@ -73,7 +73,7 @@ def delete_connection(*, connection_id: str, session: Session = NEW_SESSION) -> 
     return NoContent, HTTPStatus.NO_CONTENT
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION)])
+@security.requires_access_connection("GET")
 @provide_session
 def get_connection(*, connection_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Get a connection entry."""
@@ -86,7 +86,7 @@ def get_connection(*, connection_id: str, session: Session = NEW_SESSION) -> API
     return connection_schema.dump(connection)
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION)])
+@security.requires_access_connection("GET")
 @format_parameters({"limit": check_limit})
 @provide_session
 def get_connections(
@@ -98,18 +98,18 @@ def get_connections(
 ) -> APIResponse:
     """Get all connection entries."""
     to_replace = {"connection_id": "conn_id"}
-    allowed_filter_attrs = ["connection_id", "conn_type", "description", "host", "port", "id"]
+    allowed_sort_attrs = ["connection_id", "conn_type", "description", "host", "port", "id"]
 
     total_entries = session.execute(select(func.count(Connection.id))).scalar_one()
     query = select(Connection)
-    query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
+    query = apply_sorting(query, order_by, to_replace, allowed_sort_attrs)
     connections = session.scalars(query.offset(offset).limit(limit)).all()
     return connection_collection_schema.dump(
         ConnectionCollection(connections=connections, total_entries=total_entries)
     )
 
 
-@security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_CONNECTION)])
+@security.requires_access_connection("PUT")
 @provide_session
 @action_logging(
     event=action_event_from_permission(
@@ -147,7 +147,7 @@ def patch_connection(
     return connection_schema.dump(connection)
 
 
-@security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION)])
+@security.requires_access_connection("POST")
 @provide_session
 @action_logging(
     event=action_event_from_permission(
@@ -176,7 +176,7 @@ def post_connection(*, session: Session = NEW_SESSION) -> APIResponse:
     raise AlreadyExists(detail=f"Connection already exist. ID: {conn_id}")
 
 
-@security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION)])
+@security.requires_access_connection("POST")
 def test_connection() -> APIResponse:
     """
     Test an API connection.
@@ -205,5 +205,4 @@ def test_connection() -> APIResponse:
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
     finally:
-        if conn_env_var in os.environ:
-            del os.environ[conn_env_var]
+        os.environ.pop(conn_env_var, None)

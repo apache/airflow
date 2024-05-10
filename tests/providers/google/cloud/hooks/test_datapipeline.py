@@ -19,7 +19,12 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.providers.google.cloud.hooks.datapipeline import DataPipelineHook
+
+pytestmark = pytest.mark.db_test
+
 
 TASK_ID = "test-datapipeline-operators"
 TEST_NAME = "projects/test-project-id/locations/test-location"
@@ -115,9 +120,7 @@ class TestDataPipelineHook:
         Test that run_data_pipeline is called with correct parameters and
         calls Google Data Pipelines API
         """
-        mock_request = (
-            mock_connection.return_value.projects.return_value.locations.return_value.pipelines.return_value.run
-        )
+        mock_request = mock_connection.return_value.projects.return_value.locations.return_value.pipelines.return_value.run
         mock_request.return_value.execute.return_value = {"job": {"id": TEST_JOB_ID}}
 
         result = self.datapipeline_hook.run_data_pipeline(

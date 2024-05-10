@@ -17,6 +17,7 @@
 # under the License.
 
 """This module contains a web hook for Chime."""
+
 from __future__ import annotations
 
 import json
@@ -70,7 +71,7 @@ class ChimeWebhookHook(HttpHook):
         url = conn.schema + "://" + conn.host
         endpoint = url + token
         # Check to make sure the endpoint matches what Chime expects
-        if not re.match(r"^[a-zA-Z0-9_-]+\?token=[a-zA-Z0-9_-]+$", token):
+        if not re.fullmatch(r"[a-zA-Z0-9_-]+\?token=[a-zA-Z0-9_-]+", token):
             raise AirflowException(
                 "Expected Chime webhook token in the form of '{webhook.id}?token={webhook.token}'."
             )

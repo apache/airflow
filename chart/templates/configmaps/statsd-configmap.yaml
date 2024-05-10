@@ -44,7 +44,7 @@ data:
     mappings:
       {{- toYaml .Values.statsd.overrideMappings | nindent 6 }}
     {{- else }}
-      {{- .Files.Get "files/statsd-mappings.yml" | nindent 4 }}
+      {{- tpl (.Files.Get "files/statsd-mappings.yml") . | nindent 4 }}
       {{- if .Values.statsd.extraMappings }}
         {{- toYaml .Values.statsd.extraMappings | nindent 6 }}
       {{- end }}

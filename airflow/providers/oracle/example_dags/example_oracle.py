@@ -29,7 +29,6 @@ with DAG(
     start_date=datetime(2023, 1, 1),
     dag_id="example_oracle",
 ) as dag:
-
     # [START howto_oracle_operator]
 
     opr_sql = SQLExecuteQueryOperator(

@@ -19,15 +19,7 @@ from __future__ import annotations
 
 from functools import cached_property
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
-
-try:
-    from airflow.notifications.basenotifier import BaseNotifier
-except ImportError:
-    raise AirflowOptionalProviderFeatureException(
-        "Failed to import BaseNotifier. This feature is only available in Airflow versions >= 2.6.0"
-    )
-
+from airflow.notifications.basenotifier import BaseNotifier
 from airflow.providers.discord.hooks.discord_webhook import DiscordWebhookHook
 
 ICON_URL: str = "https://raw.githubusercontent.com/apache/airflow/main/airflow/www/static/pin_100.png"

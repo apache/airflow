@@ -103,7 +103,14 @@ class TestPubSubHook:
         create_method = mock_service.return_value.create_topic
         self.pubsub_hook.create_topic(project_id=TEST_PROJECT, topic=TEST_TOPIC)
         create_method.assert_called_once_with(
-            request=dict(name=EXPANDED_TOPIC, labels=LABELS, message_storage_policy=None, kms_key_name=None),
+            request=dict(
+                name=EXPANDED_TOPIC,
+                labels=LABELS,
+                message_storage_policy=None,
+                kms_key_name=None,
+                schema_settings=None,
+                message_retention_duration=None,
+            ),
             retry=DEFAULT,
             timeout=None,
             metadata=(),
@@ -446,16 +453,16 @@ class TestPubSubHook:
 
         with pytest.raises(PubSubException):
             self.pubsub_hook.pull(project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, max_messages=10)
-            pull_method.assert_called_once_with(
-                request=dict(
-                    subscription=EXPANDED_SUBSCRIPTION,
-                    max_messages=10,
-                    return_immediately=False,
-                ),
-                retry=DEFAULT,
-                timeout=None,
-                metadata=(),
-            )
+        pull_method.assert_called_once_with(
+            request=dict(
+                subscription=EXPANDED_SUBSCRIPTION,
+                max_messages=10,
+                return_immediately=False,
+            ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
 
     @mock.patch(PUBSUB_STRING.format("PubSubHook.subscriber_client"))
     def test_acknowledge_by_ack_ids(self, mock_service):
@@ -532,15 +539,15 @@ class TestPubSubHook:
             self.pubsub_hook.acknowledge(
                 project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, ack_ids=["1", "2", "3"]
             )
-            ack_method.assert_called_once_with(
-                request=dict(
-                    subscription=EXPANDED_SUBSCRIPTION,
-                    ack_ids=["1", "2", "3"],
-                ),
-                retry=DEFAULT,
-                timeout=None,
-                metadata=(),
-            )
+        ack_method.assert_called_once_with(
+            request=dict(
+                subscription=EXPANDED_SUBSCRIPTION,
+                ack_ids=["1", "2", "3"],
+            ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
 
     @pytest.mark.parametrize(
         "messages",

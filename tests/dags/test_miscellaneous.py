@@ -16,11 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """Example DAG demonstrating the usage of the BashOperator."""
+
 from __future__ import annotations
 
 import datetime
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 

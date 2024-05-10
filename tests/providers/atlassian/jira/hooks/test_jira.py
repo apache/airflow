@@ -17,31 +17,83 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import Mock, patch
+from unittest import mock
 
+import pytest
+
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.atlassian.jira.hooks.jira import JiraHook
-from airflow.utils import db
 
-jira_client_mock = Mock(name="jira_client")
+
+@pytest.fixture
+def mocked_jira_client():
+    with mock.patch("airflow.providers.atlassian.jira.hooks.jira.Jira", autospec=True) as m:
+        m.return_value = mock.Mock(name="jira_client")
+        yield m
 
 
 class TestJiraHook:
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self, monkeypatch):
+        self.conn_id = "jira_default"
+        self.conn_id_with_str_verify = "jira_default_with_str"
+        self.host = "https://localhost/jira/"
+        self.port = 443
+        self.login = "user"
+        self.password = "password"
+        self.proxies = None
+
+        monkeypatch.setenv(
+            f"AIRFLOW_CONN_{self.conn_id}".upper(),
             Connection(
                 conn_id="jira_default",
                 conn_type="jira",
                 host="https://localhost/jira/",
                 port=443,
+                login="user",
+                password="password",
+                extra='{"verify": false, "project": "AIRFLOW"}',
+            ).as_json(),
+        )
+        monkeypatch.setenv(
+            f"AIRFLOW_CONN_{self.conn_id_with_str_verify}".upper(),
+            Connection(
+                conn_id=self.conn_id_with_str_verify,
+                conn_type="jira",
+                host="https://localhost/jira/",
+                port=443,
+                login="user",
+                password="password",
                 extra='{"verify": "False", "project": "AIRFLOW"}',
-            )
+            ).as_json(),
         )
 
-    @patch("airflow.providers.atlassian.jira.hooks.jira.Jira", autospec=True, return_value=jira_client_mock)
-    def test_jira_client_connection(self, jira_mock):
-        jira_hook = JiraHook()
+    def test_jira_client_connection(self, mocked_jira_client):
+        jira_hook = JiraHook(proxies=self.proxies)
 
-        assert jira_mock.called
-        assert isinstance(jira_hook.client, Mock)
-        assert jira_hook.client.name == jira_mock.return_value.name
+        mocked_jira_client.assert_called_once_with(
+            url=self.host,
+            username=self.login,
+            password=self.password,
+            verify_ssl=False,
+            proxies=self.proxies,
+        )
+        assert isinstance(jira_hook.client, mock.Mock)
+        assert jira_hook.client.name == mocked_jira_client.return_value.name
+
+    def test_jira_client_connection_with_str(self, mocked_jira_client):
+        warning_message = "Extra parameter `verify` using str is deprecated and will be removed"
+
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
+            jira_hook = JiraHook(jira_conn_id=self.conn_id_with_str_verify, proxies=self.proxies)
+
+        mocked_jira_client.assert_called_once_with(
+            url=self.host,
+            username=self.login,
+            password=self.password,
+            verify_ssl=False,
+            proxies=self.proxies,
+        )
+        assert isinstance(jira_hook.client, mock.Mock)
+        assert jira_hook.client.name == mocked_jira_client.return_value.name

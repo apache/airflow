@@ -36,6 +36,7 @@ PROJECT_ID = "test_project_id"
 PIPELINE_NAME = "shrubberyPipeline"
 PIPELINE = {"test": "pipeline"}
 PIPELINE_ID = "test_pipeline_id"
+PIPELINE_TYPE = "batch"
 INSTANCE_URL = "http://datafusion.instance.com"
 NAMESPACE = "TEST_NAMESPACE"
 RUNTIME_ARGS = {"arg1": "a", "arg2": "b"}
@@ -50,6 +51,7 @@ def trigger():
         namespace=NAMESPACE,
         pipeline_name=PIPELINE_NAME,
         pipeline_id=PIPELINE_ID,
+        pipeline_type=PIPELINE_TYPE,
         poll_interval=TEST_POLL_INTERVAL,
         gcp_conn_id=TEST_GCP_PROJECT_ID,
     )
@@ -68,6 +70,7 @@ class TestDataFusionStartPipelineTrigger:
             "namespace": NAMESPACE,
             "pipeline_name": PIPELINE_NAME,
             "pipeline_id": PIPELINE_ID,
+            "pipeline_type": PIPELINE_TYPE,
             "gcp_conn_id": TEST_GCP_PROJECT_ID,
             "success_states": None,
         }

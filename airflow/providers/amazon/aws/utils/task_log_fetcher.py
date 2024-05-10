@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from threading import Event, Thread
 from typing import TYPE_CHECKING, Generator
 
@@ -87,7 +87,7 @@ class AwsTaskLogFetcher(Thread):
 
     @staticmethod
     def event_to_str(event: dict) -> str:
-        event_dt = datetime.utcfromtimestamp(event["timestamp"] / 1000.0)
+        event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=timezone.utc)
         formatted_event_dt = event_dt.strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
         message = event["message"]
         return f"[{formatted_event_dt}] {message}"

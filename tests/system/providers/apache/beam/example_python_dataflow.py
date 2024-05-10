@@ -18,6 +18,7 @@
 """
 Example Airflow DAG for Apache Beam operators
 """
+
 from __future__ import annotations
 
 from airflow import models

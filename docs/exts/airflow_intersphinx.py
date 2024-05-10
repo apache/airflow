@@ -151,10 +151,9 @@ if __name__ == "__main__":
         def inspect_main(inv_data, name) -> None:
             try:
                 for key in sorted(inv_data or {}):
-                    for entry, _ in sorted(inv_data[key].items()):
-                        domain, object_type = key.split(":")
-                        role_name = domain_and_object_type_to_role(domain, object_type)
-
+                    domain, object_type = key.split(":")
+                    role_name = domain_and_object_type_to_role(domain, object_type)
+                    for entry in sorted(inv_data[key].keys()):
                         print(f":{role_name}:`{name}:{entry}`")
             except ValueError as exc:
                 print(exc.args[0] % exc.args[1:])

@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""fix_mssql_exec_date_rendered_task_instance_fields_for_MSSQL
+"""fix_mssql_exec_date_rendered_task_instance_fields_for_MSSQL.
 
 Revision ID: 52d53670a240
 Revises: 98271e7606e2
 Create Date: 2020-10-13 15:13:24.911486
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -39,10 +40,7 @@ TABLE_NAME = "rendered_task_instance_fields"
 
 
 def upgrade():
-    """
-    Recreate RenderedTaskInstanceFields table changing timestamp to datetime2(6) when using MSSQL as
-    backend
-    """
+    """In MSSQL, change execution_date column type to datetime2."""
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
         json_type = sa.Text
@@ -59,10 +57,7 @@ def upgrade():
 
 
 def downgrade():
-    """
-    Recreate RenderedTaskInstanceFields table changing datetime2(6) to timestamp when using MSSQL as
-    backend
-    """
+    """In MSSQL, change execution_date column type to timestamp."""
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
         json_type = sa.Text

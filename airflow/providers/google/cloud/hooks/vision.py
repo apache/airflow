@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Vision Hook."""
+
 from __future__ import annotations
 
 from copy import deepcopy
@@ -142,7 +143,7 @@ class CloudVisionHook(GoogleBaseHook):
 
     def get_conn(self) -> ProductSearchClient:
         """
-        Retrieves connection to Cloud Vision.
+        Retrieve a connection to Cloud Vision.
 
         :return: Google Cloud Vision client object.
         """

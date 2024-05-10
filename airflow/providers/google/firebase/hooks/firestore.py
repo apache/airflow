@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Google Cloud Firestore service."""
+
 from __future__ import annotations
 
 import time
@@ -24,7 +25,7 @@ from typing import Sequence
 from googleapiclient.discovery import build, build_from_document
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 5
@@ -65,7 +66,7 @@ class CloudFirestoreHook(GoogleBaseHook):
 
     def get_conn(self):
         """
-        Retrieves the connection to Cloud Firestore.
+        Retrieve the connection to Cloud Firestore.
 
         :return: Google Cloud Firestore services object.
         """
@@ -83,10 +84,10 @@ class CloudFirestoreHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def export_documents(
-        self, body: dict, database_id: str = "(default)", project_id: str | None = None
+        self, body: dict, database_id: str = "(default)", project_id: str = PROVIDE_PROJECT_ID
     ) -> None:
         """
-        Starts a export with the specified configuration.
+        Start a export with the specified configuration.
 
         :param database_id: The Database ID.
         :param body: The request body.
@@ -110,7 +111,7 @@ class CloudFirestoreHook(GoogleBaseHook):
 
     def _wait_for_operation_to_complete(self, operation_name: str) -> None:
         """
-        Waits for the named operation to complete - checks status of the asynchronous call.
+        Wait for the named operation to complete - checks status of the asynchronous call.
 
         :param operation_name: The name of the operation.
         :return: The response returned by the operation.

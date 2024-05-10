@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Translate Hook."""
+
 from __future__ import annotations
 
 from typing import Sequence
@@ -53,7 +54,7 @@ class CloudTranslateHook(GoogleBaseHook):
 
     def get_conn(self) -> Client:
         """
-        Retrieves connection to Cloud Translate.
+        Retrieve connection to Cloud Translate.
 
         :return: Google Cloud Translate client object.
         """

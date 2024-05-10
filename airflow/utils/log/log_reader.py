@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 class TaskLogReader:
     """Task log reader."""
 
-    STREAM_LOOP_SLEEP_SECONDS = 0.5
+    STREAM_LOOP_SLEEP_SECONDS = 1
     """Time to sleep between loops while waiting for more logs"""
 
     def read_log_chunks(

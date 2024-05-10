@@ -43,7 +43,8 @@ class AthenaTrigger(AwsBaseWaiterTrigger):
         query_execution_id: str,
         waiter_delay: int,
         waiter_max_attempts: int,
-        aws_conn_id: str,
+        aws_conn_id: str | None,
+        **kwargs,
     ):
         super().__init__(
             serialized_fields={"query_execution_id": query_execution_id},
@@ -56,7 +57,13 @@ class AthenaTrigger(AwsBaseWaiterTrigger):
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
+            **kwargs,
         )
 
     def hook(self) -> AwsGenericHook:
-        return AthenaHook(self.aws_conn_id)
+        return AthenaHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )

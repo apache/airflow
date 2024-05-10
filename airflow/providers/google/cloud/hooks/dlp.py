@@ -23,6 +23,7 @@ This module contains a CloudDLPHook which allows you to connect to Google Cloud 
     ImageRedactionConfig
     RedactImageRequest
 """
+
 from __future__ import annotations
 
 import re
@@ -103,7 +104,7 @@ class CloudDLPHook(GoogleBaseHook):
 
     def get_conn(self) -> DlpServiceClient:
         """
-        Provides a client for interacting with the Cloud DLP API.
+        Provide a client for interacting with the Cloud DLP API.
 
         :return: Google Cloud DLP API Client
         """
@@ -130,7 +131,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Starts asynchronous cancellation on a long-running DLP job.
+        Start asynchronous cancellation on a long-running DLP job.
 
         :param dlp_job_id: ID of the DLP job resource to be cancelled.
         :param project_id: (Optional) Google Cloud project ID where the
@@ -161,7 +162,7 @@ class CloudDLPHook(GoogleBaseHook):
     def create_deidentify_template(
         self,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         deidentify_template: dict | DeidentifyTemplate | None = None,
         template_id: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -221,7 +222,7 @@ class CloudDLPHook(GoogleBaseHook):
         time_to_sleep_in_seconds: int = 60,
     ) -> DlpJob:
         """
-        Creates a new job to inspect storage or calculate risk metrics.
+        Create a new job to inspect storage or calculate risk metrics.
 
         :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. If set to None or missing, the default
@@ -286,7 +287,7 @@ class CloudDLPHook(GoogleBaseHook):
     def create_inspect_template(
         self,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         inspect_template: InspectTemplate | None = None,
         template_id: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -375,7 +376,7 @@ class CloudDLPHook(GoogleBaseHook):
     def create_stored_info_type(
         self,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         config: dict | StoredInfoTypeConfig | None = None,
         stored_info_type_id: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -383,7 +384,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> StoredInfoType:
         """
-        Creates a pre-built stored info type to be used for inspection.
+        Create a pre-built stored info type to be used for inspection.
 
         :param organization_id: (Optional) The organization ID. Required to set this
             field if parent resource is an organization.
@@ -480,7 +481,7 @@ class CloudDLPHook(GoogleBaseHook):
         self, template_id, organization_id=None, project_id=None, retry=DEFAULT, timeout=None, metadata=()
     ) -> None:
         """
-        Deletes a deidentify template.
+        Delete a deidentify template.
 
         :param template_id: The ID of deidentify template to be deleted.
         :param organization_id: (Optional) The organization ID. Required to set this
@@ -529,7 +530,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Deletes a long-running DLP job.
+        Delete a long-running DLP job.
 
         This method indicates that the client is no longer interested in the DLP job result.
         The job will be cancelled if possible.
@@ -564,13 +565,13 @@ class CloudDLPHook(GoogleBaseHook):
         self,
         template_id: str,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Deletes an inspect template.
+        Delete an inspect template.
 
         :param template_id: The ID of the inspect template to be deleted.
         :param organization_id: (Optional) The organization ID. Required to set this
@@ -619,7 +620,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Deletes a job trigger.
+        Delete a job trigger.
 
         :param job_trigger_id: The ID of the DLP job trigger to be deleted.
         :param project_id: (Optional) Google Cloud project ID where the
@@ -651,13 +652,13 @@ class CloudDLPHook(GoogleBaseHook):
         self,
         stored_info_type_id: str,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Deletes a stored info type.
+        Delete a stored info type.
 
         :param stored_info_type_id: The ID of the stored info type to be deleted.
         :param organization_id: (Optional) The organization ID. Required to set this
@@ -700,13 +701,13 @@ class CloudDLPHook(GoogleBaseHook):
         self,
         template_id: str,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> DeidentifyTemplate:
         """
-        Gets a deidentify template.
+        Get a deidentify template.
 
         :param template_id: The ID of deidentify template to be read.
         :param organization_id: (Optional) The organization ID. Required to set this
@@ -755,7 +756,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> DlpJob:
         """
-        Gets the latest state of a long-running Dlp Job.
+        Get the latest state of a long-running Dlp Job.
 
         :param dlp_job_id: The ID of the DLP job resource to be read.
         :param project_id: (Optional) Google Cloud project ID where the
@@ -787,13 +788,13 @@ class CloudDLPHook(GoogleBaseHook):
         self,
         template_id: str,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> InspectTemplate:
         """
-        Gets an inspect template.
+        Get an inspect template.
 
         :param template_id: The ID of inspect template to be read.
         :param organization_id: (Optional) The organization ID. Required to set this
@@ -842,7 +843,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> JobTrigger:
         """
-        Gets a DLP job trigger.
+        Get a DLP job trigger.
 
         :param job_trigger_id: The ID of the DLP job trigger to be read.
         :param project_id: (Optional) Google Cloud project ID where the
@@ -874,13 +875,13 @@ class CloudDLPHook(GoogleBaseHook):
         self,
         stored_info_type_id: str,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> StoredInfoType:
         """
-        Gets a stored info type.
+        Get a stored info type.
 
         :param stored_info_type_id: The ID of the stored info type to be read.
         :param organization_id: (Optional) The organization ID. Required to set this
@@ -931,7 +932,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> InspectContentResponse:
         """
-        Finds potentially sensitive info in content; limits input size, processing time, and output size.
+        Find potentially sensitive info in content; limits input size, processing time, and output size.
 
         :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. If set to None or missing, the default
@@ -966,7 +967,7 @@ class CloudDLPHook(GoogleBaseHook):
     def list_deidentify_templates(
         self,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         page_size: int | None = None,
         order_by: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -974,7 +975,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> list[DeidentifyTemplate]:
         """
-        Lists deidentify templates.
+        List deidentify templates.
 
         :param organization_id: (Optional) The organization ID. Required to set this
             field if parent resource is an organization.
@@ -1030,7 +1031,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> list[DlpJob]:
         """
-        Lists DLP jobs that match the specified filter in the request.
+        List DLP jobs that match the specified filter in the request.
 
         :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. If set to None or missing, the default
@@ -1074,7 +1075,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ListInfoTypesResponse:
         """
-        Returns a list of the sensitive information types that the DLP API supports.
+        Return a list of the sensitive information types that the DLP API supports.
 
         :param language_code: (Optional) Optional BCP-47 language code for localized info
             type friendly names. If omitted, or if localized strings are not available,
@@ -1102,7 +1103,7 @@ class CloudDLPHook(GoogleBaseHook):
     def list_inspect_templates(
         self,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         page_size: int | None = None,
         order_by: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -1110,7 +1111,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> list[InspectTemplate]:
         """
-        Lists inspect templates.
+        List inspect templates.
 
         :param organization_id: (Optional) The organization ID. Required to set this
             field if parent resource is an organization.
@@ -1164,7 +1165,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> list[JobTrigger]:
         """
-        Lists job triggers.
+        List job triggers.
 
         :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. If set to None or missing, the default
@@ -1200,7 +1201,7 @@ class CloudDLPHook(GoogleBaseHook):
     def list_stored_info_types(
         self,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         page_size: int | None = None,
         order_by: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -1208,7 +1209,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> list[StoredInfoType]:
         """
-        Lists stored info types.
+        List stored info types.
 
         :param organization_id: (Optional) The organization ID. Required to set this
             field if parent resource is an organization.
@@ -1355,7 +1356,7 @@ class CloudDLPHook(GoogleBaseHook):
         self,
         template_id: str,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         deidentify_template: dict | DeidentifyTemplate | None = None,
         update_mask: dict | FieldMask | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -1363,7 +1364,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> DeidentifyTemplate:
         """
-        Updates the deidentify template.
+        Update the deidentify template.
 
         :param template_id: The ID of deidentify template to be updated.
         :param organization_id: (Optional) The organization ID. Required to set this
@@ -1410,7 +1411,7 @@ class CloudDLPHook(GoogleBaseHook):
         self,
         template_id: str,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         inspect_template: dict | InspectTemplate | None = None,
         update_mask: dict | FieldMask | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -1418,7 +1419,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> InspectTemplate:
         """
-        Updates the inspect template.
+        Update the inspect template.
 
         :param template_id: The ID of the inspect template to be updated.
         :param organization_id: (Optional) The organization ID. Required to set this
@@ -1472,7 +1473,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> JobTrigger:
         """
-        Updates a job trigger.
+        Update a job trigger.
 
         :param job_trigger_id: The ID of the DLP job trigger to be updated.
         :param project_id: (Optional) Google Cloud project ID where the
@@ -1512,7 +1513,7 @@ class CloudDLPHook(GoogleBaseHook):
         self,
         stored_info_type_id: str,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         config: dict | StoredInfoTypeConfig | None = None,
         update_mask: dict | FieldMask | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -1520,7 +1521,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> StoredInfoType:
         """
-        Updates the stored info type by creating a new version.
+        Update the stored info type by creating a new version.
 
         :param stored_info_type_id: The ID of the stored info type to be updated.
         :param organization_id: (Optional) The organization ID. Required to set this

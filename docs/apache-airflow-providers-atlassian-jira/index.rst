@@ -32,6 +32,14 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
+    :caption: Guides
+
+    Connection types <connections>
+    Notifications <notifications/index>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/atlassian/jira/index>
@@ -55,35 +63,36 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-atlassian-jira
+apache-airflow-providers-atlassian-jira package
 ------------------------------------------------------
 
-`Atlassian Jira <https://www.atlassian.com/>`__
+`Atlassian Jira <https://www.atlassian.com/software/jira/>`__
 
 
-Release: 2.1.1
+Release: 2.6.0
 
 Provider package
 ----------------
 
-This is a provider package for ``atlassian.jira`` provider. All classes for this provider package
-are in ``airflow.providers.atlassian.jira`` python package.
+This package is for the ``atlassian.jira`` provider.
+All classes for this package are included in the ``airflow.providers.atlassian.jira`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-atlassian-jira``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-atlassian-jira``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
 
-========================  ==================
+========================  =====================
 PIP package               Version required
-========================  ==================
-``apache-airflow``        ``>=2.4.0``
-``atlassian-python-api``  ``>=1.14.2``
-========================  ==================
+========================  =====================
+``apache-airflow``        ``>=2.7.0``
+``atlassian-python-api``  ``>=1.14.2,!=3.41.6``
+``beautifulsoup4``
+========================  =====================

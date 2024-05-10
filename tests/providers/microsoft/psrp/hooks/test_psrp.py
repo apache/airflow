@@ -24,7 +24,6 @@ import pytest
 from pypsrp.host import PSHost
 from pypsrp.messages import MessageType
 from pypsrp.powershell import PSInvocationState
-from pytest import raises
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -124,7 +123,7 @@ class TestPsrpHook:
             return conn
 
         hook.get_connection = get_connection
-        with raises(AirflowException, match="Unexpected extra configuration keys: foo"):
+        with pytest.raises(AirflowException, match="Unexpected extra configuration keys: foo"):
             hook.get_conn()
 
     @pytest.mark.parametrize(
@@ -147,7 +146,8 @@ class TestPsrpHook:
             on_output_callback=on_output_callback,
             **options,
         ) as hook, patch.object(type(hook), "log") as logger:
-            try:
+            error_match = "Process had one or more errors"
+            with pytest.raises(AirflowException, match=error_match):  # noqa: PT012 error happen on context exit
                 with hook.invoke() as ps:
                     assert ps.state == PSInvocationState.NOT_STARTED
 
@@ -155,10 +155,6 @@ class TestPsrpHook:
                     # handling as well as the logging of error exception
                     # details.
                     ps.had_errors = True
-            except AirflowException as exc:
-                assert str(exc) == "Process had one or more errors"
-            else:
-                self.fail("Expected an error")
             assert ps.state == PSInvocationState.COMPLETED
 
         assert on_output_callback.mock_calls == [call("output")]
@@ -211,3 +207,9 @@ class TestPsrpHook:
         hook = PsrpHook(CONNECTION_ID)
         ps = hook.invoke_powershell("foo")
         assert call("foo") in ps.add_script.mock_calls
+
+    def test_test_connection(self, runspace_pool, *mocks):
+        connection = Connection(conn_type="psrp")
+        connection.test_connection()
+
+        assert runspace_pool.return_value.__enter__.mock_calls == [call()]

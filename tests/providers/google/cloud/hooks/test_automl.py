@@ -71,7 +71,7 @@ class TestAutoMLHook:
 
     @mock.patch("airflow.providers.google.cloud.hooks.automl.PredictionServiceClient")
     def test_prediction_client(self, mock_prediction_client):
-        client = self.hook.prediction_client  # noqa
+        client = self.hook.prediction_client  # noqa: F841
         mock_prediction_client.assert_called_once_with(credentials=CREDENTIALS, client_info=CLIENT_INFO)
 
     @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.create_model")
@@ -249,5 +249,13 @@ class TestAutoMLHook:
         self.hook.delete_dataset(dataset_id=DATASET_ID, location=GCP_LOCATION, project_id=GCP_PROJECT_ID)
 
         mock_delete_dataset.assert_called_once_with(
+            request=dict(name=DATASET_PATH), retry=DEFAULT, timeout=None, metadata=()
+        )
+
+    @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.get_dataset")
+    def test_get_dataset(self, mock_get_dataset):
+        self.hook.get_dataset(dataset_id=DATASET_ID, location=GCP_LOCATION, project_id=GCP_PROJECT_ID)
+
+        mock_get_dataset.assert_called_once_with(
             request=dict(name=DATASET_PATH), retry=DEFAULT, timeout=None, metadata=()
         )

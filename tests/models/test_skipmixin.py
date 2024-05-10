@@ -34,6 +34,9 @@ from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
+pytestmark = pytest.mark.db_test
+
+
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
@@ -52,7 +55,7 @@ class TestSkipMixin:
     @patch("airflow.utils.timezone.utcnow")
     def test_skip(self, mock_now, dag_maker):
         session = settings.Session()
-        now = datetime.datetime.utcnow().replace(tzinfo=pendulum.timezone("UTC"))
+        now = datetime.datetime.now(tz=datetime.timezone.utc)
         mock_now.return_value = now
         with dag_maker("dag"):
             tasks = [EmptyOperator(task_id="task")]
@@ -74,7 +77,7 @@ class TestSkipMixin:
     @patch("airflow.utils.timezone.utcnow")
     def test_skip_none_dagrun(self, mock_now, dag_maker):
         session = settings.Session()
-        now = datetime.datetime.utcnow().replace(tzinfo=pendulum.timezone("UTC"))
+        now = datetime.datetime.now(tz=pendulum.timezone("UTC"))
         mock_now.return_value = now
         with dag_maker(
             "dag",
@@ -138,8 +141,7 @@ class TestSkipMixin:
         with dag_maker("dag_test_skip_all_except") as dag:
 
             @task
-            def branch_op(k):
-                ...
+            def branch_op(k): ...
 
             @task_group
             def task_group_op(k):

@@ -20,7 +20,8 @@ from __future__ import annotations
 import collections.abc
 import functools
 import operator
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Mapping, NamedTuple, Sequence, Sized, Union
+from collections.abc import Sized
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Mapping, NamedTuple, Sequence, Union
 
 import attr
 
@@ -134,6 +135,7 @@ class DictOfListsExpandInput(NamedTuple):
         If any arguments are not known right now (upstream task not finished),
         they will not be present in the dict.
         """
+
         # TODO: This initiates one database call for each XComArg. Would it be
         # more efficient to do one single db call and unpack the value here?
         def _get_length(v: OperatorExpandArgument) -> int | None:

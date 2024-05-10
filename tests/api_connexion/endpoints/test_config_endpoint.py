@@ -25,6 +25,9 @@ from airflow.security import permissions
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
+
 MOCK_CONF = {
     "core": {
         "parallelism": "1024",
@@ -219,6 +222,16 @@ class TestGetConfig:
         assert response.status_code == 403
         assert "chose not to expose" in response.json["detail"]
 
+    @pytest.mark.parametrize(
+        "set_auto_role_public, expected_status_code",
+        (("Public", 403), ("Admin", 200)),
+        indirect=["set_auto_role_public"],
+    )
+    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code):
+        response = self.client.get("/api/v1/config", headers={"Accept": "application/json"})
+
+        assert response.status_code == expected_status_code
+
 
 class TestGetValue:
     @pytest.fixture(autouse=True)
@@ -247,17 +260,26 @@ class TestGetValue:
         return_value=MOCK_CONF_WITH_SENSITIVE_VALUE,
     )
     @conf_vars({("webserver", "expose_config"): "non-sensitive-only"})
-    def test_should_respond_200_text_plain_with_non_sensitive_only(self, mock_as_dict):
+    @pytest.mark.parametrize(
+        "section, option",
+        [
+            ("core", "sql_alchemy_conn"),
+            ("core", "SQL_ALCHEMY_CONN"),
+            ("corE", "sql_alchemy_conn"),
+            ("CORE", "sql_alchemy_conn"),
+        ],
+    )
+    def test_should_respond_200_text_plain_with_non_sensitive_only(self, mock_as_dict, section, option):
         response = self.client.get(
-            "/api/v1/config/section/core/option/sql_alchemy_conn",
+            f"/api/v1/config/section/{section}/option/{option}",
             headers={"Accept": "text/plain"},
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         expected = textwrap.dedent(
-            """\
-        [core]
-        sql_alchemy_conn = < hidden >
+            f"""\
+        [{section}]
+        {option} = < hidden >
         """
         )
         assert expected == response.data.decode()
@@ -327,3 +349,15 @@ class TestGetValue:
         )
         assert response.status_code == 403
         assert "chose not to expose" in response.json["detail"]
+
+    @pytest.mark.parametrize(
+        "set_auto_role_public, expected_status_code",
+        (("Public", 403), ("Admin", 200)),
+        indirect=["set_auto_role_public"],
+    )
+    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code):
+        response = self.client.get(
+            "/api/v1/config/section/smtp/option/smtp_mail_from", headers={"Accept": "application/json"}
+        )
+
+        assert response.status_code == expected_status_code

@@ -23,7 +23,6 @@ from typing import TYPE_CHECKING, Iterable, Sequence
 from sqlalchemy import select, update
 
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
-from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -35,6 +34,7 @@ if TYPE_CHECKING:
     from pendulum import DateTime
     from sqlalchemy import Session
 
+    from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
     from airflow.models.taskmixin import DAGNode
     from airflow.serialization.pydantic.dag_run import DagRunPydantic
@@ -197,12 +197,14 @@ class SkipMixin(LoggingMixin):
             )
 
         dag_run = ti.get_dagrun()
-        assert isinstance(dag_run, DagRun)
+        if TYPE_CHECKING:
+            assert isinstance(dag_run, DagRun)
+            assert ti.task
 
         # TODO(potiuk): Handle TaskInstancePydantic case differently - we need to figure out the way to
         # pass task that has been set in LocalTaskJob but in the way that TaskInstancePydantic definition
         # does not attempt to serialize the field from/to ORM
-        task = ti.task  # type: ignore[union-attr]
+        task = ti.task
         dag = task.dag
         if TYPE_CHECKING:
             assert dag

@@ -42,7 +42,7 @@ class TestEmrServerlessHook:
         conn_mock().get_paginator().paginate.return_value = [{"jobRuns": [{"id": "job1"}, {"id": "job2"}]}]
         hook = EmrServerlessHook(aws_conn_id="aws_default")
         waiter_mock = MagicMock()
-        hook.get_waiter = waiter_mock
+        hook.get_waiter = waiter_mock  # type:ignore[method-assign]
 
         hook.cancel_running_jobs("app")
 
@@ -59,7 +59,7 @@ class TestEmrServerlessHook:
         ]
         hook = EmrServerlessHook(aws_conn_id="aws_default")
         waiter_mock = MagicMock()
-        hook.get_waiter = waiter_mock
+        hook.get_waiter = waiter_mock  # type:ignore[method-assign]
 
         hook.cancel_running_jobs("app")
 

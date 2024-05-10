@@ -26,7 +26,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.cloud_storage_transfer_service import (
     CloudDataTransferServiceGCSToGCSOperator,
 )
@@ -50,14 +50,13 @@ CURRENT_FOLDER = Path(__file__).parent
 FILE_LOCAL_PATH = str(Path(CURRENT_FOLDER) / "resources" / FILE_NAME)
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "transfer", "gcs-to-gcs"],
 ) as dag:
-
     create_bucket_src = GCSCreateBucketOperator(
         task_id="create_bucket_src",
         bucket_name=BUCKET_NAME_SRC,

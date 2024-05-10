@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 from contextlib import suppress
-from datetime import datetime
 from importlib import import_module
 from io import StringIO
 from pathlib import Path
@@ -27,14 +26,14 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-from pytest import param
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.declarative import DeclarativeMeta
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.operators.python import PythonOperator
+from airflow.utils import timezone
 from airflow.utils.db_cleanup import (
     ARCHIVE_TABLE_PREFIX,
     CreateTableAs,
@@ -50,6 +49,8 @@ from airflow.utils.db_cleanup import (
 )
 from airflow.utils.session import create_session
 from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs, drop_tables_with_prefix
+
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(autouse=True)
@@ -72,9 +73,9 @@ class TestDBCleanup:
     @pytest.mark.parametrize(
         "kwargs, called",
         [
-            param(dict(confirm=True), True, id="true"),
-            param(dict(), True, id="not supplied"),
-            param(dict(confirm=False), False, id="false"),
+            pytest.param(dict(confirm=True), True, id="true"),
+            pytest.param(dict(), True, id="not supplied"),
+            pytest.param(dict(confirm=False), False, id="false"),
         ],
     )
     @patch("airflow.utils.db_cleanup._cleanup_table", new=MagicMock())
@@ -96,9 +97,9 @@ class TestDBCleanup:
     @pytest.mark.parametrize(
         "kwargs, should_skip",
         [
-            param(dict(skip_archive=True), True, id="true"),
-            param(dict(), False, id="not supplied"),
-            param(dict(skip_archive=False), False, id="false"),
+            pytest.param(dict(skip_archive=True), True, id="true"),
+            pytest.param(dict(), False, id="not supplied"),
+            pytest.param(dict(skip_archive=False), False, id="false"),
         ],
     )
     @patch("airflow.utils.db_cleanup._cleanup_table")
@@ -178,12 +179,12 @@ class TestDBCleanup:
     @pytest.mark.parametrize(
         "table_name, date_add_kwargs, expected_to_delete, external_trigger",
         [
-            param("task_instance", dict(days=0), 0, False, id="beginning"),
-            param("task_instance", dict(days=4), 4, False, id="middle"),
-            param("task_instance", dict(days=9), 9, False, id="end_exactly"),
-            param("task_instance", dict(days=9, microseconds=1), 10, False, id="beyond_end"),
-            param("dag_run", dict(days=9, microseconds=1), 9, False, id="beyond_end_dr"),
-            param("dag_run", dict(days=9, microseconds=1), 10, True, id="beyond_end_dr_external"),
+            pytest.param("task_instance", dict(days=0), 0, False, id="beginning"),
+            pytest.param("task_instance", dict(days=4), 4, False, id="middle"),
+            pytest.param("task_instance", dict(days=9), 9, False, id="end_exactly"),
+            pytest.param("task_instance", dict(days=9, microseconds=1), 10, False, id="beyond_end"),
+            pytest.param("dag_run", dict(days=9, microseconds=1), 9, False, id="beyond_end_dr"),
+            pytest.param("dag_run", dict(days=9, microseconds=1), 10, True, id="beyond_end_dr_external"),
         ],
     )
     def test__build_query(self, table_name, date_add_kwargs, expected_to_delete, external_trigger):
@@ -220,12 +221,12 @@ class TestDBCleanup:
     @pytest.mark.parametrize(
         "table_name, date_add_kwargs, expected_to_delete, external_trigger",
         [
-            param("task_instance", dict(days=0), 0, False, id="beginning"),
-            param("task_instance", dict(days=4), 4, False, id="middle"),
-            param("task_instance", dict(days=9), 9, False, id="end_exactly"),
-            param("task_instance", dict(days=9, microseconds=1), 10, False, id="beyond_end"),
-            param("dag_run", dict(days=9, microseconds=1), 9, False, id="beyond_end_dr"),
-            param("dag_run", dict(days=9, microseconds=1), 10, True, id="beyond_end_dr_external"),
+            pytest.param("task_instance", dict(days=0), 0, False, id="beginning"),
+            pytest.param("task_instance", dict(days=4), 4, False, id="middle"),
+            pytest.param("task_instance", dict(days=9), 9, False, id="end_exactly"),
+            pytest.param("task_instance", dict(days=9, microseconds=1), 10, False, id="beyond_end"),
+            pytest.param("dag_run", dict(days=9, microseconds=1), 9, False, id="beyond_end_dr"),
+            pytest.param("dag_run", dict(days=9, microseconds=1), 10, True, id="beyond_end_dr_external"),
         ],
     )
     def test__cleanup_table(self, table_name, date_add_kwargs, expected_to_delete, external_trigger):
@@ -270,7 +271,7 @@ class TestDBCleanup:
 
     @pytest.mark.parametrize(
         "skip_archive, expected_archives",
-        [param(True, 0, id="skip_archive"), param(False, 1, id="do_archive")],
+        [pytest.param(True, 0, id="skip_archive"), pytest.param(False, 1, id="do_archive")],
     )
     def test__skip_archive(self, skip_archive, expected_archives):
         """
@@ -296,6 +297,10 @@ class TestDBCleanup:
             assert len(session.query(model).all()) == 5
             assert len(_get_archived_table_names(["dag_run"], session)) == expected_archives
 
+    @pytest.mark.filterwarnings(
+        # This test case might import some deprecated modules, ignore it
+        "ignore:This module is deprecated.*:airflow.exceptions.RemovedInAirflow3Warning"
+    )
     def test_no_models_missing(self):
         """
         1. Verify that for all tables in `airflow.models`, we either have them enabled in db cleanup,
@@ -322,7 +327,6 @@ class TestDBCleanup:
             "ab_user",
             "variable",  # leave alone
             "dataset",  # not good way to know if "stale"
-            "trigger",  # self-maintaining
             "task_map",  # keys to TI, so no need
             "serialized_dag",  # handled through FK to Dag
             "log_template",  # not a significant source of data; age not indicative of staleness
@@ -354,13 +358,13 @@ class TestDBCleanup:
         Ensure every table we have configured (and that is present in the db) can be cleaned successfully.
         For example, this checks that the recency column is actually a column.
         """
-        run_cleanup(clean_before_timestamp=datetime.utcnow(), dry_run=True)
+        run_cleanup(clean_before_timestamp=timezone.utcnow(), dry_run=True)
         assert "Encountered error when attempting to clean table" not in caplog.text
 
         # Lets check we have the right error message just in case
         caplog.clear()
         with patch("airflow.utils.db_cleanup._cleanup_table", side_effect=OperationalError("oops", {}, None)):
-            run_cleanup(clean_before_timestamp=datetime.utcnow(), table_names=["task_instance"], dry_run=True)
+            run_cleanup(clean_before_timestamp=timezone.utcnow(), table_names=["task_instance"], dry_run=True)
         assert "Encountered error when attempting to clean table" in caplog.text
 
     @pytest.mark.parametrize(
@@ -395,17 +399,17 @@ class TestDBCleanup:
     @patch("airflow.utils.db_cleanup.ask_yesno")
     def test_confirm_drop_archives(self, mock_ask_yesno, tables):
         expected = (
-            f"You have requested that we drop the following archived tables {tables}.\n"
-            "This is irreversible. Consider backing up the tables first"
+            f"You have requested that we drop the following archived tables: {', '.join(tables)}.\n"
+            "This is irreversible. Consider backing up the tables first."
         )
         if len(tables) > 3:
             expected = (
                 f"You have requested that we drop {len(tables)} archived tables prefixed with "
                 f"_airflow_deleted__.\n"
-                "This is irreversible. Consider backing up the tables first \n"
-                "\n"
-                f"{tables}"
+                "This is irreversible. Consider backing up the tables first.\n"
             )
+            for table in tables:
+                expected += f"\n  {table}"
 
         mock_ask_yesno.return_value = True
         with patch("sys.stdout", new=StringIO()) as fake_out, patch(

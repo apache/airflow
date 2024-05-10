@@ -61,6 +61,8 @@ one named parameter for each top level parameter in the ``runs/submit`` endpoint
   * ``new_cluster`` - specs for a new cluster on which this task will be run
   * ``existing_cluster_id`` - ID for existing cluster on which to run this task
 
+* ``pipeline_task`` - may refer to either a ``pipeline_id`` or ``pipeline_name``
+
 In the case where both the json parameter **AND** the named parameters
 are provided, they will be merged together. If there are conflicts during the merge,
 the named parameters will take precedence and override the top level ``json`` keys.

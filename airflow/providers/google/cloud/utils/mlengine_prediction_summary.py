@@ -106,6 +106,7 @@ To test outside of the dag:
 
     pcoll
 """
+
 from __future__ import annotations
 
 import argparse
@@ -151,7 +152,7 @@ def MakeSummary(pcoll, metric_fn, metric_keys):
 
 
 def run(argv=None):
-    """Helper for obtaining prediction summary."""
+    """Obtain prediction summary."""
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--prediction_path",
@@ -191,7 +192,6 @@ def run(argv=None):
     metric_keys = known_args.metric_keys.split(",")
 
     with beam.Pipeline(options=beam.pipeline.PipelineOptions(pipeline_args)) as pipe:
-
         prediction_result_pattern = os.path.join(known_args.prediction_path, "prediction.results-*-of-*")
         prediction_summary_path = os.path.join(known_args.prediction_path, "prediction.summary.json")
         # This is apache-beam ptransform's convention

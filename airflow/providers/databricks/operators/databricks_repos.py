@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Databricks operators."""
+
 from __future__ import annotations
 
 import re
@@ -80,7 +81,7 @@ class DatabricksReposCreateOperator(BaseOperator):
         databricks_retry_delay: int = 1,
         **kwargs,
     ) -> None:
-        """Creates a new ``DatabricksReposCreateOperator``."""
+        """Create a new ``DatabricksReposCreateOperator``."""
         super().__init__(**kwargs)
         self.databricks_conn_id = databricks_conn_id
         self.databricks_retry_limit = databricks_retry_limit
@@ -125,7 +126,7 @@ class DatabricksReposCreateOperator(BaseOperator):
 
     def execute(self, context: Context):
         """
-        Creates a Databricks Repo.
+        Create a Databricks Repo.
 
         :param context: context
         :return: Repo ID
@@ -194,7 +195,7 @@ class DatabricksReposUpdateOperator(BaseOperator):
         databricks_retry_delay: int = 1,
         **kwargs,
     ) -> None:
-        """Creates a new ``DatabricksReposUpdateOperator``."""
+        """Create a new ``DatabricksReposUpdateOperator``."""
         super().__init__(**kwargs)
         self.databricks_conn_id = databricks_conn_id
         self.databricks_retry_limit = databricks_retry_limit
@@ -266,7 +267,7 @@ class DatabricksReposDeleteOperator(BaseOperator):
         databricks_retry_delay: int = 1,
         **kwargs,
     ) -> None:
-        """Creates a new ``DatabricksReposDeleteOperator``."""
+        """Create a new ``DatabricksReposDeleteOperator``."""
         super().__init__(**kwargs)
         self.databricks_conn_id = databricks_conn_id
         self.databricks_retry_limit = databricks_retry_limit

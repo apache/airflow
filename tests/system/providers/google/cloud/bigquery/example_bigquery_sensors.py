@@ -18,12 +18,13 @@
 """
 Example Airflow DAG for Google BigQuery Sensors.
 """
+
 from __future__ import annotations
 
 import os
 from datetime import datetime
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
     BigQueryCreateEmptyTableOperator,
@@ -56,7 +57,7 @@ SCHEMA = [
 ]
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
@@ -65,7 +66,6 @@ with models.DAG(
     user_defined_macros={"DATASET": DATASET_NAME, "TABLE": TABLE_NAME},
     default_args={"project_id": PROJECT_ID},
 ) as dag:
-
     create_dataset = BigQueryCreateEmptyDatasetOperator(
         task_id="create_dataset", dataset_id=DATASET_NAME, project_id=PROJECT_ID
     )

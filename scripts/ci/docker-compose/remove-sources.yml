@@ -17,6 +17,13 @@
 ---
 services:
   airflow:
-    # Removes airflow sources from container
     volumes:
-      - ./empty:/opt/airflow/airflow:cached
+      # Removes airflow sources from container
+      - type: bind
+        source: ./empty
+        target: /opt/airflow/airflow
+      # However we keep in_container scripts in order to be able to debug easily the scripts that
+      # are run with --mount-sources removed flag - such as installing airflow and providers
+      - type: bind
+        source: ../../../scripts/in_container
+        target: /opt/airflow/scripts/in_container

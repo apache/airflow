@@ -42,7 +42,7 @@ def test_find_airflow_root_upwards_from_file(capsys):
     assert output == ""
 
 
-@mock.patch("airflow_breeze.utils.path_utils.AIRFLOW_CFG_FILE", "bad_name.cfg")
+@mock.patch("airflow_breeze.utils.path_utils.PYPROJECT_TOML_FILE", "bad_name.toml")
 @mock.patch("airflow_breeze.utils.path_utils.Path.cwd")
 def test_find_airflow_root_from_installation_dir(mock_cwd, capsys):
     mock_cwd.return_value = ROOT_PATH

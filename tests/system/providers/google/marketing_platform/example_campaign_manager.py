@@ -18,6 +18,7 @@
 """
 Example Airflow DAG that shows how to use CampaignManager.
 """
+
 from __future__ import annotations
 
 import os
@@ -26,7 +27,7 @@ import uuid
 from datetime import datetime
 from typing import cast
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.marketing_platform.operators.campaign_manager import (
@@ -107,7 +108,7 @@ CONVERSION_UPDATE = {
     "value": 123.4,
 }
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",  # Override to match your needs,
     start_date=datetime(2021, 1, 1),

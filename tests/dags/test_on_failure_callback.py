@@ -19,8 +19,8 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import DAG
 from airflow.exceptions import AirflowFailException
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 

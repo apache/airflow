@@ -26,6 +26,8 @@ from airflow.models import DagBag, DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.settings import Session
 
+pytestmark = pytest.mark.db_test
+
 
 class TestDagRunsEndpoint:
     @pytest.fixture(scope="class", autouse=True)
@@ -34,6 +36,7 @@ class TestDagRunsEndpoint:
         session.query(DagRun).delete()
         session.commit()
         session.close()
+
         dagbag = DagBag(include_examples=True)
         for dag in dagbag.dags.values():
             dag.sync_to_db()

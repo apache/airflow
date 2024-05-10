@@ -39,13 +39,6 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
-    :caption: System tests
-
-    System Tests <_api/tests/system/providers/tabular/index>
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
     :caption: Resources
 
     Example DAGs <https://github.com/apache/airflow/tree/providers-tabular/|version|/tests/system/providers/tabular>
@@ -71,10 +64,12 @@ Package apache-airflow-providers-tabular
 `Tabular <https://tabular.io/>`__
 
 
-Release: 1.2.1
+Release: 1.5.0
 
 Provider package
 ----------------
+
+This provider is deprecated. Please use ``apache.iceberg`` provider.
 
 This is a provider package for ``tabular`` provider. All classes for this provider package
 are in ``airflow.providers.tabular`` python package.
@@ -89,10 +84,10 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.4.0``
+``apache-airflow``  ``>=2.6.0``
 ==================  ==================
