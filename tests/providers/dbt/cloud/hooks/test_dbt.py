@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+from datetime import timedelta
 from typing import Any
 from unittest.mock import patch
 
@@ -32,7 +33,7 @@ from airflow.providers.dbt.cloud.hooks.dbt import (
     TokenAuth,
     fallback_to_default_account,
 )
-from airflow.utils import db
+from airflow.utils import db, timezone
 
 pytestmark = pytest.mark.db_test
 
@@ -551,11 +552,20 @@ class TestDbtCloudHook:
             for argval in wait_for_job_run_status_test_args
         ],
     )
-    def test_wait_for_job_run_status(hook, job_run_status, expected_status, expected_output):
+    def test_wait_for_job_run_status(self, job_run_status, expected_status, expected_output, time_machine):
         config = {"run_id": RUN_ID, "timeout": 3, "check_interval": 1, "expected_statuses": expected_status}
         hook = DbtCloudHook(ACCOUNT_ID_CONN)
 
-        with patch.object(DbtCloudHook, "get_job_run_status") as mock_job_run_status:
+        # Freeze time for avoid real clock side effects
+        time_machine.move_to(timezone.datetime(1970, 1, 1), tick=False)
+
+        def fake_sleep(seconds):
+            # Shift frozen time every time we call a ``time.sleep`` during this test case.
+            time_machine.shift(timedelta(seconds=seconds))
+
+        with patch.object(DbtCloudHook, "get_job_run_status") as mock_job_run_status, patch(
+            "airflow.providers.dbt.cloud.hooks.dbt.time.sleep", side_effect=fake_sleep
+        ):
             mock_job_run_status.return_value = job_run_status
 
             if expected_output != "timeout":

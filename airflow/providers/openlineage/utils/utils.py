@@ -367,6 +367,9 @@ def print_warning(log):
             try:
                 return f(*args, **kwargs)
             except Exception as e:
+                log.warning(
+                    "Note: exception below is being caught: it's printed for visibility. However OpenLineage events aren't being emitted. If you see that, task has completed successfully despite not getting OL events."
+                )
                 log.warning(e)
 
         return wrapper

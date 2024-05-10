@@ -527,7 +527,7 @@ class AwsEcsExecutor(BaseExecutor):
                         ti.queue,
                         ti.command_as_list(),
                         ti.executor_config,
-                        ti.prev_attempted_tries,
+                        ti.try_number,
                     )
                     adopted_tis.append(ti)
 

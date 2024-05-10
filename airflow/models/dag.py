@@ -2948,6 +2948,8 @@ class DAG(LoggingMixin):
                 session.expire_all()
                 schedulable_tis, _ = dr.update_state(session=session)
                 for s in schedulable_tis:
+                    if s.state != TaskInstanceState.UP_FOR_RESCHEDULE:
+                        s.try_number += 1
                     s.state = TaskInstanceState.SCHEDULED
                 session.commit()
                 # triggerer may mark tasks scheduled so we read from DB

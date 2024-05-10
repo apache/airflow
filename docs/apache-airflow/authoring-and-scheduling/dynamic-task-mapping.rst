@@ -53,7 +53,7 @@ The grid view also provides visibility into your mapped tasks in the details pan
 
     In the above example, ``values`` received by ``sum_it`` is an aggregation of all values returned by each mapped instance of ``add_one``. However, since it is impossible to know how many instances of ``add_one`` we will have in advance, ``values`` is not a normal list, but a "lazy sequence" that retrieves each individual value only when asked. Therefore, if you run ``print(values)`` directly, you would get something like this::
 
-        LazyXComAccess(dag_id='simple_mapping', run_id='test_run', task_id='add_one')
+        LazySelectSequence([15 items])
 
     You can use normal sequence syntax on this object (e.g. ``values[0]``), or iterate through it normally with a ``for`` loop. ``list(values)`` will give you a "real" ``list``, but since this would eagerly load values from *all* of the referenced upstream mapped tasks, you must be aware of the potential performance implications if the mapped number is large.
 

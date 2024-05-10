@@ -185,7 +185,7 @@ def create_expected_log_file(log_path, tis):
     handler = FileTaskHandler(log_path)
 
     def create_expected_log_file(try_number):
-        ti.try_number = try_number - 1
+        ti.try_number = 1
         handler.set_context(ti)
         handler.emit(logging.makeLogRecord({"msg": "Log for testing."}))
         handler.flush()
@@ -271,8 +271,9 @@ def test_get_logs_with_metadata_as_download_file(log_admin_client, create_expect
         in content_disposition
     )
     assert 200 == response.status_code
-    assert "Log for testing." in response.data.decode("utf-8")
-    assert "localhost\n" in response.data.decode("utf-8")
+    content = response.data.decode("utf-8")
+    assert "Log for testing." in content
+    assert "localhost\n" in content
 
 
 DIFFERENT_LOG_FILENAME = "{{ ti.dag_id }}/{{ ti.run_id }}/{{ ti.task_id }}/{{ try_number }}.log"

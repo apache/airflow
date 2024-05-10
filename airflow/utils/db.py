@@ -17,8 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+import collections.abc
 import contextlib
 import enum
+import itertools
 import json
 import logging
 import os
@@ -27,8 +29,20 @@ import time
 import warnings
 from dataclasses import dataclass
 from tempfile import gettempdir
-from typing import TYPE_CHECKING, Callable, Generator, Iterable
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Generator,
+    Iterable,
+    Iterator,
+    Protocol,
+    Sequence,
+    TypeVar,
+    overload,
+)
 
+import attrs
 from sqlalchemy import (
     Table,
     and_,
@@ -54,16 +68,28 @@ from airflow.utils import helpers
 
 # TODO: remove create_session once we decide to break backward compatibility
 from airflow.utils.session import NEW_SESSION, create_session, provide_session  # noqa: F401
+from airflow.utils.task_instance_session import get_current_task_instance_session
 
 if TYPE_CHECKING:
     from alembic.runtime.environment import EnvironmentContext
     from alembic.script import ScriptDirectory
+    from sqlalchemy.engine import Row
     from sqlalchemy.orm import Query, Session
-    from sqlalchemy.sql.elements import ClauseElement
+    from sqlalchemy.sql.elements import ClauseElement, TextClause
     from sqlalchemy.sql.selectable import Select
 
-    from airflow.models.base import Base
     from airflow.models.connection import Connection
+    from airflow.typing_compat import Self
+
+    # TODO: Import this from sqlalchemy.orm instead when switching to SQLA 2.
+    # https://docs.sqlalchemy.org/en/20/orm/mapping_api.html#sqlalchemy.orm.MappedClassProtocol
+    class MappedClassProtocol(Protocol):
+        """Protocol for SQLALchemy model base."""
+
+        __tablename__: str
+
+
+T = TypeVar("T")
 
 log = logging.getLogger(__name__)
 
@@ -382,6 +408,14 @@ def create_default_connections(session: Session = NEW_SESSION):
             conn_id="http_default",
             conn_type="http",
             host="https://www.httpbin.org/",
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
+            conn_id="iceberg_default",
+            conn_type="iceberg",
+            host="https://api.iceberg.io/ws/v1",
         ),
         session,
     )
@@ -1028,7 +1062,7 @@ def check_username_duplicates(session: Session) -> Iterable[str]:
             )
 
 
-def reflect_tables(tables: list[Base | str] | None, session):
+def reflect_tables(tables: list[MappedClassProtocol | str] | None, session):
     """
     When running checks prior to upgrades, we use reflection to determine current state of the database.
 
@@ -1416,7 +1450,7 @@ def check_bad_references(session: Session) -> Iterable[str]:
         ref_table="task_instance",
     )
 
-    models_list: list[tuple[Base, str, BadReferenceConfig]] = [
+    models_list: list[tuple[MappedClassProtocol, str, BadReferenceConfig]] = [
         (TaskInstance, "2.2", missing_dag_run_config),
         (TaskReschedule, "2.2", missing_ti_config),
         (RenderedTaskInstanceFields, "2.3", missing_ti_config),
@@ -1875,7 +1909,7 @@ def get_sqla_model_classes():
 
 
 def get_query_count(query_stmt: Select, *, session: Session) -> int:
-    """Get count of query.
+    """Get count of a query.
 
     A SELECT COUNT() FROM is issued against the subquery built from the
     given statement. The ORDER BY clause is stripped from the statement
@@ -1888,8 +1922,21 @@ def get_query_count(query_stmt: Select, *, session: Session) -> int:
     return session.scalar(count_stmt)
 
 
+def check_query_exists(query_stmt: Select, *, session: Session) -> bool:
+    """Check whether there is at least one row matching a query.
+
+    A SELECT 1 FROM is issued against the subquery built from the given
+    statement. The ORDER BY clause is stripped from the statement since it's
+    unnecessary, and can impact query planning and degrade performance.
+
+    :meta private:
+    """
+    count_stmt = select(literal(True)).select_from(query_stmt.order_by(None).subquery())
+    return session.scalar(count_stmt)
+
+
 def exists_query(*where: ClauseElement, session: Session) -> bool:
-    """Check whether there is at least one row matching given clause.
+    """Check whether there is at least one row matching given clauses.
 
     This does a SELECT 1 WHERE ... LIMIT 1 and check the result.
 
@@ -1897,3 +1944,177 @@ def exists_query(*where: ClauseElement, session: Session) -> bool:
     """
     stmt = select(literal(True)).where(*where).limit(1)
     return session.scalar(stmt) is not None
+
+
+@attrs.define(slots=True)
+class LazySelectSequence(Sequence[T]):
+    """List-like interface to lazily access a database model query.
+
+    The intended use case is inside a task execution context, where we manage an
+    active SQLAlchemy session in the background.
+
+    This is an abstract base class. Each use case should subclass, and implement
+    the following static methods:
+
+    * ``_rebuild_select`` is called when a lazy sequence is unpickled. Since it
+      is not easy to pickle SQLAlchemy constructs, this class serializes the
+      SELECT statements into plain text to storage. This method is called on
+      deserialization to convert the textual clause back into an ORM SELECT.
+    * ``_process_row`` is called when an item is accessed. The lazy sequence
+      uses ``session.execute()`` to fetch rows from the database, and this
+      method should know how to process each row into a value.
+
+    :meta private:
+    """
+
+    _select_asc: ClauseElement
+    _select_desc: ClauseElement
+    _session: Session = attrs.field(kw_only=True, factory=get_current_task_instance_session)
+    _len: int | None = attrs.field(init=False, default=None)
+
+    @classmethod
+    def from_select(
+        cls,
+        select: Select,
+        *,
+        order_by: Sequence[ClauseElement],
+        session: Session | None = None,
+    ) -> Self:
+        s1 = select
+        for col in order_by:
+            s1 = s1.order_by(col.asc())
+        s2 = select
+        for col in order_by:
+            s2 = s2.order_by(col.desc())
+        return cls(s1, s2, session=session or get_current_task_instance_session())
+
+    @staticmethod
+    def _rebuild_select(stmt: TextClause) -> Select:
+        """Rebuild a textual statement into an ORM-configured SELECT statement.
+
+        This should do something like ``select(field).from_statement(stmt)`` to
+        reconfigure ORM information to the textual SQL statement.
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    def _process_row(row: Row) -> T:
+        """Process a SELECT-ed row into the end value."""
+        raise NotImplementedError
+
+    def __repr__(self) -> str:
+        counter = "item" if (length := len(self)) == 1 else "items"
+        return f"LazySelectSequence([{length} {counter}])"
+
+    def __str__(self) -> str:
+        counter = "item" if (length := len(self)) == 1 else "items"
+        return f"LazySelectSequence([{length} {counter}])"
+
+    def __getstate__(self) -> Any:
+        # We don't want to go to the trouble of serializing SQLAlchemy objects.
+        # Converting the statement into a SQL string is the best we can get.
+        # The literal_binds compile argument inlines all the values into the SQL
+        # string to simplify cross-process commuinication as much as possible.
+        # Theoratically we can do the same for count(), but I think it should be
+        # performant enough to calculate only that eagerly.
+        s1 = str(self._select_asc.compile(self._session.get_bind(), compile_kwargs={"literal_binds": True}))
+        s2 = str(self._select_desc.compile(self._session.get_bind(), compile_kwargs={"literal_binds": True}))
+        return (s1, s2, len(self))
+
+    def __setstate__(self, state: Any) -> None:
+        s1, s2, self._len = state
+        self._select_asc = self._rebuild_select(text(s1))
+        self._select_desc = self._rebuild_select(text(s2))
+        self._session = get_current_task_instance_session()
+
+    def __bool__(self) -> bool:
+        return check_query_exists(self._select_asc, session=self._session)
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, collections.abc.Sequence):
+            return NotImplemented
+        z = itertools.zip_longest(iter(self), iter(other), fillvalue=object())
+        return all(x == y for x, y in z)
+
+    def __reversed__(self) -> Iterator[T]:
+        return iter(self._process_row(r) for r in self._session.execute(self._select_desc))
+
+    def __iter__(self) -> Iterator[T]:
+        return iter(self._process_row(r) for r in self._session.execute(self._select_asc))
+
+    def __len__(self) -> int:
+        if self._len is None:
+            self._len = get_query_count(self._select_asc, session=self._session)
+        return self._len
+
+    @overload
+    def __getitem__(self, key: int) -> T: ...
+
+    @overload
+    def __getitem__(self, key: slice) -> Sequence[T]: ...
+
+    def __getitem__(self, key: int | slice) -> T | Sequence[T]:
+        if isinstance(key, int):
+            if key >= 0:
+                stmt = self._select_asc.offset(key)
+            else:
+                stmt = self._select_desc.offset(-1 - key)
+            if (row := self._session.execute(stmt.limit(1)).one_or_none()) is None:
+                raise IndexError(key)
+            return self._process_row(row)
+        elif isinstance(key, slice):
+            # This implements the slicing syntax. We want to optimize negative
+            # slicing (e.g. seq[-10:]) by not doing an additional COUNT query
+            # if possible. We can do this unless the start and stop have
+            # different signs (i.e. one is positive and another negative).
+            start, stop, reverse = _coerce_slice(key)
+            if start >= 0:
+                if stop is None:
+                    stmt = self._select_asc.offset(start)
+                elif stop >= 0:
+                    stmt = self._select_asc.slice(start, stop)
+                else:
+                    stmt = self._select_asc.slice(start, len(self) + stop)
+                rows = [self._process_row(row) for row in self._session.execute(stmt)]
+                if reverse:
+                    rows.reverse()
+            else:
+                if stop is None:
+                    stmt = self._select_desc.limit(-start)
+                elif stop < 0:
+                    stmt = self._select_desc.slice(-stop, -start)
+                else:
+                    stmt = self._select_desc.slice(len(self) - stop, -start)
+                rows = [self._process_row(row) for row in self._session.execute(stmt)]
+                if not reverse:
+                    rows.reverse()
+            return rows
+        raise TypeError(f"Sequence indices must be integers or slices, not {type(key).__name__}")
+
+
+def _coerce_index(value: Any) -> int | None:
+    """Check slice attribute's type and convert it to int.
+
+    See CPython documentation on this:
+    https://docs.python.org/3/reference/datamodel.html#object.__index__
+    """
+    if value is None or isinstance(value, int):
+        return value
+    if (index := getattr(value, "__index__", None)) is not None:
+        return index()
+    raise TypeError("slice indices must be integers or None or have an __index__ method")
+
+
+def _coerce_slice(key: slice) -> tuple[int, int | None, bool]:
+    """Check slice content and convert it for SQL.
+
+    See CPython documentation on this:
+    https://docs.python.org/3/reference/datamodel.html#slice-objects
+    """
+    if key.step is None or key.step == 1:
+        reverse = False
+    elif key.step == -1:
+        reverse = True
+    else:
+        raise ValueError("non-trivial slice step not supported")
+    return _coerce_index(key.start) or 0, _coerce_index(key.stop), reverse

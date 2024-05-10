@@ -19,6 +19,7 @@ from __future__ import annotations
 import inspect
 from unittest import mock
 from unittest.mock import MagicMock, Mock, call
+from uuid import UUID
 
 import pytest
 from google.api_core.exceptions import AlreadyExists, NotFound
@@ -2566,6 +2567,25 @@ class TestDataProcPySparkOperator:
         )
         job = op.generate_job()
         assert self.job == job
+
+    @pytest.mark.parametrize(
+        "filename",
+        [
+            pytest.param("/foo/bar/baz.py", id="absolute"),
+            pytest.param("foo/bar/baz.py", id="relative"),
+            pytest.param("baz.py", id="base-filename"),
+            pytest.param(r"C:\foo\bar\baz.py", id="windows-path"),
+        ],
+    )
+    def test_generate_temp_filename(self, filename, time_machine):
+        time_machine.move_to(datetime(2024, 2, 29, 1, 2, 3), tick=False)
+        with mock.patch(
+            DATAPROC_PATH.format("uuid.uuid4"), return_value=UUID("12345678-0000-4000-0000-000000000000")
+        ):
+            assert (
+                DataprocSubmitPySparkJobOperator._generate_temp_filename(filename)
+                == "20240229010203_12345678_baz.py"
+            )
 
 
 class TestDataprocCreateWorkflowTemplateOperator:

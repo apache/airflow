@@ -38,6 +38,7 @@ import dill
 import jinja2
 import lazy_object_proxy
 import pendulum
+from deprecated import deprecated
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import (
     Column,
@@ -97,7 +98,7 @@ from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
-from airflow.models.xcom import LazyXComAccess, XCom
+from airflow.models.xcom import LazyXComSelectSequence, XCom
 from airflow.plugins_manager import integrate_macros_plugins
 from airflow.sentry import Sentry
 from airflow.settings import task_instance_mutation_hook
@@ -281,14 +282,13 @@ def clear_task_instances(
                 ti.refresh_from_task(task)
                 if TYPE_CHECKING:
                     assert ti.task
-                task_retries = task.retries
-                ti.max_tries = ti.try_number + task_retries - 1
+                ti.max_tries = ti.try_number + task.retries
             else:
                 # Ignore errors when updating max_tries if the DAG or
                 # task are not found since database records could be
                 # outdated. We make max_tries the maximum value of its
                 # original max_tries or the last attempted try number.
-                ti.max_tries = max(ti.max_tries, ti.prev_attempted_tries)
+                ti.max_tries = max(ti.max_tries, ti.try_number)
             ti.state = None
             ti.external_executor_id = None
             ti.clear_next_method_args()
@@ -539,7 +539,7 @@ def _refresh_from_db(
         task_instance.end_date = ti.end_date
         task_instance.duration = ti.duration
         task_instance.state = ti.state
-        task_instance.try_number = _get_private_try_number(task_instance=ti)
+        task_instance.try_number = ti.try_number
         task_instance.max_tries = ti.max_tries
         task_instance.hostname = ti.hostname
         task_instance.unixname = ti.unixname
@@ -928,53 +928,6 @@ def _handle_failure(
         TaskInstance.save_to_db(failure_context["ti"], session)
 
 
-def _get_try_number(*, task_instance: TaskInstance):
-    """
-    Return the try number that a task number will be when it is actually run.
-
-    If the TaskInstance is currently running, this will match the column in the
-    database, in all other cases this will be incremented.
-
-    This is designed so that task logs end up in the right file.
-
-    :param task_instance: the task instance
-
-    :meta private:
-    """
-    if task_instance.state == TaskInstanceState.RUNNING:
-        return task_instance._try_number
-    return task_instance._try_number + 1
-
-
-def _get_private_try_number(*, task_instance: TaskInstance | TaskInstancePydantic):
-    """
-    Opposite of _get_try_number.
-
-    Given the value returned by try_number, return the value of _try_number that
-    should produce the same result.
-    This is needed for setting _try_number on TaskInstance from the value on PydanticTaskInstance, which has no private attrs.
-
-    :param task_instance: the task instance
-
-    :meta private:
-    """
-    if task_instance.state == TaskInstanceState.RUNNING:
-        return task_instance.try_number
-    return task_instance.try_number - 1
-
-
-def _set_try_number(*, task_instance: TaskInstance | TaskInstancePydantic, value: int) -> None:
-    """
-    Set a task try number.
-
-    :param task_instance: the task instance
-    :param value: the try number
-
-    :meta private:
-    """
-    task_instance._try_number = value  # type: ignore[union-attr]
-
-
 def _refresh_from_task(
     *, task_instance: TaskInstance | TaskInstancePydantic, task: Operator, pool_override: str | None = None
 ) -> None:
@@ -1164,13 +1117,10 @@ def _get_email_subject_content(
         'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
     )
 
-    # This function is called after changing the state from RUNNING,
-    # so we need to subtract 1 from self.try_number here.
-    current_try_number = task_instance.try_number - 1
     additional_context: dict[str, Any] = {
         "exception": exception,
         "exception_html": exception_html,
-        "try_number": current_try_number,
+        "try_number": task_instance.try_number,
         "max_tries": task_instance.max_tries,
     }
 
@@ -1343,7 +1293,7 @@ class TaskInstance(Base, LoggingMixin):
     end_date = Column(UtcDateTime)
     duration = Column(Float)
     state = Column(String(20))
-    _try_number = Column("try_number", Integer, default=0)
+    try_number = Column(Integer, default=0)
     max_tries = Column(Integer, server_default=text("-1"))
     hostname = Column(String(1000))
     unixname = Column(String(1000))
@@ -1509,6 +1459,26 @@ class TaskInstance(Base, LoggingMixin):
         return hash((self.task_id, self.dag_id, self.run_id, self.map_index))
 
     @property
+    @deprecated(reason="Use try_number instead.", version="2.10.0", category=RemovedInAirflow3Warning)
+    def _try_number(self):
+        """
+        Do not use. For semblance of backcompat.
+
+        :meta private:
+        """
+        return self.try_number
+
+    @_try_number.setter
+    @deprecated(reason="Use try_number instead.", version="2.10.0", category=RemovedInAirflow3Warning)
+    def _try_number(self, val):
+        """
+        Do not use. For semblance of backcompat.
+
+        :meta private:
+        """
+        self.try_number = val
+
+    @property
     def stats_tags(self) -> dict[str, str]:
         """Returns task instance tags."""
         return _stats_tags(task_instance=self)
@@ -1527,7 +1497,7 @@ class TaskInstance(Base, LoggingMixin):
             "dag_id": task.dag_id,
             "task_id": task.task_id,
             "run_id": run_id,
-            "_try_number": 0,
+            "try_number": 0,
             "hostname": "",
             "unixname": getuser(),
             "queue": task.queue,
@@ -1549,53 +1519,22 @@ class TaskInstance(Base, LoggingMixin):
         """Initialize the attributes that aren't stored in the DB."""
         self.test_mode = False  # can be changed when calling 'run'
 
-    @hybrid_property
-    def try_number(self):
+    @property
+    @deprecated(reason="Use try_number instead.", version="2.10.0", category=RemovedInAirflow3Warning)
+    def prev_attempted_tries(self) -> int:
         """
-        Return the try number that a task number will be when it is actually run.
+        Calculate the total number of attempted tries, defaulting to 0.
 
-        If the TaskInstance is currently running, this will match the column in the
-        database, in all other cases this will be incremented.
-
-        This is designed so that task logs end up in the right file.
-        """
-        return _get_try_number(task_instance=self)
-
-    @try_number.expression
-    def try_number(cls):
-        """
-        Return the expression to be used by SQLAlchemy when filtering on try_number.
-
-        This is required because the override in the get_try_number function causes
-        try_number values to be off by one when listing tasks in the UI.
+        This used to be necessary because try_number did not always tell the truth.
 
         :meta private:
         """
-        return cls._try_number
-
-    @try_number.setter
-    def try_number(self, value: int) -> None:
-        """
-        Set a task try number.
-
-        :param value: the try number
-        """
-        _set_try_number(task_instance=self, value=value)
-
-    @property
-    def prev_attempted_tries(self) -> int:
-        """
-        Calculate the number of previously attempted tries, defaulting to 0.
-
-        Expose this for the Task Tries and Gantt graph views.
-        Using `try_number` throws off the counts for non-running tasks.
-        Also useful in error logging contexts to get the try number for the last try that was attempted.
-        """
-        return self._try_number
+        return self.try_number
 
     @property
     def next_try_number(self) -> int:
-        return self._try_number + 1
+        # todo (dstandish): deprecate this property; we don't need a property that is just + 1
+        return self.try_number + 1
 
     @property
     def operator_name(self) -> str | None:
@@ -2178,7 +2117,9 @@ class TaskInstance(Base, LoggingMixin):
             # If the min_backoff calculation is below 1, it will be converted to 0 via int. Thus,
             # we must round up prior to converting to an int, otherwise a divide by zero error
             # will occur in the modded_hash calculation.
-            min_backoff = math.ceil(delay.total_seconds() * (2 ** (self.try_number - 2)))
+            # this probably gives unexpected results if a task instance has previously been cleared,
+            # because try_number can increase without bound
+            min_backoff = math.ceil(delay.total_seconds() * (2 ** (self.try_number - 1)))
 
             # In the case when delay.total_seconds() is 0, min_backoff will not be rounded up to 1.
             # To address this, we impose a lower bound of 1 on min_backoff. This effectively makes
@@ -2372,7 +2313,6 @@ class TaskInstance(Base, LoggingMixin):
             cls.logger().info("Resuming after deferral")
         else:
             cls.logger().info("Starting attempt %s of %s", ti.try_number, ti.max_tries + 1)
-        ti._try_number += 1
 
         if not test_mode:
             session.add(Log(TaskInstanceState.RUNNING.value, ti))
@@ -2791,9 +2731,6 @@ class TaskInstance(Base, LoggingMixin):
         self.next_method = defer.method_name
         self.next_kwargs = defer.kwargs or {}
 
-        # Decrement try number so the next one is the same try
-        self._try_number -= 1
-
         # Calculate timeout too if it was passed
         if defer.timeout is not None:
             self.trigger_timeout = timezone.utcnow() + defer.timeout
@@ -2910,7 +2847,7 @@ class TaskInstance(Base, LoggingMixin):
                 self.task_id,
                 self.dag_id,
                 self.run_id,
-                self._try_number,
+                self.try_number,
                 actual_start_date,
                 self.end_date,
                 reschedule_exception.reschedule_date,
@@ -2920,10 +2857,6 @@ class TaskInstance(Base, LoggingMixin):
 
         # set state
         self.state = TaskInstanceState.UP_FOR_RESCHEDULE
-
-        # Decrement try_number so subsequent runs will use the same try number and write
-        # to same log file.
-        self._try_number -= 1
 
         self.clear_next_method_args()
 
@@ -3040,7 +2973,6 @@ class TaskInstance(Base, LoggingMixin):
                     #  e.g. we could make refresh_from_db return a TI and replace ti with that
                     raise RuntimeError("Expected TaskInstance here. Further AIP-44 work required.")
                 # We increase the try_number to fail the task if it fails to start after sometime
-                ti._try_number += 1
             ti.state = State.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")
             callbacks = task.on_retry_callback if task else None
@@ -3358,34 +3290,37 @@ class TaskInstance(Base, LoggingMixin):
                 return default
             if map_indexes is not None or first.map_index < 0:
                 return XCom.deserialize_value(first)
-            query = query.order_by(None).order_by(XCom.map_index.asc())
-            return LazyXComAccess.build_from_xcom_query(query)
+            return LazyXComSelectSequence.from_select(
+                query.with_entities(XCom.value).order_by(None).statement,
+                order_by=[XCom.map_index],
+                session=session,
+            )
 
         # At this point either task_ids or map_indexes is explicitly multi-value.
         # Order return values to match task_ids and map_indexes ordering.
-        query = query.order_by(None)
+        ordering = []
         if task_ids is None or isinstance(task_ids, str):
-            query = query.order_by(XCom.task_id)
+            ordering.append(XCom.task_id)
+        elif task_id_whens := {tid: i for i, tid in enumerate(task_ids)}:
+            ordering.append(case(task_id_whens, value=XCom.task_id))
         else:
-            task_id_whens = {tid: i for i, tid in enumerate(task_ids)}
-            if task_id_whens:
-                query = query.order_by(case(task_id_whens, value=XCom.task_id))
-            else:
-                query = query.order_by(XCom.task_id)
+            ordering.append(XCom.task_id)
         if map_indexes is None or isinstance(map_indexes, int):
-            query = query.order_by(XCom.map_index)
+            ordering.append(XCom.map_index)
         elif isinstance(map_indexes, range):
             order = XCom.map_index
             if map_indexes.step < 0:
                 order = order.desc()
-            query = query.order_by(order)
+            ordering.append(order)
+        elif map_index_whens := {map_index: i for i, map_index in enumerate(map_indexes)}:
+            ordering.append(case(map_index_whens, value=XCom.map_index))
         else:
-            map_index_whens = {map_index: i for i, map_index in enumerate(map_indexes)}
-            if map_index_whens:
-                query = query.order_by(case(map_index_whens, value=XCom.map_index))
-            else:
-                query = query.order_by(XCom.map_index)
-        return LazyXComAccess.build_from_xcom_query(query)
+            ordering.append(XCom.map_index)
+        return LazyXComSelectSequence.from_select(
+            query.with_entities(XCom.value).order_by(None).statement,
+            order_by=ordering,
+            session=session,
+        )
 
     @provide_session
     def get_num_running_task_instances(self, session: Session, same_dagrun: bool = False) -> int:
