@@ -614,7 +614,7 @@ class TestDagProcessorJobRunner:
         assert manager.processor._file_path_queue == deque(
             ["file_1.py", "file_2.py", "file_3.py", "file_4.py"]
         )
-        session_delete.assert_called_with(parsing_request)
+        assert session_delete.call_args[0][0].fileloc == parsing_request.fileloc
 
     def test_scan_stale_dags(self):
         """
