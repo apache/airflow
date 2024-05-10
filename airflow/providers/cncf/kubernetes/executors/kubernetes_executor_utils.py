@@ -98,9 +98,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                     kube_client, self.resource_version, self.scheduler_job_id, self.kube_config
                 )
             except ReadTimeoutError:
-                self.log.warning(
-                    "There was a timeout error accessing the Kube API. Retrying request.", exc_info=True
-                )
+                self.log.info("Kubernetes watch timed out waiting for events. Restarting watch.")
                 time.sleep(1)
             except Exception:
                 self.log.exception("Unknown error in KubernetesJobWatcher. Failing")
@@ -149,6 +147,14 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 kwargs[key] = value
 
         last_resource_version: str | None = None
+
+        # For info about k8s timeout settings see
+        # https://github.com/kubernetes-client/python/blob/94e42113a1fe5c580917decacdde879eab7406b3/examples/watch/timeout-settings.md
+        # and https://github.com/kubernetes-client/python/blob/b47caad922709350f477210317ac7f9574a72a97/kubernetes/client/api_client.py#L336-L339
+        request_timeout = 30
+        server_conn_timeout = 3600
+        kwargs["_request_timeout"] = request_timeout
+        kwargs["timeout_seconds"] = server_conn_timeout
 
         for event in self._pod_events(kube_client=kube_client, query_kwargs=kwargs):
             task = event["object"]
