@@ -19,7 +19,7 @@
 """Added DagPriorityParsingRequest table.
 
 Revision ID: c4602ba06b4b
-Revises: 88344c1d9134
+Revises: 677fdbb7fc54
 Create Date: 2024-04-17 17:12:05.473889
 
 """
