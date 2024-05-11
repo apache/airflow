@@ -22,7 +22,7 @@ description: |
     `Redis <https://redis.io/>`__
 
 state: ready
-source-date-epoch: 1714477391
+source-date-epoch: 1715384473
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 3.7.0

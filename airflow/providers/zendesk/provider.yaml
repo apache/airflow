@@ -22,7 +22,7 @@ description: |
     `Zendesk <https://www.zendesk.com/>`__
 
 state: ready
-source-date-epoch: 1714477769
+source-date-epoch: 1715384498
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 4.7.0

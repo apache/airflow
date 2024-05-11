@@ -34,7 +34,6 @@ from alembic.script import ScriptDirectory
 from sqlalchemy import MetaData, Table
 from sqlalchemy.sql import Select
 
-from airflow.exceptions import AirflowException
 from airflow.models import Base as airflow_base
 from airflow.settings import engine
 from airflow.utils.db import (
@@ -180,7 +179,7 @@ class TestDb:
     def test_sqlite_offline_upgrade_raises_with_revision(self):
         with mock.patch("airflow.utils.db.settings.engine.dialect") as dialect:
             dialect.name = "sqlite"
-            with pytest.raises(AirflowException, match="Offline migration not supported for SQLite"):
+            with pytest.raises(SystemExit, match="Offline migration not supported for SQLite"):
                 upgradedb(from_revision="e1a11ece99cc", to_revision="54bebd308c5f", show_sql_only=True)
 
     def test_offline_upgrade_fails_for_migration_less_than_2_2_0_head_for_mssql(self):

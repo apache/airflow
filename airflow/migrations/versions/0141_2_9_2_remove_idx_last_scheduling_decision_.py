@@ -19,7 +19,7 @@
 """Remove ``idx_last_scheduling_decision`` index on last_scheduling_decision in dag_run table.
 
 Revision ID: bff083ad727d
-Revises: 677fdbb7fc54
+Revises: 1949afb29106
 Create Date: 2024-04-26 12:58:00.594762
 
 """

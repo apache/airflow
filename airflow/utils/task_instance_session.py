@@ -22,7 +22,7 @@ import logging
 import traceback
 from typing import TYPE_CHECKING
 
-from airflow.utils.session import create_session
+from airflow import settings
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -41,7 +41,7 @@ def get_current_task_instance_session() -> Session:
             log.warning('File: "%s", %s , in %s', filename, line_number, name)
             if line:
                 log.warning("  %s", line.strip())
-        __current_task_instance_session = create_session()
+        __current_task_instance_session = settings.Session()
     return __current_task_instance_session
 
 
