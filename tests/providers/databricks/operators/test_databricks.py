@@ -1884,7 +1884,11 @@ class TestDatabricksNotebookOperator:
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_execute_with_deferrable_early_termination(self, mock_databricks_hook):
         mock_databricks_hook.return_value.get_run.return_value = {
-            "state": {"life_cycle_state": "TERMINATED", "result_state": "FAILURE", "state_message": "FAILURE"}
+            "state": {
+                "life_cycle_state": "TERMINATED",
+                "result_state": "FAILURE",
+                "state_message": "Job execution failed due to an error.",
+            }
         }
         operator = DatabricksNotebookOperator(
             task_id="test_task",
@@ -1899,7 +1903,10 @@ class TestDatabricksNotebookOperator:
         with pytest.raises(AirflowException) as exec_info:
             operator.monitor_databricks_job()
 
-        assert str(exec_info.value) == "Task failed. Final state TERMINATED. Reason: FAILURE"
+        assert (
+            str(exec_info.value)
+            == "Task failed. Final state FAILURE. Reason: Job execution failed due to an error."
+        )
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_monitor_databricks_job_successful_raises_no_exception(self, mock_databricks_hook):
