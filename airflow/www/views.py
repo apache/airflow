@@ -728,8 +728,7 @@ class CustomAirflow(AirflowBaseView):
         return rendered_template.replace("<head>", f"{script_tag}<head>")
 
 
-#class Airflow(AirflowBaseView):
-claass Airflow(CustomAirflow):
+class Airflow(CustomAirflow):
     """Main Airflow application."""
 
     @expose("/health")
