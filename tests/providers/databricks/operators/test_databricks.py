@@ -1882,6 +1882,26 @@ class TestDatabricksNotebookOperator:
             operator.monitor_databricks_job()
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_execute_with_deferrable_early_termination(self, mock_databricks_hook):
+        mock_databricks_hook.return_value.get_run.return_value = {
+            "state": {"life_cycle_state": "TERMINATED", "result_state": "FAILURE", "state_message": "FAILURE"}
+        }
+        operator = DatabricksNotebookOperator(
+            task_id="test_task",
+            notebook_path="test_path",
+            source="test_source",
+            databricks_conn_id="test_conn_id",
+            wait_for_termination=True,
+            deferrable=True,
+        )
+        operator.launch_notebook_job = MagicMock(return_value=12345)
+
+        with pytest.raises(AirflowException) as exec_info:
+            operator.monitor_databricks_job()
+
+        assert str(exec_info.value) == "Task failed. Final state TERMINATED. Reason: FAILURE"
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_monitor_databricks_job_successful_raises_no_exception(self, mock_databricks_hook):
         mock_databricks_hook.return_value.get_run.return_value = {
             "state": {"life_cycle_state": "TERMINATED", "result_state": "SUCCESS"}
