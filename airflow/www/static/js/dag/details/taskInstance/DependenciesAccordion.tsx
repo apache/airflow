@@ -19,74 +19,90 @@
 
 import React, { useState, useRef } from "react";
 import {
-    Accordion,
-    AccordionItem,
-    AccordionButton,
-    AccordionPanel,
-    AccordionIcon,
-    Box,
-    Button,
-    Flex,
-    Text,
-    Textarea,
-    Divider,
+  Accordion,
+  AccordionItem,
+  AccordionButton,
+  AccordionPanel,
+  AccordionIcon,
+  Box,
+  Flex,
+  Text,
+  Divider,
 } from "@chakra-ui/react";
-import ResizeTextarea from "react-textarea-autosize";
 
 import { getMetaValue } from "src/utils";
-import ReactMarkdown from "src/components/ReactMarkdown";
+import { useTaskInstanceDependencies } from "src/api";
 
 interface Props {
-    dagId: string;
-    runId: string;
-    taskId?: string;
-    mapIndex?: number;
-    initialValue?: string | null;
+  dagId: string;
+  dagRunId: string;
+  taskId?: string;
+  mapIndex?: number;
 }
 
 const DependenciesAccordion = ({
-    dagId,
-    runId,
-    taskId,
-    mapIndex,
+  dagId,
+  dagRunId,
+  taskId,
+  mapIndex,
 }: Props) => {
-    const canEdit = getMetaValue("can_edit") === "True";
-    const [accordionIndexes, setAccordionIndexes] = useState<Array<number>>(
-        canEdit ? [0] : []
-    );
+  const canEdit = getMetaValue("can_edit") === "True";
+  const [accordionIndexes, setAccordionIndexes] = useState<Array<number>>(
+    canEdit ? [0] : []
+  );
 
-    const toggleDependenciesPanel = () => {
-        if (accordionIndexes.includes(0)) {
-            setAccordionIndexes([]);
-        } else {
-            setAccordionIndexes([0]);
-        }
-    };
+  const toggleDependenciesPanel = () => {
+    if (accordionIndexes.includes(0)) {
+      setAccordionIndexes([]);
+    } else {
+      setAccordionIndexes([0]);
+    }
+  };
 
-    return (
-        <>
-            <Accordion
-                defaultIndex={canEdit ? [0] : []}
-                index={accordionIndexes}
-                allowToggle
-            >
-                <AccordionItem border="0">
-                    <AccordionButton p={0} pb={2} fontSize="inherit">
-                        <Box flex="1" textAlign="left" onClick={toggleDependenciesPanel}>
-                            <Text as="strong" size="lg">
-                                Task Instance Dependencies:
-                            </Text>
-                        </Box>
-                        <AccordionIcon />
-                    </AccordionButton>
-                    <AccordionPanel pl={3}>
-                        "TODO"
-                    </AccordionPanel>
-                </AccordionItem>
-            </Accordion>
-            <Divider my={0} />
-        </>
-    );
+  const { data: dependencies } = useTaskInstanceDependencies({ dagId, dagRunId, taskId, mapIndex });
+
+  // Determine if the accordion should be collapsed by default
+  const defaultIndices = dependencies?.data?.length > 0 && canEdit ? [0] : [];
+
+
+  return (
+    <>
+      <Accordion
+        defaultIndex={defaultIndices}
+        // index={accordionIndexes}
+        allowToggle
+      >
+        <AccordionItem border="0">
+          <AccordionButton p={0} pb={2} fontSize="inherit">
+            <Box flex="1" textAlign="left" onClick={toggleDependenciesPanel}>
+              <Text as="strong" size="lg">
+                Task Instance Dependencies
+              </Text>
+            </Box>
+            <AccordionIcon />
+          </AccordionButton>
+          {dependencies?.map((dependency: string, index: number) => (
+            <AccordionItem key={index} border="0">
+              <AccordionPanel pl={3} pb={2}>
+                <Box flex="1" textAlign="left">
+                  <Text as="strong" size="lg">
+                    {dependency}
+                  </Text>
+                </Box>
+              </AccordionPanel>
+            </AccordionItem>
+          ))}
+          {/* If no dependencies are available, display a message */}
+          {(!dependencies || dependencies.data.length === 0) && (
+            <AccordionPanel pl={3}>
+              <Text>Placeholder.</Text>
+            </AccordionPanel>
+          )}
+        </AccordionItem>
+      </Accordion>
+      <Divider my={0} />
+    </>
+  );
 };
 
 export default DependenciesAccordion;
