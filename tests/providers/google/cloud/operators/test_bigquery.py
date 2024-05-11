@@ -48,6 +48,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryInsertJobOperator,
     BigQueryIntervalCheckOperator,
     BigQueryPatchDatasetOperator,
+    BigQueryTableCheckOperator,
     BigQueryUpdateDatasetOperator,
     BigQueryUpdateTableOperator,
     BigQueryUpdateTableSchemaOperator,
@@ -2443,3 +2444,49 @@ class TestBigQueryColumnCheckOperator:
         )
         with pytest.raises(AirflowException):
             ti.task.execute(MagicMock())
+
+
+class TestBigQueryTableCheckOperator:
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryJob")
+    def test_encryption_configuration(self, mock_job, mock_hook):
+        encryption_configuration = {
+            "kmsKeyName": "projects/PROJECT/locations/LOCATION/keyRings/KEY_RING/cryptoKeys/KEY",
+        }
+
+        mock_job.result.return_value.to_dataframe.return_value = pd.DataFrame(
+            {
+                "check_name": ["row_count_check"],
+                "check_result": [1],
+            }
+        )
+        mock_hook.return_value.insert_job.return_value = mock_job
+        mock_hook.return_value.project_id = TEST_GCP_PROJECT_ID
+
+        check_statement = "COUNT(*) = 1"
+        operator = BigQueryTableCheckOperator(
+            task_id="TASK_ID",
+            table="test_table",
+            checks={"row_count_check": {"check_statement": check_statement}},
+            encryption_configuration=encryption_configuration,
+            location=TEST_DATASET_LOCATION,
+        )
+
+        operator.execute(MagicMock())
+        mock_hook.return_value.insert_job.assert_called_with(
+            configuration={
+                "query": {
+                    "query": f"""SELECT check_name, check_result FROM (
+    SELECT 'row_count_check' AS check_name, MIN(row_count_check) AS check_result
+    FROM (SELECT CASE WHEN {check_statement} THEN 1 ELSE 0 END AS row_count_check
+          FROM test_table ) AS sq
+    ) AS check_table""",
+                    "useLegacySql": True,
+                    "destinationEncryptionConfiguration": encryption_configuration,
+                }
+            },
+            project_id=TEST_GCP_PROJECT_ID,
+            location=TEST_DATASET_LOCATION,
+            job_id="",
+            nowait=False,
+        )

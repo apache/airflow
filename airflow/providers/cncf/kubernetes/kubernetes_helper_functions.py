@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 
 import pendulum
 from deprecated import deprecated
+from kubernetes.client.rest import ApiException
 from slugify import slugify
 
 from airflow.compat.functools import cache
@@ -181,3 +182,18 @@ def annotations_for_logging_task_metadata(annotation_set):
     else:
         annotations_for_logging = "<omitted>"
     return annotations_for_logging
+
+
+def should_retry_creation(exception: BaseException) -> bool:
+    """
+    Check if an Exception indicates a transient error and warrants retrying.
+
+    This function is needed for preventing 'No agent available' error. The error appears time to time
+    when users try to create a Resource or Job. This issue is inside kubernetes and in the current moment
+    has no solution. Like a temporary solution we decided to retry Job or Resource creation request each
+    time when this error appears.
+    More about this issue here: https://github.com/cert-manager/cert-manager/issues/6457
+    """
+    if isinstance(exception, ApiException):
+        return str(exception.status) == "500"
+    return False

@@ -22,7 +22,7 @@ description: |
   `OpenLineage <https://openlineage.io/>`__
 
 state: ready
-source-date-epoch: 1714477058
+source-date-epoch: 1715384461
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 1.7.1

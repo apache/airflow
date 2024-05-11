@@ -44,6 +44,7 @@ from airflow.www.extensions.init_manifest_files import configure_manifest_files
 from airflow.www.extensions.init_robots import init_robots
 from airflow.www.extensions.init_security import (
     init_api_experimental_auth,
+    init_cache_control,
     init_check_user_active,
     init_xframe_protection,
 )
@@ -180,6 +181,7 @@ def create_app(config=None, testing=False):
 
         init_jinja_globals(flask_app)
         init_xframe_protection(flask_app)
+        init_cache_control(flask_app)
         init_airflow_session_interface(flask_app)
         init_check_user_active(flask_app)
     return flask_app

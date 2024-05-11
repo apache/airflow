@@ -411,6 +411,14 @@ def create_default_connections(session: Session = NEW_SESSION):
         ),
         session,
     )
+    merge_conn(
+        Connection(
+            conn_id="iceberg_default",
+            conn_type="iceberg",
+            host="https://api.iceberg.io/ws/v1",
+        ),
+        session,
+    )
     merge_conn(Connection(conn_id="impala_default", conn_type="impala", host="localhost", port=21050))
     merge_conn(
         Connection(

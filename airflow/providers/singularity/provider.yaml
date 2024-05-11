@@ -22,7 +22,7 @@ description: |
     `Singularity <https://sylabs.io/guides/latest/user-guide/>`__
 
 state: ready
-source-date-epoch: 1714477516
+source-date-epoch: 1715384480
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 3.5.0

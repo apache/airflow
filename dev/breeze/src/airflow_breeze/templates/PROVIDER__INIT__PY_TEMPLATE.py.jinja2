@@ -42,15 +42,13 @@
 #
 from __future__ import annotations
 
-import importlib.metadata
-
 import packaging.version
+
+from airflow import __version__ as airflow_version
 
 __all__ = ["__version__"]
 
 __version__ = "{{ RELEASE }}{{ VERSION_SUFFIX }}"
-
-airflow_version = importlib.metadata.version('apache-airflow')
 
 if packaging.version.parse(packaging.version.parse(airflow_version).base_version) < packaging.version.parse(
     "{{ MIN_AIRFLOW_VERSION }}"
