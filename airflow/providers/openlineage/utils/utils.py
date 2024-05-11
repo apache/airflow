@@ -367,6 +367,9 @@ def print_warning(log):
             try:
                 return f(*args, **kwargs)
             except Exception as e:
+                log.warning(
+                    "Note: exception below is being caught: it's printed for visibility. However OpenLineage events aren't being emitted. If you see that, task has completed successfully despite not getting OL events."
+                )
                 log.warning(e)
 
         return wrapper
@@ -384,3 +387,8 @@ def normalize_sql(sql: str | Iterable[str]):
         sql = [stmt for stmt in sql.split(";") if stmt != ""]
     sql = [obj for stmt in sql for obj in stmt.split(";") if obj != ""]
     return ";\n".join(sql)
+
+
+def should_use_external_connection(hook) -> bool:
+    # TODO: Add checking overrides
+    return hook.__class__.__name__ not in ["SnowflakeHook", "SnowflakeSqlApiHook"]

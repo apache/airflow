@@ -106,6 +106,9 @@ class LambdaHook(AwsBaseHook):
         image_config: Any | None = None,
         code_signing_config_arn: str | None = None,
         architectures: list[str] | None = None,
+        ephemeral_storage: Any | None = None,
+        snap_start: Any | None = None,
+        logging_config: Any | None = None,
     ) -> dict:
         """
         Create a Lambda function.
@@ -151,6 +154,10 @@ class LambdaHook(AwsBaseHook):
             A code-signing configuration includes a set of signing profiles,
             which define the trusted publishers for this function.
         :param architectures: The instruction set architecture that the function supports.
+        :param ephemeral_storage: The size of the function's /tmp directory in MB.
+            The default value is 512, but can be any whole number between 512 and 10,240 MB
+        :param snap_start: The function's SnapStart setting
+        :param logging_config: The function's Amazon CloudWatch Logs configuration settings
         """
         if package_type == "Zip":
             if handler is None:
@@ -181,6 +188,9 @@ class LambdaHook(AwsBaseHook):
             "ImageConfig": image_config,
             "CodeSigningConfigArn": code_signing_config_arn,
             "Architectures": architectures,
+            "EphemeralStorage": ephemeral_storage,
+            "SnapStart": snap_start,
+            "LoggingConfig": logging_config,
         }
         return self.conn.create_function(**trim_none_values(create_function_args))
 

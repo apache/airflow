@@ -25,18 +25,15 @@ from __future__ import annotations
 
 import packaging.version
 
+from airflow import __version__ as airflow_version
+
 __all__ = ["__version__"]
 
-__version__ = "3.4.2"
-
-try:
-    from airflow import __version__ as airflow_version
-except ImportError:
-    from airflow.version import version as airflow_version
+__version__ = "3.5.0"
 
 if packaging.version.parse(packaging.version.parse(airflow_version).base_version) < packaging.version.parse(
-    "2.6.0"
+    "2.7.0"
 ):
     raise RuntimeError(
-        f"The package `apache-airflow-providers-apache-cassandra:{__version__}` needs Apache Airflow 2.6.0+"
+        f"The package `apache-airflow-providers-apache-cassandra:{__version__}` needs Apache Airflow 2.7.0+"
     )

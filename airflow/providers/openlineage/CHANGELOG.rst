@@ -26,6 +26,19 @@
 Changelog
 ---------
 
+main
+.....
+
+In Airflow 2.10.0, we fix the way try_number works, so that it no longer returns different values depending on task instance state.  Importantly, after the task is done, it no longer shows current_try + 1. Thus in 1.7.2 we patch this provider to fix try_number references so they no longer adjust for the old, bad behavior.
+
+1.7.1
+.....
+
+Misc
+~~~~
+
+* ``openlineage, snowflake: do not run external queries for Snowflake (#39113)``
+
 1.7.0
 .....
 

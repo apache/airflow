@@ -35,14 +35,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.7.0
+.....
+
+Latest change: 2024-04-25
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+=================================================================================================  ===========  =======================================================================
+
 3.6.2
 .....
 
-Latest change: 2024-02-16
+Latest change: 2024-04-10
 
 =================================================================================================  ===========  ===================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
 `5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
 `e346253760 <https://github.com/apache/airflow/commit/e3462537608854368b04f58c25835c8097dec51c>`_  2024-02-15   ``Fix remaining D401 checks (#37434)``
 `b53fe08797 <https://github.com/apache/airflow/commit/b53fe08797d910ffab82b7b2ff6a27ba50b1d8a5>`_  2024-02-14   ``Add Python 3.12 exclusions in providers/pyproject.toml (#37404)``

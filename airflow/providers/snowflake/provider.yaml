@@ -22,9 +22,10 @@ description: |
     `Snowflake <https://www.snowflake.com/>`__
 
 state: ready
-source-date-epoch: 1712666514
+source-date-epoch: 1715384485
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 5.5.0
   - 5.4.0
   - 5.3.1
   - 5.3.0
@@ -71,7 +72,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.6.0
+  - apache-airflow>=2.7.0
   - apache-airflow-providers-common-sql>=1.10.0
   - snowflake-connector-python>=2.7.8
   - snowflake-sqlalchemy>=1.1.0

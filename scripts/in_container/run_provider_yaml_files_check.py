@@ -50,10 +50,13 @@ DEPRECATED_MODULES = [
     "airflow.providers.apache.hdfs.hooks.hdfs",
     "airflow.providers.cncf.kubernetes.triggers.kubernetes_pod",
     "airflow.providers.cncf.kubernetes.operators.kubernetes_pod",
+    "airflow.providers.tabular.hooks.tabular",
 ]
 
 KNOWN_DEPRECATED_CLASSES = [
     "airflow.providers.google.cloud.links.dataproc.DataprocLink",
+    "airflow.providers.google.cloud.operators.automl.AutoMLTablesUpdateDatasetOperator",
+    "airflow.providers.google.cloud.operators.automl.AutoMLDeployModelOperator",
 ]
 
 try:

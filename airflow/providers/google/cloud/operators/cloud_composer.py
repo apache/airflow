@@ -17,19 +17,23 @@
 # under the License.
 from __future__ import annotations
 
+import shlex
 from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.orchestration.airflow.service_v1 import ImageVersion
-from google.cloud.orchestration.airflow.service_v1.types import Environment
+from google.cloud.orchestration.airflow.service_v1.types import Environment, ExecuteAirflowCommandResponse
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerHook
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from airflow.providers.google.cloud.triggers.cloud_composer import CloudComposerExecutionTrigger
+from airflow.providers.google.cloud.triggers.cloud_composer import (
+    CloudComposerAirflowCLICommandTrigger,
+    CloudComposerExecutionTrigger,
+)
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
 if TYPE_CHECKING:
@@ -651,3 +655,144 @@ class CloudComposerListImageVersionsOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
         return [ImageVersion.to_dict(image) for image in result]
+
+
+class CloudComposerRunAirflowCLICommandOperator(GoogleCloudBaseOperator):
+    """
+    Run Airflow command for provided Composer environment.
+
+    :param project_id: The ID of the Google Cloud project that the service belongs to.
+    :param region: The ID of the Google Cloud region that the service belongs to.
+    :param environment_id: The ID of the Google Cloud environment that the service belongs to.
+    :param command: Airflow command.
+    :param retry: Designation of what errors, if any, should be retried.
+    :param timeout: The timeout for this request.
+    :param metadata: Strings which should be sent along with the request as metadata.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :param deferrable: Run operator in the deferrable mode
+    :param poll_interval: Optional: Control the rate of the poll for the result of deferrable run.
+        By default, the trigger will poll every 10 seconds.
+    """
+
+    template_fields = (
+        "project_id",
+        "region",
+        "environment_id",
+        "command",
+        "impersonation_chain",
+    )
+
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        region: str,
+        environment_id: str,
+        command: str,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        poll_interval: int = 10,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.region = region
+        self.environment_id = environment_id
+        self.command = command
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.deferrable = deferrable
+        self.poll_interval = poll_interval
+
+    def execute(self, context: Context):
+        hook = CloudComposerHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+        self.log.info("Executing the command: [ airflow %s ]...", self.command)
+
+        cmd, subcommand, parameters = self._parse_cmd_to_args(self.command)
+        execution_cmd_info = hook.execute_airflow_command(
+            project_id=self.project_id,
+            region=self.region,
+            environment_id=self.environment_id,
+            command=cmd,
+            subcommand=subcommand,
+            parameters=parameters,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+        execution_cmd_info_dict = ExecuteAirflowCommandResponse.to_dict(execution_cmd_info)
+
+        self.log.info("Command has been started. execution_id=%s", execution_cmd_info_dict["execution_id"])
+
+        if self.deferrable:
+            self.defer(
+                trigger=CloudComposerAirflowCLICommandTrigger(
+                    project_id=self.project_id,
+                    region=self.region,
+                    environment_id=self.environment_id,
+                    execution_cmd_info=execution_cmd_info_dict,
+                    gcp_conn_id=self.gcp_conn_id,
+                    impersonation_chain=self.impersonation_chain,
+                    poll_interval=self.poll_interval,
+                ),
+                method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
+            )
+            return
+
+        result = hook.wait_command_execution_result(
+            project_id=self.project_id,
+            region=self.region,
+            environment_id=self.environment_id,
+            execution_cmd_info=execution_cmd_info_dict,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+            poll_interval=self.poll_interval,
+        )
+        result_str = self._merge_cmd_output_result(result)
+        self.log.info("Command execution result:\n%s", result_str)
+        return result
+
+    def execute_complete(self, context: Context, event: dict) -> dict:
+        if event and event["status"] == "error":
+            raise AirflowException(event["message"])
+        result: dict = event["result"]
+        result_str = self._merge_cmd_output_result(result)
+        self.log.info("Command execution result:\n%s", result_str)
+        return result
+
+    def _parse_cmd_to_args(self, cmd: str) -> tuple:
+        """Parse user command to command, subcommand and parameters."""
+        cmd_dict = shlex.split(cmd)
+        if not cmd_dict:
+            raise AirflowException("The provided command is empty.")
+
+        command = cmd_dict[0] if len(cmd_dict) >= 1 else None
+        subcommand = cmd_dict[1] if len(cmd_dict) >= 2 else None
+        parameters = cmd_dict[2:] if len(cmd_dict) >= 3 else None
+
+        return command, subcommand, parameters
+
+    def _merge_cmd_output_result(self, result) -> str:
+        """Merge output to one string."""
+        result_str = "\n".join(line_dict["content"] for line_dict in result["output"])
+        return result_str

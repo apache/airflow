@@ -14,13 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add kubernetes scheduler uniqueness
+"""Add kubernetes scheduler uniqueness.
 
 Revision ID: 86770d1215c0
 Revises: 27c6a30d7c24
 Create Date: 2018-04-03 15:31:20.814328
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa

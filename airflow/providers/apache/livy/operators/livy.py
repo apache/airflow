@@ -61,8 +61,8 @@ class LivyOperator(BaseOperator):
         depends on the option that's being modified.
     :param extra_headers: A dictionary of headers passed to the HTTP request to livy.
     :param retry_args: Arguments which define the retry behaviour.
+        See Tenacity documentation at https://github.com/jd/tenacity
     :param deferrable: Run operator in the deferrable mode
-            See Tenacity documentation at https://github.com/jd/tenacity
     """
 
     template_fields: Sequence[str] = ("spark_params",)

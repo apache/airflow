@@ -22,9 +22,10 @@ description: |
     `Jenkins <https://jenkins.io/>`__
 
 state: ready
-source-date-epoch: 1705912149
+source-date-epoch: 1715384447
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 3.6.0
   - 3.5.1
   - 3.5.0
   - 3.4.0
@@ -49,7 +50,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.6.0
+  - apache-airflow>=2.7.0
   - python-jenkins>=1.0.0
 
 integrations:

@@ -35,14 +35,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.7.1
+.....
+
+Latest change: 2024-04-22
+
+=================================================================================================  ===========  ==============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================
+`ecc5af70eb <https://github.com/apache/airflow/commit/ecc5af70ebd845c873f30fa7ef85790edbf3351c>`_  2024-04-22   ``openlineage, snowflake: do not run external queries for Snowflake (#39113)``
+=================================================================================================  ===========  ==============================================================================
+
 1.7.0
 .....
 
-Latest change: 2024-04-08
+Latest change: 2024-04-10
 
 =================================================================================================  ===========  ==================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================================
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
 `093ab7e755 <https://github.com/apache/airflow/commit/093ab7e7556bad9202e83e9fd6d968c50a5f7cb8>`_  2024-04-08   ``Add lineage_job_namespace and lineage_job_name OpenLineage macros (#38829)``
 `7d9737154c <https://github.com/apache/airflow/commit/7d9737154c53fe96fd925a95d670eec36a24c6e3>`_  2024-04-07   ``fix: try002 for provider openlineage (#38806)``
 `ecd69955f9 <https://github.com/apache/airflow/commit/ecd69955f9e2f2a771bbd665b05cc17e19553bb3>`_  2024-04-04   ``fix: Remove redundant operator information from facets (#38264)``

@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
 import json
 import locale
 from base64 import b64decode, b64encode
@@ -28,7 +27,6 @@ import pendulum
 
 from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.triggers.msgraph import (
-    CallableResponseHandler,
     MSGraphTrigger,
     ResponseSerializer,
 )
@@ -131,21 +129,6 @@ class TestMSGraphTrigger(Base):
 
         for template_field in MSGraphTrigger.template_fields:
             getattr(trigger, template_field)
-
-
-class TestResponseHandler:
-    def test_handle_response_async(self):
-        users = load_json("resources", "users.json")
-        response = mock_json_response(200, users)
-
-        actual = asyncio.run(
-            CallableResponseHandler(lambda response, error_map: response.json()).handle_response_async(
-                response, None
-            )
-        )
-
-        assert isinstance(actual, dict)
-        assert actual == users
 
 
 class TestResponseSerializer:

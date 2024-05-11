@@ -16,18 +16,25 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""update trigger kwargs type
+"""update trigger kwargs type and encrypt.
 
 Revision ID: 1949afb29106
 Revises: ee1467d4aa35
 Create Date: 2024-03-17 22:09:09.406395
 
 """
+
+from __future__ import annotations
+
+import json
+from textwrap import dedent
+
 import sqlalchemy as sa
+from alembic import context, op
+from sqlalchemy.orm import lazyload
 
 from airflow.models.trigger import Trigger
-from alembic import op
-
+from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils.sqlalchemy import ExtendedJSON
 
 # revision identifiers, used by Alembic.
@@ -38,13 +45,48 @@ depends_on = None
 airflow_version = "2.9.0"
 
 
+def get_session() -> sa.orm.Session:
+    conn = op.get_bind()
+    sessionmaker = sa.orm.sessionmaker()
+    return sessionmaker(bind=conn)
+
+
 def upgrade():
-    """Update trigger kwargs type to string"""
+    """Update trigger kwargs type to string and encrypt."""
     with op.batch_alter_table("trigger") as batch_op:
-        batch_op.alter_column("kwargs", type_=sa.Text(), )
+        batch_op.alter_column("kwargs", type_=sa.Text(), existing_nullable=False)
+
+    if not context.is_offline_mode():
+        session = get_session()
+        try:
+            for trigger in session.query(Trigger).options(lazyload(Trigger.task_instance)):
+                trigger.kwargs = trigger.kwargs
+            session.commit()
+        finally:
+            session.close()
 
 
 def downgrade():
-    """Unapply update trigger kwargs type to string"""
+    """Unapply update trigger kwargs type to string and encrypt."""
+    if context.is_offline_mode():
+        print(
+            dedent("""
+        ------------
+        --  WARNING: Unable to decrypt trigger kwargs automatically in offline mode!
+        --  If any trigger rows exist when you do an offline downgrade, the migration will fail.
+        ------------
+        """)
+        )
+    else:
+        session = get_session()
+        try:
+            for trigger in session.query(Trigger).options(lazyload(Trigger.task_instance)):
+                trigger.encrypted_kwargs = json.dumps(BaseSerialization.serialize(trigger.kwargs))
+            session.commit()
+        finally:
+            session.close()
+
     with op.batch_alter_table("trigger") as batch_op:
-        batch_op.alter_column("kwargs", type_=ExtendedJSON(), postgresql_using="kwargs::json")
+        batch_op.alter_column(
+            "kwargs", type_=ExtendedJSON(), postgresql_using="kwargs::json", existing_nullable=False
+        )

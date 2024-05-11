@@ -816,6 +816,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
                             gcp_conn_id=self.gcp_conn_id,
                             impersonation_chain=self.impersonation_chain,
                             polling_interval_seconds=self.polling_interval_seconds,
+                            delete_on_error=self.delete_on_error,
                         ),
                         method_name="execute_complete",
                     )
@@ -2022,7 +2023,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
 
     @staticmethod
     def _generate_temp_filename(filename):
-        return f"{time:%Y%m%d%H%M%S}_{uuid.uuid4()!s:.8}_{ntpath.basename(filename)}"
+        return f"{time.strftime('%Y%m%d%H%M%S')}_{uuid.uuid4()!s:.8}_{ntpath.basename(filename)}"
 
     def _upload_file_temp(self, bucket, local_file):
         """Upload a local file to a Google Cloud Storage bucket."""
@@ -2591,6 +2592,7 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
                     gcp_conn_id=self.gcp_conn_id,
                     impersonation_chain=self.impersonation_chain,
                     polling_interval_seconds=self.polling_interval_seconds,
+                    cancel_on_kill=self.cancel_on_kill,
                 ),
                 method_name="execute_complete",
             )

@@ -22,9 +22,10 @@ description: |
     `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
 
 state: ready
-source-date-epoch: 1712666022
+source-date-epoch: 1715384442
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 4.11.0
   - 4.10.1
   - 4.10.0
   - 4.9.1
@@ -56,7 +57,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.6.0
+  - apache-airflow>=2.7.0
   # The 2.26.0 release of requests got rid of the chardet LGPL mandatory dependency, allowing us to
   # release it as a requirement for airflow
   - requests>=2.27.0,<3

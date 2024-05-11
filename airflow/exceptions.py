@@ -75,6 +75,9 @@ class AirflowRescheduleException(AirflowException):
         super().__init__()
         self.reschedule_date = reschedule_date
 
+    def serialize(self):
+        return "AirflowRescheduleException", (), {"reschedule_date": self.reschedule_date}
+
 
 class InvalidStatsNameException(AirflowException):
     """Raise when name of the stats is invalid."""
@@ -388,6 +391,18 @@ class TaskDeferred(BaseException):
         # Check timeout type at runtime
         if self.timeout is not None and not hasattr(self.timeout, "total_seconds"):
             raise ValueError("Timeout value must be a timedelta")
+
+    def serialize(self):
+        return (
+            self.__class__.__name__,
+            (),
+            {
+                "trigger": self.trigger,
+                "method_name": self.method_name,
+                "kwargs": self.kwargs,
+                "timeout": self.timeout,
+            },
+        )
 
     def __repr__(self) -> str:
         return f"<TaskDeferred trigger={self.trigger} method={self.method_name}>"

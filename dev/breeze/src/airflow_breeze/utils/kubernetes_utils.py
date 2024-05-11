@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import hashlib
 import itertools
 import os
 import random
@@ -53,8 +54,9 @@ KUBECTL_BIN_PATH = K8S_BIN_BASE_PATH / "kubectl"
 HELM_BIN_PATH = K8S_BIN_BASE_PATH / "helm"
 PYTHON_BIN_PATH = K8S_BIN_BASE_PATH / "python"
 SCRIPTS_CI_KUBERNETES_PATH = AIRFLOW_SOURCES_ROOT / "scripts" / "ci" / "kubernetes"
-K8S_REQUIREMENTS = SCRIPTS_CI_KUBERNETES_PATH / "k8s_requirements.txt"
-CACHED_K8S_REQUIREMENTS = K8S_ENV_PATH / "k8s_requirements.txt"
+K8S_REQUIREMENTS_PATH = SCRIPTS_CI_KUBERNETES_PATH / "k8s_requirements.txt"
+HATCH_BUILD_PY_PATH = AIRFLOW_SOURCES_ROOT / "hatch_build.py"
+CACHED_K8S_DEPS_HASH_PATH = K8S_ENV_PATH / "k8s_deps_hash.txt"
 CHART_PATH = AIRFLOW_SOURCES_ROOT / "chart"
 
 # In case of parallel runs those ports will be quickly allocated by multiple threads and closed, which
@@ -273,15 +275,21 @@ def make_sure_kubernetes_tools_are_installed():
         )
 
 
+def _get_k8s_deps_hash():
+    md5_hash = hashlib.md5()
+    content = K8S_REQUIREMENTS_PATH.read_text() + HATCH_BUILD_PY_PATH.read_text()
+    md5_hash.update(content.encode("utf-8"))
+    k8s_deps_hash = md5_hash.hexdigest()
+    return k8s_deps_hash
+
+
 def _requirements_changed() -> bool:
-    if not CACHED_K8S_REQUIREMENTS.exists():
+    if not CACHED_K8S_DEPS_HASH_PATH.exists():
         get_console().print(
             f"\n[warning]The K8S venv in {K8S_ENV_PATH} has never been created. Installing it.\n"
         )
         return True
-    requirements_file_content = K8S_REQUIREMENTS.read_text()
-    cached_requirements_content = CACHED_K8S_REQUIREMENTS.read_text()
-    if cached_requirements_content != requirements_file_content:
+    if CACHED_K8S_DEPS_HASH_PATH.read_text() != _get_k8s_deps_hash():
         get_console().print(
             f"\n[warning]Requirements changed for the K8S venv in {K8S_ENV_PATH}. "
             f"Reinstalling the venv.\n"
@@ -297,7 +305,7 @@ def _install_packages_in_k8s_virtualenv():
         "pip",
         "install",
         "-r",
-        str(K8S_REQUIREMENTS.resolve()),
+        str(K8S_REQUIREMENTS_PATH.resolve()),
     ]
     env = os.environ.copy()
     capture_output = True
@@ -307,7 +315,9 @@ def _install_packages_in_k8s_virtualenv():
         install_command, check=False, capture_output=capture_output, text=True, env=env
     )
     if install_packages_result.returncode != 0:
-        get_console().print(f"[error]Error when installing packages from : {K8S_REQUIREMENTS.resolve()}[/]\n")
+        get_console().print(
+            f"[error]Error when installing packages from : {K8S_REQUIREMENTS_PATH.resolve()}[/]\n"
+        )
         if not get_verbose():
             get_console().print(install_packages_result.stdout)
             get_console().print(install_packages_result.stderr)
@@ -383,9 +393,9 @@ def create_virtualenv(force_venv_setup: bool) -> RunCommandResult:
     install_packages_result = _install_packages_in_k8s_virtualenv()
     if install_packages_result.returncode == 0:
         if get_dry_run():
-            get_console().print(f"[info]Dry run - would be saving {K8S_REQUIREMENTS} to cache")
+            get_console().print(f"[info]Dry run - would be saving {K8S_REQUIREMENTS_PATH} to cache")
         else:
-            CACHED_K8S_REQUIREMENTS.write_text(K8S_REQUIREMENTS.read_text())
+            CACHED_K8S_DEPS_HASH_PATH.write_text(_get_k8s_deps_hash())
     return install_packages_result
 
 

@@ -24,5 +24,5 @@ RUN apt-get update \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 USER airflow
-RUN pip install --no-cache-dir "apache-airflow==${AIRFLOW_VERSION}" mpi4py
+RUN pip install --no-cache-dir "apache-airflow==${AIRFLOW_VERSION}" "mpi4py==3.1.6"
 # [END Dockerfile]

@@ -22,9 +22,10 @@ description: |
     `Databricks <https://databricks.com/>`__
 
 state: ready
-source-date-epoch: 1712665557
+source-date-epoch: 1715384422
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 6.4.0
   - 6.3.0
   - 6.2.0
   - 6.1.0
@@ -62,7 +63,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.6.0
+  - apache-airflow>=2.7.0
   - apache-airflow-providers-common-sql>=1.10.0
   - requests>=2.27.0,<3
   # The connector 2.9.0 released on Aug 10, 2023 has a bug that it does not properly declare urllib3 and
@@ -86,6 +87,7 @@ integrations:
     external-doc-url: https://databricks.com/
     how-to-guide:
       - /docs/apache-airflow-providers-databricks/operators/jobs_create.rst
+      - /docs/apache-airflow-providers-databricks/operators/notebook.rst
       - /docs/apache-airflow-providers-databricks/operators/submit_run.rst
       - /docs/apache-airflow-providers-databricks/operators/run_now.rst
     logo: /integration-logos/databricks/Databricks.png

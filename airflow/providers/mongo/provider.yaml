@@ -22,9 +22,10 @@ description: |
     `MongoDB <https://www.mongodb.com/>`__
 
 state: ready
-source-date-epoch: 1705912168
+source-date-epoch: 1715384454
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 4.1.0
   - 4.0.0
   - 3.6.0
   - 3.5.0
@@ -47,7 +48,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.6.0
+  - apache-airflow>=2.7.0
   - dnspython>=1.13.0
   - pymongo>=3.6.0
 

@@ -22,9 +22,10 @@ description: |
     `Pagerduty <https://www.pagerduty.com/>`__
 
 state: ready
-source-date-epoch: 1707636475
+source-date-epoch: 1715384465
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 3.7.0
   - 3.6.2
   - 3.6.1
   - 3.6.0
@@ -46,7 +47,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.6.0
+  - apache-airflow>=2.7.0
   - pdpyras>=4.1.2
 
 integrations:
