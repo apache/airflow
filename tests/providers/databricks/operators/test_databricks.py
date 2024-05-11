@@ -1876,9 +1876,7 @@ class TestDatabricksNotebookOperator:
             wait_for_termination=True,
             deferrable=True,
         )
-        operator.launch_notebook_job = MagicMock(return_value=12345)
-
-        operator.execute({})
+        operator.databricks_run_id = 12345
 
         with pytest.raises(TaskDeferred):
             operator.monitor_databricks_job()
@@ -1896,9 +1894,7 @@ class TestDatabricksNotebookOperator:
             wait_for_termination=True,
             deferrable=True,
         )
-        operator.launch_notebook_job = MagicMock(return_value=12345)
-
-        operator.execute({})
+        operator.databricks_run_id = 12345
 
         with pytest.raises(AirflowException) as exec_info:
             operator.monitor_databricks_job()
