@@ -27,6 +27,7 @@ import NotesAccordion from "src/dag/details/NotesAccordion";
 
 import TaskNav from "./Nav";
 import ExtraLinks from "./ExtraLinks";
+import GridPanelPlugin from "./GridPanelPlugin";
 import Details from "./Details";
 import DatasetUpdateEvents from "./DatasetUpdateEvents";
 import TriggererInfo from "./TriggererInfo";
@@ -58,6 +59,13 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
   const isGroup = !!children;
   const isGroupOrMappedTaskSummary = isGroup || isMappedTaskSummary;
 
+  // Mock - needs to be made with a proper plugin interface to determine panels based on
+  // available plugins and links of operators - here we hard-code to PythonOperator+@task decorator
+  const panelPlugins =
+    operator === "PythonOperator" || operator === "@task"
+      ? ["grid_panel_example"]
+      : null;
+
   const { data: taskInstance } = useTaskInstance({
     dagId,
     dagRunId: runId,
@@ -83,6 +91,15 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
           mapIndex={mapIndex}
           executionDate={run?.executionDate}
           operator={operator}
+        />
+      )}
+      {!isGroupOrMappedTaskSummary && panelPlugins && (
+        <GridPanelPlugin
+          dagId={dagId}
+          runId={runId}
+          taskId={taskId}
+          mapIndex={mapIndex}
+          plugins={panelPlugins}
         />
       )}
       {!isGroupOrMappedTaskSummary && (
