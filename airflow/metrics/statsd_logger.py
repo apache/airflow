@@ -90,6 +90,8 @@ class SafeStatsdLogger:
         tags: dict[str, str] | None = None,
     ) -> None:
         """Increment stat."""
+        if tags is not None:
+            stat = stat + "." + ".".join(str(value) for value in tags)
         if self.metrics_validator.test(stat):
             return self.statsd.incr(stat, count, rate)
         return None
