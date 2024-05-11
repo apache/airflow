@@ -81,7 +81,7 @@ labelPRBasedOnFilePath:
     - docs/apache-airflow-providers-apache-iceberg/**/*
     - tests/providers/apache/iceberg/**/*
     - tests/system/providers/apache/iceberg/**/*
-    -
+
   provider:apache-impala:
     - airflow/providers/apache/impala/**/*
     - docs/apache-airflow-providers-apache-impala/**/*
