@@ -24,6 +24,7 @@ import { useGridData, useTaskInstance } from "src/api";
 import { getMetaValue, getTask, useOffsetTop } from "src/utils";
 import type { DagRun, TaskInstance as GridTaskInstance } from "src/types";
 import NotesAccordion from "src/dag/details/NotesAccordion";
+import DependenciesAccordion from "./DependenciesAccordion";
 
 import TaskNav from "./Nav";
 import ExtraLinks from "./ExtraLinks";
@@ -83,6 +84,16 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
           mapIndex={mapIndex}
           executionDate={run?.executionDate}
           operator={operator}
+        />
+      )}
+      {!isGroupOrMappedTaskSummary && (
+        <DependenciesAccordion
+          dagId={dagId}
+          runId={runId}
+          taskId={taskId}
+          mapIndex={mapIndex}
+          initialValue={gridInstance?.note || taskInstance?.note}
+          key={dagId + runId + taskId + mapIndex}
         />
       )}
       {!isGroupOrMappedTaskSummary && (
