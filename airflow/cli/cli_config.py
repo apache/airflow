@@ -519,6 +519,13 @@ ARG_DB_RETRY_DELAY = Arg(
     type=positive_int(allow_zero=False),
     help="Wait time between retries in seconds",
 )
+ARG_DB_MESSAGE = Arg(
+    (
+        "-m",
+        "--message",
+    ),
+    help="Message to apply to the migration",
+)
 
 # pool
 ARG_POOL_NAME = Arg(("pool",), metavar="NAME", help="Pool name")
@@ -1643,6 +1650,12 @@ DB_COMMANDS = (
         help="Drop archived tables created through the db clean command",
         func=lazy_load_command("airflow.cli.commands.db_command.drop_archived"),
         args=(ARG_DB_TABLES, ARG_YES),
+    ),
+    ActionCommand(
+        name="autogenerate",
+        help="Reset the DB and generate a migration script for the database",
+        func=lazy_load_command("airflow.cli.commands.db_command.autogenerate"),
+        args=(ARG_DB_MESSAGE, ARG_YES),
     ),
 )
 CONNECTIONS_COMMANDS = (

@@ -301,3 +301,13 @@ def drop_archived(args):
         table_names=args.tables,
         needs_confirm=not args.yes,
     )
+
+
+@cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
+def autogenerate(args):
+    """Generate migration script."""
+    print(f"DB: {settings.engine.url!r}")
+    if not (args.yes or input("This will drop existing tables if they exist. Proceed? (y/n)").upper() == "Y"):
+        raise SystemExit("Cancelled")
+    db.autogenerate(message=args.message)

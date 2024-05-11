@@ -1784,6 +1784,20 @@ def drop_airflow_moved_tables(connection):
         Base.metadata.remove(tbl)
 
 
+def autogenerate(message: str | None = None) -> None:
+    """Automatically generate the migration scripts.
+
+    The database is first reset and built using the migration files so that autogenerate
+    would accurately reflect the current state of the database and ORM
+    """
+    from alembic import command
+
+    resetdb(use_migration_files=True)
+
+    config = _get_alembic_config()
+    command.revision(config, message=message, autogenerate=True)
+
+
 @provide_session
 def check(session: Session = NEW_SESSION):
     """

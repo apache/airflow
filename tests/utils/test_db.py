@@ -38,6 +38,7 @@ from airflow.models import Base as airflow_base
 from airflow.settings import engine
 from airflow.utils.db import (
     _get_alembic_config,
+    autogenerate,
     check_bad_references,
     check_migrations,
     compare_server_default,
@@ -234,6 +235,16 @@ class TestDb:
             mock_init.assert_not_called()
         else:
             mock_init.assert_called_once_with(session=session_mock, use_migration_files=False)
+
+    @mock.patch("airflow.utils.db._get_alembic_config")
+    @mock.patch("airflow.utils.db.resetdb")
+    @mock.patch("alembic.command")
+    def test_db_autogenerate(self, mock_alembic_command, mock_resetdb, mock_config):
+        autogenerate(message="test migration")
+        mock_resetdb.assert_called_once_with(use_migration_files=True)
+        mock_alembic_command.revision.assert_called_once_with(
+            mock_config.return_value, message="test migration", autogenerate=True
+        )
 
     def test_alembic_configuration(self):
         with mock.patch.dict(
