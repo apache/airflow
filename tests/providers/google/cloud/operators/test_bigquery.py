@@ -1878,7 +1878,7 @@ class TestBigQueryInsertJobOperator:
             },
         }
         op = BigQueryInsertJobOperator(
-            task_id="insert_query_job_except_this_task_id_is_really_really_really_really_long",
+            task_id="insert_query_job_except_this_task_id_is_64_chars_or_more_xxxxxxx",
             configuration=configuration,
             location=TEST_DATASET_LOCATION,
             project_id=TEST_GCP_PROJECT_ID,
@@ -1893,7 +1893,7 @@ class TestBigQueryInsertJobOperator:
                 "useLegacySql": False,
             },
         }
-        with dag_maker("adhoc_airflow_except_this_task_id_is_really_really_really_really_long"):
+        with dag_maker("adhoc_airflow_except_this_dag_id_is_64_chars_or_more_xxxxxxxxxxx"):
             op = BigQueryInsertJobOperator(
                 task_id="insert_query_job",
                 configuration=configuration,
