@@ -424,7 +424,7 @@ def create_default_connections(session: Session = NEW_SESSION):
         Connection(
             conn_id="kafka_default",
             conn_type="kafka",
-            extra=json.dumps({"bootstrap.servers": "broker:29092"}),
+            extra=json.dumps({"bootstrap.servers": "broker:29092", "group.id": "my-group"}),
         ),
         session,
     )
