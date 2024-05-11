@@ -1878,6 +1878,8 @@ class TestDatabricksNotebookOperator:
         )
         operator.launch_notebook_job = MagicMock(return_value=12345)
 
+        operator.execute({})
+
         with pytest.raises(TaskDeferred):
             operator.monitor_databricks_job()
 
@@ -1895,6 +1897,8 @@ class TestDatabricksNotebookOperator:
             deferrable=True,
         )
         operator.launch_notebook_job = MagicMock(return_value=12345)
+
+        operator.execute({})
 
         with pytest.raises(AirflowException) as exec_info:
             operator.monitor_databricks_job()
