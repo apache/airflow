@@ -104,4 +104,5 @@ PIP package           Version required
 ``flask-appbuilder``  ``==4.4.1``
 ``flask-login``       ``>=0.6.2``
 ``google-re2``        ``>=1.0``
+``jmespath``
 ====================  ==================
