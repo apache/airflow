@@ -22,6 +22,7 @@ from __future__ import annotations
 from typing import Any
 
 import pymssql
+from sqlalchemy.engine import URL
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
@@ -70,6 +71,18 @@ class MsSqlHook(DbApiHook):
         if not self._sqlalchemy_scheme and extra_scheme and (":" in extra_scheme or "/" in extra_scheme):
             raise RuntimeError("sqlalchemy_scheme in connection extra should not contain : or / characters")
         return self._sqlalchemy_scheme or extra_scheme or self.DEFAULT_SQLALCHEMY_SCHEME
+
+    @property
+    def sqlalchemy_url(self) -> URL:
+        conn = self.get_connection(self.conn_name_attr)
+        return URL.create(
+            drivername=self.DEFAULT_SQLALCHEMY_SCHEME,
+            username=conn.login,
+            password=conn.password,
+            host=conn.host,
+            port=conn.port,
+            database=self.schema or conn.schema,
+        )
 
     def get_uri(self) -> str:
         from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
