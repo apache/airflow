@@ -1939,7 +1939,7 @@ class TestDatabricksNotebookOperator:
 
         operator.databricks_run_id = 12345
 
-        exception_message = "'Task failed. Final state %s. Reason: %s', 'FAILED', 'FAILURE'"
+        exception_message = "Task failed. Final state FAILED. Reason: FAILURE"
         with pytest.raises(AirflowException) as exc_info:
             operator.monitor_databricks_job()
         assert exception_message in str(exc_info.value)
