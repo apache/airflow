@@ -1886,8 +1886,8 @@ class TestDatabricksNotebookOperator:
         mock_databricks_hook.return_value.get_run.return_value = {
             "state": {
                 "life_cycle_state": "TERMINATED",
-                "result_state": "FAILURE",
-                "state_message": "Job execution failed due to an error.",
+                "result_state": "FAILED",
+                "state_message": "FAILURE",
             }
         }
         operator = DatabricksNotebookOperator(
@@ -1902,11 +1902,8 @@ class TestDatabricksNotebookOperator:
 
         with pytest.raises(AirflowException) as exec_info:
             operator.monitor_databricks_job()
-
-        assert (
-            str(exec_info.value)
-            == "Task failed. Final state FAILURE. Reason: Job execution failed due to an error."
-        )
+        exception_message = "Task failed. Final state FAILED. Reason: FAILURE"
+        assert exception_message == str(exec_info.value)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_monitor_databricks_job_successful_raises_no_exception(self, mock_databricks_hook):
@@ -1939,10 +1936,10 @@ class TestDatabricksNotebookOperator:
 
         operator.databricks_run_id = 12345
 
-        exception_message = "Task failed. Final state FAILED. Reason: FAILURE"
         with pytest.raises(AirflowException) as exc_info:
             operator.monitor_databricks_job()
-        assert exception_message in str(exc_info.value)
+        exception_message = "Task failed. Final state FAILED. Reason: FAILURE"
+        assert exception_message == str(exc_info.value)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_launch_notebook_job(self, mock_databricks_hook):
