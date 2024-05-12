@@ -19,11 +19,15 @@
 
 from __future__ import annotations
 
-from typing import Any
+from functools import cached_property
+from typing import TYPE_CHECKING, Any
 
 import pymssql
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+if TYPE_CHECKING:
+    from airflow.models import Connection
 
 
 class MsSqlHook(DbApiHook):
@@ -53,6 +57,10 @@ class MsSqlHook(DbApiHook):
         self.schema = kwargs.pop("schema", None)
         self._sqlalchemy_scheme = sqlalchemy_scheme
 
+    @cached_property
+    def conn(self) -> Connection:
+        return self.get_connection(getattr(self, self.conn_name_attr))
+
     @property
     def connection_extra_lower(self) -> dict:
         """
@@ -60,8 +68,7 @@ class MsSqlHook(DbApiHook):
 
         This is used internally for case-insensitive access of mssql params.
         """
-        conn = self.get_connection(self.mssql_conn_id)  # type: ignore[attr-defined]
-        return {k.lower(): v for k, v in conn.extra_dejson.items()}
+        return {k.lower(): v for k, v in self.conn.extra_dejson.items()}
 
     @property
     def sqlalchemy_scheme(self) -> str:
@@ -94,14 +101,12 @@ class MsSqlHook(DbApiHook):
 
     def get_conn(self) -> pymssql.connect:
         """Return ``pymssql`` connection object."""
-        conn = self.get_connection(self.mssql_conn_id)  # type: ignore[attr-defined]
-
         conn = pymssql.connect(
-            server=conn.host,
-            user=conn.login,
-            password=conn.password,
-            database=self.schema or conn.schema,
-            port=conn.port,
+            server=self.conn.host,
+            user=self.conn.login,
+            password=self.conn.password,
+            database=self.schema or self.conn.schema,
+            port=self.conn.port,
         )
         return conn
 
