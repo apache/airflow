@@ -58,7 +58,12 @@ class MsSqlHook(DbApiHook):
         self._sqlalchemy_scheme = sqlalchemy_scheme
 
     @cached_property
-    def conn(self) -> Connection:
+    def connection(self) -> Connection:
+        """
+        Get the airflow connection object.
+
+        :return: The connection object.
+        """
         return self.get_connection(getattr(self, self.conn_name_attr))
 
     @property
@@ -68,7 +73,7 @@ class MsSqlHook(DbApiHook):
 
         This is used internally for case-insensitive access of mssql params.
         """
-        return {k.lower(): v for k, v in self.conn.extra_dejson.items()}
+        return {k.lower(): v for k, v in self.connection.extra_dejson.items()}
 
     @property
     def sqlalchemy_scheme(self) -> str:
@@ -101,12 +106,13 @@ class MsSqlHook(DbApiHook):
 
     def get_conn(self) -> pymssql.connect:
         """Return ``pymssql`` connection object."""
-        conn = pymssql.connect(
-            server=self.conn.host,
-            user=self.conn.login,
-            password=self.conn.password,
-            database=self.schema or self.conn.schema,
-            port=self.conn.port,
+        conn = self.connection
+        return pymssql.connect(
+            server=conn.host,
+            user=conn.login,
+            password=conn.password,
+            database=self.schema or conn.schema,
+            port=conn.port,
         )
         return conn
 
