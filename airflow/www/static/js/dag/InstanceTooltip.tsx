@@ -92,6 +92,11 @@ const InstanceTooltip = ({
           <Text>
             Started: <Time dateTime={startDate} />
           </Text>
+          {endDate && (
+            <Text>
+              Ended: <Time dateTime={endDate} />
+            </Text>
+          )}
           <Text>
             Duration: {formatDuration(getDuration(startDate, endDate))}
           </Text>
