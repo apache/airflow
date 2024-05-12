@@ -1091,8 +1091,6 @@ class DatabricksNotebookOperator(BaseOperator):
             )
         if not run_state.is_successful:
             raise AirflowException(
-                "Task failed. Final state %s. Reason: %s",
-                run_state.result_state,
-                run_state.state_message,
+                f"Task failed. Final state {run_state.result_state}. Reason: {run_state.state_message}"
             )
         self.log.info("Task succeeded. Final state %s.", run_state.result_state)
