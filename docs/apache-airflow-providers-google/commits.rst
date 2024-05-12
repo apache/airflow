@@ -45,11 +45,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 10.18.0
 .......
 
-Latest change: 2024-05-11
+Latest change: 2024-05-12
 
 =================================================================================================  ===========  =============================================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================================================================================================
+`ffa523f442 <https://github.com/apache/airflow/commit/ffa523f442745123232cb35e5533629673532783>`_  2024-05-12   ``Fix validation of label values in BigQueryInsertJobOperator (#39568)``
 `86caf84934 <https://github.com/apache/airflow/commit/86caf84934e056185d688f5b37dd45f630d05b5c>`_  2024-05-11   ``Remove Airflow 2.6 back compact code (#39558)``
 `2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
 `2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``

@@ -56,18 +56,19 @@ Bug Fixes
 * ``Fix batching for BigQueryToPostgresOperator (#39233)``
 * ``Fix DataprocSubmitJobOperator in deferrable mode=True when task is marked as failed. (#39230)``
 * ``Fix GCSObjectExistenceSensor operator to return the same XCOM value in deferrable and non-deferrable mode (#39206)``
-* ``Bugfix conn_id BigQueryToMsSqlOperator (#39171)``
-* ``fix: add retry logic in case of google auth refresh credential error (#38961)``
-* ``fix: BigQueryCheckOperator skipped value and error check in deferrable mode (#38408)``
-* ``fix: Use prefixes instead of all file paths for OpenLineage datasets in GCSDeleteObjectsOperator (#39059)``
-* ``fix: Use prefixes instead of full file paths for OpenLineage datasets in GCSToGCSOperator (#39058)``
-* ``fix: OpenLineage datasets in GCSTimeSpanFileTransformOperator (#39064)``
+* ``Fix conn_id BigQueryToMsSqlOperator (#39171)``
+* ``Fix add retry logic in case of google auth refresh credential error (#38961)``
+* ``Fix BigQueryCheckOperator skipped value and error check in deferrable mode (#38408)``
+* ``Fix Use prefixes instead of all file paths for OpenLineage datasets in GCSDeleteObjectsOperator (#39059)``
+* ``Fix Use prefixes instead of full file paths for OpenLineage datasets in GCSToGCSOperator (#39058)``
+* ``Fix OpenLineage datasets in GCSTimeSpanFileTransformOperator (#39064)``
 * ``Fix generation temp filename in 'DataprocSubmitPySparkJobOperator' (#39498)``
 * ``Fix logic to cancel the external job if the TaskInstance is not in a running or deferred state for DataprocSubmitJobOperator (#39447)``
 * ``Fix logic to cancel the external job if the TaskInstance is not in a running or deferred state for BigQueryInsertJobOperator (#39442)``
 * ``Fix logic to cancel the external job if the TaskInstance is not in a running or deferred state for DataprocCreateClusterOperator (#39446)``
 * ``Fix 'DataprocCreateBatchOperator' with 'result_retry' raises 'AttributeError' (#39462)``
-* ``Bugfix yaml parsing for GKEStartKueueInsideClusterOperator (#39234)``
+* ``Fix yaml parsing for GKEStartKueueInsideClusterOperator (#39234)``
+* ``Fix validation of label values in BigQueryInsertJobOperator (#39568)``
 
 Misc
 ~~~~
