@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* document, localStorage, window */
+/* global document, localStorage, window */
 
 const STORAGE_THEME_KEY = 'darkTheme';
 const HTML_THEME_DATASET_KEY = 'data-color-scheme';
