@@ -29,8 +29,8 @@
 {% endblock %}
 
 {% block head_meta %}
+  <script src="/static/js/toggle_theme.js"></script>
   {{ super() }}
-  <script defer src="/static/js/toggle_theme.js"></script>
   {% if scheduler_job is defined and (scheduler_job and scheduler_job.is_alive()) %}
     <meta name="is_scheduler_running" content="True">
   {% endif %}
