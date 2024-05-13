@@ -71,9 +71,7 @@ def pii_entities_detection_job_workflow():
     )
     # [END howto_sensor_start_pii_entities_detection_job]
 
-    end_workflow = EmptyOperator(task_id="end_workflow", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
-
-    chain(start_pii_entities_detection_job, await_start_pii_entities_detection_job, end_workflow)
+    chain(start_pii_entities_detection_job, await_start_pii_entities_detection_job)
 
 
 with DAG(
