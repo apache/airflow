@@ -1177,13 +1177,13 @@ picklable
 pid
 pidbox
 pigcmd
+Pii
+pii
 pinecone
 pinodb
 Pinot
 pinot
 PipelineRun
-Pii
-pii
 pkill
 plaintext
 platformVersion

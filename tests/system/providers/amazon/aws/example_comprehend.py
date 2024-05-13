@@ -67,8 +67,7 @@ def pii_entities_detection_job_workflow():
 
     # [START howto_sensor_start_pii_entities_detection_job]
     await_start_pii_entities_detection_job = ComprehendStartPiiEntitiesDetectionJobCompletedSensor(
-        task_id="await_start_pii_entities_detection_job",
-        job_id=start_pii_entities_detection_job.output
+        task_id="await_start_pii_entities_detection_job", job_id=start_pii_entities_detection_job.output
     )
     # [END howto_sensor_start_pii_entities_detection_job]
 
