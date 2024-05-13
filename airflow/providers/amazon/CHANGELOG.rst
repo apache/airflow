@@ -26,6 +26,31 @@
 Changelog
 ---------
 
+8.22.0
+......
+
+Features
+~~~~~~~~
+
+* ``'S3DeleteObjectsOperator' Added ability to filter keys by last modified time (#39151)``
+* ``Amazon Bedrock - Add Knowledge Bases and Data Sources integration (#39245)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``EcsExcecutor Scheduler to handle incrementing of try_number (#39336)``
+* ``ECS Executor: Set tasks to RUNNING state once active (#39212)``
+
+Misc
+~~~~
+
+* ``Add 'jmespath' as an explicit dependency (#39350)``
+* ``Drop 'xmlsec' dependency (#39534)``
+* ``Reapply templates for all providers (#39554)``
+* ``Faster 'airflow_version' imports (#39552)``
+* ``enh(amazon_hook): raise not found exception instead of general exception when download file (#39509)``
+* ``Simplify 'airflow_version' imports (#39497)``
+
 8.21.0
 ......
 

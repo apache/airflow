@@ -68,7 +68,7 @@ if TYPE_CHECKING:
 
 BIGQUERY_JOB_DETAILS_LINK_FMT = "https://console.cloud.google.com/bigquery?j={job_id}"
 
-LABEL_REGEX = re.compile(r"^[a-z][\w-]{0,63}$")
+LABEL_REGEX = re.compile(r"^[\w-]{0,63}$")
 
 
 class BigQueryUIColors(enum.Enum):

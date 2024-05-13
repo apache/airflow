@@ -1921,6 +1921,62 @@ class TestBigQueryInsertJobOperator:
         assert configuration["labels"]["airflow-dag"] == "yelling_dag_name"
         assert configuration["labels"]["airflow-task"] == "yelling_task_id"
 
+    def test_labels_starting_with_numbers(self, dag_maker):
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            },
+        }
+        with dag_maker("123_dag"):
+            op = BigQueryInsertJobOperator(
+                task_id="123_task",
+                configuration=configuration,
+                location=TEST_DATASET_LOCATION,
+                project_id=TEST_GCP_PROJECT_ID,
+            )
+        op._add_job_labels()
+        assert configuration["labels"]["airflow-dag"] == "123_dag"
+        assert configuration["labels"]["airflow-task"] == "123_task"
+
+    def test_labels_starting_with_underscore(self, dag_maker):
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            },
+        }
+        with dag_maker("_dag_starting_with_underscore"):
+            op = BigQueryInsertJobOperator(
+                task_id="_task_starting_with_underscore",
+                configuration=configuration,
+                location=TEST_DATASET_LOCATION,
+                project_id=TEST_GCP_PROJECT_ID,
+            )
+        op._add_job_labels()
+        assert "labels" in configuration
+        assert configuration["labels"]["airflow-dag"] == "_dag_starting_with_underscore"
+        assert configuration["labels"]["airflow-task"] == "_task_starting_with_underscore"
+
+    def test_labels_starting_with_hyphen(self, dag_maker):
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            },
+        }
+        with dag_maker("-dag-starting-with-hyphen"):
+            op = BigQueryInsertJobOperator(
+                task_id="-task-starting-with-hyphen",
+                configuration=configuration,
+                location=TEST_DATASET_LOCATION,
+                project_id=TEST_GCP_PROJECT_ID,
+            )
+        op._add_job_labels()
+        assert "labels" in configuration
+        assert configuration["labels"]["airflow-dag"] == "-dag-starting-with-hyphen"
+        assert configuration["labels"]["airflow-task"] == "-task-starting-with-hyphen"
+
     def test_labels_invalid_names(self, dag_maker):
         configuration = {
             "query": {
@@ -1938,7 +1994,7 @@ class TestBigQueryInsertJobOperator:
         assert "labels" not in configuration
 
         op = BigQueryInsertJobOperator(
-            task_id="123_task",
+            task_id="task_id_with_exactly_64_characters_00000000000000000000000000000",
             configuration=configuration,
             location=TEST_DATASET_LOCATION,
             project_id=TEST_GCP_PROJECT_ID,

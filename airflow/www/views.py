@@ -36,7 +36,7 @@ from functools import cached_property
 from json import JSONDecodeError
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Collection, Iterator, Mapping, MutableMapping, Sequence
-from urllib.parse import unquote, urljoin, urlsplit
+from urllib.parse import unquote, urlencode, urljoin, urlsplit
 
 import configupdater
 import flask.json
@@ -2191,7 +2191,7 @@ class Airflow(AirflowBaseView):
                 )
 
         try:
-            dag.create_dagrun(
+            dag_run = dag.create_dagrun(
                 run_type=DagRunType.MANUAL,
                 execution_date=execution_date,
                 data_interval=dag.timetable.infer_manual_data_interval(run_after=execution_date),
@@ -2216,7 +2216,14 @@ class Airflow(AirflowBaseView):
                 form=form,
             )
 
-        flash(f"Triggered {dag_id}, it should start any moment now.")
+        flash(f"Triggered {dag_id} with new Run ID {dag_run.run_id}, it should start any moment now.")
+        if "/grid?" in origin:
+            path, query = origin.split("?", 1)
+            params = {param.split("=")[0]: param.split("=")[1] for param in query.split("&")}
+            params["dag_run_id"] = dag_run.run_id
+            origin = f"{path}?{urlencode(params)}"
+        elif origin.endswith("/grid"):
+            origin += f"?{urlencode({'dag_run_id': dag_run.run_id})}"
         return redirect(origin)
 
     def _clear_dag_tis(

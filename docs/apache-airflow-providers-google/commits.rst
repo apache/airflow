@@ -45,11 +45,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 10.18.0
 .......
 
-Latest change: 2024-04-30
+Latest change: 2024-05-12
 
-=================================================================================================  ===========  ======================================================================================================================
+=================================================================================================  ===========  =============================================================================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ======================================================================================================================
+=================================================================================================  ===========  =============================================================================================================================================
+`ffa523f442 <https://github.com/apache/airflow/commit/ffa523f442745123232cb35e5533629673532783>`_  2024-05-12   ``Fix validation of label values in BigQueryInsertJobOperator (#39568)``
+`86caf84934 <https://github.com/apache/airflow/commit/86caf84934e056185d688f5b37dd45f630d05b5c>`_  2024-05-11   ``Remove Airflow 2.6 back compact code (#39558)``
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`8dcee5b24d <https://github.com/apache/airflow/commit/8dcee5b24d5ecfc67bdb7800ecd750d37d66be10>`_  2024-05-10   ``Add deprecation warnings and raise exception for already deprecated ones (#38673)``
+`c7c680ee3b <https://github.com/apache/airflow/commit/c7c680ee3b5a6f61012c222f092cd8c19f7e1b3d>`_  2024-05-09   ``Add encryption_configuration parameter to BigQueryCheckOperator and BigQueryTableCheckOperator (#39432)``
+`5abe7acf66 <https://github.com/apache/airflow/commit/5abe7acf666f8021cbdcd358079c2b8b86c37651>`_  2024-05-09   ``Fix generation temp filename in 'DataprocSubmitPySparkJobOperator' (#39498)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+`62b845e2d7 <https://github.com/apache/airflow/commit/62b845e2d731e94b3bcbf43ea60ad78fd8bb94f1>`_  2024-05-08   ``Disconnect GKE operators from deprecated hooks (#39434)``
+`387acd0a36 <https://github.com/apache/airflow/commit/387acd0a362899347f9444a29688794c86778c3e>`_  2024-05-08   ``Fix logic to cancel the external job if the TaskInstance is not in a running or deferred state for DataprocSubmitJobOperator (#39447)``
+`e7aa4d2289 <https://github.com/apache/airflow/commit/e7aa4d2289cd4207f11b697729466717889fda38>`_  2024-05-08   ``Fix logic to cancel the external job if the TaskInstance is not in a running or deferred state for BigQueryInsertJobOperator (#39442)``
+`3d575fe78c <https://github.com/apache/airflow/commit/3d575fe78c5fef6796e36901865c45be2b89cbd1>`_  2024-05-08   ``Fix logic to cancel the external job if the TaskInstance is not in a running or deferred state for DataprocCreateClusterOperator (#39446)``
+`f00006d1c6 <https://github.com/apache/airflow/commit/f00006d1c6d0ad531a1f783a09ab6e700efac74b>`_  2024-05-08   ``Fix 'DataprocCreateBatchOperator' with 'result_retry' raises 'AttributeError' (#39462)``
+`287c107543 <https://github.com/apache/airflow/commit/287c1075439977fbc59ad955c94a5f6dfe1fbd1a>`_  2024-05-07   ``Bugfix yaml parsing for GKEStartKueueInsideClusterOperator (#39234)``
+`795592c8ba <https://github.com/apache/airflow/commit/795592c8baf9ae732563e6958c3a0ad3a168c3f6>`_  2024-05-03   ``Add 'job_id' param. to 'BigQueryGetDataOperator' (#39315)``
+`fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
 `e3e6aa9b3e <https://github.com/apache/airflow/commit/e3e6aa9b3e6a6c1fb2d5c8a3f1dc10f133980074>`_  2024-04-30   ``Add support for role arn for aws creds (#38911)``
 `28a240a18f <https://github.com/apache/airflow/commit/28a240a18f7e5958e69732f61d639e1d8f39152f>`_  2024-04-29   ``Fix deferrable mode for DataflowTemplatedJobStartOperator and DataflowStartFlexTemplateOperator (#39018)``
 `78fa36518a <https://github.com/apache/airflow/commit/78fa36518a17f65a2ad2aa98b684c9d1aacd5788>`_  2024-04-27   ``Fix batching for BigQueryToPostgresOperator (#39233)``
@@ -74,7 +90,7 @@ Commit                                                                          
 `c4a106e69b <https://github.com/apache/airflow/commit/c4a106e69bbc396d2527a3b8c94e2d95fced4284>`_  2024-04-12   ``Create GKESuspendJobOperator and GKEResumeJobOperator operators (#38677)``
 `5ff26586cd <https://github.com/apache/airflow/commit/5ff26586cd3931d223e76aeb73770f062ff9e409>`_  2024-04-11   ``Deferrable mode for Custom Training Job operators (#38584)``
 `1757704d8f <https://github.com/apache/airflow/commit/1757704d8f7c7a335cdf8f90ccb12b4d8e6f9d9a>`_  2024-04-11   ``Enhancement for SSL-support in CloudSQLExecuteQueryOperator (#38894)``
-=================================================================================================  ===========  ======================================================================================================================
+=================================================================================================  ===========  =============================================================================================================================================
 
 10.17.0
 .......

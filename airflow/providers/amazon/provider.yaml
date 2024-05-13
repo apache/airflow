@@ -22,9 +22,10 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
-source-date-epoch: 1715384391
+source-date-epoch: 1715450472
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 8.22.0
   - 8.21.0
   - 8.20.0
   - 8.19.0
