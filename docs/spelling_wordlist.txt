@@ -1182,6 +1182,8 @@ pinodb
 Pinot
 pinot
 PipelineRun
+Pii
+pii
 pkill
 plaintext
 platformVersion

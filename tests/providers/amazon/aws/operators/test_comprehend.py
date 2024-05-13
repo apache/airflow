@@ -128,7 +128,7 @@ class TestComprehendStartPiiEntitiesDetectionJobOperator:
     def test_start_pii_entities_detection_job_name_starts_with_service_name(
         self, comprehend_mock_conn, start_pii_entities_kwargs
     ):
-        comprehend_mock_conn.start_pii_entities_detection_job.return_value = {"JobId": self.JOB_ID}
+
         self.op = ComprehendStartPiiEntitiesDetectionJobOperator(
             task_id="start_pii_entities_detection_job",
             input_data_config=INPUT_DATA_CONFIG,
@@ -136,8 +136,9 @@ class TestComprehendStartPiiEntitiesDetectionJobOperator:
             data_access_role_arn=ROLE_ARN,
             mode=self.MODE,
             language_code=LANGUAGE_CODE,
-            start_pii_entities_kwargs=start_pii_entities_kwargs,
+            start_pii_entities_kwargs=start_pii_entities_kwargs
         )
+        self.op.wait_for_completion = False
         self.op.execute({})
         assert self.op.start_pii_entities_kwargs.get("JobName").startswith(self.DEFAULT_JOB_NAME_STARTS_WITH)
 
