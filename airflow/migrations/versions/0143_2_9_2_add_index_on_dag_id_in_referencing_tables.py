@@ -38,19 +38,32 @@ airflow_version = "2.9.2"
 
 def upgrade():
     """Apply Add index on dag_id in referencing tables."""
-    op.create_index("idx_dag_tag_dag_id", "dag_tag", ["dag_id"])
-    op.create_index("idx_dag_owner_attributes_dag_id", "dag_owner_attributes", ["dag_id"])
-    op.create_index("idx_dag_warning_dag_id", "dag_warning", ["dag_id"])
-    op.create_index("idx_dag_schedule_dataset_reference_dag_id", "dag_schedule_dataset_reference", ["dag_id"])
-    op.create_index("idx_task_outlet_dataset_reference_dag_id", "task_outlet_dataset_reference", ["dag_id"])
-    op.create_index("idx_dataset_dag_run_queue_target_dag_id", "dataset_dag_run_queue", ["target_dag_id"])
+    conn = op.get_bind()
+    # MySQL already indexes the foreign keys, hence only create indexes for postgres and sqlite.
+    if conn.dialect.name in ("postgresql", "sqlite"):
+        op.create_index("idx_dag_tag_dag_id", "dag_tag", ["dag_id"])
+        op.create_index("idx_dag_owner_attributes_dag_id", "dag_owner_attributes", ["dag_id"])
+        op.create_index("idx_dag_warning_dag_id", "dag_warning", ["dag_id"])
+        op.create_index(
+            "idx_dag_schedule_dataset_reference_dag_id", "dag_schedule_dataset_reference", ["dag_id"]
+        )
+        op.create_index(
+            "idx_task_outlet_dataset_reference_dag_id", "task_outlet_dataset_reference", ["dag_id"]
+        )
+        op.create_index("idx_dataset_dag_run_queue_target_dag_id", "dataset_dag_run_queue", ["target_dag_id"])
 
 
 def downgrade():
     """Unapply Add index on dag_id in referencing tables."""
-    op.drop_index("idx_dag_tag_dag_id", table_name="dag_tag")
-    op.drop_index("idx_dag_owner_attributes_dag_id", table_name="dag_owner_attributes")
-    op.drop_index("idx_dag_warning_dag_id", table_name="dag_warning")
-    op.drop_index("idx_dag_schedule_dataset_reference_dag_id", table_name="dag_schedule_dataset_reference")
-    op.drop_index("idx_task_outlet_dataset_reference_dag_id", table_name="task_outlet_dataset_reference")
-    op.drop_index("idx_dataset_dag_run_queue_target_dag_id", table_name="dataset_dag_run_queue")
+    conn = op.get_bind()
+    # MySQL already indexes the foreign keys, hence only drop indexes for postgres and sqlite that were
+    # created in upgrade.
+    if conn.dialect.name in ("postgresql", "sqlite"):
+        op.drop_index("idx_dag_tag_dag_id", table_name="dag_tag")
+        op.drop_index("idx_dag_owner_attributes_dag_id", table_name="dag_owner_attributes")
+        op.drop_index("idx_dag_warning_dag_id", table_name="dag_warning")
+        op.drop_index(
+            "idx_dag_schedule_dataset_reference_dag_id", table_name="dag_schedule_dataset_reference"
+        )
+        op.drop_index("idx_task_outlet_dataset_reference_dag_id", table_name="task_outlet_dataset_reference")
+        op.drop_index("idx_dataset_dag_run_queue_target_dag_id", table_name="dataset_dag_run_queue")
