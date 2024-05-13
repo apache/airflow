@@ -819,7 +819,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # Set to True for an operator instantiated by a mapped operator.
     __from_mapped = False
 
-    start_trigger: BaseTrigger | None = None
+    start_trigger_cls: str | None = None
+    start_trigger_kwargs: dict[str, Any] | None = None
     next_method: str | None = None
 
     def __init__(
@@ -1679,7 +1680,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "is_teardown",
                     "on_failure_fail_dagrun",
                     "map_index_template",
-                    "start_trigger",
+                    "start_trigger_cls",
+                    "start_trigger_kwargs",
                     "next_method",
                     "_needs_expansion",
                 }

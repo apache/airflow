@@ -509,7 +509,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             # task's expand() contribute to the op_kwargs operator argument, not
             # the operator arguments themselves, and should expand against it.
             expand_input_attr="op_kwargs_expand_input",
-            start_trigger=self.operator_class.start_trigger,
+            start_trigger_cls=self.operator_class.start_trigger_cls,
             next_method=self.operator_class.next_method,
         )
         return XComArg(operator=operator)

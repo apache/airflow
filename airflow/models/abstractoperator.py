@@ -122,7 +122,8 @@ class AbstractOperator(Templater, DAGNode):
             "node_id",  # Duplicates task_id
             "task_group",  # Doesn't have a useful repr, no point showing in UI
             "inherits_from_empty_operator",  # impl detail
-            "start_trigger",
+            "start_trigger_cls",
+            "start_trigger_kwargs",
             "next_method",
             # For compatibility with TG, for operators these are just the current task, no point showing
             "roots",

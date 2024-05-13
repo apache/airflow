@@ -72,7 +72,6 @@ from airflow.serialization.serialized_objects import (
 from airflow.task.priority_strategy import _DownstreamPriorityWeightStrategy
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.timetables.simple import NullTimetable, OnceTimetable
-from airflow.triggers.testing import SuccessTrigger
 from airflow.utils import timezone
 from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import TaskGroup
@@ -228,7 +227,8 @@ serialized_simple_dag_ground_truth = {
                     "_needs_expansion": False,
                     "weight_rule": "downstream",
                     "next_method": None,
-                    "start_trigger": None,
+                    "start_trigger_cls": None,
+                    "start_trigger_kwargs": None,
                 },
             },
         ],
@@ -2167,25 +2167,29 @@ class TestStringifiedDAGs:
             SerializedDAG.to_dict(dag)
 
     @pytest.mark.db_test
-    def test_start_trigger_and_next_method_in_serialized_dag(self):
+    def test_start_trigger_cls_kwargs_and_next_method_in_serialized_dag(self):
         """
-        Test that when we provide start_trigger and next_method, the DAG can be correctly serialized.
+        Test that when we provide start_trigger_cls, start_trigger_kwargs and next_method,
+        the DAG can be correctly serialized.
         """
-        trigger = SuccessTrigger()
 
         class TestOperator(BaseOperator):
+            start_trigger_cls = "airflow.triggers.testing.SuccessTrigger"
+            next_method = "execute_complete"
+
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
-                self.start_trigger = trigger
-                self.next_method = "execute_complete"
+                self.start_trigger_kwargs = {}
 
             def execute_complete(self):
                 pass
 
         class Test2Operator(BaseOperator):
+            start_trigger_cls = "airflow.triggers.testing.SuccessTrigger"
+            start_trigger_kwargs = {}
+            next_method = "execute_complete"
+
             def __init__(self, *args, **kwargs):
-                self.start_trigger = trigger
-                self.next_method = "execute_complete"
                 super().__init__(*args, **kwargs)
 
             def execute_complete(self):
@@ -2200,29 +2204,9 @@ class TestStringifiedDAGs:
         serialized_obj = SerializedDAG.to_dict(dag)
 
         for task in serialized_obj["dag"]["tasks"]:
-            assert task["__var"]["start_trigger"] == trigger.serialize()
+            assert task["__var"]["start_trigger_cls"] == "airflow.triggers.testing.SuccessTrigger"
+            assert task["__var"]["start_trigger_kwargs"] == {}
             assert task["__var"]["next_method"] == "execute_complete"
-
-    @pytest.mark.db_test
-    def test_start_trigger_in_serialized_dag_but_no_next_method(self):
-        """
-        Test that when we provide start_trigger without next_method, an AriflowException should be raised.
-        """
-
-        trigger = SuccessTrigger()
-
-        class TestOperator(BaseOperator):
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-                self.start_trigger = trigger
-
-        dag = DAG(dag_id="test_dag", start_date=datetime(2023, 11, 9))
-
-        with dag:
-            TestOperator(task_id="test_task")
-
-        with pytest.raises(AirflowException, match="start_trigger and next_method should both be set."):
-            SerializedDAG.to_dict(dag)
 
 
 def test_kubernetes_optional():
@@ -2274,7 +2258,8 @@ def test_operator_expand_serde():
         "_needs_expansion": True,
         "_task_module": "airflow.operators.bash",
         "_task_type": "BashOperator",
-        "start_trigger": None,
+        "start_trigger_cls": None,
+        "start_trigger_kwargs": None,
         "next_method": None,
         "downstream_task_ids": [],
         "expand_input": {
@@ -2308,7 +2293,8 @@ def test_operator_expand_serde():
     assert op.operator_class == {
         "_task_type": "BashOperator",
         "_needs_expansion": True,
-        "start_trigger": None,
+        "start_trigger_cls": None,
+        "start_trigger_kwargs": None,
         "next_method": None,
         "downstream_task_ids": [],
         "task_id": "a",
@@ -2356,7 +2342,8 @@ def test_operator_expand_xcomarg_serde():
         "_disallow_kwargs_override": False,
         "_expand_input_attr": "expand_input",
         "next_method": None,
-        "start_trigger": None,
+        "start_trigger_cls": None,
+        "start_trigger_kwargs": None,
     }
 
     op = BaseSerialization.deserialize(serialized)
@@ -2414,7 +2401,8 @@ def test_operator_expand_kwargs_literal_serde(strict):
         "_disallow_kwargs_override": strict,
         "_expand_input_attr": "expand_input",
         "next_method": None,
-        "start_trigger": None,
+        "start_trigger_cls": None,
+        "start_trigger_kwargs": None,
     }
 
     op = BaseSerialization.deserialize(serialized)
@@ -2463,7 +2451,8 @@ def test_operator_expand_kwargs_xcomarg_serde(strict):
         "_disallow_kwargs_override": strict,
         "_expand_input_attr": "expand_input",
         "next_method": None,
-        "start_trigger": None,
+        "start_trigger_cls": None,
+        "start_trigger_kwargs": None,
     }
 
     op = BaseSerialization.deserialize(serialized)
@@ -2582,7 +2571,8 @@ def test_taskflow_expand_serde():
         "_disallow_kwargs_override": False,
         "_expand_input_attr": "op_kwargs_expand_input",
         "next_method": None,
-        "start_trigger": None,
+        "start_trigger_cls": None,
+        "start_trigger_kwargs": None,
     }
 
     deserialized = BaseSerialization.deserialize(serialized)
@@ -2649,7 +2639,8 @@ def test_taskflow_expand_kwargs_serde(strict):
         "_task_type": "_PythonDecoratedOperator",
         "_operator_name": "@task",
         "next_method": None,
-        "start_trigger": None,
+        "start_trigger_cls": None,
+        "start_trigger_kwargs": None,
         "downstream_task_ids": [],
         "partial_kwargs": {
             "is_setup": False,
@@ -2802,7 +2793,8 @@ def test_mapped_task_with_operator_extra_links_property():
         "_is_mapped": True,
         "_needs_expansion": True,
         "next_method": None,
-        "start_trigger": None,
+        "start_trigger_cls": None,
+        "start_trigger_kwargs": None,
     }
     deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag[Encoding.VAR])
     assert deserialized_dag.task_dict["task"].operator_extra_links == [AirflowLink2()]

@@ -3007,6 +3007,47 @@ class TaskInstance(Base, LoggingMixin):
         """
         _defer_task(ti=self, exception=exception, session=session)
 
+    @provide_session
+    def defer_task_from_start(
+        self, session: Session, trigger_cls: str, trigger_kwargs: dict[str, Any], next_method: str
+    ) -> None:
+        """Mark the task as deferred and sets up the trigger that is needed to resume it.
+
+        :meta: private
+        """
+        from airflow.models.trigger import Trigger
+
+        if TYPE_CHECKING:
+            assert self.task
+
+        # First, make the trigger entry
+        trigger_row = Trigger(classpath=trigger_cls, kwargs=trigger_kwargs)
+        session.add(trigger_row)
+        session.flush()
+
+        # Then, update ourselves so it matches the deferral request
+        # Keep an eye on the logic in `check_and_change_state_before_execution()`
+        # depending on self.next_method semantics
+        self.state = TaskInstanceState.DEFERRED
+        self.trigger_id = trigger_row.id
+        self.next_method = next_method
+        self.next_kwargs = trigger_kwargs or {}
+
+        # Calculate timeout too if it was passed
+        # if defer.timeout is not None:
+        #     self.trigger_timeout = timezone.utcnow() + defer.timeout
+        # else:
+        self.trigger_timeout = None
+
+        # If an execution_timeout is set, set the timeout to the minimum of
+        # it and the trigger timeout
+        execution_timeout = self.task.execution_timeout
+        if execution_timeout:
+            if self.trigger_timeout:
+                self.trigger_timeout = min(self.start_date + execution_timeout, self.trigger_timeout)
+            else:
+                self.trigger_timeout = self.start_date + execution_timeout
+
     def _run_execute_callback(self, context: Context, task: BaseOperator) -> None:
         """Functions that need to be run before a Task is executed."""
         if not (callbacks := task.on_execute_callback):
