@@ -26,6 +26,19 @@
 Changelog
 ---------
 
+1.5.1
+.....
+
+.. note::
+  Classes in this provider have been deprecated in favor of Apache Iceberg provider.
+
+Misc
+~~~~
+
+* ``Deprecate Tabular provider classes in favor of Apache Iceberg provider (#39155)``
+* ``Reapply templates for all providers (#39554)``
+* ``Simplify 'airflow_version' imports (#39497)``
+
 1.5.0
 .....
 

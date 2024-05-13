@@ -60,6 +60,10 @@ Misc
 ~~~~
 
 * ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+* ``CreatePodIndexOperator fix defaults of pod_type and metric parameters (#39365)``
+* ``Reapply templates for all providers (#39554)``
 
 .. Review and move the new changes to one of the sections above:
    * ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
@@ -67,6 +71,7 @@ Misc
    * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
    * ``Add comment about versions updated by release manager (#37488)``
    * ``D401 fixes in Pinecone provider (#37270)``
+   * ``Prepare docs 1st wave May 2024 (#39328)``
 
 1.1.2
 .....

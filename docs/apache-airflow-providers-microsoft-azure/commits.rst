@@ -38,11 +38,16 @@ For high-level changelog, see :doc:`package information including changelog <ind
 10.1.0
 ......
 
-Latest change: 2024-04-25
+Latest change: 2024-05-11
 
 =================================================================================================  ===========  =======================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================================================
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+`a61f393ec4 <https://github.com/apache/airflow/commit/a61f393ec4361499fcef9f2854668db85b852ec0>`_  2024-05-05   ``Implemented MSGraphSensor as a deferrable sensor (#39304)``
+`fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
 `df1f75b676 <https://github.com/apache/airflow/commit/df1f75b676a4e294d5d89ba590416f26c937efc1>`_  2024-04-25   ``add dns_config and diagnostics parameters to AzureContainerInstancesOperator (#39156)``
 `ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
 `15c2734c4c <https://github.com/apache/airflow/commit/15c2734c4cac2e2acbdeaf28dfe67d04e28cee90>`_  2024-04-25   ``Implement run-method on KiotaRequestAdapterHook and move logic away from triggerer to hook (#39237)``
