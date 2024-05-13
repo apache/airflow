@@ -46,10 +46,6 @@ const DependenciesAccordion = ({
   taskId,
   mapIndex,
 }: Props) => {
-  const canEdit = getMetaValue("can_edit") === "True";
-  const [accordionIndexes, setAccordionIndexes] = useState<Array<number>>(
-    canEdit ? [0] : []
-  );
 
   const toggleDependenciesPanel = () => {
     if (accordionIndexes.includes(0)) {
@@ -59,17 +55,27 @@ const DependenciesAccordion = ({
     }
   };
 
-  const { data: dependencies } = useTaskInstanceDependencies({ dagId, dagRunId, taskId, mapIndex });
+  // var { data: dependencies, isError, error } = useTaskInstanceDependencies({ dagId, dagRunId, taskId, mapIndex });
+  var dependencies = ["hi"]
 
-  // Determine if the accordion should be collapsed by default
-  const defaultIndices = dependencies?.data?.length > 0 && canEdit ? [0] : [];
+  // if (isError) {
+  //   dependencies = ["Error retrieving task instance dependencies"]
+  // }
 
+  // If there are no dependencies, the accordion should be collapsed by default.
+  const defaultIndices = dependencies.length > 0 ? [0] : [];
+
+  // Determine initial accordion indexes based on dependencies
+  const initialAccordionIndexes = dependencies.length > 0 ? [0] : [];
+
+  // State for accordion indexes
+  const [accordionIndexes, setAccordionIndexes] = useState<Array<number>>(initialAccordionIndexes);
 
   return (
     <>
       <Accordion
         defaultIndex={defaultIndices}
-        // index={accordionIndexes}
+        index={accordionIndexes}
         allowToggle
       >
         <AccordionItem border="0">
@@ -81,21 +87,19 @@ const DependenciesAccordion = ({
             </Box>
             <AccordionIcon />
           </AccordionButton>
-          {dependencies?.map((dependency: string, index: number) => (
-            <AccordionItem key={index} border="0">
-              <AccordionPanel pl={3} pb={2}>
-                <Box flex="1" textAlign="left">
-                  <Text as="strong" size="lg">
-                    {dependency}
-                  </Text>
-                </Box>
-              </AccordionPanel>
-            </AccordionItem>
+          {dependencies.map((dependency: string, index: number) => (
+            <AccordionPanel key={index} pl={3} pb={2}>
+              <Box flex="1" textAlign="left">
+                <Text size="md">
+                  {dependency}
+                </Text>
+              </Box>
+            </AccordionPanel>
           ))}
           {/* If no dependencies are available, display a message */}
-          {(!dependencies || dependencies.data.length === 0) && (
+          {(!dependencies || dependencies.length === 0) && (
             <AccordionPanel pl={3}>
-              <Text>Placeholder.</Text>
+              <Text>No dependencies are preventing this task from running or it has already run.</Text>
             </AccordionPanel>
           )}
         </AccordionItem>
