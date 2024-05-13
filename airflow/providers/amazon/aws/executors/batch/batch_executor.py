@@ -316,13 +316,11 @@ class AwsBatchExecutor(BaseExecutor):
                     exec_config=exec_config,
                     attempt_number=attempt_number,
                 )
-                try:
-                    self.running_state(key, job_id)
-                except AttributeError:
+                with contextlib.suppress(AttributeError):
                     # TODO: Remove this when min_airflow_version is 2.10.0 or higher in Amazon provider.
                     # running_state is added in Airflow 2.10 and only needed to support task adoption
                     # (an optional executor feature).
-                    pass
+                    self.running_state(key, job_id)
         if failure_reasons:
             self.log.error(
                 "Pending Batch jobs failed to launch for the following reasons: %s. Retrying later.",
