@@ -103,7 +103,6 @@ class MsSqlHook(DbApiHook):
             database=self.schema or conn.schema,
             port=conn.port,
         )
-        return conn
 
     def set_autocommit(
         self,
