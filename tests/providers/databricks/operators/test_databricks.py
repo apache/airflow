@@ -1878,8 +1878,12 @@ class TestDatabricksNotebookOperator:
         )
         operator.databricks_run_id = 12345
 
-        with pytest.raises(TaskDeferred):
+        with pytest.raises(TaskDeferred) as exec_info:
             operator.monitor_databricks_job()
+        assert isinstance(
+            exec_info.value.trigger, DatabricksExecutionTrigger
+        ), "Trigger is not a DatabricksExecutionTrigger"
+        assert exec_info.value.method_name == "execute_complete"
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_execute_with_deferrable_early_termination(self, mock_databricks_hook):
