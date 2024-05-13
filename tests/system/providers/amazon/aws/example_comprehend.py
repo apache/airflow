@@ -95,8 +95,7 @@ with DAG(
         "RedactionConfig": {
             "PiiEntityTypes": ["NAME", "ADDRESS"],
             "MaskMode": "REPLACE_WITH_PII_ENTITY_TYPE",
-        },
-        "JobName": f"PiiEntitiesDetectionJob-{env_id}",
+        }
     }
 
     create_bucket = S3CreateBucketOperator(
