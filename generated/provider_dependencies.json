@@ -251,7 +251,7 @@
   "apprise": {
     "deps": [
       "apache-airflow>=2.6.0",
-      "apprise"
+      "apprise>=1.8.0"
     ],
     "devel-deps": [],
     "cross-providers-deps": [],
