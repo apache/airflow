@@ -620,8 +620,8 @@ class TestAwsBatchExecutor:
         """Test that executor can adopt orphaned task instances from a SchedulerJob shutdown event."""
         mock_executor.batch.describe_jobs.return_value = {
             "jobs": [
-                {"jobId": "001"},
-                {"jobId": "002"},
+                {"jobId": "001", "status": "SUCCEEDED"},
+                {"jobId": "002", "status": "SUCCEEDED"},
             ],
         }
 
