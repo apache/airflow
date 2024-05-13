@@ -26,10 +26,23 @@
 
 Package apache-airflow-providers-apache-iceberg
 ------------------------------------------------------
+
 `Iceberg <https://iceberg.apache.org/>`__
 
-`Tabular <https://tabular.io/>`__
 
-
-This is detailed commit list of changes for versions provider package: ``iceberg``.
+This is detailed commit list of changes for versions provider package: ``apache.iceberg``.
 For high-level changelog, see :doc:`package information including changelog <index>`.
+
+
+
+1.0.0
+.....
+
+Latest change: 2024-05-11
+
+=================================================================================================  ===========  ================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`da79f6b206 <https://github.com/apache/airflow/commit/da79f6b206a3b8a411e951ede60986e40433ebb8>`_  2024-05-10   ``Add Iceberg provider (#39155)``
+=================================================================================================  ===========  ================================================

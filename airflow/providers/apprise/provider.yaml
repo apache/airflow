@@ -44,7 +44,7 @@ integrations:
 
 dependencies:
   - apache-airflow>=2.7.0
-  - apprise
+  - apprise>=1.8.0
 
 hooks:
   - integration-name: Apprise
