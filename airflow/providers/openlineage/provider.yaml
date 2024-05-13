@@ -131,7 +131,7 @@ config:
           Disable the inclusion of source code in OpenLineage events by setting this to `true`.
           By default, several Operators (e.g. Python, Bash) will include their source code in the events
           unless disabled.
-        default: ~
+        default: "False"
         example: ~
         type: boolean
         version_added: ~
