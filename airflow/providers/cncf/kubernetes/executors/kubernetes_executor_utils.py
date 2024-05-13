@@ -21,7 +21,7 @@ import json
 import multiprocessing
 import time
 from queue import Empty, Queue
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any
 
 from kubernetes import client, watch
 from kubernetes.client.rest import ApiException
@@ -36,6 +36,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
 )
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.singleton import Singleton
 from airflow.utils.state import TaskInstanceState
 
 try:
@@ -59,22 +60,6 @@ if TYPE_CHECKING:
         KubernetesResultsType,
         KubernetesWatchType,
     )
-
-# Singleton here is duplicated version of airflow.utils.singleton.Singleton until
-# min-airflow version is 2.7.0 for the provider. then it can be imported from airflow.utils.singleton.
-
-T = TypeVar("T")
-
-
-class Singleton(type, Generic[T]):
-    """Metaclass that allows to implement singleton pattern."""
-
-    _instances: dict[Singleton[T], T] = {}
-
-    def __call__(cls: Singleton[T], *args, **kwargs) -> T:
-        if cls not in cls._instances:
-            cls._instances[cls] = super().__call__(*args, **kwargs)
-        return cls._instances[cls]
 
 
 class ResourceVersion(metaclass=Singleton):
