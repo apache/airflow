@@ -40,7 +40,7 @@ class TestBaseComprehendTrigger:
             assert isinstance(self.JOB_ID, str)
 
 
-class TestBedrockProvisionModelThroughputCompletedTrigger(TestBaseComprehendTrigger):
+class TestComprehendPiiEntitiesDetectionJobCompletedTrigger(TestBaseComprehendTrigger):
     EXPECTED_WAITER_NAME = "pii_entities_detection_job_complete"
     JOB_ID = "job_id"
 
