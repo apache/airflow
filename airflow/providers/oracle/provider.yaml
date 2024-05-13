@@ -22,7 +22,7 @@ description: |
     `Oracle <https://www.oracle.com/en/database/>`__
 
 state: ready
-source-date-epoch: 1714477108
+source-date-epoch: 1715384464
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 3.10.0

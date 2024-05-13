@@ -218,6 +218,15 @@ option_warn_image_upgrade_needed = click.option(
     envvar="WARN_IMAGE_UPGRADE_NEEDED",
 )
 
+option_install_airflow_with_constraints_default_true = click.option(
+    "--install-airflow-with-constraints/--no-install-airflow-with-constraints",
+    is_flag=True,
+    default=True,
+    show_default=True,
+    envvar="INSTALL_AIRFLOW_WITH_CONSTRAINTS",
+    help="Install airflow in a separate step, with constraints determined from package or airflow version.",
+)
+
 
 @main.command()
 @click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
@@ -259,6 +268,7 @@ option_warn_image_upgrade_needed = click.option(
 @option_github_repository
 @option_image_tag_for_running
 @option_include_mypy_volume
+@option_install_airflow_with_constraints_default_true
 @option_install_selected_providers
 @option_installation_package_format
 @option_integration
@@ -310,6 +320,7 @@ def shell(
     image_tag: str | None,
     include_mypy_volume: bool,
     install_selected_providers: str,
+    install_airflow_with_constraints: bool,
     integration: tuple[str, ...],
     max_time: int | None,
     mount_sources: str,
@@ -372,8 +383,8 @@ def shell(
         github_repository=github_repository,
         image_tag=image_tag,
         include_mypy_volume=include_mypy_volume,
+        install_airflow_with_constraints=install_airflow_with_constraints,
         install_selected_providers=install_selected_providers,
-        install_airflow_with_constraints=True,
         integration=integration,
         mount_sources=mount_sources,
         mysql_version=mysql_version,

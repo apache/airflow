@@ -22,7 +22,7 @@ description: |
     Hashicorp including `Hashicorp Vault <https://www.vaultproject.io/>`__
 
 state: ready
-source-date-epoch: 1714476565
+source-date-epoch: 1715384441
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 3.7.0

@@ -132,8 +132,8 @@ dynamic = ["version", "optional-dependencies", "dependencies"]
 # START PROVIDER EXTRAS HERE
 #
 # airbyte, alibaba, amazon, apache.beam, apache.cassandra, apache.drill, apache.druid, apache.flink,
-# apache.hdfs, apache.hive, apache.impala, apache.kafka, apache.kylin, apache.livy, apache.pig,
-# apache.pinot, apache.spark, apprise, arangodb, asana, atlassian.jira, celery, cloudant,
+# apache.hdfs, apache.hive, apache.iceberg, apache.impala, apache.kafka, apache.kylin, apache.livy,
+# apache.pig, apache.pinot, apache.spark, apprise, arangodb, asana, atlassian.jira, celery, cloudant,
 # cncf.kubernetes, cohere, common.io, common.sql, databricks, datadog, dbt.cloud, dingding, discord,
 # docker, elasticsearch, exasol, fab, facebook, ftp, github, google, grpc, hashicorp, http, imap,
 # influxdb, jdbc, jenkins, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo,
@@ -393,6 +393,8 @@ combine-as-imports = true
 "tests/providers/google/cloud/hooks/vertex_ai/test_generative_model.py" = ["E402"]
 "tests/providers/google/cloud/hooks/vertex_ai/test_model_service.py" = ["E402"]
 "tests/providers/google/cloud/hooks/vertex_ai/test_pipeline_job.py" = ["E402"]
+"tests/providers/google/cloud/hooks/vertex_ai/test_prediction_service.py" = ["E402"]
+"tests/providers/google/cloud/operators/test_automl.py"= ["E402"]
 "tests/providers/google/cloud/operators/test_vertex_ai.py" = ["E402"]
 "tests/providers/google/cloud/operators/vertex_ai/test_generative_model.py" = ["E402"]
 "tests/providers/google/cloud/triggers/test_vertex_ai.py" = ["E402"]
@@ -526,6 +528,14 @@ filterwarnings = [
     'ignore:jsonschema\.RefResolver:DeprecationWarning:connexion.json_schema',
     'ignore:jsonschema\.exceptions\.RefResolutionError:DeprecationWarning:connexion.json_schema',
     'ignore:Accessing jsonschema\.draft4_format_checker:DeprecationWarning:connexion.decorators.validation',
+]
+# We cannot add warnings from the airflow package into `filterwarnings`,
+# because it invokes import airflow before we set up test environment which breaks the tests.
+# Instead of that, we use a separate parameter and dynamically add it into `filterwarnings` marker.
+forbidden_warnings = [
+    "airflow.exceptions.RemovedInAirflow3Warning",
+    "airflow.utils.context.AirflowContextDeprecationWarning",
+    "airflow.exceptions.AirflowProviderDeprecationWarning",
 ]
 python_files = [
     "test_*.py",

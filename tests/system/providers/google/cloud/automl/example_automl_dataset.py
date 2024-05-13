@@ -23,7 +23,6 @@ Example Airflow DAG for Google AutoML service testing dataset operations.
 from __future__ import annotations
 
 import os
-from copy import deepcopy
 from datetime import datetime
 
 from airflow.models.dag import DAG
@@ -35,7 +34,6 @@ from airflow.providers.google.cloud.operators.automl import (
     AutoMLListDatasetOperator,
     AutoMLTablesListColumnSpecsOperator,
     AutoMLTablesListTableSpecsOperator,
-    AutoMLTablesUpdateDatasetOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
@@ -139,20 +137,6 @@ with DAG(
     )
     # [END howto_operator_automl_column_specs]
 
-    # [START howto_operator_automl_update_dataset]
-    update = deepcopy(DATASET)
-    update["name"] = '{{ task_instance.xcom_pull("create_dataset")["name"] }}'
-    update["tables_dataset_metadata"][  # type: ignore
-        "target_column_spec_id"
-    ] = "{{ get_target_column_spec(task_instance.xcom_pull('list_columns_spec_task'), target) }}"
-
-    update_dataset = AutoMLTablesUpdateDatasetOperator(
-        task_id="update_dataset",
-        dataset=update,
-        location=GCP_AUTOML_LOCATION,
-    )
-    # [END howto_operator_automl_update_dataset]
-
     # [START howto_operator_list_dataset]
     list_datasets = AutoMLListDatasetOperator(
         task_id="list_datasets",
@@ -181,7 +165,6 @@ with DAG(
         >> import_dataset
         >> list_tables_spec
         >> list_columns_spec
-        >> update_dataset
         >> list_datasets
         # TEST TEARDOWN
         >> delete_dataset

@@ -24,7 +24,7 @@ description: |
     `Apprise <https://github.com/caronc/apprise>`__
 
 state: ready
-source-date-epoch: 1714475874
+source-date-epoch: 1715384410
 
 # note that those versions are maintained by release manager - do not update them manually
 versions:
@@ -44,7 +44,7 @@ integrations:
 
 dependencies:
   - apache-airflow>=2.7.0
-  - apprise
+  - apprise>=1.8.0
 
 hooks:
   - integration-name: Apprise

@@ -104,7 +104,7 @@ Apache Airflow is tested with:
 | Platform    | AMD64/ARM64(\*)            | AMD64/ARM64(\*)             |
 | Kubernetes  | 1.26, 1.27, 1.28, 1.29     | 1.26, 1.27, 1.28, 1.29      |
 | PostgreSQL  | 12, 13, 14, 15, 16         | 12, 13, 14, 15, 16          |
-| MySQL       | 8.0, Innovation            | 8.0, Innovation             |
+| MySQL       | 8.0, 8.4, Innovation       | 8.0, Innovation             |
 | SQLite      | 3.15.0+                    | 3.15.0+                     |
 
 \* Experimental
@@ -532,3 +532,6 @@ The CI infrastructure for Apache Airflow has been sponsored by:
 
 <a href="https://astronomer.io"><img src="https://assets2.astronomer.io/logos/logoForLIGHTbackground.png" alt="astronomer.io" width="250px"></a>
 <a href="https://aws.amazon.com/opensource/"><img src="docs/integration-logos/aws/AWS-Cloud-alt_light-bg@4x.png" alt="AWS OpenSource" width="130px"></a>
+
+<!-- telemetry/analytics pixel: -->
+<img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=1b5a5e3c-da81-42f5-befa-42d836bf1b54" alt="Tracking Pixel" />
