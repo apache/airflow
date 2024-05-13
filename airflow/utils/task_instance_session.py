@@ -35,6 +35,8 @@ log = logging.getLogger(__name__)
 def get_current_task_instance_session() -> Session:
     global __current_task_instance_session
     if not __current_task_instance_session:
+        if InternalApiConfig.get_use_internal_api():
+            return __current_task_instance_session
         log.warning("No task session set for this task. Continuing but this likely causes a resource leak.")
         log.warning("Please report this and stacktrace below to https://github.com/apache/airflow/issues")
         for filename, line_number, name, line in traceback.extract_stack():
