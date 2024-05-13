@@ -1217,6 +1217,7 @@ def _log_state(*, task_instance: TaskInstance | TaskInstancePydantic, lead_msg: 
         _date_or_empty(task_instance=task_instance, attr="execution_date"),
         _date_or_empty(task_instance=task_instance, attr="start_date"),
         _date_or_empty(task_instance=task_instance, attr="end_date"),
+        stacklevel=2,
     )
 
 
