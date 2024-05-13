@@ -23,6 +23,7 @@ import traceback
 from typing import TYPE_CHECKING
 
 from airflow import settings
+from airflow.api_internal.internal_api_call import InternalApiConfig
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
