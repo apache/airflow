@@ -205,9 +205,7 @@ class TestWebserverDeployment:
             values={
                 "executor": "CeleryExecutor",
                 "webserver": {
-                    "extraContainers": [
-                        {"name": "{{ .Release.Name }}-test-container"}
-                    ],
+                    "extraContainers": [{"name": "{{ .Release.Name }}-test-container"}],
                 },
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
@@ -216,7 +214,6 @@ class TestWebserverDeployment:
         assert {
             "name": "release-name-test-container",
         } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
-
 
     def test_should_add_extraEnvs(self):
         docs = render_chart(
@@ -337,9 +334,7 @@ class TestWebserverDeployment:
         docs = render_chart(
             values={
                 "webserver": {
-                    "extraInitContainers": [
-                        {"name": "{{ .Release.Name }}-init-container"}
-                    ],
+                    "extraInitContainers": [{"name": "{{ .Release.Name }}-init-container"}],
                 },
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
@@ -348,7 +343,6 @@ class TestWebserverDeployment:
         assert {
             "name": "release-name-init-container",
         } == jmespath.search("spec.template.spec.initContainers[-1]", docs[0])
-
 
     def test_should_add_component_specific_labels(self):
         docs = render_chart(

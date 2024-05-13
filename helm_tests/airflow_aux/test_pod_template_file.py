@@ -706,9 +706,7 @@ class TestPodTemplateFile:
         docs = render_chart(
             values={
                 "workers": {
-                    "extraInitContainers": [
-                        {"name": "{{ .Release.Name }}-test-init-container"}
-                    ],
+                    "extraInitContainers": [{"name": "{{ .Release.Name }}-test-init-container"}],
                 },
             },
             show_only=["templates/pod-template-file.yaml"],
@@ -718,7 +716,6 @@ class TestPodTemplateFile:
         assert {
             "name": "release-name-test-init-container",
         } == jmespath.search("spec.initContainers[-1]", docs[0])
-
 
     def test_should_add_extra_containers(self):
         docs = render_chart(
@@ -742,9 +739,7 @@ class TestPodTemplateFile:
         docs = render_chart(
             values={
                 "workers": {
-                    "extraContainers": [
-                        {"name": "{{ .Release.Name }}-test-container"}
-                    ],
+                    "extraContainers": [{"name": "{{ .Release.Name }}-test-container"}],
                 },
             },
             show_only=["templates/pod-template-file.yaml"],

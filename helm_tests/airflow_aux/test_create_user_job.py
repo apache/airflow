@@ -170,17 +170,15 @@ class TestCreateUserJob:
         docs = render_chart(
             values={
                 "createUserJob": {
-                    "extraContainers": [
-                        {"name": "{{ .Release.Name }}-test-container"}
-                    ],
+                    "extraContainers": [{"name": "{{ .Release.Name }}-test-container"}],
                 },
             },
             show_only=["templates/jobs/create-user-job.yaml"],
         )
 
-        assert {
-            "name": "release-name-test-container"
-        } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
+        assert {"name": "release-name-test-container"} == jmespath.search(
+            "spec.template.spec.containers[-1]", docs[0]
+        )
 
     def test_should_add_extra_volumes(self):
         docs = render_chart(

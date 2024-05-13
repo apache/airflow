@@ -74,17 +74,15 @@ class TestScheduler:
             values={
                 "executor": "CeleryExecutor",
                 "scheduler": {
-                    "extraContainers": [
-                        {"name": "{{ .Release.Name }}-test-container"}
-                    ],
+                    "extraContainers": [{"name": "{{ .Release.Name }}-test-container"}],
                 },
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert {
-            "name": "release-name-test-container"
-        } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
+        assert {"name": "release-name-test-container"} == jmespath.search(
+            "spec.template.spec.containers[-1]", docs[0]
+        )
 
     def test_disable_wait_for_migration(self):
         docs = render_chart(
@@ -121,17 +119,15 @@ class TestScheduler:
         docs = render_chart(
             values={
                 "scheduler": {
-                    "extraInitContainers": [
-                        {"name": "{{ .Release.Name }}-test-init-container"}
-                    ],
+                    "extraInitContainers": [{"name": "{{ .Release.Name }}-test-init-container"}],
                 },
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert {
-            "name": "release-name-test-init-container"
-        } == jmespath.search("spec.template.spec.initContainers[-1]", docs[0])
+        assert {"name": "release-name-test-init-container"} == jmespath.search(
+            "spec.template.spec.initContainers[-1]", docs[0]
+        )
 
     def test_should_add_extra_volume_and_extra_volume_mount(self):
         docs = render_chart(
