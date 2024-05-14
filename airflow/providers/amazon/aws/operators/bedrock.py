@@ -20,6 +20,7 @@ import json
 from time import sleep
 from typing import TYPE_CHECKING, Any, Sequence
 
+import botocore
 from botocore.exceptions import ClientError
 
 from airflow.configuration import conf
@@ -37,7 +38,7 @@ from airflow.providers.amazon.aws.triggers.bedrock import (
     BedrockKnowledgeBaseActiveTrigger,
     BedrockProvisionModelThroughputCompletedTrigger,
 )
-from airflow.providers.amazon.aws.utils import validate_execute_complete_event
+from airflow.providers.amazon.aws.utils import get_botocore_version, validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.utils.helpers import prune_dict
 from airflow.utils.timezone import utcnow
@@ -675,6 +676,8 @@ class BedrockRaGOperator(AwsBaseOperator[BedrockAgentRuntimeHook]):
     """
     Query a knowledge base and generate responses based on the retrieved results with sources citations.
 
+    NOTE:  Support for EXTERNAL SOURCES was added in botocore 1.34.90
+
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BedrockRaGOperator`
@@ -684,6 +687,7 @@ class BedrockRaGOperator(AwsBaseOperator[BedrockAgentRuntimeHook]):
         Must be one of 'KNOWLEDGE_BASE' or 'EXTERNAL_SOURCES', and the appropriate config values must also be provided.
         If set to 'KNOWLEDGE_BASE' then `knowledge_base_id` must be provided, and `vector_search_config` may be.
         If set to `EXTERNAL_SOURCES` then `sources` must also be provided.
+        NOTE:  Support for EXTERNAL SOURCES was added in botocore 1.34.90
     :param model_arn: The ARN of the foundation model used to generate a response. (templated)
     :param prompt_template: The template for the prompt that's sent to the model for response generation.
         You can include prompt placeholders, which are replaced before the prompt is sent to the model
@@ -696,6 +700,7 @@ class BedrockRaGOperator(AwsBaseOperator[BedrockAgentRuntimeHook]):
         For more information, see https://docs.aws.amazon.com/bedrock/latest/userguide/kb-test-config.html.
     :param sources: The documents used as reference for the response. (templated)
         Can only be specified if source_type='EXTERNAL_SOURCES'
+        NOTE:  Support for EXTERNAL SOURCES was added in botocore 1.34.90
     :param rag_kwargs: Additional keyword arguments to pass to the  API call. (templated)
     """
 
@@ -794,11 +799,24 @@ class BedrockRaGOperator(AwsBaseOperator[BedrockAgentRuntimeHook]):
     def execute(self, context: Context) -> Any:
         self.validate_inputs()
 
-        result = self.hook.conn.retrieve_and_generate(
-            input={"text": self.input},
-            retrieveAndGenerateConfiguration=self.build_rag_config(),
-            **self.rag_kwargs,
-        )
+        try:
+            result = self.hook.conn.retrieve_and_generate(
+                input={"text": self.input},
+                retrieveAndGenerateConfiguration=self.build_rag_config(),
+                **self.rag_kwargs,
+            )
+        except botocore.exceptions.ParamValidationError as error:
+            if (
+                'Unknown parameter in retrieveAndGenerateConfiguration: "externalSourcesConfiguration"'
+                in str(error)
+            ) and (self.source_type == "EXTERNAL_SOURCES"):
+                self.log.error(
+                    "You are attempting to use External Sources and the BOTO API returned an "
+                    "error message which may indicate the need to update botocore to do this.  \n"
+                    "Support for External Sources was added in botocore 1.34.90 and you are using botocore %s",
+                    ".".join(map(str, get_botocore_version())),
+                )
+            raise
 
         self.log.info(
             "\nPrompt: %s\nResponse: %s\nCitations: %s",

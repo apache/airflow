@@ -483,15 +483,30 @@ with DAG(
     )
     # [END howto_sensor_bedrock_ingest_data]
 
-    # [START howto_operator_bedrock_retrieve_and_generate]
-    retrieve_and_generate = BedrockRaGOperator(
-        task_id="retrieve_and_generate",
+    # [START howto_operator_bedrock_knowledge_base_rag]
+    knowledge_base_rag = BedrockRaGOperator(
+        task_id="knowledge_base_rag",
         input="Who was the CEO of Amazon on 2022?",
         source_type="KNOWLEDGE_BASE",
         model_arn=f"arn:aws:bedrock:{region_name}::foundation-model/anthropic.claude-v2",
         knowledge_base_id=create_knowledge_base.output,
     )
-    # [END howto_operator_bedrock_retrieve_and_generate]
+    # [END howto_operator_bedrock_knowledge_base_rag]
+
+    # [START howto_operator_bedrock_external_sources_rag]
+    external_sources_rag = BedrockRaGOperator(
+        task_id="external_sources_rag",
+        input="Who was the CEO of Amazon in 2022?",
+        source_type="EXTERNAL_SOURCES",
+        model_arn=f"arn:aws:bedrock:{region_name}::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0",
+        sources=[
+            {
+                "sourceType": "S3",
+                "s3Location": {"uri": f"s3://{bucket_name}/AMZN-2022-Shareholder-Letter.pdf"},
+            }
+        ],
+    )
+    # [END howto_operator_bedrock_external_sources_rag]
 
     # [START howto_operator_bedrock_retrieve]
     retrieve = BedrockRetrieveOperator(
@@ -523,7 +538,8 @@ with DAG(
         create_data_source,
         ingest_data,
         await_ingest,
-        retrieve_and_generate,
+        knowledge_base_rag,
+        external_sources_rag,
         retrieve,
         delete_data_source(
             knowledge_base_id=create_knowledge_base.output,
