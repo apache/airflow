@@ -27,7 +27,6 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import (
     TaskInstance,
     TaskReturnCode,
-    _defer_task,
     _handle_reschedule,
     _run_raw_task,
     _set_ti_attrs,
@@ -499,7 +498,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
 
     def defer_task(self, exception: TaskDeferred, session: Session | None = None):
         """Defer task."""
-        updated_ti = _defer_task(ti=self, exception=exception, session=session)
+        updated_ti = self.defer_task_from_task_deferred(exception=exception, session=session)
         _set_ti_attrs(self, updated_ti)
 
     def _handle_reschedule(
