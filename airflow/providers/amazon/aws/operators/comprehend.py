@@ -41,9 +41,6 @@ class ComprehendBaseOperator(AwsBaseOperator[ComprehendHook]):
     :param input_data_config: The input properties for a PII entities detection job. (templated)
     :param output_data_config: Provides `conﬁguration` parameters for the output of PII entity detection
         jobs. (templated)
-    :param mode: Specifies whether the output provides the locations (offsets) of PII  entities or a file in
-        which PII entities are redacted. If you set the mode parameter to ONLY_REDACTION. In that case you
-        must provide a RedactionConfig.
     :param data_access_role_arn: The Amazon Resource Name (ARN) of the IAM role that grants Amazon Comprehend
         read access to your input data. (templated)
     :param language_code: The language of the input documents. (templated)
@@ -94,7 +91,7 @@ class ComprehendStartPiiEntitiesDetectionJobOperator(ComprehendBaseOperator):
         jobs. (templated)
     :param mode: Specifies whether the output provides the locations (offsets) of PII  entities or a file in
         which PII entities are redacted. If you set the mode parameter to ONLY_REDACTION. In that case you
-        must provide a RedactionConfig.
+        must provide a RedactionConfig in start_pii_entities_kwargs.
     :param data_access_role_arn: The Amazon Resource Name (ARN) of the IAM role that grants Amazon Comprehend
         read access to your input data. (templated)
     :param language_code: The language of the input documents. (templated)
@@ -167,7 +164,7 @@ class ComprehendStartPiiEntitiesDetectionJobOperator(ComprehendBaseOperator):
 
         message_description = f"start pii entities detection job {job_id} to complete."
         if self.deferrable:
-            self.log.info("Deferring for %s.", message_description)
+            self.log.info("Deferring %s", message_description)
             self.defer(
                 trigger=ComprehendPiiEntitiesDetectionJobCompletedTrigger(
                     job_id=job_id,
@@ -178,7 +175,7 @@ class ComprehendStartPiiEntitiesDetectionJobOperator(ComprehendBaseOperator):
                 method_name="execute_complete",
             )
         elif self.wait_for_completion:
-            self.log.info("Waiting to %s.", message_description)
+            self.log.info("Waiting for %s", message_description)
             self.hook.get_waiter("pii_entities_detection_job_complete").wait(
                 JobId=job_id,
                 WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},

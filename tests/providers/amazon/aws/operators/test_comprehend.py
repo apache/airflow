@@ -79,9 +79,10 @@ class TestComprehendBaseOperator:
 
 class TestComprehendStartPiiEntitiesDetectionJobOperator:
     JOB_ID = "random-job-id-1234567"
-    MODE = "ONE_DOC_PER_LINE"
+    MODE = "ONLY_REDACTION"
     JOB_NAME = "TEST_START_PII_ENTITIES_DETECTION_JOB-1"
     DEFAULT_JOB_NAME_STARTS_WITH = "start_pii_entities_detection_job"
+    REDACTION_CONFIG = {"PiiEntityTypes": ["NAME", "ADDRESS"], "MaskMode": "REPLACE_WITH_PII_ENTITY_TYPE"}
 
     @pytest.fixture
     def mock_conn(self) -> Generator[BaseAwsConnection, None, None]:
@@ -103,7 +104,7 @@ class TestComprehendStartPiiEntitiesDetectionJobOperator:
             data_access_role_arn=ROLE_ARN,
             mode=self.MODE,
             language_code=LANGUAGE_CODE,
-            start_pii_entities_kwargs={"JobName": self.JOB_NAME},
+            start_pii_entities_kwargs={"JobName": self.JOB_NAME, "RedactionConfig": self.REDACTION_CONFIG},
         )
         self.operator.defer = mock.MagicMock()
 
@@ -114,19 +115,11 @@ class TestComprehendStartPiiEntitiesDetectionJobOperator:
         assert self.operator.mode == self.MODE
         assert self.operator.language_code == LANGUAGE_CODE
         assert self.operator.start_pii_entities_kwargs.get("JobName") == self.JOB_NAME
+        assert self.operator.start_pii_entities_kwargs.get("RedactionConfig") == self.REDACTION_CONFIG
 
-    @pytest.mark.parametrize(
-        "start_pii_entities_kwargs",
-        [
-            pytest.param(
-                {},
-                id="start_pii_entities_detection_job",
-            ),
-        ],
-    )
     @mock.patch.object(ComprehendHook, "conn")
     def test_start_pii_entities_detection_job_name_starts_with_service_name(
-        self, comprehend_mock_conn, start_pii_entities_kwargs
+        self, comprehend_mock_conn
     ):
         self.op = ComprehendStartPiiEntitiesDetectionJobOperator(
             task_id="start_pii_entities_detection_job",
@@ -135,11 +128,20 @@ class TestComprehendStartPiiEntitiesDetectionJobOperator:
             data_access_role_arn=ROLE_ARN,
             mode=self.MODE,
             language_code=LANGUAGE_CODE,
-            start_pii_entities_kwargs=start_pii_entities_kwargs,
+            start_pii_entities_kwargs={"RedactionConfig": self.REDACTION_CONFIG},
         )
         self.op.wait_for_completion = False
         self.op.execute({})
         assert self.op.start_pii_entities_kwargs.get("JobName").startswith(self.DEFAULT_JOB_NAME_STARTS_WITH)
+        comprehend_mock_conn.start_pii_entities_detection_job.assert_called_once_with(
+            InputDataConfig=INPUT_DATA_CONFIG,
+            OutputDataConfig=OUTPUT_DATA_CONFIG,
+            Mode=self.MODE,
+            DataAccessRoleArn=ROLE_ARN,
+            LanguageCode=LANGUAGE_CODE,
+            RedactionConfig=self.REDACTION_CONFIG,
+            JobName=self.op.start_pii_entities_kwargs.get("JobName")
+        )
 
     @pytest.mark.parametrize(
         "wait_for_completion, deferrable",

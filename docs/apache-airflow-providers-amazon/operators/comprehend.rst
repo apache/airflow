@@ -38,10 +38,10 @@ Operators
 
 .. _howto/operator:ComprehendStartPiiEntitiesDetectionJobOperator:
 
-Create an Amazon Comprehend Start Pii Entities Detection Job
+Create an Amazon Comprehend Start PII Entities Detection Job
 ============================================================
 
-To create an Amazon Comprehend Start Pii Entities Detection Job, you can use
+To create an Amazon Comprehend Start PII Entities Detection Job, you can use
 :class:`~airflow.providers.amazon.aws.operators.comprehend.ComprehendStartPiiEntitiesDetectionJobOperator`.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_comprehend.py
@@ -55,10 +55,10 @@ Sensors
 
 .. _howto/sensor:ComprehendStartPiiEntitiesDetectionJobCompletedSensor:
 
-Wait for an Amazon Comprehend Start Pii Entities Detection Job
+Wait for an Amazon Comprehend Start PII Entities Detection Job
 ==============================================================
 
-To wait on the state of an Amazon Comprehend Start Pii Entities Detection Job until it reaches a terminal
+To wait on the state of an Amazon Comprehend Start PII Entities Detection Job until it reaches a terminal
 state you can use
 :class:`~airflow.providers.amazon.aws.sensors.comprehend.ComprehendStartPiiEntitiesDetectionJobCompletedSensor`.
 
