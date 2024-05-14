@@ -173,7 +173,6 @@ class TestDataprocClusterCreateOperator:
             ]
         )
 
-        #mock_create_hive_job.assert_called_once()
         mock_create_hive_job.assert_called_once_with(
             cluster_id="my_cluster_id",
             continue_on_failure=False,
@@ -181,7 +180,7 @@ class TestDataprocClusterCreateOperator:
             properties=None,
             query="SELECT 1;",
             query_file_uri=None,
-            script_variables=None
+            script_variables=None,
         )
 
     @patch("airflow.providers.yandex.utils.credentials.get_credentials")
