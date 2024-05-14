@@ -207,8 +207,6 @@ class BatchOperator(BaseOperator):
         self.array_properties = array_properties
         self.parameters = parameters or {}
         self.retry_strategy = retry_strategy
-        if self.retry_strategy is not None and not self.retry_strategy.get("attempts", None):
-            self.retry_strategy["attempts"] = 1
         self.waiters = waiters
         self.tags = tags or {}
         self.wait_for_completion = wait_for_completion
