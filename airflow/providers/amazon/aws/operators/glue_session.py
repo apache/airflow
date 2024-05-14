@@ -207,7 +207,7 @@ class GlueCreateSessionOperator(GlueSessionBaseOperator):
         if not self.client or not self.session_id:
             return
 
-        waiter = self.client.get_waiter(waiter_name="session_ready")
+        waiter = self.client.get_waiter("session_ready")
         waiter.wait(
             Id=self.session_id,
             WaiterConfig=prune_dict(
