@@ -501,6 +501,11 @@ class DagFileProcessor(LoggingMixin):
                         emails |= set(get_email_address_list(task.email))
                     elif isinstance(task.email, (list, tuple)):
                         emails |= set(task.email)
+
+            # Do not send Emails to Pagerduty to avoid double Page creation
+            if dag.sla_miss_callback:
+                emails = {email for email in emails if not email.endswith('@lyft.pagerduty.com')}
+
             if emails:
                 try:
                     send_email(emails, f"[airflow] SLA miss on DAG={dag.dag_id}", email_content)
