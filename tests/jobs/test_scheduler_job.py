@@ -1828,6 +1828,42 @@ class TestSchedulerJob:
 
         job_runner.job.executor.cleanup_stuck_queued_tasks.assert_called_once()
 
+    def test_fail_stuck_queued_tasks_multiple_executors(self, dag_maker, session, mock_executors):
+        with dag_maker("test_fail_stuck_queued_tasks_multiple_executors"):
+            op1 = EmptyOperator(task_id="op1")
+            op2 = EmptyOperator(task_id="op2", executor="default_exec")
+            op3 = EmptyOperator(task_id="op3", executor="secondary_exec")
+
+        dr = dag_maker.create_dagrun()
+        ti1 = dr.get_task_instance(task_id=op1.task_id, session=session)
+        ti2 = dr.get_task_instance(task_id=op2.task_id, session=session)
+        ti3 = dr.get_task_instance(task_id=op3.task_id, session=session)
+        for ti in [ti1, ti2, ti3]:
+            ti.state = State.QUEUED
+            ti.queued_dttm = timezone.utcnow() - timedelta(minutes=15)
+        session.commit()
+        scheduler_job = Job()
+        job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=0)
+        job_runner._task_queued_timeout = 300
+
+        with mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock:
+            # The executors are mocked, so cannot be loaded/imported. Mock load_executor and return the
+            # correct object for the given input executor name.
+            loader_mock.side_effect = lambda *x: {
+                ("default_exec",): mock_executors[0],
+                (None,): mock_executors[0],
+                ("secondary_exec",): mock_executors[1],
+            }[x]
+            job_runner._fail_tasks_stuck_in_queued()
+
+        # Default executor is called for ti1 (no explicit executor override uses default) and ti2 (where we
+        # explicitly marked that for execution by the default executor)
+        try:
+            mock_executors[0].cleanup_stuck_queued_tasks.assert_called_once_with(tis=[ti1, ti2])
+        except AssertionError:
+            mock_executors[0].cleanup_stuck_queued_tasks.assert_called_once_with(tis=[ti2, ti1])
+        mock_executors[1].cleanup_stuck_queued_tasks.assert_called_once_with(tis=[ti3])
+
     def test_fail_stuck_queued_tasks_raises_not_implemented(self, dag_maker, session, caplog):
         with dag_maker("test_fail_stuck_queued_tasks"):
             op1 = EmptyOperator(task_id="op1")
