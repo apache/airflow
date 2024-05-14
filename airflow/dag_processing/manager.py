@@ -46,6 +46,7 @@ from airflow.callbacks.callback_requests import CallbackRequest, SlaCallbackRequ
 from airflow.configuration import conf
 from airflow.dag_processing.processor import DagFileProcessorProcess
 from airflow.models.dag import DagModel
+from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ParseImportError
@@ -616,6 +617,7 @@ class DagFileProcessorManager(LoggingMixin):
             elif refreshed_dag_dir:
                 self.add_new_file_path_to_queue()
 
+            self._refresh_requested_filelocs()
             self.start_new_processes()
 
             # Update number of loop iteration.
@@ -727,6 +729,24 @@ class DagFileProcessorManager(LoggingMixin):
                 )
             self._add_paths_to_queue([request.full_filepath], True)
             Stats.incr("dag_processing.other_callback_count")
+
+    @provide_session
+    def _refresh_requested_filelocs(self, session=NEW_SESSION) -> None:
+        """Refresh filepaths from dag dir as requested by users via APIs."""
+        # Get values from DB table
+        requests = session.scalars(select(DagPriorityParsingRequest))
+        for request in requests:
+            # Check if fileloc is in valid file paths. Parsing any
+            # filepaths can be a security issue.
+            if request.fileloc in self._file_paths:
+                # Try removing the fileloc if already present
+                try:
+                    self._file_path_queue.remove(request.fileloc)
+                except ValueError:
+                    pass
+                # enqueue fileloc to the start of the queue.
+                self._file_path_queue.appendleft(request.fileloc)
+            session.delete(request)
 
     def _refresh_dag_dir(self) -> bool:
         """Refresh file paths from dag dir if we haven't done it for too long."""
