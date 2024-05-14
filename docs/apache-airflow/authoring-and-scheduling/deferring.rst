@@ -143,7 +143,7 @@ The ``self.defer`` call raises the ``TaskDeferred`` exception, so it can work an
 Triggering Deferral from Start
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If you want to defer your task directly to the triggerer without going into the worker, you can add the class level attributes ``start_trigger`` and ``_next_method`` to your deferrable operator.
+If you want to defer your task directly to the triggerer without going into the worker, you can add the class level attributes ``start_trigger`` and ``next_method`` to your deferrable operator.
 
 * ``start_trigger``: An instance of a trigger you want to defer to. It will be serialized into the database.
 * ``next_method``: The method name on your operator that you want Airflow to call when it resumes.

@@ -97,27 +97,15 @@ the ``account_id`` for the task is referenced within the ``default_args`` of the
     :start-after: [START howto_operator_dbt_cloud_run_job_sensor]
     :end-before: [END howto_operator_dbt_cloud_run_job_sensor]
 
-Also you can use deferrable mode in this sensor if you would like to free up the worker slots while the sensor is running.
+Also, you can poll for status of the job run asynchronously using ``deferrable`` mode. In this mode, worker
+slots are freed up while the sensor is running.
 
 .. exampleinclude:: /../../tests/system/providers/dbt/cloud/example_dbt_cloud.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_dbt_cloud_run_job_sensor_defered]
-    :end-before: [END howto_operator_dbt_cloud_run_job_sensor_defered]
+    :start-after: [START howto_operator_dbt_cloud_run_job_sensor_deferred]
+    :end-before: [END howto_operator_dbt_cloud_run_job_sensor_deferred]
 
-.. _howto/operator:DbtCloudJobRunAsyncSensor:
-
-Poll for status of a dbt Cloud Job run asynchronously
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. note::
-    :class:`~airflow.providers.dbt.cloud.sensors.dbt.DbtCloudJobRunAsyncSensor` is deprecated and will be removed in a future release. Please use :class:`~airflow.providers.dbt.cloud.sensors.dbt.DbtCloudJobRunSensor` and use the deferrable mode in that operator.
-
-.. exampleinclude:: /../../tests/system/providers/dbt/cloud/example_dbt_cloud.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_dbt_cloud_run_job_async_sensor]
-    :end-before: [END howto_operator_dbt_cloud_run_job_async_sensor]
 
 .. _howto/operator:DbtCloudGetJobRunArtifactOperator:
 

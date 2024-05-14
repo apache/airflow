@@ -36,22 +36,21 @@ CURRENT_PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
 NO_DB_QUERY_EXCEPTION = ("/airflow/example_dags/example_subdag_operator.py",)
 PROVIDERS_PREFIXES = ("airflow/providers/", "tests/system/providers/")
 OPTIONAL_PROVIDERS_DEPENDENCIES: dict[str, dict[str, str | None]] = {
-    # Some certain of examples/system tests might require additional dependencies,
-    # which are not installed into specific CI check
-    # Format of dictionary:
-    # key: prefix of the file which need to be excluded,
-    # values: dictionary with package distributions and optional specifier, e.g. >=2.3.4
+    # Some examples or system tests may depend on additional packages
+    # that are not included in certain CI checks.
+    # The format of the dictionary is as follows:
+    # key: the prefix of the file to be excluded,
+    # value: a dictionary containing package distributions with an optional version specifier, e.g., >=2.3.4
 }
 IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
-    # Some certain of examples/system tests might raise AirflowProviderDeprecationWarning.
-    # In general, it should be resolved as soon as parameter/operator deprecated,
-    # however we might postpone change for a while, in this case we should add it into this tuple
-    # and create the appropriate task in GitHub
+    # Certain examples or system tests may trigger AirflowProviderDeprecationWarnings.
+    # Generally, these should be resolved as soon as a parameter or operator is deprecated.
+    # If the deprecation is postponed, the item should be added to this tuple,
+    # and a corresponding Issue should be created on GitHub.
     "tests/system/providers/amazon/aws/example_ecs_fargate.py",
     "tests/system/providers/amazon/aws/example_eks_with_nodegroups.py",
     "tests/system/providers/amazon/aws/example_emr.py",
     "tests/system/providers/amazon/aws/example_emr_notebook_execution.py",
-    "tests/system/providers/dbt/cloud/example_dbt_cloud.py",
     "tests/system/providers/google/cloud/azure/example_azure_fileshare_to_gcs.py",
     "tests/system/providers/google/cloud/bigquery/example_bigquery_operations.py",
     "tests/system/providers/google/cloud/bigquery/example_bigquery_sensors.py",
@@ -174,10 +173,11 @@ def example_not_excluded_dags(xfail_db_exception: bool = False):
                 param_marks.append(pytest.mark.xfail(reason="Expected DB call", strict=True))
 
             if candidate.startswith(providers_folders):
-                # Do not raise error in case of airflow.exceptions.RemovedInAirflow3Warning
-                # We do not want to force change to new syntax in providers ASAP
-                # because we might not release Airflow which deprecate some feature
-                # Instead of that better to analyze warning report time to time, and manually change it
+                # Do not raise an error for airflow.exceptions.RemovedInAirflow3Warning.
+                # We should not rush to enforce new syntax updates in providers
+                # because a version of Airflow that deprecates certain features may not yet be released.
+                # Instead, it is advisable to periodically review the warning reports and implement manual
+                # updates as needed.
                 param_marks.append(
                     pytest.mark.filterwarnings("default::airflow.exceptions.RemovedInAirflow3Warning")
                 )

@@ -29,7 +29,7 @@ description: |
     - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 state: ready
-source-date-epoch: 1714476421
+source-date-epoch: 1715384437
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 10.18.0
@@ -944,6 +944,7 @@ hooks:
       - airflow.providers.google.cloud.hooks.vertex_ai.model_service
       - airflow.providers.google.cloud.hooks.vertex_ai.pipeline_job
       - airflow.providers.google.cloud.hooks.vertex_ai.generative_model
+      - airflow.providers.google.cloud.hooks.vertex_ai.prediction_service
   - integration-name: Google Looker
     python-modules:
       - airflow.providers.google.cloud.hooks.looker

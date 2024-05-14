@@ -73,8 +73,16 @@ class OpenLineageAdapter(LoggingMixin):
         if not self._client:
             config = self.get_openlineage_config()
             if config:
+                self.log.debug(
+                    "OpenLineage configuration found. Transport type: `%s`",
+                    config.get("type", "no type provided"),
+                )
                 self._client = OpenLineageClient.from_dict(config=config)
             else:
+                self.log.debug(
+                    "OpenLineage configuration not found directly in Airflow. "
+                    "Looking for legacy environment configuration. "
+                )
                 self._client = OpenLineageClient.from_environment()
         return self._client
 
@@ -85,13 +93,19 @@ class OpenLineageAdapter(LoggingMixin):
             config = self._read_yaml_config(openlineage_config_path)
             if config:
                 return config.get("transport", None)
+            self.log.debug("OpenLineage config file is empty: `%s`", openlineage_config_path)
+        else:
+            self.log.debug("OpenLineage config_path configuration not found.")
+
         # Second, try to get transport config
         transport_config = conf.transport()
         if not transport_config:
+            self.log.debug("OpenLineage transport configuration not found.")
             return None
         return transport_config
 
-    def _read_yaml_config(self, path: str) -> dict | None:
+    @staticmethod
+    def _read_yaml_config(path: str) -> dict | None:
         with open(path) as config_file:
             return yaml.safe_load(config_file)
 
@@ -125,6 +139,7 @@ class OpenLineageAdapter(LoggingMixin):
                 stack.enter_context(Stats.timer(f"ol.emit.attempts.{event_type}.{transport_type}"))
                 stack.enter_context(Stats.timer("ol.emit.attempts"))
                 self._client.emit(redacted_event)
+                self.log.debug("Successfully emitted OpenLineage event of id %s", event.run.runId)
         except Exception as e:
             Stats.incr("ol.emit.failed")
             self.log.warning("Failed to emit OpenLineage event of id %s", event.run.runId)

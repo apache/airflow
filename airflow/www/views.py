@@ -36,7 +36,7 @@ from functools import cached_property
 from json import JSONDecodeError
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Collection, Iterator, Mapping, MutableMapping, Sequence
-from urllib.parse import unquote, urljoin, urlsplit
+from urllib.parse import unquote, urlencode, urljoin, urlsplit
 
 import configupdater
 import flask.json
@@ -314,7 +314,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
             TaskInstance.task_id,
             TaskInstance.run_id,
             TaskInstance.state,
-            TaskInstance._try_number,
+            TaskInstance.try_number,
             func.min(TaskInstanceNote.content).label("note"),
             func.count(func.coalesce(TaskInstance.state, sqla.literal("no_status"))).label("state_count"),
             func.min(TaskInstance.queued_dttm).label("queued_dttm"),
@@ -326,7 +326,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
             TaskInstance.dag_id == dag.dag_id,
             TaskInstance.run_id.in_([dag_run.run_id for dag_run in dag_runs]),
         )
-        .group_by(TaskInstance.task_id, TaskInstance.run_id, TaskInstance.state, TaskInstance._try_number)
+        .group_by(TaskInstance.task_id, TaskInstance.run_id, TaskInstance.state, TaskInstance.try_number)
         .order_by(TaskInstance.task_id, TaskInstance.run_id)
     )
 
@@ -409,7 +409,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
                         "queued_dttm": task_instance.queued_dttm,
                         "start_date": task_instance.start_date,
                         "end_date": task_instance.end_date,
-                        "try_number": wwwutils.get_try_count(task_instance._try_number, task_instance.state),
+                        "try_number": wwwutils.get_try_count(task_instance.try_number, task_instance.state),
                         "note": task_instance.note,
                     }
                     for task_instance in grouped_tis[item.task_id]
@@ -1687,7 +1687,7 @@ class Airflow(AirflowBaseView):
 
         num_logs = 0
         if ti is not None:
-            num_logs = wwwutils.get_try_count(ti._try_number, ti.state)
+            num_logs = wwwutils.get_try_count(ti.try_number, ti.state)
         logs = [""] * num_logs
         root = request.args.get("root", "")
         return self.render_template(
@@ -1788,7 +1788,7 @@ class Airflow(AirflowBaseView):
                 warnings.simplefilter("ignore", RemovedInAirflow3Warning)
                 all_ti_attrs = (
                     # fetching the value of _try_number to be shown under name try_number in UI
-                    (name, getattr(ti, "_try_number" if name == "try_number" else name))
+                    (name, getattr(ti, name))
                     for name in dir(ti)
                     if not name.startswith("_") and name not in ti_attrs_to_skip
                 )
@@ -2191,7 +2191,7 @@ class Airflow(AirflowBaseView):
                 )
 
         try:
-            dag.create_dagrun(
+            dag_run = dag.create_dagrun(
                 run_type=DagRunType.MANUAL,
                 execution_date=execution_date,
                 data_interval=dag.timetable.infer_manual_data_interval(run_after=execution_date),
@@ -2216,7 +2216,14 @@ class Airflow(AirflowBaseView):
                 form=form,
             )
 
-        flash(f"Triggered {dag_id}, it should start any moment now.")
+        flash(f"Triggered {dag_id} with new Run ID {dag_run.run_id}, it should start any moment now.")
+        if "/grid?" in origin:
+            path, query = origin.split("?", 1)
+            params = {param.split("=")[0]: param.split("=")[1] for param in query.split("&")}
+            params["dag_run_id"] = dag_run.run_id
+            origin = f"{path}?{urlencode(params)}"
+        elif origin.endswith("/grid"):
+            origin += f"?{urlencode({'dag_run_id': dag_run.run_id})}"
         return redirect(origin)
 
     def _clear_dag_tis(
@@ -5196,7 +5203,7 @@ class TaskInstanceModelView(AirflowModelView):
         "pool",
         "queued_by_job_id",
     ]
-
+    # todo: don't use prev_attempted_tries; just use try_number
     label_columns = {"dag_run.execution_date": "Logical Date", "prev_attempted_tries": "Try Number"}
 
     search_columns = [

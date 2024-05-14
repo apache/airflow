@@ -72,12 +72,7 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseHook,
     get_field,
 )
-
-try:
-    from airflow.utils.hashlib_wrapper import md5
-except ModuleNotFoundError:
-    # Remove when Airflow providers min Airflow version is "2.7.0"
-    from hashlib import md5
+from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 
