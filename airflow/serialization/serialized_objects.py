@@ -40,7 +40,7 @@ from airflow.configuration import conf
 from airflow.datasets import Dataset, DatasetAll, DatasetAny
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, SerializationError, TaskDeferred
 from airflow.jobs.job import Job
-from airflow.models.baseoperator import BaseOperator
+from airflow.models.baseoperator import BaseOperator, StartTriggerArgs
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, DagModel, create_timetable
 from airflow.models.dagrun import DagRun
@@ -1017,9 +1017,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         # Used to determine if an Operator is inherited from EmptyOperator
         serialize_op["_is_empty"] = op.inherits_from_empty_operator
 
-        serialize_op["start_trigger_cls"] = op.start_trigger_cls
-        serialize_op["start_trigger_kwargs"] = op.start_trigger_kwargs
-        serialize_op["next_method"] = op.next_method
+        serialize_op["start_trigger_args"] = (
+            op.start_trigger_args.serialize() if op.start_trigger_args else None
+        )
 
         if op.operator_extra_links:
             serialize_op["_operator_extra_links"] = cls._serialize_operator_extra_links(
@@ -1203,9 +1203,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         # Used to determine if an Operator is inherited from EmptyOperator
         setattr(op, "_is_empty", bool(encoded_op.get("_is_empty", False)))
 
-        setattr(op, "start_trigger_cls", encoded_op.get("start_trigger_cls", None))
-        setattr(op, "start_trigger_kwargs", encoded_op.get("start_trigger_kwargs", None))
-        setattr(op, "next_method", encoded_op.get("next_method", None))
+        start_trigger_args = None
+        if encoded_op.get("start_trigger_args", None):
+            start_trigger_args = StartTriggerArgs(**encoded_op.get("start_trigger_args", None))
+        setattr(op, "start_trigger_args", start_trigger_args)
 
     @staticmethod
     def set_task_dag_references(task: Operator, dag: DAG) -> None:
@@ -1268,9 +1269,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 end_date=None,
                 disallow_kwargs_override=encoded_op["_disallow_kwargs_override"],
                 expand_input_attr=encoded_op["_expand_input_attr"],
-                start_trigger_cls=encoded_op.get("start_trigger_cls", None),
-                start_trigger_kwargs=encoded_op.get("start_trigger_kwargs", None),
-                next_method=encoded_op.get("next_method", None),
+                start_trigger_args=encoded_op.get("start_trigger_args", None),
             )
         else:
             op = SerializedBaseOperator(task_id=encoded_op["task_id"])

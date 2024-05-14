@@ -41,6 +41,7 @@ from airflow.models.abstractoperator import (
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
     NotMapped,
+    StartTriggerArgs,
 )
 from airflow.models.expandinput import (
     DictOfListsExpandInput,
@@ -236,9 +237,7 @@ class OperatorPartial:
             # For classic operators, this points to expand_input because kwargs
             # to BaseOperator.expand() contribute to operator arguments.
             expand_input_attr="expand_input",
-            start_trigger_cls=self.operator_class.start_trigger_cls,
-            start_trigger_kwargs=getattr(partial_kwargs, "start_trigger_kwargs", None),
-            next_method=self.operator_class.next_method,
+            start_trigger_args=self.operator_class.start_trigger_args,
         )
         return op
 
@@ -281,9 +280,7 @@ class MappedOperator(AbstractOperator):
     _task_module: str
     _task_type: str
     _operator_name: str
-    start_trigger_cls: str | None
-    start_trigger_kwargs: dict[str, Any] | None
-    next_method: str | None
+    start_trigger_args: StartTriggerArgs | None
     _needs_expansion: bool = True
 
     dag: DAG | None
@@ -313,9 +310,7 @@ class MappedOperator(AbstractOperator):
         (
             "parse_time_mapped_ti_count",
             "operator_class",
-            "start_trigger_cls",
-            "start_trigger_kwargs",
-            "next_method",
+            "start_trigger_args",
         )
     )
 

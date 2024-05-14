@@ -153,7 +153,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.elements import BooleanClauseList
     from sqlalchemy.sql.expression import ColumnOperators
 
-    from airflow.models.abstractoperator import TaskStateChangeCallback
+    from airflow.models.abstractoperator import StartTriggerArgs, TaskStateChangeCallback
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG, DagModel
     from airflow.models.dagrun import DagRun
@@ -3011,9 +3011,6 @@ class TaskInstance(Base, LoggingMixin):
         """
         from airflow.models.trigger import Trigger
 
-        if TYPE_CHECKING:
-            assert self.task
-
         # First, make the trigger entry
         trigger_row = Trigger.from_object(exception.trigger)
         _defer_task(
@@ -3027,26 +3024,30 @@ class TaskInstance(Base, LoggingMixin):
 
     @provide_session
     def defer_task_from_start_trigger(
-        self, session: Session, trigger_cls: str, trigger_kwargs: dict[str, Any], next_method: str
+        self,
+        session: Session,
+        start_trigger_args: StartTriggerArgs,
     ) -> None:
         """Mark the task as deferred and sets up the trigger that is needed to resume it when start_trigger arguments passed.
 
         :meta: private
         """
+        if start_trigger_args.trigger_kwargs is None:
+            raise AirflowException("trigger_kwargs is required")
+
         from airflow.models.trigger import Trigger
 
-        if TYPE_CHECKING:
-            assert self.task
-
         # First, make the trigger entry
-        trigger_row = Trigger(classpath=trigger_cls, kwargs=trigger_kwargs)
+        trigger_row = Trigger(
+            classpath=start_trigger_args.trigger_cls, kwargs=start_trigger_args.trigger_kwargs
+        )
         _defer_task(
             ti=self,
             session=session,
             trigger_row=trigger_row,
-            trigger_kwargs=trigger_kwargs,
-            next_method=next_method,
-            timeout=None,
+            trigger_kwargs=start_trigger_args.trigger_kwargs,
+            next_method=start_trigger_args.next_method,
+            timeout=start_trigger_args.timeout,
         )
 
     def _run_execute_callback(self, context: Context, task: BaseOperator) -> None:

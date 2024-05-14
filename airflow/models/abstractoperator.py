@@ -20,6 +20,8 @@ from __future__ import annotations
 import datetime
 import inspect
 from abc import abstractproperty
+from dataclasses import dataclass
+from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable, Iterator, Sequence
 
@@ -85,6 +87,24 @@ class NotMapped(Exception):
     """Raise if a task is neither mapped nor has any parent mapped groups."""
 
 
+@dataclass
+class StartTriggerArgs:
+    """Arguments required for start task execution from triggerer."""
+
+    trigger_cls: str
+    next_method: str
+    trigger_kwargs: dict[str, Any] | None = None
+    timeout: timedelta | None = None
+
+    def serialize(self):
+        return {
+            "trigger_cls": self.trigger_cls,
+            "trigger_kwargs": self.trigger_kwargs,
+            "next_method": self.next_method,
+            "timeout": self.timeout,
+        }
+
+
 class AbstractOperator(Templater, DAGNode):
     """Common implementation for operators, including unmapped and mapped.
 
@@ -122,9 +142,7 @@ class AbstractOperator(Templater, DAGNode):
             "node_id",  # Duplicates task_id
             "task_group",  # Doesn't have a useful repr, no point showing in UI
             "inherits_from_empty_operator",  # impl detail
-            "start_trigger_cls",
-            "start_trigger_kwargs",
-            "next_method",
+            "start_trigger_args",
             # For compatibility with TG, for operators these are just the current task, no point showing
             "roots",
             "leaves",

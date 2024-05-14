@@ -30,6 +30,7 @@ from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.decorators import setup, task, task_group, teardown
 from airflow.exceptions import AirflowException
+from airflow.models.abstractoperator import StartTriggerArgs
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagrun import DagRun, DagRunNote
@@ -1988,17 +1989,20 @@ def test_schedule_tis_map_index(dag_maker, session):
 
 def test_schedule_tis_start_trigger(dag_maker, session):
     """
-    Test that an operator with start_trigger_cls, start_trigger_kwargs and next_method set can be
-    directly deferred during scheduling.
+    Test that an operator with start_trigger_args set can be directly deferred during scheduling.
     """
 
     class TestOperator(BaseOperator):
-        start_trigger_cls = "airflow.triggers.testing.SuccessTrigger"
-        next_method = "execute_complete"
+        start_trigger_args = StartTriggerArgs(
+            trigger_cls="airflow.triggers.testing.SuccessTrigger",
+            trigger_kwargs=None,
+            next_method="execute_complete",
+            timeout=None,
+        )
 
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
-            self.start_trigger_kwargs = {}
+            self.start_trigger_args.trigger_kwargs = {}
 
         def execute_complete(self):
             pass

@@ -77,6 +77,7 @@ from airflow.models.abstractoperator import (
     DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
+    StartTriggerArgs,
 )
 from airflow.models.base import _sentinel
 from airflow.models.mappedoperator import OperatorPartial, validate_mapping_kwargs
@@ -819,9 +820,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # Set to True for an operator instantiated by a mapped operator.
     __from_mapped = False
 
-    start_trigger_cls: str | None = None
-    start_trigger_kwargs: dict[str, Any] | None = None
-    next_method: str | None = None
+    start_trigger_args: StartTriggerArgs | None = None
 
     def __init__(
         self,
@@ -1680,9 +1679,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "is_teardown",
                     "on_failure_fail_dagrun",
                     "map_index_template",
-                    "start_trigger_cls",
-                    "start_trigger_kwargs",
-                    "next_method",
+                    "start_trigger_args",
                     "_needs_expansion",
                 }
             )

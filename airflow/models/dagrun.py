@@ -1539,9 +1539,8 @@ class DagRun(Base, LoggingMixin):
             ):
                 dummy_ti_ids.append((ti.task_id, ti.map_index))
             elif (
-                ti.task.start_trigger_cls is not None
-                and ti.task.start_trigger_kwargs is not None
-                and ti.task.next_method is not None
+                ti.task.start_trigger_args is not None
+                and ti.task.start_trigger_args.trigger_kwargs is not None
                 and not ti.task.on_execute_callback
                 and not ti.task.on_success_callback
                 and not ti.task.outlets
@@ -1549,10 +1548,7 @@ class DagRun(Base, LoggingMixin):
                 if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
                     ti.try_number += 1
                 ti.defer_task_from_start_trigger(
-                    session=session,
-                    trigger_cls=ti.task.start_trigger_cls,
-                    trigger_kwargs=ti.task.start_trigger_kwargs,
-                    next_method=ti.task.next_method,
+                    session=session, start_trigger_args=ti.task.start_trigger_args
                 )
             else:
                 schedulable_ti_ids.append((ti.task_id, ti.map_index))
