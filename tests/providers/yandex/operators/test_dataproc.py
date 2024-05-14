@@ -20,7 +20,7 @@ import datetime
 from unittest.mock import MagicMock, call, patch
 
 from airflow.models.dag import DAG
-from airflow.providers.yandex.operators.yandexcloud_dataproc import (
+from airflow.providers.yandex.operators.dataproc import (
     DataprocCreateClusterOperator,
     DataprocCreateHiveJobOperator,
     DataprocCreateMapReduceJobOperator,
@@ -161,6 +161,7 @@ class TestDataprocClusterCreateOperator:
         operator = DataprocCreateHiveJobOperator(
             task_id="create_hive_job",
             query="SELECT 1;",
+            connection_id=CONNECTION_ID,
         )
         context = {"task_instance": MagicMock()}
         context["task_instance"].xcom_pull.return_value = "my_cluster_id"
@@ -169,10 +170,10 @@ class TestDataprocClusterCreateOperator:
         context["task_instance"].xcom_pull.assert_has_calls(
             [
                 call(key="cluster_id"),
-                call(key="yandexcloud_connection_id"),
             ]
         )
 
+        #mock_create_hive_job.assert_called_once()
         mock_create_hive_job.assert_called_once_with(
             cluster_id="my_cluster_id",
             continue_on_failure=False,
@@ -180,7 +181,7 @@ class TestDataprocClusterCreateOperator:
             properties=None,
             query="SELECT 1;",
             query_file_uri=None,
-            script_variables=None,
+            script_variables=None
         )
 
     @patch("airflow.providers.yandex.utils.credentials.get_credentials")
@@ -189,6 +190,7 @@ class TestDataprocClusterCreateOperator:
     def test_create_mapreduce_job_operator(self, mock_create_mapreduce_job, *_):
         operator = DataprocCreateMapReduceJobOperator(
             task_id="run_mapreduce_job",
+            connection_id=CONNECTION_ID,
             main_class="org.apache.hadoop.streaming.HadoopStreaming",
             file_uris=[
                 "s3a://some-in-bucket/jobs/sources/mapreduce-001/mapper.py",
@@ -219,7 +221,6 @@ class TestDataprocClusterCreateOperator:
         context["task_instance"].xcom_pull.assert_has_calls(
             [
                 call(key="cluster_id"),
-                call(key="yandexcloud_connection_id"),
             ]
         )
 
@@ -259,6 +260,7 @@ class TestDataprocClusterCreateOperator:
     def test_create_spark_job_operator(self, mock_create_spark_job, *_):
         operator = DataprocCreateSparkJobOperator(
             task_id="create_spark_job",
+            connection_id=CONNECTION_ID,
             main_jar_file_uri="s3a://data-proc-public/jobs/sources/java/dataproc-examples-1.0.jar",
             main_class="ru.yandex.cloud.dataproc.examples.PopulationSparkJob",
             file_uris=[
@@ -288,7 +290,6 @@ class TestDataprocClusterCreateOperator:
         context["task_instance"].xcom_pull.assert_has_calls(
             [
                 call(key="cluster_id"),
-                call(key="yandexcloud_connection_id"),
             ]
         )
 
@@ -321,6 +322,7 @@ class TestDataprocClusterCreateOperator:
     def test_create_pyspark_job_operator(self, mock_create_pyspark_job, *_):
         operator = DataprocCreatePysparkJobOperator(
             task_id="create_pyspark_job",
+            connection_id=CONNECTION_ID,
             main_python_file_uri="s3a://some-in-bucket/jobs/sources/pyspark-001/main.py",
             python_file_uris=[
                 "s3a://some-in-bucket/jobs/sources/pyspark-001/geonames.py",
@@ -351,7 +353,6 @@ class TestDataprocClusterCreateOperator:
         context["task_instance"].xcom_pull.assert_has_calls(
             [
                 call(key="cluster_id"),
-                call(key="yandexcloud_connection_id"),
             ]
         )
 

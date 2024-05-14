@@ -14,17 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use :mod:`airflow.providers.yandex.operators.dataproc` instead."""
-
 from __future__ import annotations
 
-import warnings
+from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.yandex.operators.dataproc import *  # noqa: F403
 
-warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.yandex.operators.dataproc` instead.",
-    AirflowProviderDeprecationWarning,
-    stacklevel=2,
-)
+class DataprocHook(YandexCloudBaseHook):
+    """
+    A base hook for Yandex.Cloud Data Proc.
+
+    :param yandex_conn_id: The connection ID to use when fetching connection info.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.cluster_id = None
+        self.client = self.sdk.wrappers.Dataproc(
+            default_folder_id=self.default_folder_id,
+            default_public_ssh_key=self.default_public_ssh_key,
+        )

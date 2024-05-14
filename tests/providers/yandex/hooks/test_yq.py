@@ -31,20 +31,11 @@ IAM_TOKEN = "my_iam_token"
 SERVICE_ACCOUNT_AUTH_KEY_JSON = """{"id":"my_id", "service_account_id":"my_sa1", "private_key":"my_pk"}"""
 
 
-class FakeTokenRequester:
-    def get_token(self) -> str:
-        return IAM_TOKEN
-
-    def get_token_request(self) -> str:
-        return "my_dummy_request"
-
-
 class TestYandexCloudYqHook:
     def _init_hook(self):
         with mock.patch("airflow.hooks.base.BaseHook.get_connection") as mock_get_connection:
             mock_get_connection.return_value = self.connection
-            with mock.patch("airflow.providers.yandex.hooks.yq.yandexcloud.SDK.client"):
-                self.hook = YQHook(default_folder_id="my_folder_id")
+            self.hook = YQHook(default_folder_id="my_folder_id")
 
     def setup_method(self):
         self.connection = Connection(extra={"service_account_json": SERVICE_ACCOUNT_AUTH_KEY_JSON})
@@ -74,8 +65,8 @@ class TestYandexCloudYqHook:
             m.assert_called_once_with("query1")
 
     @responses.activate()
-    @mock.patch("yandexcloud._auth_fabric.get_auth_token_requester", return_value=FakeTokenRequester())
-    def test_metadata_token_usage(self, mock_get_auth_token_requester):
+    @mock.patch("yandexcloud.auth.get_auth_token", return_value=IAM_TOKEN)
+    def test_metadata_token_usage(self, mock_get_auth_token):
         responses.post(
             "https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries",
             match=[
@@ -94,8 +85,8 @@ class TestYandexCloudYqHook:
         assert query_id == "query1"
 
     @mock.patch("yandexcloud._auth_fabric.__validate_service_account_key")
-    @mock.patch("yandexcloud._auth_fabric.get_auth_token_requester", return_value=FakeTokenRequester())
-    def test_select_results(self, mock_get_auth_token_requester, mock_validate):
+    @mock.patch("yandexcloud.auth.get_auth_token", return_value=IAM_TOKEN)
+    def test_select_results(self, mock_get_auth_token, mock_validate):
         with mock.patch.multiple(
             "yandex_query_client.YQHttpClient",
             create_query=mock.DEFAULT,
@@ -107,7 +98,7 @@ class TestYandexCloudYqHook:
         ) as mocks:
             self._init_hook()
             mock_validate.assert_called()
-            mock_get_auth_token_requester.assert_called_once_with(
+            mock_get_auth_token.assert_called_once_with(
                 service_account_key=json.loads(SERVICE_ACCOUNT_AUTH_KEY_JSON)
             )
 
