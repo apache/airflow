@@ -208,8 +208,8 @@ def log_admin_client(log_app):
     [
         (None, 0, 0),
         (TaskInstanceState.UP_FOR_RETRY, 2, 2),
-        (TaskInstanceState.UP_FOR_RESCHEDULE, 0, 1),
-        (TaskInstanceState.UP_FOR_RESCHEDULE, 1, 2),
+        (TaskInstanceState.UP_FOR_RESCHEDULE, 0, 0),
+        (TaskInstanceState.UP_FOR_RESCHEDULE, 1, 1),
         (TaskInstanceState.RUNNING, 1, 1),
         (TaskInstanceState.SUCCESS, 1, 1),
         (TaskInstanceState.FAILED, 3, 3),
