@@ -1116,7 +1116,7 @@ if the providers still work when installed for older airflow versions.
 
 .. note::
 
-  For now it's done for 2.9.1 version only.
+  For now it's done for 2.9.1 and 2.8.4 version only.
 
 Those tests can be used to test compatibility of the providers with past and future releases of airflow.
 For example it could be used to run latest provider versions with released or main
@@ -1148,7 +1148,11 @@ This can be reproduced locally building providers from tag/commit of the airflow
 
    breeze release-management generate-constraints --airflow-constraints-mode constraints-source-providers --answer yes
 
-3. Enter breeze environment, installing selected airflow version and the provider packages prepared from main
+4. Remove providers that are not compatible with Airflow version installed by default. You can look up
+   the incompatible providers in the ``BASE_PROVIDERS_COMPATIBILITY_CHECKS`` constant in the
+   ``./dev/breeze/src/airflow_breeze/global_constants.py`` file.
+
+5. Enter breeze environment, installing selected airflow version and the provider packages prepared from main
 
 .. code-block::bash
 
@@ -1158,13 +1162,13 @@ This can be reproduced locally building providers from tag/commit of the airflow
    --providers-skip-constraints \
    --mount-sources tests
 
-4. You can then run tests as usual:
+6. You can then run tests as usual:
 
 .. code-block::bash
 
    pytest tests/providers/<provider>/test.py
 
-5. Iterate with the tests
+7. Iterate with the tests
 
 The tests are run using:
 
@@ -1181,7 +1185,6 @@ Rebuilding single provider package can be done using this command:
 
   breeze release-management prepare-provider-packages \
     --version-suffix-for-pypi dev0 --package-format wheel <provider>
-
 
 Note that some of the tests if written without taking care about the compatibility, might not work with older
 versions of Airflow - this is because of refactorings, renames, and tests relying on internals of Airflow that

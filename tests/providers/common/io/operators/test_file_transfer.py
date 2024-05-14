@@ -57,7 +57,6 @@ def test_get_openlineage_facets_on_start():
 
     expected_input = Dataset(namespace=f"s3://{src_bucket}", name=src_key)
     expected_output = Dataset(namespace=f"s3://{dst_bucket}", name=dst_key)
-
     op = FileTransferOperator(
         task_id="test",
         src=f"s3://{src_bucket}/{src_key}",
