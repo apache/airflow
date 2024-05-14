@@ -19,6 +19,7 @@ from __future__ import annotations
 from contextlib import nullcontext
 from importlib import reload
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
 
@@ -54,6 +55,12 @@ class TestExecutorLoader:
         reload(executor_loader)
         global ExecutorLoader
         ExecutorLoader = executor_loader.ExecutorLoader  # type: ignore
+
+    def teardown_method(self) -> None:
+        from airflow.executors import executor_loader
+
+        reload(executor_loader)
+        ExecutorLoader.init_executors()
 
     def test_no_executor_configured(self):
         with conf_vars({("core", "executor"): None}):
@@ -304,19 +311,26 @@ class TestExecutorLoader:
             ExecutorLoader.validate_database_executor_compatibility(executor)
 
     def test_load_executor(self):
-        ExecutorLoader.block_use_of_hybrid_exec = mock.Mock()
-        with conf_vars({("core", "executor"): "LocalExecutor"}):
-            ExecutorLoader.init_executors()
-            assert isinstance(ExecutorLoader.load_executor("LocalExecutor"), LocalExecutor)
-            assert isinstance(ExecutorLoader.load_executor(executor_loader._executor_names[0]), LocalExecutor)
-            assert isinstance(ExecutorLoader.load_executor(None), LocalExecutor)
+        with patch.object(ExecutorLoader, "block_use_of_hybrid_exec"):
+            with conf_vars({("core", "executor"): "LocalExecutor"}):
+                ExecutorLoader.init_executors()
+                assert isinstance(ExecutorLoader.load_executor("LocalExecutor"), LocalExecutor)
+                assert isinstance(
+                    ExecutorLoader.load_executor(executor_loader._executor_names[0]), LocalExecutor
+                )
+                assert isinstance(ExecutorLoader.load_executor(None), LocalExecutor)
 
     def test_load_executor_alias(self):
-        ExecutorLoader.block_use_of_hybrid_exec = mock.Mock()
-        with conf_vars({("core", "executor"): "local_exec:airflow.executors.local_executor.LocalExecutor"}):
-            ExecutorLoader.init_executors()
-            assert isinstance(ExecutorLoader.load_executor("local_exec"), LocalExecutor)
-            assert isinstance(
-                ExecutorLoader.load_executor("airflow.executors.local_executor.LocalExecutor"), LocalExecutor
-            )
-            assert isinstance(ExecutorLoader.load_executor(executor_loader._executor_names[0]), LocalExecutor)
+        with patch.object(ExecutorLoader, "block_use_of_hybrid_exec"):
+            with conf_vars(
+                {("core", "executor"): "local_exec:airflow.executors.local_executor.LocalExecutor"}
+            ):
+                ExecutorLoader.init_executors()
+                assert isinstance(ExecutorLoader.load_executor("local_exec"), LocalExecutor)
+                assert isinstance(
+                    ExecutorLoader.load_executor("airflow.executors.local_executor.LocalExecutor"),
+                    LocalExecutor,
+                )
+                assert isinstance(
+                    ExecutorLoader.load_executor(executor_loader._executor_names[0]), LocalExecutor
+                )
