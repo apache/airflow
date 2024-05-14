@@ -3863,7 +3863,7 @@ class TestSchedulerJob:
         def dict_from_obj(obj):
             """Get dict of column attrs from SqlAlchemy object."""
             return {k.key: obj.__dict__.get(k) for k in obj.__mapper__.column_attrs}
-        
+
         # dag2 should be triggered since it only depends on dataset1, it's been queued and dataset events landed after DAG was created.
         created_run = session.query(DagRun).filter(DagRun.dag_id == dag2.dag_id).one()
         assert created_run.state == State.QUEUED
