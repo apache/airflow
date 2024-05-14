@@ -139,7 +139,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
     ) -> str | None:
         self.log.info("Event: and now my watch begins starting at resource_version: %s", resource_version)
 
-        kwargs: dict[str:Any] = {"label_selector": f"airflow-worker={scheduler_job_id}"}
+        kwargs: dict[str, Any] = {"label_selector": f"airflow-worker={scheduler_job_id}"}
         if resource_version:
             kwargs["resource_version"] = resource_version
         if kube_config.kube_client_request_args:
