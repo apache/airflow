@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Iterable, Sequence
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
-from airflow.providers.yandex.hooks.yandexcloud_dataproc import DataprocHook
+from airflow.providers.yandex.hooks.dataproc import DataprocHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

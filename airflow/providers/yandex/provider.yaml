@@ -77,8 +77,6 @@ operators:
   - integration-name: Yandex.Cloud Dataproc
     python-modules:
       - airflow.providers.yandex.operators.dataproc
-      - airflow.providers.yandex.operators.yandexcloud_dataproc
-
   - integration-name: Yandex.Cloud YQ
     python-modules:
       - airflow.providers.yandex.operators.yq
@@ -90,7 +88,6 @@ hooks:
   - integration-name: Yandex.Cloud Dataproc
     python-modules:
       - airflow.providers.yandex.hooks.dataproc
-      - airflow.providers.yandex.hooks.yandexcloud_dataproc
   - integration-name: Yandex.Cloud YQ
     python-modules:
       - airflow.providers.yandex.hooks.yq
