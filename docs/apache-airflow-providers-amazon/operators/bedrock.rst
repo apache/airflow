@@ -212,6 +212,7 @@ https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base-supported.ht
 NOTE:  Support for "external sources" was added in boto 1.34.90
 
 Example using an Amazon Bedrock Knowledge Base:
+
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock_knowledge_base.py
     :language: python
     :dedent: 4
@@ -219,6 +220,7 @@ Example using an Amazon Bedrock Knowledge Base:
     :end-before: [END howto_operator_bedrock_knowledge_base_rag]
 
 Example using a PDF file in an Amazon S3 Bucket:
+
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock_knowledge_base.py
     :language: python
     :dedent: 4
