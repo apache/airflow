@@ -335,6 +335,7 @@
 - tests/providers/common/sql/operators/test_sql.py::TestSqlBranch::test_invalid_query_result_with_dag_run
 - tests/providers/common/sql/operators/test_sql.py::TestSqlBranch::test_with_skip_in_branch_downstream_dependencies
 - tests/providers/common/sql/operators/test_sql.py::TestSqlBranch::test_with_skip_in_branch_downstream_dependencies2
+- tests/providers/cncf/kubernetes/cli/test_kubernetes_command.py::TestGenerateDagYamlCommand::test_generate_dag_yaml
 - tests/providers/databricks/hooks/test_databricks_sql.py::test_incorrect_column_names
 - tests/providers/databricks/hooks/test_databricks_sql.py::test_no_query
 - tests/providers/databricks/hooks/test_databricks_sql.py::test_query

@@ -23,7 +23,7 @@ description: |
 
         - `Yandex.Cloud <https://cloud.yandex.com/>`__
 state: ready
-source-date-epoch: 1714477757
+source-date-epoch: 1715384497
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 3.11.0
@@ -51,7 +51,7 @@ versions:
 dependencies:
   - apache-airflow>=2.7.0
   - yandexcloud>=0.228.0
-  - yandex-query-client>=0.1.2
+  - yandex-query-client>=0.1.4
 
 integrations:
   - integration-name: Yandex.Cloud

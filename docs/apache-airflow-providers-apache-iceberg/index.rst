@@ -67,11 +67,10 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-apache-iceberg
+apache-airflow-providers-apache-iceberg package
 ------------------------------------------------------
-`Iceberg <https://iceberg.apache.org/>`__
 
-`Tabular <https://tabular.io/>`__
+`Iceberg <https://iceberg.apache.org/>`__
 
 
 Release: 1.0.0
@@ -79,23 +78,23 @@ Release: 1.0.0
 Provider package
 ----------------
 
-This is a provider package for ``apache.iceberg`` provider. All classes for this provider package
-are in ``airflow.providers.apache.iceberg`` python package.
+This package is for the ``apache.iceberg`` provider.
+All classes for this package are included in the ``airflow.providers.apache.iceberg`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported via
-``pip install apache-airflow-providers-apache-iceberg``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-apache-iceberg``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.6.0``
+``apache-airflow``  ``>=2.7.0``
 ==================  ==================

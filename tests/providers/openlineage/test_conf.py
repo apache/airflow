@@ -22,12 +22,14 @@ from unittest import mock
 import pytest
 
 from airflow.providers.openlineage.conf import (
+    _is_true,
     config_path,
     custom_extractors,
     disabled_operators,
     is_disabled,
     is_source_enabled,
     namespace,
+    selective_enable,
     transport,
 )
 from tests.test_utils.config import conf_vars, env_vars
@@ -46,6 +48,22 @@ _CONFIG_OPTION_TRANSPORT = "transport"
 _VAR_DISABLED = "OPENLINEAGE_DISABLED"
 _CONFIG_OPTION_DISABLED = "disabled"
 _VAR_URL = "OPENLINEAGE_URL"
+_CONFIG_OPTION_SELECTIVE_ENABLE = "selective_enable"
+
+_BOOL_PARAMS = (
+    ("1", True),
+    ("t", True),
+    ("T", True),
+    ("tRuE ", True),
+    (" true", True),
+    ("TRUE", True),
+    ("0", False),
+    ("f", False),
+    ("F", False),
+    (" fAlSe", False),
+    ("false ", False),
+    ("FALSE", False),
+)
 
 
 @pytest.fixture(autouse=True)
@@ -57,6 +75,7 @@ def clear_cache():
     namespace.cache_clear()
     transport.cache_clear()
     is_disabled.cache_clear()
+    selective_enable.cache_clear()
     try:
         yield
     finally:
@@ -67,6 +86,21 @@ def clear_cache():
         namespace.cache_clear()
         transport.cache_clear()
         is_disabled.cache_clear()
+        selective_enable.cache_clear()
+
+
+@pytest.mark.parametrize(
+    ("var_string", "expected"),
+    (
+        *_BOOL_PARAMS,
+        ("some_string", False),
+        ("aasd123", False),
+        (True, True),
+        (False, False),
+    ),
+)
+def test_is_true(var_string, expected):
+    assert _is_true(var_string) is expected
 
 
 @env_vars({_VAR_CONFIG_PATH: "env_var_path"})
@@ -89,6 +123,16 @@ def test_config_path_empty_conf_option():
 @conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_CONFIG_PATH): None})
 def test_config_path_do_not_fail_if_conf_option_missing():
     assert config_path() == ""
+
+
+@pytest.mark.parametrize(
+    ("var_string", "expected"),
+    _BOOL_PARAMS,
+)
+def test_disable_source_code(var_string, expected):
+    with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_DISABLE_SOURCE_CODE): var_string}):
+        result = is_source_enabled()
+        assert result is not expected  # conf is disabled_... and func is enabled_... hence the `not` here
 
 
 @env_vars({_VAR_DISABLE_SOURCE_CODE: "true"})
@@ -122,6 +166,31 @@ def test_disable_source_code_empty_conf_option():
 @conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_DISABLE_SOURCE_CODE): None})
 def test_disable_source_code_do_not_fail_if_conf_option_missing():
     assert is_source_enabled() is True
+
+
+@pytest.mark.parametrize(
+    ("var_string", "expected"),
+    _BOOL_PARAMS,
+)
+def test_selective_enable(var_string, expected):
+    with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_SELECTIVE_ENABLE): var_string}):
+        result = selective_enable()
+        assert result is expected
+
+
+@conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_SELECTIVE_ENABLE): "asdadawlaksnd"})
+def test_selective_enable_not_working_for_random_string():
+    assert selective_enable() is False
+
+
+@conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_SELECTIVE_ENABLE): ""})
+def test_selective_enable_empty_conf_option():
+    assert selective_enable() is False
+
+
+@conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_SELECTIVE_ENABLE): None})
+def test_selective_enable_do_not_fail_if_conf_option_missing():
+    assert selective_enable() is False
 
 
 @pytest.mark.parametrize(

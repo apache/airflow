@@ -22,7 +22,7 @@ description: |
     `Segment <https://segment.com/>`__
 
 state: ready
-source-date-epoch: 1714477452
+source-date-epoch: 1715384476
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 3.5.0

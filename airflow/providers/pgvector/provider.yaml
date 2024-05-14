@@ -24,7 +24,7 @@ description: |
     `pgvector <https://github.com/pgvector/pgvector>`__
 
 state: ready
-source-date-epoch: 1714477192
+source-date-epoch: 1715384467
 
 # note that those versions are maintained by release manager - do not update them manually
 versions:
