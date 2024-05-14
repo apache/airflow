@@ -26,10 +26,10 @@
 Changelog
 ---------
 
-main
+1.8.0
 .....
 
-In Airflow 2.10.0, we fix the way try_number works, so that it no longer returns different values depending on task instance state.  Importantly, after the task is done, it no longer shows current_try + 1. Thus in 1.7.2 we patch this provider to fix try_number references so they no longer adjust for the old, bad behavior.
+For Airflow >= 2.10.0, use ``apache-airflow-providers-openlineage >= 1.8.0``, the first compatible version due to changes in try_number in core Airflow (#39336). We always recommend installing the latest provider version regardless of Airflow version.
 
 1.7.1
 .....
