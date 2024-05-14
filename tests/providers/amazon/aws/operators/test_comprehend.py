@@ -118,9 +118,7 @@ class TestComprehendStartPiiEntitiesDetectionJobOperator:
         assert self.operator.start_pii_entities_kwargs.get("RedactionConfig") == self.REDACTION_CONFIG
 
     @mock.patch.object(ComprehendHook, "conn")
-    def test_start_pii_entities_detection_job_name_starts_with_service_name(
-        self, comprehend_mock_conn
-    ):
+    def test_start_pii_entities_detection_job_name_starts_with_service_name(self, comprehend_mock_conn):
         self.op = ComprehendStartPiiEntitiesDetectionJobOperator(
             task_id="start_pii_entities_detection_job",
             input_data_config=INPUT_DATA_CONFIG,
@@ -140,7 +138,7 @@ class TestComprehendStartPiiEntitiesDetectionJobOperator:
             DataAccessRoleArn=ROLE_ARN,
             LanguageCode=LANGUAGE_CODE,
             RedactionConfig=self.REDACTION_CONFIG,
-            JobName=self.op.start_pii_entities_kwargs.get("JobName")
+            JobName=self.op.start_pii_entities_kwargs.get("JobName"),
         )
 
     @pytest.mark.parametrize(
