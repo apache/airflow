@@ -229,7 +229,7 @@ class TestGlueCreateSessionOperator:
     def test_execute_immediate_create(self, mock_conn, mock_wait):
         """Test if cluster created during initial request."""
         mock_conn.get_session.result = {"Session": {"Status": "READY"}}
-        op = GlueCreateSessionOperator(task_id="task", session_id=SESSION_ID, wait_for_readiness=True)
+        op = GlueCreateSessionOperator(task_id="task", session_id=SESSION_ID, wait_for_completion=True)
 
         result = op.execute(mock.MagicMock())
 
@@ -249,7 +249,7 @@ class TestGlueCreateSessionOperator:
         mock_conn.exceptions.EntityNotFoundException = SessionNotFoundException
         mock_conn.get_session.side_effect = SessionNotFoundException()
 
-        op = GlueCreateSessionOperator(task_id="task", session_id=SESSION_ID, wait_for_readiness=False)
+        op = GlueCreateSessionOperator(task_id="task", session_id=SESSION_ID, wait_for_completion=False)
 
         op.execute({})
         mock_conn.create_session.assert_called_once()

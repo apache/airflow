@@ -71,8 +71,17 @@ class GlueCreateSessionOperator(GlueSessionBaseOperator):
     :param region_name: aws region name (example: us-east-1)
     :param iam_role_name: AWS IAM Role for Glue Session Execution. If set `iam_role_arn` must equal None.
     :param iam_role_arn: AWS IAM Role ARN for Glue Session Execution, If set `iam_role_name` must equal None.
-    :param num_of_dpus: Number of AWS Glue DPUs to allocate to this Session
+    :param num_of_dpus: Number of AWS Glue DPUs to allocate to this Session (the default is 10).
     :param create_session_kwargs: Extra arguments for Glue Session Creation
+    :param wait_for_completion: If True, waits for the session to be ready. (default: True)
+    :param waiter_delay: The amount of time in seconds to wait between attempts,
+        if not set then the default waiter value will be used.
+    :param waiter_max_attempts: The maximum number of attempts to be made,
+        if not set then the default waiter value will be used.
+    :param deferrable: If True, the operator will wait asynchronously for the session to be ready.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
+    :param delete_session_on_kill: If True, Operator will delete the session when task is killed.
     """
 
     template_fields: Sequence[str] = (
@@ -80,6 +89,8 @@ class GlueCreateSessionOperator(GlueSessionBaseOperator):
         "create_session_kwargs",
         "iam_role_name",
         "iam_role_arn",
+        "wait_for_completion",
+        "deferrable",
     )
     template_fields_renderers = {
         "create_session_kwargs": "json",
@@ -95,7 +106,7 @@ class GlueCreateSessionOperator(GlueSessionBaseOperator):
         iam_role_arn: str | None = None,
         num_of_dpus: int | None = None,
         create_session_kwargs: dict | None = None,
-        wait_for_readiness: bool = True,
+        wait_for_completion: bool = True,
         waiter_delay: int = 15,
         waiter_max_attempts: int = 60,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
@@ -110,7 +121,7 @@ class GlueCreateSessionOperator(GlueSessionBaseOperator):
         self.iam_role_name = iam_role_name
         self.iam_role_arn = iam_role_arn
         self.create_session_kwargs = create_session_kwargs or {}
-        self.wait_for_readiness = wait_for_readiness
+        self.wait_for_completion = wait_for_completion
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.session_poll_interval = session_poll_interval
@@ -192,7 +203,7 @@ class GlueCreateSessionOperator(GlueSessionBaseOperator):
                 method_name="_complete_exec_with_session",
             )
             # self.defer raises a special exception, so execution stops here in this case.
-        elif self.wait_for_readiness:
+        elif self.wait_for_completion:
             self._wait_for_task_ended()
 
         return self.session_id
