@@ -41,7 +41,9 @@ class TestPlaceHolder:
         assert "release-name-place-holder" == jmespath.search("metadata.name", docs[0])
         assert 2 == jmespath.search("spec.replicas", docs[0])
         assert "placeholder" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
-        assert "release-name-placeholder-pc" == jmespath.search("spec.template.spec.priorityClassName", docs[0])
+        assert "release-name-placeholder-pc" == jmespath.search(
+            "spec.template.spec.priorityClassName", docs[0]
+        )
         assert "PriorityClass" == jmespath.search("kind", docs[1])
         assert "release-name-placeholder-pc" == jmespath.search("metadata.name", docs[1])
         assert "PodDisruptionBudget" == jmespath.search("kind", docs[2])

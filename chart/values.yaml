@@ -769,10 +769,11 @@ workers:
   placeHolder:
     enabled: true
     replicas: 2
+    labels: ~
     placeHolderPriority: ~
     annotations:
       cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
-
+    podAnnotations: ~
     podDisruptionBudget:
       config: ~
       # minAvailable and maxUnavailable are mutually exclusive

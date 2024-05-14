@@ -20,14 +20,14 @@
 ####################################
 ## Airflow PlaceHolder Deployment
 ####################################
-{{- if .Values.workers.placeHolder.enabled -}}
+{{- if .Values.workers.placeHolder.enabled }}
 {{- if or (eq .Values.executor "KubernetesExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
 {{- $nodeSelector := or .Values.workers.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.workers.affinity .Values.affinity }}
 {{- $tolerations := or .Values.workers.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := .Values.workers.placeHolder.topologySpreadConstraints }}
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: {{ include "airflow.fullname" . }}-place-holder
   labels:
@@ -45,6 +45,7 @@ metadata:
 spec:
   replicas: {{ .Values.workers.placeHolder.replicas }}
   revisionHistoryLimit: 0
+  updateStrategy: RollingUpdate
   podManagementPolicy: Parallel
   selector:
     matchLabels:
@@ -69,7 +70,6 @@ spec:
         checksum/airflow-config: {{ include (print $.Template.BasePath "/configmaps/configmap.yaml") . | sha256sum }}
         checksum/extra-configmaps: {{ include (print $.Template.BasePath "/configmaps/extra-configmaps.yaml") . | sha256sum }}
         checksum/extra-secrets: {{ include (print $.Template.BasePath "/secrets/extra-secrets.yaml") . | sha256sum }}
-        cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
         {{- if .Values.airflowPodAnnotations }}
           {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
         {{- end }}

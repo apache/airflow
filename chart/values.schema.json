@@ -2151,7 +2151,6 @@
                         "additionalProperties": false
                     }
                 },
-
                 "placeHolder": {
                     "description": "Creates place holders with lower priority class for workers.",
                     "type": "object",
@@ -2169,9 +2168,22 @@
                         },
                         "placeHolderPriority": {
                             "description": "Value for PriorityClass of PlaceHolder: should be lower than worker PC",
-                            "type": ["null","integer"] ,
+                            "type": [
+                                "null",
+                                "integer"
+                            ],
                             "default": 10
-
+                        },
+                        "labels": {
+                            "description": "Labels to add to the placeholder objects and pods.",
+                            "type": [
+                                "null",
+                                "object"
+                            ],
+                            "default": null,
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         },
                         "annotations": {
                             "description": "Annotations to add to PlaceHolder Deployment.",
@@ -2181,15 +2193,28 @@
                                 "type": "string"
                             }
                         },
+                        "podAnnotations": {
+                            "description": "Annotations to add to PlaceHolder pods.",
+                            "type": [
+                                "null",
+                                "object"
+                            ],
+                            "default": null,
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
                         "podDisruptionBudget": {
                             "description": "Default",
                             "type": "object",
                             "additionalProperties": false,
                             "properties": {
-                                "config":
-                                {
+                                "config": {
                                     "description": "Disruption budget configuration.",
-                                    "type": ["null", "object"],
+                                    "type": [
+                                        "null",
+                                        "object"
+                                    ],
                                     "additionalProperties": false,
                                     "properties": {
                                         "maxUnavailable": {
@@ -2212,7 +2237,6 @@
                                 }
                             }
                         }
-
                     }
                 },
                 "volumeClaimTemplates": {
