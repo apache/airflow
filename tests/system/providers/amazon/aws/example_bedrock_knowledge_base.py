@@ -34,7 +34,7 @@ from opensearchpy import (
 )
 
 from airflow import DAG
-from airflow.decorators import task
+from airflow.decorators import task, task_group
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook
 from airflow.providers.amazon.aws.hooks.opensearch_serverless import OpenSearchServerlessHook
@@ -77,6 +77,7 @@ DAG_ID = "example_bedrock_knowledge_base"
 log = logging.getLogger(__name__)
 
 
+@task_group
 def external_sources_rag_group():
     """External Sources were added in boto 1.34.90, skip this operator if the version is below that."""
 
