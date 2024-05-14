@@ -1091,6 +1091,27 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /parseDagFile/{file_token}:
+    parameters:
+      - $ref: "#/components/parameters/FileToken"
+
+    put:
+      summary: Request re-parsing of a DAG file
+      description: >
+        Request re-parsing of existing DAG files using a file token.
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_parsing
+      operationId: reparse_dag_file
+      tags: [ DAG ]
+      responses:
+        "201":
+          description: Success.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /datasets/queuedEvent/{uri}:
     parameters:
       - $ref: "#/components/parameters/DatasetURI"
@@ -3158,6 +3179,7 @@ components:
 
             *New in version 2.5.0*
           nullable: true
+
 
     UpdateDagRunState:
       type: object
