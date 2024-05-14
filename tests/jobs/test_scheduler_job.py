@@ -23,6 +23,7 @@ import logging
 import os
 from collections import deque
 from datetime import timedelta
+from importlib import reload
 from typing import Generator
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
@@ -164,6 +165,18 @@ class TestSchedulerJob:
 
         self.null_exec = None
         del self.dagbag
+
+    @pytest.fixture
+    def mock_executors(self):
+        default_executor = mock.MagicMock(slots_available=8, slots_occupied=0)
+        default_executor.name = MagicMock(alias="default_exec", module_path="default.exec.module.path")
+        second_executor = mock.MagicMock(slots_available=8, slots_occupied=0)
+        second_executor.name = MagicMock(alias="secondary_exec", module_path="secondary.exec.module.path")
+        with mock.patch("airflow.jobs.job.Job.executors", new_callable=PropertyMock) as executors_mock:
+            with mock.patch("airflow.jobs.job.Job.executor", new_callable=PropertyMock) as executor_mock:
+                executor_mock.return_value = default_executor
+                executors_mock.return_value = [default_executor, second_executor]
+                yield [default_executor, second_executor]
 
     @pytest.mark.parametrize(
         "configs",
@@ -1739,6 +1752,62 @@ class TestSchedulerJob:
 
         ti2 = dr2.get_task_instance(task_id=op1.task_id, session=session)
         assert ti2.state == State.QUEUED, "Tasks run by Backfill Jobs should not be reset"
+
+    def test_adopt_or_reset_orphaned_tasks_multiple_executors(self, dag_maker, mock_executors):
+        """Test that with multiple executors configured tasks are sorted correctly and handed off to the
+        correct executor for adoption."""
+        session = settings.Session()
+        with dag_maker("test_execute_helper_reset_orphaned_tasks_multiple_executors"):
+            op1 = EmptyOperator(task_id="op1")
+            op2 = EmptyOperator(task_id="op2", executor="default_exec")
+            op3 = EmptyOperator(task_id="op3", executor="secondary_exec")
+
+        dr = dag_maker.create_dagrun()
+        scheduler_job = Job()
+        session.add(scheduler_job)
+        session.commit()
+        ti1 = dr.get_task_instance(task_id=op1.task_id, session=session)
+        ti2 = dr.get_task_instance(task_id=op2.task_id, session=session)
+        ti3 = dr.get_task_instance(task_id=op3.task_id, session=session)
+        tis = [ti1, ti2, ti3]
+        for ti in tis:
+            ti.state = State.QUEUED
+            ti.queued_by_job_id = scheduler_job.id
+        session.commit()
+
+        with mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock:
+            # reload the scheduler_job_runner module so that it loads a fresh executor_loader module which
+            # contains the mocked load_executor method.
+            from airflow.jobs import scheduler_job_runner
+
+            reload(scheduler_job_runner)
+
+            processor = mock.MagicMock()
+
+            new_scheduler_job = Job()
+            self.job_runner = SchedulerJobRunner(job=new_scheduler_job, num_runs=0)
+            self.job_runner.processor_agent = processor
+            # The executors are mocked, so cannot be loaded/imported. Mock load_executor and return the
+            # correct object for the given input executor name.
+            loader_mock.side_effect = lambda *x: {
+                ("default_exec",): mock_executors[0],
+                (None,): mock_executors[0],
+                ("secondary_exec",): mock_executors[1],
+            }[x]
+
+            self.job_runner.adopt_or_reset_orphaned_tasks()
+
+        # Default executor is called for ti1 (no explicit executor override uses default) and ti2 (where we
+        # explicitly marked that for execution by the default executor)
+        try:
+            mock_executors[0].try_adopt_task_instances.assert_called_once_with([ti1, ti2])
+        except AssertionError:
+            # The order of the TIs given to try_adopt_task_instances is not consistent, so check the other
+            # order first before allowing AssertionError to fail the test
+            mock_executors[0].try_adopt_task_instances.assert_called_once_with([ti2, ti1])
+
+        # Second executor called for ti3
+        mock_executors[1].try_adopt_task_instances.assert_called_once_with([ti3])
 
     def test_fail_stuck_queued_tasks(self, dag_maker, session):
         with dag_maker("test_fail_stuck_queued_tasks"):
