@@ -43,8 +43,10 @@ class AzureFileShareToGCSOperator(BaseOperator):
     Does not include subdirectories.  May be filtered by prefix.
 
     :param share_name: The Azure FileShare share where to find the objects. (templated)
-    :param directory_name: (Optional) Path to Azure FileShare directory which content is to be transferred.
+    :param directory_name: (Deprecated) Path to Azure FileShare directory which content is to be transferred.
         Defaults to root directory (templated)
+    :param directory_path: (Optional) Path to Azure FileShare directory which content is to be transferred.
+        Defaults to root directory. Use this instead of ``directory_name``. (templated)
     :param prefix: Prefix string which filters objects whose name begin with
         such prefix. (templated)
     :param azure_fileshare_conn_id: The source WASB connection
@@ -63,13 +65,14 @@ class AzureFileShareToGCSOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    Note that ``share_name``, ``directory_name``, ``prefix``, ``delimiter`` and ``dest_gcs`` are
+    Note that ``share_name``, ``directory_path``, ``prefix``, and ``dest_gcs`` are
     templated, so you can use variables in them if you wish.
     """
 
     template_fields: Sequence[str] = (
         "share_name",
         "directory_name",
+        "directory_path",
         "prefix",
         "dest_gcs",
     )
@@ -94,8 +97,8 @@ class AzureFileShareToGCSOperator(BaseOperator):
         self.share_name = share_name
         self.directory_path = directory_path
         self.directory_name = directory_name
-        if self.directory_path is None:
-            self.directory_path = directory_name
+        if self.directory_path is None and self.directory_name is not None:
+            self.directory_path = self.directory_name
             warnings.warn(
                 "Use 'directory_path' instead of 'directory_name'.",
                 AirflowProviderDeprecationWarning,
