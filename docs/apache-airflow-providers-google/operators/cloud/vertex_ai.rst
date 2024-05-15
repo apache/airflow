@@ -187,8 +187,8 @@ The same operation can be performed in the deferrable mode:
 .. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_custom_job.py
     :language: python
     :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_create_custom_training_job_v2_operator_deferrable]
-    :end-before: [END how_to_cloud_vertex_ai_create_custom_training_job_v2_operator_deferrable]
+    :start-after: [START how_to_cloud_vertex_ai_create_custom_training_job_v2_deferrable_operator]
+    :end-before: [END how_to_cloud_vertex_ai_create_custom_training_job_v2_deferrable_operator]
 
 
 You can get a list of Training Jobs using
