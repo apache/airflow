@@ -69,16 +69,16 @@ def _handle_foreign_key_constraint_index_deletion(
 
 def downgrade():
     """Unapply Add indexes on dag_id column in referencing tables."""
-    conn = op.get_bind()
-    with op.batch_alter_table("dag_owner_attributes", schema=None) as batch_op:
-        if conn.dialect.name == "mysql":
-            batch_op.execute("ALTER TABLE dag_owner_attributes DROP FOREIGN KEY `dag.dag_id`;")
-            batch_op.drop_index("idx_dag_owner_attributes_dag_id")
-            batch_op.create_foreign_key("dag.dag_id", "dag", ["dag_id"], ["dag_id"], ondelete="CASCADE")
-        else:
-            _handle_foreign_key_constraint_index_deletion(
-                batch_op, "dag.dag_id", "idx_dag_owner_attributes_dag_id", "dag_id"
-            )
+    # conn = op.get_bind()
+    # with op.batch_alter_table("dag_owner_attributes", schema=None) as batch_op:
+    #     if conn.dialect.name == "mysql":
+    #         batch_op.execute("ALTER TABLE dag_owner_attributes DROP FOREIGN KEY `dag.dag_id`;")
+    #         batch_op.drop_index("idx_dag_owner_attributes_dag_id")
+    #         batch_op.create_foreign_key("dag.dag_id", "dag", ["dag_id"], ["dag_id"], ondelete="CASCADE")
+    #     else:
+    #         _handle_foreign_key_constraint_index_deletion(
+    #             batch_op, "dag.dag_id", "idx_dag_owner_attributes_dag_id", "dag_id"
+    #         )
 
     with op.batch_alter_table("dag_schedule_dataset_reference", schema=None) as batch_op:
         _handle_foreign_key_constraint_index_deletion(
