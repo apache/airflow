@@ -410,6 +410,9 @@ combine-as-imports = true
 # https://github.com/apache/airflow/issues/39252
 "airflow/providers/amazon/aws/hooks/eks.py" = ["W605"]
 
+# Test compat imports banned imports to allow testing against older airflow versions
+"tests/test_utils/compat.py" = ["TID251", "F401"]
+
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.
 ban-relative-imports = "all"

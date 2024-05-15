@@ -731,7 +731,8 @@ class TestBigQueryOperator:
             sql="SELECT * FROM test_table",
         )
         serialized_dag = dag_maker.get_serialized_data()
-        assert "sql" in serialized_dag["dag"]["tasks"][0]["__var"]
+        deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
+        assert hasattr(deserialized_dag.tasks[0], "sql")
 
         dag = SerializedDAG.from_dict(serialized_dag)
         simple_task = dag.task_dict[TASK_ID]
@@ -740,11 +741,8 @@ class TestBigQueryOperator:
         #########################################################
         # Verify Operator Links work with Serialized Operator
         #########################################################
-
-        # Check Serialized version of operator link
-        assert serialized_dag["dag"]["tasks"][0]["__var"]["_operator_extra_links"] == [
-            {"airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink": {}}
-        ]
+        deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
+        assert deserialized_dag.tasks[0].operator_extra_links[0].name == "BigQuery Console"
 
         # Check DeSerialized version of operator link
         assert isinstance(next(iter(simple_task.operator_extra_links)), BigQueryConsoleLink)
@@ -768,7 +766,8 @@ class TestBigQueryOperator:
             sql=["SELECT * FROM test_table", "SELECT * FROM test_table2"],
         )
         serialized_dag = dag_maker.get_serialized_data()
-        assert "sql" in serialized_dag["dag"]["tasks"][0]["__var"]
+        deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
+        assert hasattr(deserialized_dag.tasks[0], "sql")
 
         dag = SerializedDAG.from_dict(serialized_dag)
         simple_task = dag.task_dict[TASK_ID]
@@ -777,12 +776,10 @@ class TestBigQueryOperator:
         #########################################################
         # Verify Operator Links work with Serialized Operator
         #########################################################
-
-        # Check Serialized version of operator link
-        assert serialized_dag["dag"]["tasks"][0]["__var"]["_operator_extra_links"] == [
-            {"airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink": {"index": 0}},
-            {"airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink": {"index": 1}},
-        ]
+        deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
+        operator_extra_links = deserialized_dag.tasks[0].operator_extra_links
+        assert operator_extra_links[0].name == "BigQuery Console #1"
+        assert operator_extra_links[1].name == "BigQuery Console #2"
 
         # Check DeSerialized version of operator link
         assert isinstance(next(iter(simple_task.operator_extra_links)), BigQueryConsoleIndexableLink)
