@@ -20,8 +20,26 @@ from __future__ import annotations
 from unittest.mock import MagicMock, PropertyMock, call, patch
 
 import pytest
-from openlineage.client.event_v2 import Dataset
-from openlineage.client.facet_v2 import column_lineage_dataset, schema_dataset, sql_job
+
+try:
+    from openlineage.client.event_v2 import Dataset
+    from openlineage.client.generated.column_lineage_dataset import (
+        ColumnLineageDatasetFacet,
+        Fields,
+        InputField,
+    )
+    from openlineage.client.generated.schema_dataset import SchemaDatasetFacet, SchemaDatasetFacetFields
+    from openlineage.client.generated.sql_job import SQLJobFacet
+except ImportError:
+    from openlineage.client.facet import (
+        ColumnLineageDatasetFacet,
+        ColumnLineageDatasetFacetFieldsAdditional as Fields,
+        ColumnLineageDatasetFacetFieldsAdditionalInputFields as InputField,
+        SchemaDatasetFacet,
+        SchemaField as SchemaDatasetFacetFields,
+        SqlJobFacet as SQLJobFacet,
+    )
+    from openlineage.client.run import Dataset
 
 from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook as OriginalRedshiftSQLHook
@@ -206,11 +224,11 @@ class TestRedshiftSQLOpenLineage:
                 namespace=expected_namespace,
                 name=f"{ANOTHER_DB_NAME}.{ANOTHER_DB_SCHEMA}.popular_orders_day_of_week",
                 facets={
-                    "schema": schema_dataset.SchemaDatasetFacet(
+                    "schema": SchemaDatasetFacet(
                         fields=[
-                            schema_dataset.SchemaDatasetFacetFields(name="order_day_of_week", type="varchar"),
-                            schema_dataset.SchemaDatasetFacetFields(name="order_placed_on", type="timestamp"),
-                            schema_dataset.SchemaDatasetFacetFields(name="orders_placed", type="int4"),
+                            SchemaDatasetFacetFields(name="order_day_of_week", type="varchar"),
+                            SchemaDatasetFacetFields(name="order_placed_on", type="timestamp"),
+                            SchemaDatasetFacetFields(name="orders_placed", type="int4"),
                         ]
                     )
                 },
@@ -219,12 +237,10 @@ class TestRedshiftSQLOpenLineage:
                 namespace=expected_namespace,
                 name=f"{DB_NAME}.{DB_SCHEMA_NAME}.little_table",
                 facets={
-                    "schema": schema_dataset.SchemaDatasetFacet(
+                    "schema": SchemaDatasetFacet(
                         fields=[
-                            schema_dataset.SchemaDatasetFacetFields(name="order_day_of_week", type="varchar"),
-                            schema_dataset.SchemaDatasetFacetFields(
-                                name="additional_constant", type="varchar"
-                            ),
+                            SchemaDatasetFacetFields(name="order_day_of_week", type="varchar"),
+                            SchemaDatasetFacetFields(name="additional_constant", type="varchar"),
                         ]
                     )
                 },
@@ -235,21 +251,19 @@ class TestRedshiftSQLOpenLineage:
                 namespace=expected_namespace,
                 name=f"{DB_NAME}.{DB_SCHEMA_NAME}.test_table",
                 facets={
-                    "schema": schema_dataset.SchemaDatasetFacet(
+                    "schema": SchemaDatasetFacet(
                         fields=[
-                            schema_dataset.SchemaDatasetFacetFields(name="order_day_of_week", type="varchar"),
-                            schema_dataset.SchemaDatasetFacetFields(name="order_placed_on", type="timestamp"),
-                            schema_dataset.SchemaDatasetFacetFields(name="orders_placed", type="int4"),
-                            schema_dataset.SchemaDatasetFacetFields(
-                                name="additional_constant", type="varchar"
-                            ),
+                            SchemaDatasetFacetFields(name="order_day_of_week", type="varchar"),
+                            SchemaDatasetFacetFields(name="order_placed_on", type="timestamp"),
+                            SchemaDatasetFacetFields(name="orders_placed", type="int4"),
+                            SchemaDatasetFacetFields(name="additional_constant", type="varchar"),
                         ]
                     ),
-                    "columnLineage": column_lineage_dataset.ColumnLineageDatasetFacet(
+                    "columnLineage": ColumnLineageDatasetFacet(
                         fields={
-                            "additional_constant": column_lineage_dataset.Fields(
+                            "additional_constant": Fields(
                                 inputFields=[
-                                    column_lineage_dataset.InputField(
+                                    InputField(
                                         namespace=expected_namespace,
                                         name="database.public.little_table",
                                         field="additional_constant",
@@ -264,6 +278,6 @@ class TestRedshiftSQLOpenLineage:
             )
         ]
 
-        assert lineage.job_facets == {"sql": sql_job.SQLJobFacet(query=sql)}
+        assert lineage.job_facets == {"sql": SQLJobFacet(query=sql)}
 
         assert lineage.run_facets["extractionError"].failedTasks == 1

@@ -434,10 +434,9 @@ class OpenLineageAdapter(LoggingMixin):
                 {"nominalTime": nominal_time_run.NominalTimeRunFacet(nominal_start_time, nominal_end_time)}
             )
         if parent_run_id:
-            parent_run_facet = parent_run.ParentRunFacet.create(
-                runId=parent_run_id,
-                namespace=conf.namespace(),
-                name=parent_job_name or job_name,
+            parent_run_facet = parent_run.ParentRunFacet(
+                run=parent_run.Run(runId=parent_run_id),
+                job=parent_run.Job(namespace=conf.namespace(), name=parent_job_name or job_name),
             )
             facets.update({"parent": parent_run_facet})
 

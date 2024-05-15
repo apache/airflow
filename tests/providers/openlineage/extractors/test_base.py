@@ -42,8 +42,9 @@ pytestmark = pytest.mark.db_test
 INPUTS = [Dataset(namespace="database://host:port", name="inputtable")]
 OUTPUTS = [Dataset(namespace="database://host:port", name="inputtable")]
 RUN_FACETS: dict[str, RunFacet] = {
-    "parent": parent_run.ParentRunFacet.create(
-        "3bb703d1-09c1-4a42-8da5-35a0b3216072", "namespace", "parentjob"
+    "parent": parent_run.ParentRunFacet(
+        run=parent_run.Run(runId="3bb703d1-09c1-4a42-8da5-35a0b3216072"),
+        job=parent_run.Job(namespace="namespace", name="parentjob"),
     )
 }
 JOB_FACETS: dict[str, JobFacet] = {"sql": sql_job.SQLJobFacet(query="SELECT * FROM inputtable")}

@@ -21,8 +21,14 @@ from unittest.mock import MagicMock
 
 import pytest
 from google.cloud.bigquery.table import Table
-from openlineage.client.event_v2 import Dataset
-from openlineage.client.facet_v2 import column_lineage_dataset, documentation_dataset, schema_dataset
+from openlineage.client.event_v2 import Dataset, InputDataset, OutputDataset
+from openlineage.client.facet_v2 import (
+    column_lineage_dataset,
+    documentation_dataset,
+    external_query_run,
+    output_statistics_output_dataset,
+    schema_dataset,
+)
 
 from airflow.providers.google.cloud.openlineage.utils import (
     get_facets_from_bq_table,

@@ -19,18 +19,19 @@ from __future__ import annotations
 
 import copy
 import json
-from msilib import schema
 import traceback
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from attr import define, field
+from openlineage.client.event_v2 import Dataset, InputDataset, OutputDataset
 from openlineage.client.facet_v2 import (
     BaseFacet,
     column_lineage_dataset,
     documentation_dataset,
-    error_message_run,external_query_run,
+    error_message_run,
+    external_query_run,
     output_statistics_output_dataset,
-    schema_dataset
+    schema_dataset,
 )
 
 from airflow.providers.google import __version__ as provider_version
@@ -49,7 +50,9 @@ def get_facets_from_bq_table(table: Table) -> dict[Any, Any]:
     facets = {
         "schema": schema_dataset.SchemaDatasetFacet(
             fields=[
-                schema_dataset.SchemaDatasetFacetFields(name=field.name, type=field.field_type, description=field.description)
+                schema_dataset.SchemaDatasetFacetFields(
+                    name=field.name, type=field.field_type, description=field.description
+                )
                 for field in table.schema
             ]
         ),
@@ -208,7 +211,7 @@ class _BigQueryOpenLineageMixin:
             - SchemaDatasetFacet
             - OutputStatisticsOutputDatasetFacet
         """
-        from openlineage.client.facet import ExternalQueryRunFacet, SqlJobFacet
+        from openlineage.client.facet_v2 import sql_job
 
         from airflow.providers.openlineage.extractors import OperatorLineage
         from airflow.providers.openlineage.sqlparser import SQLParser
@@ -217,10 +220,12 @@ class _BigQueryOpenLineageMixin:
             return OperatorLineage()
 
         run_facets: dict[str, BaseFacet] = {
-            "externalQuery": external_query_run.ExternalQueryRunFacet(externalQueryId=self.job_id, source="bigquery")
+            "externalQuery": external_query_run.ExternalQueryRunFacet(
+                externalQueryId=self.job_id, source="bigquery"
+            )
         }
 
-        job_facets = {"sql": SqlJobFacet(query=SQLParser.normalize_sql(self.sql))}
+        job_facets = {"sql": sql_job.SQLJobFacet(query=SQLParser.normalize_sql(self.sql))}
 
         self.client = self.hook.get_client(project_id=self.hook.project_id)
         job_ids = self.job_id
@@ -288,7 +293,7 @@ class _BigQueryOpenLineageMixin:
         deduplicated_outputs = self._deduplicate_outputs(outputs)
         return inputs, deduplicated_outputs, run_facets
 
-    def _deduplicate_outputs(self, outputs: list[Dataset | None]) -> list[Dataset]:
+    def _deduplicate_outputs(self, outputs: list[OutputDataset | None]) -> list[OutputDataset]:
         # Sources are the same so we can compare only names
         final_outputs = {}
         for single_output in outputs:
@@ -301,20 +306,24 @@ class _BigQueryOpenLineageMixin:
 
             # No OutputStatisticsOutputDatasetFacet is added to duplicated outputs as we can not determine
             # if the rowCount or size can be summed together.
-            single_output.facets.pop("outputStatistics", None)
+            if single_output.outputFacets:
+                single_output.outputFacets.pop("outputStatistics", None)
             final_outputs[key] = single_output
 
         return list(final_outputs.values())
 
-    def _get_inputs_outputs_from_job(self, properties: dict) -> tuple[list[Dataset], Dataset | None]:
+    def _get_inputs_outputs_from_job(
+        self, properties: dict
+    ) -> tuple[list[InputDataset], OutputDataset | None]:
         input_tables = get_from_nullable_chain(properties, ["statistics", "query", "referencedTables"]) or []
         output_table = get_from_nullable_chain(properties, ["configuration", "query", "destinationTable"])
-        inputs = [self._get_dataset(input_table) for input_table in input_tables]
+        inputs = [(self._get_input_dataset(input_table)) for input_table in input_tables]
         if output_table:
-            output = self._get_dataset(output_table)
+            output = self._get_output_dataset(output_table)
             dataset_stat_facet = self._get_statistics_dataset_facet(properties)
+            output.outputFacets = output.outputFacets or {}
             if dataset_stat_facet:
-                output.facets.update({"outputStatistics": dataset_stat_facet})
+                output.outputFacets["outputStatistics"] = dataset_stat_facet
 
         return inputs, output
 
@@ -333,7 +342,9 @@ class _BigQueryOpenLineageMixin:
         )
 
     @staticmethod
-    def _get_statistics_dataset_facet(properties) -> output_statistics_output_dataset.OutputStatisticsOutputDatasetFacet | None:
+    def _get_statistics_dataset_facet(
+        properties,
+    ) -> output_statistics_output_dataset.OutputStatisticsOutputDatasetFacet | None:
         query_plan = get_from_nullable_chain(properties, chain=["statistics", "query", "queryPlan"])
         if not query_plan:
             return None
@@ -342,25 +353,48 @@ class _BigQueryOpenLineageMixin:
         out_rows = out_stage.get("recordsWritten", None)
         out_bytes = out_stage.get("shuffleOutputBytes", None)
         if out_bytes and out_rows:
-            return output_statistics_output_dataset.OutputStatisticsOutputDatasetFacet(rowCount=int(out_rows), size=int(out_bytes))
+            return output_statistics_output_dataset.OutputStatisticsOutputDatasetFacet(
+                rowCount=int(out_rows), size=int(out_bytes)
+            )
         return None
 
-    def _get_dataset(self, table: dict) -> Dataset:
+    def _get_input_dataset(self, table: dict) -> InputDataset:
+        return cast(InputDataset, self._get_dataset(table, "input"))
+
+    def _get_output_dataset(self, table: dict) -> OutputDataset:
+        return cast(OutputDataset, self._get_dataset(table, "output"))
+
+    def _get_dataset(self, table: dict, dataset_type: str) -> Dataset:
         project = table.get("projectId")
         dataset = table.get("datasetId")
         table_name = table.get("tableId")
         dataset_name = f"{project}.{dataset}.{table_name}"
 
         dataset_schema = self._get_table_schema_safely(dataset_name)
-        return Dataset(
-            namespace=BIGQUERY_NAMESPACE,
-            name=dataset_name,
-            facets={
-                "schema": dataset_schema,
-            }
-            if dataset_schema
-            else {},
-        )
+        if dataset_type == "input":
+            # Logic specific to creating InputDataset (if needed)
+            return InputDataset(
+                namespace=BIGQUERY_NAMESPACE,
+                name=dataset_name,
+                facets={
+                    "schema": dataset_schema,
+                }
+                if dataset_schema
+                else {},
+            )
+        elif dataset_type == "output":
+            # Logic specific to creating OutputDataset (if needed)
+            return OutputDataset(
+                namespace=BIGQUERY_NAMESPACE,
+                name=dataset_name,
+                facets={
+                    "schema": dataset_schema,
+                }
+                if dataset_schema
+                else {},
+            )
+        else:
+            raise ValueError("Invalid dataset_type. Must be 'input' or 'output'")
 
     def _get_table_schema_safely(self, table_name: str) -> schema_dataset.SchemaDatasetFacet | None:
         try:
