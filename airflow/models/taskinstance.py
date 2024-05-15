@@ -2485,7 +2485,8 @@ class TaskInstance(Base, LoggingMixin):
 
             try:
                 if not mark_success:
-                    self._execute_task_with_callbacks(context, test_mode, session=session)
+                    with set_current_context(context):
+                        self._execute_task_with_callbacks(context, test_mode, session=session)
                 if not test_mode:
                     self.refresh_from_db(lock_for_update=True, session=session)
                 self.state = TaskInstanceState.SUCCESS
@@ -2632,13 +2633,12 @@ class TaskInstance(Base, LoggingMixin):
             # Set the validated/merged params on the task object.
             self.task.params = context["params"]
 
-            with set_current_context(context):
-                dag = self.task.get_dag()
-                if dag is not None:
-                    jinja_env = dag.get_template_env()
-                else:
-                    jinja_env = None
-                task_orig = self.render_templates(context=context, jinja_env=jinja_env)
+            dag = self.task.get_dag()
+            if dag is not None:
+                jinja_env = dag.get_template_env()
+            else:
+                jinja_env = None
+            task_orig = self.render_templates(context=context, jinja_env=jinja_env)
 
             # The task is never MappedOperator at this point.
             if TYPE_CHECKING:
@@ -2680,16 +2680,15 @@ class TaskInstance(Base, LoggingMixin):
                 return rendered_map_index
 
             # Execute the task.
-            with set_current_context(context):
-                try:
-                    result = self._execute_task(context, task_orig)
-                except Exception:
-                    # If the task failed, swallow rendering error so it doesn't mask the main error.
-                    with contextlib.suppress(jinja2.TemplateSyntaxError, jinja2.UndefinedError):
-                        self.rendered_map_index = _render_map_index(context, jinja_env=jinja_env)
-                    raise
-                else:  # If the task succeeded, render normally to let rendering error bubble up.
+            try:
+                result = self._execute_task(context, task_orig)
+            except Exception:
+                # If the task failed, swallow rendering error so it doesn't mask the main error.
+                with contextlib.suppress(jinja2.TemplateSyntaxError, jinja2.UndefinedError):
                     self.rendered_map_index = _render_map_index(context, jinja_env=jinja_env)
+                raise
+            else:  # If the task succeeded, render normally to let rendering error bubble up.
+                self.rendered_map_index = _render_map_index(context, jinja_env=jinja_env)
 
             # Run post_execute callback
             self.task.post_execute(context=context, result=result)
