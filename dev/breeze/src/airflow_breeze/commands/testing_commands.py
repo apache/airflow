@@ -284,13 +284,13 @@ def _run_tests_in_pool(
     sorting_order = [
         "Providers",
         "Providers[-amazon,google]",
+        "Other",
         "Core",
+        "PythonVenv",
         "WWW",
         "CLI",
-        "Other",
         "Serialization",
         "Always",
-        "PythonVenv",
     ]
     sort_key = {item: i for i, item in enumerate(sorting_order)}
     # Put the test types in the order we want them to run

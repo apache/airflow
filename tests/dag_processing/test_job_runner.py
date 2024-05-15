@@ -54,13 +54,13 @@ from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DbCallbackRequest
 from airflow.models.dagcode import DagCode
-from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 from tests.core.test_logging_config import SETTINGS_FILE_VALID, settings_context
 from tests.models import TEST_DAGS_FOLDER
+from tests.test_utils.compat import ParseImportError
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_callbacks, clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
@@ -575,6 +575,46 @@ class TestDagProcessorJobRunner:
                 manager.processor._file_process_interval
                 > (freezed_base_time - manager.processor.get_last_finish_time("file_1.py")).total_seconds()
             )
+
+    @mock.patch("sqlalchemy.orm.session.Session.delete")
+    @mock.patch("zipfile.is_zipfile", return_value=True)
+    @mock.patch("airflow.utils.file.might_contain_dag", return_value=True)
+    @mock.patch("airflow.utils.file.find_path_from_directory", return_value=True)
+    @mock.patch("airflow.utils.file.os.path.isfile", return_value=True)
+    def test_file_paths_in_queue_sorted_by_priority(
+        self, mock_isfile, mock_find_path, mock_might_contain_dag, mock_zipfile, session_delete
+    ):
+        from airflow.models.dagbag import DagPriorityParsingRequest
+
+        parsing_request = DagPriorityParsingRequest(fileloc="file_1.py")
+        with create_session() as session:
+            session.add(parsing_request)
+            session.commit()
+
+        """Test dag files are sorted by priority"""
+        dag_files = ["file_3.py", "file_2.py", "file_4.py", "file_1.py"]
+        mock_find_path.return_value = dag_files
+
+        manager = DagProcessorJobRunner(
+            job=Job(),
+            processor=DagFileProcessorManager(
+                dag_directory="directory",
+                max_runs=1,
+                processor_timeout=timedelta(days=365),
+                signal_conn=MagicMock(),
+                dag_ids=[],
+                pickle_dags=False,
+                async_mode=True,
+            ),
+        )
+
+        manager.processor.set_file_paths(dag_files)
+        manager.processor._file_path_queue = deque(["file_2.py", "file_3.py", "file_4.py", "file_1.py"])
+        manager.processor._refresh_requested_filelocs()
+        assert manager.processor._file_path_queue == deque(
+            ["file_1.py", "file_2.py", "file_3.py", "file_4.py"]
+        )
+        assert session_delete.call_args[0][0].fileloc == parsing_request.fileloc
 
     def test_scan_stale_dags(self):
         """

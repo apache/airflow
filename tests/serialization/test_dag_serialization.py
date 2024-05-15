@@ -697,7 +697,7 @@ class TestStringifiedDAGs:
         if isinstance(task, MappedOperator):
             # MappedOperator.operator_class holds a backup of the serialized
             # data; checking its entirety basically duplicates this validation
-            # function, so we just do some satiny checks.
+            # function, so we just do some sanity checks.
             serialized_task.operator_class["_task_type"] == type(task).__name__
             if isinstance(serialized_task.operator_class, DecoratedOperator):
                 serialized_task.operator_class["_operator_name"] == task._operator_name

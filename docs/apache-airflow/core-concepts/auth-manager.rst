@@ -70,7 +70,7 @@ outlined below.
 .. note::
     For more information about Airflow's public interface see :doc:`/public-airflow-interface`.
 
-Some reasons you may want to write a custom executor include:
+Some reasons you may want to write a custom auth manager include:
 
 * An auth manager does not exist which fits your specific use case, such as a specific tool or service for user management.
 * You'd like to use an auth manager that leverages an identity provider from your preferred cloud provider.

@@ -48,6 +48,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
         retry_args: dict[Any, Any] | None = None,
         run_page_url: str | None = None,
         repair_run: bool = False,
+        caller: str = "DatabricksExecutionTrigger",
     ) -> None:
         super().__init__()
         self.run_id = run_id
@@ -63,6 +64,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
             retry_limit=self.retry_limit,
             retry_delay=self.retry_delay,
             retry_args=retry_args,
+            caller=caller,
         )
 
     def serialize(self) -> tuple[str, dict[str, Any]]:

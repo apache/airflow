@@ -53,6 +53,10 @@ class BashExtractor(BaseExtractor):
                     source=self.operator.bash_command,
                 )
             }
+        else:
+            self.log.debug(
+                "OpenLineage disable_source_code option is on - no source code is extracted.",
+            )
 
         return OperatorLineage(
             job_facets=job_facets,

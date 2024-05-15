@@ -22,7 +22,7 @@ description: |
     `Elasticsearch <https://www.elastic.co/elasticsearch>`__
 
 state: ready
-source-date-epoch: 1714476311
+source-date-epoch: 1715384430
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 5.4.0
