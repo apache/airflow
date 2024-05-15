@@ -398,6 +398,10 @@
                     class="btn btn-sm btn-default btn-icon-only{{ ' disabled' if not dag.can_delete }}">
                     <span class="material-icons text-danger" aria-hidden="true">delete_outline</span>
                   </a>
+                <a href="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_parsing_reparse_dag_file', file_token=dag.file_token) }}" title="Reparse&nbsp;DAG" aria-label="Reparse DAG"
+                    class="btn btn-sm btn-default btn-icon-only{{ ' disabled' if not dag.can_delete }} reparse_dag">
+                    <span class="material-icons">cached</span>
+                </a>
                 {% endif %}
               </div>
             </td>

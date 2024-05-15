@@ -48,6 +48,7 @@ from flask import (
     Response,
     abort,
     before_render_template,
+    current_app,
     flash,
     g,
     has_request_context,
@@ -67,6 +68,7 @@ from flask_appbuilder.models.sqla.filters import BaseFilter
 from flask_appbuilder.urltools import get_order_args, get_page_args, get_page_size_args
 from flask_appbuilder.widgets import FormWidget
 from flask_babel import lazy_gettext
+from itsdangerous import URLSafeSerializer
 from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from markupsafe import Markup, escape
 from pendulum.datetime import DateTime
@@ -163,6 +165,7 @@ LINECHART_X_AXIS_TICKFORMAT = (
 SENSITIVE_FIELD_PLACEHOLDER = "RATHER_LONG_SENSITIVE_FIELD_PLACEHOLDER"
 
 logger = logging.getLogger(__name__)
+url_serializer = URLSafeSerializer(current_app.config["SECRET_KEY"])
 
 
 def sanitize_args(args: dict[str, Any]) -> dict[str, Any]:
@@ -937,6 +940,7 @@ class Airflow(AirflowBaseView):
                 dag.can_delete = get_auth_manager().is_authorized_dag(
                     method="DELETE", details=DagDetails(id=dag.dag_id), user=g.user
                 )
+                dag.file_token = url_serializer.dumps(dag.fileloc)
 
             dagtags = session.execute(select(func.distinct(DagTag.name)).order_by(DagTag.name)).all()
             tags = [
@@ -2846,6 +2850,7 @@ class Airflow(AirflowBaseView):
         color_log_warning_keywords = conf.get("logging", "color_log_warning_keywords", fallback="")
 
         dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
+        dag.file_token = url_serializer.dumps(dag.fileloc)
         dag_model = DagModel.get_dagmodel(dag_id, session=session)
         if not dag:
             flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")

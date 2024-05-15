@@ -287,3 +287,18 @@ $(document).ready(() => {
   // Global Tooltip selector
   $(".js-tooltip").tooltip();
 });
+
+$(".reparse_dag").click((event) => {
+  console.log(event);
+  event.preventDefault();
+  $.ajax({
+    url: event.currentTarget.attributes.href.value,
+    type: "PUT",
+    done(response) {
+      console.log(response);
+    },
+    fail(response) {
+      console.log(response);
+    },
+  });
+});
