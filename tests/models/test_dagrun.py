@@ -1999,6 +1999,7 @@ def test_schedule_tis_start_trigger(dag_maker, session):
             next_method="execute_complete",
             timeout=None,
         )
+        start_from_trigger = True
 
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)

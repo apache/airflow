@@ -1020,6 +1020,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         serialize_op["start_trigger_args"] = (
             op.start_trigger_args.serialize() if op.start_trigger_args else None
         )
+        serialize_op["start_from_trigger"] = op.start_from_trigger
 
         if op.operator_extra_links:
             serialize_op["_operator_extra_links"] = cls._serialize_operator_extra_links(
@@ -1207,6 +1208,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         if encoded_op.get("start_trigger_args", None):
             start_trigger_args = StartTriggerArgs(**encoded_op.get("start_trigger_args", None))
         setattr(op, "start_trigger_args", start_trigger_args)
+        setattr(op, "start_from_trigger", bool(encoded_op.get("start_from_trigger", False)))
 
     @staticmethod
     def set_task_dag_references(task: Operator, dag: DAG) -> None:
@@ -1270,6 +1272,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 disallow_kwargs_override=encoded_op["_disallow_kwargs_override"],
                 expand_input_attr=encoded_op["_expand_input_attr"],
                 start_trigger_args=encoded_op.get("start_trigger_args", None),
+                start_from_trigger=encoded_op.get("start_from_trigger", False),
             )
         else:
             op = SerializedBaseOperator(task_id=encoded_op["task_id"])

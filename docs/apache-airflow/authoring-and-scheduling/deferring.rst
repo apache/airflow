@@ -143,7 +143,7 @@ The ``self.defer`` call raises the ``TaskDeferred`` exception, so it can work an
 Triggering Deferral from Start
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If you want to defer your task directly to the triggerer without going into the worker, you can add the class level attributes ``start_trigger_args`` with the following 4 attributes to your deferrable operator.
+If you want to defer your task directly to the triggerer without going into the worker, you can set class level attribute ``start_with_trigger`` to ``True`` add add class level attribute ``start_trigger_args`` with the following 4 attributes to your deferrable operator.
 
 * ``trigger_cls``: An importable path to your trigger class.
 * ``trigger_kwargs``: Additional keyword arguments to pass to the method when it is called.
@@ -170,12 +170,13 @@ This is particularly useful when deferring is the only thing the ``execute`` met
             next_method="execute_complete",
             timeout=None,
         )
+        start_from_trigger = True
 
         def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
             # We have no more work to do here. Mark as complete.
             return
 
-``trigger_kwargs`` can also be modified at the instance level for more flexible configuration.
+``start_from_trigger`` and ``trigger_kwargs`` can also be modified at the instance level for more flexible configuration.
 
 .. warning::
     Dynamic task mapping is not supported when ``trigger_kwargs`` is modified at instance level.
@@ -200,7 +201,8 @@ This is particularly useful when deferring is the only thing the ``execute`` met
 
         def __init__(self, *args: list[Any], **kwargs: dict[str, Any]) -> None:
             super().__init__(*args, **kwargs)
-            self.start_trigger_args.trigger_kwargs = trigger_kwargs = ({"moment": timedelta(hours=1)},)
+            self.start_trigger_args.trigger_kwargs = {"moment": timedelta(hours=1)}
+            self.start_from_trigger = True
 
         def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
             # We have no more work to do here. Mark as complete.

@@ -1539,8 +1539,8 @@ class DagRun(Base, LoggingMixin):
             ):
                 dummy_ti_ids.append((ti.task_id, ti.map_index))
             elif (
-                ti.task.start_trigger_args is not None
-                and ti.task.start_trigger_args.trigger_kwargs is not None
+                ti.task.start_from_trigger is True
+                and ti.task.start_trigger_args is not None
                 and not ti.task.on_execute_callback
                 and not ti.task.on_success_callback
                 and not ti.task.outlets

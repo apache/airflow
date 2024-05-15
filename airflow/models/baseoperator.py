@@ -821,6 +821,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     __from_mapped = False
 
     start_trigger_args: StartTriggerArgs | None = None
+    start_from_trigger: bool = False
 
     def __init__(
         self,
@@ -1681,6 +1682,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "map_index_template",
                     "start_trigger_args",
                     "_needs_expansion",
+                    "start_from_trigger",
                 }
             )
             DagContext.pop_context_managed_dag()

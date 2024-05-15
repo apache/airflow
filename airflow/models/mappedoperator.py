@@ -238,6 +238,7 @@ class OperatorPartial:
             # to BaseOperator.expand() contribute to operator arguments.
             expand_input_attr="expand_input",
             start_trigger_args=self.operator_class.start_trigger_args,
+            start_from_trigger=self.operator_class.start_from_trigger,
         )
         return op
 
@@ -281,6 +282,7 @@ class MappedOperator(AbstractOperator):
     _task_type: str
     _operator_name: str
     start_trigger_args: StartTriggerArgs | None
+    start_from_trigger: bool
     _needs_expansion: bool = True
 
     dag: DAG | None
@@ -307,11 +309,7 @@ class MappedOperator(AbstractOperator):
     supports_lineage: bool = False
 
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = AbstractOperator.HIDE_ATTRS_FROM_UI | frozenset(
-        (
-            "parse_time_mapped_ti_count",
-            "operator_class",
-            "start_trigger_args",
-        )
+        ("parse_time_mapped_ti_count", "operator_class", "start_trigger_args", "start_from_trigger")
     )
 
     def __hash__(self):
