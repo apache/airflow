@@ -526,6 +526,27 @@ def test_listener_on_task_instance_success_do_not_call_adapter_when_disabled_ope
     listener.adapter.complete_task.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    "max_workers,expected",
+    [
+        (None, 1),
+        ("8", 8),
+    ],
+)
+@mock.patch("airflow.providers.openlineage.plugins.listener.ProcessPoolExecutor", autospec=True)
+def test_listener_on_dag_run_state_changes_configure_process_pool_size(mock_executor, max_workers, expected):
+    """mock ProcessPoolExecutor and check if conf.dag_state_change_process_pool_size is applied to max_workers"""
+    listener = OpenLineageListener()
+    # mock ProcessPoolExecutor class
+    try:
+        with conf_vars({("openlineage", "dag_state_change_process_pool_size"): max_workers}):
+            listener.on_dag_run_running(mock.MagicMock(), None)
+        mock_executor.assert_called_once_with(max_workers=expected)
+        mock_executor.return_value.submit.assert_called_once()
+    finally:
+        conf.dag_state_change_process_pool_size.cache_clear()
+
+
 class TestOpenLineageSelectiveEnable:
     def setup_method(self):
         self.dag = DAG(
