@@ -166,6 +166,12 @@ integrations:
     external-doc-url: https://aws.amazon.com/cloudwatch/
     logo: /integration-logos/aws/Amazon-CloudWatch_light-bg@4x.png
     tags: [aws]
+  - integration-name: Amazon Comprehend
+    external-doc-url: https://aws.amazon.com/comprehend/
+    logo: /integration-logos/aws/Amazon-Comprehend_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/comprehend.rst
+    tags: [aws]
   - integration-name: Amazon DataSync
     external-doc-url: https://aws.amazon.com/datasync/
     how-to-guide:
@@ -385,6 +391,9 @@ operators:
   - integration-name: Amazon CloudFormation
     python-modules:
       - airflow.providers.amazon.aws.operators.cloud_formation
+  - integration-name: Amazon Comprehend
+    python-modules:
+      - airflow.providers.amazon.aws.operators.comprehend
   - integration-name: Amazon DataSync
     python-modules:
       - airflow.providers.amazon.aws.operators.datasync
@@ -470,6 +479,9 @@ sensors:
   - integration-name: Amazon CloudFormation
     python-modules:
       - airflow.providers.amazon.aws.sensors.cloud_formation
+  - integration-name: Amazon Comprehend
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.comprehend
   - integration-name: AWS Database Migration Service
     python-modules:
       - airflow.providers.amazon.aws.sensors.dms
@@ -545,6 +557,9 @@ hooks:
   - integration-name: Amazon Chime
     python-modules:
       - airflow.providers.amazon.aws.hooks.chime
+  - integration-name: Amazon Comprehend
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.comprehend
   - integration-name: Amazon DynamoDB
     python-modules:
       - airflow.providers.amazon.aws.hooks.dynamodb
@@ -672,6 +687,9 @@ triggers:
   - integration-name: Amazon Bedrock
     python-modules:
       - airflow.providers.amazon.aws.triggers.bedrock
+  - integration-name: Amazon Comprehend
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.comprehend
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.triggers.ec2
