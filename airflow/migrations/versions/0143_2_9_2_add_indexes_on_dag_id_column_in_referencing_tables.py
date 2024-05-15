@@ -57,7 +57,9 @@ def upgrade():
         batch_op.create_index("idx_task_outlet_dataset_reference_dag_id", ["dag_id"], unique=False)
 
 
-def _handle_foreign_key_index_deletion(batch_op, constraint_name, index_name, local_fk_column_name):
+def _handle_foreign_key_constraint_index_deletion(
+    batch_op, constraint_name, index_name, local_fk_column_name
+):
     batch_op.drop_constraint(constraint_name, type_="foreignkey")
     batch_op.drop_index(index_name)
     batch_op.create_foreign_key(
@@ -67,13 +69,19 @@ def _handle_foreign_key_index_deletion(batch_op, constraint_name, index_name, lo
 
 def downgrade():
     """Unapply Add indexes on dag_id column in referencing tables."""
+    conn = op.get_bind()
     with op.batch_alter_table("dag_owner_attributes", schema=None) as batch_op:
-        _handle_foreign_key_index_deletion(
-            batch_op, "dag_owner_attributes_dag_id_fkey", "idx_dag_owner_attributes_dag_id", "dag_id"
-        )
+        if conn.dialect.name == "mysql":
+            batch_op.execute("ALTER TABLE dag_owner_attributes DROP FOREIGN KEY `dag.dag_id`;")
+            batch_op.drop_index("idx_dag_owner_attributes_dag_id")
+            batch_op.create_foreign_key("dag.dag_id", "dag", ["dag_id"], ["dag_id"], ondelete="CASCADE")
+        else:
+            _handle_foreign_key_constraint_index_deletion(
+                batch_op, "dag.dag_id", "idx_dag_owner_attributes_dag_id", "dag_id"
+            )
 
     with op.batch_alter_table("dag_schedule_dataset_reference", schema=None) as batch_op:
-        _handle_foreign_key_index_deletion(
+        _handle_foreign_key_constraint_index_deletion(
             batch_op,
             "dsdr_dag_id_fkey",
             "idx_dag_schedule_dataset_reference_dag_id",
@@ -81,13 +89,17 @@ def downgrade():
         )
 
     with op.batch_alter_table("dag_tag", schema=None) as batch_op:
-        _handle_foreign_key_index_deletion(batch_op, "dag_tag_dag_id_fkey", "idx_dag_tag_dag_id", "dag_id")
+        _handle_foreign_key_constraint_index_deletion(
+            batch_op, "dag_tag_dag_id_fkey", "idx_dag_tag_dag_id", "dag_id"
+        )
 
     with op.batch_alter_table("dag_warning", schema=None) as batch_op:
-        _handle_foreign_key_index_deletion(batch_op, "dcw_dag_id_fkey", "idx_dag_warning_dag_id", "dag_id")
+        _handle_foreign_key_constraint_index_deletion(
+            batch_op, "dcw_dag_id_fkey", "idx_dag_warning_dag_id", "dag_id"
+        )
 
     with op.batch_alter_table("dataset_dag_run_queue", schema=None) as batch_op:
-        _handle_foreign_key_index_deletion(
+        _handle_foreign_key_constraint_index_deletion(
             batch_op,
             "ddrq_dag_fkey",
             "idx_dataset_dag_run_queue_target_dag_id",
@@ -95,7 +107,7 @@ def downgrade():
         )
 
     with op.batch_alter_table("task_outlet_dataset_reference", schema=None) as batch_op:
-        _handle_foreign_key_index_deletion(
+        _handle_foreign_key_constraint_index_deletion(
             batch_op,
             "todr_dag_id_fkey",
             "idx_task_outlet_dataset_reference_dag_id",
