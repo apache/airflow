@@ -28,6 +28,7 @@ from botocore.exceptions import ClientError, NoCredentialsError
 
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
+from airflow.models import TaskInstance
 from airflow.providers.amazon.aws.executors.batch import batch_executor, batch_executor_config
 from airflow.providers.amazon.aws.executors.batch.batch_executor import (
     AwsBatchExecutor,
@@ -614,6 +615,34 @@ class TestAwsBatchExecutor:
             "jobDefinition": "some-job-def",
         }
         executor.batch.describe_jobs.return_value = {"jobs": [after_batch_job]}
+
+    def test_try_adopt_task_instances(self, mock_executor):
+        """Test that executor can adopt orphaned task instances from a SchedulerJob shutdown event."""
+        mock_executor.batch.describe_jobs.return_value = {
+            "jobs": [
+                {"jobId": "001", "status": "SUCCEEDED"},
+                {"jobId": "002", "status": "SUCCEEDED"},
+            ],
+        }
+
+        orphaned_tasks = [
+            mock.Mock(spec=TaskInstance),
+            mock.Mock(spec=TaskInstance),
+            mock.Mock(spec=TaskInstance),
+        ]
+        orphaned_tasks[0].external_executor_id = "001"  # Matches a running task_arn
+        orphaned_tasks[1].external_executor_id = "002"  # Matches a running task_arn
+        orphaned_tasks[2].external_executor_id = None  # One orphaned task has no external_executor_id
+        for task in orphaned_tasks:
+            task.try_number = 1
+
+        not_adopted_tasks = mock_executor.try_adopt_task_instances(orphaned_tasks)
+
+        mock_executor.batch.describe_jobs.assert_called_once()
+        # Two of the three tasks should be adopted.
+        assert len(orphaned_tasks) - 1 == len(mock_executor.active_workers)
+        # The remaining one task is unable to be adopted.
+        assert 1 == len(not_adopted_tasks)
 
 
 class TestBatchExecutorConfig:

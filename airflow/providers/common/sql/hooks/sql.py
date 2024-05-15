@@ -578,13 +578,6 @@ class DbApiHook(BaseHook):
             chunks defined by the commit_every parameter. This only works if all rows
             have same number of column names, but leads to better performance.
         """
-        if executemany:
-            warnings.warn(
-                "executemany parameter is deprecated, override supports_executemany instead.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-
         nb_rows = 0
         with self._create_autocommit_connection() as conn:
             conn.commit()
