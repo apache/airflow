@@ -104,3 +104,10 @@ def is_disabled() -> bool:
     # Check if both 'transport' and 'config_path' are not present and also
     # if legacy 'OPENLINEAGE_URL' environment variables is not set
     return transport() == {} and config_path(True) == "" and os.getenv("OPENLINEAGE_URL", "") == ""
+
+
+@cache
+def dag_state_change_process_pool_size() -> int:
+    """[openlineage] dag_state_change_process_pool_size."""
+    option = conf.getint(_CONFIG_SECTION, "dag_state_change_process_pool_size", fallback=1)
+    return option
