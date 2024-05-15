@@ -27,6 +27,7 @@ DEVELOPER_COMMANDS: dict[str, str | list[str]] = {
         "exec",
         "compile-www-assets",
         "cleanup",
+        "generate-migration-file",
     ],
 }
 DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
@@ -349,14 +350,9 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     ],
     "breeze generate-migration-file": [
         {
-            "name": "Autogenerate flags",
-            "option": [
-                "--message",
-            ],
-        },
-        {
-            "name": "Building image before running autogenerate",
+            "name": "generate-migration-file flags",
             "options": [
+                "--message",
                 "--github-repository",
                 "--builder",
             ],

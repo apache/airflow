@@ -1044,6 +1044,7 @@ def find_airflow_container() -> str | None:
 @option_builder
 @option_github_repository
 @click.option(
+    "-m",
     "--message",
     help="Message to use for the migration",
     default="Empty message",
