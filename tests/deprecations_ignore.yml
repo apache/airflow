@@ -167,6 +167,7 @@
 - tests/models/test_taskinstance.py::TestTaskInstance::test_handle_failure
 - tests/models/test_taskinstance.py::TestTaskInstance::test_handle_failure_fail_stop
 - tests/models/test_taskinstance.py::TestTaskInstance::test_outlet_datasets
+- tests/models/test_taskinstance.py::TestTaskInstance::test_rendered_map_index_on_dry_run
 - tests/models/test_taskinstance.py::TestTaskInstance::test_template_with_custom_timetable_deprecated_context
 - tests/models/test_taskinstance.py::TestTaskInstance::test_xcom_pull
 - tests/models/test_taskinstance.py::TestTaskInstance::test_xcom_pull_different_execution_date
