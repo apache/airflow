@@ -1572,7 +1572,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 cleaned_up_task_instances = set(executor.cleanup_stuck_queued_tasks(tis=stuck_tis))
                 for ti in stuck_tis:
                     if repr(ti) in cleaned_up_task_instances:
-                        # TODO: Update this message to include the executor?
                         self._task_context_logger.warning(
                             "Marking task instance %s stuck in queued as failed. "
                             "If the task instance has available retries, it will be retried.",
@@ -1581,7 +1580,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         )
             except NotImplementedError:
                 self.log.debug("Executor doesn't support cleanup of stuck queued tasks. Skipping.")
-                ...
 
     @provide_session
     def _emit_pool_metrics(self, session: Session = NEW_SESSION) -> None:

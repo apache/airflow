@@ -1809,26 +1809,7 @@ class TestSchedulerJob:
         # Second executor called for ti3
         mock_executors[1].try_adopt_task_instances.assert_called_once_with([ti3])
 
-    def test_fail_stuck_queued_tasks(self, dag_maker, session):
-        with dag_maker("test_fail_stuck_queued_tasks"):
-            op1 = EmptyOperator(task_id="op1")
-
-        dr = dag_maker.create_dagrun()
-        ti = dr.get_task_instance(task_id=op1.task_id, session=session)
-        ti.state = State.QUEUED
-        ti.queued_dttm = timezone.utcnow() - timedelta(minutes=15)
-        session.commit()
-        executor = MagicMock()
-        executor.cleanup_stuck_queued_tasks = mock.MagicMock()
-        scheduler_job = Job(executor=executor)
-        job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=0)
-        job_runner._task_queued_timeout = 300
-
-        job_runner._fail_tasks_stuck_in_queued()
-
-        job_runner.job.executor.cleanup_stuck_queued_tasks.assert_called_once()
-
-    def test_fail_stuck_queued_tasks_multiple_executors(self, dag_maker, session, mock_executors):
+    def test_fail_stuck_queued_tasks(self, dag_maker, session, mock_executors):
         with dag_maker("test_fail_stuck_queued_tasks_multiple_executors"):
             op1 = EmptyOperator(task_id="op1")
             op2 = EmptyOperator(task_id="op2", executor="default_exec")
