@@ -409,7 +409,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
                         "queued_dttm": task_instance.queued_dttm,
                         "start_date": task_instance.start_date,
                         "end_date": task_instance.end_date,
-                        "try_number": wwwutils.get_try_count(task_instance.try_number, task_instance.state),
+                        "try_number": task_instance.try_number,
                         "note": task_instance.note,
                     }
                     for task_instance in grouped_tis[item.task_id]
@@ -1687,7 +1687,7 @@ class Airflow(AirflowBaseView):
 
         num_logs = 0
         if ti is not None:
-            num_logs = wwwutils.get_try_count(ti.try_number, ti.state)
+            num_logs = ti.try_number
         logs = [""] * num_logs
         root = request.args.get("root", "")
         return self.render_template(
