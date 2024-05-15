@@ -324,8 +324,6 @@
 - tests/providers/amazon/aws/triggers/test_redshift_cluster.py::TestRedshiftClusterTrigger::test_redshift_cluster_sensor_trigger_success
 - tests/providers/amazon/aws/utils/test_connection_wrapper.py::TestAwsConnectionWrapper::test_get_endpoint_url_from_extra
 - tests/providers/apache/spark/operators/test_spark_sql.py::TestSparkSqlOperator::test_execute
-- tests/providers/common/sql/hooks/test_dbapi.py::TestDbApiHook::test_insert_rows_executemany
-- tests/providers/common/sql/hooks/test_dbapi.py::TestDbApiHook::test_insert_rows_replace_executemany_hana_dialect
 - tests/providers/common/sql/hooks/test_dbapi.py::TestDbApiHook::test_instance_check_works_for_legacy_db_api_hook
 - tests/providers/common/sql/operators/test_sql.py::TestSQLCheckOperatorDbHook::test_get_hook
 - tests/providers/common/sql/operators/test_sql.py::TestSqlBranch::test_branch_false_with_dag_run
