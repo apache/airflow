@@ -56,9 +56,9 @@ class StandardTaskRunner(BaseTaskRunner):
             self.process = self._start_by_exec()
 
         if self.process:
-            log_reader = threading.Thread(target=self._read_task_utilization)
-            log_reader.daemon = True
-            log_reader.start()
+            resource_monitor = threading.Thread(target=self._read_task_utilization)
+            resource_monitor.daemon = True
+            resource_monitor.start()
 
     def _start_by_exec(self) -> psutil.Process:
         subprocess = self.run_command()
