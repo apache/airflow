@@ -36,6 +36,7 @@ from airflow.models import (
     XCom,
 )
 from airflow.models.dag import DagOwnerAttributes
+from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dagcode import DagCode
 from airflow.models.dagwarning import DagWarning
 from airflow.models.dataset import (
@@ -167,6 +168,11 @@ def clear_db_task_fail():
 def clear_db_task_reschedule():
     with create_session() as session:
         session.query(TaskReschedule).delete()
+
+
+def clear_db_dag_parsing_requests():
+    with create_session() as session:
+        session.query(DagPriorityParsingRequest).delete()
 
 
 def clear_dag_specific_permissions():

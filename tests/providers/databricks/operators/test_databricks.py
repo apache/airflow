@@ -1866,6 +1866,50 @@ class TestDatabricksNotebookOperator:
         operator.monitor_databricks_job.assert_not_called()
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_execute_with_deferrable(self, mock_databricks_hook):
+        mock_databricks_hook.return_value.get_run.return_value = {"state": {"life_cycle_state": "PENDING"}}
+        operator = DatabricksNotebookOperator(
+            task_id="test_task",
+            notebook_path="test_path",
+            source="test_source",
+            databricks_conn_id="test_conn_id",
+            wait_for_termination=True,
+            deferrable=True,
+        )
+        operator.databricks_run_id = 12345
+
+        with pytest.raises(TaskDeferred) as exec_info:
+            operator.monitor_databricks_job()
+        assert isinstance(
+            exec_info.value.trigger, DatabricksExecutionTrigger
+        ), "Trigger is not a DatabricksExecutionTrigger"
+        assert exec_info.value.method_name == "execute_complete"
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_execute_with_deferrable_early_termination(self, mock_databricks_hook):
+        mock_databricks_hook.return_value.get_run.return_value = {
+            "state": {
+                "life_cycle_state": "TERMINATED",
+                "result_state": "FAILED",
+                "state_message": "FAILURE",
+            }
+        }
+        operator = DatabricksNotebookOperator(
+            task_id="test_task",
+            notebook_path="test_path",
+            source="test_source",
+            databricks_conn_id="test_conn_id",
+            wait_for_termination=True,
+            deferrable=True,
+        )
+        operator.databricks_run_id = 12345
+
+        with pytest.raises(AirflowException) as exec_info:
+            operator.monitor_databricks_job()
+        exception_message = "Task failed. Final state FAILED. Reason: FAILURE"
+        assert exception_message == str(exec_info.value)
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_monitor_databricks_job_successful_raises_no_exception(self, mock_databricks_hook):
         mock_databricks_hook.return_value.get_run.return_value = {
             "state": {"life_cycle_state": "TERMINATED", "result_state": "SUCCESS"}
@@ -1896,10 +1940,10 @@ class TestDatabricksNotebookOperator:
 
         operator.databricks_run_id = 12345
 
-        exception_message = "'Task failed. Final state %s. Reason: %s', 'FAILED', 'FAILURE'"
         with pytest.raises(AirflowException) as exc_info:
             operator.monitor_databricks_job()
-        assert exception_message in str(exc_info.value)
+        exception_message = "Task failed. Final state FAILED. Reason: FAILURE"
+        assert exception_message == str(exc_info.value)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_launch_notebook_job(self, mock_databricks_hook):
