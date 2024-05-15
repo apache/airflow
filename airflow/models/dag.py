@@ -3555,6 +3555,8 @@ class DagTag(Base):
         primary_key=True,
     )
 
+    __table_args__ = (Index("idx_dag_tag_dag_id", dag_id),)
+
     def __repr__(self):
         return self.name
 
@@ -3575,6 +3577,8 @@ class DagOwnerAttributes(Base):
     )
     owner = Column(String(500), primary_key=True, nullable=False)
     link = Column(String(500), nullable=False)
+
+    __table_args__ = (Index("idx_dag_owner_attributes_dag_id", dag_id),)
 
     def __repr__(self):
         return f"<DagOwnerAttributes: dag_id={self.dag_id}, owner={self.owner}, link={self.link}>"

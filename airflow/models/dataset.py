@@ -138,6 +138,7 @@ class DagScheduleDatasetReference(Base):
             name="dsdr_dag_id_fkey",
             ondelete="CASCADE",
         ),
+        Index("idx_dag_schedule_dataset_reference_dag_id", dag_id),
     )
 
     def __eq__(self, other):
@@ -182,6 +183,7 @@ class TaskOutletDatasetReference(Base):
             name="todr_dag_id_fkey",
             ondelete="CASCADE",
         ),
+        Index("idx_task_outlet_dataset_reference_dag_id", dag_id),
     )
 
     def __eq__(self, other):
@@ -226,6 +228,7 @@ class DatasetDagRunQueue(Base):
             name="ddrq_dag_fkey",
             ondelete="CASCADE",
         ),
+        Index("idx_dataset_dag_run_queue_target_dag_id", target_dag_id),
     )
 
     def __eq__(self, other):
