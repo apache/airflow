@@ -69,7 +69,7 @@ def downgrade():
     """Unapply Add indexes on dag_id column in referencing tables."""
     with op.batch_alter_table("dag_owner_attributes", schema=None) as batch_op:
         _handle_foreign_key_index_deletion(
-            batch_op, "dag.dag_id", "idx_dag_owner_attributes_dag_id", "dag_id"
+            batch_op, "dag_owner_attributes_dag_id_fkey", "idx_dag_owner_attributes_dag_id", "dag_id"
         )
 
     with op.batch_alter_table("dag_schedule_dataset_reference", schema=None) as batch_op:
