@@ -294,10 +294,10 @@ $(".reparse_dag").click((event) => {
   $.ajax({
     url: event.currentTarget.attributes.href.value,
     type: "PUT",
-    done(response) {
+    success: (response) => {
       console.log(response);
     },
-    fail(response) {
+    error: (response) => {
       console.log(response);
     },
   });
