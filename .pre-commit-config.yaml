@@ -927,9 +927,7 @@ repos:
         entry: ./scripts/ci/pre_commit/json_schema.py
         args:
           - --spec-url
-          # In recent changes interpolation does not supports in composed spec
-          # See: https://github.com/compose-spec/compose-spec/issues/501
-          - https://raw.githubusercontent.com/compose-spec/compose-spec/77bd39a846442132495990c221d5aa3509ce19bc/schema/compose-spec.json
+          - https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json
         language: python
         pass_filenames: true
         files: ^scripts/ci/docker-compose/.+\.ya?ml$|docker-compose\.ya?ml$
