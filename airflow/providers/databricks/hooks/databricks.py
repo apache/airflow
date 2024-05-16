@@ -491,6 +491,17 @@ class DatabricksHook(BaseDatabricksHook):
         run_output = self._do_api_call(OUTPUT_RUNS_JOB_ENDPOINT, json)
         return run_output
 
+    async def a_get_run_output(self, run_id: int) -> dict:
+        """
+        Async version of `get_run_output()`.
+
+        :param run_id: id of the run
+        :return: output of the run
+        """
+        json = {"run_id": run_id}
+        run_output = await self._a_do_api_call(OUTPUT_RUNS_JOB_ENDPOINT, json)
+        return run_output
+
     def cancel_run(self, run_id: int) -> None:
         """
         Cancel the run.
@@ -529,7 +540,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def get_latest_repair_id(self, run_id: int) -> int | None:
         """Get latest repair id if any exist for run_id else None."""
-        json = {"run_id": run_id, "include_history": True}
+        json = {"run_id": run_id, "include_history": "true"}
         response = self._do_api_call(GET_RUN_ENDPOINT, json)
         repair_history = response["repair_history"]
         if len(repair_history) == 1:
@@ -654,6 +665,16 @@ class DatabricksHook(BaseDatabricksHook):
                 raise e
 
         return None
+
+    def update_job_permission(self, job_id: int, json: dict[str, Any]) -> dict:
+        """
+        Update databricks job permission.
+
+        :param job_id: job id
+        :param json: payload
+        :return: json containing permission specification
+        """
+        return self._do_api_call(("PATCH", f"api/2.0/permissions/jobs/{job_id}"), json)
 
     def test_connection(self) -> tuple[bool, str]:
         """Test the Databricks connectivity from UI."""

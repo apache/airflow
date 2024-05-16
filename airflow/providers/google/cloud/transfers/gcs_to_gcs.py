@@ -234,8 +234,6 @@ class GCSToGCSOperator(BaseOperator):
         self.source_object_required = source_object_required
         self.exact_match = exact_match
         self.match_glob = match_glob
-        self.resolved_source_objects: set[str] = set()
-        self.resolved_target_objects: set[str] = set()
 
     def execute(self, context: Context):
         hook = GCSHook(
@@ -540,13 +538,6 @@ class GCSToGCSOperator(BaseOperator):
             self.destination_bucket,
             destination_object,
         )
-
-        self.resolved_source_objects.add(source_object)
-        if not destination_object:
-            self.resolved_target_objects.add(source_object)
-        else:
-            self.resolved_target_objects.add(destination_object)
-
         hook.rewrite(self.source_bucket, source_object, self.destination_bucket, destination_object)
 
         if self.move_object:
@@ -559,17 +550,36 @@ class GCSToGCSOperator(BaseOperator):
         This means we won't have to normalize self.source_object and self.source_objects,
         destination bucket and so on.
         """
+        from pathlib import Path
+
         from openlineage.client.run import Dataset
 
         from airflow.providers.openlineage.extractors import OperatorLineage
 
+        def _process_prefix(pref):
+            if WILDCARD in pref:
+                pref = pref.split(WILDCARD)[0]
+            # Use parent if not a file (dot not in name) and not a dir (ends with slash)
+            if "." not in pref.split("/")[-1] and not pref.endswith("/"):
+                pref = Path(pref).parent.as_posix()
+            return ["/" if pref in ("", "/", ".") else pref.rstrip("/")]  # Adjust root path
+
+        inputs = []
+        for prefix in self.source_objects:
+            result = _process_prefix(prefix)
+            inputs.extend(result)
+
+        if self.destination_object is None:
+            outputs = inputs.copy()
+        else:
+            outputs = _process_prefix(self.destination_object)
+
         return OperatorLineage(
             inputs=[
-                Dataset(namespace=f"gs://{self.source_bucket}", name=source)
-                for source in sorted(self.resolved_source_objects)
+                Dataset(namespace=f"gs://{self.source_bucket}", name=source) for source in sorted(set(inputs))
             ],
             outputs=[
                 Dataset(namespace=f"gs://{self.destination_bucket}", name=target)
-                for target in sorted(self.resolved_target_objects)
+                for target in sorted(set(outputs))
             ],
         )

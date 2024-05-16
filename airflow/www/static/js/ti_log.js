@@ -111,6 +111,7 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
 
       // Text coloring, detect urls and log timestamps
       const ansiUp = new AnsiUp();
+      ansiUp.url_allowlist = {};
       // Detect urls and log timestamps
       const urlRegex =
         /http(s)?:\/\/[\w.-]+(\.?:[\w.-]+)*([/?#][\w\-._~:/?#[\]@!$&'()*+,;=.%]+)?/g;
@@ -194,11 +195,14 @@ function handleLogGroupClick(e) {
   if (e.target.id?.endsWith(unfoldIdSuffix)) {
     e.target.style.display = "none";
     e.target.nextSibling.style.display = "inline";
-  } else if (e.target.id?.endsWith(foldIdSuffix)) {
+    return false;
+  }
+  if (e.target.id?.endsWith(foldIdSuffix)) {
     e.target.parentNode.style.display = "none";
     e.target.parentNode.previousSibling.style.display = "inline";
+    return false;
   }
-  return false;
+  return true;
 }
 
 function setDownloadUrl(tryNumber) {

@@ -38,9 +38,10 @@ from airflow.providers.amazon.aws.operators.emr import (
     EmrServerlessStopApplicationOperator,
 )
 from airflow.serialization.serialized_objects import (
-    SerializedBaseOperator,
+    BaseSerialization,
 )
 from airflow.utils.types import NOTSET
+from tests.test_utils.compat import deserialize_operator
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
@@ -442,8 +443,8 @@ class TestEmrServerlessStartJobOperator:
             configuration_overrides=configuration_overrides,
         )
         with pytest.raises(AirflowException) as ex_message:
-            id = operator.execute(self.mock_context)
-            assert id == job_run_id
+            operator.execute(self.mock_context)
+
         assert "Serverless Job failed:" in str(ex_message.value)
         default_name = operator.name
 
@@ -1118,11 +1119,10 @@ class TestEmrServerlessStartJobOperator:
             configuration_overrides=[s3_configuration_overrides, cloudwatch_configuration_overrides],
         )
 
-        serialize = SerializedBaseOperator.serialize
-        deserialize = SerializedBaseOperator.deserialize_operator
-        deserialized_operator = deserialize(serialize(operator))
+        ser_operator = BaseSerialization.serialize(operator)
+        deser_operator = deserialize_operator(ser_operator)
 
-        assert deserialized_operator.operator_extra_links == [
+        assert deser_operator.operator_extra_links == [
             EmrServerlessS3LogsLink(),
             EmrServerlessCloudWatchLogsLink(),
         ]
@@ -1140,11 +1140,10 @@ class TestEmrServerlessStartJobOperator:
             configuration_overrides=[s3_configuration_overrides, cloudwatch_configuration_overrides],
         )
 
-        serialize = SerializedBaseOperator.serialize
-        deserialize = SerializedBaseOperator.deserialize_operator
-        deserialized_operator = deserialize(serialize(operator))
+        ser_operator = BaseSerialization.serialize(operator)
+        deser_operator = deserialize_operator(ser_operator)
 
-        assert deserialized_operator.operator_extra_links == [
+        assert deser_operator.operator_extra_links == [
             EmrServerlessS3LogsLink(),
             EmrServerlessCloudWatchLogsLink(),
             EmrServerlessDashboardLink(),

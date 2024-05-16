@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 from collections import defaultdict
 from datetime import timedelta
 from typing import TYPE_CHECKING
@@ -73,8 +72,6 @@ def test_task_mapping_with_dag():
 
 @patch("airflow.models.abstractoperator.AbstractOperator.render_template")
 def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template, caplog):
-    caplog.set_level(logging.INFO)
-
     class UnrenderableClass:
         def __bool__(self):
             raise ValueError("Similar to Pandas DataFrames, this class raises an exception.")
@@ -95,7 +92,6 @@ def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template
         mapped = CustomOperator.partial(task_id="task_2").expand(arg=unrenderable_values)
         task1 >> mapped
     dag.test()
-    assert caplog.text.count("[DAG TEST] end task task_id=task_2") == 2
     assert (
         "Unable to check if the value of type 'UnrenderableClass' is False for task 'task_2', field 'arg'"
         in caplog.text
@@ -635,6 +631,33 @@ def _create_mapped_with_name_template_taskflow(*, task_id, map_names, template):
     return task1.expand(map_name=map_names)
 
 
+def _create_named_map_index_renders_on_failure_classic(*, task_id, map_names, template):
+    class HasMapName(BaseOperator):
+        def __init__(self, *, map_name: str, **kwargs):
+            super().__init__(**kwargs)
+            self.map_name = map_name
+
+        def execute(self, context):
+            context["map_name"] = self.map_name
+            raise AirflowSkipException("Imagine this task failed!")
+
+    return HasMapName.partial(task_id=task_id, map_index_template=template).expand(
+        map_name=map_names,
+    )
+
+
+def _create_named_map_index_renders_on_failure_taskflow(*, task_id, map_names, template):
+    from airflow.operators.python import get_current_context
+
+    @task(task_id=task_id, map_index_template=template)
+    def task1(map_name):
+        context = get_current_context()
+        context["map_name"] = map_name
+        raise AirflowSkipException("Imagine this task failed!")
+
+    return task1.expand(map_name=map_names)
+
+
 @pytest.mark.parametrize(
     "template, expected_rendered_names",
     [
@@ -649,6 +672,8 @@ def _create_mapped_with_name_template_taskflow(*, task_id, map_names, template):
     [
         pytest.param(_create_mapped_with_name_template_classic, id="classic"),
         pytest.param(_create_mapped_with_name_template_taskflow, id="taskflow"),
+        pytest.param(_create_named_map_index_renders_on_failure_classic, id="classic-failure"),
+        pytest.param(_create_named_map_index_renders_on_failure_taskflow, id="taskflow-failure"),
     ],
 )
 def test_expand_mapped_task_instance_with_named_index(
@@ -887,7 +912,6 @@ class TestMappedSetupTeardown:
                 t = my_teardown.expand(op_args=my_setup.output)
                 with t.as_teardown(setups=my_setup):
                     my_work(my_setup.output)
-            return dag
 
         dr = dag.test()
         states = self.get_states(dr)

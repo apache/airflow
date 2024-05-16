@@ -16,11 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-import pathlib
 import random
 import re
 import string
-import sys
 from datetime import datetime, timedelta
 from unittest import mock
 
@@ -30,39 +28,35 @@ from kubernetes.client import models as k8s
 from kubernetes.client.rest import ApiException
 from urllib3 import HTTPResponse
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.cncf.kubernetes import pod_generator
+from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import (
+    KubernetesExecutor,
+    PodReconciliationError,
+)
+from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
+    ADOPTED,
+    POD_EXECUTOR_DONE_KEY,
+)
+from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
+    AirflowKubernetesScheduler,
+    KubernetesJobWatcher,
+    ResourceVersion,
+    get_base_pod_from_template,
+)
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
+    annotations_for_logging_task_metadata,
+    annotations_to_key,
+    create_unique_id,
+    get_logs_task_metadata,
+)
+from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
 from tests.test_utils.config import conf_vars
-
-try:
-    from airflow.providers.cncf.kubernetes import pod_generator
-    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import (
-        KubernetesExecutor,
-        PodReconciliationError,
-    )
-    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
-        ADOPTED,
-        POD_EXECUTOR_DONE_KEY,
-    )
-    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
-        AirflowKubernetesScheduler,
-        KubernetesJobWatcher,
-        ResourceVersion,
-        create_pod_id,
-        get_base_pod_from_template,
-    )
-    from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
-        annotations_for_logging_task_metadata,
-        annotations_to_key,
-        get_logs_task_metadata,
-    )
-    from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-except ImportError:
-    AirflowKubernetesScheduler = None  # type: ignore
 
 
 class TestAirflowKubernetesScheduler:
@@ -102,20 +96,15 @@ class TestAirflowKubernetesScheduler:
         regex = r"^[^a-z0-9A-Z]*|[^a-zA-Z0-9_\-\.]|[^a-z0-9A-Z]*$"
         return len(value) <= 63 and re.match(regex, value)
 
-    @pytest.mark.skipif(
-        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
-    )
     def test_create_pod_id(self):
         for dag_id, task_id in self._cases():
-            pod_name = PodGenerator.make_unique_pod_id(create_pod_id(dag_id, task_id))
-            assert self._is_valid_pod_id(pod_name)
+            with pytest.warns(AirflowProviderDeprecationWarning, match=r"deprecated\. Use `add_pod_suffix`"):
+                pod_name = PodGenerator.make_unique_pod_id(create_unique_id(dag_id, task_id))
+            assert self._is_valid_pod_id(pod_name), f"dag_id={dag_id!r}, task_id={task_id!r}"
 
-    @pytest.mark.skipif(
-        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
-    )
     @mock.patch("airflow.providers.cncf.kubernetes.pod_generator.PodGenerator")
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubeConfig")
-    def test_get_base_pod_from_template(self, mock_kubeconfig, mock_generator):
+    def test_get_base_pod_from_template(self, mock_kubeconfig, mock_generator, data_file):
         # Provide non-existent file path,
         # so None will be passed to deserialize_model_dict().
         pod_template_file_path = "/bar/biz"
@@ -130,30 +119,32 @@ class TestAirflowKubernetesScheduler:
 
         # Provide existent file path,
         # so loaded YAML file content should be used to call deserialize_model_dict(), rather than None.
-        path = sys.path[0] + "/tests/providers/cncf/kubernetes/pod.yaml"
-        with open(path) as stream:
+        pod_template_file = data_file("pods/template.yaml")
+        with open(pod_template_file) as stream:
             expected_pod_dict = yaml.safe_load(stream)
 
-        pod_template_file_path = path
+        pod_template_file_path = pod_template_file.as_posix()
         get_base_pod_from_template(pod_template_file_path, None)
         assert "deserialize_model_dict" == mock_generator.mock_calls[2][0]
         assert mock_generator.mock_calls[2][1][0] == expected_pod_dict
 
-        mock_kubeconfig.pod_template_file = path
+        mock_kubeconfig.pod_template_file = pod_template_file.as_posix()
         get_base_pod_from_template(None, mock_kubeconfig)
         assert "deserialize_model_dict" == mock_generator.mock_calls[3][0]
         assert mock_generator.mock_calls[3][1][0] == expected_pod_dict
 
     def test_make_safe_label_value(self):
         for dag_id, task_id in self._cases():
+            case = f"dag_id={dag_id!r}, task_id={task_id!r}"
             safe_dag_id = pod_generator.make_safe_label_value(dag_id)
-            assert self._is_safe_label_value(safe_dag_id)
+            assert self._is_safe_label_value(safe_dag_id), case
             safe_task_id = pod_generator.make_safe_label_value(task_id)
-            assert self._is_safe_label_value(safe_task_id)
-            dag_id = "my_dag_id"
-            assert dag_id == pod_generator.make_safe_label_value(dag_id)
-            dag_id = "my_dag_id_" + "a" * 64
-            assert "my_dag_id_" + "a" * 43 + "-0ce114c45" == pod_generator.make_safe_label_value(dag_id)
+            assert self._is_safe_label_value(safe_task_id), case
+
+        dag_id = "my_dag_id"
+        assert dag_id == pod_generator.make_safe_label_value(dag_id)
+        dag_id = "my_dag_id_" + "a" * 64
+        assert "my_dag_id_" + "a" * 43 + "-0ce114c45" == pod_generator.make_safe_label_value(dag_id)
 
     def test_execution_date_serialize_deserialize(self):
         datetime_obj = datetime.now()
@@ -207,7 +198,7 @@ class TestAirflowKubernetesScheduler:
 
         with pytest.raises(ApiException):
             kube_executor.kube_scheduler.delete_pod(pod_name, namespace)
-            mock_delete_namespace.assert_called_with(pod_name, namespace, body=mock_client.V1DeleteOptions())
+        mock_delete_namespace.assert_called_with(pod_name, namespace, body=mock_client.V1DeleteOptions())
 
     @pytest.mark.db_test
     @pytest.mark.skipif(
@@ -390,6 +381,7 @@ class TestKubernetesExecutor:
         task_publish_max_retries,
         should_requeue,
         task_expected_state,
+        data_file,
     ):
         """
         When pod scheduling fails with any reason not yet
@@ -411,8 +403,7 @@ class TestKubernetesExecutor:
             - your request parameters are valid but unsupported e.g. limits lower than requests.
 
         """
-        path = sys.path[0] + "/tests/providers/cncf/kubernetes/pod_generator_base_with_secrets.yaml"
-
+        template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
         # A mock kube_client that throws errors when making a pod
         mock_kube_client = mock.patch("kubernetes.client.CoreV1Api", autospec=True)
         mock_kube_client.create_namespaced_pod = mock.MagicMock(side_effect=ApiException(http_resp=response))
@@ -421,7 +412,7 @@ class TestKubernetesExecutor:
         mock_api_client.sanitize_for_serialization.return_value = {}
         mock_kube_client.api_client = mock_api_client
         config = {
-            ("kubernetes", "pod_template_file"): path,
+            ("kubernetes", "pod_template_file"): template_file,
         }
         with conf_vars(config):
             kubernetes_executor = self.kubernetes_executor
@@ -506,11 +497,13 @@ class TestKubernetesExecutor:
     )
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
-    def test_run_next_pod_reconciliation_error(self, mock_get_kube_client, mock_kubernetes_job_watcher):
+    def test_run_next_pod_reconciliation_error(
+        self, mock_get_kube_client, mock_kubernetes_job_watcher, data_file
+    ):
         """
         When construct_pod raises PodReconciliationError, we should fail the task.
         """
-        path = sys.path[0] + "/tests/providers/cncf/kubernetes/pod_generator_base_with_secrets.yaml"
+        template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
 
         mock_kube_client = mock.patch("kubernetes.client.CoreV1Api", autospec=True)
         fail_msg = "test message"
@@ -519,7 +512,7 @@ class TestKubernetesExecutor:
         mock_api_client = mock.MagicMock()
         mock_api_client.sanitize_for_serialization.return_value = {}
         mock_kube_client.api_client = mock_api_client
-        config = {("kubernetes", "pod_template_file"): path}
+        config = {("kubernetes", "pod_template_file"): template_file}
         with conf_vars(config):
             kubernetes_executor = self.kubernetes_executor
             kubernetes_executor.start()
@@ -596,16 +589,14 @@ class TestKubernetesExecutor:
         "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.run_pod_async"
     )
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
-    def test_pod_template_file_override_in_executor_config(self, mock_get_kube_client, mock_run_pod_async):
-        current_folder = pathlib.Path(__file__).parent.resolve()
-        template_file = str(
-            (current_folder / "kubernetes_executor_template_files" / "basic_template.yaml").resolve()
-        )
-
+    def test_pod_template_file_override_in_executor_config(
+        self, mock_get_kube_client, mock_run_pod_async, data_file
+    ):
+        executor_template_file = data_file("executor/basic_template.yaml")
         mock_kube_client = mock.patch("kubernetes.client.CoreV1Api", autospec=True)
         mock_get_kube_client.return_value = mock_kube_client
 
-        with conf_vars({("kubernetes", "pod_template_file"): ""}):
+        with conf_vars({("kubernetes", "pod_template_file"): None}):
             executor = self.kubernetes_executor
             executor.start()
             try:
@@ -617,7 +608,7 @@ class TestKubernetesExecutor:
                     queue=None,
                     command=["airflow", "tasks", "run", "true", "some_parameter"],
                     executor_config={
-                        "pod_template_file": template_file,
+                        "pod_template_file": executor_template_file,
                         "pod_override": k8s.V1Pod(
                             metadata=k8s.V1ObjectMeta(labels={"release": "stable"}),
                             spec=k8s.V1PodSpec(
@@ -633,7 +624,7 @@ class TestKubernetesExecutor:
                 executor.task_queue.task_done()
                 # Test that the correct values have been put to queue
                 assert expected_executor_config.metadata.labels == {"release": "stable"}
-                assert expected_pod_template_file == template_file
+                assert expected_pod_template_file == executor_template_file
 
                 self.kubernetes_executor.kube_scheduler.run_next(task)
                 mock_run_pod_async.assert_called_once_with(
@@ -670,9 +661,11 @@ class TestKubernetesExecutor:
                                     env=[k8s.V1EnvVar(name="AIRFLOW_IS_K8S_EXECUTOR_POD", value="True")],
                                 )
                             ],
-                            image_pull_secrets=[k8s.V1LocalObjectReference(name="airflow-registry")],
+                            image_pull_secrets=[
+                                k8s.V1LocalObjectReference(name="all-right-then-keep-your-secrets")
+                            ],
                             scheduler_name="default-scheduler",
-                            security_context=k8s.V1PodSecurityContext(fs_group=50000, run_as_user=50000),
+                            security_context=k8s.V1PodSecurityContext(fs_group=50000, run_as_user=50001),
                         ),
                     )
                 )
@@ -1625,7 +1618,7 @@ class TestKubernetesJobWatcher:
                                 "state": {
                                     "waiting": {
                                         "reason": "CreateContainerError",
-                                        "message": 'Error: Error response from daemon: create \invalid\path: "\\invalid\path" includes invalid characters for a local volume name, only "[a-zA-Z0-9][a-zA-Z0-9_.-]" are allowed. If you intended to pass a host directory, use absolute path',
+                                        "message": r'Error: Error response from daemon: create \invalid\path: "\invalid\path" includes invalid characters for a local volume name, only "[a-zA-Z0-9][a-zA-Z0-9_.-]" are allowed. If you intended to pass a host directory, use absolute path',
                                     }
                                 },
                                 "lastState": {},

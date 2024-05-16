@@ -186,9 +186,7 @@ def _do_delete(*, query, orm_model, skip_archive, session):
     if dialect_name == "sqlite":
         pk_cols = source_table.primary_key.columns
         delete = source_table.delete().where(
-            tuple_(*pk_cols).in_(
-                select(*[target_table.c[x.name] for x in source_table.primary_key.columns]).subquery()
-            )
+            tuple_(*pk_cols).in_(select(*[target_table.c[x.name] for x in source_table.primary_key.columns]))
         )
     else:
         delete = source_table.delete().where(
@@ -198,8 +196,8 @@ def _do_delete(*, query, orm_model, skip_archive, session):
     session.execute(delete)
     session.commit()
     if skip_archive:
-        metadata.bind = session.get_bind()
-        target_table.drop()
+        bind = session.get_bind()
+        target_table.drop(bind=bind)
     session.commit()
     print("Finished Performing Delete")
 
@@ -219,6 +217,8 @@ def _subquery_keep_last(*, recency_column, keep_last_filters, group_by_columns, 
 
 class CreateTableAs(Executable, ClauseElement):
     """Custom sqlalchemy clause element for CTAS operations."""
+
+    inherit_cache = False
 
     def __init__(self, name, query):
         self.name = name
@@ -323,16 +323,18 @@ def _confirm_drop_archives(*, tables: list[str]):
     if len(tables) > 3:
         text_ = f"{len(tables)} archived tables prefixed with {ARCHIVE_TABLE_PREFIX}"
     else:
-        text_ = f"the following archived tables {tables}"
+        text_ = f"the following archived tables: {', '.join(tables)}"
     question = (
         f"You have requested that we drop {text_}.\n"
-        f"This is irreversible. Consider backing up the tables first \n"
+        f"This is irreversible. Consider backing up the tables first.\n"
     )
     print(question)
     if len(tables) > 3:
-        show_tables = ask_yesno("Show tables? (y/n): ")
+        show_tables = ask_yesno("Show tables that will be dropped? (y/n): ")
         if show_tables:
-            print(tables, "\n")
+            for table in tables:
+                print(f"  {table}")
+            print("\n")
     answer = input("Enter 'drop archived tables' (without quotes) to proceed.\n").strip()
     if answer != "drop archived tables":
         raise SystemExit("User did not confirm; exiting.")

@@ -24,10 +24,11 @@ description: |
     `Pinecone <https://docs.pinecone.io/docs/overview>`__
 
 state: ready
-source-date-epoch: 1705912222
+source-date-epoch: 1715384468
 
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 2.0.0
   - 1.1.2
   - 1.1.1
   - 1.1.0
@@ -41,11 +42,8 @@ integrations:
     tags: [software]
 
 dependencies:
-  - apache-airflow>=2.6.0
-  # Pinecone Python SDK v3.0.0 was released at 2024-01-16 and introduce some breaking changes.
-  # It's crucial to adhere to the v3.0.0 Migration Guide before the upper-bound limitation can be removed.
-  # https://canyon-quilt-082.notion.site/Pinecone-Python-SDK-v3-0-0-Migration-Guide-056d3897d7634bf7be399676a4757c7b
-  - pinecone-client>=2.2.4,<3.0
+  - apache-airflow>=2.7.0
+  - pinecone-client>=3.0.0
 
 hooks:
   - integration-name: Pinecone

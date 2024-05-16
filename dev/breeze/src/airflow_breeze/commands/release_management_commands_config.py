@@ -48,6 +48,7 @@ RELEASE_PROVIDERS_COMMANDS: dict[str, str | list[str]] = {
         "generate-providers-metadata",
         "generate-issue-content-providers",
         "clean-old-provider-artifacts",
+        "tag-providers",
     ],
 }
 
@@ -112,6 +113,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--current-release",
                 "--excluded-pr-list",
                 "--limit-pr-count",
+                "--latest",
             ],
         }
     ],
@@ -199,6 +201,14 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         }
     ],
+    "breeze release-management tag-providers": [
+        {
+            "name": "Add tags to providers",
+            "options": [
+                "--clean-local-tags",
+            ],
+        },
+    ],
     "breeze release-management prepare-provider-documentation": [
         {
             "name": "Provider documentation preparation flags",
@@ -274,6 +284,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--current-release",
                 "--excluded-pr-list",
                 "--limit-pr-count",
+                "--latest",
             ],
         }
     ],

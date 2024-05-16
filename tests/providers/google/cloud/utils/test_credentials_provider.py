@@ -329,10 +329,10 @@ class TestGetGcpCredentialsAndProjectId:
         assert "Getting connection using credential configuration string." in caplog.messages
 
     def test_get_credentials_using_credential_config_invalid_string(self, caplog):
+        caplog.clear()
         with pytest.raises(DefaultCredentialsError), caplog.at_level(
             level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME
         ):
-            caplog.clear()
             get_credentials_and_project_id(credential_config_file="invalid json}}}}")
         assert "Getting connection using credential configuration string." in caplog.messages
 

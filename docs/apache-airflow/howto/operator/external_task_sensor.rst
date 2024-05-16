@@ -55,7 +55,7 @@ via ``allowed_states`` and ``failed_states`` parameters.
 
 Also for this action you can use sensor in the deferrable mode:
 
-.. exampleinclude:: /../../tests/system/providers/core/example_external_task_parent_deferrable.py
+.. exampleinclude:: /../../tests/system/core/example_external_task_parent_deferrable.py
     :language: python
     :dedent: 4
     :start-after: [START howto_external_task_async_sensor]

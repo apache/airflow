@@ -83,7 +83,6 @@ def auth_manager():
                 "core",
                 "auth_manager",
             ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
-            ("aws_auth_manager", "enable"): "True",
         }
     ):
         with patch.object(AwsAuthManager, "_check_avp_schema_version"):
@@ -100,7 +99,6 @@ def auth_manager_with_appbuilder():
                 "core",
                 "auth_manager",
             ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
-            ("aws_auth_manager", "enable"): "True",
         }
     ):
         with patch.object(AwsAuthManager, "_check_avp_schema_version"):
@@ -120,7 +118,6 @@ def client_admin():
                 "core",
                 "auth_manager",
             ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
-            ("aws_auth_manager", "enable"): "True",
             ("aws_auth_manager", "region_name"): "us-east-1",
             ("aws_auth_manager", "saml_metadata_url"): "/saml/metadata",
             ("aws_auth_manager", "avp_policy_store_id"): "avp_policy_store_id",

@@ -273,6 +273,20 @@ export interface paths {
       };
     };
   };
+  "/parseDagFile/{file_token}": {
+    /** Request re-parsing of existing DAG files using a file token. */
+    put: operations["reparse_dag_file"];
+    parameters: {
+      path: {
+        /**
+         * The key containing the encrypted path to the file. Encryption and decryption take place only on
+         * the server. This prevents the client from reading an non-DAG file. This also ensures API
+         * extensibility, because the format of encrypted data may change.
+         */
+        file_token: components["parameters"]["FileToken"];
+      };
+    };
+  };
   "/datasets/queuedEvent/{uri}": {
     /**
      * Get queued Dataset events for a Dataset
@@ -936,6 +950,12 @@ export interface components {
     DAG: {
       /** @description The ID of the DAG. */
       dag_id?: string;
+      /**
+       * @description Human centric display text for the DAG.
+       *
+       * *New in version 2.9.0*
+       */
+      dag_display_name?: string;
       /** @description If the DAG is SubDAG then it is the top level DAG identifier. Otherwise, null. */
       root_dag_id?: string | null;
       /** @description Whether the DAG is paused. */
@@ -1391,6 +1411,12 @@ export interface components {
     } | null;
     TaskInstance: {
       task_id?: string;
+      /**
+       * @description Human centric display text for the task.
+       *
+       * *New in version 2.9.0*
+       */
+      task_display_name?: string;
       dag_id?: string;
       /**
        * @description The DagRun ID for this task instance
@@ -1596,6 +1622,7 @@ export interface components {
     Task: {
       class_ref?: components["schemas"]["ClassReference"];
       task_id?: string;
+      task_display_name?: string;
       owner?: string;
       /** Format: date-time */
       start_date?: string;
@@ -3420,6 +3447,26 @@ export interface operations {
       /** Success. */
       204: never;
       400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  /** Request re-parsing of existing DAG files using a file token. */
+  reparse_dag_file: {
+    parameters: {
+      path: {
+        /**
+         * The key containing the encrypted path to the file. Encryption and decryption take place only on
+         * the server. This prevents the client from reading an non-DAG file. This also ensures API
+         * extensibility, because the format of encrypted data may change.
+         */
+        file_token: components["parameters"]["FileToken"];
+      };
+    };
+    responses: {
+      /** Success. */
+      201: unknown;
       401: components["responses"]["Unauthenticated"];
       403: components["responses"]["PermissionDenied"];
       404: components["responses"]["NotFound"];
@@ -5374,6 +5421,9 @@ export type GetDagDatasetQueuedEventsVariables = CamelCasedPropertiesDeep<
 export type DeleteDagDatasetQueuedEventsVariables = CamelCasedPropertiesDeep<
   operations["delete_dag_dataset_queued_events"]["parameters"]["path"] &
     operations["delete_dag_dataset_queued_events"]["parameters"]["query"]
+>;
+export type ReparseDagFileVariables = CamelCasedPropertiesDeep<
+  operations["reparse_dag_file"]["parameters"]["path"]
 >;
 export type GetDatasetQueuedEventsVariables = CamelCasedPropertiesDeep<
   operations["get_dataset_queued_events"]["parameters"]["path"] &

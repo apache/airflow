@@ -108,7 +108,7 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
         .one_or_none()
     )
     if isinstance(val, TaskInstance):
-        val._try_number = ti.try_number
+        val.try_number = ti.try_number
         return val
     else:
         raise AirflowException(f"Could not find TaskInstance for {ti}")

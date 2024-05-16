@@ -23,7 +23,7 @@ from unittest import mock
 import pytest
 from openlineage.client.run import Dataset
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import WILDCARD, GCSToGCSOperator
 
 TASK_ID = "test-gcs-to-gcs-operator"
@@ -829,74 +829,147 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls)
 
+    @pytest.mark.parametrize(
+        ("source_objects", "destination_object", "inputs", "outputs"),
+        (
+            (
+                SOURCE_OBJECTS_SINGLE_FILE,
+                None,
+                [Dataset(namespace=f"gs://{TEST_BUCKET}", name=SOURCE_OBJECTS_SINGLE_FILE[0])],
+                [Dataset(namespace=f"gs://{DESTINATION_BUCKET}", name=SOURCE_OBJECTS_SINGLE_FILE[0])],
+            ),
+            (
+                SOURCE_OBJECTS_SINGLE_FILE,
+                "target.txt",
+                [Dataset(namespace=f"gs://{TEST_BUCKET}", name=SOURCE_OBJECTS_SINGLE_FILE[0])],
+                [Dataset(namespace=f"gs://{DESTINATION_BUCKET}", name="target.txt")],
+            ),
+            (
+                SOURCE_OBJECTS_SINGLE_FILE,
+                "target_pre",
+                [Dataset(namespace=f"gs://{TEST_BUCKET}", name=SOURCE_OBJECTS_SINGLE_FILE[0])],
+                [Dataset(namespace=f"gs://{DESTINATION_BUCKET}", name="/")],
+            ),
+            (
+                SOURCE_OBJECTS_SINGLE_FILE,
+                "dir/",
+                [Dataset(namespace=f"gs://{TEST_BUCKET}", name=SOURCE_OBJECTS_SINGLE_FILE[0])],
+                [Dataset(namespace=f"gs://{DESTINATION_BUCKET}", name="dir")],
+            ),
+            (
+                SOURCE_OBJECTS_LIST,
+                "",
+                [
+                    Dataset(namespace=f"gs://{TEST_BUCKET}", name=SOURCE_OBJECTS_LIST[0]),
+                    Dataset(namespace=f"gs://{TEST_BUCKET}", name=SOURCE_OBJECTS_LIST[1]),
+                    Dataset(namespace=f"gs://{TEST_BUCKET}", name=SOURCE_OBJECTS_LIST[2]),
+                ],
+                [
+                    Dataset(namespace=f"gs://{DESTINATION_BUCKET}", name="/"),
+                ],
+            ),
+            (
+                [*SOURCE_OBJECTS_LIST, "dir/*"],
+                "parent/pre_",
+                [
+                    Dataset(namespace=f"gs://{TEST_BUCKET}", name=SOURCE_OBJECTS_LIST[0]),
+                    Dataset(namespace=f"gs://{TEST_BUCKET}", name=SOURCE_OBJECTS_LIST[1]),
+                    Dataset(namespace=f"gs://{TEST_BUCKET}", name=SOURCE_OBJECTS_LIST[2]),
+                    Dataset(namespace=f"gs://{TEST_BUCKET}", name="dir"),
+                ],
+                [Dataset(namespace=f"gs://{DESTINATION_BUCKET}", name="parent")],
+            ),
+            (
+                SOURCE_OBJECTS_NO_FILE,
+                "no_ending_slash",
+                [Dataset(namespace=f"gs://{TEST_BUCKET}", name="/")],
+                [Dataset(namespace=f"gs://{DESTINATION_BUCKET}", name="/")],
+            ),
+            (
+                [
+                    f"dir/{SOURCE_OBJECT_WILDCARD_PREFIX}",
+                    f"dir/{SOURCE_OBJECT_WILDCARD_SUFFIX}",
+                    f"dir/{SOURCE_OBJECT_WILDCARD_MIDDLE}",
+                    f"dir/{SOURCE_OBJECT_WILDCARD_FILENAME}",
+                    "dir/*",
+                    "dir/",
+                    "dir/pre_",
+                ],
+                "/",
+                [
+                    Dataset(namespace=f"gs://{TEST_BUCKET}", name="dir"),
+                ],
+                [
+                    Dataset(namespace=f"gs://{DESTINATION_BUCKET}", name="/"),
+                ],
+            ),
+            (
+                ["", "dir/pre", SOURCE_OBJECTS_SINGLE_FILE[0]],
+                DESTINATION_OBJECT,
+                [
+                    Dataset(namespace=f"gs://{TEST_BUCKET}", name="/"),
+                    Dataset(namespace=f"gs://{TEST_BUCKET}", name="dir"),
+                    Dataset(namespace=f"gs://{TEST_BUCKET}", name=SOURCE_OBJECTS_SINGLE_FILE[0]),
+                ],
+                [
+                    Dataset(namespace=f"gs://{DESTINATION_BUCKET}", name=DESTINATION_OBJECT_PREFIX),
+                ],
+            ),
+            (
+                [
+                    "",
+                    "dir/",
+                ],
+                None,
+                [
+                    Dataset(namespace=f"gs://{TEST_BUCKET}", name="/"),
+                    Dataset(namespace=f"gs://{TEST_BUCKET}", name="dir"),
+                ],
+                [
+                    Dataset(namespace=f"gs://{DESTINATION_BUCKET}", name="/"),
+                    Dataset(namespace=f"gs://{DESTINATION_BUCKET}", name="dir"),
+                ],
+            ),
+        ),
+        ids=(
+            "single file without output",
+            "single file with single file output",
+            "single file with prefix output",
+            "single file with dir output",
+            "multiple file with empty output",
+            "multiple file with prefix as output",
+            "empty prefix with prefix as output",
+            "directory + prefix or wildcard without output",
+            "mixed prefixes and file paths with output dir",
+            "empty prefix + directory without output",
+        ),
+    )
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
-    def test_execute_simple_reports_openlineage(self, mock_hook):
-        operator = GCSToGCSOperator(
-            task_id=TASK_ID,
-            source_bucket=TEST_BUCKET,
-            source_object=SOURCE_OBJECTS_SINGLE_FILE[0],
-            destination_bucket=DESTINATION_BUCKET,
-        )
+    def test_get_openlineage_facets_on_complete(
+        self, mock_hook, source_objects, destination_object, inputs, outputs
+    ):
+        if source_objects and any(WILDCARD in obj for obj in source_objects):
+            with pytest.warns(AirflowProviderDeprecationWarning, match="Usage of wildcard"):
+                operator = GCSToGCSOperator(
+                    task_id=TASK_ID,
+                    source_bucket=TEST_BUCKET,
+                    source_objects=source_objects,
+                    destination_bucket=DESTINATION_BUCKET,
+                    destination_object=destination_object,
+                )
+        else:
+            operator = GCSToGCSOperator(
+                task_id=TASK_ID,
+                source_bucket=TEST_BUCKET,
+                source_objects=source_objects,
+                destination_bucket=DESTINATION_BUCKET,
+                destination_object=destination_object,
+            )
 
         operator.execute(None)
 
         lineage = operator.get_openlineage_facets_on_complete(None)
-        assert len(lineage.inputs) == 1
-        assert len(lineage.outputs) == 1
-        assert lineage.inputs[0] == Dataset(
-            namespace=f"gs://{TEST_BUCKET}", name=SOURCE_OBJECTS_SINGLE_FILE[0]
-        )
-        assert lineage.outputs[0] == Dataset(
-            namespace=f"gs://{DESTINATION_BUCKET}", name=SOURCE_OBJECTS_SINGLE_FILE[0]
-        )
-
-    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
-    def test_execute_multiple_reports_openlineage(self, mock_hook):
-        operator = GCSToGCSOperator(
-            task_id=TASK_ID,
-            source_bucket=TEST_BUCKET,
-            source_objects=SOURCE_OBJECTS_LIST,
-            destination_bucket=DESTINATION_BUCKET,
-            destination_object=DESTINATION_OBJECT,
-        )
-
-        operator.execute(None)
-
-        lineage = operator.get_openlineage_facets_on_complete(None)
-        assert len(lineage.inputs) == 3
-        assert len(lineage.outputs) == 1
-        assert lineage.inputs == [
-            Dataset(namespace=f"gs://{TEST_BUCKET}", name=SOURCE_OBJECTS_LIST[0]),
-            Dataset(namespace=f"gs://{TEST_BUCKET}", name=SOURCE_OBJECTS_LIST[1]),
-            Dataset(namespace=f"gs://{TEST_BUCKET}", name=SOURCE_OBJECTS_LIST[2]),
-        ]
-        assert lineage.outputs[0] == Dataset(namespace=f"gs://{DESTINATION_BUCKET}", name=DESTINATION_OBJECT)
-
-    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
-    def test_execute_wildcard_reports_openlineage(self, mock_hook):
-        mock_hook.return_value.list.return_value = [
-            "test_object1.txt",
-            "test_object2.txt",
-        ]
-
-        operator = GCSToGCSOperator(
-            task_id=TASK_ID,
-            source_bucket=TEST_BUCKET,
-            source_object=SOURCE_OBJECT_WILDCARD_SUFFIX,
-            destination_bucket=DESTINATION_BUCKET,
-            destination_object=DESTINATION_OBJECT,
-        )
-
-        operator.execute(None)
-
-        lineage = operator.get_openlineage_facets_on_complete(None)
-        assert len(lineage.inputs) == 2
-        assert len(lineage.outputs) == 2
-        assert lineage.inputs == [
-            Dataset(namespace=f"gs://{TEST_BUCKET}", name="test_object1.txt"),
-            Dataset(namespace=f"gs://{TEST_BUCKET}", name="test_object2.txt"),
-        ]
-        assert lineage.outputs == [
-            Dataset(namespace=f"gs://{DESTINATION_BUCKET}", name="foo/bar/1.txt"),
-            Dataset(namespace=f"gs://{DESTINATION_BUCKET}", name="foo/bar/2.txt"),
-        ]
+        assert len(lineage.inputs) == len(inputs)
+        assert len(lineage.outputs) == len(outputs)
+        assert sorted(lineage.inputs) == sorted(inputs)
+        assert sorted(lineage.outputs) == sorted(outputs)

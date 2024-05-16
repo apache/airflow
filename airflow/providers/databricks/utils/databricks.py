@@ -55,7 +55,7 @@ def validate_trigger_event(event: dict):
 
     See: :class:`~airflow.providers.databricks.triggers.databricks.DatabricksExecutionTrigger`.
     """
-    keys_to_check = ["run_id", "run_page_url", "run_state"]
+    keys_to_check = ["run_id", "run_page_url", "run_state", "errors"]
     for key in keys_to_check:
         if key not in event:
             raise AirflowException(f"Could not find `{key}` in the event: {event}")

@@ -174,14 +174,10 @@ class TestSFTPTrigger:
         mock_get_files_by_pattern.side_effect = Exception("An unexpected exception")
 
         trigger = SFTPTrigger(path="test/path/", sftp_conn_id="sftp_default", file_pattern="my_test_file")
-
-        expected_event = {"status": "failure", "message": "An unexpected exception"}
-
-        with pytest.raises(Exception):
-            generator = trigger.run()
-            actual_event = await generator.asend(None)
-
-            assert TriggerEvent(expected_event) == actual_event
+        expected_event = {"status": "error", "message": "An unexpected exception"}
+        generator = trigger.run()
+        actual_event = await generator.asend(None)
+        assert TriggerEvent(expected_event) == actual_event
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync.get_files_and_attrs_by_pattern")

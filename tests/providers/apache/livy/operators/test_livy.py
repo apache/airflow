@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.apache.livy.hooks.livy import BatchState
@@ -134,7 +134,7 @@ class TestLivyOperator:
 
         task.execute(context=self.mock_context)
 
-        assert task.get_hook().extra_options == extra_options
+        assert task.hook.extra_options == extra_options
 
     @patch("airflow.providers.apache.livy.operators.livy.LivyHook.delete_batch")
     @patch("airflow.providers.apache.livy.operators.livy.LivyHook.post_batch", return_value=BATCH_ID)
@@ -281,6 +281,19 @@ class TestLivyOperator:
         assert task.hook.extra_options == extra_options
 
     @patch("airflow.providers.apache.livy.operators.livy.LivyHook.delete_batch")
+    def test_when_kill_is_called_right_after_construction_it_should_not_raise_attribute_error(
+        self, mock_delete_batch
+    ):
+        task = LivyOperator(
+            livy_conn_id="livyunittest",
+            file="sparkapp",
+            dag=self.dag,
+            task_id="livy_example",
+        )
+        task.kill()
+        mock_delete_batch.assert_not_called()
+
+    @patch("airflow.providers.apache.livy.operators.livy.LivyHook.delete_batch")
     @patch("airflow.providers.apache.livy.operators.livy.LivyHook.post_batch", return_value=BATCH_ID)
     @patch("airflow.providers.apache.livy.operators.livy.LivyHook.get_batch", return_value=GET_BATCH)
     @patch(
@@ -379,6 +392,36 @@ class TestLivyOperator:
                 },
             )
         self.mock_context["ti"].xcom_push.assert_not_called()
+
+    @patch("airflow.providers.apache.livy.operators.livy.LivyHook.post_batch", return_value=BATCH_ID)
+    @patch("airflow.providers.apache.livy.operators.livy.LivyHook.delete_batch")
+    def test_execute_complete_timeout(self, mock_delete, mock_post):
+        task = LivyOperator(
+            livy_conn_id="livyunittest",
+            file="sparkapp",
+            dag=self.dag,
+            task_id="livy_example",
+            polling_interval=1,
+            deferrable=True,
+        )
+        with pytest.raises(AirflowException):
+            task.execute_complete(
+                context=self.mock_context,
+                event={
+                    "status": "timeout",
+                    "log_lines": ["mock log"],
+                    "batch_id": BATCH_ID,
+                    "response": "mock timeout",
+                },
+            )
+        mock_delete.assert_called_once_with(BATCH_ID)
+        self.mock_context["ti"].xcom_push.assert_not_called()
+
+    def test_deprecated_get_hook(self):
+        op = LivyOperator(task_id="livy_example", file="sparkapp")
+        with pytest.warns(AirflowProviderDeprecationWarning, match="use `hook` property instead"):
+            hook = op.get_hook()
+        assert hook is op.hook
 
 
 @pytest.mark.db_test

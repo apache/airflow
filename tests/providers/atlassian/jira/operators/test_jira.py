@@ -17,22 +17,16 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import Mock, patch
+from unittest import mock
 
 import pytest
 
 from airflow.models import Connection
-from airflow.models.dag import DAG
 from airflow.providers.atlassian.jira.operators.jira import JiraOperator
-from airflow.utils import db, timezone
-
-pytestmark = pytest.mark.db_test
-
+from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
-jira_client_mock = Mock(name="jira_client_for_test")
-
-minimal_test_ticket = {
+MINIMAL_TEST_TICKET = {
     "id": "911539",
     "self": "https://sandbox.localhost/jira/rest/api/2/issue/911539",
     "key": "TEST-1226",
@@ -43,20 +37,29 @@ minimal_test_ticket = {
 }
 
 
+@pytest.fixture
+def mocked_jira_client():
+    with mock.patch("airflow.providers.atlassian.jira.hooks.jira.Jira", autospec=True) as m:
+        m.return_value = mock.Mock(name="jira_client_for_test")
+        yield m
+
+
 class TestJiraOperator:
-    def setup_method(self):
-        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        dag = DAG("test_dag_id", default_args=args)
-        self.dag = dag
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self, monkeypatch):
+        monkeypatch.setenv(
+            "AIRFLOW_CONN_JIRA_DEFAULT",
             Connection(
                 conn_id="jira_default",
                 conn_type="jira",
                 host="https://localhost/jira/",
                 port=443,
-                extra='{"verify": "False", "project": "AIRFLOW"}',
-            )
+                extra='{"verify": false, "project": "AIRFLOW"}',
+            ).as_json(),
         )
+        with mock.patch("airflow.models.baseoperator.BaseOperator.xcom_push", return_value=None) as m:
+            self.mocked_xcom_push = m
+            yield
 
     def test_operator_init_with_optional_args(self):
         jira_operator = JiraOperator(task_id="jira_list_issue_types", jira_method="issue_types")
@@ -65,51 +68,46 @@ class TestJiraOperator:
         assert jira_operator.result_processor is None
         assert jira_operator.get_jira_resource_method is None
 
-    @patch("airflow.providers.atlassian.jira.hooks.jira.Jira", autospec=True, return_value=jira_client_mock)
-    def test_project_issue_count(self, jira_mock):
-        jira_mock.return_value.get_project_issues_count.return_value = 10
-
-        jira_ticket_search_operator = JiraOperator(
+    def test_project_issue_count(self, mocked_jira_client):
+        mocked_jira_client.return_value.get_project_issues_count.return_value = 10
+        op = JiraOperator(
             task_id="get-issue-count",
             jira_method="get_project_issues_count",
             jira_method_args={"project": "ABC"},
-            dag=self.dag,
         )
 
-        jira_ticket_search_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.execute({})
 
-        assert jira_mock.called
-        assert jira_mock.return_value.get_project_issues_count.called
+        assert mocked_jira_client.called
+        assert mocked_jira_client.return_value.get_project_issues_count.called
+        self.mocked_xcom_push.assert_called_once_with(mock.ANY, key="id", value=None)
 
-    @patch("airflow.providers.atlassian.jira.hooks.jira.Jira", autospec=True, return_value=jira_client_mock)
-    def test_issue_search(self, jira_mock):
+    def test_issue_search(self, mocked_jira_client):
         jql_str = "issuekey=TEST-1226"
-        jira_mock.return_value.jql_get_list_of_tickets.return_value = minimal_test_ticket
-
-        jira_ticket_search_operator = JiraOperator(
+        mocked_jira_client.return_value.jql_get_list_of_tickets.return_value = MINIMAL_TEST_TICKET
+        op = JiraOperator(
             task_id="search-ticket-test",
             jira_method="jql_get_list_of_tickets",
             jira_method_args={"jql": jql_str, "limit": "1"},
-            dag=self.dag,
         )
 
-        jira_ticket_search_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.execute({})
 
-        assert jira_mock.called
-        assert jira_mock.return_value.jql_get_list_of_tickets.called
+        assert mocked_jira_client.called
+        assert mocked_jira_client.return_value.jql_get_list_of_tickets.called
+        self.mocked_xcom_push.assert_called_once_with(mock.ANY, key="id", value="911539")
 
-    @patch("airflow.providers.atlassian.jira.hooks.jira.Jira", autospec=True, return_value=jira_client_mock)
-    def test_update_issue(self, jira_mock):
-        jira_mock.return_value.issue_add_comment.return_value = minimal_test_ticket
+    def test_update_issue(self, mocked_jira_client):
+        mocked_jira_client.return_value.issue_add_comment.return_value = MINIMAL_TEST_TICKET
 
-        add_comment_operator = JiraOperator(
+        op = JiraOperator(
             task_id="add_comment_test",
             jira_method="issue_add_comment",
-            jira_method_args={"issue_key": minimal_test_ticket.get("key"), "comment": "this is test comment"},
-            dag=self.dag,
+            jira_method_args={"issue_key": MINIMAL_TEST_TICKET.get("key"), "comment": "this is test comment"},
         )
 
-        add_comment_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.execute({})
 
-        assert jira_mock.called
-        assert jira_mock.return_value.issue_add_comment.called
+        assert mocked_jira_client.called
+        assert mocked_jira_client.return_value.issue_add_comment.called
+        self.mocked_xcom_push.assert_called_once_with(mock.ANY, key="id", value="911539")

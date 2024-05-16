@@ -35,12 +35,14 @@ class TestGetTaskRunner:
     def test_should_have_valid_imports(self, import_path):
         assert import_string(import_path) is not None
 
+    @mock.patch("airflow.utils.log.file_task_handler._ensure_ti")
     @mock.patch("airflow.task.task_runner.base_task_runner.subprocess")
     @mock.patch("airflow.task.task_runner._TASK_RUNNER_NAME", "StandardTaskRunner")
-    def test_should_support_core_task_runner(self, mock_subprocess):
+    def test_should_support_core_task_runner(self, mock_subprocess, mock_ensure_ti):
         ti = mock.MagicMock(map_index=-1, run_as_user=None)
         ti.get_template_context.return_value = {"ti": ti}
         ti.get_dagrun.return_value.get_log_template.return_value.filename = "blah"
+        mock_ensure_ti.return_value = ti
         Job = mock.MagicMock(task_instance=ti)
         Job.job_type = None
         job_runner = LocalTaskJobRunner(job=Job, task_instance=ti)

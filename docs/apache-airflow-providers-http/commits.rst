@@ -35,14 +35,41 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.11.0
+......
+
+Latest change: 2024-04-25
+
+=================================================================================================  ===========  ========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================
+`ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+`9619536e6f <https://github.com/apache/airflow/commit/9619536e6f1f5737d56d2ef761c2e4467f17cd4e>`_  2024-04-24   ``Allow trust env parameter to be defined in extra options of HTTP Connection (#39161)``
+=================================================================================================  ===========  ========================================================================================
+
+4.10.1
+......
+
+Latest change: 2024-04-10
+
+=================================================================================================  ===========  =====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =====================================================================================
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
+`6d4746f899 <https://github.com/apache/airflow/commit/6d4746f8998617653ae839f187a7e74ed8c83471>`_  2024-03-31   ``Consolidate HttpOperator http request between sync and async mode (#37293)``
+`eead6c2479 <https://github.com/apache/airflow/commit/eead6c2479b5f1f08d7bfede83a7900e3913dfae>`_  2024-03-22   ``fix(http): add return statement to yield within a while loop in triggers (#38392)``
+`b5b972a106 <https://github.com/apache/airflow/commit/b5b972a1068e19b09d48ec4d7663dd1d996d594f>`_  2024-03-18   ``Update yanked versions in providers changelogs (#38262)``
+=================================================================================================  ===========  =====================================================================================
+
 4.10.0
 ......
 
-Latest change: 2024-02-27
+Latest change: 2024-03-04
 
 =================================================================================================  ===========  =======================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================================
+`83316b8158 <https://github.com/apache/airflow/commit/83316b81584c9e516a8142778fc509f19d95cc3e>`_  2024-03-04   ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
 `9c980f7a5c <https://github.com/apache/airflow/commit/9c980f7a5c549334dc88f44a6637e87e7892791d>`_  2024-02-27   ``Return back removed public HttpHook's method (#37738)``
 `9207f9ba0f <https://github.com/apache/airflow/commit/9207f9ba0f2e0b25d4319a66df1ca5d70bb8b6b5>`_  2024-02-26   ``Change the URL building in HttpHookAsync to match the behavior of HttpHook (#37696)``
 `5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``

@@ -299,7 +299,7 @@ class TestRedshiftDataOperator:
         """Tests that an AirflowException is raised in case of empty event"""
         with pytest.raises(AirflowException) as exc:
             deferrable_operator.execute_complete(context=None, event=None)
-            assert exc.value.args[0] == "Did not receive valid event from the trigerrer"
+        assert exc.value.args[0] == "Trigger error: event is None"
 
     def test_execute_complete(self, deferrable_operator):
         """Asserts that logging occurs as expected"""

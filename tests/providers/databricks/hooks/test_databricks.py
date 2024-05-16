@@ -888,13 +888,10 @@ class TestDatabricksHook:
         with pytest.raises(AirflowException):
             self.hook._is_oauth_token_valid({})
 
-    def test_is_oauth_token_valid_raises_invalid_type(self):
-        token_missing_type = {"access_token": "my_token"}
-        token_wrong_type = {"access_token": "my_token", "token_type": "not bearer"}
-
+    @pytest.mark.parametrize("access_token, token_type", [("my_token", None), ("my_token", "not bearer")])
+    def test_is_oauth_token_valid_raises_invalid_type(self, access_token, token_type):
         with pytest.raises(AirflowException):
-            self.hook._is_oauth_token_valid(token_missing_type)
-            self.hook._is_oauth_token_valid(token_wrong_type)
+            self.hook._is_oauth_token_valid({"access_token": access_token, "token_type": token_type})
 
     def test_is_oauth_token_valid_raises_wrong_time_key(self):
         token = {
@@ -1220,8 +1217,7 @@ class TestRunState:
 
     def test_is_terminal_with_nonexistent_life_cycle_state(self):
         with pytest.raises(AirflowException):
-            run_state = RunState("blah", "", "")
-            assert run_state.is_terminal
+            RunState("blah", "", "")
 
     def test_is_successful(self):
         run_state = RunState("TERMINATED", "SUCCESS", "")
@@ -1255,8 +1251,7 @@ class TestClusterState:
 
     def test_is_terminal_with_nonexistent_life_cycle_state(self):
         with pytest.raises(AirflowException):
-            cluster_state = ClusterState("blah", "")
-            assert cluster_state.is_terminal
+            ClusterState("blah", "")
 
     def test_is_running(self):
         running_states = ["RUNNING", "RESIZING"]
@@ -1603,6 +1598,23 @@ class TestDatabricksHookAsyncMethods:
         mock_get.assert_called_once_with(
             get_cluster_endpoint(HOST),
             json={"cluster_id": CLUSTER_ID},
+            auth=aiohttp.BasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get")
+    async def test_get_run_output(self, mock_get):
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=GET_RUN_OUTPUT_RESPONSE)
+        async with self.hook:
+            run_output = await self.hook.a_get_run_output(RUN_ID)
+            run_output_error = run_output.get("error")
+
+        assert run_output_error == ERROR_MESSAGE
+        mock_get.assert_called_once_with(
+            get_run_output_endpoint(HOST),
+            json={"run_id": RUN_ID},
             auth=aiohttp.BasicAuth(LOGIN, PASSWORD),
             headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,

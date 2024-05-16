@@ -262,6 +262,7 @@ def _get_all_changes_for_package(
     provider_package_id: str,
     base_branch: str,
     reapply_templates_only: bool,
+    only_min_version_update: bool,
 ) -> tuple[bool, list[list[Change]], str]:
     """Retrieves all changes for the package.
 
@@ -325,21 +326,24 @@ def _get_all_changes_for_package(
                 except subprocess.CalledProcessError:
                     # ignore when the commit mentioned as last doc-only change is obsolete
                     pass
-            get_console().print(
-                f"[warning]The provider {provider_package_id} has {len(changes.splitlines())} "
-                f"changes since last release[/]"
-            )
-            get_console().print(f"\n[info]Provider: {provider_package_id}[/]\n")
+            if not only_min_version_update:
+                get_console().print(
+                    f"[warning]The provider {provider_package_id} has {len(changes.splitlines())} "
+                    f"changes since last release[/]"
+                )
+                get_console().print(f"\n[info]Provider: {provider_package_id}[/]\n")
             changes_table, array_of_changes = _convert_git_changes_to_table(
                 f"NEXT VERSION AFTER + {provider_details.versions[0]}",
                 changes,
                 base_url="https://github.com/apache/airflow/commit/",
                 markdown=False,
             )
-            _print_changes_table(changes_table)
+            if not only_min_version_update:
+                _print_changes_table(changes_table)
             return False, [array_of_changes], changes_table
         else:
-            get_console().print(f"[info]No changes for {provider_package_id}")
+            if not only_min_version_update:
+                get_console().print(f"[info]No changes for {provider_package_id}")
             return False, [], ""
     if len(provider_details.versions) == 1:
         get_console().print(
@@ -653,6 +657,7 @@ def update_release_notes(
     base_branch: str,
     regenerate_missing_docs: bool,
     non_interactive: bool,
+    only_min_version_update: bool,
 ) -> tuple[bool, bool]:
     """Updates generated files.
 
@@ -669,6 +674,7 @@ def update_release_notes(
         provider_package_id=provider_package_id,
         base_branch=base_branch,
         reapply_templates_only=reapply_templates_only,
+        only_min_version_update=only_min_version_update,
     )
     with_breaking_changes = False
     maybe_with_new_features = False
@@ -711,6 +717,7 @@ def update_release_notes(
                 provider_package_id=provider_package_id,
                 base_branch=base_branch,
                 reapply_templates_only=reapply_templates_only,
+                only_min_version_update=only_min_version_update,
             )
     else:
         _update_source_date_epoch_in_provider_yaml(provider_package_id)
@@ -913,6 +920,7 @@ def update_changelog(
     reapply_templates_only: bool,
     with_breaking_changes: bool,
     maybe_with_new_features: bool,
+    only_min_version_update: bool,
 ):
     """Internal update changelog method.
 
@@ -929,12 +937,16 @@ def update_changelog(
         maybe_with_new_features=maybe_with_new_features,
     )
     proceed, changes, _ = _get_all_changes_for_package(
-        provider_package_id=package_id, base_branch=base_branch, reapply_templates_only=reapply_templates_only
+        provider_package_id=package_id,
+        base_branch=base_branch,
+        reapply_templates_only=reapply_templates_only,
+        only_min_version_update=only_min_version_update,
     )
     if not proceed:
-        get_console().print(
-            f"[warning]The provider {package_id} is not being released. Skipping the package.[/]"
-        )
+        if not only_min_version_update:
+            get_console().print(
+                f"[warning]The provider {package_id} is not being released. Skipping the package.[/]"
+            )
         raise PrepareReleaseDocsNoChangesException()
     if reapply_templates_only:
         get_console().print("[info]Only reapply templates, no changelog update[/]")

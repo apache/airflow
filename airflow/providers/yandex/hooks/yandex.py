@@ -79,14 +79,14 @@ class YandexCloudBaseHook(BaseHook):
             "folder_id": StringField(
                 lazy_gettext("Default folder ID"),
                 widget=BS3TextFieldWidget(),
-                description="Optional. This folder will be used "
-                "to create all new clusters and nodes by default",
+                description="Optional. "
+                "If specified, this ID will be used by default when creating nodes and clusters.",
             ),
             "public_ssh_key": StringField(
                 lazy_gettext("Public SSH key"),
                 widget=BS3TextFieldWidget(),
-                description="Optional. This key will be placed to all created Compute nodes "
-                "to let you have a root shell there",
+                description="Optional. The key will be placed to all created Compute nodes, "
+                "allowing you to have a root shell there.",
             ),
             "endpoint": StringField(
                 lazy_gettext("API endpoint"),

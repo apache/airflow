@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING
 import psutil
 from setproctitle import setproctitle
 
+from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.models.taskinstance import TaskReturnCode
 from airflow.settings import CAN_FORK
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
@@ -74,11 +75,12 @@ class StandardTaskRunner(BaseTaskRunner):
             from airflow.cli.cli_parser import get_parser
             from airflow.sentry import Sentry
 
-            # Force a new SQLAlchemy session. We can't share open DB handles
-            # between process. The cli code will re-create this as part of its
-            # normal startup
-            settings.engine.pool.dispose()
-            settings.engine.dispose()
+            if not InternalApiConfig.get_use_internal_api():
+                # Force a new SQLAlchemy session. We can't share open DB handles
+                # between process. The cli code will re-create this as part of its
+                # normal startup
+                settings.engine.pool.dispose()
+                settings.engine.dispose()
 
             parser = get_parser()
             # [1:] - remove "airflow" from the start of the command
@@ -107,7 +109,7 @@ class StandardTaskRunner(BaseTaskRunner):
             except Exception as exc:
                 return_code = 1
 
-                self.log.error(
+                self.log.exception(
                     "Failed to execute job %s for task %s (%s; %r)",
                     job_id,
                     self._task_instance.task_id,

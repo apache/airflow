@@ -29,6 +29,7 @@ from paramiko.ssh_exception import SSHException
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 from airflow.providers.google.cloud.hooks.os_login import OSLoginHook
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.utils.types import NOTSET, ArgNotSet
 
@@ -109,7 +110,7 @@ class ComputeEngineSSHHook(SSHHook):
         instance_name: str | None = None,
         zone: str | None = None,
         user: str | None = "root",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         hostname: str | None = None,
         use_internal_ip: bool = False,
         use_iap_tunnel: bool = False,
@@ -334,7 +335,7 @@ class ComputeEngineSSHHook(SSHHook):
         )
 
     def _authorize_os_login(self, pubkey):
-        username = self._oslogin_hook._get_credentials_email()
+        username = self._oslogin_hook._get_credentials_email
         self.log.info("Importing SSH public key using OSLogin: user=%s", username)
         expiration = int((time.time() + self.expire_time) * 1000000)
         ssh_public_key = {"key": pubkey, "expiration_time_usec": expiration}

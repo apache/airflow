@@ -245,7 +245,12 @@ class KubernetesPodTrigger(BaseTrigger):
             container_state = self.define_container_state(pod)
             if container_state == ContainerState.TERMINATED:
                 return TriggerEvent(
-                    {"status": "success", "namespace": self.pod_namespace, "name": self.pod_name}
+                    {
+                        "status": "success",
+                        "namespace": self.pod_namespace,
+                        "name": self.pod_name,
+                        "last_log_time": self.last_log_time,
+                    }
                 )
             elif container_state == ContainerState.FAILED:
                 return TriggerEvent(
@@ -254,8 +259,10 @@ class KubernetesPodTrigger(BaseTrigger):
                         "namespace": self.pod_namespace,
                         "name": self.pod_name,
                         "message": "Container state failed",
+                        "last_log_time": self.last_log_time,
                     }
                 )
+            self.log.debug("Container is not completed and still working.")
             if time_get_more_logs and datetime.datetime.now(tz=datetime.timezone.utc) > time_get_more_logs:
                 return TriggerEvent(
                     {
@@ -265,6 +272,7 @@ class KubernetesPodTrigger(BaseTrigger):
                         "name": self.pod_name,
                     }
                 )
+            self.log.debug("Sleeping for %s seconds.", self.poll_interval)
             await asyncio.sleep(self.poll_interval)
 
     def _get_async_hook(self) -> AsyncKubernetesHook:

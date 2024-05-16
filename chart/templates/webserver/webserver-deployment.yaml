@@ -257,7 +257,7 @@ spec:
           {{- include "git_sync_container" . | nindent 8 }}
         {{- end }}
         {{- if .Values.webserver.extraContainers }}
-          {{- toYaml .Values.webserver.extraContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.webserver.extraContainers) . | nindent 8 }}
         {{- end }}
       volumes:
         - name: config

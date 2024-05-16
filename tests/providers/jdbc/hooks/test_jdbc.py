@@ -22,10 +22,11 @@ import logging
 from unittest import mock
 from unittest.mock import Mock, patch
 
+import jaydebeapi
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.jdbc.hooks.jdbc import JdbcHook
+from airflow.providers.jdbc.hooks.jdbc import JdbcHook, suppress_and_warn
 from airflow.utils import db
 
 pytestmark = pytest.mark.db_test
@@ -83,11 +84,25 @@ class TestJdbcHook:
         jdbc_conn.jconn.setAutoCommit.assert_called_once_with(False)
 
     @patch("airflow.providers.jdbc.hooks.jdbc.jaydebeapi.connect")
+    def test_jdbc_conn_set_autocommit_when_not_supported(self, _):
+        jdbc_hook = JdbcHook()
+        jdbc_conn = jdbc_hook.get_conn()
+        jdbc_conn.jconn.setAutoCommit.side_effect = jaydebeapi.Error()
+        jdbc_hook.set_autocommit(jdbc_conn, False)
+
+    @patch("airflow.providers.jdbc.hooks.jdbc.jaydebeapi.connect")
     def test_jdbc_conn_get_autocommit(self, _):
         jdbc_hook = JdbcHook()
         jdbc_conn = jdbc_hook.get_conn()
         jdbc_hook.get_autocommit(jdbc_conn)
         jdbc_conn.jconn.getAutoCommit.assert_called_once_with()
+
+    @patch("airflow.providers.jdbc.hooks.jdbc.jaydebeapi.connect")
+    def test_jdbc_conn_get_autocommit_when_not_supported_then_return_false(self, _):
+        jdbc_hook = JdbcHook()
+        jdbc_conn = jdbc_hook.get_conn()
+        jdbc_conn.jconn.getAutoCommit.side_effect = jaydebeapi.Error()
+        assert jdbc_hook.get_autocommit(jdbc_conn) is False
 
     def test_driver_hook_params(self):
         hook = get_hook(hook_params=dict(driver_path="Blah driver path", driver_class="Blah driver class"))
@@ -161,3 +176,13 @@ class TestJdbcHook:
                     "have supplied 'driver_class' via connection extra but it will not be used"
                 ) in caplog.text
                 assert driver_class == "Blah driver class"
+
+    def test_suppress_and_warn_when_raised_exception_is_suppressed(self):
+        with pytest.warns(UserWarning, match="Exception suppressed: Foo Bar"):
+            with suppress_and_warn(RuntimeError):
+                raise RuntimeError("Foo Bar")
+
+    def test_suppress_and_warn_when_raised_exception_is_not_suppressed(self):
+        with pytest.raises(RuntimeError, match="Spam Egg"):
+            with suppress_and_warn(KeyError):
+                raise RuntimeError("Spam Egg")

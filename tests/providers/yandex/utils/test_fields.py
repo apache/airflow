@@ -22,9 +22,9 @@ from airflow.providers.yandex.utils.fields import get_field_from_extras
 
 
 def test_get_field_from_extras():
-    field_name = "somefield"
+    field_name = "some-field"
     default = None
-    expected = "somevalue"
+    expected = "some-value"
     extras = {
         field_name: expected,
     }
@@ -39,7 +39,7 @@ def test_get_field_from_extras():
 
 
 def test_get_field_from_extras_not_found():
-    field_name = "somefield"
+    field_name = "some-field"
     default = "default"
     expected = default
     extras = {}
@@ -54,9 +54,9 @@ def test_get_field_from_extras_not_found():
 
 
 def test_get_field_from_extras_prefixed_in_extra():
-    field_name = "somefield"
+    field_name = "some-field"
     default = None
-    expected = "somevalue"
+    expected = "some-value"
     extras = {
         f"extra__yandexcloud__{field_name}": expected,
     }
@@ -71,7 +71,7 @@ def test_get_field_from_extras_prefixed_in_extra():
 
 
 def test_get_field_from_extras_field_name_with_extra_raise_exception():
-    field_name = "extra__yandexcloud__fieldname"
+    field_name = "extra__yandexcloud__field"
     default = None
     extras = {}
 

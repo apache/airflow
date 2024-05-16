@@ -25,9 +25,9 @@ import operator
 import weakref
 from typing import TYPE_CHECKING, Any, Generator, Iterator, Sequence
 
+import methodtools
 import re2
 
-from airflow.compat.functools import cache
 from airflow.exceptions import (
     AirflowDagCycleException,
     AirflowException,
@@ -586,7 +586,7 @@ class MappedTaskGroup(TaskGroup):
         for op, _ in XComArg.iter_xcom_references(self._expand_input):
             yield op
 
-    @cache
+    @methodtools.lru_cache(maxsize=None)
     def get_parse_time_mapped_ti_count(self) -> int:
         """
         Return the Number of instances a task in this group should be mapped to, when a DAG run is created.
@@ -679,13 +679,17 @@ class TaskGroupContext:
 def task_group_to_dict(task_item_or_group):
     """Create a nested dict representation of this TaskGroup and its children used to construct the Graph."""
     from airflow.models.abstractoperator import AbstractOperator
+    from airflow.models.mappedoperator import MappedOperator
 
     if isinstance(task := task_item_or_group, AbstractOperator):
         setup_teardown_type = {}
+        is_mapped = {}
         if task.is_setup is True:
             setup_teardown_type["setupTeardownType"] = "setup"
         elif task.is_teardown is True:
             setup_teardown_type["setupTeardownType"] = "teardown"
+        if isinstance(task, MappedOperator):
+            is_mapped["isMapped"] = True
         return {
             "id": task.task_id,
             "value": {
@@ -694,6 +698,7 @@ def task_group_to_dict(task_item_or_group):
                 "style": f"fill:{task.ui_color};",
                 "rx": 5,
                 "ry": 5,
+                **is_mapped,
                 **setup_teardown_type,
             },
         }

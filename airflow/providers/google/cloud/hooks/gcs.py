@@ -45,7 +45,11 @@ from requests import Session
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.utils.helpers import normalize_directory_path
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseAsyncHook,
+    GoogleBaseHook,
+)
 from airflow.typing_compat import ParamSpec
 from airflow.utils import timezone
 from airflow.version import version
@@ -1013,7 +1017,7 @@ class GCSHook(GoogleBaseHook):
         resource: dict | None = None,
         storage_class: str = "MULTI_REGIONAL",
         location: str = "US",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         labels: dict | None = None,
     ) -> str:
         """

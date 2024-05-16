@@ -82,6 +82,7 @@ class TestCreateDataPipelineOperator:
             project_id=TEST_PROJECTID, body=TEST_BODY, location=TEST_LOCATION
         )
 
+    @pytest.mark.db_test
     def test_body_invalid(self):
         """
         Test that if the operator is not passed a Request Body, an AirflowException is raised
@@ -124,6 +125,7 @@ class TestCreateDataPipelineOperator:
         with pytest.raises(AirflowException):
             CreateDataPipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
+    @pytest.mark.db_test
     def test_response_invalid(self):
         """
         Test that if the Response Body contains an error message, an AirflowException is raised
@@ -139,6 +141,7 @@ class TestCreateDataPipelineOperator:
             CreateDataPipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
 
+@pytest.mark.db_test
 class TestRunDataPipelineOperator:
     @pytest.fixture
     def run_operator(self):

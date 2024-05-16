@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import base64
 import errno
 import json
 import os
@@ -34,7 +35,7 @@ import uuid
 from inspect import signature
 from pathlib import Path
 from subprocess import PIPE, Popen
-from tempfile import gettempdir
+from tempfile import NamedTemporaryFile, _TemporaryFileWrapper, gettempdir
 from typing import TYPE_CHECKING, Any, Sequence
 from urllib.parse import quote_plus
 
@@ -49,12 +50,21 @@ from googleapiclient.errors import HttpError
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
-from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook, get_field
+from airflow.providers.google.cloud.hooks.secret_manager import (
+    GoogleCloudSecretManagerHook,
+)
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseAsyncHook,
+    GoogleBaseHook,
+    get_field,
+)
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from google.cloud.secretmanager_v1 import AccessSecretVersionResponse
     from requests import Session
 
 UNIX_PATH_MAX = 108
@@ -378,6 +388,29 @@ class CloudSQLHook(GoogleBaseHook):
             raise AirflowException(f"Cloning of instance {instance} failed: {ex.content}")
 
     @GoogleBaseHook.fallback_to_default_project_id
+    def create_ssl_certificate(self, instance: str, body: dict, project_id: str):
+        """
+        Create SSL certificate for a Cloud SQL instance.
+
+        :param instance: Cloud SQL instance ID. This does not include the project ID.
+        :param body: The request body, as described in
+            https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1/sslCerts/insert#SslCertsInsertRequest
+        :param project_id: Project ID of the project that contains the instance. If set
+            to None or missing, the default project_id from the Google Cloud connection is used.
+        :return: SslCert insert response. For more details see:
+            https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1/sslCerts/insert#response-body
+        """
+        response = (
+            self.get_conn()
+            .sslCerts()
+            .insert(project=project_id, instance=instance, body=body)
+            .execute(num_retries=self.num_retries)
+        )
+        operation_name = response.get("operation", {}).get("name", {})
+        self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
+        return response
+
+    @GoogleBaseHook.fallback_to_default_project_id
     def _wait_for_operation_to_complete(
         self, project_id: str, operation_name: str, time_to_sleep: int = TIME_TO_SLEEP_IN_SECONDS
     ) -> None:
@@ -482,7 +515,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         path_prefix: str,
         instance_specification: str,
         gcp_conn_id: str = "google_cloud_default",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         sql_proxy_version: str | None = None,
         sql_proxy_binary_path: str | None = None,
     ) -> None:
@@ -758,7 +791,24 @@ class CloudSQLDatabaseHook(BaseHook):
     :param gcp_conn_id: The connection ID used to connect to Google Cloud for
         cloud-sql-proxy authentication.
     :param default_gcp_project_id: Default project id used if project_id not specified
-           in the connection URL
+        in the connection URL
+    :param ssl_cert: Optional. Path to client certificate to authenticate when SSL is used. Overrides the
+        connection field ``sslcert``.
+    :param ssl_key: Optional. Path to client private key to authenticate when SSL is used. Overrides the
+        connection field ``sslkey``.
+    :param ssl_root_cert: Optional. Path to server's certificate to authenticate when SSL is used. Overrides
+        the connection field ``sslrootcert``.
+    :param ssl_secret_id: Optional. ID of the secret in Google Cloud Secret Manager that stores SSL
+        certificate in the format below:
+
+        {'sslcert': '',
+         'sslkey': '',
+         'sslrootcert': ''}
+
+        Overrides the connection fields ``sslcert``, ``sslkey``, ``sslrootcert``.
+        Note that according to the Secret Manager requirements, the mentioned dict should be saved as a
+        string, and encoded with base64.
+        Note that this parameter is incompatible with parameters ``ssl_cert``, ``ssl_key``, ``ssl_root_cert``.
     """
 
     conn_name_attr = "gcp_cloudsql_conn_id"
@@ -770,12 +820,18 @@ class CloudSQLDatabaseHook(BaseHook):
         self,
         gcp_cloudsql_conn_id: str = "google_cloud_sql_default",
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
         default_gcp_project_id: str | None = None,
         sql_proxy_binary_path: str | None = None,
+        ssl_cert: str | None = None,
+        ssl_key: str | None = None,
+        ssl_root_cert: str | None = None,
+        ssl_secret_id: str | None = None,
     ) -> None:
         super().__init__()
         self.gcp_conn_id = gcp_conn_id
         self.gcp_cloudsql_conn_id = gcp_cloudsql_conn_id
+        self.impersonation_chain = impersonation_chain
         self.cloudsql_connection = self.get_connection(self.gcp_cloudsql_conn_id)
         self.extras = self.cloudsql_connection.extra_dejson
         self.project_id = self.extras.get("project_id", default_gcp_project_id)
@@ -792,9 +848,11 @@ class CloudSQLDatabaseHook(BaseHook):
         self.password = self.cloudsql_connection.password
         self.public_ip = self.cloudsql_connection.host
         self.public_port = self.cloudsql_connection.port
-        self.sslcert = self.extras.get("sslcert")
-        self.sslkey = self.extras.get("sslkey")
-        self.sslrootcert = self.extras.get("sslrootcert")
+        self.ssl_cert = ssl_cert
+        self.ssl_key = ssl_key
+        self.ssl_root_cert = ssl_root_cert
+        self.ssl_secret_id = ssl_secret_id
+        self._ssl_cert_temp_files: dict[str, _TemporaryFileWrapper] = {}
         # Port and socket path and db_hook are automatically generated
         self.sql_proxy_tcp_port = None
         self.sql_proxy_unique_path: str | None = None
@@ -804,6 +862,84 @@ class CloudSQLDatabaseHook(BaseHook):
         # This is important as different hosts share the database
         self.db_conn_id = str(uuid.uuid1())
         self._validate_inputs()
+
+    @property
+    def sslcert(self) -> str | None:
+        return self._get_ssl_temporary_file_path(cert_name="sslcert", cert_path=self.ssl_cert)
+
+    @property
+    def sslkey(self) -> str | None:
+        return self._get_ssl_temporary_file_path(cert_name="sslkey", cert_path=self.ssl_key)
+
+    @property
+    def sslrootcert(self) -> str | None:
+        return self._get_ssl_temporary_file_path(cert_name="sslrootcert", cert_path=self.ssl_root_cert)
+
+    def _get_ssl_temporary_file_path(self, cert_name: str, cert_path: str | None) -> str | None:
+        cert_value = self._get_cert_from_secret(cert_name)
+        original_cert_path = cert_path or self.extras.get(cert_name)
+        if cert_value or original_cert_path:
+            if cert_name not in self._ssl_cert_temp_files:
+                return self._set_temporary_ssl_file(
+                    cert_name=cert_name, cert_path=original_cert_path, cert_value=cert_value
+                )
+            return self._ssl_cert_temp_files[cert_name].name
+        return None
+
+    def _get_cert_from_secret(self, cert_name: str) -> str | None:
+        if not self.ssl_secret_id:
+            return None
+
+        secret_hook = GoogleCloudSecretManagerHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
+        secret: AccessSecretVersionResponse = secret_hook.access_secret(
+            project_id=self.project_id,
+            secret_id=self.ssl_secret_id,
+        )
+        secret_data = json.loads(base64.b64decode(secret.payload.data))
+        if cert_name in secret_data:
+            return secret_data[cert_name]
+        else:
+            raise AirflowException(
+                "Invalid secret format. Expected dictionary with keys: `sslcert`, `sslkey`, `sslrootcert`"
+            )
+
+    def _set_temporary_ssl_file(
+        self, cert_name: str, cert_path: str | None = None, cert_value: str | None = None
+    ) -> str | None:
+        """Save the certificate as a temporary file.
+
+        This method was implemented in order to overcome psql connection error caused by excessive file
+        permissions: "private key file "..." has group or world access; file must have permissions
+        u=rw (0600) or less if owned by the current user, or permissions u=rw,g=r (0640) or less if owned
+        by root". NamedTemporaryFile enforces using exactly one of create/read/write/append mode so the
+        created file obtains least required permissions "-rw-------" that satisfies the rules.
+
+        :param cert_name: Required. Name of the certificate (one of sslcert, sslkey, sslrootcert).
+        :param cert_path: Optional. Path to the certificate.
+        :param cert_value: Optional. The certificate content.
+
+        :returns: The path to the temporary certificate file.
+        """
+        if all([cert_path, cert_value]):
+            raise AirflowException(
+                "Both parameters were specified: `cert_path`, `cert_value`. Please use only one of them."
+            )
+        if not any([cert_path, cert_value]):
+            self.log.info("Neither cert path and cert value provided. Nothing to save.")
+            return None
+
+        _temp_file = NamedTemporaryFile(mode="w+b", prefix="/tmp/certs/")
+        if cert_path:
+            with open(cert_path, "rb") as cert_file:
+                _temp_file.write(cert_file.read())
+        elif cert_value:
+            _temp_file.write(cert_value.encode("ascii"))
+        _temp_file.flush()
+        self._ssl_cert_temp_files[cert_name] = _temp_file
+        self.log.info("Copied the certificate '%s' into a temporary file '%s'", cert_name, _temp_file.name)
+        return _temp_file.name
 
     @staticmethod
     def _get_bool(val: Any) -> bool:
@@ -836,6 +972,17 @@ class CloudSQLDatabaseHook(BaseHook):
                 " SSL is not needed as Cloud SQL Proxy "
                 "provides encryption on its own"
             )
+        if any([self.ssl_key, self.ssl_cert, self.ssl_root_cert]) and self.ssl_secret_id:
+            raise AirflowException(
+                "Invalid SSL settings. Please use either all of parameters ['ssl_cert', 'ssl_cert', "
+                "'ssl_root_cert'] or a single parameter 'ssl_secret_id'."
+            )
+        if any([self.ssl_key, self.ssl_cert, self.ssl_root_cert]):
+            field_names = ["ssl_key", "ssl_cert", "ssl_root_cert"]
+            if missed_values := [field for field in field_names if not getattr(self, field)]:
+                s = "s are" if len(missed_values) > 1 else "is"
+                missed_values_str = ", ".join(f for f in missed_values)
+                raise AirflowException(f"Invalid SSL settings. Parameter{s} missing: {missed_values_str}")
 
     def validate_ssl_certs(self) -> None:
         """

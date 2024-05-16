@@ -26,6 +26,61 @@
 Changelog
 ---------
 
+6.4.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Add DatabricksNotebookOperator (#39178)``
+* ``Add notification settings parameters (#39175)``
+* ``[FEAT] raise exception with main notebook error in DatabricksRunNowDeferrableOperator (#39110)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+
+6.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add cancel_previous_run to DatabricksRunNowOperator (#38702)``
+* ``add repair_run support to DatabricksRunNowOperator in deferrable mode (#38619)``
+* ``Adds job_id as path param in update permission (#38962)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix remaining D401 checks (#37434)``
+* ``Update ACL during job reset (#38741)``
+* ``Remove extra slash from update permission endpoint (#38918)``
+* ``DatabricksRunNowOperator: fix typo in latest_repair_id (#39050)``
+
+Misc
+~~~~
+
+* ``refactor(databricks): remove redundant else block (#38397)``
+* ``Rename 'DatabricksSqlOperator''s fields' names to comply with templated fields validation (#38052)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update yanked versions in providers changelogs (#38262)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``Restore Python 3.12 support for Databricks (#38207)``
+   * ``Add comment about versions updated by release manager (#37488)``
+   * ``Exclude Python 3.12 for Databricks provider (#38070)``
+   * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+   * ``update pre-commit (#37665)``
+   * ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
+   * ``Prepare docs 1st wave (RC2) April 2024 (#38995)``
+
 6.2.0
 .....
 

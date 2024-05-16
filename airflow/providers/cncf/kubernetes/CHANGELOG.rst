@@ -27,6 +27,80 @@
 Changelog
 ---------
 
+8.2.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+
+Features
+~~~~~~~~
+
+* ``Add missing informative logs in KPO trigger until container has not finished (#37546)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fixes templated env vars for k8s pod operator (#39139)``
+* ``Fix SparkKubernetesOperator when using initContainers (#38119)``
+* ``Refresh properties on KubernetesPodOperator when k8s fails due to token expiration (#39325)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+* ``Remove unnecessary validation from cncf provider. (#39238)``
+* ``Moves airflow import in deprecated pod_generator to local (#39062)``
+* ``KPO xcom sidecar PodDefault usage (#38951)``
+
+8.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Avoid logging empty line KPO (#38247)``
+
+8.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``KPO Add follow log in termination step (#38081)``
+* ``Add GKECreateCustomResourceOperator and GKEDeleteCustomResourceOperator operators (#37616)``
+* ``Implement deferrable mode for KubernetesJobOperator (#38251)``
+* ``Create KubernetesPatchJobOperator operator (#38146)``
+* ``Implement delete_on_status parameter for KubernetesDeleteJobOperator (#38458)``
+* ``Implement deferrable mode for GKEStartJobOperator (#38454)``
+* ``Use startup_check_interval_seconds instead of poll_interval to check pod while startup (#38075)``
+* ``Implement wait_until_job_complete parameter for KubernetesJobOperator (#37998)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use SIGINT signal number instead of signal name (#37905)``
+* ``Fix spark operator log retrieval from driver (#38106)``
+* ``Fix dynamic allocation specs handling for custom launcher (#38223)``
+* ``Fix case if 'SparkKubernetesOperator.application_file' is templated file (#38035)``
+* ``fix: reduce irrelevant error logs for pod events. (#37944)``
+
+Misc
+~~~~
+
+* ``Add GKEListJobsOperator and GKEDescribeJobOperator (#37598)``
+* ``removed usage of deprecated function  for naming the pod in provider k8s pod.py (#38638)``
+* ``Create DeleteKubernetesJobOperator and GKEDeleteJobOperator operators (#37793)``
+* ``Refactor GKE hooks (#38404)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``fix: try002 for provider cncf kubernetes (#38799)``
+   * ``Update yanked versions in providers changelogs (#38262)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+
 8.0.1
 .....
 

@@ -112,6 +112,8 @@ class DagScheduleDatasetReference(Base):
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
     dataset = relationship("DatasetModel", back_populates="consuming_dags")
+    dag = relationship("DagModel", back_populates="schedule_dataset_references")
+
     queue_records = relationship(
         "DatasetDagRunQueue",
         primaryjoin="""and_(

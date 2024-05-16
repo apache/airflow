@@ -229,10 +229,9 @@ class TestGKEHookDelete:
     def test_delete_cluster_error(self, wait_mock, mock_project_id):
         # To force an error
         self.gke_hook._client.delete_cluster.side_effect = AirflowException("400")
-
         with pytest.raises(AirflowException):
             self.gke_hook.delete_cluster(name="a-cluster")
-            wait_mock.assert_not_called()
+        wait_mock.assert_not_called()
 
 
 class TestGKEHookCreate:
@@ -292,7 +291,7 @@ class TestGKEHookCreate:
 
         with pytest.raises(AirflowException):
             self.gke_hook.create_cluster(mock_cluster_proto)
-            wait_mock.assert_not_called()
+        wait_mock.assert_not_called()
 
     @mock.patch(GKE_STRING.format("GKEHook.log"))
     @mock.patch(GKE_STRING.format("GKEHook.wait_for_operation"))
@@ -305,7 +304,7 @@ class TestGKEHookCreate:
 
         with pytest.raises(AlreadyExists):
             self.gke_hook.create_cluster(cluster={}, project_id=TEST_GCP_PROJECT_ID)
-            wait_mock.assert_not_called()
+        wait_mock.assert_not_called()
 
 
 class TestGKEHookGet:
@@ -390,7 +389,7 @@ class TestGKEHook:
 
         with pytest.raises(GoogleCloudError):
             self.gke_hook.wait_for_operation(mock_op)
-            assert time_mock.call_count == 1
+        assert time_mock.call_count == 1
 
     @mock.patch(GKE_STRING.format("GKEHook.get_operation"))
     @mock.patch(GKE_STRING.format("time.sleep"))

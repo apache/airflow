@@ -30,6 +30,7 @@ from contextlib import redirect_stdout
 from datetime import timedelta
 from io import StringIO
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import patch
 
@@ -39,12 +40,12 @@ import pytest
 import time_machine
 from dateutil.relativedelta import relativedelta
 from pendulum.tz.timezone import Timezone
-from sqlalchemy import inspect
+from sqlalchemy import inspect, select
 from sqlalchemy.exc import SAWarning
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.datasets import Dataset
+from airflow.datasets import Dataset, DatasetAll, DatasetAny
 from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.exceptions import (
     AirflowException,
@@ -102,6 +103,9 @@ from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs,
 from tests.test_utils.mapping import expand_mapped_task
 from tests.test_utils.mock_plugins import mock_plugin_manager
 from tests.test_utils.timetables import cron_timetable, delta_timetable
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 pytestmark = pytest.mark.db_test
 
@@ -2981,42 +2985,27 @@ class TestDagModel:
         assert first_queued_time == DEFAULT_DATE
         assert last_queued_time == DEFAULT_DATE + timedelta(hours=1)
 
-    def test_dataset_expression(self, session):
-        dataset_expr = {
-            "__type": "dataset_any",
-            "__var": [
-                {"__type": "dataset", "__var": {"extra": {"hi": "bye"}, "uri": "s3://dag1/output_1.txt"}},
-                {
-                    "__type": "dataset_all",
-                    "__var": [
-                        {
-                            "__type": "dataset",
-                            "__var": {"extra": {"hi": "bye"}, "uri": "s3://dag2/output_1.txt"},
-                        },
-                        {
-                            "__type": "dataset",
-                            "__var": {"extra": {"hi": "bye"}, "uri": "s3://dag3/output_3.txt"},
-                        },
-                    ],
-                },
-            ],
-        }
-        dag_id = "test_dag_dataset_expression"
-        orm_dag = DagModel(
-            dag_id=dag_id,
-            dataset_expression=dataset_expr,
-            is_active=True,
-            is_paused=False,
-            next_dagrun=timezone.utcnow(),
-            next_dagrun_create_after=timezone.utcnow() + timedelta(days=1),
+    def test_dataset_expression(self, session: Session) -> None:
+        dag = DAG(
+            dag_id="test_dag_dataset_expression",
+            schedule=DatasetAny(
+                Dataset("s3://dag1/output_1.txt", {"hi": "bye"}),
+                DatasetAll(
+                    Dataset("s3://dag2/output_1.txt", {"hi": "bye"}),
+                    Dataset("s3://dag3/output_3.txt", {"hi": "bye"}),
+                ),
+            ),
+            start_date=datetime.datetime.min,
         )
-        session.add(orm_dag)
-        session.commit()
-        retrieved_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
-        assert retrieved_dag.dataset_expression == dataset_expr
+        DAG.bulk_write_to_db([dag], session=session)
 
-        session.rollback()
-        session.close()
+        expression = session.scalars(select(DagModel.dataset_expression).filter_by(dag_id=dag.dag_id)).one()
+        assert expression == {
+            "any": [
+                "s3://dag1/output_1.txt",
+                {"all": ["s3://dag2/output_1.txt", "s3://dag3/output_3.txt"]},
+            ]
+        }
 
 
 class TestQueries:
@@ -3268,7 +3257,13 @@ def test_dag_timetable_change_after_init(timetable):
     assert not dag._check_schedule_interval_matches_timetable()
 
 
-@pytest.mark.parametrize("run_id, execution_date", [(None, datetime_tz(2020, 1, 1)), ("test-run-id", None)])
+@pytest.mark.parametrize(
+    "run_id, execution_date",
+    [
+        (None, datetime_tz(2020, 1, 1)),
+        ("test-run-id", None),
+    ],
+)
 def test_set_task_instance_state(run_id, execution_date, session, dag_maker):
     """Test that set_task_instance_state updates the TaskInstance state and clear downstream failed"""
 
@@ -3332,7 +3327,9 @@ def test_set_task_instance_state(run_id, execution_date, session, dag_maker):
     # dagrun should be set to QUEUED
     assert dagrun.get_state() == State.QUEUED
 
-    assert {t.key for t in altered} == {("test_set_task_instance_state", "task_1", dagrun.run_id, 1, -1)}
+    assert {tuple(t.key) for t in altered} == {
+        ("test_set_task_instance_state", "task_1", dagrun.run_id, 0, -1)
+    }
 
 
 def test_set_task_instance_state_mapped(dag_maker, session):
@@ -3483,8 +3480,8 @@ def test_set_task_group_state(run_id, execution_date, session, dag_maker):
     assert dagrun.get_state() == State.QUEUED
 
     assert {t.key for t in altered} == {
-        ("test_set_task_group_state", "section_1.task_1", dagrun.run_id, 1, -1),
-        ("test_set_task_group_state", "section_1.task_3", dagrun.run_id, 1, -1),
+        ("test_set_task_group_state", "section_1.task_1", dagrun.run_id, 0, -1),
+        ("test_set_task_group_state", "section_1.task_3", dagrun.run_id, 0, -1),
     }
 
 

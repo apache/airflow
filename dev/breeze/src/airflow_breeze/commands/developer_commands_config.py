@@ -27,6 +27,7 @@ DEVELOPER_COMMANDS: dict[str, str | list[str]] = {
         "exec",
         "compile-www-assets",
         "cleanup",
+        "generate-migration-file",
     ],
 }
 DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
@@ -62,6 +63,8 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--github-repository",
                 "--builder",
+                "--use-uv",
+                "--uv-http-timeout",
             ],
         },
         {
@@ -125,6 +128,8 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--image-tag",
                 "--github-repository",
                 "--builder",
+                "--use-uv",
+                "--uv-http-timeout",
             ],
         },
         {
@@ -142,6 +147,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--airflow-constraints-reference",
                 "--airflow-extras",
                 "--airflow-skip-constraints",
+                "--install-airflow-with-constraints",
                 "--install-selected-providers",
                 "--package-format",
                 "--providers-constraints-location",
@@ -238,6 +244,8 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--image-tag",
                 "--github-repository",
                 "--builder",
+                "--use-uv",
+                "--uv-http-timeout",
             ],
         },
         {
@@ -337,6 +345,16 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Cleanup flags",
             "options": [
                 "--all",
+            ],
+        },
+    ],
+    "breeze generate-migration-file": [
+        {
+            "name": "generate-migration-file flags",
+            "options": [
+                "--message",
+                "--github-repository",
+                "--builder",
             ],
         },
     ],

@@ -169,7 +169,8 @@
                 {"type": "string"}
             ]
         },
-         "orientation": { "type" : "string"},
+        "orientation": { "type" : "string"},
+        "_dag_display_property_value": { "type" : "string"},
         "_description": { "type" : "string"},
         "_concurrency": { "type" : "number"},
         "_max_active_tasks": { "type" : "number"},
@@ -239,6 +240,7 @@
         "_task_module": { "type": "string" },
         "_operator_extra_links": { "$ref":  "#/definitions/extra_links" },
         "task_id": { "type": "string" },
+        "task_display_name": { "type": "string" },
         "label": { "type": "string" },
         "owner": { "type": "string" },
         "start_date": { "$ref": "#/definitions/datetime" },
@@ -259,6 +261,7 @@
         "params": { "$ref": "#/definitions/params_dict" },
         "priority_weight": { "type": "number" },
         "weight_rule": { "type": "string" },
+        "executor": { "type": "string" },
         "executor_config": { "$ref": "#/definitions/dict" },
         "do_xcom_push": { "type": "boolean" },
         "ui_color": { "$ref": "#/definitions/color" },

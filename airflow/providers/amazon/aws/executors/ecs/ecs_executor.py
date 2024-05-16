@@ -183,7 +183,7 @@ class AwsEcsExecutor(BaseExecutor):
             AllEcsConfigKeys.AWS_CONN_ID,
             fallback=CONFIG_DEFAULTS[AllEcsConfigKeys.AWS_CONN_ID],
         )
-        region_name = conf.get(CONFIG_GROUP_NAME, AllEcsConfigKeys.REGION_NAME)
+        region_name = conf.get(CONFIG_GROUP_NAME, AllEcsConfigKeys.REGION_NAME, fallback=None)
         self.ecs = EcsHook(aws_conn_id=aws_conn_id, region_name=region_name).conn
         self.attempts_since_last_successful_connection += 1
         self.last_connection_reload = timezone.utcnow()
@@ -400,7 +400,12 @@ class AwsEcsExecutor(BaseExecutor):
             else:
                 task = run_task_response["tasks"][0]
                 self.active_workers.add_task(task, task_key, queue, cmd, exec_config, attempt_number)
-                self.queued(task_key, task.task_arn)
+                try:
+                    self.running_state(task_key, task.task_arn)
+                except AttributeError:
+                    # running_state is newly added, and only needed to support task adoption (an optional
+                    # executor feature).
+                    pass
         if failure_reasons:
             self.log.error(
                 "Pending ECS tasks failed to launch for the following reasons: %s. Retrying later.",
@@ -515,14 +520,14 @@ class AwsEcsExecutor(BaseExecutor):
                 task_descriptions = self.__describe_tasks(task_arns).get("tasks", [])
 
                 for task in task_descriptions:
-                    ti = [ti for ti in tis if ti.external_executor_id == task.task_arn][0]
+                    ti = next(ti for ti in tis if ti.external_executor_id == task.task_arn)
                     self.active_workers.add_task(
                         task,
                         ti.key,
                         ti.queue,
                         ti.command_as_list(),
                         ti.executor_config,
-                        ti.prev_attempted_tries,
+                        ti.try_number,
                     )
                     adopted_tis.append(ti)
 

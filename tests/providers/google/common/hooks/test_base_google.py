@@ -30,14 +30,14 @@ import google.auth.compute_engine
 import pytest
 import tenacity
 from google.auth.environment_vars import CREDENTIALS
-from google.auth.exceptions import GoogleAuthError
+from google.auth.exceptions import GoogleAuthError, RefreshError
 from google.cloud.exceptions import Forbidden
 
 from airflow import version
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.utils.credentials_provider import _DEFAULT_SCOPES
 from airflow.providers.google.common.hooks import base_google as hook
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook, is_refresh_credentials_exception
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 default_creds_available = True
@@ -90,13 +90,52 @@ class TestQuotaRetry:
         assert 5 == custom_fn.counter
 
     def test_raise_exception_on_non_quota_exception(self):
+        message = "POST https://translation.googleapis.com/language/translate/v2: Daily Limit Exceeded"
+        errors = [mock.MagicMock(details=mock.PropertyMock(return_value="dailyLimitExceeded"))]
         with pytest.raises(Forbidden, match="Daily Limit Exceeded"):
-            message = "POST https://translation.googleapis.com/language/translate/v2: Daily Limit Exceeded"
-            errors = [mock.MagicMock(details=mock.PropertyMock(return_value="dailyLimitExceeded"))]
-
             _retryable_test_with_temporary_quota_retry(
                 NoForbiddenAfterCount(5, message=message, errors=errors)
             )
+
+
+class TestRefreshCredentialsRetry:
+    @pytest.mark.parametrize(
+        "exc, retryable",
+        [
+            (RefreshError("Other error", "test body"), False),
+            (RefreshError("Unable to acquire impersonated credentials", "test body"), True),
+            (ValueError(), False),
+        ],
+    )
+    def test_is_refresh_credentials_exception(self, exc, retryable):
+        assert is_refresh_credentials_exception(exc) is retryable
+
+    def test_do_nothing_on_non_error(self):
+        @hook.GoogleBaseHook.refresh_credentials_retry()
+        def func():
+            return 42
+
+        assert func() == 42
+
+    def test_raise_non_refresh_error(self):
+        @hook.GoogleBaseHook.refresh_credentials_retry()
+        def func():
+            raise ValueError()
+
+        with pytest.raises(ValueError):
+            func()
+
+    @mock.patch("tenacity.nap.time.sleep", mock.MagicMock())
+    def test_retry_on_refresh_error(self):
+        func_return = mock.Mock(
+            side_effect=[RefreshError("Unable to acquire impersonated credentials", "test body"), 42]
+        )
+
+        @hook.GoogleBaseHook.refresh_credentials_retry()
+        def func():
+            return func_return()
+
+        assert func() == 42
 
 
 class FallbackToDefaultProjectIdFixtureClass:
@@ -248,9 +287,9 @@ class TestProvideGcpCredentialFile:
 
         @hook.GoogleBaseHook.provide_gcp_credential_file
         def assert_gcp_credential_file_in_env(_):
-            raise Exception()
+            raise RuntimeError("Some exception occurred")
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="Some exception occurred"):
             assert_gcp_credential_file_in_env(self.instance)
 
         assert os.environ[CREDENTIALS] == ENV_VALUE
@@ -274,9 +313,9 @@ class TestProvideGcpCredentialFile:
 
         @hook.GoogleBaseHook.provide_gcp_credential_file
         def assert_gcp_credential_file_in_env(_):
-            raise Exception()
+            raise RuntimeError("Some exception occurred")
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="Some exception occurred"):
             assert_gcp_credential_file_in_env(self.instance)
 
         assert CREDENTIALS not in os.environ
@@ -326,9 +365,9 @@ class TestProvideGcpCredentialFileAsContext:
         key_path = "/test/key-path"
         self.instance.extras = {"key_path": key_path}
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="Some exception occurred"):
             with self.instance.provide_gcp_credential_file_as_context():
-                raise Exception()
+                raise RuntimeError("Some exception occurred")
 
         assert os.environ[CREDENTIALS] == ENV_VALUE
 
@@ -347,9 +386,9 @@ class TestProvideGcpCredentialFileAsContext:
         key_path = "/test/key-path"
         self.instance.extras = {"key_path": key_path}
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="Some exception occurred"):
             with self.instance.provide_gcp_credential_file_as_context():
-                raise Exception()
+                raise RuntimeError("Some exception occurred")
 
         assert CREDENTIALS not in os.environ
 

@@ -26,22 +26,41 @@ if TYPE_CHECKING:
     from airflow.models import TaskInstance
 
 
+def lineage_job_namespace():
+    """
+    Macro function which returns Airflow OpenLineage namespace.
+
+    .. seealso::
+        For more information take a look at the guide:
+        :ref:`howto/macros:openlineage`
+    """
+    return conf.namespace()
+
+
+def lineage_job_name(task_instance: TaskInstance):
+    """
+    Macro function which returns Airflow task name in OpenLineage format (`<dag_id>.<task_id>`).
+
+    .. seealso::
+        For more information take a look at the guide:
+        :ref:`howto/macros:openlineage`
+    """
+    return get_job_name(task_instance)
+
+
 def lineage_run_id(task_instance: TaskInstance):
     """
-    Macro function which returns the generated run id for a given task.
+    Macro function which returns the generated run id (UUID) for a given task.
 
     This can be used to forward the run id from a task to a child run so the job hierarchy is preserved.
 
     .. seealso::
-        For more information on how to use this operator, take a look at the guide:
+        For more information take a look at the guide:
         :ref:`howto/macros:openlineage`
     """
-    if TYPE_CHECKING:
-        assert task_instance.task
-
     return OpenLineageAdapter.build_task_instance_run_id(
         dag_id=task_instance.dag_id,
-        task_id=task_instance.task.task_id,
+        task_id=task_instance.task_id,
         execution_date=task_instance.execution_date,
         try_number=task_instance.try_number,
     )
@@ -56,9 +75,13 @@ def lineage_parent_id(task_instance: TaskInstance):
     run so the job hierarchy is preserved. Child run can easily create ParentRunFacet from these information.
 
     .. seealso::
-        For more information on how to use this macro, take a look at the guide:
+        For more information take a look at the guide:
         :ref:`howto/macros:openlineage`
     """
-    job_name = get_job_name(task_instance.task)
-    run_id = lineage_run_id(task_instance)
-    return f"{conf.namespace()}/{job_name}/{run_id}"
+    return "/".join(
+        (
+            lineage_job_namespace(),
+            lineage_job_name(task_instance),
+            lineage_run_id(task_instance),
+        )
+    )

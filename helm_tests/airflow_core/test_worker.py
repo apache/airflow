@@ -70,7 +70,7 @@ class TestWorker:
                 "executor": "CeleryExecutor",
                 "workers": {
                     "extraContainers": [
-                        {"name": "test-container", "image": "test-registry/test-repo:test-tag"}
+                        {"name": "{{ .Chart.Name }}", "image": "test-registry/test-repo:test-tag"}
                     ],
                 },
             },
@@ -78,7 +78,7 @@ class TestWorker:
         )
 
         assert {
-            "name": "test-container",
+            "name": "airflow",
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
 
@@ -454,6 +454,24 @@ class TestWorker:
 
         livenessprobe = jmespath.search("spec.template.spec.containers[0].livenessProbe", docs[0])
         assert livenessprobe is None
+
+    def test_extra_init_container_restart_policy_is_configurable(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "extraInitContainers": [
+                        {
+                            "name": "test-init-container",
+                            "image": "test-registry/test-repo:test-tag",
+                            "restartPolicy": "Always",
+                        }
+                    ]
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert "Always" == jmespath.search("spec.template.spec.initContainers[1].restartPolicy", docs[0])
 
     @pytest.mark.parametrize(
         "log_values, expected_volume",

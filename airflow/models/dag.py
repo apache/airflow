@@ -81,7 +81,7 @@ import airflow.templates
 from airflow import settings, utils
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
-from airflow.datasets import BaseDatasetEventInput, Dataset, DatasetAll
+from airflow.datasets import BaseDataset, Dataset, DatasetAll
 from airflow.datasets.manager import dataset_manager
 from airflow.exceptions import (
     AirflowDagInconsistent,
@@ -156,6 +156,13 @@ if TYPE_CHECKING:
     from airflow.typing_compat import Literal
     from airflow.utils.task_group import TaskGroup
 
+    # This is a workaround because mypy doesn't work with hybrid_property
+    # TODO: remove this hack and move hybrid_property back to main import block
+    # See https://github.com/python/mypy/issues/4430
+    hybrid_property = property
+else:
+    from sqlalchemy.ext.hybrid import hybrid_property
+
 log = logging.getLogger(__name__)
 
 DEFAULT_VIEW_PRESETS = ["grid", "graph", "duration", "gantt", "landing_times"]
@@ -170,7 +177,7 @@ ScheduleInterval = Union[None, str, timedelta, relativedelta]
 # but Mypy cannot handle that right now. Track progress of PEP 661 for progress.
 # See also: https://discuss.python.org/t/9126/7
 ScheduleIntervalArg = Union[ArgNotSet, ScheduleInterval]
-ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, BaseDatasetEventInput, Collection["Dataset"]]
+ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, BaseDataset, Collection["Dataset"]]
 
 SLAMissCallback = Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
 
@@ -300,6 +307,45 @@ def _triggerer_is_healthy():
     return job and job.is_alive()
 
 
+@internal_api_call
+@provide_session
+def _create_orm_dagrun(
+    dag,
+    dag_id,
+    run_id,
+    logical_date,
+    start_date,
+    external_trigger,
+    conf,
+    state,
+    run_type,
+    dag_hash,
+    creating_job_id,
+    data_interval,
+    session,
+):
+    run = DagRun(
+        dag_id=dag_id,
+        run_id=run_id,
+        execution_date=logical_date,
+        start_date=start_date,
+        external_trigger=external_trigger,
+        conf=conf,
+        state=state,
+        run_type=run_type,
+        dag_hash=dag_hash,
+        creating_job_id=creating_job_id,
+        data_interval=data_interval,
+    )
+    session.add(run)
+    session.flush()
+    run.dag = dag
+    # create the associated task instances
+    # state is None at the moment of creation
+    run.verify_integrity(session=session)
+    return run
+
+
 @functools.total_ordering
 class DAG(LoggingMixin):
     """
@@ -412,6 +458,7 @@ class DAG(LoggingMixin):
     :param fail_stop: Fails currently running tasks when task in DAG fails.
         **Warning**: A fail stop dag can only have tasks with the default trigger rule ("all_success").
         An exception will be thrown if any task in a fail stop dag has a non default trigger rule.
+    :param dag_display_name: The display name of the DAG which appears on the UI.
     """
 
     _comps = {
@@ -478,6 +525,7 @@ class DAG(LoggingMixin):
         owner_links: dict[str, str] | None = None,
         auto_register: bool = True,
         fail_stop: bool = False,
+        dag_display_name: str | None = None,
     ):
         from airflow.utils.task_group import TaskGroup
 
@@ -510,6 +558,8 @@ class DAG(LoggingMixin):
         validate_key(dag_id)
 
         self._dag_id = dag_id
+        self._dag_display_property_value = dag_display_name
+
         if concurrency:
             # TODO: Remove in Airflow 3.0
             warnings.warn(
@@ -532,8 +582,7 @@ class DAG(LoggingMixin):
         if start_date and start_date.tzinfo:
             tzinfo = None if start_date.tzinfo else settings.TIMEZONE
             tz = pendulum.instance(start_date, tz=tzinfo).timezone
-        elif "start_date" in self.default_args and self.default_args["start_date"]:
-            date = self.default_args["start_date"]
+        elif date := self.default_args.get("start_date"):
             if not isinstance(date, datetime):
                 date = timezone.parse(date)
                 self.default_args["start_date"] = date
@@ -544,11 +593,8 @@ class DAG(LoggingMixin):
         self.timezone: Timezone | FixedTimezone = tz or settings.TIMEZONE
 
         # Apply the timezone we settled on to end_date if it wasn't supplied
-        if "end_date" in self.default_args and self.default_args["end_date"]:
-            if isinstance(self.default_args["end_date"], str):
-                self.default_args["end_date"] = timezone.parse(
-                    self.default_args["end_date"], timezone=self.timezone
-                )
+        if isinstance(_end_date := self.default_args.get("end_date"), str):
+            self.default_args["end_date"] = timezone.parse(_end_date, timezone=self.timezone)
 
         self.start_date = timezone.convert_to_utc(start_date)
         self.end_date = timezone.convert_to_utc(end_date)
@@ -587,8 +633,8 @@ class DAG(LoggingMixin):
 
         self.timetable: Timetable
         self.schedule_interval: ScheduleInterval
-        self.dataset_triggers: BaseDatasetEventInput | None = None
-        if isinstance(schedule, BaseDatasetEventInput):
+        self.dataset_triggers: BaseDataset | None = None
+        if isinstance(schedule, BaseDataset):
             self.dataset_triggers = schedule
         elif isinstance(schedule, Collection) and not isinstance(schedule, str):
             if not all(isinstance(x, Dataset) for x in schedule):
@@ -596,7 +642,7 @@ class DAG(LoggingMixin):
             self.dataset_triggers = DatasetAll(*schedule)
         elif isinstance(schedule, Timetable):
             timetable = schedule
-        elif schedule is not NOTSET and not isinstance(schedule, BaseDatasetEventInput):
+        elif schedule is not NOTSET and not isinstance(schedule, BaseDataset):
             schedule_interval = schedule
 
         if isinstance(schedule, DatasetOrTimeSchedule):
@@ -1299,6 +1345,10 @@ class DAG(LoggingMixin):
     @access_control.setter
     def access_control(self, value):
         self._access_control = DAG._upgrade_outdated_dag_access_control(value)
+
+    @property
+    def dag_display_name(self) -> str:
+        return self._dag_display_property_value or self._dag_id
 
     @property
     def description(self) -> str | None:
@@ -2898,6 +2948,8 @@ class DAG(LoggingMixin):
                 session.expire_all()
                 schedulable_tis, _ = dr.update_state(session=session)
                 for s in schedulable_tis:
+                    if s.state != TaskInstanceState.UP_FOR_RESCHEDULE:
+                        s.try_number += 1
                     s.state = TaskInstanceState.SCHEDULED
                 session.commit()
                 # triggerer may mark tasks scheduled so we read from DB
@@ -3008,10 +3060,11 @@ class DAG(LoggingMixin):
         copied_params.update(conf or {})
         copied_params.validate()
 
-        run = DagRun(
+        run = _create_orm_dagrun(
+            dag=self,
             dag_id=self.dag_id,
             run_id=run_id,
-            execution_date=logical_date,
+            logical_date=logical_date,
             start_date=start_date,
             external_trigger=external_trigger,
             conf=conf,
@@ -3020,16 +3073,8 @@ class DAG(LoggingMixin):
             dag_hash=dag_hash,
             creating_job_id=creating_job_id,
             data_interval=data_interval,
+            session=session,
         )
-        session.add(run)
-        session.flush()
-
-        run.dag = self
-
-        # create the associated task instances
-        # state is None at the moment of creation
-        run.verify_integrity(session=session)
-
         return run
 
     @classmethod
@@ -3046,16 +3091,6 @@ class DAG(LoggingMixin):
             stacklevel=2,
         )
         return cls.bulk_write_to_db(dags=dags, session=session)
-
-    def simplify_dataset_expression(self, dataset_expression) -> dict | None:
-        """Simplifies a nested dataset expression into a 'any' or 'all' format with URIs."""
-        if dataset_expression is None:
-            return None
-        if dataset_expression.get("__type") == "dataset":
-            return dataset_expression["__var"]["uri"]
-
-        new_key = "any" if dataset_expression["__type"] == "dataset_any" else "all"
-        return {new_key: [self.simplify_dataset_expression(item) for item in dataset_expression["__var"]]}
 
     @classmethod
     @provide_session
@@ -3075,8 +3110,6 @@ class DAG(LoggingMixin):
         """
         if not dags:
             return
-
-        from airflow.serialization.serialized_objects import BaseSerialization  # Avoid circular import.
 
         log.info("Sync %s DAGs", len(dags))
         dag_by_ids = {dag.dag_id: dag for dag in dags}
@@ -3133,6 +3166,7 @@ class DAG(LoggingMixin):
             orm_dag.has_import_errors = False
             orm_dag.last_parsed_time = timezone.utcnow()
             orm_dag.default_view = dag.default_view
+            orm_dag._dag_display_property_value = dag._dag_display_property_value
             orm_dag.description = dag.description
             orm_dag.max_active_tasks = dag.max_active_tasks
             orm_dag.max_active_runs = dag.max_active_runs
@@ -3143,9 +3177,10 @@ class DAG(LoggingMixin):
             )
             orm_dag.schedule_interval = dag.schedule_interval
             orm_dag.timetable_description = dag.timetable.description
-            orm_dag.dataset_expression = dag.simplify_dataset_expression(
-                BaseSerialization.serialize(dag.dataset_triggers)
-            )
+            if (dataset_triggers := dag.dataset_triggers) is None:
+                orm_dag.dataset_expression = None
+            else:
+                orm_dag.dataset_expression = dataset_triggers.as_expression()
 
             orm_dag.processor_subdir = processor_subdir
 
@@ -3589,6 +3624,8 @@ class DagModel(Base):
     processor_subdir = Column(String(2000), nullable=True)
     # String representing the owners
     owners = Column(String(2000))
+    # Display name of the dag
+    _dag_display_property_value = Column("dag_display_name", String(2000), nullable=True)
     # Description of the dag
     description = Column(Text)
     # Default view of the DAG inside the webserver
@@ -3633,6 +3670,7 @@ class DagModel(Base):
     )
     schedule_dataset_references = relationship(
         "DagScheduleDatasetReference",
+        back_populates="dag",
         cascade="all, delete, delete-orphan",
     )
     schedule_datasets = association_proxy("schedule_dataset_references", "dataset")
@@ -3783,6 +3821,10 @@ class DagModel(Base):
         )
         session.commit()
 
+    @hybrid_property
+    def dag_display_name(self) -> str:
+        return self._dag_display_property_value or self.dag_id
+
     @classmethod
     @internal_api_call
     @provide_session
@@ -3825,7 +3867,7 @@ class DagModel(Base):
         """
         from airflow.models.serialized_dag import SerializedDagModel
 
-        def dag_ready(dag_id: str, cond: BaseDatasetEventInput, statuses: dict) -> bool | None:
+        def dag_ready(dag_id: str, cond: BaseDataset, statuses: dict) -> bool | None:
             # if dag was serialized before 2.9 and we *just* upgraded,
             # we may be dealing with old version.  In that case,
             # just wait for the dag to be reserialized.
@@ -3982,6 +4024,7 @@ def dag(
     owner_links: dict[str, str] | None = None,
     auto_register: bool = True,
     fail_stop: bool = False,
+    dag_display_name: str | None = None,
 ) -> Callable[[Callable], Callable[..., DAG]]:
     """
     Python dag decorator which wraps a function into an Airflow DAG.
@@ -4038,6 +4081,7 @@ def dag(
                 owner_links=owner_links,
                 auto_register=auto_register,
                 fail_stop=fail_stop,
+                dag_display_name=dag_display_name,
             ) as dag_obj:
                 # Set DAG documentation from function documentation if it exists and doc_md is not set.
                 if f.__doc__ and not dag_obj.doc_md:

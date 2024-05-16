@@ -34,7 +34,6 @@ from airflow.models import (
     Trigger,
     Variable,
     XCom,
-    errors,
 )
 from airflow.models.dag import DagOwnerAttributes
 from airflow.models.dagcode import DagCode
@@ -51,6 +50,7 @@ from airflow.providers.fab.auth_manager.models import Permission, Resource, asso
 from airflow.security.permissions import RESOURCE_DAG_PREFIX
 from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections, reflect_tables
 from airflow.utils.session import create_session
+from tests.test_utils.compat import ParseImportError
 
 
 def clear_db_runs():
@@ -136,7 +136,7 @@ def clear_rendered_ti_fields():
 
 def clear_db_import_errors():
     with create_session() as session:
-        session.query(errors.ImportError).delete()
+        session.query(ParseImportError).delete()
 
 
 def clear_db_dag_warnings():
@@ -167,6 +167,13 @@ def clear_db_task_fail():
 def clear_db_task_reschedule():
     with create_session() as session:
         session.query(TaskReschedule).delete()
+
+
+def clear_db_dag_parsing_requests():
+    with create_session() as session:
+        from airflow.models.dagbag import DagPriorityParsingRequest
+
+        session.query(DagPriorityParsingRequest).delete()
 
 
 def clear_dag_specific_permissions():

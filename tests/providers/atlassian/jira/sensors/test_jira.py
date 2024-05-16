@@ -17,21 +17,16 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import Mock, patch
+from unittest import mock
 
 import pytest
 
 from airflow.models import Connection
-from airflow.models.dag import DAG
 from airflow.providers.atlassian.jira.sensors.jira import JiraTicketSensor
-from airflow.utils import db, timezone
-
-pytestmark = pytest.mark.db_test
+from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
-jira_client_mock = Mock(name="jira_client_for_test")
-
-minimal_test_ticket = {
+MINIMAL_TEST_TICKET = {
     "id": "911539",
     "self": "https://sandbox.localhost/jira/rest/api/2/issue/911539",
     "key": "TEST-1226",
@@ -42,36 +37,41 @@ minimal_test_ticket = {
 }
 
 
+@pytest.fixture
+def mocked_jira_client():
+    with mock.patch("airflow.providers.atlassian.jira.hooks.jira.Jira", autospec=True) as m:
+        m.return_value = mock.Mock(name="jira_client_for_test")
+        yield m
+
+
 class TestJiraSensor:
-    def setup_method(self):
-        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        dag = DAG("test_dag_id", default_args=args)
-        self.dag = dag
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self, monkeypatch):
+        monkeypatch.setenv(
+            "AIRFLOW_CONN_JIRA_DEFAULT".upper(),
             Connection(
                 conn_id="jira_default",
                 conn_type="jira",
                 host="https://localhost/jira/",
                 port=443,
-                extra='{"verify": "False", "project": "AIRFLOW"}',
-            )
+                login="user",
+                password="password",
+                extra='{"verify": false, "project": "AIRFLOW"}',
+            ).as_json(),
         )
 
-    @patch("airflow.providers.atlassian.jira.hooks.jira.Jira", autospec=True, return_value=jira_client_mock)
-    def test_issue_label_set(self, jira_mock):
-        jira_mock.return_value.issue.return_value = minimal_test_ticket
-
-        ticket_label_sensor = JiraTicketSensor(
+    def test_issue_label_set(self, mocked_jira_client):
+        mocked_jira_client.return_value.issue.return_value = MINIMAL_TEST_TICKET
+        sensor = JiraTicketSensor(
             task_id="search-ticket-test",
             ticket_id="TEST-1226",
             field="labels",
             expected_value="test-label-1",
             timeout=518400,
             poke_interval=10,
-            dag=self.dag,
         )
 
-        ticket_label_sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        assert sensor.poke({})
 
-        assert jira_mock.called
-        assert jira_mock.return_value.issue.called
+        assert mocked_jira_client.called
+        assert mocked_jira_client.return_value.issue.called

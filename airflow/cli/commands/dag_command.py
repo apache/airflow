@@ -133,20 +133,21 @@ def dag_backfill(args, dag: list[DAG] | DAG | None = None) -> None:
     """Create backfill job or dry run for a DAG or list of DAGs using regex."""
     logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
     signal.signal(signal.SIGTERM, sigint_handler)
-    warnings.warn(
-        "--ignore-first-depends-on-past is deprecated as the value is always set to True",
-        category=RemovedInAirflow3Warning,
-    )
+    if args.ignore_first_depends_on_past:
+        warnings.warn(
+            "--ignore-first-depends-on-past is deprecated as the value is always set to True",
+            category=RemovedInAirflow3Warning,
+            stacklevel=4,
+        )
+    args.ignore_first_depends_on_past = True
 
     if not args.treat_dag_id_as_regex and args.treat_dag_as_regex:
         warnings.warn(
             "--treat-dag-as-regex is deprecated, use --treat-dag-id-as-regex instead",
             category=RemovedInAirflow3Warning,
+            stacklevel=4,
         )
         args.treat_dag_id_as_regex = args.treat_dag_as_regex
-
-    if args.ignore_first_depends_on_past is False:
-        args.ignore_first_depends_on_past = True
 
     if not args.start_date and not args.end_date:
         raise AirflowException("Provide a start_date and/or end_date")
@@ -230,7 +231,8 @@ def set_is_paused(is_paused: bool, args) -> None:
     ]
 
     if not dags:
-        raise AirflowException(f"No {'un' if is_paused else ''}paused DAGs were found")
+        print(f"No {'un' if is_paused else ''}paused DAGs were found")
+        return
 
     if not args.yes and args.treat_dag_id_as_regex:
         dags_ids = [dag.dag_id for dag in dags]
@@ -326,6 +328,7 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
     """Return a dagbag dag details dict."""
     return {
         "dag_id": dag.dag_id,
+        "dag_display_name": dag.dag_display_name,
         "root_dag_id": dag.parent_dag.dag_id if dag.parent_dag else None,
         "is_paused": dag.get_is_paused(),
         "is_active": dag.get_is_active(),

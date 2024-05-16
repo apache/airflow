@@ -500,6 +500,12 @@ def install_airflow_and_providers(
         for provider_package in installation_spec.provider_packages:
             base_install_providers_cmd.append(provider_package)
         install_providers_command = base_install_providers_cmd.copy()
+        # if airflow is also being installed we should add airflow to the base_install_providers_cmd
+        # to avoid accidentally upgrading airflow to a version that is different than installed in the
+        # previous step
+        if installation_spec.airflow_package:
+            base_install_providers_cmd.append(installation_spec.airflow_package)
+
         if installation_spec.provider_constraints_location:
             console.print(
                 f"[bright_blue]with constraints: {installation_spec.provider_constraints_location}\n"

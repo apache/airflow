@@ -34,6 +34,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_USE_AIRFLOW_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     AUTOCOMPLETE_INTEGRATIONS,
+    DEFAULT_UV_HTTP_TIMEOUT,
 )
 from airflow_breeze.utils.custom_param_types import (
     AnswerChoice,
@@ -354,13 +355,13 @@ option_use_uv_default_disabled = click.option(
     help="Use uv instead of pip as packaging tool to build the image.",
     envvar="USE_UV",
 )
-option_uv_request_timeout = click.option(
-    "--uv-request-timeout",
+option_uv_http_timeout = click.option(
+    "--uv-http-timeout",
     help="Timeout for requests that UV makes (only used in case of UV builds).",
     type=click.IntRange(min=1),
-    default=300,
+    default=DEFAULT_UV_HTTP_TIMEOUT,
     show_default=True,
-    envvar="UV_REQUEST_TIMEOUT",
+    envvar="UV_HTTP_TIMEOUT",
 )
 option_pydantic = click.option(
     "--pydantic",

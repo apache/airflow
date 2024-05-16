@@ -36,6 +36,7 @@ class TestDagRunsEndpoint:
         session.query(DagRun).delete()
         session.commit()
         session.close()
+
         dagbag = DagBag(include_examples=True)
         for dag in dagbag.dags.values():
             dag.sync_to_db()

@@ -24,11 +24,7 @@ from airflow.providers.openlineage.extractors import BaseExtractor, OperatorLine
 from airflow.providers.openlineage.extractors.base import DefaultExtractor
 from airflow.providers.openlineage.extractors.bash import BashExtractor
 from airflow.providers.openlineage.extractors.python import PythonExtractor
-from airflow.providers.openlineage.plugins.facets import (
-    UnknownOperatorAttributeRunFacet,
-    UnknownOperatorInstance,
-)
-from airflow.providers.openlineage.utils.utils import get_filtered_unknown_operator_keys
+from airflow.providers.openlineage.utils.utils import get_unknown_source_attribute_run_facet
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
 
@@ -69,12 +65,18 @@ class ExtractorManager(LoggingMixin):
             for operator_class in extractor.get_operator_classnames():
                 if operator_class in self.extractors:
                     self.log.debug(
-                        "Duplicate extractor found for `%s`. `%s` will be used instead of `%s`",
+                        "Duplicate OpenLineage custom extractor found for `%s`. "
+                        "`%s` will be used instead of `%s`",
                         operator_class,
                         extractor_path,
                         self.extractors[operator_class],
                     )
                 self.extractors[operator_class] = extractor
+                self.log.debug(
+                    "Registered custom OpenLineage extractor `%s` for class `%s`",
+                    extractor_path,
+                    operator_class,
+                )
 
     def add_extractor(self, operator_class: str, extractor: type[BaseExtractor]):
         self.extractors[operator_class] = extractor
@@ -115,16 +117,7 @@ class ExtractorManager(LoggingMixin):
 
             # Only include the unkonwnSourceAttribute facet if there is no extractor
             task_metadata = OperatorLineage(
-                run_facets={
-                    "unknownSourceAttribute": UnknownOperatorAttributeRunFacet(
-                        unknownItems=[
-                            UnknownOperatorInstance(
-                                name=task.task_type,
-                                properties=get_filtered_unknown_operator_keys(task),
-                            )
-                        ]
-                    )
-                },
+                run_facets=get_unknown_source_attribute_run_facet(task=task),
             )
             inlets = task.get_inlet_defs()
             outlets = task.get_outlet_defs()

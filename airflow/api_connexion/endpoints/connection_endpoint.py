@@ -98,11 +98,11 @@ def get_connections(
 ) -> APIResponse:
     """Get all connection entries."""
     to_replace = {"connection_id": "conn_id"}
-    allowed_filter_attrs = ["connection_id", "conn_type", "description", "host", "port", "id"]
+    allowed_sort_attrs = ["connection_id", "conn_type", "description", "host", "port", "id"]
 
     total_entries = session.execute(select(func.count(Connection.id))).scalar_one()
     query = select(Connection)
-    query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
+    query = apply_sorting(query, order_by, to_replace, allowed_sort_attrs)
     connections = session.scalars(query.offset(offset).limit(limit)).all()
     return connection_collection_schema.dump(
         ConnectionCollection(connections=connections, total_entries=total_entries)

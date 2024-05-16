@@ -32,6 +32,7 @@ from airflow.providers.google.cloud.triggers.cloud_storage_transfer_service impo
 from airflow.triggers.base import TriggerEvent
 
 PROJECT_ID = "test-project"
+GCP_CONN_ID = "google-cloud-default-id"
 JOB_0 = "test-job-0"
 JOB_1 = "test-job-1"
 JOB_NAMES = [JOB_0, JOB_1]
@@ -51,7 +52,10 @@ ASYNC_HOOK_CLASS_PATH = (
 @pytest.fixture(scope="session")
 def trigger():
     return CloudStorageTransferServiceCreateJobsTrigger(
-        project_id=PROJECT_ID, job_names=JOB_NAMES, poll_interval=POLL_INTERVAL
+        project_id=PROJECT_ID,
+        job_names=JOB_NAMES,
+        poll_interval=POLL_INTERVAL,
+        gcp_conn_id=GCP_CONN_ID,
     )
 
 
@@ -80,6 +84,7 @@ class TestCloudStorageTransferServiceCreateJobsTrigger:
             "project_id": PROJECT_ID,
             "job_names": JOB_NAMES,
             "poll_interval": POLL_INTERVAL,
+            "gcp_conn_id": GCP_CONN_ID,
         }
 
     def test_get_async_hook(self, trigger):

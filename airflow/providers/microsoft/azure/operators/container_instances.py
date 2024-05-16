@@ -25,8 +25,10 @@ from typing import TYPE_CHECKING, Any, Sequence
 from azure.mgmt.containerinstance.models import (
     Container,
     ContainerGroup,
+    ContainerGroupDiagnostics,
     ContainerGroupSubnetId,
     ContainerPort,
+    DnsConfiguration,
     EnvironmentVariable,
     IpAddress,
     ResourceRequests,
@@ -90,6 +92,8 @@ class AzureContainerInstancesOperator(BaseOperator):
         Possible values include: 'Always', 'OnFailure', 'Never'
     :param ip_address: The IP address type of the container group.
     :param subnet_ids: The subnet resource IDs for a container group
+    :param dns_config: The DNS configuration for a container group.
+    :param diagnostics: Container group diagnostic information (Log Analytics).
 
     **Example**::
 
@@ -113,6 +117,18 @@ class AzureContainerInstancesOperator(BaseOperator):
             memory_in_gb=14.0,
             cpu=4.0,
             gpu=GpuResource(count=1, sku="K80"),
+            subnet_ids=[
+                {
+                    "id": "/subscriptions/00000000-0000-0000-0000-00000000000/resourceGroups/my_rg/providers/Microsoft.Network/virtualNetworks/my_vnet/subnets/my_subnet"
+                }
+            ],
+            dns_config={"name_servers": ["10.0.0.10", "10.0.0.11"]},
+            diagnostics={
+                "log_analytics": {
+                    "workspaceId": "workspaceid",
+                    "workspaceKey": "workspaceKey",
+                }
+            },
             command=["/bin/echo", "world"],
             task_id="start_container",
         )
@@ -145,6 +161,8 @@ class AzureContainerInstancesOperator(BaseOperator):
         ip_address: IpAddress | None = None,
         ports: list[ContainerPort] | None = None,
         subnet_ids: list[ContainerGroupSubnetId] | None = None,
+        dns_config: DnsConfiguration | None = None,
+        diagnostics: ContainerGroupDiagnostics | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -183,6 +201,8 @@ class AzureContainerInstancesOperator(BaseOperator):
         self.ip_address = ip_address
         self.ports = ports
         self.subnet_ids = subnet_ids
+        self.dns_config = dns_config
+        self.diagnostics = diagnostics
 
     def execute(self, context: Context) -> int:
         # Check name again in case it was templated.
@@ -256,6 +276,8 @@ class AzureContainerInstancesOperator(BaseOperator):
                 tags=self.tags,
                 ip_address=self.ip_address,
                 subnet_ids=self.subnet_ids,
+                dns_config=self.dns_config,
+                diagnostics=self.diagnostics,
             )
 
             self._ci_hook.create_or_update(self.resource_group, self.name, container_group)

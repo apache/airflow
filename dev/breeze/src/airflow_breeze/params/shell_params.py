@@ -36,11 +36,13 @@ from airflow_breeze.global_constants import (
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     CELERY_BROKER_URLS_MAP,
     DEFAULT_CELERY_BROKER,
+    DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
     FLOWER_HOST_PORT,
     MOUNT_ALL,
     MOUNT_REMOVE,
     MOUNT_SELECTED,
+    MOUNT_TESTS,
     MYSQL_HOST_PORT,
     POSTGRES_HOST_PORT,
     REDIS_HOST_PORT,
@@ -141,6 +143,7 @@ class ShellParams:
     executor: str = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR
     extra_args: tuple = ()
     force_build: bool = False
+    force_sa_warnings: bool = True
     forward_credentials: bool = False
     forward_ports: bool = True
     github_actions: str = os.environ.get("GITHUB_ACTIONS", "false")
@@ -194,6 +197,7 @@ class ShellParams:
     use_packages_from_dist: bool = False
     use_uv: bool = False
     use_xdist: bool = False
+    uv_http_timeout: int = DEFAULT_UV_HTTP_TIMEOUT
     verbose: bool = False
     verbose_commands: bool = False
     version_suffix_for_pypi: str = ""
@@ -325,7 +329,7 @@ class ShellParams:
         compose_file_list.extend(backend_files)
         compose_file_list.append(DOCKER_COMPOSE_DIR / "files.yml")
 
-        if self.use_airflow_version is not None:
+        if self.use_airflow_version is not None and self.mount_sources not in [MOUNT_REMOVE, MOUNT_TESTS]:
             get_console().print(
                 "\n[warning]Forcing --mount-sources to `remove` since we are not installing airflow "
                 f"from sources but from {self.use_airflow_version}[/]\n"
@@ -337,6 +341,8 @@ class ShellParams:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "local.yml")
         elif self.mount_sources == MOUNT_ALL:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "local-all-sources.yml")
+        elif self.mount_sources == MOUNT_TESTS:
+            compose_file_list.append(DOCKER_COMPOSE_DIR / "tests-sources-only.yml")
         elif self.mount_sources == MOUNT_REMOVE:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "remove-sources.yml")
         if self.forward_credentials:
@@ -488,6 +494,7 @@ class ShellParams:
         _set_var(_env, "DOWNGRADE_PENDULUM", self.downgrade_pendulum)
         _set_var(_env, "ENABLED_SYSTEMS", None, "")
         _set_var(_env, "FLOWER_HOST_PORT", None, FLOWER_HOST_PORT)
+        _set_var(_env, "SQLALCHEMY_WARN_20", self.force_sa_warnings)
         _set_var(_env, "GITHUB_ACTIONS", self.github_actions)
         _set_var(_env, "HELM_TEST_PACKAGE", self.helm_test_package, "")
         _set_var(_env, "HOST_GROUP_ID", self.host_group_id)
@@ -527,6 +534,7 @@ class ShellParams:
         _set_var(_env, "STANDALONE_DAG_PROCESSOR", self.standalone_dag_processor)
         _set_var(_env, "START_AIRFLOW", self.start_airflow)
         _set_var(_env, "SUSPENDED_PROVIDERS_FOLDERS", self.suspended_providers_folders)
+        _set_var(_env, "SYSTEM_TESTS_ENV_ID", None, "")
         _set_var(_env, "TEST_TYPE", self.test_type, "")
         _set_var(_env, "UPGRADE_BOTO", self.upgrade_boto)
         _set_var(_env, "PYDANTIC", self.pydantic)

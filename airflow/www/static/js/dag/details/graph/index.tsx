@@ -28,13 +28,11 @@ import ReactFlow, {
   Panel,
   useOnViewportChange,
   Viewport,
-  ControlButton,
 } from "reactflow";
-import { BiCollapse, BiExpand } from "react-icons/bi";
 
 import { useDatasets, useGraphData, useGridData } from "src/api";
 import useSelection from "src/dag/useSelection";
-import { getMetaValue, useOffsetTop } from "src/utils";
+import { getMetaValue, getTask, useOffsetTop } from "src/utils";
 import { useGraphLayout } from "src/utils/graph";
 import Edge from "src/components/Graph/Edge";
 import type { DepNode, WebserverEdge } from "src/types";
@@ -49,24 +47,20 @@ interface Props {
   openGroupIds: string[];
   onToggleGroups: (groupIds: string[]) => void;
   hoveredTaskState?: string | null;
-  isFullScreen?: boolean;
-  toggleFullScreen?: () => void;
 }
 
 const dagId = getMetaValue("dag_id");
 
-const Graph = ({
-  openGroupIds,
-  onToggleGroups,
-  hoveredTaskState,
-  isFullScreen,
-  toggleFullScreen,
-}: Props) => {
+const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const graphRef = useRef(null);
   const { data } = useGraphData();
   const [arrange, setArrange] = useState(data?.arrange || "LR");
   const [hasRendered, setHasRendered] = useState(false);
   const [isZoomedOut, setIsZoomedOut] = useState(false);
+
+  const {
+    data: { dagRuns, groups },
+  } = useGridData();
 
   useEffect(() => {
     setArrange(data?.arrange || "LR");
@@ -104,7 +98,11 @@ const Graph = ({
     );
     const consumingDag = dataset?.consumingDags?.find((d) => d.dagId === dagId);
     if (dataset.id) {
-      if (producingTask?.taskId) {
+      // check that the task is in the graph
+      if (
+        producingTask?.taskId &&
+        getTask({ taskId: producingTask?.taskId, task: groups })
+      ) {
         datasetEdges.push({
           sourceId: producingTask.taskId,
           targetId: dataset.id.toString(),
@@ -130,9 +128,6 @@ const Graph = ({
 
   const { selected } = useSelection();
 
-  const {
-    data: { dagRuns, groups },
-  } = useGridData();
   const { colors } = useTheme();
   const { getZoom, fitView } = useReactFlow();
   const latestDagRunId = dagRuns[dagRuns.length - 1]?.runId;
@@ -235,15 +230,7 @@ const Graph = ({
             </Box>
           </Panel>
           <Background />
-          <Controls showInteractive={false}>
-            <ControlButton
-              onClick={toggleFullScreen}
-              aria-label="Toggle full screen"
-              title="Toggle full screen"
-            >
-              {isFullScreen ? <BiCollapse /> : <BiExpand />}
-            </ControlButton>
-          </Controls>
+          <Controls showInteractive={false} />
           <MiniMap
             nodeStrokeWidth={15}
             nodeStrokeColor={(props) => nodeStrokeColor(props, colors)}

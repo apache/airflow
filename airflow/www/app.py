@@ -44,6 +44,7 @@ from airflow.www.extensions.init_manifest_files import configure_manifest_files
 from airflow.www.extensions.init_robots import init_robots
 from airflow.www.extensions.init_security import (
     init_api_experimental_auth,
+    init_cache_control,
     init_check_user_active,
     init_xframe_protection,
 )
@@ -116,9 +117,14 @@ def create_app(config=None, testing=False):
             "Old deprecated value found for `cookie_samesite` option in `[webserver]` section. "
             "Using `Lax` instead. Change the value to `Lax` in airflow.cfg to remove this warning.",
             RemovedInAirflow3Warning,
+            stacklevel=2,
         )
         cookie_samesite_config = "Lax"
     flask_app.config["SESSION_COOKIE_SAMESITE"] = cookie_samesite_config
+
+    # Above Flask 2.0.x, default value of SEND_FILE_MAX_AGE_DEFAULT changed 12 hours to None.
+    # for static file caching, it needs to set value explicitly.
+    flask_app.config["SEND_FILE_MAX_AGE_DEFAULT"] = timedelta(seconds=43200)
 
     if config:
         flask_app.config.from_mapping(config)
@@ -175,6 +181,7 @@ def create_app(config=None, testing=False):
 
         init_jinja_globals(flask_app)
         init_xframe_protection(flask_app)
+        init_cache_control(flask_app)
         init_airflow_session_interface(flask_app)
         init_check_user_active(flask_app)
     return flask_app

@@ -19,10 +19,13 @@ from __future__ import annotations
 
 import inspect
 import json
+import logging
 from functools import wraps
 from typing import Callable, TypeVar
 
 import requests
+import tenacity
+from urllib3.exceptions import NewConnectionError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
@@ -31,6 +34,8 @@ from airflow.typing_compat import ParamSpec
 
 PS = ParamSpec("PS")
 RT = TypeVar("RT")
+
+logger = logging.getLogger(__name__)
 
 
 class InternalApiConfig:
@@ -96,7 +101,14 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
     headers = {
         "Content-Type": "application/json",
     }
+    from requests.exceptions import ConnectionError
 
+    @tenacity.retry(
+        stop=tenacity.stop_after_attempt(10),
+        wait=tenacity.wait_exponential(min=1),
+        retry=tenacity.retry_if_exception_type((NewConnectionError, ConnectionError)),
+        before_sleep=tenacity.before_log(logger, logging.WARNING),
+    )
     def make_jsonrpc_request(method_name: str, params_json: str) -> bytes:
         data = {"jsonrpc": "2.0", "method": method_name, "params": params_json}
         internal_api_endpoint = InternalApiConfig.get_internal_api_endpoint()
@@ -123,12 +135,9 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
         if "cls" in arguments_dict:  # used by @classmethod
             del arguments_dict["cls"]
 
-        args_json = json.dumps(
-            BaseSerialization.serialize(arguments_dict, use_pydantic_models=True),
-            default=BaseSerialization.serialize,
-        )
+        args_dict = BaseSerialization.serialize(arguments_dict, use_pydantic_models=True)
         method_name = f"{func.__module__}.{func.__qualname__}"
-        result = make_jsonrpc_request(method_name, args_json)
+        result = make_jsonrpc_request(method_name, args_dict)
         if result is None or result == b"":
             return None
         return BaseSerialization.deserialize(json.loads(result), use_pydantic_models=True)

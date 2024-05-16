@@ -42,6 +42,7 @@ from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQuery
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
 from airflow.providers.google.cloud.triggers.bigquery import BigQueryInsertJobTrigger
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
@@ -229,7 +230,7 @@ class GCSToBigQueryOperator(BaseOperator):
         job_id: str | None = None,
         force_rerun: bool = True,
         reattach_states: set[str] | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -749,7 +750,6 @@ class GCSToBigQueryOperator(BaseOperator):
         )
         from openlineage.client.run import Dataset
 
-        from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url
         from airflow.providers.google.cloud.utils.openlineage import (
             get_facets_from_bq_table,
             get_identity_column_lineage_facet,
@@ -766,8 +766,7 @@ class GCSToBigQueryOperator(BaseOperator):
             "schema": output_dataset_facets["schema"],
         }
         input_datasets = []
-        for uri in sorted(self.source_uris):
-            bucket, blob = _parse_gcs_url(uri)
+        for blob in sorted(self.source_objects):
             additional_facets = {}
 
             if "*" in blob:
@@ -777,7 +776,7 @@ class GCSToBigQueryOperator(BaseOperator):
                     "symlink": SymlinksDatasetFacet(
                         identifiers=[
                             SymlinksDatasetFacetIdentifiers(
-                                namespace=f"gs://{bucket}", name=blob, type="file"
+                                namespace=f"gs://{self.bucket}", name=blob, type="file"
                             )
                         ]
                     ),
@@ -788,7 +787,7 @@ class GCSToBigQueryOperator(BaseOperator):
                     blob = "/"
 
             dataset = Dataset(
-                namespace=f"gs://{bucket}",
+                namespace=f"gs://{self.bucket}",
                 name=blob,
                 facets=merge_dicts(input_dataset_facets, additional_facets),
             )

@@ -144,8 +144,8 @@ Airflow version to the next MINOR release, when 12 months passed since the first
 MINOR version of Airflow.
 
 For example this means that by default we upgrade the minimum version of Airflow supported by providers
-to 2.7.0 in the first Provider's release after 27th of April 2024. 27th of April 2023 is the date when the
-first ``PATCHLEVEL`` of 2.6 (2.6.0) has been released.
+to 2.8.0 in the first Provider's release after 18th of August 2024. 18th of August 2023 is the date when the
+first ``PATCHLEVEL`` of 2.7 (2.7.0) has been released.
 
 When we increase the minimum Airflow version, this is not a reason to bump ``MAJOR`` version of the providers
 (unless there are other breaking changes in the provider). The reason for that is that people who use
@@ -326,3 +326,14 @@ There are the following consequences (or lack of them) of removing the provider:
     last released. This however, should only be done in case there are no viable alternatives for the users.
 * Removed provider might be re-instated as maintained provider, but it needs to go through the regular process
   of accepting new provider described above.
+
+Provider Dependencies
+=====================
+
+The dependencies for Airflow providers are managed in the ``provider.yaml`` file.
+
+All provider dependencies, including versions and constraints, are listed in this file.
+When adding or updating a provider or its dependencies, changes should be made to this file accordingly.
+
+To ensure consistency and manage dependencies, ``pre-commit`` is configured to automatically update all dependencies.
+Once you have ``pre-commit`` installed, it will automatically handle the dependency updates.

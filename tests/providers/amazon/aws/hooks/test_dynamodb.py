@@ -60,4 +60,4 @@ class TestDynamoDBHook:
     def test_waiter_path_generated_from_resource_type(self, _):
         hook = DynamoDBHook(aws_conn_id="aws_default")
         path = hook.waiter_path
-        assert path.as_uri().endswith("/airflow/airflow/providers/amazon/aws/waiters/dynamodb.json")
+        assert path.as_uri().endswith("/airflow/providers/amazon/aws/waiters/dynamodb.json")

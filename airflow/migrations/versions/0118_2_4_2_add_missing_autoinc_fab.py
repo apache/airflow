@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add missing auto-increment to columns on FAB tables
+"""Add missing auto-increment to columns on FAB tables.
 
 Revision ID: b0d31815b5a6
 Revises: ecb43d2a1842
@@ -74,5 +74,5 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply add_missing_autoinc_fab"""
+    """Unapply add_missing_autoinc_fab."""
     # No downgrade needed, these _should_ have applied from 1.10.13 but didn't due to a previous bug!

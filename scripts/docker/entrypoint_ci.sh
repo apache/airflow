@@ -205,6 +205,8 @@ function determine_airflow_to_use() {
         mkdir -p "${AIRFLOW_SOURCES}"/tmp/
     else
         python "${IN_CONTAINER_DIR}/install_airflow_and_providers.py"
+        # Some packages might leave legacy typing module which causes test issues
+        pip uninstall -y typing || true
     fi
 
     if [[ "${USE_AIRFLOW_VERSION}" =~ ^2\.2\..*|^2\.1\..*|^2\.0\..* && "${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=}" != "" ]]; then
@@ -243,7 +245,7 @@ function check_pydantic() {
         echo
         # shellcheck disable=SC2086
         ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} pydantic aws-sam-translator openai \
-           pyiceberg qdrant-client cfn-lint weaviate-client
+           pyiceberg qdrant-client cfn-lint weaviate-client google-cloud-aiplatform
         pip check
     elif [[ ${PYDANTIC=} == "v1" ]]; then
         echo
