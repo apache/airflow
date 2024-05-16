@@ -83,7 +83,10 @@ class TestSageMakerTransformOperator:
     @mock.patch.object(SageMakerHook, "create_transform_job")
     @mock.patch.object(sagemaker, "serialize", return_value="")
     def test_integer_fields(self, _, mock_create_transform, __, ___, mock_desc):
-        mock_desc.side_effect = [ClientError({"Error": {"Code": "ValidationException"}}, "op"), None]
+        mock_desc.side_effect = [
+            ClientError({"Error": {"Code": "ValidationException"}}, "op"),
+            {"ModelName": "model_name"},
+        ]
         mock_create_transform.return_value = {
             "TransformJobArn": "test_arn",
             "ResponseMetadata": {"HTTPStatusCode": 200},
@@ -103,7 +106,10 @@ class TestSageMakerTransformOperator:
     @mock.patch.object(SageMakerHook, "create_transform_job")
     @mock.patch.object(sagemaker, "serialize", return_value="")
     def test_execute(self, _, mock_transform, __, mock_model, mock_desc):
-        mock_desc.side_effect = [ClientError({"Error": {"Code": "ValidationException"}}, "op"), None]
+        mock_desc.side_effect = [
+            ClientError({"Error": {"Code": "ValidationException"}}, "op"),
+            {"ModelName": "model_name"},
+        ]
         mock_transform.return_value = {
             "TransformJobArn": "test_arn",
             "ResponseMetadata": {"HTTPStatusCode": 200},
@@ -135,7 +141,10 @@ class TestSageMakerTransformOperator:
     @mock.patch.object(SageMakerHook, "describe_model")
     @mock.patch.object(sagemaker, "serialize", return_value="")
     def test_execute_with_check_if_job_exists(self, _, __, ___, mock_transform, mock_desc):
-        mock_desc.side_effect = [ClientError({"Error": {"Code": "ValidationException"}}, "op"), None]
+        mock_desc.side_effect = [
+            ClientError({"Error": {"Code": "ValidationException"}}, "op"),
+            {"ModelName": "model_name"},
+        ]
         mock_transform.return_value = {
             "TransformJobArn": "test_arn",
             "ResponseMetadata": {"HTTPStatusCode": 200},
@@ -243,6 +252,7 @@ class TestSageMakerTransformOperator:
         mock_desc.return_value = {
             "TransformInput": {"DataSource": {"S3DataSource": {"S3Uri": "s3://input-bucket/input-path"}}},
             "TransformOutput": {"S3OutputPath": "s3://output-bucket/output-path"},
+            "ModelName": "model_name",
         }
         mock_transform.return_value = {
             "TransformJobArn": "test_arn",
