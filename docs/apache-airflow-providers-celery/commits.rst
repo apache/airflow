@@ -35,14 +35,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.7.0
+.....
+
+Latest change: 2024-04-25
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+=================================================================================================  ===========  =======================================================================
+
 3.6.2
 .....
 
-Latest change: 2024-04-09
+Latest change: 2024-04-10
 
 =================================================================================================  ===========  ===============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===============================================================================
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
 `3e30b3a025 <https://github.com/apache/airflow/commit/3e30b3a02584e13fa130255b25756eaf7dfe35d3>`_  2024-04-09   ``Use celery worker CLI from Airflow package for Airflow < 2.8.0 (#38879)``
 `179b963782 <https://github.com/apache/airflow/commit/179b96378251db258d564ba091deef2ab762d12d>`_  2024-03-27   ``Don't dispose sqlalchemy engine when using internal api (#38562)``
 `2ad923a001 <https://github.com/apache/airflow/commit/2ad923a001cbfc93bbf47cb2fa64fca202c44518>`_  2024-03-27   ``Rerais of AirflowOptionalProviderFeatureException should be direct (#38555)``

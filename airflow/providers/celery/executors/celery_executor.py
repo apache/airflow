@@ -30,48 +30,26 @@ import operator
 import time
 from collections import Counter
 from concurrent.futures import ProcessPoolExecutor
-from importlib.metadata import version as importlib_version
 from multiprocessing import cpu_count
 from typing import TYPE_CHECKING, Any, Optional, Sequence, Tuple
 
 from celery import states as celery_states
 from packaging.version import Version
 
-try:
-    from airflow.cli.cli_config import (
-        ARG_DAEMON,
-        ARG_LOG_FILE,
-        ARG_PID,
-        ARG_SKIP_SERVE_LOGS,
-        ARG_STDERR,
-        ARG_STDOUT,
-        ARG_VERBOSE,
-        ActionCommand,
-        Arg,
-        GroupCommand,
-        lazy_load_command,
-    )
-except ImportError:
-    try:
-        from airflow import __version__ as airflow_version
-    except ImportError:
-        from airflow.version import version as airflow_version
-
-    import packaging.version
-
-    from airflow.exceptions import AirflowOptionalProviderFeatureException
-
-    base_version = packaging.version.parse(airflow_version).base_version
-
-    if packaging.version.parse(base_version) < packaging.version.parse("2.7.0"):
-        raise AirflowOptionalProviderFeatureException(
-            "Celery Executor from Celery Provider should only be used with Airflow 2.7.0+.\n"
-            f"This is Airflow {airflow_version} and Celery and CeleryKubernetesExecutor are "
-            f"available in the 'airflow.executors' package. You should not use "
-            f"the provider's executors in this version of Airflow."
-        )
-    raise
-
+from airflow import __version__ as airflow_version
+from airflow.cli.cli_config import (
+    ARG_DAEMON,
+    ARG_LOG_FILE,
+    ARG_PID,
+    ARG_SKIP_SERVE_LOGS,
+    ARG_STDERR,
+    ARG_STDOUT,
+    ARG_VERBOSE,
+    ActionCommand,
+    Arg,
+    GroupCommand,
+    lazy_load_command,
+)
 from airflow.configuration import conf
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor
@@ -180,11 +158,9 @@ ARG_WITHOUT_GOSSIP = Arg(
     action="store_true",
 )
 
-AIRFLOW_VERSION = Version(importlib_version("apache-airflow"))
-
 CELERY_CLI_COMMAND_PATH = (
     "airflow.providers.celery.cli.celery_command"
-    if AIRFLOW_VERSION >= Version("2.8.0")
+    if Version(airflow_version) >= Version("2.8.0")
     else "airflow.cli.commands.celery_command"
 )
 
@@ -368,8 +344,14 @@ class CeleryExecutor(BaseExecutor):
             if state:
                 self.update_task_state(key, state, info)
 
-    def change_state(self, key: TaskInstanceKey, state: TaskInstanceState, info=None) -> None:
-        super().change_state(key, state, info)
+    def change_state(
+        self, key: TaskInstanceKey, state: TaskInstanceState, info=None, remove_running=True
+    ) -> None:
+        try:
+            super().change_state(key, state, info, remove_running=remove_running)
+        except AttributeError:
+            # Earlier versions of the BaseExecutor don't accept the remove_running parameter for this method
+            super().change_state(key, state, info)
         self.tasks.pop(key, None)
 
     def update_task_state(self, key: TaskInstanceKey, state: str, info: Any) -> None:

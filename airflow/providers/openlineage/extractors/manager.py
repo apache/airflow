@@ -65,12 +65,18 @@ class ExtractorManager(LoggingMixin):
             for operator_class in extractor.get_operator_classnames():
                 if operator_class in self.extractors:
                     self.log.debug(
-                        "Duplicate extractor found for `%s`. `%s` will be used instead of `%s`",
+                        "Duplicate OpenLineage custom extractor found for `%s`. "
+                        "`%s` will be used instead of `%s`",
                         operator_class,
                         extractor_path,
                         self.extractors[operator_class],
                     )
                 self.extractors[operator_class] = extractor
+                self.log.debug(
+                    "Registered custom OpenLineage extractor `%s` for class `%s`",
+                    extractor_path,
+                    operator_class,
+                )
 
     def add_extractor(self, operator_class: str, extractor: type[BaseExtractor]):
         self.extractors[operator_class] = extractor

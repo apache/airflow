@@ -22,9 +22,10 @@ description: |
   `OpenLineage <https://openlineage.io/>`__
 
 state: ready
-source-date-epoch: 1712666247
+source-date-epoch: 1715384461
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 1.7.1
   - 1.7.0
   - 1.6.0
   - 1.5.0
@@ -130,7 +131,7 @@ config:
           Disable the inclusion of source code in OpenLineage events by setting this to `true`.
           By default, several Operators (e.g. Python, Bash) will include their source code in the events
           unless disabled.
-        default: ~
+        default: "False"
         example: ~
         type: boolean
         version_added: ~

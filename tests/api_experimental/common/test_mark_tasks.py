@@ -21,7 +21,7 @@ import datetime
 from typing import Callable
 
 import pytest
-from sqlalchemy.orm import eagerload
+from sqlalchemy.orm import joinedload
 
 from airflow import models
 from airflow.api.common.mark_tasks import (
@@ -134,7 +134,7 @@ class TestMarkTasks:
             return (
                 session.query(TI)
                 .join(TI.dag_run)
-                .options(eagerload(TI.dag_run))
+                .options(joinedload(TI.dag_run))
                 .filter(TI.dag_id == dag.dag_id, DR.execution_date.in_(execution_dates))
                 .all()
             )

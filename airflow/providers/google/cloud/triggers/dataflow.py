@@ -138,7 +138,7 @@ class TemplateJobStartTrigger(BaseTrigger):
                     return
                 else:
                     self.log.info("Job is still running...")
-                    self.log.info("Current job status is: %s", status)
+                    self.log.info("Current job status is: %s", status.name)
                     self.log.info("Sleeping for %s seconds.", self.poll_sleep)
                     await asyncio.sleep(self.poll_sleep)
         except Exception as e:

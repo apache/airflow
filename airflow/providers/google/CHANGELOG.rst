@@ -27,6 +27,69 @@
 Changelog
 ---------
 
+10.18.0
+.......
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+
+Features
+~~~~~~~~
+
+* ``add templated fields for google llm operators (#39174)``
+* ``Add logic to handle on_kill for BigQueryInsertJobOperator when deferrable=True (#38912)``
+* ``Create 'CloudComposerRunAirflowCLICommandOperator' operator (#38965)``
+* ``Deferrable mode for Dataflow sensors (#37693)``
+* ``Deferrable mode for Custom Training Job operators (#38584)``
+* ``Enhancement for SSL-support in CloudSQLExecuteQueryOperator (#38894)``
+* ``Create GKESuspendJobOperator and GKEResumeJobOperator operators (#38677)``
+* ``Add support for role arn for aws creds in Google Transfer Service operator (#38911)``
+* ``Add encryption_configuration parameter to BigQueryCheckOperator and BigQueryTableCheckOperator (#39432)``
+* ``Add 'job_id' parameter to 'BigQueryGetDataOperator' (#39315)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix deferrable mode for DataflowTemplatedJobStartOperator and DataflowStartFlexTemplateOperator (#39018)``
+* ``Fix batching for BigQueryToPostgresOperator (#39233)``
+* ``Fix DataprocSubmitJobOperator in deferrable mode=True when task is marked as failed. (#39230)``
+* ``Fix GCSObjectExistenceSensor operator to return the same XCOM value in deferrable and non-deferrable mode (#39206)``
+* ``Fix conn_id BigQueryToMsSqlOperator (#39171)``
+* ``Fix add retry logic in case of google auth refresh credential error (#38961)``
+* ``Fix BigQueryCheckOperator skipped value and error check in deferrable mode (#38408)``
+* ``Fix Use prefixes instead of all file paths for OpenLineage datasets in GCSDeleteObjectsOperator (#39059)``
+* ``Fix Use prefixes instead of full file paths for OpenLineage datasets in GCSToGCSOperator (#39058)``
+* ``Fix OpenLineage datasets in GCSTimeSpanFileTransformOperator (#39064)``
+* ``Fix generation temp filename in 'DataprocSubmitPySparkJobOperator' (#39498)``
+* ``Fix logic to cancel the external job if the TaskInstance is not in a running or deferred state for DataprocSubmitJobOperator (#39447)``
+* ``Fix logic to cancel the external job if the TaskInstance is not in a running or deferred state for BigQueryInsertJobOperator (#39442)``
+* ``Fix logic to cancel the external job if the TaskInstance is not in a running or deferred state for DataprocCreateClusterOperator (#39446)``
+* ``Fix 'DataprocCreateBatchOperator' with 'result_retry' raises 'AttributeError' (#39462)``
+* ``Fix yaml parsing for GKEStartKueueInsideClusterOperator (#39234)``
+* ``Fix validation of label values in BigQueryInsertJobOperator (#39568)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+* ``Improve 'DataprocCreateClusterOperator' Triggers for Better Error Handling and Resource Cleanup (#39130)``
+* ``Adding MSGraphOperator in Microsoft Azure provider (#38111)``
+* ``Apply PROVIDE_PROJECT_ID mypy workaround across Google provider (#39129)``
+* ``handle KubernetesDeleteJobOperator import (#39036)``
+* ``Remove Airflow 2.6 back compact code (#39558)``
+* ``Reapply templates for all providers (#39554)``
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Add deprecation warnings and raise exception for already deprecated ones (#38673)``
+* ``Simplify 'airflow_version' imports (#39497)``
+* ``Disconnect GKE operators from deprecated hooks (#39434)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Activate RUF019 that checks for unnecessary key check (#38950)``
+   * ``Prepare docs 1st wave May 2024 (#39328)``
+
 10.17.0
 .......
 

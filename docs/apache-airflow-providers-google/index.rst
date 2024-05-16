@@ -87,7 +87,7 @@ Google services including:
   - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 
-Release: 10.17.0
+Release: 10.18.0
 
 Provider package
 ----------------
@@ -105,12 +105,12 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
 
-=======================================  =====================
+=======================================  ==============================
 PIP package                              Version required
-=======================================  =====================
-``apache-airflow``                       ``>=2.6.0``
+=======================================  ==============================
+``apache-airflow``                       ``>=2.7.0``
 ``apache-airflow-providers-common-sql``  ``>=1.7.2``
 ``asgiref``                              ``>=3.5.2``
 ``gcloud-aio-auth``                      ``>=4.0.0,<5.0.0``
@@ -119,7 +119,7 @@ PIP package                              Version required
 ``gcsfs``                                ``>=2023.10.0``
 ``google-ads``                           ``>=23.1.0``
 ``google-analytics-admin``
-``google-api-core``                      ``>=2.11.0,!=2.16.0``
+``google-api-core``                      ``>=2.11.0,!=2.16.0,!=2.18.0``
 ``google-api-python-client``             ``>=1.6.0``
 ``google-auth``                          ``>=1.0.0``
 ``google-auth-httplib2``                 ``>=0.0.1``
@@ -171,7 +171,7 @@ PIP package                              Version required
 ``sqlalchemy-bigquery``                  ``>=1.2.1``
 ``sqlalchemy-spanner``                   ``>=1.6.2``
 ``python-slugify``                       ``>=5.0``
-=======================================  =====================
+=======================================  ==============================
 
 Cross provider package dependencies
 -----------------------------------
@@ -214,5 +214,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-google 10.17.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-10.17.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-10.17.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-10.17.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-google 10.17.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.17.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.17.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.17.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-google 10.18.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.18.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.18.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.18.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-google 10.18.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.18.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.18.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.18.0-py3-none-any.whl.sha512>`__)

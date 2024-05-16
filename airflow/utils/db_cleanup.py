@@ -196,8 +196,8 @@ def _do_delete(*, query, orm_model, skip_archive, session):
     session.execute(delete)
     session.commit()
     if skip_archive:
-        metadata.bind = session.get_bind()
-        target_table.drop()
+        bind = session.get_bind()
+        target_table.drop(bind=bind)
     session.commit()
     print("Finished Performing Delete")
 

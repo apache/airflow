@@ -35,6 +35,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.1.0
+......
+
+Latest change: 2024-05-11
+
+=================================================================================================  ===========  =======================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================================================
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+`a61f393ec4 <https://github.com/apache/airflow/commit/a61f393ec4361499fcef9f2854668db85b852ec0>`_  2024-05-05   ``Implemented MSGraphSensor as a deferrable sensor (#39304)``
+`fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
+`df1f75b676 <https://github.com/apache/airflow/commit/df1f75b676a4e294d5d89ba590416f26c937efc1>`_  2024-04-25   ``add dns_config and diagnostics parameters to AzureContainerInstancesOperator (#39156)``
+`ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+`15c2734c4c <https://github.com/apache/airflow/commit/15c2734c4cac2e2acbdeaf28dfe67d04e28cee90>`_  2024-04-25   ``Implement run-method on KiotaRequestAdapterHook and move logic away from triggerer to hook (#39237)``
+`14b631294d <https://github.com/apache/airflow/commit/14b631294d07e3323905bde4e9bf257be5d7ba5e>`_  2024-04-24   ``Fix: Only quote the keys of the query_parameters in MSGraphOperator (#39207)``
+`63c87cd6cd <https://github.com/apache/airflow/commit/63c87cd6cd993ec2e287e96e001196a9ac286b5c>`_  2024-04-23   ``Add stacklevel into the 'AzureSynapsePipelineHook' deprecation warnings (#39192)``
+`1c9a6609f3 <https://github.com/apache/airflow/commit/1c9a6609f36a6fabddfd6d3858cca049d4088668>`_  2024-04-14   ``Adding MSGraphOperator in Microsoft Azure provider (#38111)``
+`db8471cc07 <https://github.com/apache/airflow/commit/db8471cc072226206f06e58e3d8f902534701513>`_  2024-04-12   ``Make handling of connection by fs/adls.py closer to that of WasbHook and add unit tests. (#38747)``
+=================================================================================================  ===========  =======================================================================================================
+
 10.0.0
 ......
 
@@ -43,6 +65,7 @@ Latest change: 2024-04-10
 =================================================================================================  ===========  ==============================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==============================================================================================================================
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
 `768e1169b1 <https://github.com/apache/airflow/commit/768e1169b1946fe536c02ee968a95594d43ebba2>`_  2024-04-10   ``fix cosmos hook static checks by making providing partition_key mandatory (#38199)``
 `b687f59008 <https://github.com/apache/airflow/commit/b687f590086b8cb6f72dc75e547e4dc070d75a1e>`_  2024-04-08   ``fix: try002 for provider microsoft azure (#38805)``
 `901c3a6504 <https://github.com/apache/airflow/commit/901c3a650462cd9e31efe3b5b1a04c7cd1a93596>`_  2024-04-04   ``Feature/refactor azure synapse pipeline class (#38723)``

@@ -29,6 +29,7 @@ from openlineage.client.facet import (
     ExtractionErrorRunFacet,
     SqlJobFacet,
 )
+from openlineage.client.run import Dataset
 from openlineage.common.sql import DbTableMeta, SqlMeta, parse
 
 from airflow.providers.openlineage.extractors.base import OperatorLineage
@@ -40,7 +41,6 @@ from airflow.providers.openlineage.utils.sql import (
 from airflow.typing_compat import TypedDict
 
 if TYPE_CHECKING:
-    from openlineage.client.run import Dataset
     from sqlalchemy.engine import Engine
 
     from airflow.hooks.base import BaseHook
@@ -104,6 +104,18 @@ class DatabaseInfo:
     normalize_name_method: Callable[[str], str] = default_normalize_name_method
 
 
+def from_table_meta(
+    table_meta: DbTableMeta, database: str | None, namespace: str, is_uppercase: bool
+) -> Dataset:
+    if table_meta.database:
+        name = table_meta.qualified_name
+    elif database:
+        name = f"{database}.{table_meta.schema}.{table_meta.name}"
+    else:
+        name = f"{table_meta.schema}.{table_meta.name}"
+    return Dataset(namespace=namespace, name=name if not is_uppercase else name.upper())
+
+
 class SQLParser:
     """Interface for openlineage-sql.
 
@@ -117,7 +129,7 @@ class SQLParser:
 
     def parse(self, sql: list[str] | str) -> SqlMeta | None:
         """Parse a single or a list of SQL statements."""
-        return parse(sql=sql, dialect=self.dialect)
+        return parse(sql=sql, dialect=self.dialect, default_schema=self.default_schema)
 
     def parse_table_schemas(
         self,
@@ -155,6 +167,23 @@ class SQLParser:
             if outputs
             else None,
         )
+
+    def get_metadata_from_parser(
+        self,
+        inputs: list[DbTableMeta],
+        outputs: list[DbTableMeta],
+        database_info: DatabaseInfo,
+        namespace: str = DEFAULT_NAMESPACE,
+        database: str | None = None,
+    ) -> tuple[list[Dataset], ...]:
+        database = database if database else database_info.database
+        return [
+            from_table_meta(dataset, database, namespace, database_info.is_uppercase_names)
+            for dataset in inputs
+        ], [
+            from_table_meta(dataset, database, namespace, database_info.is_uppercase_names)
+            for dataset in outputs
+        ]
 
     def attach_column_lineage(
         self, datasets: list[Dataset], database: str | None, parse_result: SqlMeta
@@ -204,6 +233,7 @@ class SQLParser:
         database_info: DatabaseInfo,
         database: str | None = None,
         sqlalchemy_engine: Engine | None = None,
+        use_connection: bool = True,
     ) -> OperatorLineage:
         """Parse SQL statement(s) and generate OpenLineage metadata.
 
@@ -242,15 +272,24 @@ class SQLParser:
             )
 
         namespace = self.create_namespace(database_info=database_info)
-        inputs, outputs = self.parse_table_schemas(
-            hook=hook,
-            inputs=parse_result.in_tables,
-            outputs=parse_result.out_tables,
-            namespace=namespace,
-            database=database,
-            database_info=database_info,
-            sqlalchemy_engine=sqlalchemy_engine,
-        )
+        if use_connection:
+            inputs, outputs = self.parse_table_schemas(
+                hook=hook,
+                inputs=parse_result.in_tables,
+                outputs=parse_result.out_tables,
+                namespace=namespace,
+                database=database,
+                database_info=database_info,
+                sqlalchemy_engine=sqlalchemy_engine,
+            )
+        else:
+            inputs, outputs = self.get_metadata_from_parser(
+                inputs=parse_result.in_tables,
+                outputs=parse_result.out_tables,
+                namespace=namespace,
+                database=database,
+                database_info=database_info,
+            )
 
         self.attach_column_lineage(outputs, database or database_info.database, parse_result)
 

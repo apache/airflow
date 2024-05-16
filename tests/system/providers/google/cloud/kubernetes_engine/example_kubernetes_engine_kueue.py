@@ -103,7 +103,7 @@ with DAG(
         project_id=GCP_PROJECT_ID,
         location=GCP_LOCATION,
         cluster_name=CLUSTER_NAME,
-        kueue_version="v0.5.1",
+        kueue_version="v0.6.2",
     )
     # [END howto_operator_gke_install_kueue]
 

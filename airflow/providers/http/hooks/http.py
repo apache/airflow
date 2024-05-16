@@ -132,6 +132,7 @@ class HttpHook(BaseHook):
                 session.verify = extra.pop("verify", extra.pop("verify_ssl", True))
                 session.cert = extra.pop("cert", None)
                 session.max_redirects = extra.pop("max_redirects", DEFAULT_REDIRECT_LIMIT)
+                session.trust_env = extra.pop("trust_env", True)
 
                 try:
                     session.headers.update(extra)
@@ -425,6 +426,7 @@ class HttpAsyncHook(BaseHook):
         verify_ssl = extra.pop("verify", extra.pop("verify_ssl", None))
         allow_redirects = extra.pop("allow_redirects", None)
         max_redirects = extra.pop("max_redirects", None)
+        trust_env = extra.pop("trust_env", None)
 
         if proxies is not None and "proxy" not in extra_options:
             extra_options["proxy"] = proxies
@@ -436,6 +438,8 @@ class HttpAsyncHook(BaseHook):
             extra_options["allow_redirects"] = allow_redirects
         if max_redirects is not None and "max_redirects" not in extra_options:
             extra_options["max_redirects"] = max_redirects
+        if trust_env is not None and "trust_env" not in extra_options:
+            extra_options["trust_env"] = trust_env
         return extra
 
     def _retryable_error_async(self, exception: ClientResponseError) -> bool:

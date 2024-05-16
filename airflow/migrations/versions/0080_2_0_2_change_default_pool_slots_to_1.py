@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Change default ``pool_slots`` to ``1``
+"""Change default ``pool_slots`` to ``1``.
 
 Revision ID: 8646922c8a04
 Revises: 449b4072c2da
 Create Date: 2021-02-23 23:19:22.409973
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -36,14 +37,14 @@ airflow_version = "2.0.2"
 
 
 def upgrade():
-    """Change default ``pool_slots`` to ``1`` and make pool_slots not nullable"""
+    """Change default ``pool_slots`` to ``1`` and make pool_slots not nullable."""
     op.execute("UPDATE task_instance SET pool_slots = 1 WHERE pool_slots IS NULL")
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
         batch_op.alter_column("pool_slots", existing_type=sa.Integer, nullable=False, server_default="1")
 
 
 def downgrade():
-    """Unapply Change default ``pool_slots`` to ``1``"""
+    """Unapply Change default ``pool_slots`` to ``1``."""
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
         inspector = sa.inspect(conn.engine)

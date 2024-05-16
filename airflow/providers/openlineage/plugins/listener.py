@@ -17,13 +17,15 @@
 from __future__ import annotations
 
 import logging
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from typing import TYPE_CHECKING
 
 from openlineage.client.serde import Serde
 
+from airflow import __version__ as airflow_version
 from airflow.listeners import hookimpl
+from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors import ExtractorManager
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter, RunState
 from airflow.providers.openlineage.utils.utils import (
@@ -43,6 +45,16 @@ if TYPE_CHECKING:
     from airflow.models import DagRun, TaskInstance
 
 _openlineage_listener: OpenLineageListener | None = None
+
+
+def _get_try_number_success(val):
+    # todo: remove when min airflow version >= 2.10.0
+    from packaging.version import parse
+
+    if parse(parse(airflow_version).base_version) < parse("2.10.0"):
+        return val.try_number - 1
+    else:
+        return val.try_number
 
 
 class OpenLineageListener:
@@ -78,13 +90,19 @@ class OpenLineageListener:
         dag = task.dag
         if is_operator_disabled(task):
             self.log.debug(
-                "Skipping OpenLineage event emission for operator %s "
+                "Skipping OpenLineage event emission for operator `%s` "
                 "due to its presence in [openlineage] disabled_for_operators.",
                 task.task_type,
             )
-            return None
+            return
 
         if not is_selective_lineage_enabled(task):
+            self.log.debug(
+                "Skipping OpenLineage event emission for task `%s` "
+                "due to lack of explicit lineage enablement for task or DAG while "
+                "[openlineage] selective_enable is on.",
+                task.task_id,
+            )
             return
 
         @print_warning(self.log)
@@ -146,15 +164,22 @@ class OpenLineageListener:
         if TYPE_CHECKING:
             assert task
         dag = task.dag
+
         if is_operator_disabled(task):
             self.log.debug(
-                "Skipping OpenLineage event emission for operator %s "
+                "Skipping OpenLineage event emission for operator `%s` "
                 "due to its presence in [openlineage] disabled_for_operators.",
                 task.task_type,
             )
-            return None
+            return
 
         if not is_selective_lineage_enabled(task):
+            self.log.debug(
+                "Skipping OpenLineage event emission for task `%s` "
+                "due to lack of explicit lineage enablement for task or DAG while "
+                "[openlineage] selective_enable is on.",
+                task.task_id,
+            )
             return
 
         @print_warning(self.log)
@@ -165,7 +190,7 @@ class OpenLineageListener:
                 dag_id=dag.dag_id,
                 task_id=task.task_id,
                 execution_date=task_instance.execution_date,
-                try_number=task_instance.try_number - 1,
+                try_number=_get_try_number_success(task_instance),
             )
             event_type = RunState.COMPLETE.value.lower()
             operator_name = task.task_type.lower()
@@ -201,15 +226,22 @@ class OpenLineageListener:
         if TYPE_CHECKING:
             assert task
         dag = task.dag
+
         if is_operator_disabled(task):
             self.log.debug(
-                "Skipping OpenLineage event emission for operator %s "
+                "Skipping OpenLineage event emission for operator `%s` "
                 "due to its presence in [openlineage] disabled_for_operators.",
                 task.task_type,
             )
-            return None
+            return
 
         if not is_selective_lineage_enabled(task):
+            self.log.debug(
+                "Skipping OpenLineage event emission for task `%s` "
+                "due to lack of explicit lineage enablement for task or DAG while "
+                "[openlineage] selective_enable is on.",
+                task.task_id,
+            )
             return
 
         @print_warning(self.log)
@@ -250,7 +282,7 @@ class OpenLineageListener:
     @property
     def executor(self):
         if not self._executor:
-            self._executor = ThreadPoolExecutor(max_workers=8, thread_name_prefix="openlineage_")
+            self._executor = ProcessPoolExecutor(max_workers=conf.dag_state_change_process_pool_size())
         return self._executor
 
     @hookimpl
@@ -266,7 +298,18 @@ class OpenLineageListener:
     @hookimpl
     def on_dag_run_running(self, dag_run: DagRun, msg: str):
         if dag_run.dag and not is_selective_lineage_enabled(dag_run.dag):
+            self.log.debug(
+                "Skipping OpenLineage event emission for DAG `%s` "
+                "due to lack of explicit lineage enablement for DAG while "
+                "[openlineage] selective_enable is on.",
+                dag_run.dag_id,
+            )
             return
+
+        if not self.executor:
+            self.log.debug("Executor have not started before `on_dag_run_running`")
+            return
+
         data_interval_start = dag_run.data_interval_start.isoformat() if dag_run.data_interval_start else None
         data_interval_end = dag_run.data_interval_end.isoformat() if dag_run.data_interval_end else None
         self.executor.submit(
@@ -280,19 +323,35 @@ class OpenLineageListener:
     @hookimpl
     def on_dag_run_success(self, dag_run: DagRun, msg: str):
         if dag_run.dag and not is_selective_lineage_enabled(dag_run.dag):
+            self.log.debug(
+                "Skipping OpenLineage event emission for DAG `%s` "
+                "due to lack of explicit lineage enablement for DAG while "
+                "[openlineage] selective_enable is on.",
+                dag_run.dag_id,
+            )
             return
+
         if not self.executor:
             self.log.debug("Executor have not started before `on_dag_run_success`")
             return
+
         self.executor.submit(self.adapter.dag_success, dag_run=dag_run, msg=msg)
 
     @hookimpl
     def on_dag_run_failed(self, dag_run: DagRun, msg: str):
         if dag_run.dag and not is_selective_lineage_enabled(dag_run.dag):
+            self.log.debug(
+                "Skipping OpenLineage event emission for DAG `%s` "
+                "due to lack of explicit lineage enablement for DAG while "
+                "[openlineage] selective_enable is on.",
+                dag_run.dag_id,
+            )
             return
+
         if not self.executor:
             self.log.debug("Executor have not started before `on_dag_run_failed`")
             return
+
         self.executor.submit(self.adapter.dag_failed, dag_run=dag_run, msg=msg)
 
 

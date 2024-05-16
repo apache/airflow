@@ -29,9 +29,10 @@ description: |
     - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 state: ready
-source-date-epoch: 1712665855
+source-date-epoch: 1715384437
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 10.18.0
   - 10.17.0
   - 10.16.0
   - 10.15.0
@@ -88,7 +89,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.6.0
+  - apache-airflow>=2.7.0
   - apache-airflow-providers-common-sql>=1.7.2
   - asgiref>=3.5.2
   # When upgrading the major version of gcloud-aio-auth we want to make sure to
@@ -103,8 +104,10 @@ dependencies:
   - gcsfs>=2023.10.0
   - google-ads>=23.1.0
   - google-analytics-admin
-  # Google-api-core 2.16.0 back-compat issue: https://github.com/googleapis/python-api-core/issues/576
-  - google-api-core>=2.11.0,!=2.16.0
+  # Google-api-core 2.16.0 back-compat issue:
+  # - https://github.com/googleapis/python-api-core/issues/576
+  # - https://github.com/apache/airflow/issues/39394
+  - google-api-core>=2.11.0,!=2.16.0,!=2.18.0
   - google-api-python-client>=1.6.0
   - google-auth>=1.0.0
   - google-auth-httplib2>=0.0.1
@@ -941,6 +944,7 @@ hooks:
       - airflow.providers.google.cloud.hooks.vertex_ai.model_service
       - airflow.providers.google.cloud.hooks.vertex_ai.pipeline_job
       - airflow.providers.google.cloud.hooks.vertex_ai.generative_model
+      - airflow.providers.google.cloud.hooks.vertex_ai.prediction_service
   - integration-name: Google Looker
     python-modules:
       - airflow.providers.google.cloud.hooks.looker

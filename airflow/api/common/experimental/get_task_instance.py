@@ -24,14 +24,14 @@ from typing import TYPE_CHECKING
 from deprecated import deprecated
 
 from airflow.api.common.experimental import check_and_get_dag, check_and_get_dagrun
-from airflow.exceptions import TaskInstanceNotFound
+from airflow.exceptions import RemovedInAirflow3Warning, TaskInstanceNotFound
 from airflow.models import TaskInstance
 
 if TYPE_CHECKING:
     from datetime import datetime
 
 
-@deprecated(version="2.2.4", reason="Use DagRun.get_task_instance instead")
+@deprecated(version="2.2.4", reason="Use DagRun.get_task_instance instead", category=RemovedInAirflow3Warning)
 def get_task_instance(dag_id: str, task_id: str, execution_date: datetime) -> TaskInstance:
     """Return the task instance identified by the given dag_id, task_id and execution_date."""
     dag = check_and_get_dag(dag_id, task_id)

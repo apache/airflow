@@ -24,9 +24,10 @@ Create Date: 2023-11-29 16:54:48.101834
 
 """
 
+from __future__ import annotations
+
 import sqlalchemy as sa
 from alembic import op
-
 
 # revision identifiers, used by Alembic.
 revision = "10b52ebd31f7"
@@ -49,6 +50,5 @@ def upgrade():
 
 def downgrade():
     """Unapply Add processor_subdir to ImportError."""
-    conn = op.get_bind()
     with op.batch_alter_table("import_error", schema=None) as batch_op:
         batch_op.drop_column("processor_subdir")

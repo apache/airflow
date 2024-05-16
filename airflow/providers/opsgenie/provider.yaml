@@ -22,9 +22,10 @@ description: |
     `Opsgenie <https://www.atlassian.com/software/opsgenie>`__
 
 state: ready
-source-date-epoch: 1705912197
+source-date-epoch: 1715384462
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 5.6.0
   - 5.5.0
   - 5.4.0
   - 5.3.0
@@ -45,7 +46,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.6.0
+  - apache-airflow>=2.7.0
   - opsgenie-sdk>=2.1.5
 
 integrations:

@@ -22,9 +22,10 @@ description: |
     `dbt Cloud <https://www.getdbt.com/product/dbt-cloud/>`__
 
 state: ready
-source-date-epoch: 1712665602
+source-date-epoch: 1715384424
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 3.8.0
   - 3.7.1
   - 3.7.0
   - 3.6.1
@@ -51,10 +52,17 @@ versions:
   - 1.0.1
 
 dependencies:
-  - apache-airflow>=2.6.0
+  - apache-airflow>=2.7.0
   - apache-airflow-providers-http
   - asgiref
   - aiohttp>=3.9.2
+
+additional-extras:
+  # pip install apache-airflow-providers-dbt-cloud[openlineage]
+  - name: openlineage
+    description: Install compatible OpenLineage dependencies
+    dependencies:
+      - apache-airflow-providers-openlineage>=1.7.0
 
 integrations:
   - integration-name: dbt Cloud

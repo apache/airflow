@@ -22,9 +22,10 @@ description: |
     `Apache Beam <https://beam.apache.org/>`__.
 
 state: ready
-source-date-epoch: 1712664558
+source-date-epoch: 1715384393
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 5.7.0
   - 5.6.3
   - 5.6.2
   - 5.6.1
@@ -56,7 +57,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.6.0
+  - apache-airflow>=2.7.0
   # Apache Beam > 2.53.0 and pyarrow > 14.0.1 fix https://nvd.nist.gov/vuln/detail/CVE-2023-47248.
   - apache-beam>=2.53.0
   - pyarrow>=14.0.1

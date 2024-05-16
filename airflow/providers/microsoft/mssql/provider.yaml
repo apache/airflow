@@ -22,9 +22,10 @@ description: |
     `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/sql-server/>`__
 
 state: ready
-source-date-epoch: 1707636422
+source-date-epoch: 1715384451
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 3.7.0
   - 3.6.1
   - 3.6.0
   - 3.5.0
@@ -49,7 +50,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.6.0
+  - apache-airflow>=2.7.0
   - apache-airflow-providers-common-sql>=1.3.1
   - pymssql>=2.1.8
 

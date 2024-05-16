@@ -21,6 +21,77 @@
 
 .. towncrier release notes start
 
+Airflow 2.9.1 (2024-05-03)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+Stackdriver logging bugfix requires Google provider ``10.17.0`` or later (#38071)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+If you use Stackdriver logging, you must use Google provider version ``10.17.0`` or later. Airflow ``2.9.1`` now passes ``gcp_log_name`` to the ``StackdriverTaskHandler`` instead of ``name``, and this will fail on earlier provider versions.
+
+This fixes a bug where the log name configured in ``[logging] remove_base_log_folder`` was overridden when Airflow configured logging, resulting in task logs going to the wrong destination.
+
+
+
+Bug Fixes
+"""""""""
+- Make task log messages include run_id (#39280)
+- Copy menu_item ``href`` for nav bar (#39282)
+- Fix trigger kwarg encryption migration (#39246, #39361, #39374)
+- Add workaround for datetime-local input in ``firefox`` (#39261)
+- Add Grid button to Task Instance view (#39223)
+- Get served logs when remote or executor logs not available for non-running task try (#39177)
+- Fixed side effect of menu filtering causing disappearing menus (#39229)
+- Use grid view for Task Instance's ``log_url`` (#39183)
+- Improve task filtering ``UX`` (#39119)
+- Improve rendered_template ``ux`` in react dag page (#39122)
+- Graph view improvements (#38940)
+- Check that the dataset<>task exists before trying to render graph (#39069)
+- Hostname was "redacted", not "redact"; remove it when there is no context (#39037)
+- Check whether ``AUTH_ROLE_PUBLIC`` is set in ``check_authentication`` (#39012)
+- Move rendering of ``map_index_template`` so it renders for failed tasks as long as it was defined before the point of failure (#38902)
+- ``Undeprecate`` ``BaseXCom.get_one`` method for now (#38991)
+- Add ``inherit_cache`` attribute for ``CreateTableAs`` custom SA Clause (#38985)
+- Don't wait for DagRun lock in mini scheduler (#38914)
+- Fix calendar view with no DAG Run (#38964)
+- Changed the background color of external task in graph (#38969)
+- Fix dag run selection (#38941)
+- Fix ``SAWarning`` 'Coercing Subquery object into a select() for use in IN()' (#38926)
+- Fix implicit ``cartesian`` product in AirflowSecurityManagerV2 (#38913)
+- Fix problem that links in legacy log view can not be clicked (#38882)
+- Fix dag run link params (#38873)
+- Use async db calls in WorkflowTrigger (#38689)
+- Fix audit log events filter (#38719)
+- Use ``methodtools.lru_cache`` instead of ``functools.lru_cache`` in class methods (#37757)
+- Raise deprecated warning in ``airflow dags backfill`` only if ``-I`` / ``--ignore-first-depends-on-past`` provided (#38676)
+
+Miscellaneous
+"""""""""""""
+- ``TriggerDagRunOperator`` deprecate ``execution_date`` in favor of ``logical_date`` (#39285)
+- Force to use Airflow Deprecation warnings categories on ``@deprecated`` decorator (#39205)
+- Add warning about run/import Airflow under the Windows (#39196)
+- Update ``is_authorized_custom_view`` from auth manager to handle custom actions (#39167)
+- Add in Trove classifiers Python 3.12 support (#39004)
+- Use debug level for ``minischeduler`` skip (#38976)
+- Bump ``undici`` from ``5.28.3 to 5.28.4`` in ``/airflow/www`` (#38751)
+
+
+Doc Only Changes
+""""""""""""""""
+- Fix supported k8s version in docs (#39172)
+- Dynamic task mapping ``PythonOperator`` op_kwargs (#39242)
+- Add link to ``user`` and ``role`` commands (#39224)
+- Add ``k8s 1.29`` to supported version in docs (#39168)
+- Data aware scheduling docs edits (#38687)
+- Update ``DagBag`` class docstring to include all params (#38814)
+- Correcting an example taskflow example (#39015)
+- Remove decorator from rendering fields example (#38827)
+
+
+
 Airflow 2.9.0 (2024-04-08)
 --------------------------
 
@@ -110,6 +181,14 @@ Change xcom table column value type to longblob for MySQL backend (#38401)
 Xcom table column ``value`` type has changed from ``blob`` to ``longblob``. This will allow you to store relatively big data in Xcom but process can take a significant amount of time if you have a lot of large data stored in Xcom.
 
 To downgrade from revision: ``b4078ac230a1``, ensure that you don't have Xcom values larger than 65,535 bytes. Otherwise, you'll need to clean those rows or run ``airflow db clean xcom`` to clean the Xcom table.
+
+Stronger validation for key parameter defaults in taskflow context variables (#38015)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+As for the taskflow implementation in conjunction with context variable defaults invalid parameter orders can be
+generated, it is now not accepted anymore (and validated) that taskflow functions are defined with defaults
+other than ``None``. If you have done this before you most likely will see a broken DAG and a error message like
+``Error message: Context key parameter my_param can't have a default other than None``.
 
 New Features
 """"""""""""

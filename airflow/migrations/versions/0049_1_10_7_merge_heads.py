@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Straighten out the migrations
+"""Straighten out the migrations.
 
 Revision ID: 08364691d074
 Revises: a56c9515abdc, 004c1210f153, 74effc47d867, b3b105409875
 Create Date: 2019-11-19 22:05:11.752222
 
 """
+
 from __future__ import annotations
 
 # revision identifiers, used by Alembic.

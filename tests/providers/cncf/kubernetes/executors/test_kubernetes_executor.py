@@ -28,39 +28,35 @@ from kubernetes.client import models as k8s
 from kubernetes.client.rest import ApiException
 from urllib3 import HTTPResponse
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.cncf.kubernetes import pod_generator
+from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import (
+    KubernetesExecutor,
+    PodReconciliationError,
+)
+from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
+    ADOPTED,
+    POD_EXECUTOR_DONE_KEY,
+)
+from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
+    AirflowKubernetesScheduler,
+    KubernetesJobWatcher,
+    ResourceVersion,
+    get_base_pod_from_template,
+)
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
+    annotations_for_logging_task_metadata,
+    annotations_to_key,
+    create_unique_id,
+    get_logs_task_metadata,
+)
+from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
 from tests.test_utils.config import conf_vars
-
-try:
-    from airflow.providers.cncf.kubernetes import pod_generator
-    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import (
-        KubernetesExecutor,
-        PodReconciliationError,
-    )
-    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
-        ADOPTED,
-        POD_EXECUTOR_DONE_KEY,
-    )
-    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
-        AirflowKubernetesScheduler,
-        KubernetesJobWatcher,
-        ResourceVersion,
-        create_pod_id,
-        get_base_pod_from_template,
-    )
-    from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
-        annotations_for_logging_task_metadata,
-        annotations_to_key,
-        get_logs_task_metadata,
-    )
-    from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-except ImportError:
-    AirflowKubernetesScheduler = None  # type: ignore
 
 
 class TestAirflowKubernetesScheduler:
@@ -100,17 +96,12 @@ class TestAirflowKubernetesScheduler:
         regex = r"^[^a-z0-9A-Z]*|[^a-zA-Z0-9_\-\.]|[^a-z0-9A-Z]*$"
         return len(value) <= 63 and re.match(regex, value)
 
-    @pytest.mark.skipif(
-        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
-    )
     def test_create_pod_id(self):
         for dag_id, task_id in self._cases():
-            pod_name = PodGenerator.make_unique_pod_id(create_pod_id(dag_id, task_id))
-            assert self._is_valid_pod_id(pod_name)
+            with pytest.warns(AirflowProviderDeprecationWarning, match=r"deprecated\. Use `add_pod_suffix`"):
+                pod_name = PodGenerator.make_unique_pod_id(create_unique_id(dag_id, task_id))
+            assert self._is_valid_pod_id(pod_name), f"dag_id={dag_id!r}, task_id={task_id!r}"
 
-    @pytest.mark.skipif(
-        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
-    )
     @mock.patch("airflow.providers.cncf.kubernetes.pod_generator.PodGenerator")
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubeConfig")
     def test_get_base_pod_from_template(self, mock_kubeconfig, mock_generator, data_file):
@@ -144,14 +135,16 @@ class TestAirflowKubernetesScheduler:
 
     def test_make_safe_label_value(self):
         for dag_id, task_id in self._cases():
+            case = f"dag_id={dag_id!r}, task_id={task_id!r}"
             safe_dag_id = pod_generator.make_safe_label_value(dag_id)
-            assert self._is_safe_label_value(safe_dag_id)
+            assert self._is_safe_label_value(safe_dag_id), case
             safe_task_id = pod_generator.make_safe_label_value(task_id)
-            assert self._is_safe_label_value(safe_task_id)
-            dag_id = "my_dag_id"
-            assert dag_id == pod_generator.make_safe_label_value(dag_id)
-            dag_id = "my_dag_id_" + "a" * 64
-            assert "my_dag_id_" + "a" * 43 + "-0ce114c45" == pod_generator.make_safe_label_value(dag_id)
+            assert self._is_safe_label_value(safe_task_id), case
+
+        dag_id = "my_dag_id"
+        assert dag_id == pod_generator.make_safe_label_value(dag_id)
+        dag_id = "my_dag_id_" + "a" * 64
+        assert "my_dag_id_" + "a" * 43 + "-0ce114c45" == pod_generator.make_safe_label_value(dag_id)
 
     def test_execution_date_serialize_deserialize(self):
         datetime_obj = datetime.now()
@@ -1625,7 +1618,7 @@ class TestKubernetesJobWatcher:
                                 "state": {
                                     "waiting": {
                                         "reason": "CreateContainerError",
-                                        "message": 'Error: Error response from daemon: create \invalid\path: "\\invalid\path" includes invalid characters for a local volume name, only "[a-zA-Z0-9][a-zA-Z0-9_.-]" are allowed. If you intended to pass a host directory, use absolute path',
+                                        "message": r'Error: Error response from daemon: create \invalid\path: "\invalid\path" includes invalid characters for a local volume name, only "[a-zA-Z0-9][a-zA-Z0-9_.-]" are allowed. If you intended to pass a host directory, use absolute path',
                                     }
                                 },
                                 "lastState": {},

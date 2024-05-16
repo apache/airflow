@@ -22,9 +22,10 @@ description: |
     `Docker <https://www.docker.com/>`__
 
 state: ready
-source-date-epoch: 1712665625
+source-date-epoch: 1715384428
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 3.11.0
   - 3.10.0
   - 3.9.2
   - 3.9.1
@@ -65,7 +66,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.6.0
+  - apache-airflow>=2.7.0
   - docker>=6
   - python-dotenv>=0.21.0
 
