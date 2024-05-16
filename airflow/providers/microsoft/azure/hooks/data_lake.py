@@ -22,7 +22,7 @@ from typing import Any, Union
 
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
 from azure.datalake.store import core, lib, multithread
-from azure.identity import ClientSecretCredential, ManagedIdentityCredential
+from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.storage.filedatalake import (
     DataLakeDirectoryClient,
     DataLakeFileClient,
@@ -38,9 +38,10 @@ from airflow.providers.microsoft.azure.utils import (
     AzureIdentityCredentialAdapter,
     add_managed_identity_connection_widgets,
     get_field,
+    get_sync_default_azure_credential,
 )
 
-Credentials = Union[ClientSecretCredential, AzureIdentityCredentialAdapter, ManagedIdentityCredential]
+Credentials = Union[ClientSecretCredential, AzureIdentityCredentialAdapter, DefaultAzureCredential]
 
 
 class AzureDataLakeHook(BaseHook):
@@ -357,10 +358,10 @@ class AzureDataLakeStorageV2Hook(BaseHook):
             credential = conn.password
         else:
             managed_identity_client_id = self._get_field(extra, "managed_identity_client_id")
-            credential = (
-                ManagedIdentityCredential(client_id=managed_identity_client_id)
-                if managed_identity_client_id
-                else ManagedIdentityCredential()
+            workload_identity_tenant_id = self._get_field(extra, "workload_identity_tenant_id")
+            credential = get_sync_default_azure_credential(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
             )
 
         account_url = extra.pop("account_url", f"https://{conn.host}.dfs.core.windows.net")
