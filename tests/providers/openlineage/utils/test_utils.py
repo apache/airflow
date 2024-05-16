@@ -560,6 +560,32 @@ def test_get_custom_facets_with_multiple_function_definition():
 
 
 @conf_vars(
+    {
+        (
+            "openlineage",
+            "custom_facet_functions",
+        ): "tests.providers.openlineage.utils.custom_facet_fixture.get_additional_test_facet;"
+        "tests.providers.openlineage.utils.custom_facet_fixture.get_duplicate_test_facet_key"
+    }
+)
+def test_get_custom_facets_with_duplicate_facet_keys():
+    result = get_custom_facets(SAMPLE_TI)
+    assert result == {
+        "additional_run_facet": {
+            "_producer": f"https://github.com/apache/airflow/tree/providers-openlineage/{OPENLINEAGE_PROVIDER_VERSION}",
+            "_schemaURL": "https://raw.githubusercontent.com/OpenLineage/OpenLineage/main/spec/OpenLineage.json#/definitions/BaseFacet",
+            "name": "test-lineage-namespace",
+            "jobState": "running",
+            "uniqueName": "TEST.test-dag.test-task",
+            "displayName": "test-dag.test-task",
+            "dagId": "test-dag",
+            "taskId": "test-task",
+            "cluster": "TEST",
+        }
+    }
+
+
+@conf_vars(
     {("openlineage", "custom_facet_functions"): "invalid_function"},
 )
 def test_get_custom_facets_with_invalid_function_definition():
