@@ -204,8 +204,8 @@ class StandardTaskRunner(BaseTaskRunner):
                     mem_usage = self.process.memory_percent()
                     cpu_usage = self.process.cpu_percent(interval=1)
 
-                    Stats.gauge(f"task.mem_usage_percent.{dag_id}.{task_id}", mem_usage)
-                    Stats.gauge(f"task.cpu_usage_percent.{dag_id}.{task_id}", cpu_usage)
+                    Stats.gauge(f"task.mem_usage.{dag_id}.{task_id}", mem_usage)
+                    Stats.gauge(f"task.cpu_usage.{dag_id}.{task_id}", cpu_usage)
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 pass
             except AttributeError:
