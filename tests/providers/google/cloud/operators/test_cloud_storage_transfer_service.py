@@ -495,7 +495,8 @@ class TestGcpStorageTransferJobRunOperator:
 
     def test_job_run_should_throw_ex_when_name_none(self):
         with pytest.raises(AirflowException, match="The required parameter 'job_name' is empty or None"):
-            CloudDataTransferServiceRunJobOperator(job_name="", task_id="task-id")
+            op = CloudDataTransferServiceRunJobOperator(job_name="", task_id="task-id")
+            op.execute(context=mock.MagicMock())
 
 
 class TestGpcStorageTransferOperationsGetOperator:
