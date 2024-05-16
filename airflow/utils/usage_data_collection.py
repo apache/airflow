@@ -15,6 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module is for management of Airflow's usage data collection.
+
+This module is not part of the public interface and is subject to change at any time.
+
+:meta private:
+"""
+
 from __future__ import annotations
 
 import platform
@@ -27,8 +35,8 @@ from airflow import __version__ as airflow_version, settings
 from airflow.configuration import conf
 
 
-def scarf_analytics():
-    if not settings.is_telemetry_collection_enabled():
+def usage_data_collection():
+    if not settings.is_usage_data_collection_enabled():
         return
 
     # Exclude pre-releases and dev versions

@@ -576,10 +576,10 @@ def initialize():
     atexit.register(dispose_orm)
 
 
-def is_telemetry_collection_enabled() -> bool:
-    """Check if scarf analytics is enabled."""
-    return conf.getboolean("telemetry_collection", "enabled", fallback=True) and (
-        os.getenv("SCARF_ANALYTICS", "").strip().lower() != "false"
+def is_usage_data_collection_enabled() -> bool:
+    """Check if data collection is enabled."""
+    return conf.getboolean("usage_data_collection", "enabled", fallback=True) and (
+        os.getenv("USAGE_DATA_COLLECTION", "").strip().lower() != "false"
     )
 
 
