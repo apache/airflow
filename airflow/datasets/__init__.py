@@ -87,7 +87,15 @@ def _sanitize_uri(uri: str) -> str:
         fragment="",  # Ignore any fragments.
     )
     if (normalizer := _get_uri_normalizer(normalized_scheme)) is not None:
-        parsed = normalizer(parsed)
+        try:
+            parsed = normalizer(parsed)
+        except ValueError as exception:
+            warnings.warn(
+                f"The dataset URI {uri} is not AIP-60 compliant. "
+                f"In Airflow 3, this will raise an exception. More information: {repr(exception)}",
+                UserWarning,
+                stacklevel=3,
+            )
     return urllib.parse.urlunsplit(parsed)
 
 

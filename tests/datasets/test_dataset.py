@@ -20,11 +20,12 @@ from __future__ import annotations
 import os
 from collections import defaultdict
 from typing import Callable
+from unittest.mock import patch
 
 import pytest
 from sqlalchemy.sql import select
 
-from airflow.datasets import BaseDataset, Dataset, DatasetAll, DatasetAny
+from airflow.datasets import BaseDataset, Dataset, DatasetAll, DatasetAny, _sanitize_uri
 from airflow.models.dataset import DatasetDagRunQueue, DatasetModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
@@ -441,3 +442,22 @@ def test_datasets_expression_error(expression: Callable[[], None], error: str) -
     with pytest.raises(TypeError) as info:
         expression()
     assert str(info.value) == error
+
+
+def mock_get_uri_normalizer(normalized_scheme):
+    def normalizer(uri):
+        raise ValueError("Incorrect URI format")
+
+    return normalizer
+
+
+@patch("airflow.datasets._get_uri_normalizer", mock_get_uri_normalizer)
+@patch("airflow.datasets.warnings.warn")
+def test__sanitize_uri(mock_warn, caplog):
+    _sanitize_uri("postgres://localhost:5432/database.schema.table")
+    msg = mock_warn.call_args.args[0]
+    assert "The dataset URI postgres://localhost:5432/database.schema.table is not AIP-60 compliant." in msg
+    assert (
+        "In Airflow 3, this will raise an exception. More information: ValueError('Incorrect URI format')"
+        in msg
+    )
