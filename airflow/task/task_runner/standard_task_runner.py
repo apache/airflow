@@ -195,10 +195,18 @@ class StandardTaskRunner(BaseTaskRunner):
         return self.process.pid
 
     def _read_task_utilization(self):
+        dag_id = self._task_instance.dag_id
+        task_id = self._task_instance.task_id
+
         while True:
-            dag_id = self._task_instance.dag_id
-            task_id = self._task_instance.task_id
-            mem_usage = self.process.memory_percent()
-            cpu_usage = self.process.cpu_percent(interval=1)
-            Stats.gauge(f"task.mem_usage_percent.{dag_id}.{task_id}", mem_usage)
-            Stats.gauge(f"task.cpu_usage_percent.{dag_id}.{task_id}", cpu_usage)
+            try:
+                with self.process.oneshot():
+                    mem_usage = self.process.memory_percent()
+                    cpu_usage = self.process.cpu_percent(interval=1)
+
+                    Stats.gauge(f"task.mem_usage_percent.{dag_id}.{task_id}", mem_usage)
+                    Stats.gauge(f"task.cpu_usage_percent.{dag_id}.{task_id}", cpu_usage)
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+            except AttributeError:
+                pass
