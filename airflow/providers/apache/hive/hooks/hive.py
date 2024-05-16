@@ -128,7 +128,7 @@ class HiveCliHook(BaseHook):
             "principal": StringField(
                 lazy_gettext("Principal"), widget=BS3TextFieldWidget(), default="hive/_HOST@EXAMPLE.COM"
             ),
-            "high_availability": BooleanField(lazy_gettext("High Availability Hive"), default=False),
+            "high_availability": BooleanField(lazy_gettext("High Availability mode"), default=False),
         }
 
     @classmethod
