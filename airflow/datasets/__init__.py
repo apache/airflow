@@ -27,6 +27,9 @@ import attr
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
 
+
+from airflow.configuration import conf
+
 __all__ = ["Dataset", "DatasetAll", "DatasetAny"]
 
 
@@ -90,12 +93,15 @@ def _sanitize_uri(uri: str) -> str:
         try:
             parsed = normalizer(parsed)
         except ValueError as exception:
-            warnings.warn(
-                f"The dataset URI {uri} is not AIP-60 compliant. "
-                f"In Airflow 3, this will raise an exception. More information: {repr(exception)}",
-                UserWarning,
-                stacklevel=3,
-            )
+            if conf.getboolean("core", "strict_dataset_uri_validation"):
+                raise exception
+            else:
+                warnings.warn(
+                    f"The dataset URI {uri} is not AIP-60 compliant. "
+                    f"In Airflow 3, this will raise an exception. More information: {repr(exception)}",
+                    UserWarning,
+                    stacklevel=3,
+                )
     return urllib.parse.urlunsplit(parsed)
 
 

@@ -30,6 +30,7 @@ from airflow.models.dataset import DatasetDagRunQueue, DatasetModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import BaseSerialization, SerializedDAG
+from tests.test_utils.config import conf_vars
 
 
 @pytest.fixture
@@ -453,7 +454,7 @@ def mock_get_uri_normalizer(normalized_scheme):
 
 @patch("airflow.datasets._get_uri_normalizer", mock_get_uri_normalizer)
 @patch("airflow.datasets.warnings.warn")
-def test__sanitize_uri(mock_warn, caplog):
+def test__sanitize_uri_raises_warning(mock_warn):
     _sanitize_uri("postgres://localhost:5432/database.schema.table")
     msg = mock_warn.call_args.args[0]
     assert "The dataset URI postgres://localhost:5432/database.schema.table is not AIP-60 compliant." in msg
@@ -461,3 +462,12 @@ def test__sanitize_uri(mock_warn, caplog):
         "In Airflow 3, this will raise an exception. More information: ValueError('Incorrect URI format')"
         in msg
     )
+
+
+@patch("airflow.datasets._get_uri_normalizer", mock_get_uri_normalizer)
+@conf_vars({("core", "strict_dataset_uri_validation"): "True"})
+def test__sanitize_uri_raises_exception():
+    with pytest.raises(ValueError) as e_info:
+        _sanitize_uri("postgres://localhost:5432/database.schema.table")
+    assert isinstance(e_info.value, ValueError)
+    assert str(e_info.value) == "Incorrect URI format"
