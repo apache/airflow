@@ -219,7 +219,7 @@ def get_safe_url(url):
 
 def build_scarf_url(dags_count: int) -> str:
     """
-    Build the URL for the Scarf telemetry collection.
+    Build the URL for the Scarf usage data collection.
 
     :meta private:
     """
