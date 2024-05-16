@@ -448,6 +448,30 @@ class TestStandardTaskRunner:
             "_AIRFLOW_PARSING_CONTEXT_TASK_ID=task1\n"
         )
 
+    @mock.patch("airflow.task.task_runner.standard_task_runner.Stats.gauge")
+    @patch("airflow.utils.log.file_task_handler.FileTaskHandler._init_file")
+    def test_read_task_utilization(self, mock_init, mock_stats):
+        mock_init.return_value = "/tmp/any"
+        Job = mock.Mock()
+        Job.job_type = None
+        Job.task_instance = mock.MagicMock()
+        Job.task_instance.task_id = "task_id"
+        Job.task_instance.dag_id = "dag_id"
+        Job.task_instance.run_as_user = None
+        Job.task_instance.command_as_list.return_value = [
+            "airflow",
+            "tasks",
+            "run",
+            "test_on_kill",
+            "task1",
+            "2016-01-01",
+        ]
+        job_runner = LocalTaskJobRunner(job=Job, task_instance=Job.task_instance)
+        task_runner = StandardTaskRunner(job_runner)
+        task_runner.start()
+        task_runner._read_task_utilization()
+        assert mock_stats.call_count == 2
+
     @staticmethod
     def _procs_in_pgroup(pgid):
         for proc in psutil.process_iter(attrs=["pid", "name"]):
