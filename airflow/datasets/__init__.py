@@ -93,7 +93,7 @@ def _sanitize_uri(uri: str) -> str:
         try:
             parsed = normalizer(parsed)
         except ValueError as exception:
-            if conf.getboolean("core", "strict_dataset_uri_validation"):
+            if conf.getboolean("core", "strict_dataset_uri_validation", fallback=False):
                 raise exception
             else:
                 warnings.warn(
