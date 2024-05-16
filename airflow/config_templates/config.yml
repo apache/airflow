@@ -2600,7 +2600,7 @@ usage_data_collection:
     Check the FAQ doc for more information on what data is collected.
 
     Deployments can opt-out of analytics by setting the ``enabled`` option
-    to ``False``, or the ``USAGE_DATA_COLLECTION=false`` environment variable.
+    to ``False``, or the ``SCARF_ANALYTICS=false`` environment variable.
     Individual users can easily opt-out of analytics in various ways documented in the
     `Scarf Do Not Track docs <https://docs.scarf.sh/gateway/#do-not-track>`__.
 

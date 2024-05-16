@@ -579,7 +579,7 @@ def initialize():
 def is_usage_data_collection_enabled() -> bool:
     """Check if data collection is enabled."""
     return conf.getboolean("usage_data_collection", "enabled", fallback=True) and (
-        os.getenv("USAGE_DATA_COLLECTION", "").strip().lower() != "false"
+        os.getenv("SCARF_ANALYTICS", "").strip().lower() != "false"
     )
 
 

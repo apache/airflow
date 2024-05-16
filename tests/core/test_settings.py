@@ -342,7 +342,7 @@ def test_usage_data_collection_disabled(env_var, conf_setting, is_enabled):
     conf_patch = conf_vars({("usage_data_collection", "enabled"): conf_setting})
 
     if env_var is not None:
-        with conf_patch, patch.dict(os.environ, {"USAGE_DATA_COLLECTION": env_var}):
+        with conf_patch, patch.dict(os.environ, {"SCARF_ANALYTICS": env_var}):
             assert is_usage_data_collection_enabled() == is_enabled
     else:
         with conf_patch:
