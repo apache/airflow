@@ -19,40 +19,30 @@
 
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING
 
-from googleapiclient.discovery import build
+from deprecated import deprecated
 
-from airflow.providers.google.common.hooks.base_google import (
-    GoogleBaseHook,
-)
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.google.cloud.hooks.dataflow import DataflowHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+if TYPE_CHECKING:
+    from googleapiclient.discovery import build
 
 DEFAULT_DATAPIPELINE_LOCATION = "us-central1"
 
 
-class DataPipelineHook(GoogleBaseHook):
-    """
-    Hook for Google Data Pipelines.
-
-    All the methods in the hook where project_id is used must be called with
-    keyword arguments rather than positional.
-    """
-
-    def __init__(
-        self,
-        gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            impersonation_chain=impersonation_chain,
-        )
+@deprecated(
+    reason="This hook is deprecated and will be removed after 01.12.2024. Please use `DataflowHook`.",
+    category=AirflowProviderDeprecationWarning,
+)
+class DataPipelineHook(DataflowHook):
+    """Hook for Google Data Pipelines."""
 
     def get_conn(self) -> build:
         """Return a Google Cloud Data Pipelines service object."""
-        http_authorized = self._authorize()
-        return build("datapipelines", "v1", http=http_authorized, cache_discovery=False)
+        return super().get_pipelines_conn()
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_data_pipeline(
@@ -60,31 +50,9 @@ class DataPipelineHook(GoogleBaseHook):
         body: dict,
         project_id: str,
         location: str = DEFAULT_DATAPIPELINE_LOCATION,
-    ) -> None:
-        """
-        Create a new Data Pipelines instance from the Data Pipelines API.
-
-        :param body: The request body (contains instance of Pipeline). See:
-            https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest/v1/projects.locations.pipelines/create#request-body
-        :param project_id: The ID of the GCP project that owns the job.
-        :param location: The location to direct the Data Pipelines instance to (for example us-central1).
-
-        Returns the created Data Pipelines instance in JSON representation.
-        """
-        parent = self.build_parent_name(project_id, location)
-        service = self.get_conn()
-        self.log.info(dir(service.projects().locations()))
-        request = (
-            service.projects()
-            .locations()
-            .pipelines()
-            .create(
-                parent=parent,
-                body=body,
-            )
-        )
-        response = request.execute(num_retries=self.num_retries)
-        return response
+    ) -> dict:
+        """Create a new Data Pipelines instance from the Data Pipelines API."""
+        return super().create_data_pipeline(body=body, project_id=project_id, location=location)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def run_data_pipeline(
@@ -92,30 +60,11 @@ class DataPipelineHook(GoogleBaseHook):
         data_pipeline_name: str,
         project_id: str,
         location: str = DEFAULT_DATAPIPELINE_LOCATION,
-    ) -> None:
-        """
-        Run a Data Pipelines Instance using the Data Pipelines API.
-
-        :param data_pipeline_name:  The display name of the pipeline. In example
-            projects/PROJECT_ID/locations/LOCATION_ID/pipelines/PIPELINE_ID it would be the PIPELINE_ID.
-        :param project_id: The ID of the GCP project that owns the job.
-        :param location: The location to direct the Data Pipelines instance to (for example us-central1).
-
-        Returns the created Job in JSON representation.
-        """
-        parent = self.build_parent_name(project_id, location)
-        service = self.get_conn()
-        request = (
-            service.projects()
-            .locations()
-            .pipelines()
-            .run(
-                name=f"{parent}/pipelines/{data_pipeline_name}",
-                body={},
-            )
+    ) -> dict:
+        """Run a Data Pipelines Instance using the Data Pipelines API."""
+        return super().run_data_pipeline(
+            pipeline_name=data_pipeline_name, project_id=project_id, location=location
         )
-        response = request.execute(num_retries=self.num_retries)
-        return response
 
     @staticmethod
     def build_parent_name(project_id: str, location: str):
