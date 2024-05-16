@@ -494,8 +494,8 @@ class TestGcpStorageTransferJobRunOperator:
         assert dag_id == ti.task.google_impersonation_chain
 
     def test_job_run_should_throw_ex_when_name_none(self):
+        op = CloudDataTransferServiceRunJobOperator(job_name="", task_id="task-id")
         with pytest.raises(AirflowException, match="The required parameter 'job_name' is empty or None"):
-            op = CloudDataTransferServiceRunJobOperator(job_name="", task_id="task-id")
             op.execute(context=mock.MagicMock())
 
 
