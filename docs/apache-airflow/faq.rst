@@ -544,5 +544,5 @@ The telemetry data collected is limited to the following:
 - Python version
 - Operating system & machine architecture
 - Executor
-- Metadata DB type & their version
+- Metadata DB type & its version
 - Number of DAGs

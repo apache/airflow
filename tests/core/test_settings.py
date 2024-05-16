@@ -331,6 +331,7 @@ def test_create_session_ctx_mgr_no_call_methods(mock_new, clear_internal_api):
     [
         ("false", "True", False),  # env forces disable
         ("false", "False", False),  # Both force disable
+        ("False ", "False", False),  # Both force disable
         ("true", "True", True),  # Both enable
         ("true", "False", False),  # Conf forces disable
         (None, "True", True),  # Default env, conf enables

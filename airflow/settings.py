@@ -579,7 +579,7 @@ def initialize():
 def is_telemetry_collection_enabled() -> bool:
     """Check if scarf analytics is enabled."""
     return conf.getboolean("telemetry_collection", "enabled", fallback=True) and (
-        os.getenv("SCARF_ANALYTICS") != "false"
+        os.getenv("SCARF_ANALYTICS", "").strip().lower() != "false"
     )
 
 
