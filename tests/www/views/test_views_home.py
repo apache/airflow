@@ -458,7 +458,7 @@ def test_analytics_pixel(user_client, is_enabled, should_have_pixel):
     """
     Test that the analytics pixel is not included when the feature is disabled
     """
-    with mock.patch("airflow.settings.is_telemetry_collection_enabled", return_value=is_enabled):
+    with mock.patch("airflow.settings.is_usage_data_collection_enabled", return_value=is_enabled):
         resp = user_client.get("home", follow_redirects=True)
 
     if should_have_pixel:

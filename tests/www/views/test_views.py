@@ -531,11 +531,11 @@ def test_invalid_dates(app, admin_client, url, content):
 
 
 @pytest.mark.parametrize("enabled, dags_count", [(False, 5), (True, 5)])
-@patch("airflow.utils.scarf.get_platform_info", return_value=("Linux", "x86_64"))
-@patch("airflow.utils.scarf.get_database_version", return_value="12.3")
-@patch("airflow.utils.scarf.get_database_name", return_value="postgres")
-@patch("airflow.utils.scarf.get_executor", return_value="SequentialExecutor")
-@patch("airflow.utils.scarf.get_python_version", return_value="3.8.5")
+@patch("airflow.utils.usage_data_collection.get_platform_info", return_value=("Linux", "x86_64"))
+@patch("airflow.utils.usage_data_collection.get_database_version", return_value="12.3")
+@patch("airflow.utils.usage_data_collection.get_database_name", return_value="postgres")
+@patch("airflow.utils.usage_data_collection.get_executor", return_value="SequentialExecutor")
+@patch("airflow.utils.usage_data_collection.get_python_version", return_value="3.8.5")
 def test_build_scarf_url(
     get_platform_info,
     get_database_version,
@@ -545,7 +545,7 @@ def test_build_scarf_url(
     enabled,
     dags_count,
 ):
-    with patch("airflow.settings.is_telemetry_collection_enabled", return_value=enabled):
+    with patch("airflow.settings.is_usage_data_collection_enabled", return_value=enabled):
         result = build_scarf_url(dags_count)
         expected_url = (
             "https://apacheairflow.gateway.scarf.sh/webserver/"

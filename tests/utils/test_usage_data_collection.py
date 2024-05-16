@@ -24,27 +24,27 @@ import pytest
 
 from airflow import __version__ as airflow_version
 from airflow.configuration import conf
-from airflow.utils.scarf import get_database_version, scarf_analytics
+from airflow.utils.usage_data_collection import get_database_version, usage_data_collection
 
 
 @pytest.mark.parametrize("is_enabled, is_prerelease", [(False, True), (True, True)])
 @mock.patch("httpx.get")
 def test_scarf_analytics_disabled(mock_get, is_enabled, is_prerelease):
-    with mock.patch("airflow.settings.is_telemetry_collection_enabled", return_value=is_enabled), mock.patch(
-        "airflow.utils.scarf._version_is_prerelease", return_value=is_prerelease
+    with mock.patch("airflow.settings.is_usage_data_collection_enabled", return_value=is_enabled), mock.patch(
+        "airflow.utils.usage_data_collection._version_is_prerelease", return_value=is_prerelease
     ):
-        scarf_analytics()
+        usage_data_collection()
     mock_get.assert_not_called()
 
 
-@mock.patch("airflow.settings.is_telemetry_collection_enabled", return_value=True)
-@mock.patch("airflow.utils.scarf._version_is_prerelease", return_value=False)
-@mock.patch("airflow.utils.scarf.get_database_version", return_value="12.3")
-@mock.patch("airflow.utils.scarf.get_database_name", return_value="postgres")
+@mock.patch("airflow.settings.is_usage_data_collection_enabled", return_value=True)
+@mock.patch("airflow.utils.usage_data_collection._version_is_prerelease", return_value=False)
+@mock.patch("airflow.utils.usage_data_collection.get_database_version", return_value="12.3")
+@mock.patch("airflow.utils.usage_data_collection.get_database_name", return_value="postgres")
 @mock.patch("httpx.get")
 def test_scarf_analytics(
     mock_get,
-    mock_is_telemetry_collection_enabled,
+    mock_is_usage_data_collection_enabled,
     mock_version_is_prerelease,
     get_database_version,
     get_database_name,
@@ -54,7 +54,7 @@ def test_scarf_analytics(
     python_version = platform.python_version()
     executor = conf.get("core", "EXECUTOR")
     scarf_endpoint = "https://apacheairflow.gateway.scarf.sh/scheduler"
-    scarf_analytics()
+    usage_data_collection()
 
     expected_scarf_url = (
         f"{scarf_endpoint}?version={airflow_version}"

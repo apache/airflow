@@ -2591,10 +2591,10 @@ sensors:
       type: float
       example: ~
       default: "604800"
-telemetry_collection:
+usage_data_collection:
   description: |
-    Airflow integrates `Scarf <https://about.scarf.sh/>`__ to collect basic telemetry data during operation.
-    This data assists Airflow maintainers in better understanding how Airflow is used.
+    Airflow integrates `Scarf <https://about.scarf.sh/>`__ to collect basic platform and usage data
+    during operation. This data assists Airflow maintainers in better understanding how Airflow is used.
     Insights gained from this telemetry are critical for prioritizing patches, minor releases, and
     security fixes. Additionally, this information supports key decisions related to the development road map.
     Check the FAQ doc for more information on what data is collected.
@@ -2607,9 +2607,9 @@ telemetry_collection:
   options:
     enabled:
       description: |
-        Enable or disable telemetry data collection and sending via Scarf.
+        Enable or disable usage data collection and sending.
       version_added: 2.10.0
       type: boolean
       example: ~
       default: "True"
-      see_also: ":ref:`Airflow telemetry FAQ <airflow-telemetry-faq>`"
+      see_also: ":ref:`Usage data collection FAQ <usage-data-collection>`"

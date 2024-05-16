@@ -117,7 +117,7 @@ from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import DataInterval, TimeRestriction
 from airflow.timetables.simple import ContinuousTimetable
-from airflow.utils import json as utils_json, scarf, timezone, yaml
+from airflow.utils import json as utils_json, timezone, usage_data_collection, yaml
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.db import get_query_count
@@ -218,17 +218,20 @@ def get_safe_url(url):
 
 
 def build_scarf_url(dags_count: int) -> str:
-    """Build the URL for the Scarf telemetry collection."""
-    if not settings.is_telemetry_collection_enabled():
+    """
+    Build the URL for the Scarf usage data collection.
+
+    :meta private:
+    """
+    if not settings.is_usage_data_collection_enabled():
         return ""
 
     scarf_domain = "https://apacheairflow.gateway.scarf.sh"
-
-    platform_sys, platform_arch = scarf.get_platform_info()
-    db_version = scarf.get_database_version()
-    db_name = scarf.get_database_name()
-    executor = scarf.get_executor()
-    python_version = scarf.get_python_version()
+    platform_sys, platform_arch = usage_data_collection.get_platform_info()
+    db_version = usage_data_collection.get_database_version()
+    db_name = usage_data_collection.get_database_name()
+    executor = usage_data_collection.get_executor()
+    python_version = usage_data_collection.get_python_version()
 
     # Path Format:
     # /{version}/{python_version}/{platform}/{arch}/{database}/{db_version}/{executor}/{num_dags}

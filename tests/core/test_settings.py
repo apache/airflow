@@ -28,7 +28,7 @@ import pytest
 
 from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.exceptions import AirflowClusterPolicyViolation, AirflowConfigException
-from airflow.settings import _ENABLE_AIP_44, TracebackSession, is_telemetry_collection_enabled
+from airflow.settings import _ENABLE_AIP_44, TracebackSession, is_usage_data_collection_enabled
 from airflow.utils.session import create_session
 from tests.test_utils.config import conf_vars
 
@@ -338,12 +338,12 @@ def test_create_session_ctx_mgr_no_call_methods(mock_new, clear_internal_api):
         (None, "False", False),  # Default env, conf disables
     ],
 )
-def test_telemetry_collection_disabled(env_var, conf_setting, is_enabled):
-    conf_patch = conf_vars({("telemetry_collection", "enabled"): conf_setting})
+def test_usage_data_collection_disabled(env_var, conf_setting, is_enabled):
+    conf_patch = conf_vars({("usage_data_collection", "enabled"): conf_setting})
 
     if env_var is not None:
         with conf_patch, patch.dict(os.environ, {"SCARF_ANALYTICS": env_var}):
-            assert is_telemetry_collection_enabled() == is_enabled
+            assert is_usage_data_collection_enabled() == is_enabled
     else:
         with conf_patch:
-            assert is_telemetry_collection_enabled() == is_enabled
+            assert is_usage_data_collection_enabled() == is_enabled
