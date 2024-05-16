@@ -273,6 +273,20 @@ export interface paths {
       };
     };
   };
+  "/parseDagFile/{file_token}": {
+    /** Request re-parsing of existing DAG files using a file token. */
+    put: operations["reparse_dag_file"];
+    parameters: {
+      path: {
+        /**
+         * The key containing the encrypted path to the file. Encryption and decryption take place only on
+         * the server. This prevents the client from reading an non-DAG file. This also ensures API
+         * extensibility, because the format of encrypted data may change.
+         */
+        file_token: components["parameters"]["FileToken"];
+      };
+    };
+  };
   "/datasets/queuedEvent/{uri}": {
     /**
      * Get queued Dataset events for a Dataset
@@ -3438,6 +3452,26 @@ export interface operations {
       404: components["responses"]["NotFound"];
     };
   };
+  /** Request re-parsing of existing DAG files using a file token. */
+  reparse_dag_file: {
+    parameters: {
+      path: {
+        /**
+         * The key containing the encrypted path to the file. Encryption and decryption take place only on
+         * the server. This prevents the client from reading an non-DAG file. This also ensures API
+         * extensibility, because the format of encrypted data may change.
+         */
+        file_token: components["parameters"]["FileToken"];
+      };
+    };
+    responses: {
+      /** Success. */
+      201: unknown;
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+  };
   /**
    * Get queued Dataset events for a Dataset
    *
@@ -5387,6 +5421,9 @@ export type GetDagDatasetQueuedEventsVariables = CamelCasedPropertiesDeep<
 export type DeleteDagDatasetQueuedEventsVariables = CamelCasedPropertiesDeep<
   operations["delete_dag_dataset_queued_events"]["parameters"]["path"] &
     operations["delete_dag_dataset_queued_events"]["parameters"]["query"]
+>;
+export type ReparseDagFileVariables = CamelCasedPropertiesDeep<
+  operations["reparse_dag_file"]["parameters"]["path"]
 >;
 export type GetDatasetQueuedEventsVariables = CamelCasedPropertiesDeep<
   operations["get_dataset_queued_events"]["parameters"]["path"] &

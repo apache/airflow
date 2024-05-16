@@ -50,7 +50,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.7.0
-  - yandexcloud>=0.228.0
+  - yandexcloud>=0.278.0
   - yandex-query-client>=0.1.4
 
 integrations:
@@ -76,8 +76,7 @@ integrations:
 operators:
   - integration-name: Yandex.Cloud Dataproc
     python-modules:
-      - airflow.providers.yandex.operators.yandexcloud_dataproc
-
+      - airflow.providers.yandex.operators.dataproc
   - integration-name: Yandex.Cloud YQ
     python-modules:
       - airflow.providers.yandex.operators.yq
@@ -88,7 +87,7 @@ hooks:
       - airflow.providers.yandex.hooks.yandex
   - integration-name: Yandex.Cloud Dataproc
     python-modules:
-      - airflow.providers.yandex.hooks.yandexcloud_dataproc
+      - airflow.providers.yandex.hooks.dataproc
   - integration-name: Yandex.Cloud YQ
     python-modules:
       - airflow.providers.yandex.hooks.yq

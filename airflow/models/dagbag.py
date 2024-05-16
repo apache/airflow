@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import hashlib
 import importlib
 import importlib.machinery
 import importlib.util
@@ -30,6 +31,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
 
+from sqlalchemy import (
+    Column,
+    String,
+)
 from sqlalchemy.exc import OperationalError
 from tabulate import tabulate
 
@@ -43,6 +48,7 @@ from airflow.exceptions import (
     AirflowDagDuplicatedIdException,
     RemovedInAirflow3Warning,
 )
+from airflow.models.base import Base
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
@@ -727,3 +733,32 @@ class DagBag(LoggingMixin):
 
         security_manager = ApplessAirflowSecurityManager(session=session)
         security_manager.sync_perm_for_dag(root_dag_id, dag.access_control)
+
+
+def generate_md5_hash(context):
+    fileloc = context.get_current_parameters()["fileloc"]
+    return hashlib.md5(fileloc.encode()).hexdigest()
+
+
+class DagPriorityParsingRequest(Base):
+    """Model to store the dag parsing requests that will be prioritized when parsing files."""
+
+    __tablename__ = "dag_priority_parsing_request"
+
+    # Adding a unique constraint to fileloc results in the creation of an index and we have a limitation
+    # on the size of the string we can use in the index for MySQL DB. We also have to keep the fileloc
+    # size consistent with other tables. This is a workaround to enforce the unique constraint.
+    id = Column(String(32), primary_key=True, default=generate_md5_hash, onupdate=generate_md5_hash)
+
+    # The location of the file containing the DAG object
+    # Note: Do not depend on fileloc pointing to a file; in the case of a
+    # packaged DAG, it will point to the subpath of the DAG within the
+    # associated zip.
+    fileloc = Column(String(2000), nullable=False)
+
+    def __init__(self, fileloc: str) -> None:
+        super().__init__()
+        self.fileloc = fileloc
+
+    def __repr__(self) -> str:
+        return f"<DagPriorityParsingRequest: fileloc={self.fileloc}>"

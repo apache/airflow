@@ -116,6 +116,9 @@ Create an Amazon Bedrock Knowledge Base
 To create an Amazon Bedrock Knowledge Base, you can use
 :class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockCreateKnowledgeBaseOperator`.
 
+For more information on which models support embedding data into a vector store, see
+https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base-supported.html
+
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock_knowledge_base.py
     :language: python
     :dedent: 4
@@ -174,6 +177,55 @@ To add data from an Amazon S3 bucket into an Amazon Bedrock Data Source, you can
     :start-after: [START howto_operator_bedrock_ingest_data]
     :end-before: [END howto_operator_bedrock_ingest_data]
 
+.. _howto/operator:BedrockRetrieveOperator:
+
+Amazon Bedrock Retrieve
+=======================
+
+To query a knowledge base, you can use :class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockRetrieveOperator`.
+
+The response will only contain citations to sources that are relevant to the query.  If you
+would like to pass the results through an LLM in order to generate a text response, see
+:class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockRaGOperator`
+
+For more information on which models support retrieving information from a knowledge base, see
+https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base-supported.html
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock_knowledge_base.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bedrock_retrieve]
+    :end-before: [END howto_operator_bedrock_retrieve]
+
+.. _howto/operator:BedrockRaGOperator:
+
+Amazon Bedrock Retrieve and Generate (RaG)
+==========================================
+
+To query a knowledge base or external sources and generate a text response based on the retrieved
+results, you can use :class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockRaGOperator`.
+
+The response will contain citations to sources that are relevant to the query as well as a generated text reply.
+For more information on which models support retrieving information from a knowledge base, see
+https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base-supported.html
+
+NOTE:  Support for "external sources" was added in boto 1.34.90
+
+Example using an Amazon Bedrock Knowledge Base:
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock_knowledge_base.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bedrock_knowledge_base_rag]
+    :end-before: [END howto_operator_bedrock_knowledge_base_rag]
+
+Example using a PDF file in an Amazon S3 Bucket:
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock_knowledge_base.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bedrock_external_sources_rag]
+    :end-before: [END howto_operator_bedrock_external_sources_rag]
 
 
 Sensors
