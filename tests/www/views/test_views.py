@@ -20,9 +20,11 @@ from __future__ import annotations
 import os
 import re
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
 
+from airflow import __version__ as airflow_version
 from airflow.configuration import (
     initialize_config,
     write_default_airflow_configuration_if_needed,
@@ -31,6 +33,7 @@ from airflow.configuration import (
 from airflow.plugins_manager import AirflowPlugin, EntryPointSource
 from airflow.utils.task_group import TaskGroup
 from airflow.www.views import (
+    build_scarf_url,
     get_key_paths,
     get_safe_url,
     get_task_stats_from_query,
@@ -525,3 +528,30 @@ def test_invalid_dates(app, admin_client, url, content):
 
     assert resp.status_code == 400
     assert re.search(content, resp.get_data().decode())
+
+
+@pytest.mark.parametrize("enabled, dags_count", [(False, 5), (True, 5)])
+@patch("airflow.utils.scarf.get_platform_info", return_value=("Linux", "x86_64"))
+@patch("airflow.utils.scarf.get_database_version", return_value="12.3")
+@patch("airflow.utils.scarf.get_database_name", return_value="postgres")
+@patch("airflow.utils.scarf.get_executor", return_value="SequentialExecutor")
+@patch("airflow.utils.scarf.get_python_version", return_value="3.8.5")
+def test_build_scarf_url(
+    get_platform_info,
+    get_database_version,
+    get_database_name,
+    get_executor,
+    get_python_version,
+    enabled,
+    dags_count,
+):
+    with patch("airflow.settings.is_telemetry_collection_enabled", return_value=enabled):
+        result = build_scarf_url(dags_count)
+        expected_url = (
+            "https://apacheairflow.gateway.scarf.sh/webserver/"
+            f"{airflow_version}/3.8.5/Linux/x86_64/postgres/12.3/SequentialExecutor/5"
+        )
+        if enabled:
+            assert result == expected_url
+        else:
+            assert result == ""

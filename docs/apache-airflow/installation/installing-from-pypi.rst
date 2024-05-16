@@ -331,6 +331,12 @@ dependencies compatible with just airflow core at the moment Airflow was release
     pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
 
+.. note::
+
+    Airflow uses `Scarf <https://about.scarf.sh/>`__ to collect basic telemetry data during operation.
+    Check the :ref:`Airflow telemetry FAQ <airflow-telemetry-faq>` for more information about the data collected
+    and how to opt-out.
+
 Troubleshooting
 '''''''''''''''
 

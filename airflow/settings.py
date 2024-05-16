@@ -576,6 +576,13 @@ def initialize():
     atexit.register(dispose_orm)
 
 
+def is_telemetry_collection_enabled() -> bool:
+    """Check if scarf analytics is enabled."""
+    return conf.getboolean("telemetry_collection", "enabled", fallback=True) and (
+        os.getenv("SCARF_ANALYTICS", "").strip().lower() != "false"
+    )
+
+
 # Const stuff
 
 KILOBYTE = 1024
