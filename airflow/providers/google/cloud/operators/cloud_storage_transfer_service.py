@@ -485,7 +485,6 @@ class CloudDataTransferServiceRunJobOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self.google_impersonation_chain = google_impersonation_chain
-        self._validate_inputs()
 
     def _validate_inputs(self) -> None:
         if not self.job_name:
