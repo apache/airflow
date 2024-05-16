@@ -152,10 +152,13 @@ class TestEmrContainerOperator:
         self.emr_container.deferrable = True
         self.emr_container.max_polling_attempts = 1000
 
-        with pytest.raises(TaskDeferred):
+        with pytest.raises(TaskDeferred) as e:
             self.emr_container.execute(context=None)
 
-        assert mock_check_query_status.call_count == 1000
+        trigger = e.value.trigger
+        assert isinstance(trigger, EmrContainerTrigger), f"{trigger} is not a EmrContainerTrigger"
+        assert trigger.waiter_delay == self.emr_container.poll_interval
+        assert trigger.attempts == self.emr_container.max_polling_attempts
 
 
 class TestEmrEksCreateClusterOperator:

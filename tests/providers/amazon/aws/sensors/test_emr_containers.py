@@ -85,14 +85,16 @@ class TestEmrContainerSensor:
             e.value.trigger, EmrContainerTrigger
         ), f"{e.value.trigger} is not a EmrContainerTrigger"
 
-    @mock.patch.object(
-        EmrContainerHook, "check_query_status", return_value=EmrContainerHook.INTERMEDIATE_STATES[0]
-    )
-    def test_sensor_defer_with_timeout(self, mock_check_query_status):
+    @mock.patch("airflow.providers.amazon.aws.sensors.emr.EmrContainerSensor.poke")
+    def test_sensor_defer_with_timeout(self, mock_poke):
         self.sensor.deferrable = True
-        self.sensor.max_polling_attempts = 1000
+        mock_poke.return_value = False
+        self.sensor.max_retries = 1000
 
-        with pytest.raises(TaskDeferred):
+        with pytest.raises(TaskDeferred) as e:
             self.sensor.execute(context=None)
 
-        assert mock_check_query_status.call_count == 1000
+        trigger = e.value.trigger
+        assert isinstance(trigger, EmrContainerTrigger), f"{trigger} is not a EmrContainerTrigger"
+        assert trigger.waiter_delay == self.sensor.poll_interval
+        assert trigger.attempts == self.sensor.max_retries
