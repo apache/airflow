@@ -38,9 +38,6 @@ airflow_version = "2.9.2"
 
 def upgrade():
     """Apply Add indexes on dag_id column in referencing tables."""
-    with op.batch_alter_table("dag_owner_attributes", schema=None) as batch_op:
-        batch_op.create_index("idx_dag_owner_attributes_dag_id", ["dag_id"], unique=False)
-
     with op.batch_alter_table("dag_schedule_dataset_reference", schema=None) as batch_op:
         batch_op.create_index("idx_dag_schedule_dataset_reference_dag_id", ["dag_id"], unique=False)
 
@@ -60,26 +57,19 @@ def upgrade():
 def _handle_foreign_key_constraint_index_deletion(
     batch_op, constraint_name, index_name, local_fk_column_name
 ):
-    batch_op.drop_constraint(constraint_name, type_="foreignkey")
-    batch_op.drop_index(index_name)
-    batch_op.create_foreign_key(
-        constraint_name, "dag", [local_fk_column_name], ["dag_id"], ondelete="CASCADE"
-    )
+    conn = op.get_bind()
+    if conn.dialect.name == "mysql":
+        batch_op.drop_constraint(constraint_name, type_="foreignkey")
+        batch_op.drop_index(index_name)
+        batch_op.create_foreign_key(
+            constraint_name, "dag", [local_fk_column_name], ["dag_id"], ondelete="CASCADE"
+        )
+    elif conn.dialect.name in ("postgresql", "sqlite"):
+        batch_op.drop_index(index_name)
 
 
 def downgrade():
     """Unapply Add indexes on dag_id column in referencing tables."""
-    # conn = op.get_bind()
-    # with op.batch_alter_table("dag_owner_attributes", schema=None) as batch_op:
-    #     if conn.dialect.name == "mysql":
-    #         batch_op.execute("ALTER TABLE dag_owner_attributes DROP FOREIGN KEY `dag.dag_id`;")
-    #         batch_op.drop_index("idx_dag_owner_attributes_dag_id")
-    #         batch_op.create_foreign_key("dag.dag_id", "dag", ["dag_id"], ["dag_id"], ondelete="CASCADE")
-    #     else:
-    #         _handle_foreign_key_constraint_index_deletion(
-    #             batch_op, "dag.dag_id", "idx_dag_owner_attributes_dag_id", "dag_id"
-    #         )
-
     with op.batch_alter_table("dag_schedule_dataset_reference", schema=None) as batch_op:
         _handle_foreign_key_constraint_index_deletion(
             batch_op,
