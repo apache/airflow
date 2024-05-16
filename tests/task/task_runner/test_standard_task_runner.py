@@ -96,8 +96,9 @@ class TestStandardTaskRunner:
         yield
         get_listener_manager().clear()
 
+    @mock.patch.object(StandardTaskRunner, "_read_task_utilization")
     @patch("airflow.utils.log.file_task_handler.FileTaskHandler._init_file")
-    def test_start_and_terminate(self, mock_init):
+    def test_start_and_terminate(self, mock_init, mock_read_task_utilization):
         mock_init.return_value = "/tmp/any"
         Job = mock.Mock()
         Job.job_type = None
@@ -131,6 +132,7 @@ class TestStandardTaskRunner:
             assert not psutil.pid_exists(process.pid), f"{process} is still alive"
 
         assert task_runner.return_code() is not None
+        mock_read_task_utilization.assert_called()
 
     @pytest.mark.db_test
     def test_notifies_about_start_and_stop(self, tmp_path):
@@ -260,8 +262,9 @@ class TestStandardTaskRunner:
             assert f.readline() == "on_task_instance_success\n"
             assert f.readline() == "listener\n"
 
+    @mock.patch.object(StandardTaskRunner, "_read_task_utilization")
     @patch("airflow.utils.log.file_task_handler.FileTaskHandler._init_file")
-    def test_start_and_terminate_run_as_user(self, mock_init):
+    def test_start_and_terminate_run_as_user(self, mock_init, mock_read_task_utilization):
         mock_init.return_value = "/tmp/any"
         Job = mock.Mock()
         Job.job_type = None
@@ -296,6 +299,7 @@ class TestStandardTaskRunner:
             assert not psutil.pid_exists(process.pid), f"{process} is still alive"
 
         assert task_runner.return_code() is not None
+        mock_read_task_utilization.assert_called()
 
     @propagate_task_logger()
     @patch("airflow.utils.log.file_task_handler.FileTaskHandler._init_file")
