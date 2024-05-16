@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import datetime
 import ftplib  # nosec: B402
 from typing import Any, Callable
@@ -63,6 +64,7 @@ class FTPHook(BaseHook):
                 port = ftplib.FTP_PORT
                 if params.port is not None:
                     port = params.port
+                logging.info(f"Connecting via FTP to {params.host}:{port}")
                 self.conn.connect(params.host, port)
                 if params.login:
                     self.conn.login(params.login, params.password)
