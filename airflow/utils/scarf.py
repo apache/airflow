@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import platform
+from urllib.parse import urlencode
 
 import httpx
 from packaging.version import parse
@@ -38,20 +39,19 @@ def scarf_analytics():
 
     try:
         platform_sys, arch = get_platform_info()
-        db_version = get_database_version()
-        db_name = get_database_name()
-        executor = get_executor()
-        python_version = get_python_version()
 
-        scarf_url = (
-            f"{scarf_domain}?version={airflow_version}"
-            f"&python_version={python_version}"
-            f"&platform={platform_sys}"
-            f"&arch={arch}"
-            f"&database={db_name}"
-            f"&db_version={db_version}"
-            f"&executor={executor}"
-        )
+        params = {
+            "version": airflow_version,
+            "python_version": get_python_version(),
+            "platform": platform_sys,
+            "arch": arch,
+            "database": get_database_name(),
+            "db_version": get_database_version(),
+            "executor": get_executor(),
+        }
+
+        query_string = urlencode(params)
+        scarf_url = f"{scarf_domain}?{query_string}"
 
         httpx.get(scarf_url, timeout=5.0)
     except Exception:
