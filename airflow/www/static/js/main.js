@@ -289,7 +289,6 @@ $(document).ready(() => {
 });
 
 $(".reparse_dag").click((event) => {
-  console.log(event);
   event.preventDefault();
   $.ajax({
     url: event.currentTarget.attributes.href.value,
