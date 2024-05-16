@@ -146,7 +146,7 @@ class DatasetManager(LoggingMixin):
                 with session.begin_nested():
                     session.merge(item)
             except exc.IntegrityError:
-                cls.logger().log.debug("Skipping record %s", item, exc_info=True)
+                cls.logger().debug("Skipping record %s", item, exc_info=True)
             return dag.dag_id
 
         queued_results = (_queue_dagrun_if_needed(ref.dag) for ref in dataset.consuming_dags)
