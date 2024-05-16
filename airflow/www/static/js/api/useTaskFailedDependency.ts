@@ -18,6 +18,7 @@
  */
 
 import axios, { AxiosResponse } from "axios";
+import { useAutoRefresh } from "src/context/autorefresh";
 import type { API } from "src/types";
 import { useQuery } from "react-query";
 import { getMetaValue } from "../utils";
@@ -36,6 +37,7 @@ export default function useTaskFailedDependency({
   runId: string;
   mapIndex?: number | undefined;
 }) {
+  const { isRefreshOn } = useAutoRefresh();
   return useQuery(
     ["taskFailedDependencies", dagId, taskId, runId, mapIndex],
     async () => {
@@ -55,6 +57,7 @@ export default function useTaskFailedDependency({
         API.TaskInstanceDependencyCollection
       >(url);
       return datum;
-    }
+    },
+    { refetchInterval: isRefreshOn && (autoRefreshInterval || 1) * 1000 }
   );
 }
