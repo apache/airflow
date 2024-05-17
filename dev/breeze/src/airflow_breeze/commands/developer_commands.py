@@ -1036,3 +1036,36 @@ def find_airflow_container() -> str | None:
     else:
         stop_exec_on_error(1)
         return None
+
+
+@main.command(
+    name="generate-migration-file", help="Autogenerate the alembic migration file for the ORM changes."
+)
+@option_builder
+@option_github_repository
+@click.option(
+    "-m",
+    "--message",
+    help="Message to use for the migration",
+    default="Empty message",
+    show_default=True,
+)
+def autogenerate(
+    builder: str,
+    github_repository: str,
+    message: str,
+):
+    """Autogenerate the alembic migration file."""
+    perform_environment_checks()
+    fix_ownership_using_docker()
+    build_params = BuildCiParams(
+        github_repository=github_repository, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION, builder=builder
+    )
+    rebuild_or_pull_ci_image_if_needed(command_params=build_params)
+    shell_params = ShellParams(
+        github_repository=github_repository,
+        python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    )
+    cmd = f"/opt/airflow/scripts/in_container/run_generate_migration.sh '{message}'"
+    execute_command_in_shell(shell_params, project_name="db", command=cmd)
+    fix_ownership_using_docker()

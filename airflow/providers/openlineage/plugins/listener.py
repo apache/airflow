@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import logging
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -25,6 +25,7 @@ from openlineage.client.serde import Serde
 
 from airflow import __version__ as airflow_version
 from airflow.listeners import hookimpl
+from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors import ExtractorManager
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter, RunState
 from airflow.providers.openlineage.utils.utils import (
@@ -281,7 +282,7 @@ class OpenLineageListener:
     @property
     def executor(self):
         if not self._executor:
-            self._executor = ThreadPoolExecutor(max_workers=8, thread_name_prefix="openlineage_")
+            self._executor = ProcessPoolExecutor(max_workers=conf.dag_state_change_process_pool_size())
         return self._executor
 
     @hookimpl

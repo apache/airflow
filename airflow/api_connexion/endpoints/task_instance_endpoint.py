@@ -35,6 +35,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     set_single_task_instance_state_form,
     set_task_instance_note_form_schema,
     set_task_instance_state_form,
+    task_dependencies_collection_schema,
     task_instance_batch_form,
     task_instance_collection_schema,
     task_instance_reference_collection_schema,
@@ -685,3 +686,65 @@ def set_task_instance_note(
         ti.task_instance_note.user_id = current_user_id
     session.commit()
     return task_instance_schema.dump((ti, sla_miss))
+
+
+@security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
+@provide_session
+def get_task_instance_dependencies(
+    *, dag_id: str, dag_run_id: str, task_id: str, map_index: int = -1, session: Session = NEW_SESSION
+) -> APIResponse:
+    """Get dependencies blocking task from getting scheduled."""
+    from airflow.exceptions import TaskNotFound
+    from airflow.ti_deps.dep_context import DepContext
+    from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
+    from airflow.utils.airflow_flask_app import get_airflow_app
+
+    query = select(TI).where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
+
+    if map_index == -1:
+        query = query.where(or_(TI.map_index == -1, TI.map_index is None))
+    else:
+        query = query.where(TI.map_index == map_index)
+
+    try:
+        result = session.execute(query).one_or_none()
+    except MultipleResultsFound:
+        raise NotFound(
+            "Task instance not found", detail="Task instance is mapped, add the map_index value to the URL"
+        )
+
+    if result is None:
+        error_message = f"Task Instance not found for dag_id={dag_id}, run_id={dag_run_id}, task_id={task_id}"
+        raise NotFound(error_message)
+
+    ti = result[0]
+    deps = []
+
+    if ti.state in [None, TaskInstanceState.SCHEDULED]:
+        dag = get_airflow_app().dag_bag.get_dag(ti.dag_id)
+
+        if dag:
+            try:
+                ti.task = dag.get_task(ti.task_id)
+            except TaskNotFound:
+                pass
+            else:
+                dep_context = DepContext(SCHEDULER_QUEUED_DEPS)
+                deps = sorted(
+                    [
+                        {"name": dep.dep_name, "reason": dep.reason}
+                        for dep in ti.get_failed_dep_statuses(dep_context=dep_context, session=session)
+                    ],
+                    key=lambda x: x["name"],
+                )
+
+    return task_dependencies_collection_schema.dump({"dependencies": deps})
+
+
+def get_mapped_task_instance_dependencies(
+    *, dag_id: str, dag_run_id: str, task_id: str, map_index: int
+) -> APIResponse:
+    """Get dependencies blocking mapped task instance from getting scheduled."""
+    return get_task_instance_dependencies(
+        dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, map_index=map_index
+    )

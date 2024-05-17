@@ -83,6 +83,8 @@ ALL_CI_SELECTIVE_TEST_TYPES = (
     "PythonVenv Serialization WWW"
 )
 
+ALL_PROVIDERS_SELECTIVE_TEST_TYPES = "Providers[-amazon,google] Providers[amazon] Providers[google]"
+
 
 class FileGroupForCi(Enum):
     ENVIRONMENT_FILES = "environment_files"
@@ -817,6 +819,15 @@ class SelectiveChecks:
         return " ".join(sorted(current_test_types))
 
     @cached_property
+    def providers_test_types_list_as_string(self) -> str | None:
+        all_test_types = self.parallel_test_types_list_as_string
+        if all_test_types is None:
+            return None
+        return " ".join(
+            test_type for test_type in all_test_types.split(" ") if test_type.startswith("Providers")
+        )
+
+    @cached_property
     def include_success_outputs(
         self,
     ) -> bool:
@@ -828,7 +839,7 @@ class SelectiveChecks:
 
     @staticmethod
     def _print_diff(old_lines: list[str], new_lines: list[str]):
-        diff = "\n".join([line for line in difflib.ndiff(old_lines, new_lines) if line and line[0] in "+-?"])
+        diff = "\n".join(line for line in difflib.ndiff(old_lines, new_lines) if line and line[0] in "+-?")
         get_console().print(diff)
 
     @cached_property

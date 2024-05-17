@@ -20,7 +20,7 @@ import uuid
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.yandex.operators.yandexcloud_dataproc import (
+from airflow.providers.yandex.operators.dataproc import (
     DataprocCreateClusterOperator,
     DataprocCreateHiveJobOperator,
     DataprocCreateMapReduceJobOperator,
