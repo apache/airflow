@@ -604,12 +604,11 @@ class PodManager(LoggingMixin):
             time.sleep(1)
 
     def await_pod_completion(
-        self, pod: V1Pod, istio_enabled: bool = False, container_name: str = "base"
+        self, pod: V1Pod, container_name: str = "base"
     ) -> V1Pod:
         """
         Monitor a pod and return the final state.
 
-        :param istio_enabled: whether istio is enabled in the namespace
         :param pod: pod spec that will be monitored
         :param container_name: name of the container within the pod
         :return: tuple[State, str | None]
@@ -618,7 +617,8 @@ class PodManager(LoggingMixin):
             remote_pod = self.read_pod(pod)
             if remote_pod.status.phase in PodPhase.terminal_states:
                 break
-            if istio_enabled and container_is_completed(remote_pod, container_name):
+            if container_is_completed(remote_pod, container_name):
+                self.log.info("Base container %s has completed", container_name)
                 break
             self.log.info("Pod %s has phase %s", pod.metadata.name, remote_pod.status.phase)
             time.sleep(2)

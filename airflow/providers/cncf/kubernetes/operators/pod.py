@@ -233,8 +233,6 @@ class KubernetesPodOperator(BaseOperator):
 
     # This field can be overloaded at the instance level via base_container_name
     BASE_CONTAINER_NAME = "base"
-    ISTIO_CONTAINER_NAME = "istio-proxy"
-    KILL_ISTIO_PROXY_SUCCESS_MSG = "HTTP/1.1 200"
     POD_CHECKED_KEY = "already_checked"
     POST_TERMINATION_TIMEOUT = 120
 
@@ -631,9 +629,8 @@ class KubernetesPodOperator(BaseOperator):
             if self.do_xcom_push:
                 self.pod_manager.await_xcom_sidecar_container_start(pod=self.pod)
                 result = self.extract_xcom(pod=self.pod)
-            istio_enabled = self.is_istio_enabled(self.pod)
             self.remote_pod = self.pod_manager.await_pod_completion(
-                self.pod, istio_enabled, self.base_container_name
+                self.pod, self.base_container_name
             )
         finally:
             pod_to_clean = self.pod or self.pod_request_obj
@@ -784,12 +781,11 @@ class KubernetesPodOperator(BaseOperator):
     def _clean(self, event: dict[str, Any]) -> None:
         if event["status"] == "running":
             return
-        istio_enabled = self.is_istio_enabled(self.pod)
         # Skip await_pod_completion when the event is 'timeout' due to the pod can hang
         # on the ErrImagePull or ContainerCreating step and it will never complete
         if event["status"] != "timeout":
             self.pod = self.pod_manager.await_pod_completion(
-                self.pod, istio_enabled, self.base_container_name
+                self.pod, self.base_container_name
             )
         if self.pod is not None:
             self.post_complete_action(
@@ -842,16 +838,14 @@ class KubernetesPodOperator(BaseOperator):
         if self._killed or not remote_pod:
             return
 
-        istio_enabled = self.is_istio_enabled(remote_pod)
         pod_phase = remote_pod.status.phase if hasattr(remote_pod, "status") else None
 
         # if the pod fails or success, but we don't want to delete it
         if pod_phase != PodPhase.SUCCEEDED or self.on_finish_action == OnFinishAction.KEEP_POD:
             self.patch_already_checked(remote_pod, reraise=False)
 
-        failed = (pod_phase != PodPhase.SUCCEEDED and not istio_enabled) or (
-            istio_enabled and not container_is_succeeded(remote_pod, self.base_container_name)
-        )
+        # Consider pod failed if the pod has not succeeded and the base container within the pod has not succeeded
+        failed = pod_phase != PodPhase.SUCCEEDED and not container_is_succeeded(remote_pod, self.base_container_name)
 
         if failed:
             if self.log_events_on_failure:
@@ -901,42 +895,6 @@ class KubernetesPodOperator(BaseOperator):
                     self.log.info("Pod Event: %s - %s", event.reason, event.message)
                 else:
                     self.log.error("Pod Event: %s - %s", event.reason, event.message)
-
-    def is_istio_enabled(self, pod: V1Pod) -> bool:
-        """Check if istio is enabled for the namespace of the pod by inspecting the namespace labels."""
-        if not pod:
-            return False
-
-        remote_pod = self.pod_manager.read_pod(pod)
-
-        return any(container.name == self.ISTIO_CONTAINER_NAME for container in remote_pod.spec.containers)
-
-    def kill_istio_sidecar(self, pod: V1Pod) -> None:
-        command = "/bin/sh -c 'curl -fsI -X POST http://localhost:15020/quitquitquit'"
-        command_to_container = shlex.split(command)
-        resp = stream(
-            self.client.connect_get_namespaced_pod_exec,
-            name=pod.metadata.name,
-            namespace=pod.metadata.namespace,
-            container=self.ISTIO_CONTAINER_NAME,
-            command=command_to_container,
-            stderr=True,
-            stdin=True,
-            stdout=True,
-            tty=False,
-            _preload_content=False,
-        )
-        output = []
-        while resp.is_open():
-            if resp.peek_stdout():
-                output.append(resp.read_stdout())
-
-        resp.close()
-        output_str = "".join(output)
-        self.log.info("Output of curl command to kill istio: %s", output_str)
-        resp.close()
-        if self.KILL_ISTIO_PROXY_SUCCESS_MSG not in output_str:
-            raise AirflowException("Error while deleting istio-proxy sidecar: %s", output_str)
 
     def process_pod_deletion(self, pod: k8s.V1Pod, *, reraise=True):
         with _optionally_suppress(reraise=reraise):
