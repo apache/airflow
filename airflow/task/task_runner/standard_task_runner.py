@@ -206,7 +206,5 @@ class StandardTaskRunner(BaseTaskRunner):
 
                     Stats.gauge(f"task.mem_usage.{dag_id}.{task_id}", mem_usage)
                     Stats.gauge(f"task.cpu_usage.{dag_id}.{task_id}", cpu_usage)
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
+            except (psutil.NoSuchProcess, psutil.AccessDenied, AttributeError):
                 break
-            except AttributeError:
-                raise
