@@ -199,6 +199,12 @@ d3.selectAll(".js-last-run-tooltip").on(
   }
 );
 
+function formatCount(count) {
+    if (count >= 1000000) return Math.floor(count / 1000000) + 'M';
+    if (count >= 1000) return Math.floor(count / 1000) + 'k';
+    return count;
+}
+
 function drawDagStats(selector, dagId, states) {
   const g = d3
     .select(`svg#${selector}-${dagId.replace(/\./g, "__dot__")}`)
@@ -281,7 +287,7 @@ function drawDagStats(selector, dagId, states) {
     .attr("font-size", 9)
     .attr("y", 3)
     .style("pointer-events", "none")
-    .text((d) => (d.count > 0 ? d.count : ""));
+    .text((d) => (d.count > 0 ? formatCount(d.count) : ""));
 }
 
 function dagStatsHandler(selector, json) {
