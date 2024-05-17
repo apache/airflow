@@ -136,3 +136,11 @@ config:
         example: ~
         type: boolean
         version_added: ~
+      dag_state_change_process_pool_size:
+        description: |
+          Number of processes to utilize for processing DAG state changes
+          in an asynchronous manner within the scheduler process.
+        default: "1"
+        example: ~
+        type: integer
+        version_added: 1.8.0
