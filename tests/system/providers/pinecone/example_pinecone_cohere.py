@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import os
-import time
 from datetime import datetime
 
 from airflow import DAG
@@ -46,19 +45,23 @@ with DAG(
         hook = PineconeHook()
         pod_spec = hook.get_pod_spec_obj()
         hook.create_index(index_name=index_name, dimension=768, spec=pod_spec)
-        time.sleep(60)
 
     embed_task = CohereEmbeddingOperator(
         task_id="embed_task",
         input_text=data,
     )
 
+    @task
+    def transform_output(embedding_output) -> list[dict]:
+        # Convert each embedding to a map with an ID and the embedding vector
+        return [dict(id=str(i), values=embedding) for i, embedding in enumerate(embedding_output)]
+
+    transformed_output = transform_output(embed_task.output)
+
     perform_ingestion = PineconeIngestOperator(
         task_id="perform_ingestion",
         index_name=index_name,
-        input_vectors=[
-            ("id1", embed_task.output),
-        ],
+        input_vectors=transformed_output,
         namespace=namespace,
         batch_size=1,
     )
@@ -71,7 +74,7 @@ with DAG(
         hook = PineconeHook()
         hook.delete_index(index_name=index_name)
 
-    create_index() >> embed_task >> perform_ingestion >> delete_index()
+    create_index() >> embed_task >> transformed_output >> perform_ingestion >> delete_index()
 
 from tests.system.utils import get_test_run  # noqa: E402
 
