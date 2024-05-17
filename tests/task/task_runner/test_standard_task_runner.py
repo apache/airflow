@@ -28,6 +28,7 @@ from unittest.mock import patch
 import psutil
 import pytest
 
+from airflow.exceptions import AirflowTaskTimeout
 from airflow.jobs.job import Job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.listeners.listener import get_listener_manager
@@ -469,7 +470,11 @@ class TestStandardTaskRunner:
         job_runner = LocalTaskJobRunner(job=Job, task_instance=Job.task_instance)
         task_runner = StandardTaskRunner(job_runner)
         task_runner.start()
-        task_runner._read_task_utilization()
+        try:
+            with timeout(1):
+                task_runner._read_task_utilization()
+        except AirflowTaskTimeout:
+            pass
         assert mock_stats.call_count == 2
 
     @staticmethod
