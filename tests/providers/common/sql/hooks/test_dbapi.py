@@ -472,8 +472,8 @@ class TestDbApiHook:
         assert self.db_hook.placeholder == "%s"
         assert any(
             "Placeholder defined in Connection 'test_conn_id' is not listed in 'DEFAULT_SQL_PLACEHOLDERS' "
-            "and got ignored. Falling back to the default placeholder '%s'."
-            in message for message in caplog.messages
+            "and got ignored. Falling back to the default placeholder '%s'." in message
+            for message in caplog.messages
         )
 
     def test_run_log(self, caplog):
