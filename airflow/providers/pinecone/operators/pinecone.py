@@ -21,7 +21,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.models import BaseOperator
-from airflow.providers.pinecone.hooks.pinecone import PineconeHook
+from airflow.providers.pinecone.hooks.pinecone import PineconeHook, Vector
 from airflow.utils.context import Context
 
 if TYPE_CHECKING:
@@ -52,7 +52,7 @@ class PineconeIngestOperator(BaseOperator):
         *,
         conn_id: str = PineconeHook.default_conn_name,
         index_name: str,
-        input_vectors: list[tuple],
+        input_vectors: list[Vector] | list[tuple] | list[dict],
         namespace: str = "",
         batch_size: int | None = None,
         upsert_kwargs: dict | None = None,
