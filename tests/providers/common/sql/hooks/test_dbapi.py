@@ -209,8 +209,7 @@ class TestDbApiHook:
 
         assert any(f"Generated sql: {sql}" in message for message in caplog.messages)
         assert any(
-            f"Done loading. Loaded a total of 3 rows into {table}" in message
-            for message in caplog.messages
+            f"Done loading. Loaded a total of 3 rows into {table}" in message for message in caplog.messages
         )
 
         for row in rows:
@@ -233,8 +232,7 @@ class TestDbApiHook:
         assert any(f"Generated sql: {sql}" in message for message in caplog.messages)
         assert any(f"Loaded 3 rows into {table} so far" in message for message in caplog.messages)
         assert any(
-            f"Done loading. Loaded a total of 3 rows into {table}" in message
-            for message in caplog.messages
+            f"Done loading. Loaded a total of 3 rows into {table}" in message for message in caplog.messages
         )
 
         self.cur.executemany.assert_any_call(sql, rows)
@@ -473,7 +471,7 @@ class TestDbApiHook:
 
         assert self.db_hook.placeholder == "%s"
         assert any(
-            f"Placeholder defined in Connection 'test_conn_id' is not listed in 'DEFAULT_SQL_PLACEHOLDERS' "
+            "Placeholder defined in Connection 'test_conn_id' is not listed in 'DEFAULT_SQL_PLACEHOLDERS' "
             "and got ignored. Falling back to the default placeholder '%s'."
             in message for message in caplog.messages
         )
