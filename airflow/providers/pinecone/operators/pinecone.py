@@ -21,10 +21,12 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.models import BaseOperator
-from airflow.providers.pinecone.hooks.pinecone import PineconeHook, Vector
+from airflow.providers.pinecone.hooks.pinecone import PineconeHook
 from airflow.utils.context import Context
 
 if TYPE_CHECKING:
+    from pinecone import Vector
+
     from airflow.utils.context import Context
 
 
@@ -38,8 +40,8 @@ class PineconeIngestOperator(BaseOperator):
 
     :param conn_id: The connection id to use when connecting to Pinecone.
     :param index_name: Name of the Pinecone index.
-    :param input_vectors: Data to be ingested, in the form of a list of tuples where each tuple
-        contains (id, vector_embedding, metadata).
+    :param input_vectors: Data to be ingested, in the form of a list of vectors, list of tuples,
+        or list of dictionaries.
     :param namespace: The namespace to write to. If not specified, the default namespace is used.
     :param batch_size: The number of vectors to upsert in each batch.
     :param upsert_kwargs: .. seealso:: https://docs.pinecone.io/reference/upsert
