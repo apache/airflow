@@ -421,6 +421,52 @@ class TestDbApiHook:
         )
         assert self.db_hook.get_uri() == "conn-type://@:3306/schema?charset=utf-8"
 
+    def test_placeholder(self):
+        self.db_hook.get_connection = mock.MagicMock(
+            return_value=Connection(
+                conn_type="conn-type",
+                login=None,
+                password=None,
+                schema="schema",
+                port=3306,
+            )
+        )
+        assert self.db_hook.placeholder == "%s"
+
+    def test_placeholder_with_valid_placeholder_in_extra(self):
+        self.db_hook.get_connection = mock.MagicMock(
+            return_value=Connection(
+                conn_type="conn-type",
+                login=None,
+                password=None,
+                schema="schema",
+                port=3306,
+                extra=json.dumps({"placeholder": "?"}),
+            )
+        )
+        assert self.db_hook.placeholder == "?"
+
+    def test_placeholder_with_invalid_placeholder_in_extra(self):
+        self.db_hook.get_connection = mock.MagicMock(
+            return_value=Connection(
+                conn_type="conn-type",
+                login=None,
+                password=None,
+                schema="schema",
+                port=3306,
+                extra=json.dumps({"placeholder": "!"}),
+            )
+        )
+
+        assert self.db_hook.placeholder == "%s"
+
+        self.db_hook.log.warning.assert_called_once_with(
+            "Placeholder defined in Connection '%s' is not listed in 'DEFAULT_SQL_PLACEHOLDERS' "
+            "and got ignored. Falling back to the default placeholder '%s'.",
+            "test_conn_id",
+            self.db_hook._placeholder,
+        )
+
     def test_run_log(self):
         statement = "SQL"
         self.db_hook.run(statement)
