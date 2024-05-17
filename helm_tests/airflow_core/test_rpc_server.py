@@ -25,22 +25,20 @@ from tests.charts.helm_template_generator import render_chart
 class TestRPCServerDeployment:
     """Tests rpc-server deployment."""
 
-    def test_can_be_disabled(self):
+    def test_is_disabled_by_default(self):
         """
-        RPC server should be able to be disabled if the users desires.
-
-        For example, user may be disabled when using rpc-server and having it deployed on another host.
+        RPC server should be disabled by default.
         """
         docs = render_chart(
-            values={"rpcServer": {"enabled": False}},
+            values={"rpcServer": {}},
             show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
         )
 
-        assert 0 == len(docs)
+        assert len(docs) == 0
 
     def test_should_add_host_header_to_liveness_and_readiness_and_startup_probes(self):
         docs = render_chart(
-            values={"rpcServer": {"baseUrl": "https://example.com:21222/mypath/path"}},
+            values={"rpcServer": {"enabled": True, "baseUrl": "https://example.com:21222/mypath/path"}},
             show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
         )
 
@@ -56,7 +54,7 @@ class TestRPCServerDeployment:
 
     def test_should_add_path_to_liveness_and_readiness_and_startup_probes(self):
         docs = render_chart(
-            values={"rpcServer": {"baseUrl": "https://example.com:21222/mypath/path"}},
+            values={"rpcServer": {"enabled": True, "baseUrl": "https://example.com:21222/mypath/path"}},
             show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
         )
 
@@ -78,7 +76,11 @@ class TestRPCServerDeployment:
         [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
     )
     def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
-        values = {"rpcServer": {}}
+        values = {
+            "rpcServer": {
+                "enabled": True,
+            }
+        }
         if revision_history_limit:
             values["rpcServer"]["revisionHistoryLimit"] = revision_history_limit
         if global_revision_history_limit:
@@ -90,9 +92,14 @@ class TestRPCServerDeployment:
         expected_result = revision_history_limit if revision_history_limit else global_revision_history_limit
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
 
-    @pytest.mark.parametrize("values", [{"config": {"rpcServer": {"base_url": ""}}}, {}])
+    @pytest.mark.parametrize(
+        "values",
+        [
+            {"rpcServer": {"enabled": True, "baseUrl": ""}},
+            {"rpcServer": {"enabled": True}},
+        ],
+    )
     def test_should_not_contain_host_header(self, values):
-        print(values)
         docs = render_chart(values=values, show_only=["templates/rpc-server/rpc-server-deployment.yaml"])
 
         assert (
@@ -112,7 +119,8 @@ class TestRPCServerDeployment:
         docs = render_chart(
             values={
                 "rpcServer": {
-                    "baseUrl": "https://{{ .Release.Name }}.com:21222/mypath/{{ .Release.Name }}/path"
+                    "enabled": True,
+                    "baseUrl": "https://{{ .Release.Name }}.com:21222/mypath/{{ .Release.Name }}/path",
                 },
             },
             show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
@@ -142,6 +150,7 @@ class TestRPCServerDeployment:
         docs = render_chart(
             values={
                 "rpcServer": {
+                    "enabled": True,
                     "livenessProbe": {"scheme": "HTTPS"},
                     "readinessProbe": {"scheme": "HTTPS"},
                     "startupProbe": {"scheme": "HTTPS"},
@@ -165,6 +174,7 @@ class TestRPCServerDeployment:
             values={
                 "executor": "CeleryExecutor",
                 "rpcServer": {
+                    "enabled": True,
                     "extraContainers": [
                         {"name": "{{.Chart.Name}}", "image": "test-registry/test-repo:test-tag"}
                     ],
@@ -182,6 +192,7 @@ class TestRPCServerDeployment:
         docs = render_chart(
             values={
                 "rpcServer": {
+                    "enabled": True,
                     "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
                 },
             },
@@ -196,6 +207,7 @@ class TestRPCServerDeployment:
         docs = render_chart(
             values={
                 "rpcServer": {
+                    "enabled": True,
                     "extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}],
                     "extraVolumeMounts": [
                         {"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}
@@ -216,6 +228,7 @@ class TestRPCServerDeployment:
     def test_should_add_global_volume_and_global_volume_mount(self):
         docs = render_chart(
             values={
+                "rpcServer": {"enabled": True},
                 "volumes": [{"name": "test-volume", "emptyDir": {}}],
                 "volumeMounts": [{"name": "test-volume", "mountPath": "/opt/test"}],
             },
@@ -231,6 +244,7 @@ class TestRPCServerDeployment:
         docs = render_chart(
             values={
                 "rpcServer": {
+                    "enabled": True,
                     "waitForMigrations": {
                         "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
                     },
@@ -254,6 +268,7 @@ class TestRPCServerDeployment:
     def test_wait_for_migration_airflow_version(self, airflow_version, expected_arg):
         docs = render_chart(
             values={
+                "rpcServer": {"enabled": True},
                 "airflowVersion": airflow_version,
             },
             show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
@@ -266,6 +281,7 @@ class TestRPCServerDeployment:
         docs = render_chart(
             values={
                 "rpcServer": {
+                    "enabled": True,
                     "waitForMigrations": {"enabled": False},
                 },
             },
@@ -280,6 +296,7 @@ class TestRPCServerDeployment:
         docs = render_chart(
             values={
                 "rpcServer": {
+                    "enabled": True,
                     "extraInitContainers": [
                         {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
                     ],
@@ -297,6 +314,7 @@ class TestRPCServerDeployment:
         docs = render_chart(
             values={
                 "rpcServer": {
+                    "enabled": True,
                     "labels": {"test_label": "test_label_value"},
                 },
             },
@@ -310,6 +328,7 @@ class TestRPCServerDeployment:
         docs = render_chart(
             values={
                 "rpcServer": {
+                    "enabled": True,
                     "affinity": {
                         "nodeAffinity": {
                             "requiredDuringSchedulingIgnoredDuringExecution": {
@@ -351,7 +370,10 @@ class TestRPCServerDeployment:
         )
 
     def test_should_create_default_affinity(self):
-        docs = render_chart(show_only=["templates/rpc-server/rpc-server-deployment.yaml"])
+        docs = render_chart(
+            values={"rpcServer": {"enabled": True}},
+            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+        )
 
         assert {"component": "rpc-server"} == jmespath.search(
             "spec.template.spec.affinity.podAntiAffinity."
@@ -384,6 +406,7 @@ class TestRPCServerDeployment:
         docs = render_chart(
             values={
                 "rpcServer": {
+                    "enabled": True,
                     "affinity": expected_affinity,
                     "tolerations": [
                         {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
@@ -435,7 +458,7 @@ class TestRPCServerDeployment:
 
     def test_scheduler_name(self):
         docs = render_chart(
-            values={"schedulerName": "airflow-scheduler"},
+            values={"rpcServer": {"enabled": True}, "schedulerName": "airflow-scheduler"},
             show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
         )
 
@@ -454,7 +477,7 @@ class TestRPCServerDeployment:
     )
     def test_logs_persistence_adds_volume_and_mount(self, log_persistence_values, expected_claim_name):
         docs = render_chart(
-            values={"logs": {"persistence": log_persistence_values}},
+            values={"rpcServer": {"enabled": True}, "logs": {"persistence": log_persistence_values}},
             show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
         )
 
@@ -474,7 +497,10 @@ class TestRPCServerDeployment:
             ]
 
     def test_config_volumes(self):
-        docs = render_chart(show_only=["templates/rpc-server/rpc-server-deployment.yaml"])
+        docs = render_chart(
+            values={"rpcServer": {"enabled": True}},
+            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+        )
 
         # default config
         assert {
@@ -488,10 +514,11 @@ class TestRPCServerDeployment:
         docs = render_chart(
             values={
                 "rpcServer": {
+                    "enabled": True,
                     "resources": {
                         "limits": {"cpu": "200m", "memory": "128Mi"},
                         "requests": {"cpu": "300m", "memory": "169Mi"},
-                    }
+                    },
                 },
             },
             show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
@@ -521,6 +548,7 @@ class TestRPCServerDeployment:
         docs = render_chart(
             values={
                 "rpcServer": {
+                    "enabled": True,
                     "securityContexts": {
                         "pod": {
                             "fsGroup": 1000,
@@ -532,7 +560,7 @@ class TestRPCServerDeployment:
                             "allowPrivilegeEscalation": False,
                             "readOnlyRootFilesystem": True,
                         },
-                    }
+                    },
                 },
             },
             show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
@@ -552,12 +580,13 @@ class TestRPCServerDeployment:
         docs = render_chart(
             values={
                 "rpcServer": {
+                    "enabled": True,
                     "securityContext": {
                         "fsGroup": 1000,
                         "runAsGroup": 1001,
                         "runAsNonRoot": True,
                         "runAsUser": 2000,
-                    }
+                    },
                 },
             },
             show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
@@ -572,6 +601,7 @@ class TestRPCServerDeployment:
 
     def test_rpc_server_resources_are_not_added_by_default(self):
         docs = render_chart(
+            values={"rpcServer": {"enabled": True}},
             show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
         )
         assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
@@ -588,7 +618,7 @@ class TestRPCServerDeployment:
     )
     def test_default_update_strategy(self, airflow_version, expected_strategy):
         docs = render_chart(
-            values={"airflowVersion": airflow_version},
+            values={"rpcServer": {"enabled": True}, "airflowVersion": airflow_version},
             show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
         )
 
@@ -597,38 +627,17 @@ class TestRPCServerDeployment:
     def test_update_strategy(self):
         expected_strategy = {"type": "RollingUpdate", "rollingUpdate": {"maxUnavailable": 1}}
         docs = render_chart(
-            values={"rpcServer": {"strategy": expected_strategy}},
+            values={"rpcServer": {"enabled": True, "strategy": expected_strategy}},
             show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
         )
 
         assert jmespath.search("spec.strategy", docs[0]) == expected_strategy
 
-    def test_no_airflow_local_settings(self):
-        docs = render_chart(
-            values={"airflowLocalSettings": None},
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
-        )
-        volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
-        assert "airflow_local_settings.py" not in str(volume_mounts)
-        volume_mounts_init = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
-        assert "airflow_local_settings.py" not in str(volume_mounts_init)
-
-    def test_airflow_local_settings(self):
-        docs = render_chart(
-            values={"airflowLocalSettings": "# Well hello!"},
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
-        )
-        volume_mount = {
-            "name": "config",
-            "mountPath": "/opt/airflow/config/airflow_local_settings.py",
-            "subPath": "airflow_local_settings.py",
-            "readOnly": True,
-        }
-        assert volume_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
-        assert volume_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", docs[0])
-
     def test_default_command_and_args(self):
-        docs = render_chart(show_only=["templates/rpc-server/rpc-server-deployment.yaml"])
+        docs = render_chart(
+            values={"rpcServer": {"enabled": True}},
+            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+        )
 
         assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) == ["bash"]
         assert ["-c", "exec airflow internal-api"] == jmespath.search(
@@ -639,7 +648,7 @@ class TestRPCServerDeployment:
     @pytest.mark.parametrize("args", [None, ["custom", "args"]])
     def test_command_and_args_overrides(self, command, args):
         docs = render_chart(
-            values={"rpcServer": {"command": command, "args": args}},
+            values={"rpcServer": {"enabled": True, "command": command, "args": args}},
             show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
         )
 
@@ -648,7 +657,13 @@ class TestRPCServerDeployment:
 
     def test_command_and_args_overrides_are_templated(self):
         docs = render_chart(
-            values={"rpcServer": {"command": ["{{ .Release.Name }}"], "args": ["{{ .Release.Service }}"]}},
+            values={
+                "rpcServer": {
+                    "enabled": True,
+                    "command": ["{{ .Release.Name }}"],
+                    "args": ["{{ .Release.Service }}"],
+                }
+            },
             show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
         )
 
@@ -659,6 +674,7 @@ class TestRPCServerDeployment:
         docs = render_chart(
             values={
                 "rpcServer": {
+                    "enabled": True,
                     "annotations": {"test_annotation": "test_annotation_value"},
                 },
             },
@@ -671,6 +687,7 @@ class TestRPCServerDeployment:
         docs = render_chart(
             values={
                 "rpcServer": {
+                    "enabled": True,
                     "hostAliases": [{"ip": "127.0.0.1", "hostnames": ["foo.local"]}],
                 },
             },
@@ -685,7 +702,10 @@ class TestRPCServerService:
     """Tests rpc-server service."""
 
     def test_default_service(self):
-        docs = render_chart(show_only=["templates/rpc-server/rpc-server-service.yaml"])
+        docs = render_chart(
+            values={"rpcServer": {"enabled": True}},
+            show_only=["templates/rpc-server/rpc-server-service.yaml"],
+        )
 
         assert "release-name-rpc-server" == jmespath.search("metadata.name", docs[0])
         assert jmespath.search("metadata.annotations", docs[0]) is None
@@ -700,12 +720,13 @@ class TestRPCServerService:
             values={
                 "ports": {"rpcServer": 9000},
                 "rpcServer": {
+                    "enabled": True,
                     "service": {
                         "type": "LoadBalancer",
                         "loadBalancerIP": "127.0.0.1",
                         "annotations": {"foo": "bar"},
                         "loadBalancerSourceRanges": ["10.123.0.0/16"],
-                    }
+                    },
                 },
             },
             show_only=["templates/rpc-server/rpc-server-service.yaml"],
@@ -741,7 +762,7 @@ class TestRPCServerService:
     def test_ports_overrides(self, ports, expected_ports):
         docs = render_chart(
             values={
-                "rpcServer": {"service": {"ports": ports}},
+                "rpcServer": {"enabled": True, "service": {"ports": ports}},
             },
             show_only=["templates/rpc-server/rpc-server-service.yaml"],
         )
@@ -752,6 +773,7 @@ class TestRPCServerService:
         docs = render_chart(
             values={
                 "rpcServer": {
+                    "enabled": True,
                     "labels": {"test_label": "test_label_value"},
                 },
             },
@@ -777,10 +799,11 @@ class TestRPCServerService:
         docs = render_chart(
             values={
                 "rpcServer": {
+                    "enabled": True,
                     "service": {
                         "type": "NodePort",
                         "ports": ports,
-                    }
+                    },
                 },
             },
             show_only=["templates/rpc-server/rpc-server-service.yaml"],
@@ -804,11 +827,12 @@ class TestRPCServerNetworkPolicy:
             values={
                 "networkPolicies": {"enabled": True},
                 "rpcServer": {
+                    "enabled": True,
                     "networkPolicy": {
                         "ingress": {
                             "from": [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}]
                         }
-                    }
+                    },
                 },
             },
             show_only=["templates/rpc-server/rpc-server-networkpolicy.yaml"],
@@ -842,12 +866,13 @@ class TestRPCServerNetworkPolicy:
             values={
                 "networkPolicies": {"enabled": True},
                 "rpcServer": {
+                    "enabled": True,
                     "networkPolicy": {
                         "ingress": {
                             "from": [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}],
                             "ports": ports,
                         }
-                    }
+                    },
                 },
             },
             show_only=["templates/rpc-server/rpc-server-networkpolicy.yaml"],
@@ -855,26 +880,12 @@ class TestRPCServerNetworkPolicy:
 
         assert expected_ports == jmespath.search("spec.ingress[0].ports", docs[0])
 
-    def test_deprecated_from_param(self):
-        docs = render_chart(
-            values={
-                "networkPolicies": {"enabled": True},
-                "rpcServer": {
-                    "extraNetworkPolicies": [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}]
-                },
-            },
-            show_only=["templates/rpc-server/rpc-server-networkpolicy.yaml"],
-        )
-
-        assert [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}] == jmespath.search(
-            "spec.ingress[0].from", docs[0]
-        )
-
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
                 "networkPolicies": {"enabled": True},
                 "rpcServer": {
+                    "enabled": True,
                     "labels": {"test_label": "test_label_value"},
                 },
             },
@@ -891,6 +902,7 @@ class TestRPCServerServiceAccount:
         docs = render_chart(
             values={
                 "rpcServer": {
+                    "enabled": True,
                     "serviceAccount": {"create": True},
                     "labels": {"test_label": "test_label_value"},
                 },
@@ -904,6 +916,7 @@ class TestRPCServerServiceAccount:
         docs = render_chart(
             values={
                 "rpcServer": {
+                    "enabled": True,
                     "serviceAccount": {"create": True},
                 },
             },
@@ -915,6 +928,7 @@ class TestRPCServerServiceAccount:
         docs = render_chart(
             values={
                 "rpcServer": {
+                    "enabled": True,
                     "serviceAccount": {"create": True, "automountServiceAccountToken": False},
                 },
             },

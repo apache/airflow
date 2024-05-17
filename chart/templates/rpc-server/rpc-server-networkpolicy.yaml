@@ -22,7 +22,6 @@
 #################################
 {{- if .Values.rpcServer.enabled }}
 {{- if .Values.networkPolicies.enabled }}
-{{- $from := or .Values.rpcServer.networkPolicy.ingress.from .Values.rpcServer.extraNetworkPolicies }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -44,9 +43,9 @@ spec:
       release: {{ .Release.Name }}
   policyTypes:
     - Ingress
-  {{- if $from }}
+  {{- if .Values.rpcServer.networkPolicy.ingress.from }}
   ingress:
-    - from: {{- toYaml $from | nindent 6 }}
+    - from: {{- toYaml .Values.rpcServer.networkPolicy.ingress.from | nindent 6 }}
       ports:
       {{ range .Values.rpcServer.networkPolicy.ingress.ports }}
         -
