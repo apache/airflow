@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from unittest.mock import Mock, patch
+
 import pytest
 import requests_mock
 
@@ -27,16 +29,22 @@ pytestmark = pytest.mark.db_test
 
 def test_iceberg_hook():
     access_token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSU"
-    with requests_mock.Mocker() as m:
-        m.post(
-            "https://api.iceberg.io/ws/v1/oauth/tokens",
-            json={
-                "access_token": access_token,
-                "token_type": "Bearer",
-                "expires_in": 86400,
-                "warehouse_id": "fadc4c31-e81f-48cd-9ce8-64cd5ce3fa5d",
-                "region": "us-west-2",
-                "catalog_url": "warehouses/fadc4c31-e81f-48cd-9ce8-64cd5ce3fa5d",
-            },
-        )
-        assert IcebergHook().get_conn() == access_token
+    with patch("airflow.models.Connection.get_connection_from_secrets") as mock_get_connection:
+        mock_conn = Mock()
+        mock_conn.conn_id = "iceberg_default"
+        mock_conn.host = "https://api.iceberg.io/ws/v1"
+        mock_conn.extra_dejson = {}
+        mock_get_connection.return_value = mock_conn
+        with requests_mock.Mocker() as m:
+            m.post(
+                "https://api.iceberg.io/ws/v1/oauth/tokens",
+                json={
+                    "access_token": access_token,
+                    "token_type": "Bearer",
+                    "expires_in": 86400,
+                    "warehouse_id": "fadc4c31-e81f-48cd-9ce8-64cd5ce3fa5d",
+                    "region": "us-west-2",
+                    "catalog_url": "warehouses/fadc4c31-e81f-48cd-9ce8-64cd5ce3fa5d",
+                },
+            )
+            assert IcebergHook().get_conn() == access_token

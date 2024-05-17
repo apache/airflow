@@ -100,7 +100,6 @@ def is_disabled() -> bool:
     option = os.getenv("OPENLINEAGE_DISABLED", "")
     if _is_true(option):
         return True
-
     # Check if both 'transport' and 'config_path' are not present and also
     # if legacy 'OPENLINEAGE_URL' environment variables is not set
     return transport() == {} and config_path(True) == "" and os.getenv("OPENLINEAGE_URL", "") == ""

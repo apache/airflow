@@ -117,7 +117,7 @@ from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import DataInterval, TimeRestriction
 from airflow.timetables.simple import ContinuousTimetable
-from airflow.utils import json as utils_json, timezone, yaml
+from airflow.utils import json as utils_json, timezone, usage_data_collection, yaml
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.db import get_query_count
@@ -215,6 +215,35 @@ def get_safe_url(url):
 
     # This will ensure we only redirect to the right scheme/netloc
     return redirect_url.geturl()
+
+
+def build_scarf_url(dags_count: int) -> str:
+    """
+    Build the URL for the Scarf usage data collection.
+
+    :meta private:
+    """
+    if not settings.is_usage_data_collection_enabled():
+        return ""
+
+    scarf_domain = "https://apacheairflow.gateway.scarf.sh"
+    platform_sys, platform_arch = usage_data_collection.get_platform_info()
+    db_version = usage_data_collection.get_database_version()
+    db_name = usage_data_collection.get_database_name()
+    executor = usage_data_collection.get_executor()
+    python_version = usage_data_collection.get_python_version()
+
+    # Path Format:
+    # /{version}/{python_version}/{platform}/{arch}/{database}/{db_version}/{executor}/{num_dags}
+    #
+    # This path redirects to a Pixel tracking URL
+    scarf_url = (
+        f"{scarf_domain}/webserver"
+        f"/{version}/{python_version}"
+        f"/{platform_sys}/{platform_arch}/{db_name}/{db_version}/{executor}/{dags_count}"
+    )
+
+    return scarf_url
 
 
 def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
@@ -1034,6 +1063,11 @@ class Airflow(AirflowBaseView):
                     "warning",
                 )
 
+        try:
+            scarf_url = build_scarf_url(dags_count=all_dags_count)
+        except Exception:
+            scarf_url = ""
+
         return self.render_template(
             "airflow/dags.html",
             dags=dags,
@@ -1072,6 +1106,7 @@ class Airflow(AirflowBaseView):
             sorting_direction=arg_sorting_direction,
             auto_refresh_interval=conf.getint("webserver", "auto_refresh_interval"),
             dataset_triggered_next_run_info=dataset_triggered_next_run_info,
+            scarf_url=scarf_url,
         )
 
     @expose("/datasets")

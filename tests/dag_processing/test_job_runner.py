@@ -54,13 +54,13 @@ from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DbCallbackRequest
 from airflow.models.dagcode import DagCode
-from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 from tests.core.test_logging_config import SETTINGS_FILE_VALID, settings_context
 from tests.models import TEST_DAGS_FOLDER
+from tests.test_utils.compat import ParseImportError
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_callbacks, clear_db_dags, clear_db_runs, clear_db_serialized_dags
 

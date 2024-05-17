@@ -19,7 +19,7 @@
 """add new executor field to db.
 
 Revision ID: 677fdbb7fc54
-Revises: 686269002441
+Revises: 0fd0c178cbe8
 Create Date: 2024-04-01 15:26:59.186579
 
 """
@@ -31,7 +31,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "677fdbb7fc54"
-down_revision = "686269002441"
+down_revision = "0fd0c178cbe8"
 branch_labels = None
 depends_on = None
 airflow_version = "2.10.0"

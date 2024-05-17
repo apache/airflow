@@ -1279,6 +1279,7 @@ pymysql
 pyodbc
 pypa
 PyPI
+pyproject
 pypsrp
 pyspark
 pytest
@@ -1305,6 +1306,7 @@ queueing
 quickstart
 quotechar
 rabbitmq
+RaG
 RBAC
 rbac
 rc
@@ -1654,6 +1656,7 @@ todo
 tokenization
 tokopedia
 tolerations
+toml
 toolchain
 Tooltip
 tooltip
