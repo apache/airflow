@@ -165,7 +165,6 @@ LINECHART_X_AXIS_TICKFORMAT = (
 SENSITIVE_FIELD_PLACEHOLDER = "RATHER_LONG_SENSITIVE_FIELD_PLACEHOLDER"
 
 logger = logging.getLogger(__name__)
-url_serializer = URLSafeSerializer(current_app.config["SECRET_KEY"])
 
 
 def sanitize_args(args: dict[str, Any]) -> dict[str, Any]:
@@ -940,6 +939,7 @@ class Airflow(AirflowBaseView):
                 dag.can_delete = get_auth_manager().is_authorized_dag(
                     method="DELETE", details=DagDetails(id=dag.dag_id), user=g.user
                 )
+                url_serializer = URLSafeSerializer(current_app.config["SECRET_KEY"])
                 dag.file_token = url_serializer.dumps(dag.fileloc)
 
             dagtags = session.execute(select(func.distinct(DagTag.name)).order_by(DagTag.name)).all()
@@ -2850,6 +2850,7 @@ class Airflow(AirflowBaseView):
         color_log_warning_keywords = conf.get("logging", "color_log_warning_keywords", fallback="")
 
         dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
+        url_serializer = URLSafeSerializer(current_app.config["SECRET_KEY"])
         dag.file_token = url_serializer.dumps(dag.fileloc)
         dag_model = DagModel.get_dagmodel(dag_id, session=session)
         if not dag:
@@ -3561,6 +3562,22 @@ class Airflow(AirflowBaseView):
         }
 
         return redirect(url_for("Airflow.grid", **kwargs))
+
+    @expose("/parseDagFile/<string:file_token>")
+    def parse_dag(self, file_token: str):
+        from airflow.api_connexion.endpoints.dag_parsing import reparse_dag_file
+
+        with create_session() as session:
+            response = reparse_dag_file(file_token=file_token, session=session)
+            response_messages = {
+                201: ["Reparsing request submitted successfully", "info"],
+                401: ["Unauthenticated request", "error"],
+                403: ["Permission Denied", "error"],
+                404: ["DAG not found", "error"],
+            }
+            flash(response_messages[response.status_code][0], response_messages[response.status_code][1])
+        redirect_url = get_safe_url(request.values.get("redirect_url"))
+        return redirect(redirect_url)
 
 
 class ConfigurationView(AirflowBaseView):
