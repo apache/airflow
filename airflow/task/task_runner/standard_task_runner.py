@@ -22,6 +22,7 @@ from __future__ import annotations
 import logging
 import os
 import threading
+import time
 from typing import TYPE_CHECKING
 
 import psutil
@@ -198,13 +199,14 @@ class StandardTaskRunner(BaseTaskRunner):
         dag_id = self._task_instance.dag_id
         task_id = self._task_instance.task_id
 
-        while True:
-            try:
+        try:
+            while True:
                 with self.process.oneshot():
                     mem_usage = self.process.memory_percent()
-                    cpu_usage = self.process.cpu_percent(interval=1)
+                    cpu_usage = self.process.cpu_percent()
 
                     Stats.gauge(f"task.mem_usage.{dag_id}.{task_id}", mem_usage)
                     Stats.gauge(f"task.cpu_usage.{dag_id}.{task_id}", cpu_usage)
-            except (psutil.NoSuchProcess, psutil.AccessDenied, AttributeError):
-                break
+                    time.sleep(1)
+        except (psutil.NoSuchProcess, psutil.AccessDenied, AttributeError):
+            return
