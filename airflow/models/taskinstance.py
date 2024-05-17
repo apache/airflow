@@ -1558,7 +1558,7 @@ def _update_rtif(ti, rendered_fields, session: Session | None = None):
     RenderedTaskInstanceFields.delete_old_records(ti.task_id, ti.dag_id, session=session)
 
 
-def _coalesce_to_orm_ti(*, ti, session: Session):
+def _coalesce_to_orm_ti(*, ti: TaskInstancePydantic | TaskInstance, session: Session):
     from airflow.models.dagrun import DagRun
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
@@ -1570,6 +1570,8 @@ def _coalesce_to_orm_ti(*, ti, session: Session):
             map_index=ti.map_index,
             session=session,
         )
+        if TYPE_CHECKING:
+            assert orm_ti
         ti, pydantic_ti = orm_ti, ti
         _set_ti_attrs(ti, pydantic_ti)
         ti.task = pydantic_ti.task
