@@ -80,6 +80,7 @@ class BaseDatabricksHook(BaseHook):
     :param retry_delay: The number of seconds to wait between retries (it
         might be a floating point number).
     :param retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
+    :param caller: The name of the operator that is calling the hook.
     """
 
     conn_name_attr: str = "databricks_conn_id"

@@ -3555,6 +3555,8 @@ class DagTag(Base):
         primary_key=True,
     )
 
+    __table_args__ = (Index("idx_dag_tag_dag_id", dag_id),)
+
     def __repr__(self):
         return self.name
 

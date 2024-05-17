@@ -34,7 +34,8 @@ from opensearchpy import (
 )
 
 from airflow import DAG
-from airflow.decorators import task
+from airflow.decorators import task, task_group
+from airflow.operators.empty import EmptyOperator
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook
 from airflow.providers.amazon.aws.hooks.opensearch_serverless import OpenSearchServerlessHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -43,6 +44,9 @@ from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockCreateDataSourceOperator,
     BedrockCreateKnowledgeBaseOperator,
     BedrockIngestDataOperator,
+    BedrockInvokeModelOperator,
+    BedrockRaGOperator,
+    BedrockRetrieveOperator,
 )
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.sensors.bedrock import (
@@ -52,15 +56,20 @@ from airflow.providers.amazon.aws.sensors.bedrock import (
 from airflow.providers.amazon.aws.sensors.opensearch_serverless import (
     OpenSearchServerlessCollectionActiveSensor,
 )
+from airflow.providers.amazon.aws.utils import get_botocore_version
+from airflow.utils.edgemodifier import Label
 from airflow.utils.helpers import chain
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
-###############################################################################
-# NOTE:  The account running this test must first manually request access to
-#   the `Titan Embeddings G1 - Text` foundation model via the Bedrock console.
-#   Gaining access to the model can take 24 hours from the time of request.
-###############################################################################
+#######################################################################
+# NOTE:
+#   Access to the following foundation model must be requested via
+#   the Amazon Bedrock console and may take up to 24 hours to apply:
+#######################################################################
+
+CLAUDE_MODEL_ID = "anthropic.claude-v2"
+TITAN_MODEL_ID = "amazon.titan-embed-text-v1"
 
 # Externally fetched variables:
 ROLE_ARN_KEY = "ROLE_ARN"
@@ -69,6 +78,37 @@ sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).bu
 DAG_ID = "example_bedrock_knowledge_base"
 
 log = logging.getLogger(__name__)
+
+
+@task_group
+def external_sources_rag_group():
+    """External Sources were added in boto 1.34.90, skip this operator if the version is below that."""
+
+    # [START howto_operator_bedrock_external_sources_rag]
+    external_sources_rag = BedrockRaGOperator(
+        task_id="external_sources_rag",
+        input="Who was the CEO of Amazon in 2022?",
+        source_type="EXTERNAL_SOURCES",
+        model_arn=f"arn:aws:bedrock:{region_name}::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0",
+        sources=[
+            {
+                "sourceType": "S3",
+                "s3Location": {"uri": f"s3://{bucket_name}/AMZN-2022-Shareholder-Letter.pdf"},
+            }
+        ],
+    )
+    # [END howto_operator_bedrock_external_sources_rag]
+
+    @task.branch
+    def run_or_skip():
+        log.info("Found botocore version %s.", botocore_version := get_botocore_version())
+        return end_workflow.task_id if botocore_version < (1, 34, 90) else external_sources_rag.task_id
+
+    run_or_skip = run_or_skip()
+    end_workflow = EmptyOperator(task_id="end_workflow", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+
+    chain(run_or_skip, Label("Boto version does not support External Sources"), end_workflow)
+    chain(run_or_skip, external_sources_rag, end_workflow)
 
 
 @task
@@ -425,11 +465,20 @@ with DAG(
     )
     # [END howto_sensor_opensearch_collection_active]
 
+    PROMPT = "What color is an orange?"
+    # [START howto_operator_invoke_claude_model]
+    invoke_claude_completions = BedrockInvokeModelOperator(
+        task_id="invoke_claude_completions",
+        model_id=CLAUDE_MODEL_ID,
+        input_data={"max_tokens_to_sample": 4000, "prompt": f"\n\nHuman: {PROMPT}\n\nAssistant:"},
+    )
+    # [END howto_operator_invoke_claude_model]
+
     # [START howto_operator_bedrock_create_knowledge_base]
     create_knowledge_base = BedrockCreateKnowledgeBaseOperator(
         task_id="create_knowledge_base",
         name=knowledge_base_name,
-        embedding_model_arn=f"arn:aws:bedrock:{region_name}::foundation-model/amazon.titan-embed-text-v1",
+        embedding_model_arn=f"arn:aws:bedrock:{region_name}::foundation-model/{TITAN_MODEL_ID}",
         role_arn=test_context[ROLE_ARN_KEY],
         storage_config={
             "type": "OPENSEARCH_SERVERLESS",
@@ -480,6 +529,24 @@ with DAG(
     )
     # [END howto_sensor_bedrock_ingest_data]
 
+    # [START howto_operator_bedrock_knowledge_base_rag]
+    knowledge_base_rag = BedrockRaGOperator(
+        task_id="knowledge_base_rag",
+        input="Who was the CEO of Amazon on 2022?",
+        source_type="KNOWLEDGE_BASE",
+        model_arn=f"arn:aws:bedrock:{region_name}::foundation-model/{CLAUDE_MODEL_ID}",
+        knowledge_base_id=create_knowledge_base.output,
+    )
+    # [END howto_operator_bedrock_knowledge_base_rag]
+
+    # [START howto_operator_bedrock_retrieve]
+    retrieve = BedrockRetrieveOperator(
+        task_id="retrieve",
+        knowledge_base_id=create_knowledge_base.output,
+        retrieval_query="Who was the CEO of Amazon in 1997?",
+    )
+    # [END howto_operator_bedrock_retrieve]
+
     delete_bucket = S3DeleteBucketOperator(
         task_id="delete_bucket",
         trigger_rule=TriggerRule.ALL_DONE,
@@ -497,11 +564,15 @@ with DAG(
         create_vector_index(index_name=index_name, collection_id=collection, region=region_name),
         copy_data_to_s3(bucket=bucket_name),
         # TEST BODY
+        invoke_claude_completions,
         create_knowledge_base,
         await_knowledge_base,
         create_data_source,
         ingest_data,
         await_ingest,
+        knowledge_base_rag,
+        external_sources_rag_group(),
+        retrieve,
         delete_data_source(
             knowledge_base_id=create_knowledge_base.output,
             data_source_id=create_data_source.output,

@@ -334,8 +334,12 @@ def initial_db_init():
     from airflow.utils import db
     from airflow.www.extensions.init_appbuilder import init_appbuilder
     from airflow.www.extensions.init_auth_manager import get_auth_manager
+    from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 
-    db.resetdb(use_migration_files=True)
+    if AIRFLOW_V_2_10_PLUS:
+        db.resetdb(use_migration_files=True)
+    else:
+        db.resetdb()
     db.bootstrap_dagbag()
     # minimal app to add roles
     flask_app = Flask(__name__)
@@ -1290,6 +1294,20 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
         mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", False)
         yield
     return
+
+
+@pytest.fixture
+def airflow_root_path() -> Path:
+    import airflow
+
+    return Path(airflow.__path__[0]).parent
+
+
+# This constant is set to True if tests are run with Airflow installed from Packages rather than running
+# the tests within Airflow sources. While most tests in CI are run using Airflow sources, there are
+# also compatibility tests that only use `tests` package and run against installed packages of Airflow in
+# for supported Airflow versions.
+RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES = not (Path(__file__).parents[1] / "airflow" / "__init__.py").exists()
 
 
 if TYPE_CHECKING:
