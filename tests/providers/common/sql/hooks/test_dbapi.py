@@ -433,6 +433,8 @@ class TestDbApiHook:
         )
         assert self.db_hook.placeholder == "%s"
 
+        self.db_hook.log.warning.assert_not_called()
+
     def test_placeholder_with_valid_placeholder_in_extra(self):
         self.db_hook.get_connection = mock.MagicMock(
             return_value=Connection(
@@ -445,6 +447,8 @@ class TestDbApiHook:
             )
         )
         assert self.db_hook.placeholder == "?"
+
+        self.db_hook.log.warning.assert_not_called()
 
     def test_placeholder_with_invalid_placeholder_in_extra(self):
         self.db_hook.get_connection = mock.MagicMock(
