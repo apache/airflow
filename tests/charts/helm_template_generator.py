@@ -135,7 +135,16 @@ def render_chart(
         if show_only:
             for i in show_only:
                 command.extend(["--show-only", i])
-        templates = subprocess.check_output(command, stderr=subprocess.PIPE, cwd=chart_dir)
+        result = subprocess.run(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE, cwd=chart_dir)
+        if result.returncode != 0:
+            try:
+                result.check_returncode()
+            except Exception as e:
+                raise RuntimeError(
+                    "Helm command failed.  Stderr: \n%s" % result.stderr.decode("utf-8")
+                ) from e
+
+        templates = result.stdout
         k8s_objects = yaml.full_load_all(templates)
         k8s_objects = [k8s_object for k8s_object in k8s_objects if k8s_object]  # type: ignore
         for k8s_object in k8s_objects:
