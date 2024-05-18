@@ -1,0 +1,3 @@
+Experimental support for RPC server
+
+For development purposes only, you can enable deployment of the RPC server (AIP-44) with the node ``_rpcServer``.  Development is ongoing and it may change at any time. When official support for RPC server is added in the helm chart, the node will be renamed to ``rpcServer``.
