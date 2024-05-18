@@ -532,11 +532,12 @@ class KubernetesPodOperator(BaseOperator):
         ).items
 
         pod = None
-        num_pods = len(pod_list)
+        running_pods = [pod for pod in pod_list if pod.status.phase == "Running"]
+        num_pods = len(running_pods)
         if num_pods > 1:
             raise AirflowException(f"More than one pod running with labels {label_selector}")
         elif num_pods == 1:
-            pod = pod_list[0]
+            pod = running_pods[0]
             self.log.info("Found matching pod %s with labels %s", pod.metadata.name, pod.metadata.labels)
             self.log.info("`try_number` of task_instance: %s", context["ti"].try_number)
             self.log.info("`try_number` of pod: %s", pod.metadata.labels["try_number"])
@@ -597,13 +598,14 @@ class KubernetesPodOperator(BaseOperator):
             ti.xcom_push(key="pod_name", value=self.pod.metadata.name)
             ti.xcom_push(key="pod_namespace", value=self.pod.metadata.namespace)
 
-            # get remote pod for use in cleanup methods
-            self.remote_pod = self.find_pod(self.pod.metadata.namespace, context=context)
             if self.callbacks:
                 self.callbacks.on_pod_creation(
                     pod=self.remote_pod, client=self.client, mode=ExecutionMode.SYNC
                 )
             self.await_pod_start(pod=self.pod)
+
+            # get remote pod for use in cleanup methods
+            self.remote_pod = self.find_pod(self.pod.metadata.namespace, context=context)
             if self.callbacks:
                 self.callbacks.on_pod_starting(
                     pod=self.find_pod(self.pod.metadata.namespace, context=context),
