@@ -29,6 +29,45 @@ from tests.charts.helm_template_generator import render_chart
 
 OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 35
 
+DEFAULT_OBJECTS_STD_NAMING = {
+    ("ServiceAccount", "test-basic-airflow-create-user-job"),
+    ("ServiceAccount", "test-basic-airflow-migrate-database-job"),
+    ("ServiceAccount", "test-basic-airflow-redis"),
+    ("ServiceAccount", "test-basic-airflow-scheduler"),
+    ("ServiceAccount", "test-basic-airflow-statsd"),
+    ("ServiceAccount", "test-basic-airflow-triggerer"),
+    ("ServiceAccount", "test-basic-airflow-webserver"),
+    ("ServiceAccount", "test-basic-airflow-worker"),
+    ("Secret", "test-basic-airflow-metadata"),
+    ("Secret", "test-basic-broker-url"),
+    ("Secret", "test-basic-fernet-key"),
+    ("Secret", "test-basic-airflow-webserver-secret-key"),
+    ("Secret", "test-basic-redis-password"),
+    ("Secret", "test-basic-postgresql"),
+    ("ConfigMap", "test-basic-airflow-config"),
+    ("ConfigMap", "test-basic-airflow-statsd"),
+    ("Role", "test-basic-airflow-pod-launcher-role"),
+    ("Role", "test-basic-airflow-pod-log-reader-role"),
+    ("RoleBinding", "test-basic-airflow-pod-launcher-rolebinding"),
+    ("RoleBinding", "test-basic-airflow-pod-log-reader-rolebinding"),
+    ("Service", "test-basic-airflow-redis"),
+    ("Service", "test-basic-airflow-statsd"),
+    ("Service", "test-basic-airflow-triggerer"),
+    ("Service", "test-basic-airflow-webserver"),
+    ("Service", "test-basic-airflow-worker"),
+    ("Service", "test-basic-postgresql"),
+    ("Service", "test-basic-postgresql-hl"),
+    ("Deployment", "test-basic-airflow-scheduler"),
+    ("Deployment", "test-basic-airflow-statsd"),
+    ("Deployment", "test-basic-airflow-webserver"),
+    ("StatefulSet", "test-basic-airflow-redis"),
+    ("StatefulSet", "test-basic-airflow-worker"),
+    ("StatefulSet", "test-basic-airflow-triggerer"),
+    ("StatefulSet", "test-basic-postgresql"),
+    ("Job", "test-basic-airflow-create-user"),
+    ("Job", "test-basic-airflow-run-airflow-migrations"),
+}
+
 
 class TestBaseChartTest:
     """Tests basic helm chart tests."""
@@ -66,7 +105,6 @@ class TestBaseChartTest:
             ("ServiceAccount", "test-basic-create-user-job"),
             ("ServiceAccount", "test-basic-migrate-database-job"),
             ("ServiceAccount", "test-basic-redis"),
-            ("ServiceAccount", "test-basic-rpc-server"),
             ("ServiceAccount", "test-basic-scheduler"),
             ("ServiceAccount", "test-basic-statsd"),
             ("ServiceAccount", "test-basic-triggerer"),
@@ -87,13 +125,11 @@ class TestBaseChartTest:
             ("Service", "test-basic-postgresql-hl"),
             ("Service", "test-basic-postgresql"),
             ("Service", "test-basic-redis"),
-            ("Service", "test-basic-rpc-server"),
             ("Service", "test-basic-statsd"),
             ("Service", "test-basic-webserver"),
             ("Service", "test-basic-worker"),
             ("Deployment", "test-basic-scheduler"),
             ("Deployment", "test-basic-statsd"),
-            ("Deployment", "test-basic-rpc-server"),
             (self.default_trigger_obj(version), "test-basic-triggerer"),
             ("Deployment", "test-basic-webserver"),
             ("StatefulSet", "test-basic-postgresql"),
@@ -126,51 +162,21 @@ class TestBaseChartTest:
             "test-basic",
             {"useStandardNaming": True},
         )
-        list_of_kind_names_tuples = {
-            (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
-        }
-        expected = {
-            ("ServiceAccount", "test-basic-airflow-create-user-job"),
-            ("ServiceAccount", "test-basic-airflow-migrate-database-job"),
-            ("ServiceAccount", "test-basic-airflow-redis"),
-            ("ServiceAccount", "test-basic-airflow-scheduler"),
-            ("ServiceAccount", "test-basic-airflow-statsd"),
-            ("ServiceAccount", "test-basic-airflow-triggerer"),
-            ("ServiceAccount", "test-basic-airflow-webserver"),
-            ("ServiceAccount", "test-basic-airflow-rpc-server"),
-            ("ServiceAccount", "test-basic-airflow-worker"),
-            ("Secret", "test-basic-airflow-metadata"),
-            ("Secret", "test-basic-broker-url"),
-            ("Secret", "test-basic-fernet-key"),
-            ("Secret", "test-basic-airflow-webserver-secret-key"),
-            ("Secret", "test-basic-redis-password"),
-            ("Secret", "test-basic-postgresql"),
-            ("ConfigMap", "test-basic-airflow-config"),
-            ("ConfigMap", "test-basic-airflow-statsd"),
-            ("Role", "test-basic-airflow-pod-launcher-role"),
-            ("Role", "test-basic-airflow-pod-log-reader-role"),
-            ("RoleBinding", "test-basic-airflow-pod-launcher-rolebinding"),
-            ("RoleBinding", "test-basic-airflow-pod-log-reader-rolebinding"),
-            ("Service", "test-basic-airflow-redis"),
-            ("Service", "test-basic-airflow-statsd"),
-            ("Service", "test-basic-airflow-triggerer"),
-            ("Service", "test-basic-airflow-webserver"),
-            ("Service", "test-basic-airflow-rpc-server"),
-            ("Service", "test-basic-airflow-worker"),
-            ("Service", "test-basic-postgresql"),
-            ("Service", "test-basic-postgresql-hl"),
-            ("Deployment", "test-basic-airflow-scheduler"),
-            ("Deployment", "test-basic-airflow-statsd"),
-            ("Deployment", "test-basic-airflow-webserver"),
+        actual = {(x["kind"], x["metadata"]["name"]) for x in k8s_objects}
+        assert actual == DEFAULT_OBJECTS_STD_NAMING
+
+    def test_basic_deployment_with_rpc_server(self):
+        extra_objects = {
             ("Deployment", "test-basic-airflow-rpc-server"),
-            ("StatefulSet", "test-basic-airflow-redis"),
-            ("StatefulSet", "test-basic-airflow-worker"),
-            ("StatefulSet", "test-basic-airflow-triggerer"),
-            ("StatefulSet", "test-basic-postgresql"),
-            ("Job", "test-basic-airflow-create-user"),
-            ("Job", "test-basic-airflow-run-airflow-migrations"),
+            ("Service", "test-basic-airflow-rpc-server"),
+            ("ServiceAccount", "test-basic-airflow-rpc-server"),
         }
-        assert list_of_kind_names_tuples == expected
+        k8s_objects = render_chart(
+            "test-basic",
+            values={"rpcServer": {"enabled": True}, "useStandardNaming": True},
+        )
+        actual = {(x["kind"], x["metadata"]["name"]) for x in k8s_objects}
+        assert actual == (DEFAULT_OBJECTS_STD_NAMING | extra_objects)
 
     @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
     def test_basic_deployment_with_standalone_dag_processor(self, version):
@@ -202,7 +208,6 @@ class TestBaseChartTest:
             ("ServiceAccount", "test-basic-statsd"),
             ("ServiceAccount", "test-basic-triggerer"),
             ("ServiceAccount", "test-basic-dag-processor"),
-            ("ServiceAccount", "test-basic-rpc-server"),
             ("ServiceAccount", "test-basic-webserver"),
             ("ServiceAccount", "test-basic-worker"),
             ("Secret", "test-basic-metadata"),
@@ -222,14 +227,12 @@ class TestBaseChartTest:
             ("Service", "test-basic-redis"),
             ("Service", "test-basic-statsd"),
             ("Service", "test-basic-webserver"),
-            ("Service", "test-basic-rpc-server"),
             ("Service", "test-basic-worker"),
             ("Deployment", "test-basic-scheduler"),
             ("Deployment", "test-basic-statsd"),
             (self.default_trigger_obj(version), "test-basic-triggerer"),
             ("Deployment", "test-basic-dag-processor"),
             ("Deployment", "test-basic-webserver"),
-            ("Deployment", "test-basic-rpc-server"),
             ("StatefulSet", "test-basic-postgresql"),
             ("StatefulSet", "test-basic-redis"),
             ("StatefulSet", "test-basic-worker"),
