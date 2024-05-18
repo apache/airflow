@@ -577,27 +577,21 @@ class TestRPCServerDeployment:
         } == jmespath.search("spec.template.spec.securityContext", docs[0])
 
     def test_rpc_server_security_context_legacy(self):
-        docs = render_chart(
-            values={
-                "_rpcServer": {
-                    "enabled": True,
-                    "securityContext": {
-                        "fsGroup": 1000,
-                        "runAsGroup": 1001,
-                        "runAsNonRoot": True,
-                        "runAsUser": 2000,
+        with pytest.raises(RuntimeError, match="Additional property securityContext is not allowed"):
+            render_chart(
+                values={
+                    "_rpcServer": {
+                        "enabled": True,
+                        "securityContext": {
+                            "fsGroup": 1000,
+                            "runAsGroup": 1001,
+                            "runAsNonRoot": True,
+                            "runAsUser": 2000,
+                        },
                     },
                 },
-            },
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
-        )
-
-        assert {
-            "runAsUser": 2000,
-            "runAsGroup": 1001,
-            "fsGroup": 1000,
-            "runAsNonRoot": True,
-        } == jmespath.search("spec.template.spec.securityContext", docs[0])
+                show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+            )
 
     def test_rpc_server_resources_are_not_added_by_default(self):
         docs = render_chart(

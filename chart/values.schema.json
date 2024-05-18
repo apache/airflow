@@ -4542,19 +4542,6 @@
                         }
                     }
                 },
-                "securityContext": {
-                    "description": "Security context for the RPC server job pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
-                    "type": "object",
-                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
-                    "default": {},
-                    "examples": [
-                        {
-                            "runAsUser": 50000,
-                            "runAsGroup": 0,
-                            "fsGroup": 0
-                        }
-                    ]
-                },
                 "containerLifecycleHooks": {
                     "description": "Container Lifecycle Hooks definition for the RPC server. If not set, the values from global `containerLifecycleHooks` will be used.",
                     "type": "object",
