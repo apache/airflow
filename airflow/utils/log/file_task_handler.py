@@ -131,7 +131,7 @@ def _parse_timestamps_in_log_file(lines: Iterable[str]):
 
 
 def split_log_to_messages(log: str):
-    if settings_LOG_FORMAT_RE_PATTERN == "\n":
+    if settings.LOG_FORMAT_RE_PATTERN == "\n":
         return log.splitlines()
     
     log_messages = re.split(settings.LOG_FORMAT_RE_PATTERN, log)
