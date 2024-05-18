@@ -850,6 +850,13 @@ logging:
       type: string
       example: ~
       default: (?<=\n)(?=(?:|[ \t]+?)(?:\[.+?\]) (?:{{.+?:[0-9]+}}) (?:CRITICAL|ERROR|WARNING|INFO|DEBUG) - (?:.+?)(?:\n|$))
+    log_format_dedupe_logs:
+      description: |
+        Flag to enable/disable deduplication between log messages
+      version_added: 2.9.2
+      type: boolean
+      example: ~
+      default: "True"
     simple_log_format:
       description: |
         Defines the format of log messages for simple logging configuration

@@ -172,9 +172,12 @@ def _interleave_logs(*logs):
     for _, _, v in sorted(
         records, key=lambda x: (x[0], x[1]) if x[0] else (pendulum.datetime(2000, 1, 1), x[1])
     ):
-        if v != last:  # dedupe
+        if settings.LOG_FORMAT_DEDUPE_LOGS:
+            if v != last:  # dedupe
+                yield v
+            last = v
+        else:
             yield v
-        last = v
 
 
 def _ensure_ti(ti: TaskInstanceKey | TaskInstance | TaskInstancePydantic, session) -> TaskInstance:
