@@ -814,7 +814,7 @@ class Airflow(AirflowBaseView):
             if cookie_val:
                 arg_lastrun_filter = cookie_val
             else:
-                arg_lastrun_filter = "all_states"
+                arg_lastrun_filter = "all"
                 flask_session[FILTER_LASTRUN_COOKIE] = arg_lastrun_filter
         else:
             last_run = arg_lastrun_filter.strip().lower()
@@ -906,10 +906,6 @@ class Airflow(AirflowBaseView):
             lastrun_failed_count_active = lastrun_failed_is_paused_count.get(False, 0)
             lastrun_failed_count_paused = lastrun_failed_is_paused_count.get(True, 0)
 
-            lastrun_allstates_active = get_query_count(dags_query.where(~DagModel.is_paused), session=session)
-            lastrun_allstates_paused = get_query_count(dags_query.where(DagModel.is_paused), session=session)
-            lastrun_allstates_all = get_query_count(dags_query, session=session)
-
             if arg_lastrun_filter == "running":
                 dags_query = running_dags
             elif arg_lastrun_filter == "failed":
@@ -930,19 +926,16 @@ class Airflow(AirflowBaseView):
             if arg_status_filter == "active":
                 current_dags = active_dags
                 num_of_all_dags = status_count_active
-                lastrun_count_all = lastrun_allstates_active
                 lastrun_count_running = lastrun_running_count_active
                 lastrun_count_failed = lastrun_failed_count_active
             elif arg_status_filter == "paused":
                 current_dags = paused_dags
                 num_of_all_dags = status_count_paused
-                lastrun_count_all = lastrun_allstates_paused
                 lastrun_count_running = lastrun_running_count_paused
                 lastrun_count_failed = lastrun_failed_count_paused
             else:
                 current_dags = all_dags
                 num_of_all_dags = all_dags_count
-                lastrun_count_all = lastrun_allstates_all
                 lastrun_count_running = lastrun_running_count_active + lastrun_running_count_paused
                 lastrun_count_failed = lastrun_failed_count_active + lastrun_failed_count_paused
 
@@ -1147,7 +1140,6 @@ class Airflow(AirflowBaseView):
             status_count_active=status_count_active,
             status_count_paused=status_count_paused,
             lastrun_filter=arg_lastrun_filter,
-            lastrun_count_all=lastrun_count_all,
             lastrun_count_running=lastrun_count_running,
             lastrun_count_failed=lastrun_count_failed,
             tags_filter=arg_tags_filter,
