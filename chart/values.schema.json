@@ -4245,7 +4245,7 @@
                 "enabled": {
                     "description": "Enable RPC server",
                     "type": "boolean",
-                    "default": true
+                    "default": false
                 },
                 "baseUrl": {
                     "description": "RPC server base URL",
