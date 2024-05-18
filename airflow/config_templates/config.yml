@@ -843,6 +843,13 @@ logging:
       type: string
       example: ~
       default: "[%%(asctime)s] {{%%(filename)s:%%(lineno)d}} %%(levelname)s - %%(message)s"
+    log_format_re_pattern:
+      description: |
+        Defines the pattern for split Log to independent messages
+      version_added: 2.9.2
+      type: string
+      example: ~
+      default: (?<=\n)(?=(?:|[ \t]+?)(?:\[.+?\]) (?:{{.+?:[0-9]+}}) (?:CRITICAL|ERROR|WARNING|INFO|DEBUG) - (?:.+?)(?:\n|$))
     simple_log_format:
       description: |
         Defines the format of log messages for simple logging configuration

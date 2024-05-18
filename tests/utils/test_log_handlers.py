@@ -763,6 +763,26 @@ def test_interleave_logs_correct_ordering():
 
     assert sample_with_dupe == "\n".join(_interleave_logs(sample_with_dupe, "", sample_with_dupe))
 
+    sample_with_dupe_multiline = """[2023-01-17T12:46:55.868-0800] {temporal.py:62} INFO - trigger starting
+[2023-01-17T12:46:55.868-0800] {temporal.py:71} INFO - sleeping 1 second...
+[2023-01-17T12:47:09.882-0800] {temporal.py:71} INFO - sleeping 1 second...
+[2023-01-17T12:47:10.882-0800] {temporal.py:71} INFO - sleeping 1 second...
+[2023-01-17T12:47:10.980-0800] {temporal.py:71} INFO - multiline log message 1
+    
+1
+2
+2
+
+...
+[2023-01-17T12:47:10.981-0800] {temporal.py:71} INFO - multiline log message 2
+    
+*** test
+result
+[2023-01-17T12:47:11.883-0800] {temporal.py:74} INFO - yielding event with payload DateTime(2023, 1, 17, 20, 47, 11, 254388, tzinfo=Timezone('UTC'))
+[2023-01-17T12:47:11.883-0800] {triggerer_job.py:540} INFO - Trigger <airflow.triggers.temporal.DateTimeTrigger moment=2023-01-17T20:47:11.254388+00:00> (ID 1) fired: TriggerEvent<DateTime(2023, 1, 17, 20, 47, 11, 254388, tzinfo=Timezone('UTC'))>
+"""
+    assert sample_with_dupe_multiline == "\n".join(_interleave_logs(sample_with_dupe_multiline, "", sample_with_dupe_multiline))
+
 
 def test_permissions_for_new_directories(tmp_path):
     # Set umask to 0o027: owner rwx, group rx-w, other -rwx

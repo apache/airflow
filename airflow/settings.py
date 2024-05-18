@@ -80,6 +80,7 @@ GUNICORN_WORKER_READY_PREFIX = "[ready] "
 
 LOG_FORMAT = conf.get("logging", "log_format")
 SIMPLE_LOG_FORMAT = conf.get("logging", "simple_log_format")
+LOG_FORMAT_RE_PATTERN = conf.get("logging", "log_format_re_pattern")
 
 SQL_ALCHEMY_CONN: str | None = None
 PLUGINS_FOLDER: str | None = None

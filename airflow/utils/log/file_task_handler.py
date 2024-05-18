@@ -22,6 +22,7 @@ from __future__ import annotations
 import inspect
 import logging
 import os
+import re
 import warnings
 from contextlib import suppress
 from enum import Enum
@@ -32,6 +33,7 @@ from urllib.parse import urljoin
 
 import pendulum
 
+from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
@@ -128,10 +130,44 @@ def _parse_timestamps_in_log_file(lines: Iterable[str]):
             yield timestamp, idx, line
 
 
+def split_log_to_messages(log: str):
+    if settings_LOG_FORMAT_RE_PATTERN == "\n":
+        return log.splitlines()
+    
+    log_messages = re.split(settings.LOG_FORMAT_RE_PATTERN, log)
+    
+    if len(log_messages) > 1:
+        combined_messages = []
+        newline_no_cnt = 0
+        # remove endings \n or change pattern which will remove all
+        for part in log_messages:
+            if part.endswith("\n"):
+                combined_messages.append(part[:-1])
+            else:
+                newline_no_cnt += 1
+                combined_messages.append(part)
+        if newline_no_cnt <= 1:
+            # only endline can be without newline, except we do not modify log-messages
+            log_messages = combined_messages
+            if log.endswith("\n"):
+                # if log ends with \n then restore endline
+                last_message = log_messages.pop(-1)
+                log_messages.append(last_message + "\n")
+    else:
+        # default behavior if we can't split with pattern
+        log_messages = log.splitlines()
+        if len(log_messages) > 1:
+            # if only one line, then without warning
+            logger = logging.getLogger()
+            logger.warning("Can't split log with log_format_re_pattern. Using simple log.splitlines().")
+        
+    return log_messages
+
+
 def _interleave_logs(*logs):
     records = []
     for log in logs:
-        records.extend(_parse_timestamps_in_log_file(log.splitlines()))
+        records.extend(_parse_timestamps_in_log_file(split_log_to_messages(log)))
     last = None
     for _, _, v in sorted(
         records, key=lambda x: (x[0], x[1]) if x[0] else (pendulum.datetime(2000, 1, 1), x[1])
