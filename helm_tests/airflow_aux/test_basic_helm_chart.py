@@ -173,7 +173,7 @@ class TestBaseChartTest:
         }
         k8s_objects = render_chart(
             "test-basic",
-            values={"rpcServer": {"enabled": True}, "useStandardNaming": True},
+            values={"_rpcServer": {"enabled": True}, "useStandardNaming": True},
         )
         actual = {(x["kind"], x["metadata"]["name"]) for x in k8s_objects}
         assert actual == (DEFAULT_OBJECTS_STD_NAMING | extra_objects)

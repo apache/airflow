@@ -1156,7 +1156,8 @@ migrateDatabaseJob:
   useHelmHooks: true
   applyCustomEnv: true
 
-rpcServer:
+# rpcServer support is experimental / dev purpose only and will later be renamed
+_rpcServer:
   enabled: false
   baseUrl: ""
 
@@ -1187,7 +1188,7 @@ rpcServer:
     annotations: {}
     ports:
       - name: rpc-server
-        port: "{{ .Values.ports.rpcServer }}"
+        port: "{{ .Values.ports._rpcServer }}"
 
     loadBalancerIP: ~
     ## Limit load balancer source ips to list of CIDRs
@@ -1228,7 +1229,7 @@ rpcServer:
       from: []
       # Ports for webserver NetworkPolicy ingress (if `from` is set)
       ports:
-        - port: "{{ .Values.ports.rpcServer }}"
+        - port: "{{ .Values.ports._rpcServer }}"
 
   resources: {}
   #   limits:
@@ -2335,7 +2336,6 @@ elasticsearch:
 ports:
   flowerUI: 5555
   airflowUI: 8080
-  rpcServer: 9080
   workerLogs: 8793
   triggererLogs: 8794
   redisDB: 6379
@@ -2343,6 +2343,8 @@ ports:
   statsdScrape: 9102
   pgbouncer: 6543
   pgbouncerScrape: 9127
+  # rpcServer support is experimental / dev purpose only and will later be renamed
+  _rpcServer: 9080
 
 # Define any ResourceQuotas for namespace
 quotas: {}

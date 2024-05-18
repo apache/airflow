@@ -4236,8 +4236,8 @@
                 }
             }
         },
-        "rpcServer": {
-            "description": "Airflow RPC server settings.",
+        "_rpcServer": {
+            "description": "Airflow RPC server settings (AIP-44). Experimental / for dev purpose only.",
             "type": "object",
             "x-docsSection": "RPC Server",
             "additionalProperties": false,
@@ -4529,7 +4529,7 @@
                                     },
                                     "default": [
                                         {
-                                            "port": "{{ .Values.ports.rpcServer }}"
+                                            "port": "{{ .Values.ports._rpcServer }}"
                                         }
                                     ],
                                     "examples": [
@@ -4793,7 +4793,7 @@
                             "default": [
                                 {
                                     "name": "rpc-server",
-                                    "port": "{{ .Values.ports.rpcServer }}"
+                                    "port": "{{ .Values.ports._rpcServer }}"
                                 }
                             ],
                             "examples": [
@@ -7499,8 +7499,8 @@
                     "type": "integer",
                     "default": 8080
                 },
-                "rpcServer": {
-                    "description": "RPC server port.",
+                "_rpcServer": {
+                    "description": "RPC server port (AIP-44). Experimental / dev purpose only.",
                     "type": "integer",
                     "default": 9080
                 },

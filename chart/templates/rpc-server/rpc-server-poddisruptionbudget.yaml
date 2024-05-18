@@ -20,8 +20,8 @@
 ################################
 ## Airflow rpc-server PodDisruptionBudget
 #################################
-{{- if .Values.rpcServer.enabled }}
-{{- if .Values.rpcServer.podDisruptionBudget.enabled }}
+{{- if .Values._rpcServer.enabled }}
+{{- if .Values._rpcServer.podDisruptionBudget.enabled }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
@@ -32,8 +32,8 @@ metadata:
     release: {{ .Release.Name }}
     chart: {{ .Chart.Name }}
     heritage: {{ .Release.Service }}
-    {{- if or (.Values.labels) (.Values.rpcServer.labels) }}
-      {{- mustMerge .Values.rpcServer.labels .Values.labels | toYaml | nindent 4 }}
+    {{- if or (.Values.labels) (.Values._rpcServer.labels) }}
+      {{- mustMerge .Values._rpcServer.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
 spec:
   selector:
@@ -41,6 +41,6 @@ spec:
       tier: airflow
       component: rpc-server
       release: {{ .Release.Name }}
-  {{- toYaml .Values.rpcServer.podDisruptionBudget.config | nindent 2 }}
+  {{- toYaml .Values._rpcServer.podDisruptionBudget.config | nindent 2 }}
 {{- end }}
 {{- end }}
