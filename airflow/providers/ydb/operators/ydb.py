@@ -37,18 +37,23 @@ class YDBOperator(SQLExecuteQueryOperator):
         Deprecated - use `hook_params={'options': '-c <connection_options>'}` instead.
     """
 
-    template_fields_renderers = {**SQLExecuteQueryOperator.template_fields_renderers, "sql": "sql"}
+    template_fields_renderers = {**SQLExecuteQueryOperator.template_fields_renderers, "sql": "postgresql"}
+
     ui_color = "#ededed"
 
     def __init__(
         self,
-        *,
-        ydb_conn_id: str = "ydb_default",
+        sql: str | list[str],
         is_ddl: bool = False,
+        ydb_conn_id: str = "ydb_default",
+        autocommit: bool = False,
+        parameters: Mapping | Iterable | None = None,
         **kwargs,
     ) -> None:
+        self.sql = sql
+        self.parameters = parameters
         if is_ddl:
             hook_params = kwargs.pop("hook_params", {})
             kwargs["hook_params"] = {"is_ddl": is_ddl, **hook_params}
 
-        super().__init__(conn_id=ydb_conn_id, **kwargs)
+        super().__init__(conn_id=ydb_conn_id, sql=sql, parameters=parameters, **kwargs)
