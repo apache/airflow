@@ -935,7 +935,3 @@ class TestRPCServerServiceAccount:
             show_only=["templates/rpc-server/rpc-server-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
-
-
-a = ['helm', 'template', 'release-name', '/Users/dstandish/code/airflow/chart', '--values', '/var/folders/9c/tknx7xx10qx92983y1r5djb40000gn/T/tmpch5mly3e', '--kube-version', '1.29.1', '--namespace', 'default', '--show-only', 'templates/rpc-server/rpc-server-deployment.yaml']
-print(" ".join(a))
