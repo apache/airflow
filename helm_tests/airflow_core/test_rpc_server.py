@@ -743,7 +743,13 @@ class TestRPCServerService:
         [
             ([{"port": 8888}], [{"port": 8888}]),  # name is optional with a single port
             (
-                [{"name": "{{ .Release.Name }}", "protocol": "UDP", "port": "{{ .Values.ports._rpcServer }}"}],
+                [
+                    {
+                        "name": "{{ .Release.Name }}",
+                        "protocol": "UDP",
+                        "port": "{{ .Values.ports._rpcServer }}",
+                    }
+                ],
                 [{"name": "release-name", "protocol": "UDP", "port": 9080}],
             ),
             ([{"name": "only_sidecar", "port": "{{ int 9000 }}"}], [{"name": "only_sidecar", "port": 9000}]),
