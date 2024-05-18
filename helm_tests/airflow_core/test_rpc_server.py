@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from subprocess import CalledProcessError
+
 import jmespath
 import pytest
 
@@ -577,7 +579,7 @@ class TestRPCServerDeployment:
         } == jmespath.search("spec.template.spec.securityContext", docs[0])
 
     def test_rpc_server_security_context_legacy(self):
-        with pytest.raises(RuntimeError, match="Additional property securityContext is not allowed"):
+        with pytest.raises(CalledProcessError, match="Additional property securityContext is not allowed"):
             render_chart(
                 values={
                     "_rpcServer": {
