@@ -28,9 +28,9 @@ from typing import Collection, Generator, Sequence
 from urllib.parse import urlencode
 
 import google.auth
-import google.auth.credentials
 import google.oauth2.service_account
 from google.auth import impersonated_credentials  # type: ignore[attr-defined]
+from google.auth.credentials import AnonymousCredentials, Credentials
 from google.auth.environment_vars import CREDENTIALS, LEGACY_PROJECT, PROJECT
 
 from airflow.exceptions import AirflowException
@@ -178,6 +178,7 @@ class _CredentialProvider(LoggingMixin):
     :param key_secret_name: Keyfile Secret Name in GCP Secret Manager.
     :param key_secret_project_id: Project ID to read the secrets from. If not passed, the project ID from
         default credentials will be used.
+    :param credential_config_file: File path to or content of a GCP credential configuration file.
     :param scopes:  OAuth scopes for the connection
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
@@ -192,6 +193,8 @@ class _CredentialProvider(LoggingMixin):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account and target_principal
         granting the role to the last account from the list.
+    :param is_anonymous: Provides an anonymous set of credentials,
+        which is useful for APIs which do not require authentication.
     """
 
     def __init__(
@@ -206,13 +209,14 @@ class _CredentialProvider(LoggingMixin):
         disable_logging: bool = False,
         target_principal: str | None = None,
         delegates: Sequence[str] | None = None,
+        is_anonymous: bool | None = None,
     ) -> None:
         super().__init__()
-        key_options = [key_path, key_secret_name, keyfile_dict]
+        key_options = [key_path, keyfile_dict, credential_config_file, key_secret_name, is_anonymous]
         if len([x for x in key_options if x]) > 1:
             raise AirflowException(
-                "The `keyfile_dict`, `key_path`, and `key_secret_name` fields "
-                "are all mutually exclusive. Please provide only one value."
+                "The `keyfile_dict`, `key_path`, `credential_config_file`, `is_anonymous` and"
+                " `key_secret_name` fields are all mutually exclusive. Please provide only one value."
             )
         self.key_path = key_path
         self.keyfile_dict = keyfile_dict
@@ -224,43 +228,48 @@ class _CredentialProvider(LoggingMixin):
         self.disable_logging = disable_logging
         self.target_principal = target_principal
         self.delegates = delegates
+        self.is_anonymous = is_anonymous
 
-    def get_credentials_and_project(self) -> tuple[google.auth.credentials.Credentials, str]:
+    def get_credentials_and_project(self) -> tuple[Credentials, str]:
         """
         Get current credentials and project ID.
 
+        Project ID is an empty string when using anonymous credentials.
+
         :return: Google Auth Credentials
         """
-        if self.key_path:
-            credentials, project_id = self._get_credentials_using_key_path()
-        elif self.key_secret_name:
-            credentials, project_id = self._get_credentials_using_key_secret_name()
-        elif self.keyfile_dict:
-            credentials, project_id = self._get_credentials_using_keyfile_dict()
-        elif self.credential_config_file:
-            credentials, project_id = self._get_credentials_using_credential_config_file()
+        if self.is_anonymous:
+            credentials, project_id = AnonymousCredentials(), ""
         else:
-            credentials, project_id = self._get_credentials_using_adc()
-
-        if self.delegate_to:
-            if hasattr(credentials, "with_subject"):
-                credentials = credentials.with_subject(self.delegate_to)
+            if self.key_path:
+                credentials, project_id = self._get_credentials_using_key_path()
+            elif self.key_secret_name:
+                credentials, project_id = self._get_credentials_using_key_secret_name()
+            elif self.keyfile_dict:
+                credentials, project_id = self._get_credentials_using_keyfile_dict()
+            elif self.credential_config_file:
+                credentials, project_id = self._get_credentials_using_credential_config_file()
             else:
-                raise AirflowException(
-                    "The `delegate_to` parameter cannot be used here as the current "
-                    "authentication method does not support account impersonate. "
-                    "Please use service-account for authorization."
+                credentials, project_id = self._get_credentials_using_adc()
+            if self.delegate_to:
+                if hasattr(credentials, "with_subject"):
+                    credentials = credentials.with_subject(self.delegate_to)
+                else:
+                    raise AirflowException(
+                        "The `delegate_to` parameter cannot be used here as the current "
+                        "authentication method does not support account impersonate. "
+                        "Please use service-account for authorization."
+                    )
+
+            if self.target_principal:
+                credentials = impersonated_credentials.Credentials(
+                    source_credentials=credentials,
+                    target_principal=self.target_principal,
+                    delegates=self.delegates,
+                    target_scopes=self.scopes,
                 )
 
-        if self.target_principal:
-            credentials = impersonated_credentials.Credentials(
-                source_credentials=credentials,
-                target_principal=self.target_principal,
-                delegates=self.delegates,
-                target_scopes=self.scopes,
-            )
-
-            project_id = _get_project_id_from_service_account_email(self.target_principal)
+                project_id = _get_project_id_from_service_account_email(self.target_principal)
 
         return credentials, project_id
 
@@ -357,7 +366,7 @@ class _CredentialProvider(LoggingMixin):
             self.log.debug(*args, **kwargs)
 
 
-def get_credentials_and_project_id(*args, **kwargs) -> tuple[google.auth.credentials.Credentials, str]:
+def get_credentials_and_project_id(*args, **kwargs) -> tuple[Credentials, str]:
     """Return the Credentials object for Google API and the associated project_id."""
     return _CredentialProvider(*args, **kwargs).get_credentials_and_project()
 

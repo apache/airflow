@@ -372,6 +372,7 @@ class TestGoogleBaseHook:
             delegate_to=None,
             target_principal=None,
             delegates=None,
+            is_anonymous=None,
         )
         assert ("CREDENTIALS", "PROJECT_ID") == result
 
@@ -409,6 +410,7 @@ class TestGoogleBaseHook:
             delegate_to=None,
             target_principal=None,
             delegates=None,
+            is_anonymous=None,
         )
         assert (mock_credentials, "PROJECT_ID") == result
 
@@ -439,6 +441,7 @@ class TestGoogleBaseHook:
             delegate_to=None,
             target_principal=None,
             delegates=None,
+            is_anonymous=None,
         )
         assert (mock_credentials, "PROJECT_ID") == result
 
@@ -459,6 +462,7 @@ class TestGoogleBaseHook:
             delegate_to="USER",
             target_principal=None,
             delegates=None,
+            is_anonymous=None,
         )
         assert (mock_credentials, "PROJECT_ID") == result
 
@@ -495,6 +499,7 @@ class TestGoogleBaseHook:
             delegate_to=None,
             target_principal=None,
             delegates=None,
+            is_anonymous=None,
         )
         assert ("CREDENTIALS", "SECOND_PROJECT_ID") == result
 
@@ -504,12 +509,7 @@ class TestGoogleBaseHook:
             "key_path": "KEY_PATH",
             "keyfile_dict": '{"KEY": "VALUE"}',
         }
-        with pytest.raises(
-            AirflowException,
-            match=re.escape(
-                "The `keyfile_dict`, `key_path`, and `key_secret_name` fields are all mutually exclusive. "
-            ),
-        ):
+        with pytest.raises(AirflowException, match="mutually exclusive"):
             self.instance.get_credentials_and_project_id()
 
     def test_get_credentials_and_project_id_with_invalid_keyfile_dict(self):
@@ -518,6 +518,25 @@ class TestGoogleBaseHook:
         }
         with pytest.raises(AirflowException, match=re.escape("Invalid key JSON.")):
             self.instance.get_credentials_and_project_id()
+
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id", return_value=("CREDENTIALS", ""))
+    def test_get_credentials_and_project_id_with_is_anonymous(self, mock_get_creds_and_proj_id):
+        self.instance.extras = {
+            "is_anonymous": True,
+        }
+        self.instance.get_credentials_and_project_id()
+        mock_get_creds_and_proj_id.assert_called_once_with(
+            key_path=None,
+            keyfile_dict=None,
+            credential_config_file=None,
+            key_secret_name=None,
+            key_secret_project_id=None,
+            scopes=self.instance.scopes,
+            delegate_to=None,
+            target_principal=None,
+            delegates=None,
+            is_anonymous=True,
+        )
 
     @pytest.mark.skipif(
         not default_creds_available, reason="Default Google Cloud credentials not available to run tests"
@@ -724,6 +743,7 @@ class TestGoogleBaseHook:
             delegate_to=None,
             target_principal=target_principal,
             delegates=delegates,
+            is_anonymous=None,
         )
         assert (mock_credentials, PROJECT_ID) == result
 

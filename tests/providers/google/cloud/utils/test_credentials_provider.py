@@ -375,13 +375,13 @@ class TestGetGcpCredentialsAndProjectId:
             get_credentials_and_project_id(key_secret_name="secret name")
 
     def test_get_credentials_and_project_id_with_mutually_exclusive_configuration(self):
-        with pytest.raises(
-            AirflowException,
-            match=re.escape(
-                "The `keyfile_dict`, `key_path`, and `key_secret_name` fields are all mutually exclusive."
-            ),
-        ):
+        with pytest.raises(AirflowException, match="mutually exclusive."):
             get_credentials_and_project_id(key_path="KEY.json", keyfile_dict={"private_key": "PRIVATE_KEY"})
+
+    @mock.patch("airflow.providers.google.cloud.utils.credentials_provider.AnonymousCredentials")
+    def test_get_credentials_using_anonymous_credentials(self, mock_anonymous_credentials):
+        result = get_credentials_and_project_id(is_anonymous=True)
+        assert result == (mock_anonymous_credentials.return_value, "")
 
     @mock.patch("google.auth.default", return_value=("CREDENTIALS", "PROJECT_ID"))
     @mock.patch(
