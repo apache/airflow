@@ -94,6 +94,14 @@ def run_migrations_online():
     and associate a connection with the context.
 
     """
+
+    def process_revision_directives(context, revision, directives):
+        if getattr(config.cmd_opts, "autogenerate", False):
+            script = directives[0]
+            if script.upgrade_ops and script.upgrade_ops.is_empty():
+                directives[:] = []
+                print("No change detected in ORM schema, skipping revision.")
+
     with contextlib.ExitStack() as stack:
         connection = config.attributes.get("connection", None)
 
@@ -108,6 +116,7 @@ def run_migrations_online():
             compare_server_default=compare_server_default,
             include_object=include_object,
             render_as_batch=True,
+            process_revision_directives=process_revision_directives,
         )
 
         with context.begin_transaction():

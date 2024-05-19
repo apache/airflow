@@ -37,8 +37,7 @@
       "jsonpath_ng>=1.5.3",
       "redshift_connector>=2.0.918",
       "sqlalchemy_redshift>=0.8.6",
-      "watchtower>=2.0.1,<4",
-      "xmlsec<1.3.14"
+      "watchtower>=2.0.1,<4"
     ],
     "devel-deps": [
       "aiobotocore>=2.7.0",
@@ -167,6 +166,17 @@
     "excluded-python-versions": [],
     "state": "ready"
   },
+  "apache.iceberg": {
+    "deps": [
+      "apache-airflow>=2.7.0"
+    ],
+    "devel-deps": [
+      "pyiceberg>=0.5.0"
+    ],
+    "cross-providers-deps": [],
+    "excluded-python-versions": [],
+    "state": "ready"
+  },
   "apache.impala": {
     "deps": [
       "apache-airflow>=2.7.0",
@@ -252,7 +262,7 @@
   "apprise": {
     "deps": [
       "apache-airflow>=2.7.0",
-      "apprise"
+      "apprise>=1.8.0"
     ],
     "devel-deps": [],
     "cross-providers-deps": [],
@@ -1109,12 +1119,15 @@
   },
   "tabular": {
     "deps": [
+      "apache-airflow-providers-apache-iceberg",
       "apache-airflow>=2.7.0"
     ],
     "devel-deps": [
       "pyiceberg>=0.5.0"
     ],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "apache.iceberg"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
@@ -1185,8 +1198,8 @@
   "yandex": {
     "deps": [
       "apache-airflow>=2.7.0",
-      "yandex-query-client>=0.1.2",
-      "yandexcloud>=0.228.0"
+      "yandex-query-client>=0.1.4",
+      "yandexcloud>=0.278.0"
     ],
     "devel-deps": [],
     "cross-providers-deps": [],

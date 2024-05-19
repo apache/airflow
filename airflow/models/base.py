@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Column, Integer, MetaData, String, text
 from sqlalchemy.orm import registry
@@ -48,7 +48,10 @@ metadata = MetaData(schema=_get_schema(), naming_convention=naming_convention)
 mapper_registry = registry(metadata=metadata)
 _sentinel = object()
 
-Base: Any = mapper_registry.generate_base()
+if TYPE_CHECKING:
+    Base = Any
+else:
+    Base = mapper_registry.generate_base()
 
 ID_LEN = 250
 

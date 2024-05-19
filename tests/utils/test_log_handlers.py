@@ -122,7 +122,7 @@ class TestFileTaskLogHandler:
         # We expect set_context generates a file locally.
         log_filename = file_handler.handler.baseFilename
         assert os.path.isfile(log_filename)
-        assert log_filename.endswith("1.log"), log_filename
+        assert log_filename.endswith("0.log"), log_filename
 
         ti.run(ignore_ti_state=True)
 
@@ -161,7 +161,7 @@ class TestFileTaskLogHandler:
             python_callable=task_callable,
         )
         ti = TaskInstance(task=task, run_id=dagrun.run_id)
-
+        ti.try_number += 1
         logger = ti.log
         ti.log.disabled = False
 
@@ -498,7 +498,7 @@ class TestFileTaskLogHandler:
             t.task_instance = ti
         h = FileTaskHandler(base_log_folder=os.fspath(tmp_path))
         h.set_context(ti)
-        expected = "dag_id=test_fth/run_id=test/task_id=dummy/attempt=1.log"
+        expected = "dag_id=test_fth/run_id=test/task_id=dummy/attempt=0.log"
         if is_a_trigger:
             expected += f".trigger.{job.id}.log"
         actual = h.handler.baseFilename

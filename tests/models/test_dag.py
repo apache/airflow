@@ -3257,7 +3257,13 @@ def test_dag_timetable_change_after_init(timetable):
     assert not dag._check_schedule_interval_matches_timetable()
 
 
-@pytest.mark.parametrize("run_id, execution_date", [(None, datetime_tz(2020, 1, 1)), ("test-run-id", None)])
+@pytest.mark.parametrize(
+    "run_id, execution_date",
+    [
+        (None, datetime_tz(2020, 1, 1)),
+        ("test-run-id", None),
+    ],
+)
 def test_set_task_instance_state(run_id, execution_date, session, dag_maker):
     """Test that set_task_instance_state updates the TaskInstance state and clear downstream failed"""
 
@@ -3321,7 +3327,9 @@ def test_set_task_instance_state(run_id, execution_date, session, dag_maker):
     # dagrun should be set to QUEUED
     assert dagrun.get_state() == State.QUEUED
 
-    assert {t.key for t in altered} == {("test_set_task_instance_state", "task_1", dagrun.run_id, 1, -1)}
+    assert {tuple(t.key) for t in altered} == {
+        ("test_set_task_instance_state", "task_1", dagrun.run_id, 0, -1)
+    }
 
 
 def test_set_task_instance_state_mapped(dag_maker, session):
@@ -3472,8 +3480,8 @@ def test_set_task_group_state(run_id, execution_date, session, dag_maker):
     assert dagrun.get_state() == State.QUEUED
 
     assert {t.key for t in altered} == {
-        ("test_set_task_group_state", "section_1.task_1", dagrun.run_id, 1, -1),
-        ("test_set_task_group_state", "section_1.task_3", dagrun.run_id, 1, -1),
+        ("test_set_task_group_state", "section_1.task_1", dagrun.run_id, 0, -1),
+        ("test_set_task_group_state", "section_1.task_3", dagrun.run_id, 0, -1),
     }
 
 

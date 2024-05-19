@@ -41,6 +41,7 @@ import useSetDagRunNote from "./useSetDagRunNote";
 import useSetTaskInstanceNote from "./useSetTaskInstanceNote";
 import useUpstreamDatasetEvents from "./useUpstreamDatasetEvents";
 import useTaskInstance from "./useTaskInstance";
+import useTaskFailedDependency from "./useTaskFailedDependency";
 import useDag from "./useDag";
 import useDagCode from "./useDagCode";
 import useDagDetails from "./useDagDetails";
@@ -100,6 +101,7 @@ export {
   useHistoricalMetricsData,
   useTaskXcomEntry,
   useTaskXcomCollection,
+  useTaskFailedDependency,
   useEventLogs,
   useCalendarData,
   useCreateDatasetEvent,

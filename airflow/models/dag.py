@@ -2948,6 +2948,8 @@ class DAG(LoggingMixin):
                 session.expire_all()
                 schedulable_tis, _ = dr.update_state(session=session)
                 for s in schedulable_tis:
+                    if s.state != TaskInstanceState.UP_FOR_RESCHEDULE:
+                        s.try_number += 1
                     s.state = TaskInstanceState.SCHEDULED
                 session.commit()
                 # triggerer may mark tasks scheduled so we read from DB
@@ -3552,6 +3554,8 @@ class DagTag(Base):
         ForeignKey("dag.dag_id", name="dag_tag_dag_id_fkey", ondelete="CASCADE"),
         primary_key=True,
     )
+
+    __table_args__ = (Index("idx_dag_tag_dag_id", dag_id),)
 
     def __repr__(self):
         return self.name

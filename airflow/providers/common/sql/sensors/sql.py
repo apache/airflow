@@ -51,7 +51,7 @@ class SqlSensor(BaseSensorOperator):
             Should match the desired hook constructor params.
     """
 
-    template_fields: Sequence[str] = ("sql", "hook_params")
+    template_fields: Sequence[str] = ("sql", "hook_params", "parameters")
     template_ext: Sequence[str] = (
         ".hql",
         ".sql",

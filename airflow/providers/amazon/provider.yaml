@@ -22,9 +22,10 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
-source-date-epoch: 1714475383
+source-date-epoch: 1715450472
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 8.22.0
   - 8.21.0
   - 8.20.0
   - 8.19.0
@@ -99,10 +100,6 @@ dependencies:
   - sqlalchemy_redshift>=0.8.6
   - asgiref
   - PyAthena>=3.0.10
-  # XML sec 1.3.14 breaks Amazon's authentication with `lxml & xmlsec libxml2 library version mismatch`
-  # We should investigate if we can upgrade to a newer version of lxml and xmlsec
-  # Tracked in https://github.com/apache/airflow/issues/39103
-  - xmlsec<1.3.14
   - jmespath
 
 additional-extras:
@@ -168,6 +165,12 @@ integrations:
   - integration-name: Amazon CloudWatch Logs
     external-doc-url: https://aws.amazon.com/cloudwatch/
     logo: /integration-logos/aws/Amazon-CloudWatch_light-bg@4x.png
+    tags: [aws]
+  - integration-name: Amazon Comprehend
+    external-doc-url: https://aws.amazon.com/comprehend/
+    logo: /integration-logos/aws/Amazon-Comprehend_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/comprehend.rst
     tags: [aws]
   - integration-name: Amazon DataSync
     external-doc-url: https://aws.amazon.com/datasync/
@@ -388,6 +391,9 @@ operators:
   - integration-name: Amazon CloudFormation
     python-modules:
       - airflow.providers.amazon.aws.operators.cloud_formation
+  - integration-name: Amazon Comprehend
+    python-modules:
+      - airflow.providers.amazon.aws.operators.comprehend
   - integration-name: Amazon DataSync
     python-modules:
       - airflow.providers.amazon.aws.operators.datasync
@@ -473,6 +479,9 @@ sensors:
   - integration-name: Amazon CloudFormation
     python-modules:
       - airflow.providers.amazon.aws.sensors.cloud_formation
+  - integration-name: Amazon Comprehend
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.comprehend
   - integration-name: AWS Database Migration Service
     python-modules:
       - airflow.providers.amazon.aws.sensors.dms
@@ -548,6 +557,9 @@ hooks:
   - integration-name: Amazon Chime
     python-modules:
       - airflow.providers.amazon.aws.hooks.chime
+  - integration-name: Amazon Comprehend
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.comprehend
   - integration-name: Amazon DynamoDB
     python-modules:
       - airflow.providers.amazon.aws.hooks.dynamodb
@@ -675,6 +687,9 @@ triggers:
   - integration-name: Amazon Bedrock
     python-modules:
       - airflow.providers.amazon.aws.triggers.bedrock
+  - integration-name: Amazon Comprehend
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.comprehend
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.triggers.ec2

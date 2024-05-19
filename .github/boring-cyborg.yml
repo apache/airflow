@@ -76,6 +76,12 @@ labelPRBasedOnFilePath:
     - tests/providers/apache/hive/**/*
     - tests/system/providers/apache/hive/**/*
 
+  provider:apache-iceberg:
+    - airflow/providers/apache/iceberg/**/*
+    - docs/apache-airflow-providers-apache-iceberg/**/*
+    - tests/providers/apache/iceberg/**/*
+    - tests/system/providers/apache/iceberg/**/*
+
   provider:apache-impala:
     - airflow/providers/apache/impala/**/*
     - docs/apache-airflow-providers-apache-impala/**/*
@@ -481,7 +487,6 @@ labelPRBasedOnFilePath:
     - airflow/providers/tabular/**/*
     - docs/apache-airflow-providers-tabular/**/*
     - tests/providers/tabular/**/*
-    - tests/system/providers/tabular/**/*
 
   provider:telegram:
     - airflow/providers/telegram/**/*
