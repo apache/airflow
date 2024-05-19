@@ -39,3 +39,6 @@ class OpenLineageProviderPlugin(AirflowPlugin):
     if not conf.is_disabled():
         macros = [lineage_job_namespace, lineage_job_name, lineage_run_id, lineage_parent_id]
         listeners = [get_openlineage_listener()]
+    else:
+        macros = []
+        listeners = []

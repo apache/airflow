@@ -29,6 +29,7 @@ from pinecone import Pinecone, PodSpec, ServerlessSpec
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
+    from pinecone import Vector
     from pinecone.core.client.model.sparse_values import SparseValues
     from pinecone.core.client.models import DescribeIndexStatsResponse, QueryResponse, UpsertResponse
 
@@ -137,7 +138,7 @@ class PineconeHook(BaseHook):
     def upsert(
         self,
         index_name: str,
-        vectors: list[Any],
+        vectors: list[Vector] | list[tuple] | list[dict],
         namespace: str = "",
         batch_size: int | None = None,
         show_progress: bool = True,

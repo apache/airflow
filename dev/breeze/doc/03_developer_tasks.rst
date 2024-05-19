@@ -590,6 +590,24 @@ This is a lightweight solution that has its own limitations.
 More details on using the local virtualenv are available in the
 `Local Virtualenv <../../../contributing-docs/07_local_virtualenv.rst>`_.
 
+Auto-generating migration files
+-------------------------------
+After making changes in the ORM models, you need to generate migration files. You can do this by running
+the following command:
+
+.. code-block:: bash
+
+    breeze generate-migration-file -m "Your migration message"
+
+This command will generate a migration file in the ``airflow/migrations/versions`` directory.
+
+These are all available flags of ``generate-migration-file`` command:
+
+.. image:: ./images/output_generate-migration-file.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_generate-migration-file.svg
+  :width: 100%
+  :alt: Breeze generate-migration-file
+
 ------
 
 Next step: Follow the `Troubleshooting <04_troubleshooting.rst>`_ guide to troubleshoot your Breeze environment.

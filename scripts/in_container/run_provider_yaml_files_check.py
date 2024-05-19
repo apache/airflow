@@ -51,6 +51,8 @@ DEPRECATED_MODULES = [
     "airflow.providers.cncf.kubernetes.triggers.kubernetes_pod",
     "airflow.providers.cncf.kubernetes.operators.kubernetes_pod",
     "airflow.providers.tabular.hooks.tabular",
+    "airflow.providers.yandex.hooks.yandexcloud_dataproc",
+    "airflow.providers.yandex.operators.yandexcloud_dataproc",
 ]
 
 KNOWN_DEPRECATED_CLASSES = [

@@ -24,9 +24,13 @@ from unittest.mock import patch
 import pytest
 
 from airflow.providers.openlineage.conf import config_path, is_disabled, transport
+from tests.conftest import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 from tests.test_utils.config import conf_vars
 
 
+@pytest.mark.skipif(
+    RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES, reason="Plugin initialization is done early in case of packages"
+)
 class TestOpenLineageProviderPlugin:
     def setup_method(self):
         is_disabled.cache_clear()

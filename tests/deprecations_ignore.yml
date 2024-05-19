@@ -324,8 +324,6 @@
 - tests/providers/amazon/aws/triggers/test_redshift_cluster.py::TestRedshiftClusterTrigger::test_redshift_cluster_sensor_trigger_success
 - tests/providers/amazon/aws/utils/test_connection_wrapper.py::TestAwsConnectionWrapper::test_get_endpoint_url_from_extra
 - tests/providers/apache/spark/operators/test_spark_sql.py::TestSparkSqlOperator::test_execute
-- tests/providers/common/sql/hooks/test_dbapi.py::TestDbApiHook::test_insert_rows_executemany
-- tests/providers/common/sql/hooks/test_dbapi.py::TestDbApiHook::test_insert_rows_replace_executemany_hana_dialect
 - tests/providers/common/sql/hooks/test_dbapi.py::TestDbApiHook::test_instance_check_works_for_legacy_db_api_hook
 - tests/providers/common/sql/operators/test_sql.py::TestSQLCheckOperatorDbHook::test_get_hook
 - tests/providers/common/sql/operators/test_sql.py::TestSqlBranch::test_branch_false_with_dag_run
@@ -335,6 +333,7 @@
 - tests/providers/common/sql/operators/test_sql.py::TestSqlBranch::test_invalid_query_result_with_dag_run
 - tests/providers/common/sql/operators/test_sql.py::TestSqlBranch::test_with_skip_in_branch_downstream_dependencies
 - tests/providers/common/sql/operators/test_sql.py::TestSqlBranch::test_with_skip_in_branch_downstream_dependencies2
+- tests/providers/cncf/kubernetes/cli/test_kubernetes_command.py::TestGenerateDagYamlCommand::test_generate_dag_yaml
 - tests/providers/databricks/hooks/test_databricks_sql.py::test_incorrect_column_names
 - tests/providers/databricks/hooks/test_databricks_sql.py::test_no_query
 - tests/providers/databricks/hooks/test_databricks_sql.py::test_query
@@ -692,8 +691,4 @@
 - tests/providers/weaviate/operators/test_weaviate.py::TestWeaviateIngestOperator::test_execute_with_input_json
 - tests/providers/yandex/hooks/test_yandex.py::TestYandexHook::test_provider_user_agent
 - tests/providers/yandex/hooks/test_yandex.py::TestYandexHook::test_backcompat_prefix_works
-- tests/providers/yandex/operators/test_yandexcloud_dataproc.py::TestDataprocClusterCreateOperator::test_create_hive_job_operator
-- tests/providers/yandex/operators/test_yandexcloud_dataproc.py::TestDataprocClusterCreateOperator::test_create_mapreduce_job_operator
-- tests/providers/yandex/operators/test_yandexcloud_dataproc.py::TestDataprocClusterCreateOperator::test_create_spark_job_operator
-- tests/providers/yandex/operators/test_yandexcloud_dataproc.py::TestDataprocClusterCreateOperator::test_create_pyspark_job_operator
 - tests/providers/yandex/secrets/test_lockbox.py::TestLockboxSecretBackend::test_yandex_lockbox_secret_backend_get_connection_from_json

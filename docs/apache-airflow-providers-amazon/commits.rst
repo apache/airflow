@@ -35,14 +35,35 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.22.0
+......
+
+Latest change: 2024-05-11
+
+=================================================================================================  ===========  ========================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================================
+`ca058a635e <https://github.com/apache/airflow/commit/ca058a635ee53b3717964b8bf4bfce241f40e762>`_  2024-05-11   ``enh(amazon_hook): raise not found exception instead of general exception when download file (#39509)``
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`c9f4618be4 <https://github.com/apache/airflow/commit/c9f4618be4a88d8287cf579230380dda8edaeafd>`_  2024-05-09   ``Drop 'xmlsec' pin (#39534)``
+`3938f71dfa <https://github.com/apache/airflow/commit/3938f71dfae21c84a3518625543a28ad02edf641>`_  2024-05-08   ``Scheduler to handle incrementing of try_number (#39336)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+`9c739d7142 <https://github.com/apache/airflow/commit/9c739d714278645a3c8cab25d02db843fef06d9d>`_  2024-05-07   ``'S3DeleteObjectsOperator' Added ability to filter keys by last modified time (#39151)``
+`a74b5f0694 <https://github.com/apache/airflow/commit/a74b5f069481e1a2339cfd95e137619b16390906>`_  2024-05-06   ``ECS Executor: Set tasks to RUNNING state once active (#39212)``
+`598398a816 <https://github.com/apache/airflow/commit/598398a81657c06e092d1290200a9facf82f55f3>`_  2024-05-02   ``Amazon Bedrock - Knowledge Bases and Data Sources (#39245)``
+`4910c0439b <https://github.com/apache/airflow/commit/4910c0439bf370348a63f445bbeb8051a93e22fd>`_  2024-05-01   ``Add 'jmespath' as an explicit dependency (#39350)``
+=================================================================================================  ===========  ========================================================================================================
+
 8.21.0
 ......
 
-Latest change: 2024-04-30
+Latest change: 2024-05-01
 
 =================================================================================================  ===========  ============================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ============================================================================================================
+`fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
 `91490fb054 <https://github.com/apache/airflow/commit/91490fb054e1b86846ab6ab33fe79384d2de3751>`_  2024-04-30   ``Added logging_config,snapstart,ephemeral_storage parameters to aws lambdacreatefunctionoperator (#39300)``
 `4fa9fe119e <https://github.com/apache/airflow/commit/4fa9fe119e5aae639c942668f40a15a6ef0f7f67>`_  2024-04-29   ``Rename "try_number" increments that are unrelated to the airflow concept (#39317)``
 `6d09adf992 <https://github.com/apache/airflow/commit/6d09adf99262144c71bd15c09bc18f956667ccae>`_  2024-04-26   ``Add tests for 'EmrServerlessJobSensor' and 'EmrServerlessApplicationSensor' (#39099)``

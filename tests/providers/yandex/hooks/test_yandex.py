@@ -40,7 +40,7 @@ class TestYandexHook:
         mock_get_connection["extra_dejson"] = "sds"
         mock_get_connection.extra_dejson = '{"extras": "extra"}'
         mock_get_connection.return_value = mock.Mock(
-            connection_id="yandexcloud_default", extra_dejson=extra_dejson
+            yandex_conn_id="yandexcloud_default", extra_dejson=extra_dejson
         )
         mock_get_credentials.return_value = {"token": 122323}
 
@@ -54,7 +54,7 @@ class TestYandexHook:
     @mock.patch("airflow.hooks.base.BaseHook.get_connection")
     @mock.patch("airflow.providers.yandex.utils.credentials.get_credentials")
     def test_provider_user_agent(self, mock_get_credentials, mock_get_connection):
-        mock_get_connection.return_value = mock.Mock(connection_id="yandexcloud_default", extra_dejson="{}")
+        mock_get_connection.return_value = mock.Mock(yandex_conn_id="yandexcloud_default", extra_dejson="{}")
         mock_get_credentials.return_value = {"token": 122323}
         sdk_prefix = "MyAirflow"
 
@@ -65,7 +65,7 @@ class TestYandexHook:
     @mock.patch("airflow.hooks.base.BaseHook.get_connection")
     @mock.patch("airflow.providers.yandex.utils.credentials.get_credentials")
     def test_sdk_user_agent(self, mock_get_credentials, mock_get_connection):
-        mock_get_connection.return_value = mock.Mock(connection_id="yandexcloud_default", extra_dejson="{}")
+        mock_get_connection.return_value = mock.Mock(yandex_conn_id="yandexcloud_default", extra_dejson="{}")
         mock_get_credentials.return_value = {"token": 122323}
         sdk_prefix = "MyAirflow"
 
@@ -97,7 +97,7 @@ class TestYandexHook:
 
         extra_dejson = {"endpoint": "my_endpoint", "something_else": "some_value"}
         mock_get_connection.return_value = mock.Mock(
-            connection_id="yandexcloud_default", extra_dejson=extra_dejson
+            yandex_conn_id="yandexcloud_default", extra_dejson=extra_dejson
         )
         mock_get_credentials.return_value = {"token": 122323}
 
@@ -117,7 +117,7 @@ class TestYandexHook:
 
         extra_dejson = {"something_else": "some_value"}
         mock_get_connection.return_value = mock.Mock(
-            connection_id="yandexcloud_default", extra_dejson=extra_dejson
+            yandex_conn_id="yandexcloud_default", extra_dejson=extra_dejson
         )
         mock_get_credentials.return_value = {"token": 122323}
 
@@ -140,7 +140,7 @@ class TestYandexHook:
         mock_get_connection["extra_dejson"] = "sds"
         mock_get_connection.extra_dejson = '{"extras": "extra"}'
         mock_get_connection.return_value = mock.Mock(
-            connection_id="yandexcloud_default", extra_dejson=extra_dejson
+            yandex_conn_id="yandexcloud_default", extra_dejson=extra_dejson
         )
 
         hook = YandexCloudBaseHook(
@@ -163,7 +163,7 @@ class TestYandexHook:
         get_connection_mock["extra_dejson"] = "sds"
         get_connection_mock.extra_dejson = '{"extras": "extra"}'
         get_connection_mock.return_value = mock.Mock(
-            connection_id="yandexcloud_default", extra_dejson=extra_dejson
+            yandex_conn_id="yandexcloud_default", extra_dejson=extra_dejson
         )
 
         hook = YandexCloudBaseHook()
