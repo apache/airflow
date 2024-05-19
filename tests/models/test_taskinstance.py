@@ -4281,16 +4281,9 @@ class TestMappedTaskInstanceReceiveValue:
         mapped_tis, max_map_index = show_task.expand_mapped_task(dag_run.run_id, session=session)
         assert max_map_index + 1 == len(mapped_tis) == len(upstream_return)
 
-        # for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
-        #     ti.refresh_from_task(show_task)
-        #     ti.dry_run()
-
-        from airflow.utils.task_instance_session import set_current_task_instance_session
-
-        with set_current_task_instance_session(session):
-            for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
-                ti.refresh_from_task(show_task)
-                ti.dry_run()
+        for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
+            ti.refresh_from_task(show_task)
+            ti.dry_run()
 
         assert outputs == expected_outputs
 
