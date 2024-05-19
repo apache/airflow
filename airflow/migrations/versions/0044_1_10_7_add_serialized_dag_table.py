@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``serialized_dag`` table
+"""Add ``serialized_dag`` table.
 
 Revision ID: d38e04c12aa2
 Revises: 6e96a59344a4
 Create Date: 2019-08-01 14:39:35.616417
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -29,6 +30,7 @@ from alembic import op
 from sqlalchemy import text
 from sqlalchemy.dialects import mysql
 
+from airflow.exceptions import AirflowException
 from airflow.migrations.db_types import StringID
 
 # revision identifiers, used by Alembic.
@@ -68,7 +70,9 @@ def upgrade():
         cur = conn.execute(text("SELECT @@explicit_defaults_for_timestamp"))
         res = cur.fetchall()
         if res[0][0] == 0:
-            raise Exception("Global variable explicit_defaults_for_timestamp needs to be on (1) for mysql")
+            raise AirflowException(
+                "Global variable explicit_defaults_for_timestamp needs to be on (1) for mysql"
+            )
 
         op.alter_column(
             table_name="serialized_dag",

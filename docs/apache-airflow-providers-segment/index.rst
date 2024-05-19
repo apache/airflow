@@ -55,7 +55,7 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-segment
+apache-airflow-providers-segment package
 ------------------------------------------------------
 
 `Segment <https://segment.com/>`__
@@ -66,24 +66,24 @@ Release: 3.5.0
 Provider package
 ----------------
 
-This is a provider package for ``segment`` provider. All classes for this provider package
-are in ``airflow.providers.segment`` python package.
+This package is for the ``segment`` provider.
+All classes for this package are included in the ``airflow.providers.segment`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-segment``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-segment``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
 
 ====================  ==================
 PIP package           Version required
 ====================  ==================
-``apache-airflow``    ``>=2.6.0``
+``apache-airflow``    ``>=2.7.0``
 ``analytics-python``  ``>=1.2.9``
 ====================  ==================

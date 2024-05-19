@@ -72,7 +72,6 @@ class TestProjectStructure:
             "tests/providers/amazon/aws/sensors/test_emr.py",
             "tests/providers/amazon/aws/sensors/test_sagemaker.py",
             "tests/providers/amazon/aws/test_exceptions.py",
-            "tests/providers/amazon/aws/triggers/test_eks.py",
             "tests/providers/amazon/aws/triggers/test_step_function.py",
             "tests/providers/amazon/aws/utils/test_rds.py",
             "tests/providers/amazon/aws/utils/test_sagemaker.py",
@@ -160,6 +159,8 @@ class TestProjectStructure:
             "tests/providers/redis/sensors/test_redis_key.py",
             "tests/providers/slack/notifications/test_slack_notifier.py",
             "tests/providers/snowflake/triggers/test_snowflake_trigger.py",
+            "tests/providers/yandex/hooks/test_yandexcloud_dataproc.py",
+            "tests/providers/yandex/operators/test_yandexcloud_dataproc.py",
         ]
 
         # TODO: Should we extend this test to cover other directories?
@@ -362,6 +363,8 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         ".CloudDataTransferServiceS3ToGCSOperator",
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service"
         ".CloudDataTransferServiceGCSToGCSOperator",
+        "airflow.providers.google.cloud.operators.automl.AutoMLTablesUpdateDatasetOperator",
+        "airflow.providers.google.cloud.operators.automl.AutoMLDeployModelOperator",
         "airflow.providers.google.cloud.operators.dataproc.DataprocSubmitHadoopJobOperator",
         "airflow.providers.google.cloud.operators.dataproc.DataprocScaleClusterOperator",
         "airflow.providers.google.cloud.operators.dataproc.DataprocSubmitSparkJobOperator",
@@ -521,6 +524,8 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
         "airflow.providers.amazon.aws.sensors.ecs.EcsBaseSensor",
         "airflow.providers.amazon.aws.sensors.eks.EksBaseSensor",
         "airflow.providers.amazon.aws.transfers.base.AwsToAwsBaseOperator",
+        "airflow.providers.amazon.aws.operators.comprehend.ComprehendBaseOperator",
+        "airflow.providers.amazon.aws.sensors.comprehend.ComprehendBaseSensor",
     }
 
     MISSING_EXAMPLES_FOR_CLASSES = {

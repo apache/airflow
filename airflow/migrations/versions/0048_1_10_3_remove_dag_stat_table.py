@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Remove ``dag_stat`` table
+"""Remove ``dag_stat`` table.
 
 Revision ID: a56c9515abdc
 Revises: c8ffec048a3b
 Create Date: 2018-12-27 10:27:59.715872
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -36,12 +37,12 @@ airflow_version = "1.10.3"
 
 
 def upgrade():
-    """Drop dag_stats table"""
+    """Drop dag_stats table."""
     op.drop_table("dag_stats")
 
 
 def downgrade():
-    """Create dag_stats table"""
+    """Create dag_stats table."""
     op.create_table(
         "dag_stats",
         sa.Column("dag_id", sa.String(length=250), nullable=False),

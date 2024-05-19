@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``notification_sent`` column to ``sla_miss`` table
+"""Add ``notification_sent`` column to ``sla_miss`` table.
 
 Revision ID: bbc73705a13e
 Revises: 4446e08588
 Create Date: 2016-01-14 18:05:54.871682
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa

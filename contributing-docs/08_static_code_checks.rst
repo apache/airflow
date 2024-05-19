@@ -142,6 +142,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-builtin-literals                                    | Require literal syntax when initializing builtin types       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-changelog-format                                    | Check changelog format                                       |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-changelog-has-no-duplicates                         | Check changelogs for duplicate entries                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-cncf-k8s-only-for-executors                         | Check cncf.kubernetes imports used for executors only        |         |

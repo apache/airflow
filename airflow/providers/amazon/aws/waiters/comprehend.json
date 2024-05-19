@@ -1,0 +1,49 @@
+{
+    "version": 2,
+    "waiters": {
+        "pii_entities_detection_job_complete": {
+            "delay": 120,
+            "maxAttempts": 75,
+            "operation": "DescribePiiEntitiesDetectionJob",
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "PiiEntitiesDetectionJobProperties.JobStatus",
+                    "expected": "SUBMITTED",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "PiiEntitiesDetectionJobProperties.JobStatus",
+                    "expected": "IN_PROGRESS",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "PiiEntitiesDetectionJobProperties.JobStatus",
+                    "expected": "COMPLETED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "PiiEntitiesDetectionJobProperties.JobStatus",
+                    "expected": "FAILED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "PiiEntitiesDetectionJobProperties.JobStatus",
+                    "expected": "STOP_REQUESTED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "PiiEntitiesDetectionJobProperties.JobStatus",
+                    "expected": "STOPPED",
+                    "state": "failure"
+                }
+
+            ]
+        }
+    }
+}

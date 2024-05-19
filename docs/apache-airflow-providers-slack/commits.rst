@@ -38,14 +38,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.7.0
+.....
+
+Latest change: 2024-05-01
+
+=================================================================================================  ===========  =================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================================
+`7a0fa64997 <https://github.com/apache/airflow/commit/7a0fa649973e4f9898082167689932c67a48c51e>`_  2024-05-01   ``Use 'upload_files_v2' Slack SDK method by default in Slack Operators (#39340)``
+`ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+=================================================================================================  ===========  =================================================================================
+
 8.6.2
 .....
 
-Latest change: 2024-03-22
+Latest change: 2024-04-10
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
 `0aee6813db <https://github.com/apache/airflow/commit/0aee6813db30f72c4e09610c6212f50ff2250cac>`_  2024-03-22   ``Fix set deprecated slack operators arguments in 'MappedOperator' (#38345)``
 `d8381ed250 <https://github.com/apache/airflow/commit/d8381ed2508a6129142e5717b800bb4bad7a6a30>`_  2024-03-18   ``Update SqlToSlackApiFileOperator with new param to check empty output (#38079)``
 `0a74928894 <https://github.com/apache/airflow/commit/0a74928894fb57b0160208262ccacad12da23fc7>`_  2024-03-18   ``Bump ruff to 0.3.3 (#38240)``

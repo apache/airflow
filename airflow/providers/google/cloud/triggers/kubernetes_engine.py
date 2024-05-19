@@ -30,7 +30,6 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
 from airflow.providers.google.cloud.hooks.kubernetes_engine import (
     GKEAsyncHook,
     GKEKubernetesAsyncHook,
-    GKEPodAsyncHook,
 )
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -147,8 +146,8 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
         )
 
     @cached_property
-    def hook(self) -> GKEPodAsyncHook:  # type: ignore[override]
-        return GKEPodAsyncHook(
+    def hook(self) -> GKEKubernetesAsyncHook:  # type: ignore[override]
+        return GKEKubernetesAsyncHook(
             cluster_url=self._cluster_url,
             ssl_ca_cert=self._ssl_ca_cert,
             gcp_conn_id=self.gcp_conn_id,

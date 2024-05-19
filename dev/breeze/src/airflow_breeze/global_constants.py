@@ -75,7 +75,7 @@ ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "pre-commit", "docker-compose"]
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.26.14", "v1.27.11", "v1.28.7", "v1.29.2"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.26.15", "v1.27.13", "v1.28.9", "v1.29.4", "v1.30.0"]
 ALLOWED_EXECUTORS = [
     "LocalExecutor",
     "KubernetesExecutor",
@@ -101,8 +101,9 @@ MOUNT_SELECTED = "selected"
 MOUNT_ALL = "all"
 MOUNT_SKIP = "skip"
 MOUNT_REMOVE = "remove"
+MOUNT_TESTS = "tests"
 
-ALLOWED_MOUNT_OPTIONS = [MOUNT_SELECTED, MOUNT_ALL, MOUNT_SKIP, MOUNT_REMOVE]
+ALLOWED_MOUNT_OPTIONS = [MOUNT_SELECTED, MOUNT_ALL, MOUNT_SKIP, MOUNT_REMOVE, MOUNT_TESTS]
 ALLOWED_POSTGRES_VERSIONS = ["12", "13", "14", "15", "16"]
 # Oracle introduced new release model for MySQL
 # - LTS: Long Time Support releases, new release approx every 2 year,
@@ -110,9 +111,9 @@ ALLOWED_POSTGRES_VERSIONS = ["12", "13", "14", "15", "16"]
 #  the first LTS release should be in summer/fall 2024.
 # - Innovations: Shot living releases with short support cycle - only until next Innovation/LTS release.
 # See: https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions/
-MYSQL_LTS_RELEASES: list[str] = []
+MYSQL_LTS_RELEASES: list[str] = ["8.4"]
 MYSQL_OLD_RELEASES = ["8.0"]
-MYSQL_INNOVATION_RELEASE = "8.3"
+MYSQL_INNOVATION_RELEASE: str | None = None
 ALLOWED_MYSQL_VERSIONS = [*MYSQL_OLD_RELEASES, *MYSQL_LTS_RELEASES]
 if MYSQL_INNOVATION_RELEASE:
     ALLOWED_MYSQL_VERSIONS.append(MYSQL_INNOVATION_RELEASE)
@@ -408,7 +409,7 @@ CURRENT_EXECUTORS = ["KubernetesExecutor"]
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
-KIND_VERSION = "v0.22.0"
+KIND_VERSION = "v0.23.0"
 HELM_VERSION = "v3.14.0"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
@@ -475,11 +476,19 @@ BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str]] = [
         "python-version": "3.8",
         "airflow-version": "2.7.1",
         "remove-providers": _exclusion(["common.io", "fab"]),
+        "run-tests": "false",
     },
     {
         "python-version": "3.8",
         "airflow-version": "2.8.0",
         "remove-providers": _exclusion(["fab"]),
+        "run-tests": "false",
+    },
+    {
+        "python-version": "3.8",
+        "airflow-version": "2.9.1",
+        "remove-providers": _exclusion([]),
+        "run-tests": "true",
     },
 ]
 

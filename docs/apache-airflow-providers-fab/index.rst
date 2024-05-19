@@ -76,7 +76,7 @@ apache-airflow-providers-fab package
 `Flask App Builder <https://flask-appbuilder.readthedocs.io/>`__
 
 
-Release: 1.0.4
+Release: 1.1.0
 
 Provider package
 ----------------
@@ -104,4 +104,5 @@ PIP package           Version required
 ``flask-appbuilder``  ``==4.4.1``
 ``flask-login``       ``>=0.6.2``
 ``google-re2``        ``>=1.0``
+``jmespath``
 ====================  ==================

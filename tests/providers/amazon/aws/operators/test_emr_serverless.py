@@ -41,6 +41,7 @@ from airflow.serialization.serialized_objects import (
     BaseSerialization,
 )
 from airflow.utils.types import NOTSET
+from tests.test_utils.compat import deserialize_operator
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
@@ -1119,7 +1120,7 @@ class TestEmrServerlessStartJobOperator:
         )
 
         ser_operator = BaseSerialization.serialize(operator)
-        deser_operator = BaseSerialization.deserialize(ser_operator)
+        deser_operator = deserialize_operator(ser_operator)
 
         assert deser_operator.operator_extra_links == [
             EmrServerlessS3LogsLink(),
@@ -1140,7 +1141,7 @@ class TestEmrServerlessStartJobOperator:
         )
 
         ser_operator = BaseSerialization.serialize(operator)
-        deser_operator = BaseSerialization.deserialize(ser_operator)
+        deser_operator = deserialize_operator(ser_operator)
 
         assert deser_operator.operator_extra_links == [
             EmrServerlessS3LogsLink(),

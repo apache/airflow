@@ -26,6 +26,66 @@
 Changelog
 ---------
 
+8.22.0
+......
+
+Features
+~~~~~~~~
+
+* ``'S3DeleteObjectsOperator' Added ability to filter keys by last modified time (#39151)``
+* ``Amazon Bedrock - Add Knowledge Bases and Data Sources integration (#39245)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``EcsExcecutor Scheduler to handle incrementing of try_number (#39336)``
+* ``ECS Executor: Set tasks to RUNNING state once active (#39212)``
+
+Misc
+~~~~
+
+* ``Add 'jmespath' as an explicit dependency (#39350)``
+* ``Drop 'xmlsec' dependency (#39534)``
+* ``Reapply templates for all providers (#39554)``
+* ``Faster 'airflow_version' imports (#39552)``
+* ``enh(amazon_hook): raise not found exception instead of general exception when download file (#39509)``
+* ``Simplify 'airflow_version' imports (#39497)``
+
+8.21.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Added logging_config,snapstart,ephemeral_storage parameters to aws lambdacreatefunctionoperator (#39300)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix bug in GlueJobOperator where consecutive runs fail when a local script file is used (#38960)``
+* ``Update 'is_authorized_custom_view' from auth manager to handle custom actions (#39167)``
+* ``Update logic to allow retries in AWS Batch Client hook to be effective (#38998)``
+* ``Amazon Bedrock - Model Throughput Provisioning (#38850)``
+
+Misc
+~~~~
+
+* ``Adding MSGraphOperator in Microsoft Azure provider (#38111)``
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+* ``Allow importing the aws executors with a shorter path (#39093)``
+* ``Remove flag from AWS auth manager to use it (#39033)``
+* ``Limit xmlsec<1.3.14  (#39104)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Rename "try_number" increments that are unrelated to the airflow concept (#39317)``
+   * ``Activate RUF015 that checks for unnecessary iterable allocation for first element (#38949)``
+   * ``Add tests for 'EmrServerlessJobSensor' and 'EmrServerlessApplicationSensor' (#39099)``
+
 8.20.0
 ......
 

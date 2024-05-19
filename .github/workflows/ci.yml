@@ -77,6 +77,8 @@ jobs:
       full-tests-needed: ${{ steps.selective-checks.outputs.full-tests-needed }}
       parallel-test-types-list-as-string: >-
         ${{ steps.selective-checks.outputs.parallel-test-types-list-as-string }}
+      providers-test-types-list-as-string: >-
+        ${{ steps.selective-checks.outputs.providers-test-types-list-as-string }}
       include-success-outputs: ${{ steps.selective-checks.outputs.include-success-outputs }}
       postgres-exclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
@@ -315,6 +317,7 @@ jobs:
       providers-compatibility-checks: ${{ needs.build-info.outputs.providers-compatibility-checks }}
       skip-provider-tests: ${{ needs.build-info.outputs.skip-provider-tests }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
+      providers-test-types-list-as-string: ${{ needs.build-info.outputs.providers-test-types-list-as-string }}
 
   tests-helm:
     name: "Helm tests"

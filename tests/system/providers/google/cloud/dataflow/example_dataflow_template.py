@@ -17,7 +17,8 @@
 # under the License.
 
 """
-Example Airflow DAG for testing Google Dataflow
+Example Airflow DAG for testing Google Dataflow.
+
 :class:`~airflow.providers.google.cloud.operators.dataflow.DataflowTemplatedJobStartOperator` operator.
 """
 
@@ -27,6 +28,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
+from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataflow import (
     DataflowStartFlexTemplateOperator,
@@ -104,6 +106,7 @@ with DAG(
         template="gs://dataflow-templates/latest/Word_Count",
         parameters={"inputFile": f"gs://{BUCKET_NAME}/{CSV_FILE_NAME}", "output": GCS_OUTPUT},
         location=LOCATION,
+        wait_until_finished=True,
     )
     # [END howto_operator_start_template_job]
 
@@ -114,20 +117,43 @@ with DAG(
         body=BODY,
         location=LOCATION,
         append_job_name=False,
+        wait_until_finished=True,
     )
     # [END howto_operator_start_flex_template_job]
+
+    # [START howto_operator_start_template_job_deferrable]
+    start_template_job_deferrable = DataflowTemplatedJobStartOperator(
+        task_id="start_template_job_deferrable",
+        project_id=PROJECT_ID,
+        template="gs://dataflow-templates/latest/Word_Count",
+        parameters={"inputFile": f"gs://{BUCKET_NAME}/{CSV_FILE_NAME}", "output": GCS_OUTPUT},
+        location=LOCATION,
+        deferrable=True,
+    )
+    # [END howto_operator_start_template_job_deferrable]
+
+    # [START howto_operator_start_flex_template_job_deferrable]
+    start_flex_template_job_deferrable = DataflowStartFlexTemplateOperator(
+        task_id="start_flex_template_job_deferrable",
+        project_id=PROJECT_ID,
+        body=BODY,
+        location=LOCATION,
+        append_job_name=False,
+        deferrable=True,
+    )
+    # [END howto_operator_start_flex_template_job_deferrable]
 
     delete_bucket = GCSDeleteBucketOperator(
         task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
 
-    (
-        create_bucket
-        >> upload_file
-        >> upload_schema
-        >> start_template_job
-        >> start_flex_template_job
-        >> delete_bucket
+    chain(
+        create_bucket,
+        upload_file,
+        upload_schema,
+        [start_template_job, start_flex_template_job],
+        [start_template_job_deferrable, start_flex_template_job_deferrable],
+        delete_bucket,
     )
 
     from tests.system.utils.watcher import watcher

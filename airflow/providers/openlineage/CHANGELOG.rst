@@ -26,6 +26,19 @@
 Changelog
 ---------
 
+1.8.0
+.....
+
+For Airflow >= 2.10.0, use ``apache-airflow-providers-openlineage >= 1.8.0``, the first compatible version due to changes in try_number in core Airflow (#39336). We always recommend installing the latest provider version regardless of Airflow version.
+
+1.7.1
+.....
+
+Misc
+~~~~
+
+* ``openlineage, snowflake: do not run external queries for Snowflake (#39113)``
+
 1.7.0
 .....
 

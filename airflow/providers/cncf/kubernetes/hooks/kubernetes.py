@@ -25,6 +25,7 @@ from time import sleep
 from typing import TYPE_CHECKING, Any, Generator
 
 import aiofiles
+import tenacity
 from asgiref.sync import sync_to_async
 from kubernetes import client, config, watch
 from kubernetes.config import ConfigException
@@ -35,6 +36,7 @@ from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import should_retry_creation
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodOperatorHookProtocol
 from airflow.utils import yaml
 
@@ -486,6 +488,12 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         except Exception as exc:
             raise exc
 
+    @tenacity.retry(
+        stop=tenacity.stop_after_attempt(3),
+        wait=tenacity.wait_random_exponential(),
+        reraise=True,
+        retry=tenacity.retry_if_exception(should_retry_creation),
+    )
     def create_job(
         self,
         job: V1Job,

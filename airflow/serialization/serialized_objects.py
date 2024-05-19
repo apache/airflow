@@ -68,8 +68,9 @@ from airflow.task.priority_strategy import (
 )
 from airflow.triggers.base import BaseTrigger
 from airflow.utils.code_utils import get_python_source
-from airflow.utils.context import Context, DatasetEventAccessor, DatasetEventAccessors
+from airflow.utils.context import Context, OutletEventAccessor, OutletEventAccessors
 from airflow.utils.docs import get_docs_url
+from airflow.utils.helpers import exactly_one
 from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import MappedTaskGroup, TaskGroup
@@ -535,12 +536,12 @@ class BaseSerialization:
         elif var.__class__.__name__ == "V1Pod" and _has_kubernetes() and isinstance(var, k8s.V1Pod):
             json_pod = PodGenerator.serialize_pod(var)
             return cls._encode(json_pod, type_=DAT.POD)
-        elif isinstance(var, DatasetEventAccessors):
+        elif isinstance(var, OutletEventAccessors):
             return cls._encode(
                 cls.serialize(var._dict, strict=strict, use_pydantic_models=use_pydantic_models),  # type: ignore[attr-defined]
                 type_=DAT.DATASET_EVENT_ACCESSORS,
             )
-        elif isinstance(var, DatasetEventAccessor):
+        elif isinstance(var, OutletEventAccessor):
             return cls._encode(
                 cls.serialize(var.extra, strict=strict, use_pydantic_models=use_pydantic_models),
                 type_=DAT.DATASET_EVENT_ACCESSOR,
@@ -692,11 +693,11 @@ class BaseSerialization:
         elif type_ == DAT.DICT:
             return {k: cls.deserialize(v, use_pydantic_models) for k, v in var.items()}
         elif type_ == DAT.DATASET_EVENT_ACCESSORS:
-            d = DatasetEventAccessors()  # type: ignore[assignment]
+            d = OutletEventAccessors()  # type: ignore[assignment]
             d._dict = cls.deserialize(var)  # type: ignore[attr-defined]
             return d
         elif type_ == DAT.DATASET_EVENT_ACCESSOR:
-            return DatasetEventAccessor(extra=cls.deserialize(var))
+            return OutletEventAccessor(extra=cls.deserialize(var))
         elif type_ == DAT.DAG:
             return SerializedDAG.deserialize_dag(var)
         elif type_ == DAT.OP:
@@ -1016,6 +1017,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     def _serialize_node(cls, op: BaseOperator | MappedOperator, include_deps: bool) -> dict[str, Any]:
         """Serialize operator into a JSON object."""
         serialize_op = cls.serialize_to_json(op, cls._decorated_fields)
+
         serialize_op["_task_type"] = getattr(op, "_task_type", type(op).__name__)
         serialize_op["_task_module"] = getattr(op, "_task_module", type(op).__module__)
         if op.operator_name != serialize_op["_task_type"]:
@@ -1023,6 +1025,12 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         # Used to determine if an Operator is inherited from EmptyOperator
         serialize_op["_is_empty"] = op.inherits_from_empty_operator
+
+        if exactly_one(op.start_trigger is not None, op.next_method is not None):
+            raise AirflowException("start_trigger and next_method should both be set.")
+
+        serialize_op["start_trigger"] = op.start_trigger.serialize() if op.start_trigger else None
+        serialize_op["next_method"] = op.next_method
 
         if op.operator_extra_links:
             serialize_op["_operator_extra_links"] = cls._serialize_operator_extra_links(
@@ -1204,6 +1212,17 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         # Used to determine if an Operator is inherited from EmptyOperator
         setattr(op, "_is_empty", bool(encoded_op.get("_is_empty", False)))
 
+        # Deserialize start_trigger
+        serialized_start_trigger = encoded_op.get("start_trigger")
+        if serialized_start_trigger:
+            trigger_cls_name, trigger_kwargs = serialized_start_trigger
+            trigger_cls = import_string(trigger_cls_name)
+            start_trigger = trigger_cls(**trigger_kwargs)
+            setattr(op, "start_trigger", start_trigger)
+        else:
+            setattr(op, "start_trigger", None)
+        setattr(op, "next_method", encoded_op.get("next_method", None))
+
     @staticmethod
     def set_task_dag_references(task: Operator, dag: DAG) -> None:
         """Handle DAG references on an operator.
@@ -1241,6 +1260,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 operator_name = encoded_op["_operator_name"]
             except KeyError:
                 operator_name = encoded_op["_task_type"]
+
             op = MappedOperator(
                 operator_class=op_data,
                 expand_input=EXPAND_INPUT_EMPTY,
@@ -1264,6 +1284,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 end_date=None,
                 disallow_kwargs_override=encoded_op["_disallow_kwargs_override"],
                 expand_input_attr=encoded_op["_expand_input_attr"],
+                start_trigger=None,
+                next_method=None,
             )
         else:
             op = SerializedBaseOperator(task_id=encoded_op["task_id"])
@@ -1686,9 +1708,11 @@ class TaskGroupSerialization(BaseSerialization):
             return task
 
         group.children = {
-            label: set_ref(task_dict[val])
-            if _type == DAT.OP
-            else cls.deserialize_task_group(val, group, task_dict, dag=dag)
+            label: (
+                set_ref(task_dict[val])
+                if _type == DAT.OP
+                else cls.deserialize_task_group(val, group, task_dict, dag=dag)
+            )
             for label, (_type, val) in encoded_group["children"].items()
         }
         group.upstream_group_ids.update(cls.deserialize(encoded_group["upstream_group_ids"]))

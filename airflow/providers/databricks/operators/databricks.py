@@ -67,24 +67,22 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
                     log.info("%s completed successfully.", operator.task_id)
                     log.info("View run status, Spark UI, and logs at %s", run_page_url)
                     return
-
                 if run_state.result_state == "FAILED":
-                    task_run_id = None
-                    if "tasks" in run_info:
-                        for task in run_info["tasks"]:
-                            if task.get("state", {}).get("result_state", "") == "FAILED":
-                                task_run_id = task["run_id"]
-                    if task_run_id is not None:
-                        run_output = hook.get_run_output(task_run_id)
-                        if "error" in run_output:
-                            notebook_error = run_output["error"]
-                        else:
-                            notebook_error = run_state.state_message
-                    else:
-                        notebook_error = run_state.state_message
+                    failed_tasks = []
+                    for task in run_info.get("tasks", []):
+                        if task.get("state", {}).get("result_state", "") == "FAILED":
+                            task_run_id = task["run_id"]
+                            task_key = task["task_key"]
+                            run_output = hook.get_run_output(task_run_id)
+                            if "error" in run_output:
+                                error = run_output["error"]
+                            else:
+                                error = run_state.state_message
+                            failed_tasks.append({"task_key": task_key, "run_id": task_run_id, "error": error})
+
                     error_message = (
                         f"{operator.task_id} failed with terminal state: {run_state} "
-                        f"and with the error {notebook_error}"
+                        f"and with the errors {failed_tasks}"
                     )
                 else:
                     error_message = (
@@ -160,14 +158,16 @@ def _handle_deferrable_databricks_operator_completion(event: dict, log: Logger) 
     validate_trigger_event(event)
     run_state = RunState.from_json(event["run_state"])
     run_page_url = event["run_page_url"]
+    errors = event["errors"]
     log.info("View run status, Spark UI, and logs at %s", run_page_url)
 
     if run_state.is_successful:
         log.info("Job run completed successfully.")
         return
 
-    error_message = f"Job run failed with terminal state: {run_state}"
-    if event["repair_run"]:
+    error_message = f"Job run failed with terminal state: {run_state} and with the errors {errors}"
+
+    if event.get("repair_run"):
         log.warning(
             "%s but since repair run is set, repairing the run with all failed tasks",
             error_message,
@@ -923,9 +923,11 @@ class DatabricksNotebookOperator(BaseOperator):
     :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
     :param databricks_conn_id: The name of the Airflow connection to use.
+    :param deferrable: Run operator in the deferrable mode.
     """
 
     template_fields = ("notebook_params",)
+    CALLER = "DatabricksNotebookOperator"
 
     def __init__(
         self,
@@ -942,6 +944,7 @@ class DatabricksNotebookOperator(BaseOperator):
         databricks_retry_args: dict[Any, Any] | None = None,
         wait_for_termination: bool = True,
         databricks_conn_id: str = "databricks_default",
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs: Any,
     ):
         self.notebook_path = notebook_path
@@ -958,11 +961,12 @@ class DatabricksNotebookOperator(BaseOperator):
         self.wait_for_termination = wait_for_termination
         self.databricks_conn_id = databricks_conn_id
         self.databricks_run_id: int | None = None
+        self.deferrable = deferrable
         super().__init__(**kwargs)
 
     @cached_property
     def _hook(self) -> DatabricksHook:
-        return self._get_hook(caller="DatabricksNotebookOperator")
+        return self._get_hook(caller=self.CALLER)
 
     def _get_hook(self, caller: str) -> DatabricksHook:
         return DatabricksHook(
@@ -970,7 +974,7 @@ class DatabricksNotebookOperator(BaseOperator):
             retry_limit=self.databricks_retry_limit,
             retry_delay=self.databricks_retry_delay,
             retry_args=self.databricks_retry_args,
-            caller=caller,
+            caller=self.CALLER,
         )
 
     def _get_task_timeout_seconds(self) -> int:
@@ -1041,6 +1045,19 @@ class DatabricksNotebookOperator(BaseOperator):
         run = self._hook.get_run(self.databricks_run_id)
         run_state = RunState(**run["state"])
         self.log.info("Current state of the job: %s", run_state.life_cycle_state)
+        if self.deferrable and not run_state.is_terminal:
+            return self.defer(
+                trigger=DatabricksExecutionTrigger(
+                    run_id=self.databricks_run_id,
+                    databricks_conn_id=self.databricks_conn_id,
+                    polling_period_seconds=self.polling_period_seconds,
+                    retry_limit=self.databricks_retry_limit,
+                    retry_delay=self.databricks_retry_delay,
+                    retry_args=self.databricks_retry_args,
+                    caller=self.CALLER,
+                ),
+                method_name=DEFER_METHOD_NAME,
+            )
         while not run_state.is_terminal:
             time.sleep(self.polling_period_seconds)
             run = self._hook.get_run(self.databricks_run_id)
@@ -1056,9 +1073,7 @@ class DatabricksNotebookOperator(BaseOperator):
             )
         if not run_state.is_successful:
             raise AirflowException(
-                "Task failed. Final state %s. Reason: %s",
-                run_state.result_state,
-                run_state.state_message,
+                f"Task failed. Final state {run_state.result_state}. Reason: {run_state.state_message}"
             )
         self.log.info("Task succeeded. Final state %s.", run_state.result_state)
 
@@ -1066,3 +1081,16 @@ class DatabricksNotebookOperator(BaseOperator):
         self.launch_notebook_job()
         if self.wait_for_termination:
             self.monitor_databricks_job()
+
+    def execute_complete(self, context: dict | None, event: dict) -> None:
+        run_state = RunState.from_json(event["run_state"])
+        if run_state.life_cycle_state != "TERMINATED":
+            raise AirflowException(
+                f"Databricks job failed with state {run_state.life_cycle_state}. "
+                f"Message: {run_state.state_message}"
+            )
+        if not run_state.is_successful:
+            raise AirflowException(
+                f"Task failed. Final state {run_state.result_state}. Reason: {run_state.state_message}"
+            )
+        self.log.info("Task succeeded. Final state %s.", run_state.result_state)

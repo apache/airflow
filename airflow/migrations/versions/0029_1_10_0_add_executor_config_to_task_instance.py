@@ -14,13 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``executor_config`` column to ``task_instance`` table
+"""Add ``executor_config`` column to ``task_instance`` table.
 
-Revision ID: 33ae817a1ff4
-Revises: 947454bf1dff
+Revision ID: 27c6a30d7c24
+Revises: 33ae817a1ff4
 Create Date: 2017-09-11 15:26:47.598494
 
 """
+
 from __future__ import annotations
 
 import dill

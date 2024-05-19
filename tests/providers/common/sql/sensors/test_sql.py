@@ -296,3 +296,18 @@ class TestSqlSensor:
         )
         hook = op._get_hook()
         assert hook.log_sql == op.hook_params["log_sql"]
+
+    @mock.patch("airflow.providers.common.sql.sensors.sql.BaseHook")
+    def test_sql_sensor_templated_parameters(self, mock_base_hook):
+        op = SqlSensor(
+            task_id="sql_sensor_templated_parameters",
+            conn_id="snowflake_default",
+            sql="SELECT %(something)s",
+            parameters={"something": "{{ logical_date }}"},
+        )
+        op.render_template_fields(context={"logical_date": "1970-01-01"})
+        mock_base_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(spec=DbApiHook)
+        mock_get_records = mock_base_hook.get_connection.return_value.get_hook.return_value.get_records
+        op.execute(context=mock.MagicMock())
+
+        mock_get_records.assert_called_once_with("SELECT %(something)s", {"something": "1970-01-01"})

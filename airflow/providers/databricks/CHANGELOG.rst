@@ -26,6 +26,25 @@
 Changelog
 ---------
 
+6.4.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Add DatabricksNotebookOperator (#39178)``
+* ``Add notification settings parameters (#39175)``
+* ``[FEAT] raise exception with main notebook error in DatabricksRunNowDeferrableOperator (#39110)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+
 6.3.0
 .....
 
