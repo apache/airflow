@@ -598,14 +598,13 @@ class KubernetesPodOperator(BaseOperator):
             ti.xcom_push(key="pod_name", value=self.pod.metadata.name)
             ti.xcom_push(key="pod_namespace", value=self.pod.metadata.namespace)
 
+            # get remote pod for use in cleanup methods
+            self.remote_pod = self.find_pod(self.pod.metadata.namespace, context=context)
             if self.callbacks:
                 self.callbacks.on_pod_creation(
                     pod=self.remote_pod, client=self.client, mode=ExecutionMode.SYNC
                 )
             self.await_pod_start(pod=self.pod)
-
-            # get remote pod for use in cleanup methods
-            self.remote_pod = self.find_pod(self.pod.metadata.namespace, context=context)
             if self.callbacks:
                 self.callbacks.on_pod_starting(
                     pod=self.find_pod(self.pod.metadata.namespace, context=context),
