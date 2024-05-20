@@ -532,7 +532,7 @@ class KubernetesPodOperator(BaseOperator):
         ).items
 
         pod = None
-        running_pods = [pod for pod in pod_list if pod.status.phase == "Running"]
+        running_pods = [pod for pod in pod_list if pod.status.phase in {"Running", "Pending"}]
         num_pods = len(running_pods)
         if num_pods > 1:
             raise AirflowException(f"More than one pod running with labels {label_selector}")
