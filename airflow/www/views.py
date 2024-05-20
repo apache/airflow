@@ -794,25 +794,25 @@ class Airflow(AirflowBaseView):
             flask_session[FILTER_LASTRUN_COOKIE] = None
             return redirect(url_for("Airflow.index"))
 
-        cookie_val = flask_session.get(FILTER_TAGS_COOKIE)
+        filter_tags_cookie_val = flask_session.get(FILTER_TAGS_COOKIE)
         if arg_tags_filter:
             flask_session[FILTER_TAGS_COOKIE] = ",".join(arg_tags_filter)
-        elif cookie_val:
+        elif filter_tags_cookie_val:
             # If tags exist in cookie, but not URL, add them to the URL
-            return redirect(url_for("Airflow.index", tags=cookie_val.split(",")))
+            return redirect(url_for("Airflow.index", tags=filter_tags_cookie_val.split(",")))
 
-        cookie_val = flask_session.get(FILTER_LASTRUN_COOKIE)
+        filter_lastrun_cookie_val = flask_session.get(FILTER_LASTRUN_COOKIE)
         if arg_lastrun_filter:
             arg_lastrun_filter = arg_lastrun_filter.strip().lower()
             flask_session[FILTER_LASTRUN_COOKIE] = arg_lastrun_filter
-        elif cookie_val:
+        elif filter_lastrun_cookie_val:
             # If tags exist in cookie, but not URL, add them to the URL
-            return redirect(url_for("Airflow.index", lastrun=cookie_val))
+            return redirect(url_for("Airflow.index", lastrun=filter_lastrun_cookie_val))
 
         if arg_status_filter is None:
-            cookie_val = flask_session.get(FILTER_STATUS_COOKIE)
-            if cookie_val:
-                arg_status_filter = cookie_val
+            filter_status_cookie_val = flask_session.get(FILTER_STATUS_COOKIE)
+            if filter_status_cookie_val:
+                arg_status_filter = filter_status_cookie_val
             else:
                 arg_status_filter = "active" if hide_paused_dags_by_default else "all"
                 flask_session[FILTER_STATUS_COOKIE] = arg_status_filter
