@@ -37,7 +37,7 @@ class YDBOperator(SQLExecuteQueryOperator):
         Deprecated - use `hook_params={'options': '-c <connection_options>'}` instead.
     """
 
-    template_fields_renderers = {**SQLExecuteQueryOperator.template_fields_renderers, "sql": "postgresql"}
+    template_fields_renderers = {**SQLExecuteQueryOperator.template_fields_renderers, "sql": "sql"}
 
     ui_color = "#ededed"
 

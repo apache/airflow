@@ -75,8 +75,8 @@ with DAG(
     # [START ydb_operator_howto_guide_get_birth_date]
     get_birth_date = YDBOperator(
         task_id="get_birth_date",
-        sql="SELECT * FROM pet WHERE birth_date BETWEEN %(begin_date)s AND %(end_date)s",
-        parameters={"begin_date": "2020-01-01", "end_date": "2020-12-31"}
+        sql="SELECT * FROM pet WHERE birth_date BETWEEN '{{params.begin_date}}' AND '{{params.end_date}}'",
+        params={"begin_date": "2020-01-01", "end_date": "2020-12-31"}
     )
     # [END ydb_operator_howto_guide_get_birth_date]
 
