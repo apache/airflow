@@ -790,12 +790,24 @@ class Airflow(AirflowBaseView):
             # Remove the reset_tags=reset from the URL
             return redirect(url_for("Airflow.index"))
 
+        if arg_lastrun_filter == "reset_filter":
+            flask_session[FILTER_LASTRUN_COOKIE] = None
+            return redirect(url_for("Airflow.index"))
+
         cookie_val = flask_session.get(FILTER_TAGS_COOKIE)
         if arg_tags_filter:
             flask_session[FILTER_TAGS_COOKIE] = ",".join(arg_tags_filter)
         elif cookie_val:
             # If tags exist in cookie, but not URL, add them to the URL
             return redirect(url_for("Airflow.index", tags=cookie_val.split(",")))
+
+        cookie_val = flask_session.get(FILTER_LASTRUN_COOKIE)
+        if arg_lastrun_filter:
+            arg_lastrun_filter = arg_lastrun_filter.strip().lower()
+            flask_session[FILTER_LASTRUN_COOKIE] = arg_lastrun_filter
+        elif cookie_val:
+            # If tags exist in cookie, but not URL, add them to the URL
+            return redirect(url_for("Airflow.index", lastrun=cookie_val))
 
         if arg_status_filter is None:
             cookie_val = flask_session.get(FILTER_STATUS_COOKIE)
@@ -808,18 +820,6 @@ class Airflow(AirflowBaseView):
             status = arg_status_filter.strip().lower()
             flask_session[FILTER_STATUS_COOKIE] = status
             arg_status_filter = status
-
-        if arg_lastrun_filter is None:
-            cookie_val = flask_session.get(FILTER_LASTRUN_COOKIE)
-            if cookie_val:
-                arg_lastrun_filter = cookie_val
-            else:
-                arg_lastrun_filter = "all"
-                flask_session[FILTER_LASTRUN_COOKIE] = arg_lastrun_filter
-        else:
-            last_run = arg_lastrun_filter.strip().lower()
-            flask_session[FILTER_LASTRUN_COOKIE] = last_run
-            arg_lastrun_filter = last_run
 
         dags_per_page = PAGE_SIZE
 
