@@ -960,6 +960,7 @@ class Airflow(AirflowBaseView):
             else:
                 dataset_triggered_next_run_info = {}
 
+            file_tokens = {}
             for dag in dags:
                 dag.can_edit = get_auth_manager().is_authorized_dag(
                     method="PUT", details=DagDetails(id=dag.dag_id), user=g.user
@@ -969,7 +970,7 @@ class Airflow(AirflowBaseView):
                     method="DELETE", details=DagDetails(id=dag.dag_id), user=g.user
                 )
                 url_serializer = URLSafeSerializer(current_app.config["SECRET_KEY"])
-                dag.file_token = url_serializer.dumps(dag.fileloc)
+                file_tokens[dag.dag_id] = url_serializer.dumps(dag.fileloc)
 
             dagtags = session.execute(select(func.distinct(DagTag.name)).order_by(DagTag.name)).all()
             tags = [
@@ -1111,6 +1112,7 @@ class Airflow(AirflowBaseView):
             auto_refresh_interval=conf.getint("webserver", "auto_refresh_interval"),
             dataset_triggered_next_run_info=dataset_triggered_next_run_info,
             scarf_url=scarf_url,
+            file_tokens=file_tokens,
         )
 
     @expose("/datasets")
@@ -2886,7 +2888,6 @@ class Airflow(AirflowBaseView):
 
         dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
         url_serializer = URLSafeSerializer(current_app.config["SECRET_KEY"])
-        dag.file_token = url_serializer.dumps(dag.fileloc)
         dag_model = DagModel.get_dagmodel(dag_id, session=session)
         if not dag:
             flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")
@@ -2945,6 +2946,7 @@ class Airflow(AirflowBaseView):
             excluded_events_raw=excluded_events_raw,
             color_log_error_keywords=color_log_error_keywords,
             color_log_warning_keywords=color_log_warning_keywords,
+            dag_file_token=url_serializer.dumps(dag.fileloc),
         )
 
     @expose("/calendar")
