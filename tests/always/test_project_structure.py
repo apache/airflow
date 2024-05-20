@@ -416,6 +416,9 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.UpdateEndpointOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job."
         "GetBatchPredictionJobOperator",
+        "airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistenceAsyncSensor",
+        "airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistencePartitionAsyncSensor",
+        "airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceAsyncSensor",
     }
 
     ASSETS_NOT_REQUIRED = {

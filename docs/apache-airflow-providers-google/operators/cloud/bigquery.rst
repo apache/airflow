@@ -483,17 +483,14 @@ use the ``{{ ds_nodash }}`` macro as the table name suffix.
 
 Also you can use deferrable mode in this operator if you would like to free up the worker slots while the sensor is running.
 
+:class:`~airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistenceAsyncSensor` is deprecated and will be removed in a future release. Please use :class:`~airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistenceSensor` and use the deferrable mode in that operator.
+
 .. exampleinclude:: /../../tests/system/providers/google/cloud/bigquery/example_bigquery_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_bigquery_table_defered]
     :end-before: [END howto_sensor_bigquery_table_defered]
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/bigquery/example_bigquery_sensors.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_sensor_async_bigquery_table]
-    :end-before: [END howto_sensor_async_bigquery_table]
 
 Check that a Table Partition exists
 """""""""""""""""""""""""""""""""""
@@ -511,17 +508,13 @@ For DAY partitioned tables, the partition_id parameter is a string on the "%Y%m%
 
 Also you can use deferrable mode in this operator if you would like to free up the worker slots while the sensor is running.
 
+:class:`~airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistencePartitionAsyncSensor` is deprecated and will be removed in a future release. Please use :class:`~airflow.providers.google.cloud.sensors.bigquery.BigQueryTablePartitionExistenceSensor` and use the deferrable mode in that operator.
+
 .. exampleinclude:: /../../tests/system/providers/google/cloud/bigquery/example_bigquery_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_bigquery_table_partition_defered]
     :end-before: [END howto_sensor_bigquery_table_partition_defered]
-
-.. exampleinclude:: /../../tests/system/providers/google/cloud/bigquery/example_bigquery_sensors.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_sensor_bigquery_table_partition_async]
-    :end-before: [END howto_sensor_bigquery_table_partition_async]
 
 Reference
 ^^^^^^^^^

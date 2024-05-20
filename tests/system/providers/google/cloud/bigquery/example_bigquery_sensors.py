@@ -95,15 +95,6 @@ with DAG(
     )
     # [END howto_sensor_bigquery_table_defered]
 
-    # [START howto_sensor_async_bigquery_table]
-    check_table_exists_async = BigQueryTableExistenceSensor(
-        task_id="check_table_exists_async",
-        project_id=PROJECT_ID,
-        dataset_id=DATASET_NAME,
-        table_id=TABLE_NAME,
-    )
-    # [END howto_sensor_async_bigquery_table]
-
     execute_insert_query = BigQueryInsertJobOperator(
         task_id="execute_insert_query",
         configuration={
@@ -135,16 +126,6 @@ with DAG(
     )
     # [END howto_sensor_bigquery_table_partition_defered]
 
-    # [START howto_sensor_bigquery_table_partition_async]
-    check_table_partition_exists_async = BigQueryTablePartitionExistenceSensor(
-        task_id="check_table_partition_exists_async",
-        partition_id=PARTITION_NAME,
-        project_id=PROJECT_ID,
-        dataset_id=DATASET_NAME,
-        table_id=TABLE_NAME,
-    )
-    # [END howto_sensor_bigquery_table_partition_async]
-
     delete_dataset = BigQueryDeleteDatasetOperator(
         task_id="delete_dataset",
         dataset_id=DATASET_NAME,
@@ -155,11 +136,10 @@ with DAG(
     (
         create_dataset
         >> create_table
-        >> [check_table_exists, check_table_exists_async, check_table_exists_def]
+        >> [check_table_exists, check_table_exists_def]
         >> execute_insert_query
         >> [
             check_table_partition_exists,
-            check_table_partition_exists_async,
             check_table_partition_exists_def,
         ]
         >> delete_dataset

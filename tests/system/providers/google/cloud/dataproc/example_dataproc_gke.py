@@ -55,7 +55,11 @@ GKE_CLUSTER_CONFIG = {
     "workload_identity_config": {
         "workload_pool": WORKLOAD_POOL,
     },
-    "initial_node_count": 1,
+    "node_pools": [
+        {
+            "initial_node_count": 1,
+        }
+    ],
 }
 GKE_NAMESPACE = os.environ.get("GKE_NAMESPACE", f"{CLUSTER_NAME}")
 # [START how_to_cloud_dataproc_create_cluster_in_gke_config]
