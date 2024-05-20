@@ -283,6 +283,7 @@ class MappedOperator(AbstractOperator):
     _operator_name: str
     start_trigger: BaseTrigger | None
     next_method: str | None
+    _needs_expansion: bool = True
 
     dag: DAG | None
     task_group: TaskGroup | None
