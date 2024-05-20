@@ -457,11 +457,8 @@ def mock_get_uri_normalizer(normalized_scheme):
 def test__sanitize_uri_raises_warning(mock_warn):
     _sanitize_uri("postgres://localhost:5432/database.schema.table")
     msg = mock_warn.call_args.args[0]
-    assert "The dataset URI postgres://localhost:5432/database.schema.table is not AIP-60 compliant." in msg
-    assert (
-        "In Airflow 3, this will raise an exception. More information: ValueError('Incorrect URI format')"
-        in msg
-    )
+    assert "The dataset URI postgres://localhost:5432/database.schema.table is not AIP-60 compliant" in msg
+    assert "In Airflow 3, this will raise an exception." in msg
 
 
 @patch("airflow.datasets._get_uri_normalizer", mock_get_uri_normalizer)

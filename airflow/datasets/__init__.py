@@ -94,14 +94,13 @@ def _sanitize_uri(uri: str) -> str:
             parsed = normalizer(parsed)
         except ValueError as exception:
             if conf.getboolean("core", "strict_dataset_uri_validation", fallback=False):
-                raise exception
-            else:
-                warnings.warn(
-                    f"The dataset URI {uri} is not AIP-60 compliant. "
-                    f"In Airflow 3, this will raise an exception. More information: {repr(exception)}",
-                    UserWarning,
-                    stacklevel=3,
-                )
+                raise
+            warnings.warn(
+                f"The dataset URI {uri} is not AIP-60 compliant: {exception}. "
+                f"In Airflow 3, this will raise an exception.",
+                UserWarning,
+                stacklevel=3,
+            )
     return urllib.parse.urlunsplit(parsed)
 
 
