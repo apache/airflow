@@ -48,5 +48,5 @@ window
   .addEventListener("change", (e) => {
     const isDark = e.matches;
     updateTheme(isDark);
-});
+  });
 initTheme();
