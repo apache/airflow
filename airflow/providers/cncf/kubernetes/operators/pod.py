@@ -78,6 +78,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodPhase,
     check_exception_is_kubernetes_api_unauthorized,
     container_is_succeeded,
+    get_container_status,
     get_container_termination_message,
 )
 from airflow.settings import pod_mutation_hook
@@ -832,30 +833,20 @@ class KubernetesPodOperator(BaseOperator):
         if self._killed or not remote_pod:
             return
 
-        pod_phase = remote_pod.status.phase if hasattr(remote_pod, "status") else None
+        # Only consider pod failed if the base container within the pod has not succeeded
+        failed = not container_is_succeeded(remote_pod, self.base_container_name)
 
         # if the pod fails or success, but we don't want to delete it
-        if pod_phase != PodPhase.SUCCEEDED or self.on_finish_action == OnFinishAction.KEEP_POD:
+        if failed or self.on_finish_action == OnFinishAction.KEEP_POD:
             self.patch_already_checked(remote_pod, reraise=False)
 
-        # Consider pod failed if the pod has not succeeded and the base container within the pod has not succeeded
-        failed = pod_phase != PodPhase.SUCCEEDED and not container_is_succeeded(
-            remote_pod, self.base_container_name
-        )
-
-        if failed:
-            if self.log_events_on_failure:
-                self._read_pod_events(pod, reraise=False)
+        if failed and self.log_events_on_failure:
+            self._read_pod_events(pod, reraise=False)
 
         self.process_pod_deletion(remote_pod, reraise=False)
 
         if self.skip_on_exit_code:
-            container_statuses = (
-                remote_pod.status.container_statuses if remote_pod and remote_pod.status else None
-            ) or []
-            base_container_status = next(
-                (x for x in container_statuses if x.name == self.base_container_name), None
-            )
+            base_container_status = get_container_status(remote_pod, self.base_container_name)
             exit_code = (
                 base_container_status.state.terminated.exit_code
                 if base_container_status
