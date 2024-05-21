@@ -742,6 +742,8 @@ class AirflowBaseView(BaseView):
             kwargs["can_edit_dag"] = get_auth_manager().is_authorized_dag(
                 method="PUT", details=DagDetails(id=kwargs["dag"].dag_id)
             )
+            url_serializer = URLSafeSerializer(current_app.config["SECRET_KEY"])
+            kwargs["dag_file_token"] = url_serializer.dumps(kwargs["dag"].fileloc)
 
         return super().render_template(
             *args,
@@ -1411,6 +1413,7 @@ class Airflow(AirflowBaseView):
         raw_task = dag.get_task(task_id).prepare_for_execution()
 
         no_dagrun = False
+        url_serializer = URLSafeSerializer(current_app.config["SECRET_KEY"])
 
         title = "Rendered Template"
         html_dict = {}
@@ -1511,6 +1514,7 @@ class Airflow(AirflowBaseView):
             form=form,
             root=root,
             title=title,
+            dag_file_token=url_serializer.dumps(dag.fileloc),
         )
 
     @expose("/rendered-k8s")
