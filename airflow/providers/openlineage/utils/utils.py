@@ -98,13 +98,12 @@ def get_custom_facets(task_instance: TaskInstance | None = None) -> dict[str, An
             duplicate_facet_keys = [facet_key for facet_key in facet.keys() if facet_key in custom_facets]
             if duplicate_facet_keys:
                 log.warning(
-                    "Got duplicate facets key(s), `%s` from `%s`, will ignore it.",
+                    "Duplicate OpenLineage custom facets key(s) found: `%s` from function `%s`.",
                     ", ".join(duplicate_facet_keys),
                     custom_facet_func,
                 )
-            else:
-                log.info(f"Appending custom facets from {custom_facet_func}.")
-                custom_facets.update(facet)
+            log.debug("Adding OpenLineage custom facet with key(s): `%s` from function `%s`.", tuple(facet), custom_facet_func)
+            custom_facets.update(facet)
     return custom_facets
 
 
