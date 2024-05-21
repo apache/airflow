@@ -36,10 +36,10 @@ html {
   -ms-text-size-adjust: 100%;
   -webkit-text-size-adjust: 100%;
 }
-html[data-color-scheme='dark'] {
-  filter:invert(100%) hue-rotate(180deg);
+html[data-color-scheme="dark"] {
+  filter: invert(100%) hue-rotate(180deg);
 }
-html[data-color-scheme='light'] {
+html[data-color-scheme="light"] {
   /* not do */
 }
 body {
