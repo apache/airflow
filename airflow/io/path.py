@@ -20,6 +20,7 @@ import contextlib
 import os
 import shutil
 import typing
+import warnings
 from typing import Any, Mapping
 from urllib.parse import urlsplit
 
@@ -32,7 +33,6 @@ from airflow.io.utils.stat import stat_result
 
 if typing.TYPE_CHECKING:
     from fsspec import AbstractFileSystem
-
 
 PT = typing.TypeVar("PT", bound="ObjectStoragePath")
 
@@ -68,6 +68,7 @@ class ObjectStoragePath(CloudPath):
                 parsed_url = parsed_url._replace(netloc=hostinfo)
             args = (parsed_url.geturl(),) + args[1:]
             protocol = protocol or parsed_url.scheme
+
         return args, protocol, storage_options
 
     @classmethod
@@ -176,7 +177,92 @@ class ObjectStoragePath(CloudPath):
         else:
             raise NotImplementedError
 
+    def relative_to(self, other, /, *_deprecated, walk_up=False):
+        """Return a new path relative to another path.
+
+        The returned path will be a PosixPurePath object. If the paths are not
+        comparable, raises ValueError.
+        """
+        # fixme we do this until upath returns a relative path
+        # https://github.com/fsspec/universal_pathlib/pull/215
+        if isinstance(other, ObjectStoragePath) and self.storage_options != other.storage_options:
+            raise ValueError(
+                f"{self} and {other} have different storage options:"
+                f" {self.storage_options} != {other.storage_options}"
+            )
+
+        if _deprecated:
+            msg = (
+                "support for supplying more than one positional argument "
+                "to pathlib.PurePath.relative_to() is deprecated and "
+                "scheduled for removal in Python 3.14"
+            )
+            warnings.warn(
+                f"pathlib.PurePath.relative_to(*args) {msg}",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        other = self.with_segments(other, *_deprecated)
+
+        for step, path in enumerate([other] + list(other.parents)):  # noqa: B007
+            if self.is_relative_to(path):
+                break
+            elif not walk_up:
+                raise ValueError(f"{self} is not relative to {other}")
+            elif path.name == "..":
+                raise ValueError(f"'..' segment in {str(other)!r} cannot be walked")
+        else:
+            raise ValueError(f"{str(self)!r} and {str(other)!r} have different anchors")
+
+        parts = [".."] * step + self._tail[len(path._tail) :]
+
+        # remove rel_path as we are setting a new one
+        options = {**self.storage_options}
+        options.pop("_rel_path", None)
+
+        return type(self)(*self.parts, protocol=self.protocol, **options, _rel_path=self.sep.join(parts))
+
     # EXTENDED OPERATIONS
+    def walk(
+        self, top_down=True, on_error=None, follow_symlinks=False
+    ) -> typing.Generator[
+        tuple[ObjectStoragePath, list[ObjectStoragePath], list[ObjectStoragePath]], None, None
+    ]:
+        """Walk the directory tree from this directory.
+
+        While Python 3.12+ has Pathlib.walk() it is still reliant on os.walk() which is not
+        supported by all filesystems. This method is a more robust alternative that works
+        with all cloud storage providers.
+
+        This method returns relative paths to the current path, not absolute paths.
+        """
+        paths = [self]
+        while paths:
+            path = paths.pop()
+            if isinstance(path, tuple):
+                yield path
+                continue
+
+            dirnames = []
+            filenames = []
+            for p in path.iterdir():
+                try:
+                    is_dir = p.is_dir()
+                except OSError:
+                    is_dir = False
+
+                if is_dir:
+                    if follow_symlinks or not p.is_symlink():
+                        dirnames.append(p.relative_to(self))
+                else:
+                    filenames.append(p.relative_to(self))
+
+            # make sure to use a copy of the lists to avoid modifying the original
+            # outside of this method
+            yield path, dirnames.copy(), filenames.copy()
+
+            paths += reversed([self / d for d in dirnames])
 
     def ukey(self) -> str:
         """Hash of file properties, to tell if it has changed."""
@@ -366,4 +452,17 @@ class ObjectStoragePath(CloudPath):
         conn_id = self.storage_options.get("conn_id")
         if self._protocol and conn_id:
             return f"{self._protocol}://{conn_id}@{self.path}"
+
+        if rel_path := self.storage_options.get("_rel_path"):
+            return rel_path
+
         return super().__str__()
+
+    def resolve(self, strict: bool = False):
+        """Return the absolute path of this path."""
+        if self.storage_options.get("_rel_path"):
+            options = {**self.storage_options}
+            options.pop("_rel_path")
+            return type(self)(*self.parts, protocol=self.protocol, **options)
+
+        return super().resolve(strict=strict)
