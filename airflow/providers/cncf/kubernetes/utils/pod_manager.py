@@ -603,9 +603,7 @@ class PodManager(LoggingMixin):
             self.log.info("Waiting for container '%s' state to be completed", container_name)
             time.sleep(1)
 
-    def await_pod_completion(
-        self, pod: V1Pod, container_name: str = "base"
-    ) -> V1Pod:
+    def await_pod_completion(self, pod: V1Pod, container_name: str = "base") -> V1Pod:
         """
         Monitor a pod and return the final state.
 

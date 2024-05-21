@@ -23,7 +23,6 @@ import json
 import logging
 import math
 import re
-import shlex
 import string
 import warnings
 from collections.abc import Container
@@ -35,8 +34,7 @@ from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence
 import kubernetes
 import tenacity
 from deprecated import deprecated
-from kubernetes.client import CoreV1Api, V1Pod, models as k8s
-from kubernetes.stream import stream
+from kubernetes.client import CoreV1Api, models as k8s
 from urllib3.exceptions import HTTPError
 
 from airflow.configuration import conf
@@ -629,9 +627,7 @@ class KubernetesPodOperator(BaseOperator):
             if self.do_xcom_push:
                 self.pod_manager.await_xcom_sidecar_container_start(pod=self.pod)
                 result = self.extract_xcom(pod=self.pod)
-            self.remote_pod = self.pod_manager.await_pod_completion(
-                self.pod, self.base_container_name
-            )
+            self.remote_pod = self.pod_manager.await_pod_completion(self.pod, self.base_container_name)
         finally:
             pod_to_clean = self.pod or self.pod_request_obj
             self.cleanup(
@@ -784,9 +780,7 @@ class KubernetesPodOperator(BaseOperator):
         # Skip await_pod_completion when the event is 'timeout' due to the pod can hang
         # on the ErrImagePull or ContainerCreating step and it will never complete
         if event["status"] != "timeout":
-            self.pod = self.pod_manager.await_pod_completion(
-                self.pod, self.base_container_name
-            )
+            self.pod = self.pod_manager.await_pod_completion(self.pod, self.base_container_name)
         if self.pod is not None:
             self.post_complete_action(
                 pod=self.pod,
@@ -845,7 +839,9 @@ class KubernetesPodOperator(BaseOperator):
             self.patch_already_checked(remote_pod, reraise=False)
 
         # Consider pod failed if the pod has not succeeded and the base container within the pod has not succeeded
-        failed = pod_phase != PodPhase.SUCCEEDED and not container_is_succeeded(remote_pod, self.base_container_name)
+        failed = pod_phase != PodPhase.SUCCEEDED and not container_is_succeeded(
+            remote_pod, self.base_container_name
+        )
 
         if failed:
             if self.log_events_on_failure:
