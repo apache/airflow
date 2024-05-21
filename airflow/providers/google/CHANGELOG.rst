@@ -42,6 +42,31 @@ Main
 * `AutoML Vision <https://cloud.google.com/vision/automl/docs/deprecations>`_
 * `AutoML Video Intelligence <https://cloud.google.com/video-intelligence/automl/docs/deprecations>`_
 
+
+10.19.0
+.......
+
+Features
+~~~~~~~~
+
+   * ``Introduce anonymous credentials in GCP base hook (#39695)``
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove parent_model version suffix if it is passed to Vertex AI operators (#39640)``
+
+Misc
+~~~~
+
+* ``Remove 'openlineage.common' dependencies in Google and Snowflake providers. (#39614)``
+* ``Pin google-cloud-bigquery to < 3.21.0 (#39583)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Resolve deprecation warnings in Azure FileShare-to-GCS tests (#39599)``
+
 10.18.0
 .......
 

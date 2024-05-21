@@ -69,7 +69,7 @@ apache-airflow-providers-atlassian-jira package
 `Atlassian Jira <https://www.atlassian.com/software/jira/>`__
 
 
-Release: 2.6.0
+Release: 2.6.1
 
 Provider package
 ----------------
