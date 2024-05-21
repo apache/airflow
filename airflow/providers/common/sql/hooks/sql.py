@@ -185,14 +185,15 @@ class DbApiHook(BaseHook):
     def placeholder(self):
         conn = self.get_connection(getattr(self, self.conn_name_attr))
         placeholder = conn.extra_dejson.get("placeholder")
-        if placeholder in SQL_PLACEHOLDERS:
-            return placeholder
-        self.log.warning(
-            "Placeholder defined in Connection '%s' is not listed in 'DEFAULT_SQL_PLACEHOLDERS' "
-            "and got ignored. Falling back to the default placeholder '%s'.",
-            placeholder,
-            self._placeholder,
-        )
+        if placeholder:
+            if placeholder in SQL_PLACEHOLDERS:
+                return placeholder
+            self.log.warning(
+                "Placeholder defined in Connection '%s' is not listed in 'DEFAULT_SQL_PLACEHOLDERS' "
+                "and got ignored. Falling back to the default placeholder '%s'.",
+                self.conn_name_attr,
+                self._placeholder,
+            )
         return self._placeholder
 
     def get_conn(self):

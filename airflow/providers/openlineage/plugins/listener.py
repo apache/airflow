@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 
 from openlineage.client.serde import Serde
 
-from airflow import __version__ as airflow_version
+from airflow import __version__ as airflow_version, settings
 from airflow.listeners import hookimpl
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors import ExtractorManager
@@ -281,8 +281,16 @@ class OpenLineageListener:
 
     @property
     def executor(self):
+        def initializer():
+            # Re-configure the ORM engine as there are issues with multiple processes
+            # if process calls Airflow DB.
+            settings.configure_orm()
+
         if not self._executor:
-            self._executor = ProcessPoolExecutor(max_workers=conf.dag_state_change_process_pool_size())
+            self._executor = ProcessPoolExecutor(
+                max_workers=conf.dag_state_change_process_pool_size(),
+                initializer=initializer,
+            )
         return self._executor
 
     @hookimpl
