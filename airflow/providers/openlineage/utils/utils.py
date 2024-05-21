@@ -91,8 +91,9 @@ def get_custom_facets(task_instance: TaskInstance | None = None) -> dict[str, An
     for custom_facet_func in conf.custom_facet_functions():
         func: type[function] | None = try_import_from_string(custom_facet_func)
         if not func:
-            log.warning("Unable to import `%s`, will ignore it.", custom_facet_func)
-        facet = func(task_instance) if func else None
+            log.warning("OpenLineage is unable to import custom facet function `%s`; will ignore it.", custom_facet_func)
+            continue
+        facets: dict[str, BaseFacet] = func(task_instance)
         if facet and isinstance(facet, dict):
             duplicate_facet_keys = [facet_key for facet_key in facet.keys() if facet_key in custom_facets]
             if duplicate_facet_keys:
