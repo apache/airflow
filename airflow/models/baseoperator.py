@@ -41,6 +41,7 @@ from typing import (
     Callable,
     Collection,
     Iterable,
+    NoReturn,
     Sequence,
     TypeVar,
     Union,
@@ -1674,7 +1675,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         method_name: str,
         kwargs: dict[str, Any] | None = None,
         timeout: timedelta | None = None,
-    ):
+    ) -> NoReturn:
         """
         Mark this Operator "deferred", suspending its execution until the provided trigger fires an event.
 
