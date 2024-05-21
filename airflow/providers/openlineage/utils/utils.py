@@ -43,6 +43,7 @@ from airflow.providers.openlineage.utils.selective_enable import (
 )
 from airflow.utils.context import AirflowContextDeprecationWarning
 from airflow.utils.log.secrets_masker import Redactable, Redacted, SecretsMasker, should_hide_value_for_key
+from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from airflow.models import DagRun, TaskInstance
@@ -50,6 +51,11 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 _NOMINAL_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
+
+
+def try_import_from_string(string: str) -> Any:
+    with suppress(ImportError):
+        return import_string(string)
 
 
 def get_operator_class(task: BaseOperator) -> type:
