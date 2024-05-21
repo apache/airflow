@@ -1680,6 +1680,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "map_index_template",
                     "start_trigger",
                     "next_method",
+                    "_needs_expansion",
                 }
             )
             DagContext.pop_context_managed_dag()

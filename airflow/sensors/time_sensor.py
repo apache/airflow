@@ -40,11 +40,11 @@ class TimeSensor(BaseSensorOperator):
 
     """
 
-    def __init__(self, *, target_time, **kwargs):
+    def __init__(self, *, target_time: datetime.time, **kwargs) -> None:
         super().__init__(**kwargs)
         self.target_time = target_time
 
-    def poke(self, context: Context):
+    def poke(self, context: Context) -> bool:
         self.log.info("Checking if the time (%s) has come", self.target_time)
         return timezone.make_naive(timezone.utcnow(), self.dag.timezone).time() > self.target_time
 
@@ -62,7 +62,7 @@ class TimeSensorAsync(BaseSensorOperator):
         :ref:`howto/operator:TimeSensorAsync`
     """
 
-    def __init__(self, *, target_time, **kwargs):
+    def __init__(self, *, target_time: datetime.time, **kwargs) -> None:
         super().__init__(**kwargs)
         self.target_time = target_time
 
@@ -79,6 +79,6 @@ class TimeSensorAsync(BaseSensorOperator):
             method_name="execute_complete",
         )
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context, event=None) -> None:
         """Execute when the trigger fires - returns immediately."""
         return None
