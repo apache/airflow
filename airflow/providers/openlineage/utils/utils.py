@@ -25,8 +25,10 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any, Iterable
 
 import attrs
-from openlineage.client.utils import RedactMixin  # TODO: move this maybe to Airflow's logic?
+from deprecated import deprecated
+from openlineage.client.utils import RedactMixin
 
+from airflow.exceptions import AirflowProviderDeprecationWarning  # TODO: move this maybe to Airflow's logic?
 from airflow.models import DAG, BaseOperator, MappedOperator
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.plugins.facets import (
@@ -382,6 +384,13 @@ def get_filtered_unknown_operator_keys(operator: BaseOperator) -> dict:
     return {attr: value for attr, value in operator.__dict__.items() if attr not in not_required_keys}
 
 
+@deprecated(
+    reason=(
+        "`airflow.providers.openlineage.utils.utils.normalize_sql` "
+        "has been deprecated and will be removed in future"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 def normalize_sql(sql: str | Iterable[str]):
     if isinstance(sql, str):
         sql = [stmt for stmt in sql.split(";") if stmt != ""]

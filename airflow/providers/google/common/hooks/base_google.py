@@ -30,7 +30,6 @@ from subprocess import check_output
 from typing import TYPE_CHECKING, Any, Callable, Generator, Sequence, TypeVar, cast
 
 import google.auth
-import google.auth.credentials
 import google.oauth2.service_account
 import google_auth_httplib2
 import requests
@@ -223,7 +222,7 @@ class GoogleBaseHook(BaseHook):
         """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
-        from wtforms import IntegerField, PasswordField, StringField
+        from wtforms import BooleanField, IntegerField, PasswordField, StringField
         from wtforms.validators import NumberRange
 
         return {
@@ -249,6 +248,9 @@ class GoogleBaseHook(BaseHook):
             "impersonation_chain": StringField(
                 lazy_gettext("Impersonation Chain"), widget=BS3TextFieldWidget()
             ),
+            "is_anonymous": BooleanField(
+                lazy_gettext("Anonymous credentials (ignores all other settings)"), default=False
+            ),
         }
 
     @classmethod
@@ -270,10 +272,10 @@ class GoogleBaseHook(BaseHook):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.extras: dict = self.get_connection(self.gcp_conn_id).extra_dejson
-        self._cached_credentials: google.auth.credentials.Credentials | None = None
+        self._cached_credentials: Credentials | None = None
         self._cached_project_id: str | None = None
 
-    def get_credentials_and_project_id(self) -> tuple[google.auth.credentials.Credentials, str | None]:
+    def get_credentials_and_project_id(self) -> tuple[Credentials, str | None]:
         """Return the Credentials object for Google API and the associated project_id."""
         if self._cached_credentials is not None:
             return self._cached_credentials, self._cached_project_id
@@ -301,6 +303,7 @@ class GoogleBaseHook(BaseHook):
                 self.impersonation_chain = [s.strip() for s in self.impersonation_chain.split(",")]
 
         target_principal, delegates = _get_target_principal_and_delegates(self.impersonation_chain)
+        is_anonymous = self._get_field("is_anonymous")
 
         credentials, project_id = get_credentials_and_project_id(
             key_path=key_path,
@@ -312,6 +315,7 @@ class GoogleBaseHook(BaseHook):
             delegate_to=self.delegate_to,
             target_principal=target_principal,
             delegates=delegates,
+            is_anonymous=is_anonymous,
         )
 
         overridden_project_id = self._get_field("project")
@@ -323,7 +327,7 @@ class GoogleBaseHook(BaseHook):
 
         return credentials, project_id
 
-    def get_credentials(self) -> google.auth.credentials.Credentials:
+    def get_credentials(self) -> Credentials:
         """Return the Credentials object for Google API."""
         credentials, _ = self.get_credentials_and_project_id()
         return credentials
@@ -655,6 +659,8 @@ class GoogleBaseHook(BaseHook):
     def test_connection(self):
         """Test the Google cloud connectivity from UI."""
         status, message = False, ""
+        if self._get_field("is_anonymous"):
+            return True, "Credentials are anonymous"
         try:
             token = self._get_access_token()
             url = f"https://www.googleapis.com/oauth2/v3/tokeninfo?access_token={token}"

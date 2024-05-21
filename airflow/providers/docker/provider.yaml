@@ -69,6 +69,10 @@ dependencies:
   - apache-airflow>=2.7.0
   - docker>=6
   - python-dotenv>=0.21.0
+  # requests 2.32.0 has an incompatibility with python lib docker
+  # https://github.com/psf/requests/issues/6707 and https://github.com/docker/docker-py/issues/3256
+  # once resolved remove this dependency
+  - requests>=2.27.0,<2.32.0
 
 integrations:
   - integration-name: Docker

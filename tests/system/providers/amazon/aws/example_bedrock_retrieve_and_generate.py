@@ -44,6 +44,7 @@ from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockCreateDataSourceOperator,
     BedrockCreateKnowledgeBaseOperator,
     BedrockIngestDataOperator,
+    BedrockInvokeModelOperator,
     BedrockRaGOperator,
     BedrockRetrieveOperator,
 )
@@ -61,12 +62,14 @@ from airflow.utils.helpers import chain
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
-###########################################################################################################
+#######################################################################
 # NOTE:
-#  The account running this test must first manually request access to the `Titan Embeddings G1 - Text`
-#  and `Anthropic Claude v2.0` foundation models via the Bedrock console.  Gaining access to the models
-#  can take 24 hours from the time of request.
-###########################################################################################################
+#   Access to the following foundation model must be requested via
+#   the Amazon Bedrock console and may take up to 24 hours to apply:
+#######################################################################
+
+CLAUDE_MODEL_ID = "anthropic.claude-v2"
+TITAN_MODEL_ID = "amazon.titan-embed-text-v1"
 
 # Externally fetched variables:
 ROLE_ARN_KEY = "ROLE_ARN"
@@ -462,11 +465,20 @@ with DAG(
     )
     # [END howto_sensor_opensearch_collection_active]
 
+    PROMPT = "What color is an orange?"
+    # [START howto_operator_invoke_claude_model]
+    invoke_claude_completions = BedrockInvokeModelOperator(
+        task_id="invoke_claude_completions",
+        model_id=CLAUDE_MODEL_ID,
+        input_data={"max_tokens_to_sample": 4000, "prompt": f"\n\nHuman: {PROMPT}\n\nAssistant:"},
+    )
+    # [END howto_operator_invoke_claude_model]
+
     # [START howto_operator_bedrock_create_knowledge_base]
     create_knowledge_base = BedrockCreateKnowledgeBaseOperator(
         task_id="create_knowledge_base",
         name=knowledge_base_name,
-        embedding_model_arn=f"arn:aws:bedrock:{region_name}::foundation-model/amazon.titan-embed-text-v1",
+        embedding_model_arn=f"arn:aws:bedrock:{region_name}::foundation-model/{TITAN_MODEL_ID}",
         role_arn=test_context[ROLE_ARN_KEY],
         storage_config={
             "type": "OPENSEARCH_SERVERLESS",
@@ -522,7 +534,7 @@ with DAG(
         task_id="knowledge_base_rag",
         input="Who was the CEO of Amazon on 2022?",
         source_type="KNOWLEDGE_BASE",
-        model_arn=f"arn:aws:bedrock:{region_name}::foundation-model/anthropic.claude-v2",
+        model_arn=f"arn:aws:bedrock:{region_name}::foundation-model/{CLAUDE_MODEL_ID}",
         knowledge_base_id=create_knowledge_base.output,
     )
     # [END howto_operator_bedrock_knowledge_base_rag]
@@ -552,6 +564,7 @@ with DAG(
         create_vector_index(index_name=index_name, collection_id=collection, region=region_name),
         copy_data_to_s3(bucket=bucket_name),
         # TEST BODY
+        invoke_claude_completions,
         create_knowledge_base,
         await_knowledge_base,
         create_data_source,
