@@ -302,28 +302,35 @@ class TestFileTaskLogHandler:
         else:
             mock_k8s_get_task_log.assert_not_called()
 
-    def test__read_for_celery_executor_fallbacks_to_worker(self, create_task_instance):
+    @pytest.mark.parametrize(
+        "state", [TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED, TaskInstanceState.UP_FOR_RETRY]
+    )
+    def test__read_for_celery_executor_fallbacks_to_worker(self, state, create_task_instance):
         """Test for executors which do not have `get_task_log` method, it fallbacks to reading
         log from worker if and only if remote logs aren't found"""
         executor_name = "CeleryExecutor"
-
+        # Reading logs from worker should occur when the task is either running, deferred, or up for retry.
         ti = create_task_instance(
-            dag_id="dag_for_testing_celery_executor_log_read",
+            dag_id=f"dag_for_testing_celery_executor_log_read_{state}",
             task_id="task_for_testing_celery_executor_log_read",
             run_type=DagRunType.SCHEDULED,
             execution_date=DEFAULT_DATE,
         )
-        ti.state = TaskInstanceState.RUNNING
         ti.try_number = 2
+        ti.state = state
         with conf_vars({("core", "executor"): executor_name}):
             reload(executor_loader)
             fth = FileTaskHandler("")
-
             fth._read_from_logs_server = mock.Mock()
             fth._read_from_logs_server.return_value = ["this message"], ["this\nlog\ncontent"]
             actual = fth._read(ti=ti, try_number=2)
             fth._read_from_logs_server.assert_called_once()
-            assert actual == ("*** this message\nthis\nlog\ncontent", {"end_of_log": False, "log_pos": 16})
+            # If we are in the up for retry state, the log has ended.
+            expected_end_of_log = state in (TaskInstanceState.UP_FOR_RETRY)
+            assert actual == (
+                "*** this message\nthis\nlog\ncontent",
+                {"end_of_log": expected_end_of_log, "log_pos": 16},
+            )
 
             # Previous try_number should return served logs when remote logs aren't implemented
             fth._read_from_logs_server = mock.Mock()
@@ -342,7 +349,10 @@ class TestFileTaskLogHandler:
             actual = fth._read(ti=ti, try_number=1)
             fth._read_remote_logs.assert_called_once()
             fth._read_from_logs_server.assert_not_called()
-            assert actual == ("*** remote logs\nremote\nlog\ncontent", {"end_of_log": True, "log_pos": 18})
+            assert actual == (
+                "*** remote logs\nremote\nlog\ncontent",
+                {"end_of_log": True, "log_pos": 18},
+            )
 
     @pytest.mark.parametrize(
         "remote_logs, local_logs, served_logs_checked",
