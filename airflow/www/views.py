@@ -106,7 +106,6 @@ from airflow.models.dag import get_dataset_triggered_next_run_info
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun, DagRunType
 from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.models.errors import ParseImportError
-from airflow.models.operator import needs_expansion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
 from airflow.plugins_manager import PLUGINS_ATTRIBUTES_TO_DUMP
@@ -427,7 +426,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
                     set_overall_state(record)
                     yield record
 
-            if item_is_mapped := needs_expansion(item):
+            if item_is_mapped := item.get_needs_expansion():
                 instances = list(_mapped_summary(grouped_tis[item.task_id]))
             else:
                 instances = [

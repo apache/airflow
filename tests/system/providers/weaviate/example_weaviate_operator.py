@@ -121,7 +121,7 @@ def example_weaviate_using_operator():
         task_id="batch_data_with_vectors_xcom_data",
         conn_id="weaviate_default",
         class_name="QuestionWithoutVectorizerUsingOperator",
-        input_json=store_data_with_vectors_in_xcom(),
+        input_data=store_data_with_vectors_in_xcom(),
         trigger_rule="all_done",
     )
     # [END howto_operator_weaviate_embedding_and_ingest_xcom_data_with_vectors]
@@ -131,7 +131,7 @@ def example_weaviate_using_operator():
         task_id="batch_data_with_vectors_callable_data",
         conn_id="weaviate_default",
         class_name="QuestionWithoutVectorizerUsingOperator",
-        input_json=get_data_with_vectors(),
+        input_data=get_data_with_vectors(),
         trigger_rule="all_done",
     )
     # [END howto_operator_weaviate_embedding_and_ingest_callable_data_with_vectors]
@@ -231,7 +231,7 @@ def example_weaviate_using_operator():
         task_id="batch_data_without_vectors_xcom_data",
         conn_id="weaviate_default",
         class_name="QuestionWithOpenAIVectorizerUsingOperator",
-        input_json=xcom_data_without_vectors["return_value"],
+        input_data=xcom_data_without_vectors["return_value"],
         trigger_rule="all_done",
     )
     # [END howto_operator_weaviate_ingest_xcom_data_without_vectors]
@@ -241,7 +241,7 @@ def example_weaviate_using_operator():
         task_id="batch_data_without_vectors_callable_data",
         conn_id="weaviate_default",
         class_name="QuestionWithOpenAIVectorizerUsingOperator",
-        input_json=get_data_without_vectors(),
+        input_data=get_data_without_vectors(),
         trigger_rule="all_done",
     )
     # [END howto_operator_weaviate_ingest_callable_data_without_vectors]

@@ -443,7 +443,8 @@
     "deps": [
       "apache-airflow>=2.7.0",
       "docker>=6",
-      "python-dotenv>=0.21.0"
+      "python-dotenv>=0.21.0",
+      "requests>=2.27.0,<2.32.0"
     ],
     "devel-deps": [],
     "cross-providers-deps": [],
@@ -542,7 +543,7 @@
       "google-cloud-automl>=2.12.0",
       "google-cloud-batch>=0.13.0",
       "google-cloud-bigquery-datatransfer>=3.13.0",
-      "google-cloud-bigquery>=3.0.1",
+      "google-cloud-bigquery<3.21.0,>=3.0.1",
       "google-cloud-bigtable>=2.17.0",
       "google-cloud-build>=3.22.0",
       "google-cloud-compute>=1.10.0",
