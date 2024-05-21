@@ -39,7 +39,8 @@ if TYPE_CHECKING:
 def handle_waitable_exception(
     operator: NeptuneStartDbClusterOperator | NeptuneStopDbClusterOperator, err: str
 ):
-    """Handle client exceptions for invalid cluster or invalid instance status that are temporary.
+    """
+    Handle client exceptions for invalid cluster or invalid instance status that are temporary.
 
     After status change, it's possible to retry. Waiter will handle terminal status.
     """
