@@ -3612,6 +3612,7 @@ class TestTaskInstance:
         from airflow.utils.task_instance_session import set_current_task_instance_session
 
         with dag_maker(dag_id="example", session=session) as dag:
+
             @dag.task
             def emit():
                 return ["a", "b"]
@@ -3642,10 +3643,10 @@ class TestTaskInstance:
         assert sorted(rendered_map_index) == ["instance-map-index-aaa", "instance-map-index-bbb"]
 
     def test_rendered_map_index_example_from_doc(self, dag_maker, session):
-
         from airflow.operators.python import get_current_context
 
         with dag_maker(dag_id="example", session=session) as dag:
+
             @dag.task
             def emit():
                 return ["a", "b"]
@@ -3653,8 +3654,7 @@ class TestTaskInstance:
             @dag.task(map_index_template="{{ my_variable }}")
             def my_task(my_value: str):
                 context = get_current_context()
-                context["my_variable"] = my_value * 3
-                return context["my_variable"]
+                context["my_variable"] = my_value * 3  # type: ignore[typeddict-unknown-key]
 
             my_task.expand(my_value=emit())
 
@@ -3674,6 +3674,7 @@ class TestTaskInstance:
             rendered_map_index.append(ti.rendered_map_index)
 
         assert sorted(rendered_map_index) == ["aaa", "bbb"]
+
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])
 @pytest.mark.parametrize("queue_by_policy", [None, "forced_queue"])

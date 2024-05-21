@@ -2693,6 +2693,8 @@ class TaskInstance(Base, LoggingMixin):
 
     def _render_map_index(self, context: Context, *, jinja_env: jinja2.Environment | None) -> str | None:
         """Render named map index if the DAG author defined map_index_template at the task level."""
+        if TYPE_CHECKING:
+            assert self.task
 
         if jinja_env is None or (template := context.get("map_index_template")) is None:
             return None
