@@ -79,7 +79,6 @@ def handle_waitable_exception(
             operator.hook.wait_for_cluster_availability(operator.cluster_id)
 
 
-
 class NeptuneStartDbClusterOperator(AwsBaseOperator[NeptuneHook]):
     """Starts an Amazon Neptune DB cluster.
 
