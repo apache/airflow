@@ -207,6 +207,7 @@ class StandardTaskRunner(BaseTaskRunner):
 
                     Stats.gauge(f"task.mem_usage.{dag_id}.{task_id}", mem_usage)
                     Stats.gauge(f"task.cpu_usage.{dag_id}.{task_id}", cpu_usage)
-                    time.sleep(1)
+                    time.sleep(5)
         except (psutil.NoSuchProcess, psutil.AccessDenied, AttributeError):
+            self.log.info("Process not found (most likely exited), stop collecting metrics")
             return
