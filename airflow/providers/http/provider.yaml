@@ -60,7 +60,9 @@ dependencies:
   - apache-airflow>=2.7.0
   # The 2.26.0 release of requests got rid of the chardet LGPL mandatory dependency, allowing us to
   # release it as a requirement for airflow
-  - requests>=2.27.0,<3
+  # Also, requests 2.32.0 has an incompatibility with python lib docker
+  # https://github.com/psf/requests/issues/6707
+  - requests>=2.27.0,<2.32.0
   - requests_toolbelt
   - aiohttp>=3.9.2
   - asgiref

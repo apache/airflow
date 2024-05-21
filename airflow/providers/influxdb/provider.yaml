@@ -26,7 +26,9 @@ description: |
 dependencies:
   - apache-airflow>=2.7.0
   - influxdb-client>=1.19.0
-  - requests>=2.27.0,<3
+  # requests 2.32.0 has an incompatibility with python lib docker
+  # https://github.com/psf/requests/issues/6707
+  - requests>=2.27.0,<2.32.0
 
 state: ready
 source-date-epoch: 1715384445
