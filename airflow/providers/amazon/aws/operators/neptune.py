@@ -41,7 +41,7 @@ def handle_waitable_exception(
 ):
     """Handle client exceptions for invalid cluster or invalid instance status that are temporary.
 
-    After status change, its possible to retry. Waiter will handle terminal status.
+    After status change, it's possible to retry. Waiter will handle terminal status.
     """
     code = err
 
