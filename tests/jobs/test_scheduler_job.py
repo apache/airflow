@@ -3949,11 +3949,7 @@ class TestSchedulerJob:
         session.add(event3)
 
         session = dag_maker.session
-        session.add_all(
-            [
-                DatasetDagRunQueue(dataset_id=ds_id, target_dag_id=dag.dag_id),
-            ]
-        )
+        session.add(DatasetDagRunQueue(dataset_id=ds_id, target_dag_id=dag.dag_id))
         session.flush()
 
         scheduler_job = Job(executor=self.null_exec)
@@ -3966,7 +3962,7 @@ class TestSchedulerJob:
 
         def dict_from_obj(obj):
             """Get dict of column attrs from SqlAlchemy object."""
-            return {k.key: obj.__dict__.get(k) for k in obj.__mapper__.column_attrs}
+            return {k.key: getattr(obj, k) for k in obj.__mapper__.column_attrs}
 
         # dag should be triggered since it only depends on dataset1, it's been queued and dataset events landed after DAG was created.
         created_run = session.query(DagRun).filter(DagRun.dag_id == dag.dag_id).one()
@@ -3974,9 +3970,7 @@ class TestSchedulerJob:
 
         # we don't have __eq__ defined on DatasetEvent because... given the fact that in the future
         # we may register events from other systems, dataset_id + timestamp might not be enough PK
-        assert list(map(dict_from_obj, created_run.consumed_dataset_events)) == list(
-            map(dict_from_obj, [event3])
-        )
+        assert list(map(dict_from_obj, created_run.consumed_dataset_events)) == [dict_from_obj(event3)]
 
         # dag DDRQ record should be deleted since the dag run was triggered
         assert session.query(DatasetDagRunQueue).filter_by(target_dag_id=dag.dag_id).one_or_none() is None
