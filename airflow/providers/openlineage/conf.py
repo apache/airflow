@@ -14,6 +14,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module provides functions for safely retrieving and handling OpenLineage configurations.
+
+To prevent errors caused by invalid user-provided configuration values, we use ``conf.get()``
+to fetch values as strings and perform safe conversions using custom functions.
+
+Any invalid configuration values should be treated as incorrect and replaced with default values.
+For example, if the default for boolean ``custom_ol_var`` is False, any non-true value provided:
+``"asdf"``, ``12345``, ``{"key": 1}`` or empty string, will result in False being used.
+
+By using default values for invalid configuration values, we ensure that the configurations are handled
+safely, preventing potential runtime errors due to conversion issues.
+"""
 
 from __future__ import annotations
 
@@ -28,6 +41,13 @@ _CONFIG_SECTION = "openlineage"
 
 def _is_true(arg: Any) -> bool:
     return str(arg).lower().strip() in ("true", "1", "t")
+
+
+def _safe_int_convert(arg: Any, default: int) -> int:
+    try:
+        return int(arg)
+    except (ValueError, TypeError):
+        return default
 
 
 @cache
@@ -108,5 +128,5 @@ def is_disabled() -> bool:
 @cache
 def dag_state_change_process_pool_size() -> int:
     """[openlineage] dag_state_change_process_pool_size."""
-    option = conf.getint(_CONFIG_SECTION, "dag_state_change_process_pool_size", fallback=1)
-    return option
+    option = conf.get(_CONFIG_SECTION, "dag_state_change_process_pool_size", fallback="")
+    return _safe_int_convert(str(option).strip(), default=1)
