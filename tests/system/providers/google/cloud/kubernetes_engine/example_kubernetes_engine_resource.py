@@ -39,7 +39,14 @@ GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
 GCP_LOCATION = "europe-north1-a"
 CLUSTER_NAME = f"gke-resource-{ENV_ID}".replace("_", "-")
-CLUSTER = {"name": CLUSTER_NAME, "initial_node_count": 1}
+CLUSTER = {
+    "name": CLUSTER_NAME,
+    "node_pools": [
+        {
+            "initial_node_count": 1,
+        },
+    ],
+}
 
 PVC_NAME = "test-pvc-name"
 PVC_CONF = f"""
