@@ -20,9 +20,9 @@ import datetime
 import os
 
 from airflow import DAG
-from airflow.providers.postgres.operators.postgres import PostgresOperator
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
-# [START postgres_operator_howto_guide]
+# [START postgres_sql_execute_query_operator_howto_guide]
 
 
 # create_pet_table, populate_pet_table, get_all_pets, and get_birth_date are examples of tasks created by
@@ -37,8 +37,8 @@ with DAG(
     schedule="@once",
     catchup=False,
 ) as dag:
-    # [START postgres_operator_howto_guide_create_pet_table]
-    create_pet_table = PostgresOperator(
+    # [START postgres_sql_execute_query_operator_howto_guide_create_pet_table]
+    create_pet_table = SQLExecuteQueryOperator(
         task_id="create_pet_table",
         sql="""
             CREATE TABLE IF NOT EXISTS pet (
@@ -49,9 +49,9 @@ with DAG(
             OWNER VARCHAR NOT NULL);
           """,
     )
-    # [END postgres_operator_howto_guide_create_pet_table]
-    # [START postgres_operator_howto_guide_populate_pet_table]
-    populate_pet_table = PostgresOperator(
+    # [END postgres_sql_execute_query_operator_howto_guide_create_pet_table]
+    # [START postgres_sql_execute_query_operator_howto_guide_populate_pet_table]
+    populate_pet_table = SQLExecuteQueryOperator(
         task_id="populate_pet_table",
         sql="""
             INSERT INTO pet (name, pet_type, birth_date, OWNER)
@@ -64,21 +64,21 @@ with DAG(
             VALUES ( 'Quincy', 'Parrot', '2013-08-11', 'Anne');
             """,
     )
-    # [END postgres_operator_howto_guide_populate_pet_table]
-    # [START postgres_operator_howto_guide_get_all_pets]
-    get_all_pets = PostgresOperator(task_id="get_all_pets", sql="SELECT * FROM pet;")
-    # [END postgres_operator_howto_guide_get_all_pets]
-    # [START postgres_operator_howto_guide_get_birth_date]
-    get_birth_date = PostgresOperator(
+    # [END postgres_sql_execute_query_operator_howto_guide_populate_pet_table]
+    # [START postgres_sql_execute_query_operator_howto_guide_get_all_pets]
+    get_all_pets = SQLExecuteQueryOperator(task_id="get_all_pets", sql="SELECT * FROM pet;")
+    # [END postgres_sql_execute_query_operator_howto_guide_get_all_pets]
+    # [START postgres_sql_execute_query_operator_howto_guide_get_birth_date]
+    get_birth_date = SQLExecuteQueryOperator(
         task_id="get_birth_date",
         sql="SELECT * FROM pet WHERE birth_date BETWEEN SYMMETRIC %(begin_date)s AND %(end_date)s",
         parameters={"begin_date": "2020-01-01", "end_date": "2020-12-31"},
         hook_params={"options": "-c statement_timeout=3000ms"},
     )
-    # [END postgres_operator_howto_guide_get_birth_date]
+    # [END postgres_sql_execute_query_operator_howto_guide_get_birth_date]
 
     create_pet_table >> populate_pet_table >> get_all_pets >> get_birth_date
-    # [END postgres_operator_howto_guide]
+    # [END postgres_sql_execute_query_operator_howto_guide]
 
     from tests.system.utils.watcher import watcher
 

@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NoReturn
 
 from airflow.sensors.base import BaseSensorOperator
 from airflow.triggers.temporal import DateTimeTrigger
@@ -72,7 +72,7 @@ class TimeSensorAsync(BaseSensorOperator):
 
         self.target_datetime = timezone.convert_to_utc(aware_time)
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> NoReturn:
         trigger = DateTimeTrigger(moment=self.target_datetime)
         self.defer(
             trigger=trigger,

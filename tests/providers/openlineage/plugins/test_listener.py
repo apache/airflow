@@ -561,7 +561,7 @@ def test_listener_on_dag_run_state_changes_configure_process_pool_size(mock_exec
     try:
         with conf_vars({("openlineage", "dag_state_change_process_pool_size"): max_workers}):
             listener.on_dag_run_running(mock.MagicMock(), None)
-        mock_executor.assert_called_once_with(max_workers=expected)
+        mock_executor.assert_called_once_with(max_workers=expected, initializer=mock.ANY)
         mock_executor.return_value.submit.assert_called_once()
     finally:
         conf.dag_state_change_process_pool_size.cache_clear()
