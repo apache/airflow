@@ -169,7 +169,7 @@ config:
         description: |
           A string representing the full path to the Python callable path which accept TI object and
           return comma separated list of index patterns. This will takes precedence over index_patterns.
-        version_added: 5.4.0
+        version_added: 5.5.0
         type: string
         example: module.callable
         default: ""

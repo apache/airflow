@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import contextlib
-import importlib
 import inspect
 import logging
 import sys
@@ -42,6 +41,7 @@ from airflow.providers.elasticsearch.log.es_response import ElasticSearchRespons
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
+from airflow.utils.module_loading import import_string
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
@@ -224,9 +224,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         """
         if self.index_patterns_callable:
             self.log.debug("Using index_patterns_callable: %s", self.index_patterns_callable)
-            module_path, index_pattern_function = self.index_patterns_callable.rsplit(".", 1)
-            module = importlib.import_module(module_path)
-            index_pattern_callable_obj = getattr(module, index_pattern_function)
+            index_pattern_callable_obj = import_string(self.index_patterns_callable)
             return index_pattern_callable_obj(ti)
         self.log.debug("Using index_patterns: %s", self.index_patterns)
         return self.index_patterns
