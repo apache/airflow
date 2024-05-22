@@ -18,6 +18,10 @@
 from __future__ import annotations
 
 import pytest
+
+# For no Pydantic environment, we need to skip the tests
+pytest.importorskip("google.cloud.aiplatform_v1")
+
 from google.cloud.automl_v1beta1 import Model
 
 from airflow.providers.google.cloud.links.translate import (
