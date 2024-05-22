@@ -75,10 +75,10 @@ def get_pools(
 ) -> APIResponse:
     """Get all pools."""
     to_replace = {"name": "pool"}
-    allowed_filter_attrs = ["name", "slots", "id"]
+    allowed_sort_attrs = ["name", "slots", "id"]
     total_entries = session.scalars(func.count(Pool.id)).one()
     query = select(Pool)
-    query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
+    query = apply_sorting(query, order_by, to_replace, allowed_sort_attrs)
     pools = session.scalars(query.offset(offset).limit(limit)).all()
     return pool_collection_schema.dump(PoolCollection(pools=pools, total_entries=total_entries))
 

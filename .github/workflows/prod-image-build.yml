@@ -20,10 +20,9 @@ name: Build PROD images
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on:
-        description: "The array of labels (in json form) determining type of the runner to use for the build."
-        required: false
-        default: '["ubuntu-22.04"]'
+      runs-on-as-json-public:
+        description: "The array of labels (in json form) determining default runner used for the build."
+        required: true
         type: string
       build-type:
         description: >
@@ -79,10 +78,6 @@ on:  # yamllint disable-line rule:truthy
         description: "Tag to set for the image"
         required: true
         type: string
-      ci-image-tag:
-        description: "Tag to use for the CI image used during the build"
-        required: true
-        type: string
       python-versions:
         description: "JSON-formatted array of Python versions to build images from"
         required: true
@@ -108,7 +103,7 @@ on:  # yamllint disable-line rule:truthy
         required: true
         type: string
       upgrade-to-newer-dependencies:
-        description: "Whether to attempt to upgrade image to newer dependencies (false/RANDOM_VALUE)"
+        description: "Whether to attempt to upgrade image to newer dependencies (true/false)"
         required: true
         type: string
       chicken-egg-providers:
@@ -124,21 +119,28 @@ jobs:
   build-prod-packages:
     name: "${{ inputs.do-build == 'true' && 'Build' || 'Skip building' }} Airflow and provider packages"
     timeout-minutes: 10
-    runs-on: ["ubuntu-22.04"]
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
+      VERSION_SUFFIX_FOR_PYPI: ${{ inputs.branch == 'main' && 'dev0' || '' }}
     steps:
       - name: "Cleanup repo"
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
         if: inputs.do-build == 'true' && inputs.upload-package-artifact == 'true'
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+      - name: "Checkout target branch"
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: "Checkout target commit"
+        uses: ./.github/actions/checkout_target_commit
+        with:
+          target-commit-sha: ${{ inputs.target-commit-sha }}
+          pull-request-target: ${{ inputs.pull-request-target }}
+          is-committer-build: ${{ inputs.is-committer-build }}
         if: inputs.do-build == 'true' && inputs.upload-package-artifact == 'true'
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
         if: inputs.do-build == 'true' && inputs.upload-package-artifact == 'true'
       - uses: actions/setup-python@v5
         with:
@@ -156,19 +158,16 @@ jobs:
         run: >
           breeze release-management prepare-provider-packages
           --package-list-file ./prod_image_installed_providers.txt
-          --package-format wheel --version-suffix-for-pypi dev0
+          --package-format wheel
         if: >
           inputs.do-build == 'true' &&
           inputs.upload-package-artifact == 'true' &&
           inputs.build-provider-packages == 'true'
       - name: "Prepare chicken-eggs provider packages"
-        # In case of provider packages which use latest dev0 version of providers, we should prepare them
-        # from the source code, not from the PyPI because they have apache-airflow>=X.Y.Z dependency
-        # And when we prepare them from sources they will have apache-airflow>=X.Y.Z.dev0
         shell: bash
         run: >
           breeze release-management prepare-provider-packages
-          --package-format wheel --version-suffix-for-pypi dev0 ${{ inputs.chicken-egg-providers }}
+          --package-format wheel ${{ inputs.chicken-egg-providers }}
         if: >
           inputs.do-build  == 'true' &&
           inputs.upload-package-artifact == 'true' &&
@@ -176,8 +175,7 @@ jobs:
       - name: "Prepare airflow package"
         shell: bash
         run: >
-          breeze release-management prepare-airflow-package
-          --package-format wheel --version-suffix-for-pypi dev0
+          breeze release-management prepare-airflow-package --package-format wheel
         if: inputs.do-build  == 'true' && inputs.upload-package-artifact == 'true'
       - name: "Upload prepared packages as artifacts"
         uses: actions/upload-artifact@v4
@@ -193,21 +191,21 @@ jobs:
       fail-fast: true
       matrix:
         # yamllint disable-line rule:line-length
-        python-version: ${{ inputs.do-build == 'true' && fromJson(inputs.python-versions) || fromJson('[""]') }}
+        python-version: ${{ inputs.do-build == 'true' && fromJSON(inputs.python-versions) || fromJSON('[""]') }}
     timeout-minutes: 80
     name: "\
 ${{ inputs.do-build == 'true' && 'Build' || 'Skip building' }} \
 PROD ${{ inputs.build-type }} image\
 ${{ matrix.python-version }}${{ inputs.do-build == 'true' && ':' || '' }}\
 ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
-    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
     needs:
       - build-prod-packages
     env:
       BACKEND: sqlite
       DEFAULT_BRANCH: ${{ inputs.branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ inputs.constraints-branch }}
-      VERSION_SUFFIX_FOR_PYPI: "dev0"
+      VERSION_SUFFIX_FOR_PYPI: ${{ inputs.branch == 'main' && 'dev0' || '' }}
       INCLUDE_NOT_READY_PROVIDERS: "true"
       # You can override CONSTRAINTS_GITHUB_REPOSITORY by setting secret in your repo but by default the
       # Airflow one is going to be used
@@ -225,56 +223,19 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
         if: inputs.do-build == 'true'
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.target-commit-sha }}
-          persist-credentials: false
-        if: inputs.do-build == 'true'
-      ####################################################################################################
-      #  BE VERY CAREFUL HERE! THIS LINE AND THE END OF THE WARNING. IN PULL REQUEST TARGET WORKFLOW
-      #  WE CHECK OUT THE TARGET COMMIT ABOVE TO BE ABLE TO BUILD THE IMAGE FROM SOURCES FROM THE
-      #  INCOMING PR, RATHER THAN FROM TARGET BRANCH. THIS IS A SECURITY RISK, BECAUSE THE PR
-      #  CAN CONTAIN ANY CODE AND WE EXECUTE IT HERE. THEREFORE, WE NEED TO BE VERY CAREFUL WHAT WE
-      #  DO HERE. WE SHOULD NOT EXECUTE ANY CODE THAT COMES FROM THE PR. WE SHOULD NOT RUN ANY BREEZE
-      #  COMMAND NOR SCRIPTS NOR COMPOSITE ACTIONS. WE SHOULD ONLY RUN CODE THAT IS EMBEDDED DIRECTLY IN
-      #  THIS WORKFLOW - BECAUSE THIS IS THE ONLY CODE THAT WE CAN TRUST.
-      ####################################################################################################
-      - name: Checkout target branch to 'target-airflow' folder to use ci/scripts and breeze from there.
+      - name: "Checkout target branch"
         uses: actions/checkout@v4
         with:
-          path: "target-airflow"
-          ref: ${{ github.base_ref }}
           persist-credentials: false
-        if: >
-          inputs.do-build == 'true' && inputs.pull-request-target == 'true' &&
-          inputs.is-committer-build != 'true'
-      - name: >
-          Replace "scripts/ci", "dev", ".github/actions" and ".github/workflows" with the target branch
-          so that the those directories are not coming from the PR
-        shell: bash
-        run: |
-          echo
-          echo -e "\033[33m Replace scripts, dev, actions with target branch for non-committer builds!\033[0m"
-          echo
-          rm -rfv "scripts/ci"
-          rm -rfv "dev"
-          rm -rfv ".github/actions"
-          rm -rfv ".github/workflows"
-          mv -v "target-airflow/scripts/ci" "scripts"
-          mv -v "target-airflow/dev" "."
-          mv -v "target-airflow/.github/actions" "target-airflow/.github/workflows" ".github"
-        if: >
-          inputs.do-build == 'true' && inputs.pull-request-target == 'true' &&
-          inputs.is-committer-build != 'true'
-      ####################################################################################################
-      #  HERE IT'S A BIT SAFER. THE `dev`, `scripts/ci` AND `.github/actions` ARE NOW COMING FROM THE
-      #  BASE_REF - WHICH IS THE TARGET BRANCH OF THE PR. WE CAN TRUST THAT THOSE SCRIPTS ARE SAVE TO RUN.
-      #  ALL THE REST OF THE CODE COMES FROM THE PR, AND FOR EXAMPLE THE CODE IN THE `Dockerfile.ci` CAN
-      #  BE RUN SAFELY AS PART OF DOCKER BUILD. BECAUSE IT RUNS INSIDE THE DOCKER CONTAINER AND IT IS
-      #  ISOLATED FROM THE RUNNER.
-      ####################################################################################################
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Checkout target commit"
+        uses: ./.github/actions/checkout_target_commit
+        with:
+          target-commit-sha: ${{ inputs.target-commit-sha }}
+          pull-request-target: ${{ inputs.pull-request-target }}
+          is-committer-build: ${{ inputs.is-committer-build }}
+        if: inputs.do-build == 'true'
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
         if: inputs.do-build == 'true'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
@@ -283,7 +244,7 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
         shell: bash
         run: |
           pip install rich>=12.4.4 pyyaml
-          python scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
+          python scripts/ci/pre_commit/update_providers_dependencies.py
         if: inputs.do-build == 'true' && inputs.upgrade-to-newer-dependencies != 'false'
       - name: "Cleanup dist and context file"
         shell: bash
@@ -295,39 +256,16 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
           name: prod-packages
           path: ./docker-context-files
         if: inputs.do-build == 'true'
-      - name: "Download constraints from the CI build"
+      - name: "Download constraints"
         uses: actions/download-artifact@v4
         with:
-          name: source-constraints-${{ matrix.python-version }}
+          name: constraints
           path: ./docker-context-files
-        if: inputs.do-build == 'true' && inputs.build-provider-packages == 'true'
+        if: inputs.do-build == 'true'
       - name: Login to ghcr.io
         shell: bash
         run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
         if: inputs.do-build == 'true'
-      - name: Pull CI images ${{ matrix.python-version }}:${{ inputs.ci-image-tag }}
-        run: >
-          breeze ci-image pull --tag-as-latest --image-tag "${{ inputs.ci-image-tag }}"
-          --python "${{ matrix.python-version }}"
-        if: inputs.do-build == 'true' && inputs.build-provider-packages != 'true'
-      - name: "PyPI constraints"
-        timeout-minutes: 25
-        run: >
-          breeze release-management generate-constraints --python  "${{ matrix.python-version }}"
-          --airflow-constraints-mode constraints --answer yes
-          --chicken-egg-providers "${{ inputs.chicken-egg-providers }}"
-        env:
-          # always use UV for constraints generation even if we build `pip` image
-          USE_UV: "true"
-        if: inputs.do-build == 'true' && inputs.build-provider-packages != 'true'
-      # This cleanup is needed as we will run out of disk space if we keep both CI and PROD images
-      # on public runners.
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
-        if: inputs.do-build == 'true' && inputs.build-provider-packages != 'true'
-      - name: "Copy constraints to docker-context-files"
-        run: cp -vr --no-preserve=mode,ownership ./files/constraints-* ./docker-context-files
-        if: inputs.do-build == 'true' && inputs.build-provider-packages != 'true'
       - name: "Build PROD images w/ source providers ${{ matrix.python-version }}:${{ inputs.image-tag }}"
         shell: bash
         run: >

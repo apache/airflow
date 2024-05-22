@@ -39,7 +39,7 @@ Variable                                    Type                  Description
 ``{{ data_interval_start }}``               `pendulum.DateTime`_  Start of the data interval. Added in version 2.2.
 ``{{ data_interval_end }}``                 `pendulum.DateTime`_  End of the data interval. Added in version 2.2.
 ``{{ logical_date }}``                      `pendulum.DateTime`_  | A date-time that logically identifies the current DAG run. This value does not contain any semantics, but is simply a value for identification.
-                                                                  | Use ``data_interval_start`` and ``date_interval_end`` instead if you want a value that has real-world semantics,
+                                                                  | Use ``data_interval_start`` and ``data_interval_end`` instead if you want a value that has real-world semantics,
                                                                   | such as to get a slice of rows from the database based on timestamps.
 ``{{ ds }}``                                str                   | The DAG run's logical date as ``YYYY-MM-DD``.
                                                                   | Same as ``{{ logical_date | ds }}``.
@@ -62,7 +62,10 @@ Variable                                    Type                  Description
 ``{{ prev_end_date_success }}``             `pendulum.DateTime`_  End date from prior successful :class:`~airflow.models.dagrun.DagRun` (if available).
                                             | ``None``
 ``{{ inlets }}``                            list                  List of inlets declared on the task.
+``{{ inlet_events }}``                      dict[str, ...]        Access past events of inlet datasets. See :doc:`Datasets <authoring-and-scheduling/datasets>`. Added in version 2.10.
 ``{{ outlets }}``                           list                  List of outlets declared on the task.
+``{{ outlet_events }}``                     dict[str, ...]        | Accessors to attach information to dataset events that will be emitted by the current task.
+                                                                  | See :doc:`Datasets <authoring-and-scheduling/datasets>`. Added in version 2.10.
 ``{{ dag }}``                               DAG                   The currently running :class:`~airflow.models.dag.DAG`. You can read more about DAGs in :doc:`DAGs <core-concepts/dags>`.
 ``{{ task }}``                              BaseOperator          | The currently running :class:`~airflow.models.baseoperator.BaseOperator`. You can read more about Tasks in :doc:`core-concepts/operators`
 ``{{ macros }}``                                                  | A reference to the macros package. See Macros_ below.
@@ -127,7 +130,7 @@ Deprecated Variable                     Description
 ``{{ tomorrow_ds }}``                   the day after the execution date as ``YYYY-MM-DD``
 ``{{ tomorrow_ds_nodash }}``            the day after the execution date as ``YYYYMMDD``
 ``{{ prev_execution_date_success }}``   execution date from prior successful DAG run;
-                                        you may be able to use ``prev_data_interval_start_success``instead if
+                                        you may be able to use ``prev_data_interval_start_success`` instead if
                                         the timetable/schedule you use for the DAG defines ``data_interval_start``
                                         compatible with the legacy ``execution_date``.
 =====================================   ==========================================================================

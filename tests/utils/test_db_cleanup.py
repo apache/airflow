@@ -297,6 +297,10 @@ class TestDBCleanup:
             assert len(session.query(model).all()) == 5
             assert len(_get_archived_table_names(["dag_run"], session)) == expected_archives
 
+    @pytest.mark.filterwarnings(
+        # This test case might import some deprecated modules, ignore it
+        "ignore:This module is deprecated.*:airflow.exceptions.RemovedInAirflow3Warning"
+    )
     def test_no_models_missing(self):
         """
         1. Verify that for all tables in `airflow.models`, we either have them enabled in db cleanup,
@@ -340,6 +344,8 @@ class TestDBCleanup:
             "task_instance_note",  # foreign keys
             "dag_run_note",  # foreign keys
             "rendered_task_instance_fields",  # foreign key with TI
+            "dag_priority_parsing_request",  # Records are purged once per DAG Processing loop, not a
+            # significant source of data.
         }
 
         from airflow.utils.db_cleanup import config_dict
@@ -395,17 +401,17 @@ class TestDBCleanup:
     @patch("airflow.utils.db_cleanup.ask_yesno")
     def test_confirm_drop_archives(self, mock_ask_yesno, tables):
         expected = (
-            f"You have requested that we drop the following archived tables {tables}.\n"
-            "This is irreversible. Consider backing up the tables first"
+            f"You have requested that we drop the following archived tables: {', '.join(tables)}.\n"
+            "This is irreversible. Consider backing up the tables first."
         )
         if len(tables) > 3:
             expected = (
                 f"You have requested that we drop {len(tables)} archived tables prefixed with "
                 f"_airflow_deleted__.\n"
-                "This is irreversible. Consider backing up the tables first \n"
-                "\n"
-                f"{tables}"
+                "This is irreversible. Consider backing up the tables first.\n"
             )
+            for table in tables:
+                expected += f"\n  {table}"
 
         mock_ask_yesno.return_value = True
         with patch("sys.stdout", new=StringIO()) as fake_out, patch(

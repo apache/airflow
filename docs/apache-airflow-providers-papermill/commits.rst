@@ -35,14 +35,41 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.7.0
+.....
+
+Latest change: 2024-04-25
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+=================================================================================================  ===========  =======================================================================
+
+3.6.2
+.....
+
+Latest change: 2024-04-10
+
+=================================================================================================  ===========  ===================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
+`5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
+`e346253760 <https://github.com/apache/airflow/commit/e3462537608854368b04f58c25835c8097dec51c>`_  2024-02-15   ``Fix remaining D401 checks (#37434)``
+`b53fe08797 <https://github.com/apache/airflow/commit/b53fe08797d910ffab82b7b2ff6a27ba50b1d8a5>`_  2024-02-14   ``Add Python 3.12 exclusions in providers/pyproject.toml (#37404)``
+`c3f48eeda0 <https://github.com/apache/airflow/commit/c3f48eeda0618a0c1bab8842d26155ee9b1f634d>`_  2024-02-13   ``Turn Pydantic into an optional dependency (#37320)``
+=================================================================================================  ===========  ===================================================================
+
 3.6.1
 .....
 
-Latest change: 2024-01-22
+Latest change: 2024-01-26
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`cead3da4a6 <https://github.com/apache/airflow/commit/cead3da4a6f483fa626b81efd27a24dcb5a36ab0>`_  2024-01-26   ``Add docs for RC2 wave of providers for 2nd round of Jan 2024 (#37019)``
 `2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 `7a2a4a98e0 <https://github.com/apache/airflow/commit/7a2a4a98e0d735a461d4bb7694b2899c3d04a6e0>`_  2024-01-10   ``Fix assignment of template field in '__init__' in 'papermill.py' (#36530)``
 `b5c6aead44 <https://github.com/apache/airflow/commit/b5c6aead4415b53a294e1671990cbba924ed9445>`_  2024-01-08   ``Bump min provider version for papermill (#36669)``

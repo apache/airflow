@@ -392,6 +392,10 @@
                     <span class="material-icons" aria-hidden="true">play_arrow</span>
                   </a>
                 {% endif %}
+                <a href="{{ url_for('Airflow.parse_dag', file_token=file_tokens[dag.dag_id], redirect_url=url_for(request.endpoint)) }}" title="Reparse&nbsp;DAG" aria-label="Reparse DAG"
+                    class="btn btn-sm btn-default btn-icon-only{{ ' disabled' if not dag.can_edit }}">
+                    <span class="material-icons">restore_page</span>
+                </a>
                 <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id, redirect_url=url_for(request.endpoint)) }}"
                     onclick="return confirmDeleteDag(this, '{{ dag.dag_id }}')" title="Delete&nbsp;DAG"
                     aria-label="Delete DAG"
@@ -490,4 +494,7 @@
       return false;
     }
   </script>
+  {% if scarf_url %}
+  <img referrerpolicy="no-referrer-when-downgrade" src="{{ scarf_url }}" width="0" height="0" alt="" style="display:none;" />
+  {% endif %}
 {% endblock %}

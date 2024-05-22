@@ -63,16 +63,17 @@ from airflow_breeze.utils.path_utils import (
 from airflow_breeze.utils.provider_dependencies import DEPENDENCIES, get_related_providers
 from airflow_breeze.utils.run_utils import run_command
 
-FULL_TESTS_NEEDED_LABEL = "full tests needed"
-DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
-USE_PUBLIC_RUNNERS_LABEL = "use public runners"
-NON_COMMITTER_BUILD_LABEL = "non committer build"
-DEFAULT_VERSIONS_ONLY_LABEL = "default versions only"
 ALL_VERSIONS_LABEL = "all versions"
-LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
+DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
+DEFAULT_VERSIONS_ONLY_LABEL = "default versions only"
 DISABLE_IMAGE_CACHE_LABEL = "disable image cache"
+FULL_TESTS_NEEDED_LABEL = "full tests needed"
 INCLUDE_SUCCESS_OUTPUTS_LABEL = "include success outputs"
+LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
+NON_COMMITTER_BUILD_LABEL = "non committer build"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
+USE_PUBLIC_RUNNERS_LABEL = "use public runners"
+USE_SELF_HOSTED_RUNNERS_LABEL = "use self-hosted runners"
 
 
 ALL_CI_SELECTIVE_TEST_TYPES = (
@@ -81,6 +82,8 @@ ALL_CI_SELECTIVE_TEST_TYPES = (
     "Providers[-amazon,google] Providers[amazon] Providers[google] "
     "PythonVenv Serialization WWW"
 )
+
+ALL_PROVIDERS_SELECTIVE_TEST_TYPES = "Providers[-amazon,google] Providers[amazon] Providers[google]"
 
 
 class FileGroupForCi(Enum):
@@ -303,58 +306,36 @@ def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
     return "Providers"
 
 
-def find_all_providers_affected(
-    changed_files: tuple[str, ...], include_docs: bool, fail_if_suspended_providers_affected: bool
-) -> list[str] | str | None:
-    all_providers: set[str] = set()
+def _match_files_with_regexps(files: tuple[str, ...], matched_files, matching_regexps):
+    for file in files:
+        if any(re.match(regexp, file) for regexp in matching_regexps):
+            matched_files.append(file)
 
-    all_providers_affected = False
-    suspended_providers: set[str] = set()
-    for changed_file in changed_files:
-        provider = find_provider_affected(changed_file, include_docs=include_docs)
-        if provider == "Providers":
-            all_providers_affected = True
-        elif provider is not None:
-            if provider not in DEPENDENCIES:
-                suspended_providers.add(provider)
-            else:
-                all_providers.add(provider)
-    if all_providers_affected:
-        return "ALL_PROVIDERS"
-    if suspended_providers:
-        # We check for suspended providers only after we have checked if all providers are affected.
-        # No matter if we found that we are modifying a suspended provider individually, if all providers are
-        # affected, then it means that we are ok to proceed because likely we are running some kind of
-        # global refactoring that affects multiple providers including the suspended one. This is a
-        # potential escape hatch if someone would like to modify suspended provider,
-        # but it can be found at the review time and is anyway harmless as the provider will not be
-        # released nor tested nor used in CI anyway.
-        get_console().print("[yellow]You are modifying suspended providers.\n")
-        get_console().print(
-            "[info]Some providers modified by this change have been suspended, "
-            "and before attempting such changes you should fix the reason for suspension."
-        )
-        get_console().print(
-            "[info]When fixing it, you should set suspended = false in provider.yaml "
-            "to make changes to the provider."
-        )
-        get_console().print(f"Suspended providers: {suspended_providers}")
-        if fail_if_suspended_providers_affected:
-            get_console().print(
-                "[error]This PR did not have `allow suspended provider changes` label set so it will fail."
-            )
-            sys.exit(1)
-        else:
-            get_console().print(
-                "[info]This PR had `allow suspended provider changes` label set so it will continue"
-            )
-    if not all_providers:
-        return None
-    for provider in list(all_providers):
-        all_providers.update(
-            get_related_providers(provider, upstream_dependencies=True, downstream_dependencies=True)
-        )
-    return sorted(all_providers)
+
+def _exclude_files_with_regexps(files: tuple[str, ...], matched_files, exclude_regexps):
+    for file in files:
+        if any(re.match(regexp, file) for regexp in exclude_regexps):
+            if file in matched_files:
+                matched_files.remove(file)
+
+
+@lru_cache(maxsize=None)
+def _matching_files(
+    files: tuple[str, ...], match_group: FileGroupForCi, match_dict: HashableDict, exclude_dict: HashableDict
+) -> list[str]:
+    matched_files: list[str] = []
+    match_regexps = match_dict[match_group]
+    excluded_regexps = exclude_dict.get(match_group)
+    _match_files_with_regexps(files, matched_files, match_regexps)
+    if excluded_regexps:
+        _exclude_files_with_regexps(files, matched_files, excluded_regexps)
+    count = len(matched_files)
+    if count > 0:
+        get_console().print(f"[warning]{match_group} matched {count} files.[/]")
+        get_console().print(matched_files)
+    else:
+        get_console().print(f"[warning]{match_group} did not match any file.[/]")
+    return matched_files
 
 
 class SelectiveChecks:
@@ -588,34 +569,10 @@ class SelectiveChecks:
         )
         return " ".join(short_combo_titles)
 
-    def _match_files_with_regexps(self, matched_files, matching_regexps):
-        for file in self._files:
-            if any(re.match(regexp, file) for regexp in matching_regexps):
-                matched_files.append(file)
-
-    def _exclude_files_with_regexps(self, matched_files, exclude_regexps):
-        for file in self._files:
-            if any(re.match(regexp, file) for regexp in exclude_regexps):
-                if file in matched_files:
-                    matched_files.remove(file)
-
-    @lru_cache(maxsize=None)
     def _matching_files(
-        self, match_group: T, match_dict: dict[T, list[str]], exclude_dict: dict[T, list[str]]
+        self, match_group: FileGroupForCi, match_dict: HashableDict, exclude_dict: HashableDict
     ) -> list[str]:
-        matched_files: list[str] = []
-        match_regexps = match_dict[match_group]
-        excluded_regexps = exclude_dict.get(match_group)
-        self._match_files_with_regexps(matched_files, match_regexps)
-        if excluded_regexps:
-            self._exclude_files_with_regexps(matched_files, excluded_regexps)
-        count = len(matched_files)
-        if count > 0:
-            get_console().print(f"[warning]{match_group} matched {count} files.[/]")
-            get_console().print(matched_files)
-        else:
-            get_console().print(f"[warning]{match_group} did not match any file.[/]")
-        return matched_files
+        return _matching_files(self._files, match_group, match_dict, exclude_dict)
 
     def _should_be_run(self, source_area: FileGroupForCi) -> bool:
         if self.full_tests_needed:
@@ -738,7 +695,7 @@ class SelectiveChecks:
         # prepare all providers packages and build all providers documentation
         return "Providers" in self._get_test_types_to_run()
 
-    def _fail_if_suspended_providers_affected(self):
+    def _fail_if_suspended_providers_affected(self) -> bool:
         return "allow suspended provider changes" not in self._pr_labels
 
     def _get_test_types_to_run(self) -> list[str]:
@@ -791,14 +748,17 @@ class SelectiveChecks:
             get_console().print(remaining_files)
             candidate_test_types.update(all_selective_test_types())
         else:
-            if "Providers" in candidate_test_types:
-                affected_providers = find_all_providers_affected(
-                    changed_files=self._files,
+            if "Providers" in candidate_test_types or "API" in candidate_test_types:
+                affected_providers = self.find_all_providers_affected(
                     include_docs=False,
-                    fail_if_suspended_providers_affected=self._fail_if_suspended_providers_affected(),
                 )
                 if affected_providers != "ALL_PROVIDERS" and affected_providers is not None:
-                    candidate_test_types.remove("Providers")
+                    try:
+                        candidate_test_types.remove("Providers")
+                    except KeyError:
+                        # In case of API tests Providers could not be in the list originally so we can ignore
+                        # Providers missing in the list.
+                        pass
                     candidate_test_types.add(f"Providers[{','.join(sorted(affected_providers))}]")
             get_console().print(
                 "[warning]There are no core/other files. Only tests relevant to the changed files are run.[/]"
@@ -859,6 +819,15 @@ class SelectiveChecks:
         return " ".join(sorted(current_test_types))
 
     @cached_property
+    def providers_test_types_list_as_string(self) -> str | None:
+        all_test_types = self.parallel_test_types_list_as_string
+        if all_test_types is None:
+            return None
+        return " ".join(
+            test_type for test_type in all_test_types.split(" ") if test_type.startswith("Providers")
+        )
+
+    @cached_property
     def include_success_outputs(
         self,
     ) -> bool:
@@ -870,7 +839,7 @@ class SelectiveChecks:
 
     @staticmethod
     def _print_diff(old_lines: list[str], new_lines: list[str]):
-        diff = "\n".join([line for line in difflib.ndiff(old_lines, new_lines) if line and line[0] in "+-?"])
+        diff = "\n".join(line for line in difflib.ndiff(old_lines, new_lines) if line and line[0] in "+-?")
         get_console().print(diff)
 
     @cached_property
@@ -979,10 +948,8 @@ class SelectiveChecks:
             return "apache-airflow docker-stack"
         if self.full_tests_needed:
             return _ALL_DOCS_LIST
-        providers_affected = find_all_providers_affected(
-            changed_files=self._files,
+        providers_affected = self.find_all_providers_affected(
             include_docs=True,
-            fail_if_suspended_providers_affected=self._fail_if_suspended_providers_affected(),
         )
         if (
             providers_affected == "ALL_PROVIDERS"
@@ -1091,11 +1058,7 @@ class SelectiveChecks:
             return _ALL_PROVIDERS_LIST
         if self._are_all_providers_affected():
             return _ALL_PROVIDERS_LIST
-        affected_providers = find_all_providers_affected(
-            changed_files=self._files,
-            include_docs=True,
-            fail_if_suspended_providers_affected=self._fail_if_suspended_providers_affected(),
-        )
+        affected_providers = self.find_all_providers_affected(include_docs=True)
         if not affected_providers:
             return None
         if affected_providers == "ALL_PROVIDERS":
@@ -1103,10 +1066,14 @@ class SelectiveChecks:
         return " ".join(sorted(affected_providers))
 
     @cached_property
-    def runs_on(self) -> str:
+    def runs_on_as_json_default(self) -> str:
         if self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY:
             if self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH]:
+                # Canary and Scheduled runs
                 return RUNS_ON_SELF_HOSTED_RUNNER
+            if self._pr_labels and USE_PUBLIC_RUNNERS_LABEL in self._pr_labels:
+                # Forced public runners
+                return RUNS_ON_PUBLIC_RUNNER
             actor = self._github_actor
             if self._github_event in (GithubEvents.PULL_REQUEST, GithubEvents.PULL_REQUEST_TARGET):
                 try:
@@ -1121,8 +1088,28 @@ class SelectiveChecks:
                         f"[info]Could not find the actor from pull request, "
                         f"falling back to the actor who triggered the PR: {actor}[/]"
                     )
-            if actor in COMMITTERS and USE_PUBLIC_RUNNERS_LABEL not in self._pr_labels:
+            if (
+                actor not in COMMITTERS
+                and self._pr_labels
+                and USE_SELF_HOSTED_RUNNERS_LABEL in self._pr_labels
+            ):
+                get_console().print(
+                    f"[error]The PR has `{USE_SELF_HOSTED_RUNNERS_LABEL}` label, but "
+                    f"{actor} is not a committer. This is not going to work.[/]"
+                )
+                sys.exit(1)
+            if USE_SELF_HOSTED_RUNNERS_LABEL in self._pr_labels:
+                # Forced self-hosted runners
                 return RUNS_ON_SELF_HOSTED_RUNNER
+            return RUNS_ON_PUBLIC_RUNNER
+        return RUNS_ON_PUBLIC_RUNNER
+
+    @cached_property
+    def runs_on_as_json_self_hosted(self) -> str:
+        return RUNS_ON_SELF_HOSTED_RUNNER
+
+    @cached_property
+    def runs_on_as_json_public(self) -> str:
         return RUNS_ON_PUBLIC_RUNNER
 
     @cached_property
@@ -1132,7 +1119,7 @@ class SelectiveChecks:
 
         All self-hosted runners have "self-hosted" label.
         """
-        return "self-hosted" in json.loads(self.runs_on)
+        return "self-hosted" in json.loads(self.runs_on_as_json_default)
 
     @cached_property
     def is_airflow_runner(self) -> bool:
@@ -1143,7 +1130,7 @@ class SelectiveChecks:
         """
         # TODO: when we have it properly set-up with labels we should just check for
         #       "airflow-runner" presence in runs_on
-        runs_on_array = json.loads(self.runs_on)
+        runs_on_array = json.loads(self.runs_on_as_json_default)
         return "Linux" in runs_on_array and "X64" in runs_on_array and "self-hosted" in runs_on_array
 
     @cached_property
@@ -1164,7 +1151,7 @@ class SelectiveChecks:
                 or "x64" == label.lower()
                 or "asf-runner" == label
                 or ("ubuntu" in label and "arm" not in label.lower())
-                for label in json.loads(self.runs_on)
+                for label in json.loads(self.runs_on_as_json_public)
             ]
         )
 
@@ -1180,7 +1167,7 @@ class SelectiveChecks:
         return any(
             [
                 "arm" == label.lower() or "arm64" == label.lower() or "asf-arm" == label
-                for label in json.loads(self.runs_on)
+                for label in json.loads(self.runs_on_as_json_public)
             ]
         )
 
@@ -1223,3 +1210,58 @@ class SelectiveChecks:
         if NON_COMMITTER_BUILD_LABEL in self._pr_labels:
             return False
         return self._github_actor in COMMITTERS
+
+    def find_all_providers_affected(self, include_docs: bool) -> list[str] | str | None:
+        all_providers: set[str] = set()
+
+        all_providers_affected = False
+        suspended_providers: set[str] = set()
+        for changed_file in self._files:
+            provider = find_provider_affected(changed_file, include_docs=include_docs)
+            if provider == "Providers":
+                all_providers_affected = True
+            elif provider is not None:
+                if provider not in DEPENDENCIES:
+                    suspended_providers.add(provider)
+                else:
+                    all_providers.add(provider)
+        if self.needs_api_tests:
+            all_providers.add("fab")
+        if all_providers_affected:
+            return "ALL_PROVIDERS"
+        if suspended_providers:
+            # We check for suspended providers only after we have checked if all providers are affected.
+            # No matter if we found that we are modifying a suspended provider individually,
+            # if all providers are
+            # affected, then it means that we are ok to proceed because likely we are running some kind of
+            # global refactoring that affects multiple providers including the suspended one. This is a
+            # potential escape hatch if someone would like to modify suspended provider,
+            # but it can be found at the review time and is anyway harmless as the provider will not be
+            # released nor tested nor used in CI anyway.
+            get_console().print("[yellow]You are modifying suspended providers.\n")
+            get_console().print(
+                "[info]Some providers modified by this change have been suspended, "
+                "and before attempting such changes you should fix the reason for suspension."
+            )
+            get_console().print(
+                "[info]When fixing it, you should set suspended = false in provider.yaml "
+                "to make changes to the provider."
+            )
+            get_console().print(f"Suspended providers: {suspended_providers}")
+            if self._fail_if_suspended_providers_affected():
+                get_console().print(
+                    "[error]This PR did not have `allow suspended provider changes`"
+                    " label set so it will fail."
+                )
+                sys.exit(1)
+            else:
+                get_console().print(
+                    "[info]This PR had `allow suspended provider changes` label set so it will continue"
+                )
+        if not all_providers:
+            return None
+        for provider in list(all_providers):
+            all_providers.update(
+                get_related_providers(provider, upstream_dependencies=True, downstream_dependencies=True)
+            )
+        return sorted(all_providers)

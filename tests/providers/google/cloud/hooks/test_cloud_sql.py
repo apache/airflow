@@ -17,12 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+import base64
 import json
 import os
 import platform
 import tempfile
 from unittest import mock
-from unittest.mock import PropertyMock
+from unittest.mock import PropertyMock, call, mock_open
 
 import aiohttp
 import httplib2
@@ -50,6 +51,12 @@ OPERATION_NAME = "test_operation_name"
 OPERATION_URL = (
     f"https://sqladmin.googleapis.com/sql/v1beta4/projects/{PROJECT_ID}/operations/{OPERATION_NAME}"
 )
+SSL_CERT = "sslcert.pem"
+SSL_KEY = "sslkey.pem"
+SSL_ROOT_CERT = "sslrootcert.pem"
+CONNECTION_ID = "test-conn-id"
+IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
+SECRET_ID = "test-secret-id"
 
 
 @pytest.fixture
@@ -783,11 +790,13 @@ class TestCloudSqlDatabaseHook:
         ],
     )
     @mock.patch("os.path.isfile")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook._set_temporary_ssl_file")
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")
     def test_cloudsql_database_hook_validate_ssl_certs_missing_cert_params(
-        self, get_connection, mock_is_file, cert_dict
+        self, get_connection, mock_set_temporary_ssl_file, mock_is_file, cert_dict
     ):
         mock_is_file.side_effects = True
+        mock_set_temporary_ssl_file.side_effect = cert_dict.values()
         connection = Connection()
         extras = {"location": "test", "instance": "instance", "database_type": "postgres", "use_ssl": "True"}
         extras.update(cert_dict)
@@ -803,10 +812,18 @@ class TestCloudSqlDatabaseHook:
         assert "SSL connections requires" in str(err)
 
     @mock.patch("os.path.isfile")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook._set_temporary_ssl_file")
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")
-    def test_cloudsql_database_hook_validate_ssl_certs_with_ssl(self, get_connection, mock_is_file):
+    def test_cloudsql_database_hook_validate_ssl_certs_with_ssl(
+        self, get_connection, mock_set_temporary_ssl_file, mock_is_file
+    ):
         connection = Connection()
         mock_is_file.return_value = True
+        mock_set_temporary_ssl_file.side_effect = [
+            "/tmp/cert_file.pem",
+            "/tmp/rootcert_file.pem",
+            "/tmp/key_file.pem",
+        ]
         connection.set_extra(
             json.dumps(
                 {
@@ -827,12 +844,18 @@ class TestCloudSqlDatabaseHook:
         hook.validate_ssl_certs()
 
     @mock.patch("os.path.isfile")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook._set_temporary_ssl_file")
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")
     def test_cloudsql_database_hook_validate_ssl_certs_with_ssl_files_not_readable(
-        self, get_connection, mock_is_file
+        self, get_connection, mock_set_temporary_ssl_file, mock_is_file
     ):
         connection = Connection()
         mock_is_file.return_value = False
+        mock_set_temporary_ssl_file.side_effect = [
+            "/tmp/cert_file.pem",
+            "/tmp/rootcert_file.pem",
+            "/tmp/key_file.pem",
+        ]
         connection.set_extra(
             json.dumps(
                 {
@@ -1001,6 +1024,366 @@ class TestCloudSqlDatabaseHook:
         db_hook = hook.get_database_hook(connection=connection)
         assert db_hook is not None
 
+    @mock.patch(HOOK_STR.format("CloudSQLDatabaseHook._get_ssl_temporary_file_path"))
+    @mock.patch(HOOK_STR.format("CloudSQLDatabaseHook.get_connection"))
+    def test_ssl_cert_properties(self, mock_get_connection, mock_get_ssl_temporary_file_path):
+        def side_effect_func(cert_name, cert_path):
+            return f"/tmp/certs/{cert_name}"
+
+        mock_get_ssl_temporary_file_path.side_effect = side_effect_func
+        mock_get_connection.return_value = mock.MagicMock(
+            extra_dejson=dict(database_type="postgres", location="test", instance="instance")
+        )
+
+        hook = CloudSQLDatabaseHook(
+            gcp_cloudsql_conn_id="cloudsql_connection",
+            default_gcp_project_id="google_connection",
+            ssl_cert=SSL_CERT,
+            ssl_key=SSL_KEY,
+            ssl_root_cert=SSL_ROOT_CERT,
+        )
+        sslcert = hook.sslcert
+        sslkey = hook.sslkey
+        sslrootcert = hook.sslrootcert
+
+        assert hook.ssl_cert == SSL_CERT
+        assert hook.ssl_key == SSL_KEY
+        assert hook.ssl_root_cert == SSL_ROOT_CERT
+        assert sslcert == "/tmp/certs/sslcert"
+        assert sslkey == "/tmp/certs/sslkey"
+        assert sslrootcert == "/tmp/certs/sslrootcert"
+        mock_get_ssl_temporary_file_path.assert_has_calls(
+            [
+                call(cert_name="sslcert", cert_path=SSL_CERT),
+                call(cert_name="sslkey", cert_path=SSL_KEY),
+                call(cert_name="sslrootcert", cert_path=SSL_ROOT_CERT),
+            ]
+        )
+
+    @pytest.mark.parametrize("ssl_name", ["sslcert", "sslkey", "sslrootcert"])
+    @pytest.mark.parametrize(
+        "cert_value, cert_path, extra_cert_path",
+        [
+            (None, None, "/connection/path/to/cert.pem"),
+            (None, "/path/to/cert.pem", None),
+            (None, "/path/to/cert.pem", "/connection/path/to/cert.pem"),
+            (mock.MagicMock(), None, None),
+            (mock.MagicMock(), None, "/connection/path/to/cert.pem"),
+            (mock.MagicMock(), "/path/to/cert.pem", None),
+            (mock.MagicMock(), "/path/to/cert.pem", "/connection/path/to/cert.pem"),
+        ],
+    )
+    @mock.patch(HOOK_STR.format("CloudSQLDatabaseHook._set_temporary_ssl_file"))
+    @mock.patch(HOOK_STR.format("CloudSQLDatabaseHook._get_cert_from_secret"))
+    @mock.patch(HOOK_STR.format("CloudSQLDatabaseHook.get_connection"))
+    def test_get_ssl_temporary_file_path(
+        self,
+        mock_get_connection,
+        mock_get_cert_from_secret,
+        mock_set_temporary_ssl_file,
+        cert_value,
+        cert_path,
+        extra_cert_path,
+        ssl_name,
+    ):
+        expected_cert_file_path = cert_path
+        mock_get_connection.return_value = mock.MagicMock(
+            extra_dejson={
+                "database_type": "postgres",
+                "location": "test",
+                "instance": "instance",
+                ssl_name: extra_cert_path,
+            }
+        )
+        mock_get_cert_from_secret.return_value = cert_value
+        mock_set_temporary_ssl_file.return_value = expected_cert_file_path
+
+        hook = CloudSQLDatabaseHook(
+            gcp_cloudsql_conn_id="cloudsql_connection",
+            default_gcp_project_id="google_connection",
+            ssl_cert=SSL_CERT,
+            ssl_key=SSL_KEY,
+            ssl_root_cert=SSL_ROOT_CERT,
+        )
+        actual_cert_file_path = hook._get_ssl_temporary_file_path(cert_name=ssl_name, cert_path=cert_path)
+
+        assert actual_cert_file_path == expected_cert_file_path
+        assert hook.extras.get(ssl_name) == extra_cert_path
+        mock_get_cert_from_secret.assert_called_once_with(ssl_name)
+        mock_set_temporary_ssl_file.assert_called_once_with(
+            cert_name=ssl_name, cert_path=cert_path or extra_cert_path, cert_value=cert_value
+        )
+
+    @pytest.mark.parametrize("ssl_name", ["sslcert", "sslkey", "sslrootcert"])
+    @mock.patch(HOOK_STR.format("CloudSQLDatabaseHook._set_temporary_ssl_file"))
+    @mock.patch(HOOK_STR.format("CloudSQLDatabaseHook._get_cert_from_secret"))
+    @mock.patch(HOOK_STR.format("CloudSQLDatabaseHook.get_connection"))
+    def test_get_ssl_temporary_file_path_none(
+        self,
+        mock_get_connection,
+        mock_get_cert_from_secret,
+        mock_set_temporary_ssl_file,
+        ssl_name,
+    ):
+        expected_cert_file_path = None
+        mock_get_connection.return_value = mock.MagicMock(
+            extra_dejson={
+                "database_type": "postgres",
+                "location": "test",
+                "instance": "instance",
+            }
+        )
+        mock_get_cert_from_secret.return_value = None
+        mock_set_temporary_ssl_file.return_value = expected_cert_file_path
+
+        hook = CloudSQLDatabaseHook(
+            gcp_cloudsql_conn_id="cloudsql_connection",
+            default_gcp_project_id="google_connection",
+            ssl_cert=SSL_CERT,
+            ssl_key=SSL_KEY,
+            ssl_root_cert=SSL_ROOT_CERT,
+        )
+        actual_cert_file_path = hook._get_ssl_temporary_file_path(cert_name=ssl_name, cert_path=None)
+
+        assert actual_cert_file_path == expected_cert_file_path
+        assert hook.extras.get(ssl_name) is None
+        mock_get_cert_from_secret.assert_called_once_with(ssl_name)
+        assert not mock_set_temporary_ssl_file.called
+
+    @pytest.mark.parametrize(
+        "cert_name, cert_value",
+        [
+            ["sslcert", SSL_CERT],
+            ["sslkey", SSL_KEY],
+            ["sslrootcert", SSL_ROOT_CERT],
+        ],
+    )
+    @mock.patch(HOOK_STR.format("GoogleCloudSecretManagerHook"))
+    @mock.patch(HOOK_STR.format("CloudSQLDatabaseHook.get_connection"))
+    def test_get_cert_from_secret(
+        self,
+        mock_get_connection,
+        mock_secret_hook,
+        cert_name,
+        cert_value,
+    ):
+        mock_get_connection.return_value = mock.MagicMock(
+            extra_dejson={
+                "database_type": "postgres",
+                "location": "test",
+                "instance": "instance",
+            }
+        )
+        mock_secret = mock_secret_hook.return_value.access_secret.return_value
+        mock_secret.payload.data = base64.b64encode(json.dumps({cert_name: cert_value}).encode("ascii"))
+
+        hook = CloudSQLDatabaseHook(
+            gcp_conn_id=CONNECTION_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            default_gcp_project_id=PROJECT_ID,
+            ssl_secret_id=SECRET_ID,
+        )
+        actual_cert_value = hook._get_cert_from_secret(cert_name=cert_name)
+
+        assert actual_cert_value == cert_value
+        mock_secret_hook.assert_called_once_with(
+            gcp_conn_id=CONNECTION_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
+        mock_secret_hook.return_value.access_secret.assert_called_once_with(
+            project_id=PROJECT_ID, secret_id=SECRET_ID
+        )
+
+    @pytest.mark.parametrize(
+        "cert_name, cert_value",
+        [
+            ["sslcert", SSL_CERT],
+            ["sslkey", SSL_KEY],
+            ["sslrootcert", SSL_ROOT_CERT],
+        ],
+    )
+    @mock.patch(HOOK_STR.format("GoogleCloudSecretManagerHook"))
+    @mock.patch(HOOK_STR.format("CloudSQLDatabaseHook.get_connection"))
+    def test_get_cert_from_secret_exception(
+        self,
+        mock_get_connection,
+        mock_secret_hook,
+        cert_name,
+        cert_value,
+    ):
+        mock_get_connection.return_value = mock.MagicMock(
+            extra_dejson={
+                "database_type": "postgres",
+                "location": "test",
+                "instance": "instance",
+            }
+        )
+        mock_secret = mock_secret_hook.return_value.access_secret.return_value
+        mock_secret.payload.data = base64.b64encode(json.dumps({"wrong_key": cert_value}).encode("ascii"))
+
+        hook = CloudSQLDatabaseHook(
+            gcp_conn_id=CONNECTION_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            default_gcp_project_id=PROJECT_ID,
+            ssl_secret_id=SECRET_ID,
+        )
+
+        with pytest.raises(AirflowException):
+            hook._get_cert_from_secret(cert_name=cert_name)
+
+        mock_secret_hook.assert_called_once_with(
+            gcp_conn_id=CONNECTION_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
+        mock_secret_hook.return_value.access_secret.assert_called_once_with(
+            project_id=PROJECT_ID, secret_id=SECRET_ID
+        )
+
+    @pytest.mark.parametrize("cert_name", ["sslcert", "sslkey", "sslrootcert"])
+    @mock.patch(HOOK_STR.format("GoogleCloudSecretManagerHook"))
+    @mock.patch(HOOK_STR.format("CloudSQLDatabaseHook.get_connection"))
+    def test_get_cert_from_secret_none(
+        self,
+        mock_get_connection,
+        mock_secret_hook,
+        cert_name,
+    ):
+        mock_get_connection.return_value = mock.MagicMock(
+            extra_dejson={
+                "database_type": "postgres",
+                "location": "test",
+                "instance": "instance",
+            }
+        )
+
+        hook = CloudSQLDatabaseHook(
+            gcp_conn_id=CONNECTION_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            default_gcp_project_id=PROJECT_ID,
+        )
+        actual_cert_value = hook._get_cert_from_secret(cert_name=cert_name)
+
+        assert actual_cert_value is None
+        assert not mock_secret_hook.called
+        assert not mock_secret_hook.return_value.access_secret.called
+
+    @pytest.mark.parametrize("cert_name", ["sslcert", "sslkey", "sslrootcert"])
+    @mock.patch("builtins.open", new_callable=mock_open, read_data="test-data")
+    @mock.patch(HOOK_STR.format("NamedTemporaryFile"))
+    @mock.patch(HOOK_STR.format("CloudSQLDatabaseHook.get_connection"))
+    def test_set_temporary_ssl_file_cert_path(
+        self,
+        mock_get_connection,
+        mock_named_temporary_file,
+        mock_open_file,
+        cert_name,
+    ):
+        mock_get_connection.return_value = mock.MagicMock(
+            extra_dejson={
+                "database_type": "postgres",
+                "location": "test",
+                "instance": "instance",
+            }
+        )
+        expected_file_name = "/test/path/to/file"
+        mock_named_temporary_file.return_value.name = expected_file_name
+        source_cert_path = "/source/cert/path/to/file"
+
+        hook = CloudSQLDatabaseHook()
+        actual_path = hook._set_temporary_ssl_file(cert_name=cert_name, cert_path=source_cert_path)
+
+        assert actual_path == expected_file_name
+        mock_named_temporary_file.assert_called_once_with(mode="w+b", prefix="/tmp/certs/")
+        mock_open_file.assert_has_calls([call(source_cert_path, "rb")])
+        mock_named_temporary_file.return_value.write.assert_called_once_with("test-data")
+        mock_named_temporary_file.return_value.flush.assert_called_once()
+
+    @pytest.mark.parametrize("cert_name", ["sslcert", "sslkey", "sslrootcert"])
+    @mock.patch(HOOK_STR.format("NamedTemporaryFile"))
+    @mock.patch(HOOK_STR.format("CloudSQLDatabaseHook.get_connection"))
+    def test_set_temporary_ssl_file_cert_value(
+        self,
+        mock_get_connection,
+        mock_named_temporary_file,
+        cert_name,
+    ):
+        mock_get_connection.return_value = mock.MagicMock(
+            extra_dejson={
+                "database_type": "postgres",
+                "location": "test",
+                "instance": "instance",
+            }
+        )
+        expected_file_name = "/test/path/to/file"
+        mock_named_temporary_file.return_value.name = expected_file_name
+        cert_value = "test-cert-value"
+
+        hook = CloudSQLDatabaseHook()
+        actual_path = hook._set_temporary_ssl_file(cert_name=cert_name, cert_value=cert_value)
+
+        assert actual_path == expected_file_name
+        mock_named_temporary_file.assert_called_once_with(mode="w+b", prefix="/tmp/certs/")
+        mock_named_temporary_file.return_value.write.assert_called_once_with(cert_value.encode("ascii"))
+        mock_named_temporary_file.return_value.flush.assert_called_once()
+
+    @pytest.mark.parametrize("cert_name", ["sslcert", "sslkey", "sslrootcert"])
+    @mock.patch(HOOK_STR.format("NamedTemporaryFile"))
+    @mock.patch(HOOK_STR.format("CloudSQLDatabaseHook.get_connection"))
+    def test_set_temporary_ssl_file_exception(
+        self,
+        mock_get_connection,
+        mock_named_temporary_file,
+        cert_name,
+    ):
+        mock_get_connection.return_value = mock.MagicMock(
+            extra_dejson={
+                "database_type": "postgres",
+                "location": "test",
+                "instance": "instance",
+            }
+        )
+        expected_file_name = "/test/path/to/file"
+        mock_named_temporary_file.return_value.name = expected_file_name
+        cert_value = "test-cert-value"
+        source_cert_path = "/source/cert/path/to/file"
+
+        hook = CloudSQLDatabaseHook()
+
+        with pytest.raises(AirflowException):
+            hook._set_temporary_ssl_file(
+                cert_name=cert_name, cert_value=cert_value, cert_path=source_cert_path
+            )
+
+        assert not mock_named_temporary_file.called
+        assert not mock_named_temporary_file.return_value.write.called
+        assert not mock_named_temporary_file.return_value.flush.called
+
+    @pytest.mark.parametrize("cert_name", ["sslcert", "sslkey", "sslrootcert"])
+    @mock.patch(HOOK_STR.format("NamedTemporaryFile"))
+    @mock.patch(HOOK_STR.format("CloudSQLDatabaseHook.get_connection"))
+    def test_set_temporary_ssl_file_none(
+        self,
+        mock_get_connection,
+        mock_named_temporary_file,
+        cert_name,
+    ):
+        mock_get_connection.return_value = mock.MagicMock(
+            extra_dejson={
+                "database_type": "postgres",
+                "location": "test",
+                "instance": "instance",
+            }
+        )
+        expected_file_name = "/test/path/to/file"
+        mock_named_temporary_file.return_value.name = expected_file_name
+
+        hook = CloudSQLDatabaseHook()
+
+        actual_path = hook._set_temporary_ssl_file(cert_name=cert_name)
+
+        assert actual_path is None
+        assert not mock_named_temporary_file.called
+        assert not mock_named_temporary_file.return_value.write.called
+        assert not mock_named_temporary_file.return_value.flush.called
+
 
 class TestCloudSqlDatabaseQueryHook:
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")
@@ -1085,8 +1468,13 @@ class TestCloudSqlDatabaseQueryHook:
         )
         self._verify_postgres_connection(get_connection, uri)
 
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook._set_temporary_ssl_file")
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")
-    def test_hook_with_correct_parameters_postgres_ssl(self, get_connection):
+    def test_hook_with_correct_parameters_postgres_ssl(self, get_connection, mock_set_temporary_ssl_file):
+        def side_effect_func(cert_name, cert_path, cert_value):
+            return f"/tmp/{cert_name}"
+
+        mock_set_temporary_ssl_file.side_effect = side_effect_func
         uri = (
             "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=postgres&"
             "project_id=example-project&location=europe-west1&instance=testdb&"
@@ -1094,9 +1482,9 @@ class TestCloudSqlDatabaseQueryHook:
             "sslkey=/bin/bash&sslrootcert=/bin/bash"
         )
         connection = self._verify_postgres_connection(get_connection, uri)
-        assert "/bin/bash" == connection.extra_dejson["sslkey"]
-        assert "/bin/bash" == connection.extra_dejson["sslcert"]
-        assert "/bin/bash" == connection.extra_dejson["sslrootcert"]
+        assert "/tmp/sslkey" == connection.extra_dejson["sslkey"]
+        assert "/tmp/sslcert" == connection.extra_dejson["sslcert"]
+        assert "/tmp/sslrootcert" == connection.extra_dejson["sslrootcert"]
 
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")
     def test_hook_with_correct_parameters_postgres_proxy_socket(self, get_connection):
@@ -1157,8 +1545,13 @@ class TestCloudSqlDatabaseQueryHook:
         )
         self.verify_mysql_connection(get_connection, uri)
 
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook._set_temporary_ssl_file")
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")
-    def test_hook_with_correct_parameters_mysql_ssl(self, get_connection):
+    def test_hook_with_correct_parameters_mysql_ssl(self, get_connection, mock_set_temporary_ssl_file):
+        def side_effect_func(cert_name, cert_path, cert_value):
+            return f"/tmp/{cert_name}"
+
+        mock_set_temporary_ssl_file.side_effect = side_effect_func
         uri = (
             "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=mysql&"
             "project_id=example-project&location=europe-west1&instance=testdb&"
@@ -1166,9 +1559,9 @@ class TestCloudSqlDatabaseQueryHook:
             "sslkey=/bin/bash&sslrootcert=/bin/bash"
         )
         connection = self.verify_mysql_connection(get_connection, uri)
-        assert "/bin/bash" == json.loads(connection.extra_dejson["ssl"])["cert"]
-        assert "/bin/bash" == json.loads(connection.extra_dejson["ssl"])["key"]
-        assert "/bin/bash" == json.loads(connection.extra_dejson["ssl"])["ca"]
+        assert "/tmp/sslcert" == json.loads(connection.extra_dejson["ssl"])["cert"]
+        assert "/tmp/sslkey" == json.loads(connection.extra_dejson["ssl"])["key"]
+        assert "/tmp/sslrootcert" == json.loads(connection.extra_dejson["ssl"])["ca"]
 
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")
     def test_hook_with_correct_parameters_mysql_proxy_socket(self, get_connection):

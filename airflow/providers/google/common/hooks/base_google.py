@@ -30,7 +30,6 @@ from subprocess import check_output
 from typing import TYPE_CHECKING, Any, Callable, Generator, Sequence, TypeVar, cast
 
 import google.auth
-import google.auth.credentials
 import google.oauth2.service_account
 import google_auth_httplib2
 import requests
@@ -114,6 +113,19 @@ def is_operation_in_progress_exception(exception: Exception) -> bool:
     return False
 
 
+def is_refresh_credentials_exception(exception: Exception) -> bool:
+    """
+    Handle refresh credentials exceptions.
+
+    Some calls return 502 (server error) in case a new token cannot be obtained.
+
+    * Google BigQuery
+    """
+    if isinstance(exception, RefreshError):
+        return "Unable to acquire impersonated credentials" in str(exception)
+    return False
+
+
 class retry_if_temporary_quota(tenacity.retry_if_exception):
     """Retries if there was an exception for exceeding the temporary quote limit."""
 
@@ -122,10 +134,17 @@ class retry_if_temporary_quota(tenacity.retry_if_exception):
 
 
 class retry_if_operation_in_progress(tenacity.retry_if_exception):
-    """Retries if there was an exception for exceeding the temporary quote limit."""
+    """Retries if there was an exception in case of operation in progress."""
 
     def __init__(self):
         super().__init__(is_operation_in_progress_exception)
+
+
+class retry_if_temporary_refresh_credentials(tenacity.retry_if_exception):
+    """Retries if there was an exception for refreshing credentials."""
+
+    def __init__(self):
+        super().__init__(is_refresh_credentials_exception)
 
 
 # A fake project_id to use in functions decorated by fallback_to_default_project_id
@@ -203,7 +222,7 @@ class GoogleBaseHook(BaseHook):
         """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
-        from wtforms import IntegerField, PasswordField, StringField
+        from wtforms import BooleanField, IntegerField, PasswordField, StringField
         from wtforms.validators import NumberRange
 
         return {
@@ -229,6 +248,9 @@ class GoogleBaseHook(BaseHook):
             "impersonation_chain": StringField(
                 lazy_gettext("Impersonation Chain"), widget=BS3TextFieldWidget()
             ),
+            "is_anonymous": BooleanField(
+                lazy_gettext("Anonymous credentials (ignores all other settings)"), default=False
+            ),
         }
 
     @classmethod
@@ -250,10 +272,10 @@ class GoogleBaseHook(BaseHook):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.extras: dict = self.get_connection(self.gcp_conn_id).extra_dejson
-        self._cached_credentials: google.auth.credentials.Credentials | None = None
+        self._cached_credentials: Credentials | None = None
         self._cached_project_id: str | None = None
 
-    def get_credentials_and_project_id(self) -> tuple[google.auth.credentials.Credentials, str | None]:
+    def get_credentials_and_project_id(self) -> tuple[Credentials, str | None]:
         """Return the Credentials object for Google API and the associated project_id."""
         if self._cached_credentials is not None:
             return self._cached_credentials, self._cached_project_id
@@ -281,6 +303,7 @@ class GoogleBaseHook(BaseHook):
                 self.impersonation_chain = [s.strip() for s in self.impersonation_chain.split(",")]
 
         target_principal, delegates = _get_target_principal_and_delegates(self.impersonation_chain)
+        is_anonymous = self._get_field("is_anonymous")
 
         credentials, project_id = get_credentials_and_project_id(
             key_path=key_path,
@@ -292,6 +315,7 @@ class GoogleBaseHook(BaseHook):
             delegate_to=self.delegate_to,
             target_principal=target_principal,
             delegates=delegates,
+            is_anonymous=is_anonymous,
         )
 
         overridden_project_id = self._get_field("project")
@@ -303,7 +327,7 @@ class GoogleBaseHook(BaseHook):
 
         return credentials, project_id
 
-    def get_credentials(self) -> google.auth.credentials.Credentials:
+    def get_credentials(self) -> Credentials:
         """Return the Credentials object for Google API."""
         credentials, _ = self.get_credentials_and_project_id()
         return credentials
@@ -317,7 +341,7 @@ class GoogleBaseHook(BaseHook):
         credentials.refresh(auth_req)
         return credentials.token
 
-    @functools.lru_cache(maxsize=None)
+    @functools.cached_property
     def _get_credentials_email(self) -> str:
         """
         Return the email address associated with the currently logged in account.
@@ -364,14 +388,14 @@ class GoogleBaseHook(BaseHook):
         return hasattr(self, "extras") and get_field(self.extras, f) or default
 
     @property
-    def project_id(self) -> str | None:
+    def project_id(self) -> str:
         """
         Returns project id.
 
         :return: id of the project
         """
         _, project_id = self.get_credentials_and_project_id()
-        return project_id
+        return project_id or PROVIDE_PROJECT_ID
 
     @property
     def num_retries(self) -> int:
@@ -426,7 +450,7 @@ class GoogleBaseHook(BaseHook):
     def quota_retry(*args, **kwargs) -> Callable:
         """Provide a mechanism to repeat requests in response to exceeding a temporary quota limit."""
 
-        def decorator(fun: Callable):
+        def decorator(func: Callable):
             default_kwargs = {
                 "wait": tenacity.wait_exponential(multiplier=1, max=100),
                 "retry": retry_if_temporary_quota(),
@@ -434,7 +458,7 @@ class GoogleBaseHook(BaseHook):
                 "after": tenacity.after_log(log, logging.DEBUG),
             }
             default_kwargs.update(**kwargs)
-            return tenacity.retry(*args, **default_kwargs)(fun)
+            return tenacity.retry(*args, **default_kwargs)(func)
 
         return decorator
 
@@ -442,7 +466,7 @@ class GoogleBaseHook(BaseHook):
     def operation_in_progress_retry(*args, **kwargs) -> Callable[[T], T]:
         """Provide a mechanism to repeat requests in response to operation in progress (HTTP 409) limit."""
 
-        def decorator(fun: T):
+        def decorator(func: T):
             default_kwargs = {
                 "wait": tenacity.wait_exponential(multiplier=1, max=300),
                 "retry": retry_if_operation_in_progress(),
@@ -450,7 +474,25 @@ class GoogleBaseHook(BaseHook):
                 "after": tenacity.after_log(log, logging.DEBUG),
             }
             default_kwargs.update(**kwargs)
-            return cast(T, tenacity.retry(*args, **default_kwargs)(fun))
+            return cast(T, tenacity.retry(*args, **default_kwargs)(func))
+
+        return decorator
+
+    @staticmethod
+    def refresh_credentials_retry(*args, **kwargs) -> Callable[[T], T]:
+        """Provide a mechanism to repeat requests in response to a temporary refresh credential issue."""
+
+        def decorator(func: T):
+            default_kwargs = {
+                "wait": tenacity.wait_exponential(multiplier=1, max=5),
+                "stop": tenacity.stop_after_attempt(3),
+                "retry": retry_if_temporary_refresh_credentials(),
+                "reraise": True,
+                "before": tenacity.before_log(log, logging.DEBUG),
+                "after": tenacity.after_log(log, logging.DEBUG),
+            }
+            default_kwargs.update(**kwargs)
+            return cast(T, tenacity.retry(*args, **default_kwargs)(func))
 
         return decorator
 
@@ -617,6 +659,8 @@ class GoogleBaseHook(BaseHook):
     def test_connection(self):
         """Test the Google cloud connectivity from UI."""
         status, message = False, ""
+        if self._get_field("is_anonymous"):
+            return True, "Credentials are anonymous"
         try:
             token = self._get_access_token()
             url = f"https://www.googleapis.com/oauth2/v3/tokeninfo?access_token={token}"

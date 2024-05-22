@@ -19,6 +19,7 @@ from __future__ import annotations
 import socket
 from unittest import mock
 
+import pytest
 from kubernetes.client import Configuration
 from urllib3.connection import HTTPConnection, HTTPSConnection
 
@@ -61,6 +62,7 @@ class TestClient:
         conf.get.assert_called_with("kubernetes_executor", "ssl_ca_cert")
         assert client.api_client.configuration.ssl_ca_cert == "/path/to/ca.crt"
 
+    @pytest.mark.platform("linux")
     def test_enable_tcp_keepalive(self):
         socket_options = [
             (socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1),

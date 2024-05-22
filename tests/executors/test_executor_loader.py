@@ -19,6 +19,7 @@ from __future__ import annotations
 from contextlib import nullcontext
 from importlib import reload
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
 
@@ -26,6 +27,7 @@ from airflow import plugins_manager
 from airflow.exceptions import AirflowConfigException
 from airflow.executors import executor_loader
 from airflow.executors.executor_loader import ConnectorSource, ExecutorLoader, ExecutorName
+from airflow.executors.local_executor import LocalExecutor
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from tests.test_utils.config import conf_vars
 
@@ -53,6 +55,12 @@ class TestExecutorLoader:
         reload(executor_loader)
         global ExecutorLoader
         ExecutorLoader = executor_loader.ExecutorLoader  # type: ignore
+
+    def teardown_method(self) -> None:
+        from airflow.executors import executor_loader
+
+        reload(executor_loader)
+        ExecutorLoader.init_executors()
 
     def test_no_executor_configured(self):
         with conf_vars({("core", "executor"): None}):
@@ -205,6 +213,7 @@ class TestExecutorLoader:
             "LocalExecutor, CeleryExecutor:, DebugExecutor",
             "LocalExecutor, my_cool_alias:",
             "LocalExecutor, my_cool_alias:CeleryExecutor",
+            "LocalExecutor, module.path.first:alias_second",
         ],
     )
     def test_get_hybrid_executors_from_config_core_executors_bad_config_format(self, executor_config):
@@ -300,3 +309,28 @@ class TestExecutorLoader:
         monkeypatch.delenv("_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK")
         with expectation:
             ExecutorLoader.validate_database_executor_compatibility(executor)
+
+    def test_load_executor(self):
+        with patch.object(ExecutorLoader, "block_use_of_hybrid_exec"):
+            with conf_vars({("core", "executor"): "LocalExecutor"}):
+                ExecutorLoader.init_executors()
+                assert isinstance(ExecutorLoader.load_executor("LocalExecutor"), LocalExecutor)
+                assert isinstance(
+                    ExecutorLoader.load_executor(executor_loader._executor_names[0]), LocalExecutor
+                )
+                assert isinstance(ExecutorLoader.load_executor(None), LocalExecutor)
+
+    def test_load_executor_alias(self):
+        with patch.object(ExecutorLoader, "block_use_of_hybrid_exec"):
+            with conf_vars(
+                {("core", "executor"): "local_exec:airflow.executors.local_executor.LocalExecutor"}
+            ):
+                ExecutorLoader.init_executors()
+                assert isinstance(ExecutorLoader.load_executor("local_exec"), LocalExecutor)
+                assert isinstance(
+                    ExecutorLoader.load_executor("airflow.executors.local_executor.LocalExecutor"),
+                    LocalExecutor,
+                )
+                assert isinstance(
+                    ExecutorLoader.load_executor(executor_loader._executor_names[0]), LocalExecutor
+                )

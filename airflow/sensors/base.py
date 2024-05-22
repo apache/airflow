@@ -25,7 +25,10 @@ import traceback
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Callable, Iterable
 
+from sqlalchemy import select
+
 from airflow import settings
+from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
@@ -47,9 +50,11 @@ from airflow.utils import timezone
 # Google Provider before 3.0.0 imported apply_defaults from here.
 # See  https://github.com/apache/airflow/issues/16035
 from airflow.utils.decorators import apply_defaults  # noqa: F401
-from airflow.utils.session import create_session
+from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm.session import Session
+
     from airflow.utils.context import Context
 
 # As documented in https://dev.mysql.com/doc/refman/5.7/en/datetime.html.
@@ -58,6 +63,8 @@ _MYSQL_TIMESTAMP_MAX = datetime.datetime(2038, 1, 19, 3, 14, 7, tzinfo=timezone.
 
 @functools.lru_cache(maxsize=None)
 def _is_metadatabase_mysql() -> bool:
+    if InternalApiConfig.get_use_internal_api():
+        return False
     if settings.engine is None:
         raise AirflowException("Must initialize ORM first")
     return settings.engine.url.get_backend_name() == "mysql"
@@ -80,6 +87,31 @@ class PokeReturnValue:
 
     def __bool__(self) -> bool:
         return self.is_done
+
+
+@internal_api_call
+@provide_session
+def _orig_start_date(
+    dag_id: str, task_id: str, run_id: str, map_index: int, try_number: int, session: Session = NEW_SESSION
+):
+    """
+    Get the original start_date for a rescheduled task.
+
+    :meta private:
+    """
+    return session.scalar(
+        select(TaskReschedule)
+        .where(
+            TaskReschedule.dag_id == dag_id,
+            TaskReschedule.task_id == task_id,
+            TaskReschedule.run_id == run_id,
+            TaskReschedule.map_index == map_index,
+            TaskReschedule.try_number == try_number,
+        )
+        .order_by(TaskReschedule.id.asc())
+        .with_only_columns(TaskReschedule.start_date)
+        .limit(1)
+    )
 
 
 class BaseSensorOperator(BaseOperator, SkipMixin):
@@ -209,19 +241,19 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         started_at: datetime.datetime | float
 
         if self.reschedule:
+            ti = context["ti"]
+            max_tries: int = ti.max_tries or 0
+            retries: int = self.retries or 0
             # If reschedule, use the start date of the first try (first try can be either the very
             # first execution of the task, or the first execution after the task was cleared.)
-            max_tries: int = context["ti"].max_tries or 0
-            retries: int = self.retries or 0
             first_try_number = max_tries - retries + 1
-            with create_session() as session:
-                start_date = session.scalar(
-                    TaskReschedule.stmt_for_task_instance(
-                        context["ti"], try_number=first_try_number, descending=False
-                    )
-                    .with_only_columns(TaskReschedule.start_date)
-                    .limit(1)
-                )
+            start_date = _orig_start_date(
+                dag_id=ti.dag_id,
+                task_id=ti.task_id,
+                run_id=ti.run_id,
+                map_index=ti.map_index,
+                try_number=first_try_number,
+            )
             if not start_date:
                 start_date = timezone.utcnow()
             started_at = start_date
@@ -237,7 +269,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             def run_duration() -> float:
                 return time.monotonic() - start_monotonic
 
-        try_number = 1
+        poke_count = 1
         log_dag_id = self.dag.dag_id if self.has_dag() else ""
 
         xcom_value = None
@@ -280,7 +312,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 else:
                     raise AirflowSensorTimeout(message)
             if self.reschedule:
-                next_poke_interval = self._get_next_poke_interval(started_at, run_duration, try_number)
+                next_poke_interval = self._get_next_poke_interval(started_at, run_duration, poke_count)
                 reschedule_date = timezone.utcnow() + timedelta(seconds=next_poke_interval)
                 if _is_metadatabase_mysql() and reschedule_date > _MYSQL_TIMESTAMP_MAX:
                     raise AirflowSensorTimeout(
@@ -289,8 +321,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                     )
                 raise AirflowRescheduleException(reschedule_date)
             else:
-                time.sleep(self._get_next_poke_interval(started_at, run_duration, try_number))
-                try_number += 1
+                time.sleep(self._get_next_poke_interval(started_at, run_duration, poke_count))
+                poke_count += 1
         self.log.info("Success criteria met. Exiting.")
         return xcom_value
 
@@ -306,17 +338,17 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         self,
         started_at: datetime.datetime | float,
         run_duration: Callable[[], float],
-        try_number: int,
+        poke_count: int,
     ) -> float:
         """Use similar logic which is used for exponential backoff retry delay for operators."""
         if not self.exponential_backoff:
             return self.poke_interval
 
         # The value of min_backoff should always be greater than or equal to 1.
-        min_backoff = max(int(self.poke_interval * (2 ** (try_number - 2))), 1)
+        min_backoff = max(int(self.poke_interval * (2 ** (poke_count - 2))), 1)
 
         run_hash = int(
-            hashlib.sha1(f"{self.dag_id}#{self.task_id}#{started_at}#{try_number}".encode()).hexdigest(),
+            hashlib.sha1(f"{self.dag_id}#{self.task_id}#{started_at}#{poke_count}".encode()).hexdigest(),
             16,
         )
         modded_hash = min_backoff + run_hash % min_backoff

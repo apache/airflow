@@ -21,7 +21,6 @@ import logging
 import logging.config
 import os
 import re
-import shutil
 from importlib import reload
 from pathlib import Path
 from unittest import mock
@@ -32,6 +31,7 @@ import pytest
 from kubernetes.client import models as k8s
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors import executor_loader
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
@@ -76,6 +76,13 @@ class TestFileTaskLogHandler:
     def teardown_method(self):
         self.clean_up()
 
+    def test_deprecated_filename_template(self):
+        with pytest.warns(
+            RemovedInAirflow3Warning,
+            match="Passing filename_template to a log handler is deprecated and has no effect",
+        ):
+            FileTaskHandler("", filename_template="/foo/bar")
+
     def test_default_task_logging_setup(self):
         # file task handler is used by default.
         logger = logging.getLogger(TASK_LOGGER)
@@ -93,6 +100,7 @@ class TestFileTaskLogHandler:
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             execution_date=DEFAULT_DATE,
+            data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
         )
         task = PythonOperator(
             task_id="task_for_testing_file_log_handler",
@@ -114,7 +122,7 @@ class TestFileTaskLogHandler:
         # We expect set_context generates a file locally.
         log_filename = file_handler.handler.baseFilename
         assert os.path.isfile(log_filename)
-        assert log_filename.endswith("1.log"), log_filename
+        assert log_filename.endswith("0.log"), log_filename
 
         ti.run(ignore_ti_state=True)
 
@@ -145,6 +153,7 @@ class TestFileTaskLogHandler:
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             execution_date=DEFAULT_DATE,
+            data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
         )
         task = PythonOperator(
             task_id="task_for_testing_file_log_handler",
@@ -152,7 +161,7 @@ class TestFileTaskLogHandler:
             python_callable=task_callable,
         )
         ti = TaskInstance(task=task, run_id=dagrun.run_id)
-
+        ti.try_number += 1
         logger = ti.log
         ti.log.disabled = False
 
@@ -204,6 +213,7 @@ class TestFileTaskLogHandler:
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             execution_date=DEFAULT_DATE,
+            data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
         )
         ti = TaskInstance(task=task, run_id=dagrun.run_id)
 
@@ -303,37 +313,57 @@ class TestFileTaskLogHandler:
         else:
             mock_k8s_get_task_log.assert_not_called()
 
-    def test__read_for_celery_executor_fallbacks_to_worker(self, create_task_instance):
+    @pytest.mark.parametrize(
+        "state", [TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED, TaskInstanceState.UP_FOR_RETRY]
+    )
+    def test__read_for_celery_executor_fallbacks_to_worker(self, state, create_task_instance):
         """Test for executors which do not have `get_task_log` method, it fallbacks to reading
-        log from worker. But it happens only for the latest try_number."""
+        log from worker if and only if remote logs aren't found"""
         executor_name = "CeleryExecutor"
-
+        # Reading logs from worker should occur when the task is either running, deferred, or up for retry.
         ti = create_task_instance(
-            dag_id="dag_for_testing_celery_executor_log_read",
+            dag_id=f"dag_for_testing_celery_executor_log_read_{state}",
             task_id="task_for_testing_celery_executor_log_read",
             run_type=DagRunType.SCHEDULED,
             execution_date=DEFAULT_DATE,
         )
-        ti.state = TaskInstanceState.RUNNING
         ti.try_number = 2
+        ti.state = state
         with conf_vars({("core", "executor"): executor_name}):
             reload(executor_loader)
             fth = FileTaskHandler("")
-
             fth._read_from_logs_server = mock.Mock()
             fth._read_from_logs_server.return_value = ["this message"], ["this\nlog\ncontent"]
             actual = fth._read(ti=ti, try_number=2)
             fth._read_from_logs_server.assert_called_once()
-            assert actual == ("*** this message\nthis\nlog\ncontent", {"end_of_log": False, "log_pos": 16})
+            # If we are in the up for retry state, the log has ended.
+            expected_end_of_log = state in (TaskInstanceState.UP_FOR_RETRY)
+            assert actual == (
+                "*** this message\nthis\nlog\ncontent",
+                {"end_of_log": expected_end_of_log, "log_pos": 16},
+            )
 
-            # Previous try_number is from remote logs without reaching worker server
+            # Previous try_number should return served logs when remote logs aren't implemented
+            fth._read_from_logs_server = mock.Mock()
+            fth._read_from_logs_server.return_value = ["served logs try_number=1"], ["this\nlog\ncontent"]
+            actual = fth._read(ti=ti, try_number=1)
+            fth._read_from_logs_server.assert_called_once()
+            assert actual == (
+                "*** served logs try_number=1\nthis\nlog\ncontent",
+                {"end_of_log": True, "log_pos": 16},
+            )
+
+            # When remote_logs is implemented, previous try_number is from remote logs without reaching worker server
             fth._read_from_logs_server.reset_mock()
             fth._read_remote_logs = mock.Mock()
             fth._read_remote_logs.return_value = ["remote logs"], ["remote\nlog\ncontent"]
             actual = fth._read(ti=ti, try_number=1)
             fth._read_remote_logs.assert_called_once()
             fth._read_from_logs_server.assert_not_called()
-            assert actual == ("*** remote logs\nremote\nlog\ncontent", {"end_of_log": True, "log_pos": 18})
+            assert actual == (
+                "*** remote logs\nremote\nlog\ncontent",
+                {"end_of_log": True, "log_pos": 18},
+            )
 
     @pytest.mark.parametrize(
         "remote_logs, local_logs, served_logs_checked",
@@ -414,6 +444,7 @@ class TestFileTaskLogHandler:
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             execution_date=DEFAULT_DATE,
+            data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
         )
         ti = TaskInstance(task=task, run_id=dagrun.run_id)
         ti.try_number = 3
@@ -472,11 +503,12 @@ class TestFileTaskLogHandler:
             job = Job()
             t = Trigger("", {})
             t.triggerer_job = job
+            session.add(t)
             ti.triggerer = t
             t.task_instance = ti
         h = FileTaskHandler(base_log_folder=os.fspath(tmp_path))
         h.set_context(ti)
-        expected = "dag_id=test_fth/run_id=test/task_id=dummy/attempt=1.log"
+        expected = "dag_id=test_fth/run_id=test/task_id=dummy/attempt=0.log"
         if is_a_trigger:
             expected += f".trigger.{job.id}.log"
         actual = h.handler.baseFilename
@@ -577,7 +609,7 @@ AIRFLOW_CTX_DAG_RUN_ID=manual__2022-11-16T08:05:52.324532+00:00
 
 def test_parse_timestamps():
     actual = []
-    for timestamp, idx, line in _parse_timestamps_in_log_file(log_sample.splitlines()):
+    for timestamp, _, _ in _parse_timestamps_in_log_file(log_sample.splitlines()):
         actual.append(timestamp)
     assert actual == [
         pendulum.parse("2022-11-16T00:05:54.278000-08:00"),
@@ -728,26 +760,22 @@ def test_interleave_logs_correct_ordering():
     assert sample_with_dupe == "\n".join(_interleave_logs(sample_with_dupe, "", sample_with_dupe))
 
 
-def test_permissions_for_new_directories(tmpdir):
-    tmpdir_path = Path(tmpdir)
+def test_permissions_for_new_directories(tmp_path):
+    # Set umask to 0o027: owner rwx, group rx-w, other -rwx
+    old_umask = os.umask(0o027)
     try:
-        # Set umask to 0o027: owner rwx, group rx-w, other -rwx
-        old_umask = os.umask(0o027)
-        try:
-            base_dir = tmpdir_path / "base"
-            base_dir.mkdir()
-            log_dir = base_dir / "subdir1" / "subdir2"
-            # force permissions for the new folder to be owner rwx, group -rxw, other -rwx
-            new_folder_permissions = 0o700
-            # default permissions are owner rwx, group rx-w, other -rwx (umask bit negative)
-            default_permissions = 0o750
-            FileTaskHandler._prepare_log_folder(log_dir, new_folder_permissions)
-            assert log_dir.exists()
-            assert log_dir.is_dir()
-            assert log_dir.stat().st_mode % 0o1000 == new_folder_permissions
-            assert log_dir.parent.stat().st_mode % 0o1000 == new_folder_permissions
-            assert base_dir.stat().st_mode % 0o1000 == default_permissions
-        finally:
-            os.umask(old_umask)
+        base_dir = tmp_path / "base"
+        base_dir.mkdir()
+        log_dir = base_dir / "subdir1" / "subdir2"
+        # force permissions for the new folder to be owner rwx, group -rxw, other -rwx
+        new_folder_permissions = 0o700
+        # default permissions are owner rwx, group rx-w, other -rwx (umask bit negative)
+        default_permissions = 0o750
+        FileTaskHandler._prepare_log_folder(log_dir, new_folder_permissions)
+        assert log_dir.exists()
+        assert log_dir.is_dir()
+        assert log_dir.stat().st_mode % 0o1000 == new_folder_permissions
+        assert log_dir.parent.stat().st_mode % 0o1000 == new_folder_permissions
+        assert base_dir.stat().st_mode % 0o1000 == default_permissions
     finally:
-        shutil.rmtree(tmpdir_path)
+        os.umask(old_umask)

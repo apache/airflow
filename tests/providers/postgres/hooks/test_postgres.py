@@ -58,11 +58,11 @@ class TestPostgresHookConn:
 
     @mock.patch("airflow.providers.postgres.hooks.postgres.psycopg2.connect")
     def test_get_uri(self, mock_connect):
-        self.connection.extra = json.dumps({"client_encoding": "utf-8"})
         self.connection.conn_type = "postgres"
+        self.connection.port = 5432
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
-        assert self.db_hook.get_uri() == "postgresql://login:password@host/database?client_encoding=utf-8"
+        assert self.db_hook.get_uri() == "postgresql://login:password@host:5432/database"
 
     @mock.patch("airflow.providers.postgres.hooks.postgres.psycopg2.connect")
     def test_get_conn_cursor(self, mock_connect):
@@ -403,8 +403,7 @@ class TestPostgresHook:
         assert commit_count == self.conn.commit.call_count
 
         sql = f"INSERT INTO {table}  VALUES (%s)"
-        for row in rows:
-            self.cur.execute.assert_any_call(sql, row)
+        self.cur.executemany.assert_any_call(sql, rows)
 
     def test_insert_rows_replace(self):
         table = "table"
@@ -432,8 +431,7 @@ class TestPostgresHook:
             f"INSERT INTO {table} ({fields[0]}, {fields[1]}) VALUES (%s,%s) "
             f"ON CONFLICT ({fields[0]}) DO UPDATE SET {fields[1]} = excluded.{fields[1]}"
         )
-        for row in rows:
-            self.cur.execute.assert_any_call(sql, row)
+        self.cur.executemany.assert_any_call(sql, rows)
 
     def test_insert_rows_replace_missing_target_field_arg(self):
         table = "table"
@@ -497,8 +495,7 @@ class TestPostgresHook:
             f"INSERT INTO {table} ({', '.join(fields)}) VALUES (%s,%s) "
             f"ON CONFLICT ({', '.join(fields)}) DO NOTHING"
         )
-        for row in rows:
-            self.cur.execute.assert_any_call(sql, row)
+        self.cur.executemany.assert_any_call(sql, rows)
 
     def test_rowcount(self):
         hook = PostgresHook()

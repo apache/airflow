@@ -32,7 +32,9 @@ from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKEDeleteJobOperator,
     GKEDescribeJobOperator,
     GKEListJobsOperator,
+    GKEResumeJobOperator,
     GKEStartJobOperator,
+    GKESuspendJobOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -116,6 +118,28 @@ with DAG(
         cluster_name=CLUSTER_NAME,
     )
 
+    # [START howto_operator_gke_suspend_job]
+    suspend_job = GKESuspendJobOperator(
+        task_id="suspend_job",
+        project_id=GCP_PROJECT_ID,
+        location=GCP_LOCATION,
+        cluster_name=CLUSTER_NAME,
+        name=job_task.output["job_name"],
+        namespace="default",
+    )
+    # [END howto_operator_gke_suspend_job]
+
+    # [START howto_operator_gke_resume_job]
+    resume_job = GKEResumeJobOperator(
+        task_id="resume_job",
+        project_id=GCP_PROJECT_ID,
+        location=GCP_LOCATION,
+        cluster_name=CLUSTER_NAME,
+        name=job_task.output["job_name"],
+        namespace="default",
+    )
+    # [END howto_operator_gke_resume_job]
+
     # [START howto_operator_gke_delete_job]
     delete_job = GKEDeleteJobOperator(
         task_id="delete_job",
@@ -149,6 +173,8 @@ with DAG(
         [job_task, job_task_def],
         list_job_task,
         [describe_job_task, describe_job_task_def],
+        suspend_job,
+        resume_job,
         [delete_job, delete_job_def],
         delete_cluster,
     )

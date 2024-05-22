@@ -67,6 +67,23 @@ class TestAirbyteHook:
         assert resp.status_code == 200
         assert resp.json() == self._mock_sync_conn_success_response_body
 
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "host, port, schema, expected_base_url, description",
+        [
+            ("test-airbyte", 8001, "http", "http://test-airbyte:8001", "uri_with_port_and_schema"),
+            ("test-airbyte", None, "https", "https://test-airbyte", "uri_with_schema"),
+            ("test-airbyte", None, None, "http://test-airbyte", "uri_without_port_and_schema"),
+        ],
+    )
+    async def test_get_base_url(self, host, port, schema, expected_base_url, description):
+        conn_id = f"test_conn_{description}"
+        conn = Connection(conn_id=conn_id, conn_type="airbyte", host=host, port=port, schema=schema)
+        hook = AirbyteHook(airbyte_conn_id=conn_id)
+        db.merge_conn(conn)
+        _, base_url = await hook.get_headers_tenants_from_connection()
+        assert base_url == expected_base_url
+
     def test_get_job_status(self, requests_mock):
         requests_mock.post(
             self.get_job_endpoint, status_code=200, json=self._mock_job_status_success_response_body
@@ -133,7 +150,7 @@ class TestAirbyteHook:
             self.return_value_get_job(self.hook.RUNNING),
             self.return_value_get_job("UNRECOGNIZED"),
         ]
-        with pytest.raises(Exception, match="unexpected state"):
+        with pytest.raises(AirflowException, match="unexpected state"):
             self.hook.wait_for_job(job_id=self.job_id, wait_seconds=0)
 
         calls = [mock.call(job_id=self.job_id), mock.call(job_id=self.job_id)]

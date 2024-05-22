@@ -35,14 +35,30 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.7.0
+.....
+
+Latest change: 2024-04-25
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
+`b5b972a106 <https://github.com/apache/airflow/commit/b5b972a1068e19b09d48ec4d7663dd1d996d594f>`_  2024-03-18   ``Update yanked versions in providers changelogs (#38262)``
+`0a74928894 <https://github.com/apache/airflow/commit/0a74928894fb57b0160208262ccacad12da23fc7>`_  2024-03-18   ``Bump ruff to 0.3.3 (#38240)``
+`2523cbf3ca <https://github.com/apache/airflow/commit/2523cbf3caa3b7552b5f06de165aa93bfb6718f5>`_  2024-03-18   ``bump mypy version to 1.9.0 (#38239)``
+=================================================================================================  ===========  =======================================================================
+
 1.6.1
 .....
 
-Latest change: 2024-02-27
+Latest change: 2024-03-04
 
 =================================================================================================  ===========  ====================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================================================
+`83316b8158 <https://github.com/apache/airflow/commit/83316b81584c9e516a8142778fc509f19d95cc3e>`_  2024-03-04   ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
 `5b31b63203 <https://github.com/apache/airflow/commit/5b31b63203391dd39f485f1c9013ea55c83ed1aa>`_  2024-02-27   ``Deprecate smtp configs in airflow settings / local_settings (#37711)``
 `84a8f7ecc1 <https://github.com/apache/airflow/commit/84a8f7ecc122e9b63d4d2834ee8994587c467eb2>`_  2024-02-26   ``Fix backwards compatibility for SMTP provider (#37701)``
 `5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``

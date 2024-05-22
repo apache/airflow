@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import datetime
 import enum
+import warnings
 from collections import namedtuple
 from dataclasses import dataclass
 from importlib import import_module
@@ -112,6 +113,16 @@ class U(BaseModel):
     x: int
     v: V
     u: tuple
+
+
+@attr.define
+class T:
+    x: int
+    y: Y
+    u: tuple
+    w: W
+
+    __version__: ClassVar[int] = 1
 
 
 class C:
@@ -274,7 +285,7 @@ class TestSerDe:
     @conf_vars(
         {
             ("core", "allowed_deserialization_classes"): "",
-            ("core", "allowed_deserialization_classes_regexp"): "tests\.airflow\..",
+            ("core", "allowed_deserialization_classes_regexp"): r"tests\.airflow\..",
         }
     )
     @pytest.mark.usefixtures("recalculate_patterns")
@@ -288,7 +299,7 @@ class TestSerDe:
     @conf_vars(
         {
             ("core", "allowed_deserialization_classes"): "",
-            ("core", "allowed_deserialization_classes_regexp"): "tests\.airflow\.deep",
+            ("core", "allowed_deserialization_classes_regexp"): r"tests\.airflow\.deep",
         }
     )
     @pytest.mark.usefixtures("recalculate_patterns")
@@ -421,11 +432,19 @@ class TestSerDe:
         e = deserialize(i)
         assert i == e
 
-    def test_pydantic(self):
-        pytest.importorskip("pydantic", minversion="2.0.0")
-        i = U(x=10, v=V(W(10), ["l1", "l2"], (1, 2), 10), u=(1, 2))
+    def test_attr(self):
+        i = T(y=Y(10), u=(1, 2), x=10, w=W(11))
         e = serialize(i)
         s = deserialize(e)
+        assert i == s
+
+    def test_pydantic(self):
+        pydantic = pytest.importorskip("pydantic", minversion="2.0.0")
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", category=pydantic.warnings.PydanticDeprecationWarning)
+            i = U(x=10, v=V(W(10), ["l1", "l2"], (1, 2), 10), u=(1, 2))
+            e = serialize(i)
+            s = deserialize(e)
         assert i == s
 
     def test_error_when_serializing_callable_without_name(self):

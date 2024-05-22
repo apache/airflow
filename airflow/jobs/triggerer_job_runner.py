@@ -131,7 +131,9 @@ def configure_trigger_log_handler():
                     f"Handler {h.__class__.__name__} does not support "
                     "individual trigger logging. Please check the release notes "
                     "for your provider to see if a newer version supports "
-                    "individual trigger logging."
+                    "individual trigger logging.",
+                    category=UserWarning,
+                    stacklevel=3,
                 )
             if supports_triggerer(h):
                 return h
@@ -148,7 +150,11 @@ def configure_trigger_log_handler():
             if h:
                 logger.debug("Using logging configuration from `airflow.task`")
         if not h:
-            warnings.warn("Could not find log handler suitable for individual trigger logging.")
+            warnings.warn(
+                "Could not find log handler suitable for individual trigger logging.",
+                category=UserWarning,
+                stacklevel=3,
+            )
             return None
         return h
 

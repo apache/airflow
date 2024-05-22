@@ -1,6 +1,7 @@
 aarch
 abc
 accessor
+AccessSecretVersionResponse
 accountmaking
 aci
 Ack
@@ -254,6 +255,7 @@ cloudant
 cloudbuild
 CloudBuildClient
 cloudml
+cloudpickle
 cloudsqldatabehook
 CloudTasksClient
 Cloudwatch
@@ -946,6 +948,7 @@ linter
 linux
 ListGenerator
 ListInfoTypesResponse
+ListSecretsPager
 Liveness
 liveness
 livy
@@ -1174,6 +1177,8 @@ picklable
 pid
 pidbox
 pigcmd
+Pii
+pii
 pinecone
 pinodb
 Pinot
@@ -1274,6 +1279,7 @@ pymysql
 pyodbc
 pypa
 PyPI
+pyproject
 pypsrp
 pyspark
 pytest
@@ -1300,6 +1306,7 @@ queueing
 quickstart
 quotechar
 rabbitmq
+RaG
 RBAC
 rbac
 rc
@@ -1407,10 +1414,13 @@ sdk
 sdks
 searchpath
 SearchResultGenerator
+secretmanager
 SecretManagerClient
+SecretManagerServiceClient
 secretRef
 secretRefs
 SecretsManagerBackend
+SecretVersion
 securable
 securecookie
 securestring
@@ -1424,6 +1434,7 @@ segmentGranularity
 Sendgrid
 sendgrid
 sentimentMax
+ser
 serde
 serialise
 serializable
@@ -1439,6 +1450,7 @@ setted
 sftp
 SFTPClient
 sharded
+Sharepoint
 shellcheck
 shellcmd
 shm
@@ -1497,7 +1509,10 @@ sshHook
 sshtunnel
 SSHTunnelForwarder
 ssl
+sslcert
+sslkey
 sslmode
+sslrootcert
 ssm
 Stackdriver
 stackdriver
@@ -1641,6 +1656,7 @@ todo
 tokenization
 tokopedia
 tolerations
+toml
 toolchain
 Tooltip
 tooltip

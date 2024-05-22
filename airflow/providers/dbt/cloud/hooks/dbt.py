@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import json
 import time
+import warnings
 from enum import Enum
 from functools import cached_property, wraps
 from inspect import signature
@@ -38,6 +39,8 @@ if TYPE_CHECKING:
     from requests.models import PreparedRequest, Response
 
     from airflow.models import Connection
+
+DBT_CAUSE_MAX_LENGTH = 255
 
 
 def fallback_to_default_account(func: Callable) -> Callable:
@@ -165,7 +168,7 @@ def provide_account_id(func: T) -> T:
 
 class DbtCloudHook(HttpHook):
     """
-    Interact with dbt Cloud using the V2 API.
+    Interact with dbt Cloud using the V2 (V3 if supported) API.
 
     :param dbt_cloud_conn_id: The ID of the :ref:`dbt Cloud connection <howto/connection:dbt-cloud>`.
     """
@@ -194,7 +197,7 @@ class DbtCloudHook(HttpHook):
 
     @staticmethod
     def get_request_url_params(
-        tenant: str, endpoint: str, include_related: list[str] | None = None
+        tenant: str, endpoint: str, include_related: list[str] | None = None, *, api_version: str = "v2"
     ) -> tuple[str, dict[str, Any]]:
         """
         Form URL from base url and endpoint url.
@@ -207,7 +210,7 @@ class DbtCloudHook(HttpHook):
         data: dict[str, Any] = {}
         if include_related:
             data = {"include_related": include_related}
-        url = f"https://{tenant}/api/v2/accounts/{endpoint or ''}"
+        url = f"https://{tenant}/api/{api_version}/accounts/{endpoint or ''}"
         return url, data
 
     async def get_headers_tenants_from_connection(self) -> tuple[dict[str, Any], str]:
@@ -270,7 +273,7 @@ class DbtCloudHook(HttpHook):
 
     def get_conn(self, *args, **kwargs) -> Session:
         tenant = self._get_tenant_domain(self.connection)
-        self.base_url = f"https://{tenant}/api/v2/accounts/"
+        self.base_url = f"https://{tenant}/"
 
         session = Session()
         session.auth = self.auth_type(self.connection.password)
@@ -298,23 +301,26 @@ class DbtCloudHook(HttpHook):
 
     def _run_and_get_response(
         self,
+        *,
         method: str = "GET",
         endpoint: str | None = None,
         payload: str | dict[str, Any] | None = None,
         paginate: bool = False,
+        api_version: str = "v2",
     ) -> Any:
         self.method = method
+        full_endpoint = f"api/{api_version}/accounts/{endpoint}" if endpoint else None
 
         if paginate:
             if isinstance(payload, str):
                 raise ValueError("Payload cannot be a string to paginate a response.")
 
-            if endpoint:
-                return self._paginate(endpoint=endpoint, payload=payload)
-            else:
-                raise ValueError("An endpoint is needed to paginate a response.")
+            if full_endpoint:
+                return self._paginate(endpoint=full_endpoint, payload=payload)
 
-        return self.run(endpoint=endpoint, data=payload)
+            raise ValueError("An endpoint is needed to paginate a response.")
+
+        return self.run(endpoint=full_endpoint, data=payload)
 
     def list_accounts(self) -> list[Response]:
         """
@@ -342,7 +348,7 @@ class DbtCloudHook(HttpHook):
         :param account_id: Optional. The ID of a dbt Cloud account.
         :return: List of request responses.
         """
-        return self._run_and_get_response(endpoint=f"{account_id}/projects/", paginate=True)
+        return self._run_and_get_response(endpoint=f"{account_id}/projects/", paginate=True, api_version="v3")
 
     @fallback_to_default_account
     def get_project(self, project_id: int, account_id: int | None = None) -> Response:
@@ -353,7 +359,7 @@ class DbtCloudHook(HttpHook):
         :param account_id: Optional. The ID of a dbt Cloud account.
         :return: The request response.
         """
-        return self._run_and_get_response(endpoint=f"{account_id}/projects/{project_id}/")
+        return self._run_and_get_response(endpoint=f"{account_id}/projects/{project_id}/", api_version="v3")
 
     @fallback_to_default_account
     def list_jobs(
@@ -416,6 +422,15 @@ class DbtCloudHook(HttpHook):
         """
         if additional_run_config is None:
             additional_run_config = {}
+
+        if cause is not None and len(cause) > DBT_CAUSE_MAX_LENGTH:
+            warnings.warn(
+                f"Cause `{cause}` exceeds limit of {DBT_CAUSE_MAX_LENGTH}"
+                f" characters and will be truncated.",
+                UserWarning,
+                stacklevel=2,
+            )
+            cause = cause[:DBT_CAUSE_MAX_LENGTH]
 
         payload = {
             "cause": cause,

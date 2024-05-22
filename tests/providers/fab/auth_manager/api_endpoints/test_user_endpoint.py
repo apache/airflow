@@ -26,7 +26,7 @@ from airflow.providers.fab.auth_manager.models import User
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_role, delete_user
 from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
@@ -54,6 +54,7 @@ def configured_app(minimal_app_for_auth_api):
 
     delete_user(app, username="test")  # type: ignore
     delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_role(app, name="TestNoPermissions")
 
 
 class TestUserEndpoint:

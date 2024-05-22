@@ -27,6 +27,49 @@
 Changelog
 ---------
 
+5.5.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``openlineage, snowflake: do not run external queries for Snowflake (#39113)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Activate RUF019 that checks for unnecessary key check (#38950)``
+
+5.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: update SnowflakeSqlApiHook to support OAuth (#37922)``
+
+Misc
+~~~~
+
+* ``Remove reference to execution_info in snowflake hook docstring (#37804)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update yanked versions in providers changelogs (#38262)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``Add comment about versions updated by release manager (#37488)``
+   * ``Resolve G004: Logging statement uses f-string (#37873)``
+   * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+   * ``Avoid to use too broad 'noqa' (#37862)``
+
 5.3.1
 .....
 

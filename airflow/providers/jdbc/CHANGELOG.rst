@@ -26,6 +26,30 @@
 Changelog
 ---------
 
+4.3.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Suppress jaydebeapi.Error when setAutoCommit or getAutoCommit is unsupported by JDBC driver (#38707)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+* ``Add stacklevel into the 'suppress_and_warn' warning (#39263)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add comment about versions updated by release manager (#37488)``
+   * ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
+   * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+
 4.2.2
 .....
 

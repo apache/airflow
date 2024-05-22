@@ -20,6 +20,59 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+   This release of provider has breaking changes from previous versions. Changes are based on
+   the migration guide from pinecone - <https://canyon-quilt-082.notion.site/Pinecone-Python-SDK-v3-0-0-Migration-Guide-056d3897d7634bf7be399676a4757c7b>
+
+* ``log_level`` field is removed from the Connections as it is not used by the provider anymore.
+* ``PineconeHook.get_conn`` is removed in favor of ``conn`` property which returns the Connection object. Use ``pinecone_client`` property to access the Pinecone client.
+*  Following ``PineconeHook`` methods are converted from static methods to instance methods. Hence, Initialization is required to use these now:
+
+   + ``PineconeHook.list_indexes``
+   + ``PineconeHook.upsert``
+   + ``PineconeHook.create_index``
+   + ``PineconeHook.describe_index``
+   + ``PineconeHook.delete_index``
+   + ``PineconeHook.configure_index``
+   + ``PineconeHook.create_collection``
+   + ``PineconeHook.delete_collection``
+   + ``PineconeHook.describe_collection``
+   + ``PineconeHook.list_collections``
+   + ``PineconeHook.query_vector``
+   + ``PineconeHook.describe_index_stats``
+
+* ``PineconeHook.create_index`` is updated to accept a ``ServerlessSpec`` or ``PodSpec`` instead of directly accepting index related configurations
+* To initialize ``PineconeHook`` object, API key needs to be passed via argument or the connection.
+
+* ``Pinecone provider support for 'pinecone-client'>=3  (#37307)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+* ``CreatePodIndexOperator fix defaults of pod_type and metric parameters (#39365)``
+* ``Reapply templates for all providers (#39554)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+   * ``Add comment about versions updated by release manager (#37488)``
+   * ``D401 fixes in Pinecone provider (#37270)``
+   * ``Prepare docs 1st wave May 2024 (#39328)``
+
 1.1.2
 .....
 

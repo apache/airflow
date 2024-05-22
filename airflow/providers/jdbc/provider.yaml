@@ -22,9 +22,10 @@ description: |
     `Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/>`__
 
 state: ready
-source-date-epoch: 1707636413
+source-date-epoch: 1715384446
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 4.3.0
   - 4.2.2
   - 4.2.1
   - 4.2.0
@@ -48,7 +49,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.6.0
+  - apache-airflow>=2.7.0
   - apache-airflow-providers-common-sql>=1.3.1
   - jaydebeapi>=1.1.1
 

@@ -76,9 +76,8 @@ class TestRedshiftDataHook:
         mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
         cluster_identifier = "cluster_identifier"
         workgroup_name = "workgroup_name"
-
+        hook = RedshiftDataHook()
         with pytest.raises(ValueError):
-            hook = RedshiftDataHook()
             hook.execute_query(
                 database=DATABASE,
                 cluster_identifier=cluster_identifier,

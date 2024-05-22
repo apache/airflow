@@ -24,10 +24,11 @@ description: |
     `Qdrant <https://qdrant.tech/documentation>`__
 
 state: ready
-source-date-epoch: 1705379899
+source-date-epoch: 1715384472
 
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 1.1.0
   - 1.0.0
 
 integrations:
@@ -38,7 +39,7 @@ integrations:
     tags: [software]
 
 dependencies:
-  - qdrant_client>=1.7.0
+  - qdrant_client>=1.9.0
   - apache-airflow>=2.7.0
 
 hooks:

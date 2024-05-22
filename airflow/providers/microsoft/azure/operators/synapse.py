@@ -110,7 +110,7 @@ class AzureSynapseRunSparkBatchOperator(BaseOperator):
             ):
                 self.log.info("Job run %s has completed successfully.", self.job_id)
             else:
-                raise Exception(f"Job run {self.job_id} has failed or has been cancelled.")
+                raise AirflowException(f"Job run {self.job_id} has failed or has been cancelled.")
 
     def on_kill(self) -> None:
         if self.job_id:

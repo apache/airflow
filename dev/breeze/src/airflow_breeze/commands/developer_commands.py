@@ -61,6 +61,8 @@ from airflow_breeze.commands.common_options import (
     option_standalone_dag_processor,
     option_upgrade_boto,
     option_use_airflow_version,
+    option_use_uv,
+    option_uv_http_timeout,
     option_verbose,
 )
 from airflow_breeze.commands.common_package_installation_options import (
@@ -216,6 +218,15 @@ option_warn_image_upgrade_needed = click.option(
     envvar="WARN_IMAGE_UPGRADE_NEEDED",
 )
 
+option_install_airflow_with_constraints_default_true = click.option(
+    "--install-airflow-with-constraints/--no-install-airflow-with-constraints",
+    is_flag=True,
+    default=True,
+    show_default=True,
+    envvar="INSTALL_AIRFLOW_WITH_CONSTRAINTS",
+    help="Install airflow in a separate step, with constraints determined from package or airflow version.",
+)
+
 
 @main.command()
 @click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
@@ -257,6 +268,7 @@ option_warn_image_upgrade_needed = click.option(
 @option_github_repository
 @option_image_tag_for_running
 @option_include_mypy_volume
+@option_install_airflow_with_constraints_default_true
 @option_install_selected_providers
 @option_installation_package_format
 @option_integration
@@ -282,6 +294,8 @@ option_warn_image_upgrade_needed = click.option(
 @option_upgrade_boto
 @option_use_airflow_version
 @option_use_packages_from_dist
+@option_use_uv
+@option_uv_http_timeout
 @option_verbose
 def shell(
     airflow_constraints_location: str,
@@ -306,6 +320,7 @@ def shell(
     image_tag: str | None,
     include_mypy_volume: bool,
     install_selected_providers: str,
+    install_airflow_with_constraints: bool,
     integration: tuple[str, ...],
     max_time: int | None,
     mount_sources: str,
@@ -331,6 +346,8 @@ def shell(
     upgrade_boto: bool,
     use_airflow_version: str | None,
     use_packages_from_dist: bool,
+    use_uv: bool,
+    uv_http_timeout: int,
     verbose_commands: bool,
     warn_image_upgrade_needed: bool,
 ):
@@ -366,8 +383,8 @@ def shell(
         github_repository=github_repository,
         image_tag=image_tag,
         include_mypy_volume=include_mypy_volume,
+        install_airflow_with_constraints=install_airflow_with_constraints,
         install_selected_providers=install_selected_providers,
-        install_airflow_with_constraints=True,
         integration=integration,
         mount_sources=mount_sources,
         mysql_version=mysql_version,
@@ -382,6 +399,7 @@ def shell(
         pydantic=pydantic,
         python=python,
         quiet=quiet,
+        restart=restart,
         run_db_tests_only=run_db_tests_only,
         skip_db_tests=skip_db_tests,
         skip_image_upgrade_check=skip_image_upgrade_check,
@@ -391,8 +409,9 @@ def shell(
         upgrade_boto=upgrade_boto,
         use_airflow_version=use_airflow_version,
         use_packages_from_dist=use_packages_from_dist,
+        use_uv=use_uv,
+        uv_http_timeout=uv_http_timeout,
         verbose_commands=verbose_commands,
-        restart=restart,
         warn_image_upgrade_needed=warn_image_upgrade_needed,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
@@ -476,6 +495,8 @@ option_executor_start_airflow = click.option(
 @option_python
 @option_restart
 @option_standalone_dag_processor
+@option_use_uv
+@option_uv_http_timeout
 @option_use_airflow_version
 @option_use_packages_from_dist
 @option_verbose
@@ -519,6 +540,8 @@ def start_airflow(
     standalone_dag_processor: bool,
     use_airflow_version: str | None,
     use_packages_from_dist: bool,
+    use_uv: bool,
+    uv_http_timeout: int,
 ):
     """
     Enter breeze environment and starts all Airflow components in the tmux session.
@@ -576,6 +599,8 @@ def start_airflow(
         start_airflow=True,
         use_airflow_version=use_airflow_version,
         use_packages_from_dist=use_packages_from_dist,
+        use_uv=use_uv,
+        uv_http_timeout=uv_http_timeout,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     result = enter_shell(shell_params=shell_params)
@@ -686,7 +711,7 @@ def build_docs(
             "[info]To view the built documentation, you have two options:\n\n"
             "1. Start the webserver in breeze and access the built docs at "
             "http://localhost:28080/docs/\n"
-            "2. Alternatively, you can run ./docs/start_doc_server.sh for a lighter resource option and view"
+            "2. Alternatively, you can run ./docs/start_doc_server.sh for a lighter resource option and view "
             "the built docs at http://localhost:8000"
         )
     sys.exit(result.returncode)
@@ -1011,3 +1036,36 @@ def find_airflow_container() -> str | None:
     else:
         stop_exec_on_error(1)
         return None
+
+
+@main.command(
+    name="generate-migration-file", help="Autogenerate the alembic migration file for the ORM changes."
+)
+@option_builder
+@option_github_repository
+@click.option(
+    "-m",
+    "--message",
+    help="Message to use for the migration",
+    default="Empty message",
+    show_default=True,
+)
+def autogenerate(
+    builder: str,
+    github_repository: str,
+    message: str,
+):
+    """Autogenerate the alembic migration file."""
+    perform_environment_checks()
+    fix_ownership_using_docker()
+    build_params = BuildCiParams(
+        github_repository=github_repository, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION, builder=builder
+    )
+    rebuild_or_pull_ci_image_if_needed(command_params=build_params)
+    shell_params = ShellParams(
+        github_repository=github_repository,
+        python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    )
+    cmd = f"/opt/airflow/scripts/in_container/run_generate_migration.sh '{message}'"
+    execute_command_in_shell(shell_params, project_name="db", command=cmd)
+    fix_ownership_using_docker()

@@ -27,6 +27,7 @@ from kubernetes.client import CoreV1Api, CustomObjectsApi, models as k8s
 from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook, _load_body_to_dict
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import add_unique_suffix
 from airflow.providers.cncf.kubernetes.operators.custom_object_launcher import CustomObjectLauncher
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.pod_generator import MAX_LABEL_LEN, PodGenerator
@@ -72,6 +73,8 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     template_ext = ("yaml", "yml", "json")
     ui_color = "#f4a460"
 
+    BASE_CONTAINER_NAME = "spark-kubernetes-driver"
+
     def __init__(
         self,
         *,
@@ -109,6 +112,18 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         self.log_events_on_failure = log_events_on_failure
         self.success_run_history_limit = success_run_history_limit
 
+        if self.base_container_name != self.BASE_CONTAINER_NAME:
+            self.log.warning(
+                "base_container_name is not supported and will be overridden to %s", self.BASE_CONTAINER_NAME
+            )
+            self.base_container_name = self.BASE_CONTAINER_NAME
+
+        if self.get_logs and self.container_logs != self.BASE_CONTAINER_NAME:
+            self.log.warning(
+                "container_logs is not supported and will be overridden to %s", self.BASE_CONTAINER_NAME
+            )
+            self.container_logs = [self.BASE_CONTAINER_NAME]
+
     def _render_nested_template_fields(
         self,
         content: Any,
@@ -144,7 +159,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         return template_body
 
     def create_job_name(self):
-        initial_name = PodGenerator.make_unique_pod_id(self.task_id)[:MAX_LABEL_LEN]
+        initial_name = add_unique_suffix(name=self.task_id, max_len=MAX_LABEL_LEN)
         return re.sub(r"[^a-z0-9-]+", "-", initial_name.lower())
 
     @staticmethod
@@ -273,7 +288,6 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             template_body=self.template_body,
         )
         self.pod = self.get_or_create_spark_crd(self.launcher, context)
-        self.BASE_CONTAINER_NAME = "spark-kubernetes-driver"
         self.pod_request_obj = self.launcher.pod_spec
 
         return super().execute(context=context)

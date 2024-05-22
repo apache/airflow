@@ -199,8 +199,8 @@ class AirflowSecurityManagerV2(LoggingMixin):
             if not resource_pk:
                 return None
             composite_pk = json.loads(resource_pk)
-            ti = session.scalar(
-                select(DagRun)
+            dag_id = session.scalar(
+                select(TaskInstance.dag_id)
                 .where(
                     TaskInstance.dag_id == composite_pk[0],
                     TaskInstance.task_id == composite_pk[1],
@@ -209,9 +209,9 @@ class AirflowSecurityManagerV2(LoggingMixin):
                 )
                 .limit(1)
             )
-            if not ti:
+            if not dag_id:
                 raise AirflowException("Task instance not found")
-            return ti.dag_id
+            return dag_id
 
         def get_pool_name(resource_pk):
             if not resource_pk:
@@ -337,7 +337,7 @@ class AirflowSecurityManagerV2(LoggingMixin):
             # The user is trying to access a page specific to the auth manager
             # (e.g. the user list view in FabAuthManager) or a page defined in a plugin
             return lambda action, resource_pk, user: get_auth_manager().is_authorized_custom_view(
-                method=get_method_from_fab_action_map()[action],
+                method=get_method_from_fab_action_map().get(action, action),
                 resource_name=fab_resource_name,
                 user=user,
             )

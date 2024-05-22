@@ -67,8 +67,9 @@ def load_package_data(include_suspended: bool = False) -> list[dict[str, Any]]:
             provider = yaml.safe_load(yaml_file)
         try:
             jsonschema.validate(provider, schema=schema)
-        except jsonschema.ValidationError:
-            raise Exception(f"Unable to parse: {provider_yaml_path}.")
+        except jsonschema.ValidationError as ex:
+            msg = f"Unable to parse: {provider_yaml_path}. Original error {type(ex).__name__}: {ex}"
+            raise RuntimeError(msg)
         if provider["state"] == "suspended" and not include_suspended:
             continue
         provider_yaml_dir = os.path.dirname(provider_yaml_path)

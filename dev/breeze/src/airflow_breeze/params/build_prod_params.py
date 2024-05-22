@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import re
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
@@ -43,7 +43,7 @@ class BuildProdParams(CommonBuildParams):
     airflow_constraints_mode: str = "constraints"
     airflow_constraints_reference: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     cleanup_context: bool = False
-    airflow_extras: str = get_airflow_extras()
+    airflow_extras: str = field(default_factory=get_airflow_extras)
     disable_airflow_repo_cache: bool = False
     disable_mssql_client_installation: bool = False
     disable_mysql_client_installation: bool = False
@@ -143,6 +143,19 @@ class BuildProdParams(CommonBuildParams):
             )
             self.airflow_constraints_location = constraints_location
             extra_build_flags.extend(self.args_for_remote_install)
+        elif self.install_packages_from_context:
+            extra_build_flags.extend(
+                [
+                    "--build-arg",
+                    "AIRFLOW_SOURCES_FROM=/empty",
+                    "--build-arg",
+                    "AIRFLOW_SOURCES_TO=/empty",
+                    "--build-arg",
+                    f"AIRFLOW_INSTALLATION_METHOD={self.installation_method}",
+                    "--build-arg",
+                    f"AIRFLOW_CONSTRAINTS_REFERENCE={self.airflow_constraints_reference}",
+                ],
+            )
         else:
             extra_build_flags.extend(
                 [
@@ -208,7 +221,10 @@ class BuildProdParams(CommonBuildParams):
         self._req_arg("AIRFLOW_IMAGE_REPOSITORY", self.airflow_image_repository)
         self._req_arg("AIRFLOW_PRE_CACHED_PIP_PACKAGES", self.airflow_pre_cached_pip_packages)
         self._opt_arg("AIRFLOW_USE_UV", self.use_uv)
-        self._opt_arg("UV_REQUEST_TIMEOUT", self.uv_request_timeout)
+        if self.use_uv:
+            from airflow_breeze.utils.uv_utils import get_uv_timeout
+
+            self._req_arg("UV_HTTP_TIMEOUT", get_uv_timeout(self))
         self._req_arg("AIRFLOW_VERSION", self.airflow_version)
         self._req_arg("BUILD_ID", self.build_id)
         self._req_arg("CONSTRAINTS_GITHUB_REPOSITORY", self.constraints_github_repository)

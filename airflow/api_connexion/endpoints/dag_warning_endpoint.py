@@ -55,7 +55,7 @@ def get_dag_warnings(
     :param dag_id: the dag_id to optionally filter by
     :param warning_type: the warning type to optionally filter by
     """
-    allowed_filter_attrs = ["dag_id", "warning_type", "message", "timestamp"]
+    allowed_sort_attrs = ["dag_id", "warning_type", "message", "timestamp"]
     query = select(DagWarningModel)
     if dag_id:
         query = query.where(DagWarningModel.dag_id == dag_id)
@@ -65,7 +65,7 @@ def get_dag_warnings(
     if warning_type:
         query = query.where(DagWarningModel.warning_type == warning_type)
     total_entries = get_query_count(query, session=session)
-    query = apply_sorting(query=query, order_by=order_by, allowed_attrs=allowed_filter_attrs)
+    query = apply_sorting(query=query, order_by=order_by, allowed_attrs=allowed_sort_attrs)
     dag_warnings = session.scalars(query.offset(offset).limit(limit)).all()
     return dag_warning_collection_schema.dump(
         DagWarningCollection(dag_warnings=dag_warnings, total_entries=total_entries)

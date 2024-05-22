@@ -164,9 +164,9 @@ Those extras are available as regular core airflow extras - they install optiona
 
   .. START CORE EXTRAS HERE
 
-aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, deprecated-api, github-enterprise,
-google-auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, pydantic, rabbitmq, s3fs,
-saml, sentry, statsd, uv, virtualenv
+aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, cloudpickle, deprecated-api, github-
+enterprise, google-auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, pydantic,
+rabbitmq, s3fs, saml, sentry, statsd, uv, virtualenv
 
   .. END CORE EXTRAS HERE
 
@@ -179,8 +179,8 @@ or dependencies that are necessary to enable the feature in editable build.
   .. START PROVIDER EXTRAS HERE
 
 airbyte, alibaba, amazon, apache.beam, apache.cassandra, apache.drill, apache.druid, apache.flink,
-apache.hdfs, apache.hive, apache.impala, apache.kafka, apache.kylin, apache.livy, apache.pig,
-apache.pinot, apache.spark, apprise, arangodb, asana, atlassian.jira, celery, cloudant,
+apache.hdfs, apache.hive, apache.iceberg, apache.impala, apache.kafka, apache.kylin, apache.livy,
+apache.pig, apache.pinot, apache.spark, apprise, arangodb, asana, atlassian.jira, celery, cloudant,
 cncf.kubernetes, cohere, common.io, common.sql, databricks, datadog, dbt.cloud, dingding, discord,
 docker, elasticsearch, exasol, fab, facebook, ftp, github, google, grpc, hashicorp, http, imap,
 influxdb, jdbc, jenkins, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo,

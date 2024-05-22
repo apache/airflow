@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import inspect
 import os
+import warnings
 from datetime import datetime
 from unittest.mock import patch
 
@@ -26,10 +27,10 @@ import pytest
 from openlineage.client.facet import SourceCodeJobFacet
 
 from airflow import DAG
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from airflow.providers.openlineage.extractors.python import PythonExtractor
-from airflow.providers.openlineage.plugins.facets import UnknownOperatorAttributeRunFacet
 
 pytestmark = pytest.mark.db_test
 
@@ -65,20 +66,34 @@ def test_extract_source_code():
 @patch("airflow.providers.openlineage.conf.is_source_enabled")
 def test_extract_operator_code_disabled(mocked_source_enabled):
     mocked_source_enabled.return_value = False
-    operator = PythonOperator(task_id="taskid", python_callable=callable)
-    result = PythonExtractor(operator).extract()
+    operator = PythonOperator(task_id="taskid", python_callable=callable, op_args=(1, 2), op_kwargs={"a": 1})
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", AirflowProviderDeprecationWarning)
+        result = PythonExtractor(operator).extract()
     assert "sourceCode" not in result.job_facets
     assert "unknownSourceAttribute" in result.run_facets
+    unknown_items = result.run_facets["unknownSourceAttribute"]["unknownItems"]
+    assert len(unknown_items) == 1
+    assert unknown_items[0]["name"] == "PythonOperator"
+    assert "python_callable" not in unknown_items[0]["properties"]
+    assert "op_args" not in unknown_items[0]["properties"]
+    assert "op_kwargs" not in unknown_items[0]["properties"]
+    assert "task_id" in unknown_items[0]["properties"]
 
 
 @patch("airflow.providers.openlineage.conf.is_source_enabled")
 def test_extract_operator_code_enabled(mocked_source_enabled):
     mocked_source_enabled.return_value = True
-    operator = PythonOperator(task_id="taskid", python_callable=callable)
-    result = PythonExtractor(operator).extract()
+    operator = PythonOperator(task_id="taskid", python_callable=callable, op_args=(1, 2), op_kwargs={"a": 1})
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", AirflowProviderDeprecationWarning)
+        result = PythonExtractor(operator).extract()
     assert result.job_facets["sourceCode"] == SourceCodeJobFacet("python", CODE)
     assert "unknownSourceAttribute" in result.run_facets
-    unknown_operator_facet = result.run_facets["unknownSourceAttribute"]
-    assert isinstance(unknown_operator_facet, UnknownOperatorAttributeRunFacet)
-    assert len(unknown_operator_facet.unknownItems) == 1
-    assert unknown_operator_facet.unknownItems[0].name == "PythonOperator"
+    unknown_items = result.run_facets["unknownSourceAttribute"]["unknownItems"]
+    assert len(unknown_items) == 1
+    assert unknown_items[0]["name"] == "PythonOperator"
+    assert "python_callable" not in unknown_items[0]["properties"]
+    assert "op_args" not in unknown_items[0]["properties"]
+    assert "op_kwargs" not in unknown_items[0]["properties"]
+    assert "task_id" in unknown_items[0]["properties"]

@@ -165,12 +165,12 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
 
         if query_status in AthenaHook.FAILURE_STATES:
             error_message = self.hook.get_state_change_reason(self.query_execution_id)
-            raise Exception(
+            raise AirflowException(
                 f"Final state of Athena job is {query_status}, query_execution_id is "
                 f"{self.query_execution_id}. Error: {error_message}"
             )
         elif not query_status or query_status in AthenaHook.INTERMEDIATE_STATES:
-            raise Exception(
+            raise AirflowException(
                 f"Final state of Athena job is {query_status}. Max tries of poll status exceeded, "
                 f"query_execution_id is {self.query_execution_id}."
             )
@@ -266,7 +266,7 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
 
         if self.output_location:
             parsed = urlparse(self.output_location)
-            outputs.append(Dataset(namespace=f"{parsed.scheme}://{parsed.netloc}", name=parsed.path))
+            outputs.append(Dataset(namespace=f"{parsed.scheme}://{parsed.netloc}", name=parsed.path or "/"))
 
         return OperatorLineage(job_facets=job_facets, run_facets=run_facets, inputs=inputs, outputs=outputs)
 

@@ -52,7 +52,7 @@ from asgiref.sync import sync_to_async
 from boto3.s3.transfer import S3Transfer, TransferConfig
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowNotFoundException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.tags import format_tags
@@ -1390,7 +1390,7 @@ class S3Hook(AwsBaseHook):
             s3_obj = self.get_key(key, bucket_name)
         except ClientError as e:
             if e.response.get("Error", {}).get("Code") == 404:
-                raise AirflowException(
+                raise AirflowNotFoundException(
                     f"The source file in Bucket {bucket_name} with path {key} does not exist"
                 )
             else:

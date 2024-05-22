@@ -134,6 +134,7 @@ def test_is_name_redactable():
     assert _is_name_redactable("transparent", Mixined())
 
 
+@pytest.mark.enable_redact
 def test_redact_with_exclusions(monkeypatch):
     redactor = OpenLineageRedactor.from_masker(_secrets_masker())
 

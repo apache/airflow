@@ -20,6 +20,7 @@
 /* global moment */
 
 import { AnsiUp } from "ansi_up";
+import { getMetaValue, highlightByKeywords } from "src/utils";
 import { defaultFormatWithTZ } from "src/datetime_utils";
 
 export enum LogLevel {
@@ -37,6 +38,15 @@ export const logLevelColorMapping = {
   [LogLevel.ERROR]: "red.200",
   [LogLevel.CRITICAL]: "red.400",
 };
+
+const errorKeywords = getMetaValue("color_log_error_keywords")
+  .split(",")
+  .filter((keyword) => keyword.length > 0)
+  .map((keyword) => keyword.toLowerCase());
+const warningKeywords = getMetaValue("color_log_warning_keywords")
+  .split(",")
+  .filter((keyword) => keyword.length > 0)
+  .map((keyword) => keyword.toLowerCase());
 
 export const parseLogs = (
   data: string | undefined,
@@ -62,6 +72,7 @@ export const parseLogs = (
   const parsedLines: Array<string> = [];
   const fileSources: Set<string> = new Set();
   const ansiUp = new AnsiUp();
+  ansiUp.url_allowlist = {};
 
   const urlRegex = /((https?:\/\/|http:\/\/)[^\s]+)/g;
   // Detect log groups which can be collapsed
@@ -111,6 +122,11 @@ export const parseLogs = (
         line.includes(fileSourceFilter)
       )
     ) {
+      parsedLine = highlightByKeywords(
+        parsedLine,
+        errorKeywords,
+        warningKeywords
+      );
       // for lines with color convert to nice HTML
       const coloredLine = ansiUp.ansi_to_html(parsedLine);
 

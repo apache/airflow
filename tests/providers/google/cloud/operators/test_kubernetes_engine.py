@@ -42,10 +42,12 @@ from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKEDeleteCustomResourceOperator,
     GKEDeleteJobOperator,
     GKEDescribeJobOperator,
+    GKEResumeJobOperator,
     GKEStartJobOperator,
     GKEStartKueueInsideClusterOperator,
     GKEStartKueueJobOperator,
     GKEStartPodOperator,
+    GKESuspendJobOperator,
 )
 from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEStartPodTrigger
 
@@ -79,9 +81,8 @@ FILE_NAME = "/tmp/mock_name"
 KUB_OP_PATH = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.{}"
 GKE_HOOK_MODULE_PATH = "airflow.providers.google.cloud.operators.kubernetes_engine"
 GKE_HOOK_PATH = f"{GKE_HOOK_MODULE_PATH}.GKEHook"
-GKE_POD_HOOK_PATH = f"{GKE_HOOK_MODULE_PATH}.GKEPodHook"
-GKE_DEPLOYMENT_HOOK_PATH = f"{GKE_HOOK_MODULE_PATH}.GKEDeploymentHook"
-GKE_JOB_HOOK_PATH = f"{GKE_HOOK_MODULE_PATH}.GKEJobHook"
+GKE_KUBERNETES_HOOK = f"{GKE_HOOK_MODULE_PATH}.GKEKubernetesHook"
+GKE_K8S_HOOK_PATH = f"{GKE_HOOK_MODULE_PATH}.GKEKubernetesHook"
 KUB_OPERATOR_EXEC = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.execute"
 KUB_JOB_OPERATOR_EXEC = "airflow.providers.cncf.kubernetes.operators.job.KubernetesJobOperator.execute"
 KUB_CREATE_RES_OPERATOR_EXEC = (
@@ -126,6 +127,7 @@ spec:
     requests:
       storage: 5Gi
 """
+KUEUE_YAML_URL = "http://test-url/config.yaml"
 
 
 class TestGoogleCloudPlatformContainerOperator:
@@ -493,12 +495,13 @@ class TestGKEStartKueueInsideClusterOperator:
         self.gke_op._cluster_url = CLUSTER_URL
         self.gke_op._ssl_ca_cert = SSL_CA_CERT
 
+    @pytest.mark.db_test
     @mock.patch.dict(os.environ, {})
     @mock.patch(TEMP_FILE)
     @mock.patch(f"{GKE_CLUSTER_AUTH_DETAILS_PATH}.fetch_cluster_info")
     @mock.patch(GKE_HOOK_PATH)
-    @mock.patch(f"{GKE_DEPLOYMENT_HOOK_PATH}.check_kueue_deployment_running")
-    @mock.patch(GKE_POD_HOOK_PATH)
+    @mock.patch(f"{GKE_KUBERNETES_HOOK}.check_kueue_deployment_running")
+    @mock.patch(GKE_KUBERNETES_HOOK)
     def test_execute(self, mock_pod_hook, mock_deployment, mock_hook, fetch_cluster_info_mock, file_mock):
         mock_pod_hook.return_value.apply_from_yaml_file.side_effect = mock.MagicMock()
         fetch_cluster_info_mock.return_value = (CLUSTER_URL, SSL_CA_CERT)
@@ -510,9 +513,9 @@ class TestGKEStartKueueInsideClusterOperator:
     @mock.patch.dict(os.environ, {})
     @mock.patch(TEMP_FILE)
     @mock.patch(f"{GKE_CLUSTER_AUTH_DETAILS_PATH}.fetch_cluster_info")
-    @mock.patch(GKE_DEPLOYMENT_HOOK_PATH)
+    @mock.patch(GKE_KUBERNETES_HOOK)
     @mock.patch(GKE_HOOK_PATH)
-    @mock.patch(GKE_POD_HOOK_PATH)
+    @mock.patch(GKE_KUBERNETES_HOOK)
     def test_execute_autoscaled_cluster(
         self, mock_pod_hook, mock_hook, mock_depl_hook, fetch_cluster_info_mock, file_mock, caplog
     ):
@@ -529,7 +532,7 @@ class TestGKEStartKueueInsideClusterOperator:
     @mock.patch(TEMP_FILE)
     @mock.patch(f"{GKE_CLUSTER_AUTH_DETAILS_PATH}.fetch_cluster_info")
     @mock.patch(GKE_HOOK_PATH)
-    @mock.patch(GKE_POD_HOOK_PATH)
+    @mock.patch(GKE_KUBERNETES_HOOK)
     def test_execute_autoscaled_cluster_check_error(
         self, mock_pod_hook, mock_hook, fetch_cluster_info_mock, file_mock, caplog
     ):
@@ -545,7 +548,7 @@ class TestGKEStartKueueInsideClusterOperator:
     @mock.patch(TEMP_FILE)
     @mock.patch(f"{GKE_CLUSTER_AUTH_DETAILS_PATH}.fetch_cluster_info")
     @mock.patch(GKE_HOOK_PATH)
-    @mock.patch(GKE_POD_HOOK_PATH)
+    @mock.patch(GKE_KUBERNETES_HOOK)
     def test_execute_non_autoscaled_cluster_check_error(
         self, mock_pod_hook, mock_hook, fetch_cluster_info_mock, file_mock, caplog
     ):
@@ -636,6 +639,27 @@ class TestGKEStartKueueInsideClusterOperator:
         hook = gke_op.cluster_hook
 
         assert hook.gcp_conn_id == "test_conn"
+
+    @mock.patch(f"{GKE_HOOK_MODULE_PATH}.requests")
+    @mock.patch(f"{GKE_HOOK_MODULE_PATH}.yaml")
+    def test_get_yaml_content_from_file(self, mock_yaml, mock_requests):
+        yaml_content_expected = [mock.MagicMock(), mock.MagicMock()]
+        mock_yaml.safe_load_all.return_value = yaml_content_expected
+        response_text_expected = "response test expected"
+        mock_requests.get.return_value = mock.MagicMock(status_code=200, text=response_text_expected)
+
+        yaml_content_actual = GKEStartKueueInsideClusterOperator._get_yaml_content_from_file(KUEUE_YAML_URL)
+
+        assert yaml_content_actual == yaml_content_expected
+        mock_requests.get.assert_called_once_with(KUEUE_YAML_URL, allow_redirects=True)
+        mock_yaml.safe_load_all.assert_called_once_with(response_text_expected)
+
+    @mock.patch(f"{GKE_HOOK_MODULE_PATH}.requests")
+    def test_get_yaml_content_from_file_exception(self, mock_requests):
+        mock_requests.get.return_value = mock.MagicMock(status_code=400)
+
+        with pytest.raises(AirflowException):
+            GKEStartKueueInsideClusterOperator._get_yaml_content_from_file(KUEUE_YAML_URL)
 
 
 class TestGKEPodOperatorAsync:
@@ -890,7 +914,7 @@ class TestGKEDescribeJobOperator:
     @mock.patch(TEMP_FILE)
     @mock.patch(f"{GKE_CLUSTER_AUTH_DETAILS_PATH}.fetch_cluster_info")
     @mock.patch(GKE_HOOK_PATH)
-    @mock.patch(GKE_JOB_HOOK_PATH)
+    @mock.patch(GKE_KUBERNETES_HOOK)
     def test_execute(self, mock_job_hook, mock_hook, fetch_cluster_info_mock, file_mock):
         mock_job_hook.return_value.get_job.return_value = mock.MagicMock()
         fetch_cluster_info_mock.return_value = (CLUSTER_URL, SSL_CA_CERT)
@@ -905,7 +929,7 @@ class TestGKEDescribeJobOperator:
     @mock.patch(TEMP_FILE)
     @mock.patch(f"{GKE_CLUSTER_AUTH_DETAILS_PATH}.fetch_cluster_info")
     @mock.patch(GKE_HOOK_PATH)
-    @mock.patch(GKE_JOB_HOOK_PATH)
+    @mock.patch(GKE_KUBERNETES_HOOK)
     def test_execute_with_impersonation_service_account(
         self, mock_job_hook, mock_hook, fetch_cluster_info_mock, file_mock, get_con_mock
     ):
@@ -923,7 +947,7 @@ class TestGKEDescribeJobOperator:
     @mock.patch(TEMP_FILE)
     @mock.patch(f"{GKE_CLUSTER_AUTH_DETAILS_PATH}.fetch_cluster_info")
     @mock.patch(GKE_HOOK_PATH)
-    @mock.patch(GKE_JOB_HOOK_PATH)
+    @mock.patch(GKE_KUBERNETES_HOOK)
     def test_execute_with_impersonation_service_chain_one_element(
         self, mock_job_hook, mock_hook, fetch_cluster_info_mock, file_mock, get_con_mock
     ):
@@ -1315,6 +1339,222 @@ class TestGKEDeleteJobOperator:
         )
         gke_op._cluster_url = CLUSTER_URL
         gke_op._ssl_ca_cert = SSL_CA_CERT
+        hook = gke_op.hook
+
+        assert hook.gcp_conn_id == "test_conn"
+
+
+class TestGKESuspendJobOperator:
+    def setup_method(self):
+        self.gke_op = GKESuspendJobOperator(
+            project_id=TEST_GCP_PROJECT_ID,
+            location=PROJECT_LOCATION,
+            cluster_name=CLUSTER_NAME,
+            task_id=PROJECT_TASK_ID,
+            name=TASK_NAME,
+            namespace=NAMESPACE,
+        )
+
+    def test_config_file_throws_error(self):
+        with pytest.raises(AirflowException):
+            GKESuspendJobOperator(
+                project_id=TEST_GCP_PROJECT_ID,
+                location=PROJECT_LOCATION,
+                cluster_name=CLUSTER_NAME,
+                task_id=PROJECT_TASK_ID,
+                name=TASK_NAME,
+                namespace=NAMESPACE,
+                config_file="/path/to/alternative/kubeconfig",
+            )
+
+    @mock.patch.dict(os.environ, {})
+    @mock.patch(TEMP_FILE)
+    @mock.patch(f"{GKE_CLUSTER_AUTH_DETAILS_PATH}.fetch_cluster_info")
+    @mock.patch(GKE_HOOK_PATH)
+    @mock.patch(GKE_K8S_HOOK_PATH)
+    def test_execute(self, mock_job_hook, mock_hook, fetch_cluster_info_mock, file_mock):
+        mock_job_hook.return_value.get_job.return_value = mock.MagicMock()
+        fetch_cluster_info_mock.return_value = (CLUSTER_URL, SSL_CA_CERT)
+        self.gke_op.execute(context=mock.MagicMock())
+        fetch_cluster_info_mock.assert_called_once()
+
+    @mock.patch.dict(os.environ, {})
+    @mock.patch(
+        "airflow.hooks.base.BaseHook.get_connections",
+        return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
+    )
+    @mock.patch(TEMP_FILE)
+    @mock.patch(f"{GKE_CLUSTER_AUTH_DETAILS_PATH}.fetch_cluster_info")
+    @mock.patch(GKE_HOOK_PATH)
+    @mock.patch(GKE_K8S_HOOK_PATH)
+    def test_execute_with_impersonation_service_account(
+        self, mock_job_hook, mock_hook, fetch_cluster_info_mock, file_mock, get_con_mock
+    ):
+        mock_job_hook.return_value.get_job.return_value = mock.MagicMock()
+        fetch_cluster_info_mock.return_value = (CLUSTER_URL, SSL_CA_CERT)
+        self.gke_op.impersonation_chain = "test_account@example.com"
+        self.gke_op.execute(context=mock.MagicMock())
+        fetch_cluster_info_mock.assert_called_once()
+
+    @mock.patch.dict(os.environ, {})
+    @mock.patch(
+        "airflow.hooks.base.BaseHook.get_connections",
+        return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
+    )
+    @mock.patch(TEMP_FILE)
+    @mock.patch(f"{GKE_CLUSTER_AUTH_DETAILS_PATH}.fetch_cluster_info")
+    @mock.patch(GKE_HOOK_PATH)
+    @mock.patch(GKE_K8S_HOOK_PATH)
+    def test_execute_with_impersonation_service_chain_one_element(
+        self, mock_job_hook, mock_hook, fetch_cluster_info_mock, file_mock, get_con_mock
+    ):
+        fetch_cluster_info_mock.return_value = (CLUSTER_URL, SSL_CA_CERT)
+        self.gke_op.impersonation_chain = ["test_account@example.com"]
+        self.gke_op.execute(context=mock.MagicMock())
+
+        fetch_cluster_info_mock.assert_called_once()
+
+    @pytest.mark.db_test
+    @mock.patch(f"{GKE_CLUSTER_AUTH_DETAILS_PATH}.fetch_cluster_info")
+    def test_default_gcp_conn_id(self, fetch_cluster_info_mock):
+        gke_op = GKESuspendJobOperator(
+            project_id=TEST_GCP_PROJECT_ID,
+            location=PROJECT_LOCATION,
+            cluster_name=CLUSTER_NAME,
+            task_id=PROJECT_TASK_ID,
+            name=TASK_NAME,
+            namespace=NAMESPACE,
+        )
+        fetch_cluster_info_mock.return_value = (CLUSTER_URL, SSL_CA_CERT)
+        hook = gke_op.hook
+
+        assert hook.gcp_conn_id == "google_cloud_default"
+
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_connection",
+        return_value=Connection(conn_id="test_conn"),
+    )
+    @mock.patch(f"{GKE_CLUSTER_AUTH_DETAILS_PATH}.fetch_cluster_info")
+    @mock.patch(GKE_HOOK_PATH)
+    def test_gcp_conn_id(self, mock_hook, fetch_cluster_info_mock, mock_gke_conn):
+        gke_op = GKESuspendJobOperator(
+            project_id=TEST_GCP_PROJECT_ID,
+            location=PROJECT_LOCATION,
+            cluster_name=CLUSTER_NAME,
+            task_id=PROJECT_TASK_ID,
+            name=TASK_NAME,
+            namespace=NAMESPACE,
+            gcp_conn_id="test_conn",
+        )
+        fetch_cluster_info_mock.return_value = (CLUSTER_URL, SSL_CA_CERT)
+        hook = gke_op.hook
+
+        assert hook.gcp_conn_id == "test_conn"
+
+
+class TestGKEResumeJobOperator:
+    def setup_method(self):
+        self.gke_op = GKEResumeJobOperator(
+            project_id=TEST_GCP_PROJECT_ID,
+            location=PROJECT_LOCATION,
+            cluster_name=CLUSTER_NAME,
+            task_id=PROJECT_TASK_ID,
+            name=TASK_NAME,
+            namespace=NAMESPACE,
+        )
+
+    def test_config_file_throws_error(self):
+        with pytest.raises(AirflowException):
+            GKEResumeJobOperator(
+                project_id=TEST_GCP_PROJECT_ID,
+                location=PROJECT_LOCATION,
+                cluster_name=CLUSTER_NAME,
+                task_id=PROJECT_TASK_ID,
+                name=TASK_NAME,
+                namespace=NAMESPACE,
+                config_file="/path/to/alternative/kubeconfig",
+            )
+
+    @mock.patch.dict(os.environ, {})
+    @mock.patch(TEMP_FILE)
+    @mock.patch(f"{GKE_CLUSTER_AUTH_DETAILS_PATH}.fetch_cluster_info")
+    @mock.patch(GKE_HOOK_PATH)
+    @mock.patch(GKE_K8S_HOOK_PATH)
+    def test_execute(self, mock_job_hook, mock_hook, fetch_cluster_info_mock, file_mock):
+        mock_job_hook.return_value.get_job.return_value = mock.MagicMock()
+        fetch_cluster_info_mock.return_value = (CLUSTER_URL, SSL_CA_CERT)
+        self.gke_op.execute(context=mock.MagicMock())
+        fetch_cluster_info_mock.assert_called_once()
+
+    @mock.patch.dict(os.environ, {})
+    @mock.patch(
+        "airflow.hooks.base.BaseHook.get_connections",
+        return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
+    )
+    @mock.patch(TEMP_FILE)
+    @mock.patch(f"{GKE_CLUSTER_AUTH_DETAILS_PATH}.fetch_cluster_info")
+    @mock.patch(GKE_HOOK_PATH)
+    @mock.patch(GKE_K8S_HOOK_PATH)
+    def test_execute_with_impersonation_service_account(
+        self, mock_job_hook, mock_hook, fetch_cluster_info_mock, file_mock, get_con_mock
+    ):
+        mock_job_hook.return_value.get_job.return_value = mock.MagicMock()
+        fetch_cluster_info_mock.return_value = (CLUSTER_URL, SSL_CA_CERT)
+        self.gke_op.impersonation_chain = "test_account@example.com"
+        self.gke_op.execute(context=mock.MagicMock())
+        fetch_cluster_info_mock.assert_called_once()
+
+    @mock.patch.dict(os.environ, {})
+    @mock.patch(
+        "airflow.hooks.base.BaseHook.get_connections",
+        return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
+    )
+    @mock.patch(TEMP_FILE)
+    @mock.patch(f"{GKE_CLUSTER_AUTH_DETAILS_PATH}.fetch_cluster_info")
+    @mock.patch(GKE_HOOK_PATH)
+    @mock.patch(GKE_K8S_HOOK_PATH)
+    def test_execute_with_impersonation_service_chain_one_element(
+        self, mock_job_hook, mock_hook, fetch_cluster_info_mock, file_mock, get_con_mock
+    ):
+        fetch_cluster_info_mock.return_value = (CLUSTER_URL, SSL_CA_CERT)
+        self.gke_op.impersonation_chain = ["test_account@example.com"]
+        self.gke_op.execute(context=mock.MagicMock())
+
+        fetch_cluster_info_mock.assert_called_once()
+
+    @pytest.mark.db_test
+    @mock.patch(f"{GKE_CLUSTER_AUTH_DETAILS_PATH}.fetch_cluster_info")
+    def test_default_gcp_conn_id(self, fetch_cluster_info_mock):
+        gke_op = GKEResumeJobOperator(
+            project_id=TEST_GCP_PROJECT_ID,
+            location=PROJECT_LOCATION,
+            cluster_name=CLUSTER_NAME,
+            task_id=PROJECT_TASK_ID,
+            name=TASK_NAME,
+            namespace=NAMESPACE,
+        )
+        fetch_cluster_info_mock.return_value = (CLUSTER_URL, SSL_CA_CERT)
+        hook = gke_op.hook
+
+        assert hook.gcp_conn_id == "google_cloud_default"
+
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_connection",
+        return_value=Connection(conn_id="test_conn"),
+    )
+    @mock.patch(f"{GKE_CLUSTER_AUTH_DETAILS_PATH}.fetch_cluster_info")
+    @mock.patch(GKE_HOOK_PATH)
+    def test_gcp_conn_id(self, mock_hook, fetch_cluster_info_mock, mock_gke_conn):
+        gke_op = GKEResumeJobOperator(
+            project_id=TEST_GCP_PROJECT_ID,
+            location=PROJECT_LOCATION,
+            cluster_name=CLUSTER_NAME,
+            task_id=PROJECT_TASK_ID,
+            name=TASK_NAME,
+            namespace=NAMESPACE,
+            gcp_conn_id="test_conn",
+        )
+        fetch_cluster_info_mock.return_value = (CLUSTER_URL, SSL_CA_CERT)
         hook = gke_op.hook
 
         assert hook.gcp_conn_id == "test_conn"

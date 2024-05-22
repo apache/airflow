@@ -19,6 +19,9 @@ from __future__ import annotations
 import json
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook
 from airflow.providers.dbt.cloud.operators.dbt import DbtCloudRunJobOperator
 from airflow.providers.dbt.cloud.utils.openlineage import generate_openlineage_events_from_dbt_cloud_run
@@ -75,6 +78,26 @@ def get_dbt_artifact(*args, **kwargs):
     if json_file is not None:
         return MockResponse(read_file_json(json_file))
     return None
+
+
+def test_previous_version_openlineage_provider():
+    """When using OpenLineage, the dbt-cloud provider now depends on openlineage provider >= 1.7"""
+    original_import = __import__
+
+    def custom_import(name, *args, **kwargs):
+        if name == "airflow.providers.openlineage.conf":
+            raise ModuleNotFoundError("No module named 'airflow.providers.openlineage.conf")
+        else:
+            return original_import(name, *args, **kwargs)
+
+    mock_operator = MagicMock()
+    mock_task_instance = MagicMock()
+
+    with patch("builtins.__import__", side_effect=custom_import):
+        with pytest.raises(AirflowOptionalProviderFeatureException) as exc:
+            generate_openlineage_events_from_dbt_cloud_run(mock_operator, mock_task_instance)
+    assert str(exc.value.args[0]) == "No module named 'airflow.providers.openlineage.conf"
+    assert str(exc.value.args[1]) == "Please install `apache-airflow-providers-openlineage>=1.7.0`"
 
 
 class TestGenerateOpenLineageEventsFromDbtCloudRun:

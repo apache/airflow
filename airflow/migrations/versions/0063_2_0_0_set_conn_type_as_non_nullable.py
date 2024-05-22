@@ -15,18 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Set ``conn_type`` as non-nullable
+"""Set ``conn_type`` as non-nullable.
 
 Revision ID: 8f966b9c467a
 Revises: 3c20cacc0044
 Create Date: 2020-06-08 22:36:34.534121
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 
 # revision identifiers, used by Alembic.
 revision = "8f966b9c467a"
@@ -37,7 +38,7 @@ airflow_version = "2.0.0"
 
 
 def upgrade():
-    """Apply Set ``conn_type`` as non-nullable"""
+    """Apply Set ``conn_type`` as non-nullable."""
     Base = declarative_base()
 
     class Connection(Base):
@@ -63,6 +64,6 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Set ``conn_type`` as non-nullable"""
+    """Unapply Set ``conn_type`` as non-nullable."""
     with op.batch_alter_table("connection", schema=None) as batch_op:
         batch_op.alter_column("conn_type", existing_type=sa.VARCHAR(length=500), nullable=True)

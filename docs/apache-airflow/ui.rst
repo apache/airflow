@@ -100,9 +100,14 @@ Or selecting a Task Instance by clicking on a status box:
 
 .. image:: img/grid_instance_details.png
 
-Manual runs are indicated by a play icon (just like the Trigger DAG button):
+Or selecting a Task across all runs by click on the task_id:
 
-.. image:: img/task_manual_vs_scheduled.png
+.. image:: img/grid_task_details.png
+
+Manual runs are indicated by a play icon (just like the Trigger DAG button).
+Dataset triggered runs are indicated by a database icon:
+
+.. image:: img/run_types.png
 
 Task groups are indicated by a caret and can be opened or closed:
 
@@ -190,7 +195,7 @@ Landing Times
 .............
 
 The landing time for a task instance is the delta between the dag run's data interval end
-(typically this means when the dag "should" run) and the task instance completion time.
+(typically this means when the dag "should" run) and the dag run completion time.
 
 ------------
 
@@ -218,3 +223,15 @@ The form display is based on the DAG Parameters as described in :doc:`core-conce
 ------------
 
 .. image:: img/trigger-dag-tutorial-form.png
+
+Audit Log
+.............
+
+See all events related to a DAG. Filter events by changing the Task and DAG Run
+selection and by including/excluding different event names.
+
+------------
+
+.. image:: img/audit_log.png
+
+------------

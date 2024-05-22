@@ -66,11 +66,11 @@ class TestUserCollectionItemSchema(TestUserBase):
             username="test",
             password="test",
             email=TEST_EMAIL,
-            roles=[self.role],
             created_on=timezone.parse(DEFAULT_TIME),
             changed_on=timezone.parse(DEFAULT_TIME),
         )
         self.session.add(user_model)
+        user_model.roles = [self.role]
         self.session.commit()
         user = self.session.query(User).filter(User.email == TEST_EMAIL).first()
         deserialized_user = user_collection_item_schema.dump(user)

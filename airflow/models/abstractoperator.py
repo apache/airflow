@@ -23,9 +23,9 @@ from abc import abstractproperty
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable, Iterator, Sequence
 
+import methodtools
 from sqlalchemy import select
 
-from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models.expandinput import NotFullyPopulated
@@ -60,6 +60,7 @@ if TYPE_CHECKING:
 DEFAULT_OWNER: str = conf.get_mandatory_value("operators", "default_owner")
 DEFAULT_POOL_SLOTS: int = 1
 DEFAULT_PRIORITY_WEIGHT: int = 1
+DEFAULT_EXECUTOR: str | None = None
 DEFAULT_QUEUE: str = conf.get_mandatory_value("operators", "default_queue")
 DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST: bool = conf.getboolean(
     "scheduler", "ignore_first_depends_on_past_by_default"
@@ -111,7 +112,7 @@ class AbstractOperator(Templater, DAGNode):
     outlets: list
     inlets: list
     trigger_rule: TriggerRule
-
+    _needs_expansion: bool | None = None
     _on_failure_fail_dagrun = False
 
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = frozenset(
@@ -121,6 +122,8 @@ class AbstractOperator(Templater, DAGNode):
             "node_id",  # Duplicates task_id
             "task_group",  # Doesn't have a useful repr, no point showing in UI
             "inherits_from_empty_operator",  # impl detail
+            "start_trigger",
+            "next_method",
             # For compatibility with TG, for operators these are just the current task, no point showing
             "roots",
             "leaves",
@@ -392,6 +395,19 @@ class AbstractOperator(Templater, DAGNode):
         """
         return next(self.iter_mapped_task_groups(), None)
 
+    def get_needs_expansion(self) -> bool:
+        """
+        Return true if the task is MappedOperator or is in a mapped task group.
+
+        :meta private:
+        """
+        if self._needs_expansion is None:
+            if self.get_closest_mapped_task_group() is not None:
+                self._needs_expansion = True
+            else:
+                self._needs_expansion = False
+        return self._needs_expansion
+
     def unmap(self, resolve: None | dict[str, Any] | tuple[Context, Session]) -> BaseOperator:
         """Get the "normal" operator from current abstract operator.
 
@@ -492,7 +508,7 @@ class AbstractOperator(Templater, DAGNode):
             return link.get_link(self.unmap(None), ti.dag_run.logical_date)  # type: ignore[misc]
         return link.get_link(self.unmap(None), ti_key=ti.key)
 
-    @cache
+    @methodtools.lru_cache(maxsize=None)
     def get_parse_time_mapped_ti_count(self) -> int:
         """
         Return the number of mapped task instances that can be created on DAG run creation.

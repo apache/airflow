@@ -24,10 +24,11 @@ import warnings
 from typing import TYPE_CHECKING, Any, ClassVar, Collection, Iterable, Iterator, Mapping, Sequence, Union
 
 import attr
+import methodtools
 
-from airflow.compat.functools import cache
 from airflow.exceptions import AirflowException, UnmappableOperator
 from airflow.models.abstractoperator import (
+    DEFAULT_EXECUTOR,
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
     DEFAULT_POOL_SLOTS,
@@ -80,6 +81,7 @@ if TYPE_CHECKING:
     from airflow.models.param import ParamsDict
     from airflow.models.xcom_arg import XComArg
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+    from airflow.triggers.base import BaseTrigger
     from airflow.utils.context import Context
     from airflow.utils.operator_resources import Resources
     from airflow.utils.task_group import TaskGroup
@@ -170,7 +172,7 @@ class OperatorPartial:
                 task_id = repr(self.kwargs["task_id"])
             except KeyError:
                 task_id = f"at {hex(id(self))}"
-            warnings.warn(f"Task {task_id} was never mapped!")
+            warnings.warn(f"Task {task_id} was never mapped!", category=UserWarning, stacklevel=1)
 
     def expand(self, **mapped_kwargs: OperatorExpandArgument) -> MappedOperator:
         if not mapped_kwargs:
@@ -235,6 +237,8 @@ class OperatorPartial:
             # For classic operators, this points to expand_input because kwargs
             # to BaseOperator.expand() contribute to operator arguments.
             expand_input_attr="expand_input",
+            start_trigger=self.operator_class.start_trigger,
+            next_method=self.operator_class.next_method,
         )
         return op
 
@@ -277,6 +281,9 @@ class MappedOperator(AbstractOperator):
     _task_module: str
     _task_type: str
     _operator_name: str
+    start_trigger: BaseTrigger | None
+    next_method: str | None
+    _needs_expansion: bool = True
 
     dag: DAG | None
     task_group: TaskGroup | None
@@ -305,6 +312,8 @@ class MappedOperator(AbstractOperator):
         (
             "parse_time_mapped_ti_count",
             "operator_class",
+            "start_trigger",
+            "next_method",
         )
     )
 
@@ -334,8 +343,8 @@ class MappedOperator(AbstractOperator):
                 f"{self.task_id!r}."
             )
 
+    @methodtools.lru_cache(maxsize=None)
     @classmethod
-    @cache
     def get_serialized_fields(cls):
         # Not using 'cls' here since we only want to serialize base fields.
         return frozenset(attr.fields_dict(MappedOperator)) - {
@@ -351,8 +360,8 @@ class MappedOperator(AbstractOperator):
             "_on_failure_fail_dagrun",
         }
 
+    @methodtools.lru_cache(maxsize=None)
     @staticmethod
-    @cache
     def deps_for(operator_class: type[BaseOperator]) -> frozenset[BaseTIDep]:
         operator_deps = operator_class.deps
         if not isinstance(operator_deps, collections.abc.Set):
@@ -621,6 +630,10 @@ class MappedOperator(AbstractOperator):
         return self.partial_kwargs.get("run_as_user")
 
     @property
+    def executor(self) -> str | None:
+        return self.partial_kwargs.get("executor", DEFAULT_EXECUTOR)
+
+    @property
     def executor_config(self) -> dict:
         return self.partial_kwargs.get("executor_config", {})
 
@@ -784,7 +797,7 @@ class MappedOperator(AbstractOperator):
         for operator, _ in XComArg.iter_xcom_references(self._get_specified_expand_input()):
             yield operator
 
-    @cache
+    @methodtools.lru_cache(maxsize=None)
     def get_parse_time_mapped_ti_count(self) -> int:
         current_count = self._get_specified_expand_input().get_parse_time_mapped_ti_count()
         try:

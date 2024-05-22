@@ -28,6 +28,7 @@ from shutil import rmtree
 from tempfile import mkdtemp
 
 import yaml
+from packaging.version import Version
 from rich.console import Console
 
 console = Console(color_system="standard", width=200)
@@ -151,13 +152,12 @@ def package_version(version_suffix: str):
             )
         elif not release_version_matcher.match(airflow_version):
             console.print(
-                f"[red]You should only pass version suffix if {airflow_version}"
+                f"[warning]You should only pass version suffix if {airflow_version} "
                 f"does not have suffix in code. The version in code is: {airflow_version}.\n"
+                f"Overriding the version in code with the {version_suffix}."
             )
-            console.print(
-                "[yellow]Make sure that you remove the suffix before using `--version-suffix-for-pypi`!"
-            )
-            sys.exit(1)
+            airflow_version = Version(airflow_version).base_version
+            update_version = True
         else:
             update_version = True
     if update_version:

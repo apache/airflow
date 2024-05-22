@@ -20,10 +20,17 @@ name: Additional CI image checks
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on:
-        description: "The array of labels (in json form) determining type of the runner to use for the build."
-        required: false
-        default: '["ubuntu-22.04"]'
+      runs-on-as-json-default:
+        description: "The array of labels (in json form) determining default runner used for the build."
+        required: true
+        type: string
+      runs-on-as-json-public:
+        description: "The array of labels (in json form) determining public runners."
+        required: true
+        type: string
+      runs-on-as-json-self-hosted:
+        description: "The array of labels (in json form) determining self-hosted runners."
+        required: true
         type: string
       image-tag:
         description: "Tag to set for the image"
@@ -61,14 +68,6 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether this is a canary run (true/false)"
         required: true
         type: string
-      mypy-folders:
-        description: "The list of folders to run mypy on"
-        required: true
-        type: string
-      needs-mypy:
-        description: "Whether to run mypy checks (true) or not (false)"
-        required: true
-        type: string
       latest-versions-only:
         description: "Whether to run only latest versions (true/false)"
         required: true
@@ -101,7 +100,8 @@ jobs:
       packages: write
     secrets: inherit
     with:
-      # Runs on Public runners
+      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
+      runs-on-as-json-self-hosted: ${{ inputs.runs-on-as-json-self-hosted }}
       cache-type: "Early"
       include-prod-images: "false"
       push-latest-images: "false"
@@ -112,13 +112,13 @@ jobs:
       use-uv: "true"
       include-success-outputs: ${{ inputs.include-success-outputs }}
       docker-cache: ${{ inputs.docker-cache }}
-    if: inputs.canary-run == 'true' && inputs.branch == 'main'
+    if: inputs.branch == 'main'
 
   # Check that after earlier cache push, breeze command will build quickly
   check-that-image-builds-quickly:
     timeout-minutes: 11
     name: Check that image builds quickly
-    runs-on: ["ubuntu-22.04"]
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
     env:
       UPGRADE_TO_NEWER_DEPENDENCIES: false
       PYTHON_MAJOR_MINOR_VERSION: ${{ inputs.default-python-version }}
@@ -127,7 +127,7 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
       VERBOSE: "true"
-    if: inputs.canary-run == 'true' && inputs.branch == 'main'
+    if: inputs.branch == 'main'
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -136,8 +136,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: "Login to ghcr.io"
@@ -158,7 +158,8 @@ jobs:
     secrets: inherit
     with:
       push-image: "false"
-      runs-on: ${{ inputs.runs-on }}
+      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
+      runs-on-as-json-self-hosted: ${{ inputs.runs-on-as-json-self-hosted }}
       image-tag: ${{ inputs.image-tag }}
       python-versions: ${{ inputs.python-versions }}
       platform: "linux/arm64"
@@ -167,42 +168,3 @@ jobs:
       use-uv: "true"
       upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
       docker-cache: ${{ inputs.docker-cache }}
-    if: inputs.canary-run == 'true'
-
-  test-airflow-release-commands:
-    timeout-minutes: 80
-    name: "Test Airflow release commands"
-    runs-on: ["ubuntu-22.0.4"]
-    env:
-      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
-      IMAGE_TAG: ${{ inputs.image-tag }}
-      GITHUB_REPOSITORY: ${{ github.repository }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GITHUB_USERNAME: ${{ github.actor }}
-      VERBOSE: "true"
-    # for now release check is failing and we need to fix it but we don't want to block the PRs
-    if: false
-    steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
-      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}"
-        uses: ./.github/actions/prepare_breeze_and_image
-      - name: "Cleanup dist files"
-        run: rm -fv ./dist/*
-      - name: "Check Airflow create minor branch command"
-        run: breeze release-management create-minor-branch --version-branch 2-8 --answer yes
-      - name: "Check Airflow RC process command"
-        run: >
-          breeze release-management start-rc-process --version 2.8.3rc1 --previous-version 2.8.0
-          --answer yes
-      - name: "Check Airflow release process command"
-        run: >
-          breeze release-management start-release --release-candidate 2.8.3rc1 --previous-release 2.8.0
-          --answer yes

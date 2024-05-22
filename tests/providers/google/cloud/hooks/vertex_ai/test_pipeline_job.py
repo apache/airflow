@@ -21,6 +21,10 @@ import asyncio
 from unittest import mock
 
 import pytest
+
+# For no Pydantic environment, we need to skip the tests
+pytest.importorskip("google.cloud.aiplatform_v1")
+
 from google.api_core.gapic_v1.method import DEFAULT
 
 from airflow.exceptions import AirflowException

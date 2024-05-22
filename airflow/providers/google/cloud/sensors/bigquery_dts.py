@@ -26,6 +26,7 @@ from google.cloud.bigquery_datatransfer_v1 import TransferState
 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -83,7 +84,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         expected_statuses: (
             set[str | TransferState | int] | str | TransferState | int
         ) = TransferState.SUCCEEDED,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         retry: Retry | _MethodDefault = DEFAULT,
         request_timeout: float | None = None,

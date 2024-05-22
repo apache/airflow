@@ -20,10 +20,13 @@ name: Push image cache
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on:
-        description: "The array of labels (in json form) determining type of the runner to use for the build."
-        required: false
-        default: "[\"ubuntu-22.04\"]"
+      runs-on-as-json-public:
+        description: "The array of labels (in json form) determining public runners."
+        required: true
+        type: string
+      runs-on-as-json-self-hosted:
+        description: "The array of labels (in json form) determining self-hosted runners."
+        required: true
         type: string
       cache-type:
         description: "Type of cache to push (Early / Regular)."
@@ -76,11 +79,15 @@ on:  # yamllint disable-line rule:truthy
 jobs:
   push-ci-image-cache:
     name: "Push CI ${{ inputs.cache-type }}:${{ matrix.python }} image cache "
-    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    # NOTE!!!!! This has to be put in one line for runs-on to recognize the "fromJSON" properly !!!!
+    # adding space before (with >) apparently turns the `runs-on` processed line into a string "Array"
+    # instead of an array of strings.
+    # yamllint disable-line rule:line-length
+    runs-on: ${{ (inputs.platform == 'linux/amd64') && fromJSON(inputs.runs-on-as-json-public) || fromJSON(inputs.runs-on-as-json-self-hosted) }}
     strategy:
       fail-fast: false
       matrix:
-        python: ${{ fromJson(inputs.python-versions) }}
+        python: ${{ fromJSON(inputs.python-versions) }}
     env:
       COMMIT_SHA: ${{ github.sha }}
       # You can override CONSTRAINTS_GITHUB_REPOSITORY by setting secret in your repo but by default the
@@ -110,8 +117,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: "Start ARM instance"
@@ -134,11 +141,15 @@ jobs:
 
   push-prod-image-cache:
     name: "Push PROD ${{ inputs.cache-type }}:${{ matrix.python }} image cache"
-    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    # NOTE!!!!! This has to be put in one line for runs-on to recognize the "fromJSON" properly !!!!
+    # adding space before (with >) apparently turns the `runs-on` processed line into a string "Array"
+    # instead of an array of strings.
+    # yamllint disable-line rule:line-length
+    runs-on: ${{ (inputs.platform == 'linux/amd64') && fromJSON(inputs.runs-on-as-json-public) || fromJSON(inputs.runs-on-as-json-self-hosted) }}
     strategy:
       fail-fast: false
       matrix:
-        python: ${{ fromJson(inputs.python-versions) }}
+        python: ${{ fromJSON(inputs.python-versions) }}
     env:
       COMMIT_SHA: ${{ github.sha }}
       # You can override CONSTRAINTS_GITHUB_REPOSITORY by setting secret in your repo but by default the
@@ -156,7 +167,7 @@ jobs:
       GITHUB_USERNAME: ${{ github.actor }}
       INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
       UPGRADE_TO_NEWER_DEPENDENCIES: "false"
-      USE_UV: ${{ inputs.use-uv }}
+      USE_UV: ${{ inputs.branch == 'main' && inputs.use-uv || 'false' }}
       VERBOSE: "true"
       VERSION_SUFFIX_FOR_PYPI: "dev0"
     if: inputs.include-prod-images == 'true'
@@ -168,8 +179,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: "Cleanup dist and context file"

@@ -576,7 +576,7 @@ class EmrContainerOperator(BaseOperator):
                 stacklevel=2,
             )
             if max_polling_attempts and max_polling_attempts != max_tries:
-                raise Exception("max_polling_attempts must be the same value as max_tries")
+                raise ValueError("max_polling_attempts must be the same value as max_tries")
             else:
                 self.max_polling_attempts = max_tries
 
@@ -613,6 +613,14 @@ class EmrContainerOperator(BaseOperator):
             self.defer(
                 timeout=timeout,
                 trigger=EmrContainerTrigger(
+                    virtual_cluster_id=self.virtual_cluster_id,
+                    job_id=self.job_id,
+                    aws_conn_id=self.aws_conn_id,
+                    waiter_delay=self.poll_interval,
+                    waiter_max_attempts=self.max_polling_attempts,
+                )
+                if self.max_polling_attempts
+                else EmrContainerTrigger(
                     virtual_cluster_id=self.virtual_cluster_id,
                     job_id=self.job_id,
                     aws_conn_id=self.aws_conn_id,

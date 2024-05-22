@@ -131,6 +131,7 @@ class TestPythonPackages:
             "googleapiclient",
             "google.auth",
             "google_auth_httplib2",
+            "google.cloud.automl",
             "google.cloud.bigquery_datatransfer",
             "google.cloud.bigtable",
             "google.cloud.container",
@@ -173,6 +174,12 @@ class TestPythonPackages:
     @pytest.mark.parametrize("package_name,import_names", PACKAGE_IMPORTS.items())
     def test_check_dependencies_imports(self, package_name, import_names, default_docker_image):
         run_python_in_docker(f"import {','.join(import_names)}", image=default_docker_image)
+
+    def test_there_is_no_opt_airflow_airflow_folder(self, default_docker_image):
+        output = run_bash_in_docker(
+            "find /opt/airflow/airflow/ 2>/dev/null | wc -l", image=default_docker_image
+        )
+        assert output == "0"
 
 
 class TestExecuteAsRoot:
