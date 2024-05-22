@@ -17,14 +17,18 @@
 from __future__ import annotations
 
 import pytest
+from unittest import mock
 
 from airflow.exceptions import AirflowException
 from airflow.providers.opensearch.hooks.opensearch import OpenSearchHook
-
+from airflow.models import Connection
+from opensearchpy.connection.http_urllib3 import Urllib3HttpConnection
+from opensearchpy.connection.http_requests import RequestsHttpConnection
 pytestmark = pytest.mark.db_test
 
 
 MOCK_SEARCH_RETURN = {"status": "test"}
+DEFAULT_CONN = RequestsHttpConnection
 
 
 class TestOpenSearchHook:
@@ -46,3 +50,29 @@ class TestOpenSearchHook:
         hook = OpenSearchHook(open_search_conn_id="opensearch_default", log_query=True)
         with pytest.raises(AirflowException, match="must include one of either a query or a document id"):
             hook.delete(index_name="test_index")
+
+    @mock.patch('airflow.hooks.base.BaseHook.get_connection')       
+    def test_hook_param_bool(self, mock_get_connection):   
+        mock_conn = Connection(
+            conn_id="opensearch_default",
+            extra={
+                "use_ssl":"True", 
+                "verify_certs":"True"
+            }
+        )       
+        mock_get_connection.return_value = mock_conn
+        hook = OpenSearchHook(open_search_conn_id="opensearch_default", log_query=True)
+
+        assert type(hook.use_ssl) == bool
+        assert type(hook.verify_certs) ==bool
+        
+    def test_load_conn_param(self, mock_hook):
+        hook_default = OpenSearchHook(open_search_conn_id="opensearch_default", log_query=True)
+        assert issubclass(hook_default.connection_class, DEFAULT_CONN)
+
+        hook_Urllib3 = OpenSearchHook(open_search_conn_id="opensearch_default", log_query=True, open_search_conn_class="Urllib3HttpConnection")
+        assert issubclass(hook_Urllib3.connection_class, Urllib3HttpConnection)
+        
+        hook_invalid_conn = OpenSearchHook(open_search_conn_id="opensearch_default", log_query=True, open_search_conn_class="invalid_connection")
+        assert hook_invalid_conn.connection_class == None
+            

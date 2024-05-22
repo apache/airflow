@@ -29,10 +29,10 @@ from airflow.utils.strings import to_boolean
 from airflow.utils.module_loading import import_string
 
 DEFAULT_CONN_TYPES = frozenset({
-    "opensearchpy.RequestsHttpConnection", 
-    "opensearchpy.Urllib3HttpConnection",
-    "opensearchpy.AsyncHttpConnection", 
-    "opensearchpy.PoolingConnection"
+    "RequestsHttpConnection", 
+    "Urllib3HttpConnection",
+    "AsyncHttpConnection", 
+    "PoolingConnection"
 })
 
 
@@ -67,19 +67,20 @@ class OpenSearchHook(BaseHook):
         if module_name:
             if module_name in DEFAULT_CONN_TYPES:
                 try:
-                    module = import_string(module_name)
-                    self.log.info("Loaded connection type: %s", module_name)
+                    module_name_full = f"opensearchpy.{module_name}"
+                    module = import_string(module_name_full)
+                    self.log.info(f"Loaded connection type: {module_name}")
                     return module
                 except ImportError as error:
-                    self.log.debug("Cannot import connection type '%s' due to: %s", error)
+                    self.log.debug(f"Cannot import connection type '{module_name}' due to: {error}")
                     raise AirflowException(error)
             else:
-                    self.log.warning(
-                        "Skipping import of connection type '%s'. The class should be listed in "
-                        "DEFAULT_CONN_TYPES.",
-                        module_name,
-                    )
+                self.log.warning(
+                    f"Skipping import of connection type '{module_name}'. The class should be listed in "
+                    "DEFAULT_CONN_TYPES."
+                )
             return None
+
 
     @cached_property
     def conn(self):
