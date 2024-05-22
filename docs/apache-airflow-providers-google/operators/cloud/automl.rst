@@ -41,11 +41,6 @@ To create a Google AutoML dataset you can use
 :class:`~airflow.providers.google.cloud.operators.automl.AutoMLCreateDatasetOperator`.
 The operator returns dataset id in :ref:`XCom <concepts:xcom>` under ``dataset_id`` key.
 
-This operator is deprecated when running for text, video and vision prediction and will be removed soon.
-All the functionality of legacy AutoML Natural Language, Vision, Video Intelligence and new features are
-available on the Vertex AI platform. Please use
-:class:`~airflow.providers.google.cloud.operators.vertex_ai.dataset.CreateDatasetOperator`
-
 .. exampleinclude:: /../../tests/system/providers/google/cloud/automl/example_automl_dataset.py
     :language: python
     :dedent: 4
@@ -64,16 +59,11 @@ After creating a dataset you can use it to import some data using
 To update dataset you can use
 :class:`~airflow.providers.google.cloud.operators.automl.AutoMLTablesUpdateDatasetOperator`.
 
-This operator is deprecated when running for text, video and vision prediction and will be removed soon.
-All the functionality of legacy AutoML Natural Language, Vision, Video Intelligence and new features are
-available on the Vertex AI platform. Please use
-:class:`~airflow.providers.google.cloud.operators.vertex_ai.dataset.UpdateDatasetOperator`
-
-.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_dataset.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/automl/example_automl_dataset.py
     :language: python
     :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_update_dataset_operator]
-    :end-before: [END how_to_cloud_vertex_ai_update_dataset_operator]
+    :start-after: [START howto_operator_automl_update_dataset]
+    :end-before: [END howto_operator_automl_update_dataset]
 
 .. _howto/operator:AutoMLTablesListTableSpecsOperator:
 .. _howto/operator:AutoMLTablesListColumnSpecsOperator:
@@ -84,10 +74,20 @@ Listing Table And Columns Specs
 To list table specs you can use
 :class:`~airflow.providers.google.cloud.operators.automl.AutoMLTablesListTableSpecsOperator`.
 
+.. exampleinclude:: /../../tests/system/providers/google/cloud/automl/example_automl_dataset.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_automl_specs]
+    :end-before: [END howto_operator_automl_specs]
+
 To list column specs you can use
 :class:`~airflow.providers.google.cloud.operators.automl.AutoMLTablesListColumnSpecsOperator`.
 
-AutoML Tables related operators are deprecated. Please use related Vertex AI Tabular operators.
+.. exampleinclude:: /../../tests/system/providers/google/cloud/automl/example_automl_dataset.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_automl_column_specs]
+    :end-before: [END howto_operator_automl_column_specs]
 
 .. _howto/operator:AutoMLTrainModelOperator:
 .. _howto/operator:AutoMLGetModelOperator:
@@ -102,7 +102,7 @@ To create a Google AutoML model you can use
 The operator will wait for the operation to complete. Additionally the operator
 returns the id of model in :ref:`XCom <concepts:xcom>` under ``model_id`` key.
 
-This operator is deprecated when running for text, video and vision prediction and will be removed soon.
+This Operator is deprecated when running for text, video and vision prediction and will be removed soon.
 All the functionality of legacy AutoML Natural Language, Vision, Video Intelligence and new features are
 available on the Vertex AI platform. Please use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTextTrainingJobOperator`,
@@ -148,44 +148,29 @@ and
 To get existing model one can use
 :class:`~airflow.providers.google.cloud.operators.automl.AutoMLGetModelOperator`.
 
-This operator deprecated for tables, video intelligence, vision and natural language is deprecated
-and will be removed after 31.03.2024. Please use
-:class:`airflow.providers.google.cloud.operators.vertex_ai.model_service.GetModelOperator` instead.
-You can find example on how to use VertexAI operators here:
-
-.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_model_service.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/automl/example_automl_model.py
     :language: python
     :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_get_model_operator]
-    :end-before: [END how_to_cloud_vertex_ai_get_model_operator]
+    :start-after: [START howto_operator_get_model]
+    :end-before: [END howto_operator_get_model]
 
 Once a model is created it could be deployed using
 :class:`~airflow.providers.google.cloud.operators.automl.AutoMLDeployModelOperator`.
 
-This operator deprecated for tables, video intelligence, vision and natural language is deprecated
-and will be removed after 31.03.2024. Please use
-:class:`airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.DeployModelOperator` instead.
-You can find example on how to use VertexAI operators here:
-
-.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_endpoint.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/automl/example_automl_model.py
     :language: python
     :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_deploy_model_operator]
-    :end-before: [END how_to_cloud_vertex_ai_deploy_model_operator]
+    :start-after: [START howto_operator_deploy_model]
+    :end-before: [END howto_operator_deploy_model]
 
 If you wish to delete a model you can use
 :class:`~airflow.providers.google.cloud.operators.automl.AutoMLDeleteModelOperator`.
 
-This operator deprecated for tables, video intelligence, vision and natural language is deprecated
-and will be removed after 31.03.2024. Please use
-:class:`airflow.providers.google.cloud.operators.vertex_ai.model_service.DeleteModelOperator` instead.
-You can find example on how to use VertexAI operators here:
-
-.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_model_service.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/automl/example_automl_model.py
     :language: python
     :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_delete_model_operator]
-    :end-before: [END how_to_cloud_vertex_ai_delete_model_operator]
+    :start-after: [START howto_operator_automl_delete_model]
+    :end-before: [END howto_operator_automl_delete_model]
 
 .. _howto/operator:AutoMLPredictOperator:
 .. _howto/operator:AutoMLBatchPredictOperator:
@@ -210,33 +195,6 @@ the model must be deployed.
     :start-after: [START howto_operator_batch_prediction]
     :end-before: [END howto_operator_batch_prediction]
 
-Th :class:`~airflow.providers.google.cloud.operators.automl.AutoMLBatchPredictOperator` deprecated for tables,
-video intelligence, vision and natural language is deprecated and will be removed after 31.03.2024. Please use
-:class:`airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.CreateBatchPredictionJobOperator`,
-:class:`airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.GetBatchPredictionJobOperator`,
-:class:`airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.ListBatchPredictionJobsOperator`,
-:class:`airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.DeleteBatchPredictionJobOperator`,
-instead.
-You can find examples on how to use VertexAI operators here:
-
-.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_batch_prediction_job.py
-    :language: python
-    :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_create_batch_prediction_job_operator]
-    :end-before: [END how_to_cloud_vertex_ai_create_batch_prediction_job_operator]
-
-.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_batch_prediction_job.py
-    :language: python
-    :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_list_batch_prediction_job_operator]
-    :end-before: [END how_to_cloud_vertex_ai_list_batch_prediction_job_operator]
-
-.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_batch_prediction_job.py
-    :language: python
-    :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_delete_batch_prediction_job_operator]
-    :end-before: [END how_to_cloud_vertex_ai_delete_batch_prediction_job_operator]
-
 .. _howto/operator:AutoMLListDatasetOperator:
 .. _howto/operator:AutoMLDeleteDatasetOperator:
 
@@ -247,30 +205,20 @@ You can get a list of AutoML datasets using
 :class:`~airflow.providers.google.cloud.operators.automl.AutoMLListDatasetOperator`. The operator returns list
 of datasets ids in :ref:`XCom <concepts:xcom>` under ``dataset_id_list`` key.
 
-This operator deprecated for tables, video intelligence, vision and natural language is deprecated
-and will be removed after 31.03.2024. Please use
-:class:`airflow.providers.google.cloud.operators.vertex_ai.dataset.ListDatasetsOperator` instead.
-You can find example on how to use VertexAI operators here:
-
-.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_dataset.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/automl/example_automl_dataset.py
     :language: python
     :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_list_dataset_operator]
-    :end-before: [END how_to_cloud_vertex_ai_list_dataset_operator]
+    :start-after: [START howto_operator_list_dataset]
+    :end-before: [END howto_operator_list_dataset]
 
 To delete a dataset you can use :class:`~airflow.providers.google.cloud.operators.automl.AutoMLDeleteDatasetOperator`.
 The delete operator allows also to pass list or coma separated string of datasets ids to be deleted.
 
-This operator deprecated for tables, video intelligence, vision and natural language is deprecated
-and will be removed after 31.03.2024. Please use
-:class:`airflow.providers.google.cloud.operators.vertex_ai.dataset.DeleteDatasetOperator` instead.
-You can find example on how to use VertexAI operators here:
-
-.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_dataset.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/automl/example_automl_dataset.py
     :language: python
     :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_delete_dataset_operator]
-    :end-before: [END how_to_cloud_vertex_ai_delete_dataset_operator]
+    :start-after: [START howto_operator_delete_dataset]
+    :end-before: [END howto_operator_delete_dataset]
 
 Reference
 ^^^^^^^^^

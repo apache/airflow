@@ -21,10 +21,8 @@ from __future__ import annotations
 
 import ast
 import warnings
-from functools import cached_property
 from typing import TYPE_CHECKING, Sequence, Tuple
 
-from deprecated import deprecated
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.automl_v1beta1 import (
     BatchPredictResult,
@@ -35,9 +33,8 @@ from google.cloud.automl_v1beta1 import (
     TableSpec,
 )
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
-from airflow.providers.google.cloud.hooks.vertex_ai.prediction_service import PredictionServiceHook
 from airflow.providers.google.cloud.links.automl import (
     AutoMLDatasetLink,
     AutoMLDatasetListLink,
@@ -56,36 +53,12 @@ if TYPE_CHECKING:
 MetaData = Sequence[Tuple[str, str]]
 
 
-def _raise_exception_for_deprecated_operator(
-    deprecated_class_name: str, alternative_class_names: str | list[str]
-):
-    if isinstance(alternative_class_names, str):
-        alternative_class_name_str = alternative_class_names
-    elif len(alternative_class_names) == 1:
-        alternative_class_name_str = alternative_class_names[0]
-    else:
-        alternative_class_name_str = ", ".join(f"`{cls_name}`" for cls_name in alternative_class_names[:-1])
-        alternative_class_name_str += f" or `{alternative_class_names[-1]}`"
-
-    raise AirflowException(
-        f"{deprecated_class_name} for text, image, and video prediction has been "
-        f"deprecated and no longer available. All the functionality of "
-        f"legacy AutoML Natural Language, Vision, Video Intelligence and Tables "
-        f"and new features are available on the Vertex AI platform. "
-        f"Please use {alternative_class_name_str} from Vertex AI."
-    )
-
-
 class AutoMLTrainModelOperator(GoogleCloudBaseOperator):
     """
     Creates Google Cloud AutoML model.
 
-    AutoMLTrainModelOperator for tables, video intelligence, vision and natural language has been deprecated
-    and no longer available. Please use
-    :class:`airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTabularTrainingJobOperator`,
-    :class:`airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLVideoTrainingJobOperator`,
-    :class:`airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLImageTrainingJobOperator`,
-    :class:`airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTextTrainingJobOperator`,
+    AutoMLTrainModelOperator for text prediction is deprecated. Please use
+    :class:`airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTextTrainingJobOperator`
     instead.
 
     .. seealso::
@@ -147,16 +120,17 @@ class AutoMLTrainModelOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
-        # Raise exception if running not AutoML Translation prediction job
+        # Output warning if running not AutoML Translation prediction job
         if "translation_model_metadata" not in self.model:
-            _raise_exception_for_deprecated_operator(
-                self.__class__.__name__,
-                [
-                    "CreateAutoMLTabularTrainingJobOperator",
-                    "CreateAutoMLVideoTrainingJobOperator",
-                    "CreateAutoMLImageTrainingJobOperator",
-                    "CreateAutoMLTextTrainingJobOperator",
-                ],
+            warnings.warn(
+                "AutoMLTrainModelOperator for text, image and video prediction is deprecated. "
+                "All the functionality of legacy "
+                "AutoML Natural Language, Vision and Video Intelligence and new features are available "
+                "on the Vertex AI platform. "
+                "Please use `CreateAutoMLTextTrainingJobOperator`, `CreateAutoMLImageTrainingJobOperator` or"
+                " `CreateAutoMLVideoTrainingJobOperator` from VertexAI.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=3,
             )
         hook = CloudAutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -200,8 +174,7 @@ class AutoMLPredictOperator(GoogleCloudBaseOperator):
         :ref:`howto/operator:AutoMLPredictOperator`
 
     :param model_id: Name of the model requested to serve the batch prediction.
-    :param endpoint_id: Name of the endpoint used for the prediction.
-    :param payload: Name of the model used for the prediction.
+    :param payload: Name od the model used for the prediction.
     :param project_id: ID of the Google Cloud project where model is located if None then
         default project_id is used.
     :param location: The location of the project.
@@ -233,12 +206,10 @@ class AutoMLPredictOperator(GoogleCloudBaseOperator):
     def __init__(
         self,
         *,
-        model_id: str | None = None,
-        endpoint_id: str | None = None,
+        model_id: str,
         location: str,
         payload: dict,
         operation_params: dict[str, str] | None = None,
-        instances: list[str] | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
         metadata: MetaData = (),
         timeout: float | None = None,
@@ -250,9 +221,7 @@ class AutoMLPredictOperator(GoogleCloudBaseOperator):
         super().__init__(**kwargs)
 
         self.model_id = model_id
-        self.endpoint_id = endpoint_id
         self.operation_params = operation_params  # type: ignore
-        self.instances = instances
         self.location = location
         self.project_id = project_id
         self.metadata = metadata
@@ -262,69 +231,23 @@ class AutoMLPredictOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    @cached_property
-    def hook(self) -> CloudAutoMLHook | PredictionServiceHook:
-        if self.model_id:
-            return CloudAutoMLHook(
-                gcp_conn_id=self.gcp_conn_id,
-                impersonation_chain=self.impersonation_chain,
-            )
-        else:  # endpoint_id defined
-            return PredictionServiceHook(
-                gcp_conn_id=self.gcp_conn_id,
-                impersonation_chain=self.impersonation_chain,
-            )
-
-    def _check_model_type(self):
-        hook = self.hook
-        model = hook.get_model(
+    def execute(self, context: Context):
+        hook = CloudAutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        result = hook.predict(
             model_id=self.model_id,
+            payload=self.payload,
             location=self.location,
             project_id=self.project_id,
+            params=self.operation_params,
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        if not hasattr(model, "translation_model_metadata"):
-            raise AirflowException(
-                "AutoMLPredictOperator for text, image, and video prediction has been deprecated. "
-                "Please use endpoint_id param instead of model_id param."
-            )
-
-    def execute(self, context: Context):
-        if self.model_id is None and self.endpoint_id is None:
-            raise AirflowException("You must specify model_id or endpoint_id!")
-
-        if self.model_id:
-            self._check_model_type()
-
-        hook = self.hook
-        if self.model_id:
-            result = hook.predict(
-                model_id=self.model_id,
-                payload=self.payload,
-                location=self.location,
-                project_id=self.project_id,
-                params=self.operation_params,
-                retry=self.retry,
-                timeout=self.timeout,
-                metadata=self.metadata,
-            )
-        else:  # self.endpoint_id is defined
-            result = hook.predict(
-                endpoint_id=self.endpoint_id,
-                instances=self.instances,
-                payload=self.payload,
-                location=self.location,
-                project_id=self.project_id,
-                parameters=self.operation_params,
-                retry=self.retry,
-                timeout=self.timeout,
-                metadata=self.metadata,
-            )
-
         project_id = self.project_id or hook.project_id
-        if project_id and self.model_id:
+        if project_id:
             AutoMLModelPredictLink.persist(
                 context=context,
                 task_instance=self,
@@ -337,14 +260,6 @@ class AutoMLPredictOperator(GoogleCloudBaseOperator):
 class AutoMLBatchPredictOperator(GoogleCloudBaseOperator):
     """
     Perform a batch prediction on Google Cloud AutoML.
-
-    AutoMLBatchPredictOperator for tables, video intelligence, vision and natural language has been deprecated
-    and no longer available. Please use
-    :class:`airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.CreateBatchPredictionJobOperator`,
-    :class:`airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.GetBatchPredictionJobOperator`,
-    :class:`airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.ListBatchPredictionJobsOperator`,
-    :class:`airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.DeleteBatchPredictionJobOperator`,
-    instead.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -426,25 +341,6 @@ class AutoMLBatchPredictOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        model: Model = hook.get_model(
-            model_id=self.model_id,
-            location=self.location,
-            project_id=self.project_id,
-            retry=self.retry,
-            timeout=self.timeout,
-            metadata=self.metadata,
-        )
-
-        if not hasattr(model, "translation_model_metadata"):
-            _raise_exception_for_deprecated_operator(
-                self.__class__.__name__,
-                [
-                    "CreateBatchPredictionJobOperator",
-                    "GetBatchPredictionJobOperator",
-                    "ListBatchPredictionJobsOperator",
-                    "DeleteBatchPredictionJobOperator",
-                ],
-            )
         self.log.info("Fetch batch prediction.")
         operation = hook.batch_predict(
             model_id=self.model_id,
@@ -474,10 +370,6 @@ class AutoMLBatchPredictOperator(GoogleCloudBaseOperator):
 class AutoMLCreateDatasetOperator(GoogleCloudBaseOperator):
     """
     Creates a Google Cloud AutoML dataset.
-
-    AutoMLCreateDatasetOperator for tables, video intelligence, vision and natural language has been
-    deprecated and no longer available. Please use
-    :class:`airflow.providers.google.cloud.operators.vertex_ai.dataset.CreateDatasetOperator` instead.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -538,8 +430,6 @@ class AutoMLCreateDatasetOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
-        if "translation_dataset_metadata" not in self.dataset:
-            _raise_exception_for_deprecated_operator(self.__class__.__name__, "CreateDatasetOperator")
         hook = CloudAutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -572,10 +462,6 @@ class AutoMLCreateDatasetOperator(GoogleCloudBaseOperator):
 class AutoMLImportDataOperator(GoogleCloudBaseOperator):
     """
     Imports data to a Google Cloud AutoML dataset.
-
-    AutoMLImportDataOperator for tables, video intelligence, vision and natural language has been deprecated
-    and no longer available. Please use
-    :class:`airflow.providers.google.cloud.operators.vertex_ai.dataset.ImportDataOperator` instead.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -644,16 +530,6 @@ class AutoMLImportDataOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        dataset: Dataset = hook.get_dataset(
-            dataset_id=self.dataset_id,
-            location=self.location,
-            project_id=self.project_id,
-            retry=self.retry,
-            timeout=self.timeout,
-            metadata=self.metadata,
-        )
-        if not hasattr(dataset, "translation_dataset_metadata"):
-            _raise_exception_for_deprecated_operator(self.__class__.__name__, "ImportDataOperator")
         self.log.info("Importing data to dataset...")
         operation = hook.import_data(
             dataset_id=self.dataset_id,
@@ -786,21 +662,9 @@ class AutoMLTablesListColumnSpecsOperator(GoogleCloudBaseOperator):
         return result
 
 
-@deprecated(
-    reason=(
-        "Class `AutoMLTablesUpdateDatasetOperator` has been deprecated and no longer available. "
-        "Please use `UpdateDatasetOperator` instead"
-    ),
-    category=AirflowProviderDeprecationWarning,
-    action="error",
-)
 class AutoMLTablesUpdateDatasetOperator(GoogleCloudBaseOperator):
     """
     Updates a dataset.
-
-    AutoMLTablesUpdateDatasetOperator has been deprecated and no longer available. Please use
-    :class:`airflow.providers.google.cloud.operators.vertex_ai.dataset.UpdateDatasetOperator`
-    instead.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -889,10 +753,6 @@ class AutoMLGetModelOperator(GoogleCloudBaseOperator):
     """
     Get Google Cloud AutoML model.
 
-    AutoMLGetModelOperator for tables, video intelligence, vision and natural language has been deprecated
-    and no longer available. Please use
-    :class:`airflow.providers.google.cloud.operators.vertex_ai.model_service.GetModelOperator` instead.
-
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:AutoMLGetModelOperator`
@@ -963,8 +823,6 @@ class AutoMLGetModelOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        if not hasattr(result, "translation_model_metadata"):
-            _raise_exception_for_deprecated_operator(self.__class__.__name__, "GetModelOperator")
         model = Model.to_dict(result)
         project_id = self.project_id or hook.project_id
         if project_id:
@@ -981,10 +839,6 @@ class AutoMLGetModelOperator(GoogleCloudBaseOperator):
 class AutoMLDeleteModelOperator(GoogleCloudBaseOperator):
     """
     Delete Google Cloud AutoML model.
-
-    AutoMLDeleteModelOperator for tables, video intelligence, vision and natural language has been deprecated
-    and no longer available. Please use
-    :class:`airflow.providers.google.cloud.operators.vertex_ai.model_service.DeleteModelOperator` instead.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1047,16 +901,6 @@ class AutoMLDeleteModelOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        model: Model = hook.get_model(
-            model_id=self.model_id,
-            location=self.location,
-            project_id=self.project_id,
-            retry=self.retry,
-            timeout=self.timeout,
-            metadata=self.metadata,
-        )
-        if not hasattr(model, "translation_model_metadata"):
-            _raise_exception_for_deprecated_operator(self.__class__.__name__, "DeleteModelOperator")
         operation = hook.delete_model(
             model_id=self.model_id,
             location=self.location,
@@ -1069,14 +913,6 @@ class AutoMLDeleteModelOperator(GoogleCloudBaseOperator):
         self.log.info("Deletion is completed")
 
 
-@deprecated(
-    reason=(
-        "Class `AutoMLDeployModelOperator` has been deprecated and no longer available. Please use "
-        "`DeployModelOperator` instead"
-    ),
-    category=AirflowProviderDeprecationWarning,
-    action="error",
-)
 class AutoMLDeployModelOperator(GoogleCloudBaseOperator):
     """
     Deploys a model; if a model is already deployed, deploying it with the same parameters has no effect.
@@ -1086,10 +922,6 @@ class AutoMLDeployModelOperator(GoogleCloudBaseOperator):
 
     Only applicable for Text Classification, Image Object Detection and Tables; all other
     domains manage deployment automatically.
-
-    AutoMLDeployModelOperator has been deprecated and no longer available. Please use
-    :class:`airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.DeployModelOperator`
-    instead.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1157,16 +989,6 @@ class AutoMLDeployModelOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        model = hook.get_model(
-            model_id=self.model_id,
-            location=self.location,
-            project_id=self.project_id,
-            retry=self.retry,
-            timeout=self.timeout,
-            metadata=self.metadata,
-        )
-        if not hasattr(model, "translation_model_metadata"):
-            _raise_exception_for_deprecated_operator(self.__class__.__name__, "DeployModelOperator")
         self.log.info("Deploying model_id %s", self.model_id)
 
         operation = hook.deploy_model(
@@ -1286,10 +1108,6 @@ class AutoMLListDatasetOperator(GoogleCloudBaseOperator):
     """
     Lists AutoML Datasets in project.
 
-    AutoMLListDatasetOperator for tables, video intelligence, vision and natural language has been deprecated
-    and no longer available. Please use
-    :class:`airflow.providers.google.cloud.operators.vertex_ai.dataset.ListDatasetsOperator` instead.
-
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:AutoMLListDatasetOperator`
@@ -1354,16 +1172,7 @@ class AutoMLListDatasetOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        result = []
-        for dataset in page_iterator:
-            if not hasattr(dataset, "translation_dataset_metadata"):
-                warnings.warn(
-                    "Class `AutoMLListDatasetOperator` has been deprecated and no longer available. "
-                    "Please use `ListDatasetsOperator` instead.",
-                    stacklevel=2,
-                )
-            else:
-                result.append(Dataset.to_dict(dataset))
+        result = [Dataset.to_dict(dataset) for dataset in page_iterator]
         self.log.info("Datasets obtained.")
 
         self.xcom_push(
@@ -1380,10 +1189,6 @@ class AutoMLListDatasetOperator(GoogleCloudBaseOperator):
 class AutoMLDeleteDatasetOperator(GoogleCloudBaseOperator):
     """
     Deletes a dataset and all of its contents.
-
-    AutoMLDeleteDatasetOperator for tables, video intelligence, vision and natural language has been
-    deprecated and no longer available. Please use
-    :class:`airflow.providers.google.cloud.operators.vertex_ai.dataset.DeleteDatasetOperator` instead.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1455,16 +1260,6 @@ class AutoMLDeleteDatasetOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        dataset: Dataset = hook.get_dataset(
-            dataset_id=self.dataset_id,
-            location=self.location,
-            project_id=self.project_id,
-            retry=self.retry,
-            timeout=self.timeout,
-            metadata=self.metadata,
-        )
-        if not hasattr(dataset, "translation_dataset_metadata"):
-            _raise_exception_for_deprecated_operator(self.__class__.__name__, "DeleteDatasetOperator")
         dataset_id_list = self._parse_dataset_id(self.dataset_id)
         for dataset_id in dataset_id_list:
             self.log.info("Deleting dataset %s", dataset_id)
