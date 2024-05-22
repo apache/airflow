@@ -63,7 +63,7 @@ classifiers = [
     "Topic :: System :: Monitoring",
 ]
 
-dynamic = ["version", "optional-dependencies", "dependencies", "entry-points"]
+dynamic = ["version", "optional-dependencies", "dependencies"]
 
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # !!! YOU MIGHT BE SURPRISED NOT SEEING THE DEPENDENCIES AS `project.dependencies`     !!!!!!!!!
