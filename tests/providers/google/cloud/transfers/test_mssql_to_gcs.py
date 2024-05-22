@@ -27,7 +27,6 @@ try:
 except ImportError:
     pytest.skip("MSSQL not available", allow_module_level=True)
 
-
 TASK_ID = "test-mssql-to-gcs"
 MSSQL_CONN_ID = "mssql_conn_test"
 SQL = "select 1"
@@ -67,8 +66,6 @@ SCHEMA_JSON_BIT_FIELDS = [
 ]
 
 
-@pytest.mark.skip(reason="FIXME: Supposed to use 'mssql' integration which is not implemented yet.")
-@pytest.mark.integration("mssql")
 class TestMsSqlToGoogleCloudStorageOperator:
     @pytest.mark.parametrize(
         "value, expected",

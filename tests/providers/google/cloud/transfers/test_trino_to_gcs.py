@@ -19,8 +19,6 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-import pytest
-
 from airflow.providers.google.cloud.transfers.trino_to_gcs import TrinoToGCSOperator
 
 TASK_ID = "test-trino-to-gcs"
@@ -46,7 +44,6 @@ SCHEMA_FILENAME = "schema_test.json"
 SCHEMA_JSON = b'[{"name": "some_num", "type": "INT64"}, {"name": "some_str", "type": "STRING"}]'
 
 
-@pytest.mark.integration("trino")
 class TestTrinoToGCSOperator:
     def test_init(self):
         """Test TrinoToGCSOperator instance is properly initialized."""
