@@ -129,7 +129,6 @@ from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.helpers import at_most_one, exactly_one, validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
-from sqlalchemy.ext.hybrid import hybrid_property
 from airflow.utils.sqlalchemy import (
     Interval,
     UtcDateTime,
@@ -160,7 +159,9 @@ if TYPE_CHECKING:
     # This is a workaround because mypy doesn't work with hybrid_property
     # TODO: remove this hack and move hybrid_property back to main import block
     # See https://github.com/python/mypy/issues/4430
-
+    hybrid_property = property
+else:
+    from sqlalchemy.ext.hybrid import hybrid_property
 
 log = logging.getLogger(__name__)
 
