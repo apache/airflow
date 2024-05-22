@@ -742,7 +742,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
         waiter_max_attempts: int | None = None,
         waiter_delay: int | None = None,
         waiter_countdown: int | None = None,
-        waiter_check_interval_seconds: int,
+        waiter_check_interval_seconds: int | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs: Any,
     ):
