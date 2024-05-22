@@ -754,7 +754,6 @@ class EmrCreateJobFlowOperator(BaseOperator):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            waiter_delay = waiter_check_interval_seconds
         else:
             waiter_check_interval_seconds = 60
         if waiter_countdown:
