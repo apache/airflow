@@ -363,8 +363,8 @@ def partial(
     if partial_kwargs["pool"] is None:
         partial_kwargs["pool"] = Pool.DEFAULT_POOL_NAME
     if partial_kwargs["pool_slots"] < 1:
-            dag_str = f" in dag {partial_kwargs['dag'].dag_id}" if partial_kwargs['dag'] else ""
-            raise ValueError(f"pool slots for {partial_kwargs['task_id']}{dag_str} cannot be less than 1")
+        dag_str = f" in dag {partial_kwargs['dag'].dag_id}" if partial_kwargs["dag"] else ""
+        raise ValueError(f"pool slots for {partial_kwargs['task_id']}{dag_str} cannot be less than 1")
     partial_kwargs["retries"] = parse_retries(partial_kwargs["retries"])
     partial_kwargs["retry_delay"] = coerce_timedelta(partial_kwargs["retry_delay"], key="retry_delay")
     if partial_kwargs["max_retry_delay"] is not None:
