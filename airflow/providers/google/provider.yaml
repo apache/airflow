@@ -1274,6 +1274,12 @@ extra-links:
   - airflow.providers.google.common.links.storage.StorageLink
   - airflow.providers.google.common.links.storage.FileDetailsLink
   - airflow.providers.google.marketing_platform.links.analytics_admin.GoogleAnalyticsPropertyLink
+  - airflow.providers.google.cloud.links.translate.TranslationLegacyDatasetLink
+  - airflow.providers.google.cloud.links.translate.TranslationDatasetListLink
+  - airflow.providers.google.cloud.links.translate.TranslationLegacyModelLink
+  - airflow.providers.google.cloud.links.translate.TranslationLegacyModelTrainLink
+  - airflow.providers.google.cloud.links.translate.TranslationLegacyModelPredictLink
+
 
 secrets-backends:
   - airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
