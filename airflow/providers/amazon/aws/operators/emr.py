@@ -776,7 +776,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
         self.region_name = region_name
         self.wait_for_completion = wait_for_completion
         self.waiter_max_attempts = waiter_max_attempts or 60
-        self.waiter_delay = waiter_delay or 60
+        self.waiter_delay = waiter_delay or waiter_check_interval_seconds or 60
         self.deferrable = deferrable
 
     @cached_property
