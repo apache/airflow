@@ -38,7 +38,7 @@ class TeradataOperator(SQLExecuteQueryOperator):
         :ref:`howto/operator:TeradataOperator`
 
     :param sql: the SQL query to be executed as a single string, or a list of str (sql statements)
-    :param conn_id: reference to a predefined database
+    :param teradata_conn_id: reference to a predefined database
     :param autocommit: if True, each command is automatically committed.(default value: False)
     :param parameters: (optional) the parameters to render the SQL query with.
     :param schema: The Teradata database to connect to.
@@ -54,7 +54,7 @@ class TeradataOperator(SQLExecuteQueryOperator):
 
     def __init__(
         self,
-        conn_id: str = TeradataHook.default_conn_name,
+        teradata_conn_id: str = TeradataHook.default_conn_name,
         schema: str | None = None,
         **kwargs,
     ) -> None:
@@ -65,7 +65,7 @@ class TeradataOperator(SQLExecuteQueryOperator):
                 **hook_params,
             }
         super().__init__(**kwargs)
-        self.conn_id = conn_id
+        self.conn_id = teradata_conn_id
 
 
 class TeradataStoredProcedureOperator(BaseOperator):
@@ -73,7 +73,7 @@ class TeradataStoredProcedureOperator(BaseOperator):
     Executes stored procedure in a specific Teradata database.
 
     :param procedure: name of stored procedure to call (templated)
-    :param conn_id: The :ref:`Teradata connection id <howto/connection:teradata>`
+    :param teradata_conn_id: The :ref:`Teradata connection id <howto/connection:teradata>`
         reference to a specific Teradata database.
     :param parameters: (optional, templated) the parameters provided in the call
 
@@ -89,15 +89,15 @@ class TeradataStoredProcedureOperator(BaseOperator):
         self,
         *,
         procedure: str,
-        conn_id: str = TeradataHook.default_conn_name,
+        teradata_conn_id: str = TeradataHook.default_conn_name,
         parameters: dict | list | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.conn_id = conn_id
+        self.teradata_conn_id = teradata_conn_id
         self.procedure = procedure
         self.parameters = parameters
 
     def execute(self, context: Context):
-        hook = TeradataHook(teradata_conn_id=self.conn_id)
+        hook = TeradataHook(teradata_conn_id=self.teradata_conn_id)
         return hook.callproc(self.procedure, autocommit=True, parameters=self.parameters)

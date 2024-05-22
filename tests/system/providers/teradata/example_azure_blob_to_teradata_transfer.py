@@ -51,7 +51,7 @@ with DAG(
     start_date=datetime.datetime(2020, 2, 2),
     schedule="@once",
     catchup=False,
-    default_args={"conn_id": "teradata_default"},
+    default_args={"teradata_conn_id": CONN_ID},
 ) as dag:
     # [START azure_blob_to_teradata_transfer_operator_howto_guide_transfer_data_blob_to_teradata_csv]
     transfer_data_csv = AzureBlobStorageToTeradataOperator(
@@ -59,21 +59,18 @@ with DAG(
         blob_source_key="/az/akiaxox5jikeotfww4ul.blob.core.windows.net/td-usgs/CSVDATA/09380000/2018/06/",
         teradata_table="example_blob_teradata_csv",
         azure_conn_id="wasb_default",
-        teradata_conn_id="teradata_default",
         trigger_rule="all_done",
     )
     # [END azure_blob_to_teradata_transfer_operator_howto_guide_transfer_data_blob_to_teradata_csv]
     # [START azure_blob_to_teradata_transfer_operator_howto_guide_read_data_table_csv]
     read_data_table_csv = TeradataOperator(
         task_id="read_data_table_csv",
-        conn_id=CONN_ID,
         sql="SELECT count(1) from example_blob_teradata_csv;",
     )
     # [END azure_blob_to_teradata_transfer_operator_howto_guide_read_data_table_csv]
     # [START azure_blob_to_teradata_transfer_operator_howto_guide_drop_table_csv]
     drop_table_csv = TeradataOperator(
         task_id="drop_table_csv",
-        conn_id=CONN_ID,
         sql="DROP TABLE example_blob_teradata_csv;",
     )
     # [END azure_blob_to_teradata_transfer_operator_howto_guide_drop_table_csv]
@@ -83,21 +80,18 @@ with DAG(
         blob_source_key="/az/akiaxox5jikeotfww4ul.blob.core.windows.net/td-usgs/JSONDATA/09380000/2018/06/",
         teradata_table="example_blob_teradata_json",
         azure_conn_id="wasb_default",
-        teradata_conn_id="teradata_default",
         trigger_rule="all_done",
     )
     # [END azure_blob_to_teradata_transfer_operator_howto_guide_transfer_data_blob_to_teradata_json]
     # [START azure_blob_to_teradata_transfer_operator_howto_guide_read_data_table_json]
     read_data_table_json = TeradataOperator(
         task_id="read_data_table_json",
-        conn_id=CONN_ID,
         sql="SELECT count(1) from example_blob_teradata_json;",
     )
     # [END azure_blob_to_teradata_transfer_operator_howto_guide_read_data_table_json]
     # [START azure_blob_to_teradata_transfer_operator_howto_guide_drop_table_json]
     drop_table_json = TeradataOperator(
         task_id="drop_table_json",
-        conn_id=CONN_ID,
         sql="DROP TABLE example_blob_teradata_json;",
     )
     # [END azure_blob_to_teradata_transfer_operator_howto_guide_drop_table_json]
@@ -114,14 +108,12 @@ with DAG(
     # [START azure_blob_to_teradata_transfer_operator_howto_guide_read_data_table_parquet]
     read_data_table_parquet = TeradataOperator(
         task_id="read_data_table_parquet",
-        conn_id=CONN_ID,
         sql="SELECT count(1) from example_blob_teradata_parquet;",
     )
     # [END azure_blob_to_teradata_transfer_operator_howto_guide_read_data_table_parquet]
     # [START azure_blob_to_teradata_transfer_operator_howto_guide_drop_table_parquet]
     drop_table_parquet = TeradataOperator(
         task_id="drop_table_parquet",
-        conn_id=CONN_ID,
         sql="DROP TABLE example_blob_teradata_parquet;",
     )
     # [END azure_blob_to_teradata_transfer_operator_howto_guide_drop_table_parquet]

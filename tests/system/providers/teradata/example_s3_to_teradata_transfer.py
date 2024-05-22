@@ -52,7 +52,7 @@ with DAG(
     start_date=datetime.datetime(2020, 2, 2),
     schedule="@once",
     catchup=False,
-    default_args={"conn_id": "teradata_default"},
+    default_args={"teradata_conn_id": CONN_ID},
 ) as dag:
     # [START s3_to_teradata_transfer_operator_howto_guide_transfer_data_s3_to_teradata_csv]
     transfer_data_csv = S3ToTeradataOperator(
@@ -61,7 +61,6 @@ with DAG(
         public_bucket=True,
         teradata_table="example_s3_teradata_csv",
         aws_conn_id="aws_default",
-        teradata_conn_id="teradata_default",
         trigger_rule="all_done",
     )
     # [END s3_to_teradata_transfer_operator_howto_guide_transfer_data_s3_to_teradata_csv]
@@ -86,21 +85,18 @@ with DAG(
         public_bucket=True,
         teradata_table="example_s3_teradata_json",
         aws_conn_id="aws_default",
-        teradata_conn_id="teradata_default",
         trigger_rule="all_done",
     )
     # [END s3_to_teradata_transfer_operator_howto_guide_transfer_data_s3_to_teradata_json]
     # [START s3_to_teradata_transfer_operator_howto_guide_read_data_table_json]
     read_data_table_json = TeradataOperator(
         task_id="read_data_table_json",
-        conn_id=CONN_ID,
         sql="SELECT * from example_s3_teradata_json;",
     )
     # [END s3_to_teradata_transfer_operator_howto_guide_read_data_table_json]
     # [START s3_to_teradata_transfer_operator_howto_guide_drop_table_json]
     drop_table_json = TeradataOperator(
         task_id="drop_table_json",
-        conn_id=CONN_ID,
         sql="DROP TABLE example_s3_teradata_json;",
     )
     # [END s3_to_teradata_transfer_operator_howto_guide_drop_table_json]
@@ -111,21 +107,18 @@ with DAG(
         public_bucket=True,
         teradata_table="example_s3_teradata_parquet",
         aws_conn_id="aws_default",
-        teradata_conn_id="teradata_default",
         trigger_rule="all_done",
     )
     # [END s3_to_teradata_transfer_operator_howto_guide_transfer_data_s3_to_teradata_parquet]
     # [START s3_to_teradata_transfer_operator_howto_guide_read_data_table_parquet]
     read_data_table_parquet = TeradataOperator(
         task_id="read_data_table_parquet",
-        conn_id=CONN_ID,
         sql="SELECT * from example_s3_teradata_parquet;",
     )
     # [END s3_to_teradata_transfer_operator_howto_guide_read_data_table_parquet]
     # [START s3_to_teradata_transfer_operator_howto_guide_drop_table_parquet]
     drop_table_parquet = TeradataOperator(
         task_id="drop_table_parquet",
-        conn_id=CONN_ID,
         sql="DROP TABLE example_s3_teradata_parquet;",
     )
     # [END s3_to_teradata_transfer_operator_howto_guide_drop_table_parquet]

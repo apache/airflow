@@ -51,12 +51,11 @@ with DAG(
     start_date=datetime.datetime(2020, 2, 2),
     schedule="@once",
     catchup=False,
-    default_args={"conn_id": "teradata_default"},
+    default_args={"teradata_conn_id": CONN_ID},
 ) as dag:
     # [START teradata_to_teradata_transfer_operator_howto_guide_create_src_table]
     create_src_table = TeradataOperator(
         task_id="create_src_table",
-        conn_id=CONN_ID,
         sql="""
             CREATE TABLE my_users_src,
             FALLBACK (
@@ -76,7 +75,6 @@ with DAG(
     # [START teradata_to_teradata_transfer_operator_howto_guide_create_dest_table]
     create_dest_table = TeradataOperator(
         task_id="create_dest_table",
-        conn_id=CONN_ID,
         sql="""
             CREATE TABLE my_users_dest,
             FALLBACK (
@@ -96,7 +94,6 @@ with DAG(
     # [START teradata_to_teradata_transfer_operator_howto_guide_insert_data_src]
     insert_data_src = TeradataOperator(
         task_id="insert_data_src",
-        conn_id=CONN_ID,
         sql="""
             INSERT INTO my_users_src(user_name) VALUES ('User1');
             INSERT INTO my_users_src(user_name) VALUES ('User2');
@@ -107,7 +104,6 @@ with DAG(
     # [START teradata_to_teradata_transfer_operator_howto_guide_read_data_src]
     read_data_src = TeradataOperator(
         task_id="read_data_src",
-        conn_id=CONN_ID,
         sql="SELECT TOP 10 * from my_users_src order by user_id desc;",
     )
     # [END teradata_to_teradata_transfer_operator_howto_guide_read_data_src]
@@ -125,21 +121,18 @@ with DAG(
     # [START teradata_to_teradata_transfer_operator_howto_guide_read_data_dest]
     read_data_dest = TeradataOperator(
         task_id="read_data_dest",
-        conn_id=CONN_ID,
         sql="SELECT TOP 10 * from my_users_dest order by user_id desc;",
     )
     # [END teradata_to_teradata_transfer_operator_howto_guide_read_data_dest]
     # [START teradata_to_teradata_transfer_operator_howto_guide_drop_src_table]
     drop_src_table = TeradataOperator(
         task_id="drop_src_table",
-        conn_id=CONN_ID,
         sql=" DROP TABLE my_users_src;",
     )
     # [END teradata_to_teradata_transfer_operator_howto_guide_drop_src_table]
     # [START teradata_to_teradata_transfer_operator_howto_guide_drop_dest_table]
     drop_dest_table = TeradataOperator(
         task_id="drop_dest_table",
-        conn_id=CONN_ID,
         sql="DROP TABLE my_users_dest;",
     )
     # [END teradata_to_teradata_transfer_operator_howto_guide_drop_dest_table]

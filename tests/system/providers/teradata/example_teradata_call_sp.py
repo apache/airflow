@@ -47,7 +47,7 @@ with DAG(
     max_active_runs=1,
     max_active_tasks=3,
     catchup=False,
-    default_args={"conn_id": CONN_ID},
+    default_args={"teradata_conn_id": CONN_ID},
     schedule="@once",
     start_date=datetime(2023, 1, 1),
 ) as dag:
