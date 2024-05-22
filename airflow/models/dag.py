@@ -139,6 +139,7 @@ from airflow.utils.sqlalchemy import (
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
+from sqlalchemy.ext.hybrid import hybrid_property
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -159,9 +160,9 @@ if TYPE_CHECKING:
     # This is a workaround because mypy doesn't work with hybrid_property
     # TODO: remove this hack and move hybrid_property back to main import block
     # See https://github.com/python/mypy/issues/4430
-    hybrid_property = property
-else:
-    from sqlalchemy.ext.hybrid import hybrid_property
+#     hybrid_property = property
+# else:
+    # from sqlalchemy.ext.hybrid import hybrid_property
 
 log = logging.getLogger(__name__)
 
