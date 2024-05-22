@@ -290,7 +290,7 @@ class TestNeptuneStopClusterOperator:
         operator.execute(None)
         mock_waiter.assert_called_with("cluster_stopped")
 
-    @mock.patch("airflow.providers.amazon.aws.operators.neptune.NeptuneStopDbClusterOperator.defer")
+    @mock.patch.object(NeptuneStopDbClusterOperator, "defer")
     @mock.patch.object(NeptuneHook, "conn")
     def test_stop_cluster_not_ready_defer(self, mock_conn, mock_defer):
         err_response = {"Error": {"Code": "InvalidClusterState", "Message": "Test message"}}

@@ -88,7 +88,7 @@ class NeptuneHook(AwsBaseHook):
         :param cluster_id: The ID of the cluster to get the status of.
         :return: The status of the cluster.
         """
-        return self.get_conn().describe_db_clusters(DBClusterIdentifier=cluster_id)["DBClusters"][0]["Status"]
+        return self.conn.describe_db_clusters(DBClusterIdentifier=cluster_id)["DBClusters"][0]["Status"]
 
     def get_db_instance_status(self, instance_id: str) -> str:
         """
@@ -97,7 +97,7 @@ class NeptuneHook(AwsBaseHook):
         :param instance_id: The ID of the instance to get the status of.
         :return: The status of the instance.
         """
-        return self.get_conn().describe_db_instances(DBInstanceIdentifier=instance_id)["DBInstances"][0][
+        return self.conn.describe_db_instances(DBInstanceIdentifier=instance_id)["DBInstances"][0][
             "DBInstanceStatus"
         ]
 
