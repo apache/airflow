@@ -40,11 +40,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.7.0
-  # Changes in `3.41.6` introduce incorrect import of `beautifulsoup4`
-  - atlassian-python-api>=1.14.2,!=3.41.6
-  # `beautifulsoup4` not listed in `atlassian-python-api` install requirements
-  # in versions before 3.41.7 however depend on it
-  - beautifulsoup4
+  - atlassian-python-api>3.41.10
 
 integrations:
   - integration-name: Atlassian Jira

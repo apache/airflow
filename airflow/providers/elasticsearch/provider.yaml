@@ -160,10 +160,19 @@ config:
       index_patterns:
         description: |
           Comma separated list of index patterns to use when searching for logs (default: `_all`).
+          The index_patterns_callable takes precedence over this.
         version_added: 2.6.0
         type: string
         example: something-*
         default: "_all"
+      index_patterns_callable:
+        description: |
+          A string representing the full path to the Python callable path which accept TI object and
+          return comma separated list of index patterns. This will takes precedence over index_patterns.
+        version_added: 5.5.0
+        type: string
+        example: module.callable
+        default: ""
   elasticsearch_configs:
     description: ~
     options:
