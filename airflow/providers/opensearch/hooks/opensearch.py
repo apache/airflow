@@ -25,6 +25,16 @@ from opensearchpy import OpenSearch, RequestsHttpConnection
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.utils.strings import to_boolean
+from airflow.utils.module_loading import import_string
+
+DEFAULT_CONN_TYPES = frozenset({
+    "opensearchpy.RequestsHttpConnection", 
+    "opensearchpy.Urllib3HttpConnection",
+    "opensearchpy.AsyncHttpConnection", 
+    "opensearchpy.PoolingConnection"
+})
+
 
 
 class OpenSearchHook(BaseHook):
@@ -40,14 +50,36 @@ class OpenSearchHook(BaseHook):
     conn_type = "opensearch"
     hook_name = "OpenSearch Hook"
 
-    def __init__(self, open_search_conn_id: str, log_query: bool, **kwargs: Any):
+    def __init__(self, open_search_conn_id: str, log_query: bool, open_search_conn_class: str="RequestsHttpConnection", **kwargs: Any):
         super().__init__(**kwargs)
         self.conn_id = open_search_conn_id
         self.log_query = log_query
 
-        self.use_ssl = self.conn.extra_dejson.get("use_ssl", False)
-        self.verify_certs = self.conn.extra_dejson.get("verify_certs", False)
+        self.use_ssl = to_boolean(str(self.conn.extra_dejson.get("use_ssl", False)))
+        self.verify_certs = to_boolean(str(self.conn.extra_dejson.get("verify_certs", False))) 
+        self.connection_class = self._load_conn_type(open_search_conn_class)
         self.__SERVICE = "es"
+    
+    def _load_conn_type(self, module_name: str | None) -> Any:
+        """Check if the connection type module is listed in 'DEFAULT_CONN_TYPES' and load it.
+        This method protects against the execution of random modules."""
+
+        if module_name:
+            if module_name in DEFAULT_CONN_TYPES:
+                try:
+                    module = import_string(module_name)
+                    self.log.info("Loaded connection type: %s", module_name)
+                    return module
+                except ImportError as error:
+                    self.log.debug("Cannot import connection type '%s' due to: %s", error)
+                    raise AirflowException(error)
+            else:
+                    self.log.warning(
+                        "Skipping import of connection type '%s'. The class should be listed in "
+                        "DEFAULT_CONN_TYPES.",
+                        module_name,
+                    )
+            return None
 
     @cached_property
     def conn(self):
@@ -62,7 +94,7 @@ class OpenSearchHook(BaseHook):
             http_auth=auth,
             use_ssl=self.use_ssl,
             verify_certs=self.verify_certs,
-            connection_class=RequestsHttpConnection,
+            connection_class=self.connection_class,
         )
         return client
 
