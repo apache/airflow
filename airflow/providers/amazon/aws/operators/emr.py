@@ -748,7 +748,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
     ):
         if waiter_check_interval_seconds:
             warnings.warn(
-                "The parameter waiter_check_interval_seconds has been deprecated to "
+                "The parameter `waiter_check_interval_seconds` has been deprecated to "
                 "standardize naming conventions.  Please use waiter_delay instead.  In the "
                 "future this will default to None and defer to the waiter's default value.",
                 AirflowProviderDeprecationWarning,
