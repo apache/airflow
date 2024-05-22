@@ -68,7 +68,6 @@ IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
     "tests/system/providers/mysql/example_mysql.py",
     "tests/system/providers/postgres/example_postgres.py",
     "tests/system/providers/snowflake/example_snowflake.py",
-    "tests/system/providers/sqlite/example_sqlite.py",
     "tests/system/providers/trino/example_trino.py",
 )
 
