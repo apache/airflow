@@ -1934,7 +1934,11 @@ class DAG(LoggingMixin):
         """
         state: list[TaskInstanceState] = []
         if only_failed:
-            state += [TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED]
+            state += [
+                TaskInstanceState.FAILED,
+                TaskInstanceState.UPSTREAM_FAILED,
+                TaskInstanceState.FAILED_IN_QUEUE,
+            ]
         if only_running:
             # Yes, having `+=` doesn't make sense, but this was the existing behaviour
             state += [TaskInstanceState.RUNNING]

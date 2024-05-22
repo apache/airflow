@@ -100,6 +100,7 @@ def get_instance_with_map(task_instance, session):
 priority: list[None | TaskInstanceState] = [
     TaskInstanceState.FAILED,
     TaskInstanceState.UPSTREAM_FAILED,
+    TaskInstanceState.FAILED_IN_QUEUE,
     TaskInstanceState.UP_FOR_RETRY,
     TaskInstanceState.UP_FOR_RESCHEDULE,
     TaskInstanceState.QUEUED,

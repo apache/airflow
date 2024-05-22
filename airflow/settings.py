@@ -106,6 +106,7 @@ json = json
 STATE_COLORS = {
     "deferred": "mediumpurple",
     "failed": "red",
+    "failed_in_queue": "reddishorange",
     "queued": "gray",
     "removed": "lightgrey",
     "restarting": "violet",

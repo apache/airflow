@@ -733,6 +733,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 TaskInstanceState.SUCCESS,
                 TaskInstanceState.QUEUED,
                 TaskInstanceState.RUNNING,
+                TaskInstanceState.FAILED_IN_QUEUE,
             ):
                 tis_with_right_state.append(ti_key)
 
