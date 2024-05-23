@@ -1627,10 +1627,7 @@ class TestKubernetesPodOperator:
     def test_await_container_completion_refreshes_properties_on_exception(
         self, mock_await_container_completion, fetch_requested_container_logs, get_logs
     ):
-        k = KubernetesPodOperator(
-            task_id="task",
-            get_logs=get_logs
-        )
+        k = KubernetesPodOperator(task_id="task", get_logs=get_logs)
         pod = self.run_pod(k)
         client, hook, pod_manager = k.client, k.hook, k.pod_manager
 
