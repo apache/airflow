@@ -551,8 +551,8 @@ class AutoMLHook(GoogleBaseHook):
         is_default_version: bool | None = None,
         model_version_aliases: list[str] | None = None,
         model_version_description: str | None = None,
-        window_stride_length: [int] | None = None,
-        window_max_count: [int] | None = None,
+        window_stride_length: int | None = None,
+        window_max_count: int | None = None,
     ) -> tuple[models.Model | None, str]:
         """
         Create an AutoML Forecasting Training Job.
