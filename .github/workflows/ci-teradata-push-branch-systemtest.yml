@@ -65,7 +65,7 @@ jobs:
           CSAE_TOKEN: ${{ secrets.CSAE_AIRFLOW_TOKEN }}
           CSAE_ENV_PASSWORD: ${{ secrets.CSAE_AIRFLOW_ENV_PASSWORD }}
           CSAE_ENV_NAME: ${{ steps.define-environment-name.outputs.env-name}}
-      - name: "Install Airflow and Teradata Provider"
+      - name: "Install Airflow Core, Airflow Teradata Provider and Run System Tests"
         run: |
               echo Clearscape Environment name : ${{ steps.create-csae-environment.outputs.teradata-server-name }}
               sudo apt update
