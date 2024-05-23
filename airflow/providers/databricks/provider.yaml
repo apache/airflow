@@ -72,6 +72,7 @@ dependencies:
   # The 2.9.1 (to be released soon) already contains the fix
   - databricks-sql-connector>=2.0.0, <3.0.0, !=2.9.0
   - aiohttp>=3.9.2, <4
+  - mergedeep>=1.3.4
 
 additional-extras:
   # pip install apache-airflow-providers-databricks[sdk]
@@ -119,6 +120,9 @@ operators:
   - integration-name: Databricks Repos
     python-modules:
       - airflow.providers.databricks.operators.databricks_repos
+  - integration-name: Databricks Workflows
+    python-modules:
+      - airflow.providers.databricks.operators.workflow
 
 hooks:
   - integration-name: Databricks
