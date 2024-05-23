@@ -54,7 +54,7 @@ class OpenSearchQueryOperator(BaseOperator):
         search_object: Any | None = None,
         index_name: str | None = None,
         opensearch_conn_id: str = "opensearch_default",
-        opensearch_conn_class: str = "RequestsHttpConnection", 
+        opensearch_conn_class: str = "RequestsHttpConnection",
         log_query: bool = True,
         **kwargs,
     ) -> None:
@@ -71,8 +71,8 @@ class OpenSearchQueryOperator(BaseOperator):
         """Get an instance of an OpenSearchHook."""
         return OpenSearchHook(
             open_search_conn_id=self.opensearch_conn_id,
-            open_search_conn_class=self.opensearch_conn_class, 
-            log_query=self.log_query
+            open_search_conn_class=self.opensearch_conn_class,
+            log_query=self.log_query,
         )
 
     def execute(self, context: Context) -> Any:
