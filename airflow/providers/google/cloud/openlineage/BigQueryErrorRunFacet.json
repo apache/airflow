@@ -23,7 +23,7 @@
     },
     "type": "object",
     "properties": {
-      "bigQueryJob": {
+      "bigQuery_error": {
         "$ref": "#/$defs/BigQueryErrorRunFacet"
       }
     }
