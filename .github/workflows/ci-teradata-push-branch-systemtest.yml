@@ -46,7 +46,7 @@ jobs:
           cache: 'pip'
       - name: "Python Version"
         run: python --version
-      - name: "Checkout ClearScape Scripts and Report Generation supported files"
+      - name: "Checkout ClearScape Scripts"
         run: |
             git fetch
             git checkout origin/${{vars.WORKFLOW_HELP_BRANCH}} -- .github/workflows/scripts/createTestEnvironments.sh
