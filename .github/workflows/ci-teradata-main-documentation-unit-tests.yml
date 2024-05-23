@@ -41,7 +41,7 @@
               ref: main
               persist-credentials: false
           - name: "Display current branch"
-            run: echo "The current branch is ${{ github.ref }}"
+            run: echo "The current branch is ${{ github.ref }}" ${{github.event.ref}}
           - name: "Install Python"
             uses: actions/setup-python@v4
             with:
