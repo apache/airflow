@@ -48,6 +48,7 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 XCOM_LOGICAL_DATE_ISO = "trigger_logical_date_iso"
+XCOM_DAG_ID = "trigger_dag_id"
 XCOM_RUN_ID = "trigger_run_id"
 
 
@@ -68,13 +69,13 @@ class TriggerDagRunLink(BaseOperatorLink):
     name = "Triggered DAG"
 
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
-        # Fetch the correct dag_run_id for the triggerED dag which is
-        # stored in xcom during execution of the triggerING task.
-        triggered_dag_run_id = XCom.get_value(ti_key=ti_key, key=XCOM_RUN_ID)
-        query = {
-            "dag_id": cast(TriggerDagRunOperator, operator).trigger_dag_id,
-            "dag_run_id": triggered_dag_run_id,
-        }
+        # Fetch the correct dag id and execution date for the triggerED dag
+        # which is stored in xcom during execution of the triggerING task.
+        dag_id = XCom.get_value(ti_key=ti_key, key=XCOM_DAG_ID)
+        when = XCom.get_value(ti_key=ti_key, key=XCOM_LOGICAL_DATE_ISO)
+        # includes the dag id from the xcom during execution or the one passed into the operator for backwards
+        # compatibility
+        query = {"dag_id": dag_id or cast(TriggerDagRunOperator, operator).trigger_dag_id, "base_date": when}
         return build_airflow_url_with_query(query)
 
 
@@ -225,6 +226,8 @@ class TriggerDagRunOperator(BaseOperator):
         # Store the run id from the dag run (either created or found above) to
         # be used when creating the extra link on the webserver.
         ti = context["task_instance"]
+        ti.xcom_push(key=XCOM_LOGICAL_DATE_ISO, value=dag_run.logical_date.isoformat())
+        ti.xcom_push(key=XCOM_DAG_ID, value=self.trigger_dag_id)
         ti.xcom_push(key=XCOM_RUN_ID, value=dag_run.run_id)
 
         if self.wait_for_completion:
