@@ -161,7 +161,7 @@ class XComArg(ResolveMixin, DependencyMixin):
         for operator, _ in self.iter_references():
             operator.set_downstream(task_or_task_list, edge_modifier)
 
-    def _serialize(self) -> dict[str, Any]:
+    def serialize(self) -> dict[str, Any]:
         """
         Serialize an XComArg.
 
@@ -174,7 +174,7 @@ class XComArg(ResolveMixin, DependencyMixin):
         raise NotImplementedError()
 
     @classmethod
-    def _deserialize(cls, data: dict[str, Any], dag: DAG) -> XComArg:
+    def deserialize(cls, data: dict[str, Any], dag: DAG) -> XComArg:
         """
         Deserialize an XComArg.
 
@@ -313,6 +313,9 @@ class PlainXComArg(XComArg):
             raise ValueError(f"XComArg only supports str lookup, received {type(item).__name__}")
         return PlainXComArg(operator=self.operator, key=item)
 
+    def __hash__(self) -> int:
+        return hash((self.operator.task_id, self.key))
+
     def __iter__(self):
         """
         Override iterable protocol to raise error explicitly.
@@ -355,11 +358,11 @@ class PlainXComArg(XComArg):
         xcom_pull = f"{{{{ task_instance.xcom_pull({xcom_pull_str}) }}}}"
         return xcom_pull
 
-    def _serialize(self) -> dict[str, Any]:
+    def serialize(self) -> dict[str, Any]:
         return {"task_id": self.operator.task_id, "key": self.key}
 
     @classmethod
-    def _deserialize(cls, data: dict[str, Any], dag: DAG) -> XComArg:
+    def deserialize(cls, data: dict[str, Any], dag: DAG) -> XComArg:
         return cls(dag.get_task(data["task_id"]), data["key"])
 
     @property
@@ -528,14 +531,14 @@ class MapXComArg(XComArg):
         map_calls = "".join(f".map({_get_callable_name(f)})" for f in self.callables)
         return f"{self.arg!r}{map_calls}"
 
-    def _serialize(self) -> dict[str, Any]:
+    def serialize(self) -> dict[str, Any]:
         return {
             "arg": serialize_xcom_arg(self.arg),
             "callables": [inspect.getsource(c) if callable(c) else c for c in self.callables],
         }
 
     @classmethod
-    def _deserialize(cls, data: dict[str, Any], dag: DAG) -> XComArg:
+    def deserialize(cls, data: dict[str, Any], dag: DAG) -> XComArg:
         # We are deliberately NOT deserializing the callables. These are shown
         # in the UI, and displaying a function object is useless.
         return cls(deserialize_xcom_arg(data["arg"], dag), data["callables"])
@@ -605,14 +608,14 @@ class ZipXComArg(XComArg):
             return f"{first}.zip({rest})"
         return f"{first}.zip({rest}, fillvalue={self.fillvalue!r})"
 
-    def _serialize(self) -> dict[str, Any]:
+    def serialize(self) -> dict[str, Any]:
         args = [serialize_xcom_arg(arg) for arg in self.args]
         if isinstance(self.fillvalue, ArgNotSet):
             return {"args": args}
         return {"args": args, "fillvalue": self.fillvalue}
 
     @classmethod
-    def _deserialize(cls, data: dict[str, Any], dag: DAG) -> XComArg:
+    def deserialize(cls, data: dict[str, Any], dag: DAG) -> XComArg:
         return cls(
             [deserialize_xcom_arg(arg, dag) for arg in data["args"]],
             fillvalue=data.get("fillvalue", NOTSET),
@@ -727,11 +730,11 @@ def serialize_xcom_arg(value: XComArg) -> dict[str, Any]:
     """DAG serialization interface."""
     key = next(k for k, v in _XCOM_ARG_TYPES.items() if isinstance(value, v))
     if key:
-        return {"type": key, **value._serialize()}
-    return value._serialize()
+        return {"type": key, **value.serialize()}
+    return value.serialize()
 
 
 def deserialize_xcom_arg(data: dict[str, Any], dag: DAG) -> XComArg:
     """DAG serialization interface."""
     klass = _XCOM_ARG_TYPES[data.get("type", "")]
-    return klass._deserialize(data, dag)
+    return klass.deserialize(data, dag)
