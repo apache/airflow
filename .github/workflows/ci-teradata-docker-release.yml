@@ -1,0 +1,55 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+    name: airflow-teradata-docker-release
+    on:
+      push:
+        branches:
+          - teradata_release_*
+      workflow_dispatch:
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    jobs:
+      teradata-docker-release:
+        name: "Build Airflow with Teradata Provider docker and Publish it to teradata docker repository"
+        runs-on: "ubuntu-22.04"
+        steps:
+          - name: "Cleanup repo"
+            run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+          - name: "Checkout Teradata Airflow Source Code"
+            uses: actions/checkout@v4
+          - name: "Install Python"
+            uses: actions/setup-python@v4
+            with:
+              python-version: 3.8
+              cache: 'pip'
+          - name: "Display current branch"
+            run: echo "The current branch is ${{ github.ref }}"
+          - name: "Checkout docker build support files"
+            run: |
+              git fetch
+              git checkout origin/teradata_main -- .github/workflows/scripts/docker/docker-compose.yaml
+              git checkout origin/teradata_main -- .github/workflows/scripts/docker/Dockerfile
+              cp .github/workflows/scripts/docker/docker-compose.yaml .
+              cp .github/workflows/scripts/docker/Dockerfile .
+          - name: "Build Airflow with Teradata Provider docker image"
+            run: docker-compose build
+
+

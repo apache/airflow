@@ -1,0 +1,31 @@
+name: airflow-teradata-teradata_main-sync
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Schedule to run every day at midnight
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+        with:
+            ref: teradata_main
+            persist-credentials: false
+
+      - name: Set up Git
+        run: |
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
+
+      - name: Fetch upstream changes
+        run: git fetch upstream
+
+      - name: Merge changes from upstream
+        run: git merge upstream/main --no-edit
+
+      - name: Push changes to forked branch
+        run: |
+          git push origin HEAD:teradata_main
