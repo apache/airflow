@@ -74,5 +74,5 @@ class TestOpenSearchHook:
         assert issubclass(hook_Urllib3.connection_class, Urllib3HttpConnection)
         
         hook_invalid_conn = OpenSearchHook(open_search_conn_id="opensearch_default", log_query=True, open_search_conn_class="invalid_connection")
-        assert hook_invalid_conn.connection_class == None
+        assert issubclass( hook_invalid_conn.connection_class, DEFAULT_CONN)
             

@@ -77,9 +77,11 @@ class OpenSearchHook(BaseHook):
             else:
                 self.log.warning(
                     f"Skipping import of connection type '{module_name}'. The class should be listed in "
-                    "DEFAULT_CONN_TYPES."
+                    "{" + ", ".join(map(str, DEFAULT_CONN_TYPES)) + "}"
+					"Defaulting to RequestsHttpConnection"
                 )
-            return None
+        #fallback
+        return RequestsHttpConnection
 
 
     @cached_property
