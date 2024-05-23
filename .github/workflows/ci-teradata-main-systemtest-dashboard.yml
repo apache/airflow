@@ -111,6 +111,8 @@ jobs:
       - name: "Generate Teradata Airflow Provider System Tests Report"
         if: always()
         run:  |
+              pwd
+              ls
               ls report_test.xml
               ls reporttest.csv
               cat reporttest.csv
