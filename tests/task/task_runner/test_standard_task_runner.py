@@ -449,10 +449,11 @@ class TestStandardTaskRunner:
             "_AIRFLOW_PARSING_CONTEXT_TASK_ID=task1\n"
         )
 
+    @pytest.mark.db_test
     @mock.patch("airflow.task.task_runner.standard_task_runner.Stats.gauge")
     @patch("airflow.utils.log.file_task_handler.FileTaskHandler._init_file")
-    def test_read_task_utilization(self, mock_init, mock_stats):
-        mock_init.return_value = "/tmp/any"
+    def test_read_task_utilization(self, mock_init, mock_stats, tmp_path):
+        mock_init.return_value = (tmp_path / "test_read_task_utilization.log").as_posix()
         Job = mock.Mock()
         Job.job_type = None
         Job.task_instance = mock.MagicMock()
