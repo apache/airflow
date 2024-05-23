@@ -48,7 +48,6 @@ IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
     # If the deprecation is postponed, the item should be added to this tuple,
     # and a corresponding Issue should be created on GitHub.
     "tests/system/providers/amazon/aws/example_ecs_fargate.py",
-    "tests/system/providers/amazon/aws/example_emr.py",
     "tests/system/providers/amazon/aws/example_emr_notebook_execution.py",
     "tests/system/providers/google/cloud/bigquery/example_bigquery_operations.py",
     "tests/system/providers/google/cloud/bigquery/example_bigquery_sensors.py",
