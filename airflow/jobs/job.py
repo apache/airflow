@@ -245,7 +245,8 @@ class Job(Base, LoggingMixin):
                         )
                     else:
                         self.log.error(
-                            "%s heartbeat failed with error. Scheduler is in unhealthy state", self.__class__.__name__
+                            "%s heartbeat failed with error. Scheduler is in unhealthy state",
+                            self.__class__.__name__,
                         )
                     # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
                     self.latest_heartbeat = previous_heartbeat
