@@ -859,9 +859,7 @@ def static_checks(
     if show_diff_on_failure:
         command_to_execute.append("--show-diff-on-failure")
     if last_commit:
-        get_console().print(
-            "\n[info]Running checks for last commit in the current branch current branch: HEAD^..HEAD\n"
-        )
+        get_console().print("\n[info]Running checks for last commit in the current branch: HEAD^..HEAD\n")
         command_to_execute.extend(["--from-ref", "HEAD^", "--to-ref", "HEAD"])
     if commit_ref:
         get_console().print(f"\n[info]Running checks for selected commit: {commit_ref}\n")
