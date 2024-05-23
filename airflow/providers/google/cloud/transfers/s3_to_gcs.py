@@ -108,6 +108,10 @@ class S3ToGCSOperator(S3ListOperator):
     :param deferrable: Run operator in the deferrable mode
     :param poll_interval: time in seconds between polling for job completion.
         The value is considered only when running in deferrable mode. Must be greater than 0.
+    :param num_element : number of times option to compression list.
+        If num_element < 1 : If num_element are negative, return s3_objects ( default )
+        Elif num_element = 0 : return []
+        Elif len(s3 list) <= 2 * num_element
 
     **Example**:
 
@@ -121,6 +125,7 @@ class S3ToGCSOperator(S3ListOperator):
            dest_gcs="gs://my.gcs.bucket/some/customers/",
            replace=False,
            gzip=True,
+           num_element=-1,
            dag=my_dag,
        )
 
@@ -154,6 +159,7 @@ class S3ToGCSOperator(S3ListOperator):
         google_impersonation_chain: str | Sequence[str] | None = None,
         deferrable=conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: int = 10,
+        num_element: int = -1,
         **kwargs,
     ):
         super().__init__(bucket=bucket, prefix=prefix, delimiter=delimiter, aws_conn_id=aws_conn_id, **kwargs)
@@ -168,6 +174,7 @@ class S3ToGCSOperator(S3ListOperator):
         if poll_interval <= 0:
             raise ValueError("Invalid value for poll_interval. Expected value greater than 0")
         self.poll_interval = poll_interval
+        self.num_element = num_element
 
     def _check_inputs(self) -> None:
         if self.dest_gcs and not gcs_object_is_directory(self.dest_gcs):
@@ -180,7 +187,7 @@ class S3ToGCSOperator(S3ListOperator):
                 'The destination Google Cloud Storage path must end with a slash "/" or be empty.'
             )
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> list[str]:
         self._check_inputs()
         # use the super method to list all the files in an S3 bucket/key
         s3_objects = super().execute(context)
@@ -200,7 +207,21 @@ class S3ToGCSOperator(S3ListOperator):
         else:
             self.transfer_files(s3_objects, gcs_hook, s3_hook)
 
+        s3_objects = self.compress_s3_object_list(s3_objects, self.num_element)
         return s3_objects
+
+    def compress_s3_object_list(self, s3_objects: list[str], num_element: int) -> list[str]:
+        """s3 object list compression"""
+        if num_element < 0:
+            return s3_objects
+        elif num_element == 0:
+            return []
+        elif len(s3_objects) <= 2 * num_element:
+            return s3_objects
+        half = (num_element - 1) // 2
+
+        return s3_objects[:half] + ["..."] + s3_objects[-half:]
+
 
     def exclude_existing_objects(self, s3_objects: list[str], gcs_hook: GCSHook) -> list[str]:
         """Excludes from the list objects that already exist in GCS bucket."""
