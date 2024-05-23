@@ -1046,7 +1046,7 @@ class DatabricksNotebookOperator(BaseOperator):
         run_state = RunState(**run["state"])
         self.log.info("Current state of the job: %s", run_state.life_cycle_state)
         if self.deferrable and not run_state.is_terminal:
-            return self.defer(
+            self.defer(
                 trigger=DatabricksExecutionTrigger(
                     run_id=self.databricks_run_id,
                     databricks_conn_id=self.databricks_conn_id,

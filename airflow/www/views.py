@@ -48,6 +48,7 @@ from flask import (
     Response,
     abort,
     before_render_template,
+    current_app,
     flash,
     g,
     has_request_context,
@@ -67,6 +68,7 @@ from flask_appbuilder.models.sqla.filters import BaseFilter
 from flask_appbuilder.urltools import get_order_args, get_page_args, get_page_size_args
 from flask_appbuilder.widgets import FormWidget
 from flask_babel import lazy_gettext
+from itsdangerous import URLSafeSerializer
 from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from markupsafe import Markup, escape
 from pendulum.datetime import DateTime
@@ -106,7 +108,6 @@ from airflow.models.dag import get_dataset_triggered_next_run_info
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun, DagRunType
 from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.models.errors import ParseImportError
-from airflow.models.operator import needs_expansion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
 from airflow.plugins_manager import PLUGINS_ATTRIBUTES_TO_DUMP
@@ -427,7 +428,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
                     set_overall_state(record)
                     yield record
 
-            if item_is_mapped := needs_expansion(item):
+            if item_is_mapped := item.get_needs_expansion():
                 instances = list(_mapped_summary(grouped_tis[item.task_id]))
             else:
                 instances = [
@@ -740,6 +741,8 @@ class AirflowBaseView(BaseView):
             kwargs["can_edit_dag"] = get_auth_manager().is_authorized_dag(
                 method="PUT", details=DagDetails(id=kwargs["dag"].dag_id)
             )
+            url_serializer = URLSafeSerializer(current_app.config["SECRET_KEY"])
+            kwargs["dag_file_token"] = url_serializer.dumps(kwargs["dag"].fileloc)
 
         return super().render_template(
             *args,
@@ -958,6 +961,7 @@ class Airflow(AirflowBaseView):
             else:
                 dataset_triggered_next_run_info = {}
 
+            file_tokens = {}
             for dag in dags:
                 dag.can_edit = get_auth_manager().is_authorized_dag(
                     method="PUT", details=DagDetails(id=dag.dag_id), user=g.user
@@ -966,6 +970,8 @@ class Airflow(AirflowBaseView):
                 dag.can_delete = get_auth_manager().is_authorized_dag(
                     method="DELETE", details=DagDetails(id=dag.dag_id), user=g.user
                 )
+                url_serializer = URLSafeSerializer(current_app.config["SECRET_KEY"])
+                file_tokens[dag.dag_id] = url_serializer.dumps(dag.fileloc)
 
             dagtags = session.execute(select(func.distinct(DagTag.name)).order_by(DagTag.name)).all()
             tags = [
@@ -1107,6 +1113,7 @@ class Airflow(AirflowBaseView):
             auto_refresh_interval=conf.getint("webserver", "auto_refresh_interval"),
             dataset_triggered_next_run_info=dataset_triggered_next_run_info,
             scarf_url=scarf_url,
+            file_tokens=file_tokens,
         )
 
     @expose("/datasets")
@@ -1405,6 +1412,7 @@ class Airflow(AirflowBaseView):
         raw_task = dag.get_task(task_id).prepare_for_execution()
 
         no_dagrun = False
+        url_serializer = URLSafeSerializer(current_app.config["SECRET_KEY"])
 
         title = "Rendered Template"
         html_dict = {}
@@ -1505,6 +1513,7 @@ class Airflow(AirflowBaseView):
             form=form,
             root=root,
             title=title,
+            dag_file_token=url_serializer.dumps(dag.fileloc),
         )
 
     @expose("/rendered-k8s")
@@ -2881,6 +2890,7 @@ class Airflow(AirflowBaseView):
         color_log_warning_keywords = conf.get("logging", "color_log_warning_keywords", fallback="")
 
         dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
+        url_serializer = URLSafeSerializer(current_app.config["SECRET_KEY"])
         dag_model = DagModel.get_dagmodel(dag_id, session=session)
         if not dag:
             flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")
@@ -2939,6 +2949,7 @@ class Airflow(AirflowBaseView):
             excluded_events_raw=excluded_events_raw,
             color_log_error_keywords=color_log_error_keywords,
             color_log_warning_keywords=color_log_warning_keywords,
+            dag_file_token=url_serializer.dumps(dag.fileloc),
         )
 
     @expose("/calendar")
@@ -3591,6 +3602,22 @@ class Airflow(AirflowBaseView):
         }
 
         return redirect(url_for("Airflow.grid", **kwargs))
+
+    @expose("/parseDagFile/<string:file_token>")
+    def parse_dag(self, file_token: str):
+        from airflow.api_connexion.endpoints.dag_parsing import reparse_dag_file
+
+        with create_session() as session:
+            response = reparse_dag_file(file_token=file_token, session=session)
+            response_messages = {
+                201: ["Reparsing request submitted successfully", "info"],
+                401: ["Unauthenticated request", "error"],
+                403: ["Permission Denied", "error"],
+                404: ["DAG not found", "error"],
+            }
+            flash(response_messages[response.status_code][0], response_messages[response.status_code][1])
+        redirect_url = get_safe_url(request.values.get("redirect_url"))
+        return redirect(redirect_url)
 
 
 class ConfigurationView(AirflowBaseView):

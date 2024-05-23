@@ -394,6 +394,7 @@ combine-as-imports = true
 "tests/providers/google/cloud/hooks/vertex_ai/test_model_service.py" = ["E402"]
 "tests/providers/google/cloud/hooks/vertex_ai/test_pipeline_job.py" = ["E402"]
 "tests/providers/google/cloud/hooks/vertex_ai/test_prediction_service.py" = ["E402"]
+"tests/providers/google/cloud/links/test_translate.py" = ["E402"]
 "tests/providers/google/cloud/operators/test_automl.py"= ["E402"]
 "tests/providers/google/cloud/operators/test_vertex_ai.py" = ["E402"]
 "tests/providers/google/cloud/operators/vertex_ai/test_generative_model.py" = ["E402"]

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This is an example DAG for the use of the SqliteOperator.
+This is an example DAG for the use of the SQLExecuteQueryOperator with Sqlite.
 In this example, we create two tasks that execute in sequence.
 The first task calls an sql command, defined in the SQLite operator,
 which when triggered, is performed on the connected sqlite database.
@@ -29,8 +29,8 @@ import os
 from datetime import datetime
 
 from airflow import DAG
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook
-from airflow.providers.sqlite.operators.sqlite import SqliteOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_sqlite"
@@ -45,7 +45,7 @@ with DAG(
     # [START howto_operator_sqlite]
 
     # Example of creating a task that calls a common CREATE TABLE sql command.
-    create_table_sqlite_task = SqliteOperator(
+    create_table_sqlite_task = SQLExecuteQueryOperator(
         task_id="create_table_sqlite",
         sql=r"""
         CREATE TABLE Customers (
@@ -77,7 +77,7 @@ with DAG(
     # [START howto_operator_sqlite_external_file]
 
     # Example of creating a task that calls an sql command from an external file.
-    external_create_table_sqlite_task = SqliteOperator(
+    external_create_table_sqlite_task = SQLExecuteQueryOperator(
         task_id="create_table_sqlite_external_file",
         sql="create_table.sql",
     )

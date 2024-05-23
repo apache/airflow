@@ -195,6 +195,7 @@ serialized_simple_dag_ground_truth = {
                     },
                     "doc_md": "### Task Tutorial Documentation",
                     "_log_config_logger_name": "airflow.task.operators",
+                    "_needs_expansion": False,
                     "weight_rule": "downstream",
                     "next_method": None,
                     "start_trigger": None,
@@ -224,6 +225,7 @@ serialized_simple_dag_ground_truth = {
                     "is_teardown": False,
                     "on_failure_fail_dagrun": False,
                     "_log_config_logger_name": "airflow.task.operators",
+                    "_needs_expansion": False,
                     "weight_rule": "downstream",
                     "next_method": None,
                     "start_trigger": None,
@@ -456,13 +458,14 @@ class TestStringifiedDAGs:
         del expected["dag"]["schedule_interval"]
         expected["dag"]["timetable"] = serialized_timetable
 
+        # these tasks are not mapped / in mapped task group
+        for task in expected["dag"]["tasks"]:
+            task["__var"]["_needs_expansion"] = False
+
         actual, expected = self.prepare_ser_dags_for_comparison(
             actual=serialized_dag,
             expected=expected,
         )
-        for task in actual["dag"]["tasks"]:
-            for k, v in task.items():
-                print(task["__var"]["task_id"], k, v)
         assert actual == expected
 
     @pytest.mark.db_test
@@ -654,6 +657,7 @@ class TestStringifiedDAGs:
                 # Checked separately
                 "resources",
                 "on_failure_fail_dagrun",
+                "_needs_expansion",
             }
         else:  # Promised to be mapped by the assert above.
             assert isinstance(serialized_task, MappedOperator)
@@ -2243,6 +2247,7 @@ def test_operator_expand_serde():
     assert serialized["__var"] == {
         "_is_empty": False,
         "_is_mapped": True,
+        "_needs_expansion": True,
         "_task_module": "airflow.operators.bash",
         "_task_type": "BashOperator",
         "start_trigger": None,
@@ -2278,6 +2283,7 @@ def test_operator_expand_serde():
 
     assert op.operator_class == {
         "_task_type": "BashOperator",
+        "_needs_expansion": True,
         "start_trigger": None,
         "next_method": None,
         "downstream_task_ids": [],
@@ -2304,6 +2310,7 @@ def test_operator_expand_xcomarg_serde():
     assert serialized["__var"] == {
         "_is_empty": False,
         "_is_mapped": True,
+        "_needs_expansion": True,
         "_task_module": "tests.test_utils.mock_operators",
         "_task_type": "MockOperator",
         "downstream_task_ids": [],
@@ -2358,6 +2365,7 @@ def test_operator_expand_kwargs_literal_serde(strict):
     assert serialized["__var"] == {
         "_is_empty": False,
         "_is_mapped": True,
+        "_needs_expansion": True,
         "_task_module": "tests.test_utils.mock_operators",
         "_task_type": "MockOperator",
         "downstream_task_ids": [],
@@ -2412,6 +2420,7 @@ def test_operator_expand_kwargs_xcomarg_serde(strict):
     assert serialized["__var"] == {
         "_is_empty": False,
         "_is_mapped": True,
+        "_needs_expansion": True,
         "_task_module": "tests.test_utils.mock_operators",
         "_task_type": "MockOperator",
         "downstream_task_ids": [],
@@ -2513,6 +2522,7 @@ def test_taskflow_expand_serde():
     assert serialized["__var"] == {
         "_is_empty": False,
         "_is_mapped": True,
+        "_needs_expansion": True,
         "_task_module": "airflow.decorators.python",
         "_task_type": "_PythonDecoratedOperator",
         "_operator_name": "@task",
@@ -2610,6 +2620,7 @@ def test_taskflow_expand_kwargs_serde(strict):
     assert serialized["__var"] == {
         "_is_empty": False,
         "_is_mapped": True,
+        "_needs_expansion": True,
         "_task_module": "airflow.decorators.python",
         "_task_type": "_PythonDecoratedOperator",
         "_operator_name": "@task",
@@ -2765,6 +2776,7 @@ def test_mapped_task_with_operator_extra_links_property():
         "_task_module": "tests.serialization.test_dag_serialization",
         "_is_empty": False,
         "_is_mapped": True,
+        "_needs_expansion": True,
         "next_method": None,
         "start_trigger": None,
     }
