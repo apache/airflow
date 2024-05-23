@@ -631,7 +631,9 @@ class DagFileProcessor(LoggingMixin):
                     synchronize_session="fetch",
                 )
                 # sending notification when an existing dag import error occurs
-                get_listener_manager().hook.on_existing_dag_import_error(filename=filename, stacktrace=stacktrace)
+                get_listener_manager().hook.on_existing_dag_import_error(
+                    filename=filename, stacktrace=stacktrace
+                )
             else:
                 session.add(
                     ParseImportError(
@@ -641,7 +643,7 @@ class DagFileProcessor(LoggingMixin):
                         processor_subdir=processor_subdir,
                     )
                 )
-                #sending notification when a new dag import error occurs
+                # sending notification when a new dag import error occurs
                 get_listener_manager().hook.on_new_dag_import_error(filename=filename, stacktrace=stacktrace)
             (
                 session.query(DagModel)

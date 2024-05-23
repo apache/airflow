@@ -24,8 +24,8 @@ hookspec = HookspecMarker("airflow")
 
 @hookspec
 def on_new_dag_import_error(filename, stacktrace):
-    """Execute when new dag import error appears"""
+    """Execute when new dag import error appears."""
 
 @hookspec
 def on_existing_dag_import_error(filename, stacktrace):
-    """Execute when existing dag import error appears"""
+    """Execute when existing dag import error appears."""
