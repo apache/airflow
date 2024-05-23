@@ -17,24 +17,19 @@
 # under the License.
 from __future__ import annotations
 
-import json
 from enum import Enum
-from typing import Any, Sequence, List, Dict
 
 from alibabacloud_emr_serverless_spark20230808.client import Client
-
 from alibabacloud_emr_serverless_spark20230808.models import (
-    StartJobRunRequest,
-    StartJobRunResponse,
-    GetJobRunRequest,
-    GetJobRunResponse,
     CancelJobRunRequest,
-    CancelJobRunResponse,
-    Tag,
+    GetJobRunRequest,
+    GetJobRunResponseBodyJobRun,
     JobDriver,
     JobDriverSparkSubmit,
+    StartJobRunRequest,
+    StartJobRunResponse,
+    Tag,
 )
-
 from alibabacloud_tea_openapi.models import Config
 from alibabacloud_tea_util import models as util_models
 
@@ -44,10 +39,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class AppState(Enum):
-    """
-    EMR Serverless Spark Job Run States
-
-    """
+    """EMR Serverless Spark Job Run States."""
 
     SUBMITTED = "Submitted"
     PENDING = "Pending"
@@ -60,6 +52,8 @@ class AppState(Enum):
 
 
 class EmrServerlessSparkHook(BaseHook, LoggingMixin):
+    """EMR Serverless Spark Hook."""
+
     TERMINAL_STATES = {AppState.SUCCESS, AppState.FAILED, AppState.CANCELLED, AppState.CANCEL_FAILED}
 
     conn_name_attr = "alibabacloud_conn_id"
@@ -73,7 +67,7 @@ class EmrServerlessSparkHook(BaseHook, LoggingMixin):
         region: str | None = None,
         workspace_id: str | None = None,
         *args,
-        **kwargs
+        **kwargs,
     ) -> None:
         self.emr_serverless_spark_conn_id = emr_serverless_spark_conn_id
         self.emr_serverless_spark_conn = self.get_connection(emr_serverless_spark_conn_id)
@@ -89,21 +83,19 @@ class EmrServerlessSparkHook(BaseHook, LoggingMixin):
         name: str,
         engine_release_version: str | None,
         entry_point: str,
-        entry_point_args: str,
+        entry_point_args: list[str],
         spark_submit_parameters: str,
-        is_prod: bool
+        is_prod: bool,
     ) -> StartJobRunResponse:
-
         env = "production" if is_prod else "dev"
         self.log.info("Submitting application")
-        tags: List[Tag] = [Tag("environment", env), Tag("workflow", "true")]
-        engine_release_version = "esr-2.1-native (Spark 3.3.1, Scala 2.12, Native Runtime)" if (
-                engine_release_version is None) else engine_release_version
-        job_driver_spark_submit = JobDriverSparkSubmit(
-            entry_point,
-            entry_point_args.split(';'),
-            spark_submit_parameters
+        tags: list[Tag] = [Tag("environment", env), Tag("workflow", "true")]
+        engine_release_version = (
+            "esr-2.1-native (Spark 3.3.1, Scala 2.12, Native Runtime)"
+            if (engine_release_version is None)
+            else engine_release_version
         )
+        job_driver_spark_submit = JobDriverSparkSubmit(entry_point, entry_point_args, spark_submit_parameters)
 
         job_driver = JobDriver(job_driver_spark_submit)
 
@@ -114,35 +106,45 @@ class EmrServerlessSparkHook(BaseHook, LoggingMixin):
             name=name,
             release_version=engine_release_version,
             tags=tags,
-            job_driver=job_driver
+            job_driver=job_driver,
         )
 
         runtime = util_models.RuntimeOptions()
         headers = {}
 
         try:
-            return self.client.start_job_run_with_options(self.workspace_id, start_job_run_request, headers,
-                                                          runtime)
+            return self.client.start_job_run_with_options(
+                self.workspace_id, start_job_run_request, headers, runtime
+            )
         except Exception as e:
             self.log.error(e)
             raise AirflowException("Errors when starting job run") from e
 
     def get_job_run_state(self, job_run_id: str) -> str:
-        self.log.debug("Polling state for job run - %s", job_run_id)
+        self.log.info("Polling state for job run - %s", job_run_id)
         try:
-            return (
-                self.client
-                .get_job_run(self.workspace_id, job_run_id, GetJobRunRequest(region_id=self.region))
-                .body.job_run.state
-            )
+            return self.client.get_job_run(
+                self.workspace_id, job_run_id, GetJobRunRequest(region_id=self.region)
+            ).body.job_run.state
         except Exception as e:
             self.log.error(e)
             raise AirflowException(f"Errors when polling state for job run - {job_run_id}") from e
 
+    def get_job_run(self, job_run_id: str) -> GetJobRunResponseBodyJobRun:
+        try:
+            return self.client.get_job_run(
+                self.workspace_id, job_run_id, GetJobRunRequest(region_id=self.region)
+            ).body.job_run
+        except Exception as e:
+            self.log.error(e)
+            raise AirflowException(f"Errors when querying job run - {job_run_id}") from e
+
     def cancel_job_run(self, job_run_id: str) -> None:
         self.log.info("Canceling job run - %s", job_run_id)
         try:
-            self.client.cancel_job_run(self.workspace_id, job_run_id, CancelJobRunRequest(region_id=self.region))
+            self.client.cancel_job_run(
+                self.workspace_id, job_run_id, CancelJobRunRequest(region_id=self.region)
+            )
         except Exception as e:
             self.log.error(e)
             raise AirflowException(f"Errors when canceling job run: {job_run_id}") from e
@@ -159,17 +161,19 @@ class EmrServerlessSparkHook(BaseHook, LoggingMixin):
         access_key_secret = extra_config.get("access_key_secret", None)
         if not access_key_id:
             raise ValueError(
-                f"No access_key_id is specified for connection: {self.emr_serverless_spark_conn_id}")
+                f"No access_key_id is specified for connection: {self.emr_serverless_spark_conn_id}"
+            )
 
         if not access_key_secret:
             raise ValueError(
-                f"No access_key_secret is specified for connection: {self.emr_serverless_spark_conn_id}")
+                f"No access_key_secret is specified for connection: {self.emr_serverless_spark_conn_id}"
+            )
 
         return Client(
             Config(
                 access_key_id=access_key_id,
                 access_key_secret=access_key_secret,
-                endpoint=f'emr-serverless-spark.{self.region}.aliyuncs.com',
+                endpoint=f"emr-serverless-spark.{self.region}.aliyuncs.com",
             )
         )
 

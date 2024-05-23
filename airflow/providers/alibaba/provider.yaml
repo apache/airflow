@@ -69,11 +69,10 @@ integrations:
       - /docs/apache-airflow-providers-alibaba/operators/analyticdb_spark.rst
     tags: [alibaba]
   - integration-name: Alibaba Cloud EMR Serverless Spark
-    external-doc-url: https://api.alibabacloud.com/api-tools/sdk/emr-serverless-spark?version=2023-08-08&language=python-tea&tab=primer-doc
-    # todo: fix this
+    external-doc-url: https://api.alibabacloud.com/document/emr-serverless-spark/2023-08-08/StartJobRun
     how-to-guide:
       - /docs/apache-airflow-providers-alibaba/operators/emr.rst
-    tags: [ alibaba ]
+    tags: [alibaba]
 
 operators:
   - integration-name: Alibaba Cloud OSS
@@ -93,9 +92,6 @@ sensors:
   - integration-name: Alibaba Cloud AnalyticDB Spark
     python-modules:
       - airflow.providers.alibaba.cloud.sensors.analyticdb_spark
-#  - integration-name: Alibaba Cloud EMR Serverless Spark
-#    python-modules:
-#      - airflow.providers.alibaba.cloud.sensors.emr
 
 hooks:
   - integration-name: Alibaba Cloud OSS

@@ -19,20 +19,20 @@ from __future__ import annotations
 
 import time
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 from deprecated.classic import deprecated
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
-from airflow.providers.alibaba.cloud.hooks.emr import EmrServerlessSparkHook, AppState
+from airflow.providers.alibaba.cloud.hooks.emr import AppState, EmrServerlessSparkHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
 class EmrServerlessSparkStartJobRunOperator(BaseOperator):
-    """Operator for users to submit EMR Serverless Spark jobs"""
+    """Operator for users to submit EMR Serverless Spark jobs."""
 
     def __init__(
         self,
@@ -46,7 +46,7 @@ class EmrServerlessSparkStartJobRunOperator(BaseOperator):
         name: str,
         engine_release_version: str | None = None,
         entry_point: str,
-        entry_point_args: str,
+        entry_point_args: list[str],
         spark_submit_parameters: str,
         is_prod: bool,
         **kwargs: Any,
@@ -64,15 +64,18 @@ class EmrServerlessSparkStartJobRunOperator(BaseOperator):
         self.name: str = name
         self.engine_release_version: str | None = engine_release_version
         self.entry_point: str = entry_point
-        self.entry_point_args: str = entry_point_args
+        self.entry_point_args: list[str] = entry_point_args
         self.spark_submit_parameters: str = spark_submit_parameters
         self.is_prod: bool = is_prod
 
     @cached_property
     def hook(self) -> EmrServerlessSparkHook:
         """Get valid hook."""
-        return EmrServerlessSparkHook(emr_serverless_spark_conn_id=self._emr_serverless_spark_conn_id,
-                                      region=self._region, workspace_id=self.workspace_id)
+        return EmrServerlessSparkHook(
+            emr_serverless_spark_conn_id=self._emr_serverless_spark_conn_id,
+            region=self._region,
+            workspace_id=self.workspace_id,
+        )
 
     @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
     def get_hook(self) -> EmrServerlessSparkHook:
@@ -88,7 +91,7 @@ class EmrServerlessSparkStartJobRunOperator(BaseOperator):
             entry_point=self.entry_point,
             entry_point_args=self.entry_point_args,
             spark_submit_parameters=self.spark_submit_parameters,
-            is_prod=self.is_prod
+            is_prod=self.is_prod,
         )
         self.job_run_id = submit_response.body.job_run_id
         self.poll_job_run_state()
@@ -102,12 +105,19 @@ class EmrServerlessSparkStartJobRunOperator(BaseOperator):
     def poll_for_termination(self, job_run_id: str) -> None:
         state = self.hook.get_job_run_state(job_run_id)
         while AppState(state) not in EmrServerlessSparkHook.TERMINAL_STATES:
-            self.log.debug("Job run with id %s is in state: %s", job_run_id, state)
+            self.log.info("Job run with id %s is in state: %s", job_run_id, state)
             time.sleep(self.polling_interval)
             state = self.hook.get_job_run_state(job_run_id)
         self.log.info("Job run with id %s terminated with state: %s", job_run_id, state)
+        self.log.info("Trying to fetch job run details...")
+        self.print_job_run_details(job_run_id)
         if AppState(state) != AppState.SUCCESS:
             raise AirflowException(f"Job run {job_run_id} did not succeed")
+
+    def print_job_run_details(self, job_run_id: str) -> None:
+        job_run = self.hook.get_job_run(job_run_id)
+        self.log.info("Spark UI link for job run - %s: %s", job_run_id, job_run.web_ui)
+        self.log.info("Spark logs for job run - %s: %s", job_run_id, job_run.log)
 
     def on_kill(self) -> None:
         self.kill()
