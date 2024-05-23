@@ -18,7 +18,9 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.models.xcom_arg import XComArg
+from airflow.models.xcom_arg import PlainXComArg, XComArg
+from airflow.operators.bash import BashOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.types import NOTSET
@@ -224,3 +226,9 @@ def test_xcom_zip(dag_maker, session, fillvalue, expected_results):
         ti.run(session=session)
 
     assert results == expected_results
+
+
+def test_plain_xcom_arg_hash():
+    empty_operator = EmptyOperator(task_id="task_id")
+    plain_xcom_arg = PlainXComArg(empty_operator, key="key")
+    assert hash(plain_xcom_arg) == hash(("task_id", "key"))

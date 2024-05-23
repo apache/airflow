@@ -31,10 +31,11 @@ from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel as SDM
-from airflow.providers.standard.operators.bash import BashOperator
+from airflow.operators.bash import BashOperator
+from airflow.operators.python import PythonOperator
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import json
-from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import create_session
 
 from tests_common.test_utils import db
@@ -257,30 +258,36 @@ class TestSerializedDagModel:
             assert deps_order == ["1", "2", "3", "4", "5", "0*", "6*"]
 
             # for good measure, let's check that the dag hash is consistent
-            dag_json = json.dumps(SerializedDAG.to_dict(dag6), sort_keys=True).encode("utf-8")
-            this_dag_hash = md5(dag_json).hexdigest()
+            sdm = SDM(dag6)
 
             # set first dag hash on first pass
             if first_dag_hash is None:
-                first_dag_hash = this_dag_hash
+                first_dag_hash = sdm.dag_hash
 
             # dag hash should not change without change in structure (we're in a loop)
-            assert this_dag_hash == first_dag_hash
+            assert sdm.dag_hash == first_dag_hash
 
-    def test_example_dag_hashes_are_always_consistent(self, session):
-        """
-        This test asserts that the hashes of the example dags are always consistent.
-        """
+    @mock.patch("airflow.models.serialized_dag.md5")
+    def test_trigger_dag_with_xcom_arg(self, mock_md5):
+        """Test that a DAG with a TriggerDagRunOperator with an XComArg as the trigger_dag_id can be serialized."""
+        with DAG(
+            dag_id="example",
+            start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+        ) as dag:
+            t1 = PythonOperator(
+                task_id="t1",
+                python_callable=lambda: "other_dag_id",
+            )
+            TriggerDagRunOperator(
+                task_id="t2",
+                trigger_dag_id=t1.output,
+            )
 
-        def get_hash_set():
-            example_dags = self._write_example_dags()
-            ordered_example_dags = dict(sorted(example_dags.items()))
-            hashes = set()
-            for dag_id in ordered_example_dags.keys():
-                smd = session.execute(select(SDM.dag_hash).where(SDM.dag_id == dag_id)).one()
-                hashes.add(smd.dag_hash)
-            return hashes
+        SDM(dag)
 
-        first_hashes = get_hash_set()
-        # assert that the hashes are the same
-        assert first_hashes == get_hash_set()
+        dag_data_json = mock_md5.call_args_list[0].args[0]
+        serialzied_dag_data = json.loads(dag_data_json)
+        assert (
+            serialzied_dag_data["dag"]["tasks"][1]["__var"]["trigger_dag_id"]
+            == "{{ task_instance.xcom_pull(task_ids='t1', dag_id='example', key='return_value') }}"
+        )
