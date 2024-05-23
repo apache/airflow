@@ -765,7 +765,7 @@ class AutoMLHook(GoogleBaseHook):
             model_version_aliases=model_version_aliases,
             model_version_description=model_version_description,
             window_stride_length=window_stride_length,
-            window_max_count=window_stride_length,
+            window_max_count=window_max_count,
         )
         training_id = self.extract_training_id(self._job.resource_name)
         if model:
