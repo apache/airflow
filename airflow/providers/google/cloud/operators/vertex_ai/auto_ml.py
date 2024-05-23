@@ -225,7 +225,7 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             model_labels=self.model_labels,
             sync=self.sync,
             window_stride_length=self.window_stride_length,
-            window_max_count=self.window_stride_length,
+            window_max_count=self.window_max_count,
         )
 
         if model:
