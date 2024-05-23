@@ -30,7 +30,7 @@ from airflow.io.path import ObjectStoragePath
 class FSSpecLoader(SourceLoader):
     """Create a FSSpecLoader that allows loading modules from remote locations and caches locally."""
 
-    def __init__(self, base_uri, cache_dir):
+    def __init__(self, base_uri: str, cache_dir: str):
         self.base_uri = base_uri
         self.cache_dir = cache_dir
         if not os.path.exists(cache_dir):
@@ -38,7 +38,7 @@ class FSSpecLoader(SourceLoader):
 
     def get_data(self, path):
         osp = ObjectStoragePath(path)
-        return osp.read_text().encode()
+        return osp.read_bytes()
 
     def get_filename(self, fullname):
         return self._get_module_path(fullname)

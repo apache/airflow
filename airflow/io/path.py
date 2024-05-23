@@ -223,12 +223,23 @@ class ObjectStoragePath(CloudPath):
 
         return type(self)(*self.parts, protocol=self.protocol, **options, _rel_path=self.sep.join(parts))
 
+    def is_absolute(self) -> bool:
+        """Return True if the path is absolute."""
+        return bool("_rel_path" not in self.storage_options)
+
+    def __truediv__(self, other: str | os.PathLike) -> ObjectStoragePath:
+        if isinstance(other, ObjectStoragePath):
+            if other.is_absolute():
+                raise ValueError("Cannot join an absolute path to another path.")
+
+            return super().__truediv__(str(other))
+
+        return super().__truediv__(other)
+
     # EXTENDED OPERATIONS
     def walk(
         self, top_down=True, on_error=None, follow_symlinks=False
-    ) -> typing.Generator[
-        tuple[ObjectStoragePath, list[ObjectStoragePath], list[ObjectStoragePath]], None, None
-    ]:
+    ) -> typing.Generator[tuple[ObjectStoragePath, list[str], list[str]], None, None]:
         """Walk the directory tree from this directory.
 
         While Python 3.12+ has Pathlib.walk() it is still reliant on os.walk() which is not
@@ -254,9 +265,9 @@ class ObjectStoragePath(CloudPath):
 
                 if is_dir:
                     if follow_symlinks or not p.is_symlink():
-                        dirnames.append(p.relative_to(self))
+                        dirnames.append(str(p.relative_to(self)))
                 else:
-                    filenames.append(p.relative_to(self))
+                    filenames.append(str(p.relative_to(self)))
 
             # make sure to use a copy of the lists to avoid modifying the original
             # outside of this method

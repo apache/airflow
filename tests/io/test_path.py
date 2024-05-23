@@ -170,11 +170,11 @@ class TestFs:
 
         # check dirs
         t = data[0][1][0]
-        assert t.resolve() == s
+        assert t == s.name
 
         # check file
         t = data[0][2][0]
-        assert t.resolve() == o
+        assert t == o.name
 
         # check roots
         t = data[0][0]
