@@ -36,8 +36,8 @@ jobs:
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout Teradata Airflow Source Code"
         uses: actions/checkout@v4
-      - name: "Display current branch"
-        run: echo "The current branch is ${{ github.ref }}"
+      - name: "Github Event and Branch Details"
+        run: echo "The current checked out branch is main. Workflow trigged Event- ${{ github.event_name  }}. The fully qualified reference (ref) that triggered the workflow run- ${{ github.ref }}"
       - name: "Install Python"
         uses: actions/setup-python@v4
         with:
