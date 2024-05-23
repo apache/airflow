@@ -23,7 +23,6 @@ on:
       - IDE-*
       - teradata_release_*      
       - teradata_main
-  workflow_dispatch:
 jobs:
   teradata-tests:
     name: "Run Teradata Provider Unit and System tests"

@@ -23,7 +23,6 @@
           - IDE-*
           - teradata_release_*
           - teradata_main
-      workflow_dispatch:
     permissions:
       contents: write
       pages: write
