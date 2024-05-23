@@ -138,8 +138,8 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         region: str,
         impersonation_chain: str | Sequence[str] | None = None,
         parent_model: str | None = None,
-        window_stride_length: [int] | None = None,
-        window_max_count: [int] | None = None,
+        window_stride_length: int | None = None,
+        window_max_count: int | None = None,
         **kwargs,
     ) -> None:
         super().__init__(
