@@ -260,8 +260,14 @@ class SnowflakeHook(DbApiHook):
             conn_config.pop("password", None)
 
         refresh_token = self._get_field(extra_dict, "refresh_token") or ""
+        token = self._get_field(extra_dict, "token") or ""
         if refresh_token:
             conn_config["refresh_token"] = refresh_token
+        if token:
+            conn_config["token"] = token
+        if refresh_token and token:
+            raise ValueError("Both access token and refresh token supplied, these are mutually exclusive methods, please only provide one")
+        if refresh_token or token:
             conn_config["authenticator"] = "oauth"
             conn_config["client_id"] = conn.login
             conn_config["client_secret"] = conn.password
