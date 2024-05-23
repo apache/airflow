@@ -49,8 +49,8 @@ jobs:
       - name: "Checkout ClearScape Scripts and Report Generation supported files"
         run: |
             git fetch
-            git checkout origin/teradata_main -- .github/workflows/scripts/createTestEnvironments.sh
-            git checkout origin/teradata_main -- .github/workflows/scripts/deleteTestEnvironments.sh
+            git checkout origin/${{vars.WORKFLOW_HELP_BRANCH}} -- .github/workflows/scripts/createTestEnvironments.sh
+            git checkout origin/${{vars.WORKFLOW_HELP_BRANCH}} -- .github/workflows/scripts/deleteTestEnvironments.sh
       - name: "Define CSAE env name"
         id: define-environment-name
         run: |
