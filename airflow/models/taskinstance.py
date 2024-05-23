@@ -3480,7 +3480,7 @@ class TaskInstance(Base, LoggingMixin):
             ).one_or_none()
 
             if not dag_run:
-                cls.logger().info("Skip locked rows, rollback")
+                cls.logger().debug("Skip locked rows, rollback")
                 session.rollback()
                 return
 
