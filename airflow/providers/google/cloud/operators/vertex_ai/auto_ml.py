@@ -173,7 +173,7 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         self.validation_options = validation_options
         self.budget_milli_node_hours = budget_milli_node_hours
         self.window_stride_length=window_stride_length,
-        self.window_max_count=window_stride_length,
+        self.window_max_count=window_max_count,
 
     def execute(self, context: Context):
         self.hook = AutoMLHook(
