@@ -78,8 +78,11 @@ class OpenSearchHook(BaseHook):
                     raise AirflowException(error)
             else:
                 self.log.warning(
-                    "Skipping import of connection type '%s'. The class should be listed in ", module_name +
-                    "{" + ", ".join(map(str, DEFAULT_CONN_TYPES)) + "}. Defaulting to RequestsHttpConnection"
+                    "Skipping import of connection type '%s'. The class should be listed in ",
+                    module_name
+                    + "{"
+                    + ", ".join(map(str, DEFAULT_CONN_TYPES))
+                    + "}. Defaulting to RequestsHttpConnection",
                 )
         # fallback
         return RequestsHttpConnection
