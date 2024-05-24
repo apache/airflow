@@ -789,29 +789,10 @@ log_location = "dag_id=sample/run_id=manual__2024-05-23T07:18:59.298882+00:00/ta
 log_url = f"{worker_url}/log/{log_location}"
 
 
-@pytest.fixture
-def http_proxy():
-    _origin_http_proxy = os.getenv("http_proxy") or ""
-    os.environ["http_proxy"] = "http://proxy.example.com"
-    yield
-    os.environ["http_proxy"] = _origin_http_proxy
-
-
-@pytest.fixture
-def no_proxy():
-    _origin_no_proxy = os.getenv("no_proxy") or ""
-
-    def _set_no_proxy(values):
-        os.environ["no_proxy"] = values
-
-    yield _set_no_proxy
-    os.environ["no_proxy"] = _origin_no_proxy
-
-
 @mock.patch("requests.adapters.HTTPAdapter.send")
-@pytest.mark.usefixtures("http_proxy")
-def test_fetch_logs_from_service_with_not_matched_no_proxy(mock_send, no_proxy):
-    no_proxy("localhost")
+def test_fetch_logs_from_service_with_not_matched_no_proxy(mock_send, monkeypatch):
+    monkeypatch.setenv("http_proxy", "http://proxy.example.com")
+    monkeypatch.setenv("no_proxy", "localhost")
 
     response = Response()
     response.status_code = HTTPStatus.OK
@@ -828,9 +809,9 @@ def test_fetch_logs_from_service_with_not_matched_no_proxy(mock_send, no_proxy):
 
 
 @mock.patch("requests.adapters.HTTPAdapter.send")
-@pytest.mark.usefixtures("http_proxy")
-def test_fetch_logs_from_service_with_cidr_no_proxy(mock_send, no_proxy):
-    no_proxy("10.0.0.0/8")
+def test_fetch_logs_from_service_with_cidr_no_proxy(mock_send, monkeypatch):
+    monkeypatch.setenv("http_proxy", "http://proxy.example.com")
+    monkeypatch.setenv("no_proxy", "10.0.0.0/8")
 
     response = Response()
     response.status_code = HTTPStatus.OK
