@@ -1459,7 +1459,7 @@ RUN adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-passw
        --quiet "airflow" --uid "${AIRFLOW_UID}" --gid "0" --home "${AIRFLOW_USER_HOME_DIR}" && \
     mkdir -p ${AIRFLOW_HOME} && chown -R "airflow:0" "${AIRFLOW_USER_HOME_DIR}" ${AIRFLOW_HOME}
 
-COPY --chown=${AIRFLOW_UID}:0 ${DOCKER_CONTEXT_FILES} /docker-context-files
+COPY --chown=${AIRFLOW_UID}:0 --chmod=770 ${DOCKER_CONTEXT_FILES} /docker-context-files
 
 USER airflow
 
@@ -1580,7 +1580,7 @@ RUN bash /scripts/docker/install_packaging_tools.sh; \
         bash /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
     fi
 
-COPY --chown=airflow:0 ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
+COPY --chown=${AIRFLOW_UID}:0 --chmod=770 ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
 
 # Add extra python dependencies
 ARG ADDITIONAL_PYTHON_DEPS=""
@@ -1721,13 +1721,14 @@ RUN bash /scripts/docker/install_mysql.sh prod \
 ARG AIRFLOW_SOURCES_FROM
 ARG AIRFLOW_SOURCES_TO
 
-COPY --from=airflow-build-image --chown=airflow:0 \
+COPY --from=airflow-build-image --chown=${AIRFLOW_UID}:0 --chmod=770 \
      "${AIRFLOW_USER_HOME_DIR}/.local" "${AIRFLOW_USER_HOME_DIR}/.local"
-COPY --from=airflow-build-image --chown=airflow:0 \
+COPY --from=airflow-build-image --chown=${AIRFLOW_UID}:0 --chmod=770 \
      "${AIRFLOW_USER_HOME_DIR}/constraints.txt" "${AIRFLOW_USER_HOME_DIR}/constraints.txt"
 # In case of editable build also copy airflow sources so that they are available in the main image
 # For regular image (non-editable) this will be just Dockerfile copied to /Dockerfile
-COPY --from=airflow-build-image --chown=airflow:0 "${AIRFLOW_SOURCES_TO}" "${AIRFLOW_SOURCES_TO}"
+COPY --from=airflow-build-image --chown=${AIRFLOW_UID}:0 --chmod=770 \
+     "${AIRFLOW_SOURCES_TO}" "${AIRFLOW_SOURCES_TO}"
 
 COPY --from=scripts entrypoint_prod.sh /entrypoint
 COPY --from=scripts clean-logs.sh /clean-logs
