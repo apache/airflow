@@ -59,6 +59,7 @@ from airflow.models.dag import (
     DagModel,
     DagOwnerAttributes,
     DagTag,
+    ExecutorLoader,
     dag as dag_decorator,
     get_dataset_triggered_next_run_info,
 )
@@ -2622,6 +2623,29 @@ my_postgres_conn:
         with pytest.warns(DeprecationWarning):
             dag.access_control = outdated_permissions
         assert dag.access_control == updated_permissions
+
+    def test_validate_executor_field_executor_not_configured(self):
+        dag = DAG(
+            "test-dag",
+            schedule=None,
+        )
+
+        EmptyOperator(task_id="t1", dag=dag, executor="test.custom.executor")
+        with pytest.raises(
+            ValueError, match="The specified executor test.custom.executor for task t1 is not configured"
+        ):
+            dag.validate()
+
+    def test_validate_executor_field(self):
+        with patch.object(ExecutorLoader, "lookup_executor_name_by_str") as mock_get_executor_names:
+            dag = DAG(
+                "test-dag",
+                schedule=None,
+            )
+
+            mock_get_executor_names.return_value = None
+            EmptyOperator(task_id="t1", dag=dag, executor="test.custom.executor")
+            dag.validate()
 
     def test_validate_params_on_trigger_dag(self):
         dag = DAG("dummy-dag", schedule=None, params={"param1": Param(type="string")})
