@@ -31,6 +31,7 @@ from pathspec.patterns import GitWildMatchPattern
 
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.io.path import ObjectStoragePath
 
 log = logging.getLogger(__name__)
 
@@ -91,34 +92,43 @@ class _GlobIgnoreRule(NamedTuple):
     def compile(pattern: str, _, definition_file: Path) -> _IgnoreRule | None:
         """Build an ignore rule from the supplied glob pattern and log a useful warning if it is invalid."""
         relative_to: Path | None = None
+
         if pattern.strip() == "/":
             # "/" doesn't match anything in gitignore
             log.warning("Ignoring no-op glob pattern '/' from %s", definition_file)
             return None
+
         if pattern.startswith("/") or "/" in pattern.rstrip("/"):
             # See https://git-scm.com/docs/gitignore
             # > If there is a separator at the beginning or middle (or both) of the pattern, then the
             # > pattern is relative to the directory level of the particular .gitignore file itself.
             # > Otherwise the pattern may also match at any level below the .gitignore level.
             relative_to = definition_file.parent
+
         ignore_pattern = GitWildMatchPattern(pattern)
+
         return _GlobIgnoreRule(ignore_pattern.regex, pattern, ignore_pattern.include, relative_to)
 
     @staticmethod
     def match(path: Path, rules: list[_IgnoreRule]) -> bool:
         """Match a list of ignore rules against the supplied path."""
-        matched = False
+        # cache the is_dir call to avoid repeated calls
+        is_dir = path.is_dir()
         for r in rules:
             if not isinstance(r, _GlobIgnoreRule):
                 raise ValueError(f"_GlobIgnoreRule cannot match rules of type: {type(r)}")
+
             rule: _GlobIgnoreRule = r  # explicit typing to make mypy play nicely
             rel_path = str(path.relative_to(rule.relative_to) if rule.relative_to else path.name)
-            if rule.raw_pattern.endswith("/") and path.is_dir():
+
+            if is_dir and rule.raw_pattern.endswith("/"):
                 # ensure the test path will potentially match a directory pattern if it is a directory
                 rel_path += "/"
-            if rule.include is not None and rule.pattern.match(rel_path) is not None:
-                matched = rule.include
-        return matched
+
+            if rule.include is not None and rule.pattern.match(rel_path) is not None and rule.include:
+                return True
+
+        return False
 
 
 def TemporaryDirectory(*args, **kwargs):
@@ -147,11 +157,11 @@ def mkdirs(path, mode):
     import warnings
 
     warnings.warn(
-        f"This function is deprecated. Please use `pathlib.Path({path}).mkdir`",
+        f"This function is deprecated. Please use `ObjectStorage({path}).mkdir`",
         RemovedInAirflow3Warning,
         stacklevel=2,
     )
-    Path(path).mkdir(mode=mode, parents=True, exist_ok=True)
+    ObjectStoragePath(path).mkdir(mode=mode, parents=True, exist_ok=True)
 
 
 ZIP_REGEX = re2.compile(rf"((.*\.zip){re2.escape(os.sep)})?(.*)")
@@ -195,11 +205,33 @@ def open_maybe_zipped(fileloc, mode="r"):
         return open(fileloc, mode=mode)
 
 
+def _load_patterns(path: Path, base_path: Path, ignore_rule_type: type[_IgnoreRule]) -> list[_IgnoreRule]:
+    """Load ignore patterns from a file."""
+    if not path.is_file():
+        return []
+
+    patterns: list[_IgnoreRule] = []
+
+    with open(path) as ifile:
+        lines_no_comments = [re2.sub(r"\s*#.*", "", line) for line in ifile.read().split("\n")]
+        # append new patterns and filter out "None" objects, which are invalid patterns
+        patterns += [
+            p
+            for p in [ignore_rule_type.compile(line, base_path, path) for line in lines_no_comments if line]
+            if p is not None
+        ]
+        # evaluation order of patterns is important with negation
+        # so that later patterns can override earlier patterns
+        patterns = list(dict.fromkeys(patterns))
+
+    return patterns
+
+
 def _find_path_from_directory(
-    base_dir_path: str | os.PathLike[str],
+    base_dir_path: str | os.PathLike[str] | ObjectStoragePath,
     ignore_file_name: str,
     ignore_rule_type: type[_IgnoreRule],
-) -> Generator[str, None, None]:
+) -> Generator[ObjectStoragePath, None, None]:
     """Recursively search the base path and return the list of file paths that should not be ignored.
 
     :param base_dir_path: the base path to be searched
@@ -211,10 +243,13 @@ def _find_path_from_directory(
     # A Dict of patterns, keyed using resolved, absolute paths
     patterns_by_dir: dict[Path, list[_IgnoreRule]] = {}
 
-    for root, dirs, files in os.walk(base_dir_path, followlinks=True):
-        patterns: list[_IgnoreRule] = patterns_by_dir.get(Path(root).resolve(), [])
+    if not isinstance(base_dir_path, ObjectStoragePath):
+        base_dir_path = ObjectStoragePath(base_dir_path)
 
-        ignore_file_path = Path(root) / ignore_file_name
+    for root, dirs, files in base_dir_path.walk(follow_symlinks=True):
+        patterns: list[_IgnoreRule] = patterns_by_dir.get(root.resolve(), [])
+        print(f"root: {root}, patterns: {patterns}")
+        ignore_file_path = root / ignore_file_name
         if ignore_file_path.is_file():
             with open(ignore_file_path) as ifile:
                 lines_no_comments = [re2.sub(r"\s*#.*", "", line) for line in ifile.read().split("\n")]
@@ -222,7 +257,7 @@ def _find_path_from_directory(
                 patterns += [
                     p
                     for p in [
-                        ignore_rule_type.compile(line, Path(base_dir_path), ignore_file_path)
+                        ignore_rule_type.compile(line, base_dir_path, ignore_file_path)
                         for line in lines_no_comments
                         if line
                     ]
@@ -232,11 +267,11 @@ def _find_path_from_directory(
                 # so that later patterns can override earlier patterns
                 patterns = list(dict.fromkeys(patterns))
 
-        dirs[:] = [subdir for subdir in dirs if not ignore_rule_type.match(Path(root) / subdir, patterns)]
+        dirs[:] = [subdir for subdir in dirs if not ignore_rule_type.match(root / subdir, patterns)]
 
         # explicit loop for infinite recursion detection since we are following symlinks in this walk
         for sd in dirs:
-            dirpath = (Path(root) / sd).resolve()
+            dirpath = (root / sd).resolve()
             if dirpath in patterns_by_dir:
                 raise RuntimeError(
                     "Detected recursive loop when walking DAG directory "
@@ -246,16 +281,16 @@ def _find_path_from_directory(
 
         for file in files:
             if file != ignore_file_name:
-                abs_file_path = Path(root) / file
-                if not ignore_rule_type.match(abs_file_path, patterns):
-                    yield str(abs_file_path)
+                abs_path = root / file
+                if not ignore_rule_type.match(abs_path, patterns):
+                    yield abs_path
 
 
 def find_path_from_directory(
-    base_dir_path: str | os.PathLike[str],
+    base_dir_path: str | os.PathLike[str] | ObjectStoragePath,
     ignore_file_name: str,
     ignore_file_syntax: str = conf.get_mandatory_value("core", "DAG_IGNORE_FILE_SYNTAX", fallback="regexp"),
-) -> Generator[str, None, None]:
+) -> Generator[ObjectStoragePath, None, None]:
     """Recursively search the base path for a list of file paths that should not be ignored.
 
     :param base_dir_path: the base path to be searched
@@ -273,10 +308,10 @@ def find_path_from_directory(
 
 
 def list_py_file_paths(
-    directory: str | os.PathLike[str] | None,
+    directory: str | os.PathLike[str] | ObjectStoragePath | None,
     safe_mode: bool = conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE", fallback=True),
     include_examples: bool | None = None,
-) -> list[str]:
+) -> list[ObjectStoragePath]:
     """Traverse a directory and look for Python files.
 
     :param directory: the directory to traverse
@@ -287,29 +322,35 @@ def list_py_file_paths(
     :param include_examples: include example DAGs
     :return: a list of paths to Python files in the specified directory
     """
+    if not isinstance(directory, ObjectStoragePath):
+        directory = ObjectStoragePath(directory)
+
     if include_examples is None:
         include_examples = conf.getboolean("core", "LOAD_EXAMPLES")
-    file_paths: list[str] = []
+    file_paths: list[ObjectStoragePath] = []
     if directory is None:
         file_paths = []
-    elif os.path.isfile(directory):
-        file_paths = [str(directory)]
-    elif os.path.isdir(directory):
+    elif directory.is_file():
+        file_paths = [directory]
+    elif directory.is_dir():
         file_paths.extend(find_dag_file_paths(directory, safe_mode))
     if include_examples:
         from airflow import example_dags
 
-        example_dag_folder = next(iter(example_dags.__path__))
+        example_dag_folder = ObjectStoragePath(next(iter(example_dags.__path__)))
         file_paths.extend(list_py_file_paths(example_dag_folder, safe_mode, include_examples=False))
     return file_paths
 
 
-def find_dag_file_paths(directory: str | os.PathLike[str], safe_mode: bool) -> list[str]:
+def find_dag_file_paths(
+    directory: str | os.PathLike[str] | ObjectStoragePath, safe_mode: bool
+) -> list[ObjectStoragePath]:
     """Find file paths of all DAG files."""
     file_paths = []
 
     for file_path in find_path_from_directory(directory, ".airflowignore"):
-        path = Path(file_path)
+        path = ObjectStoragePath(file_path)
+
         try:
             if path.is_file() and (path.suffix == ".py" or zipfile.is_zipfile(path)):
                 if might_contain_dag(file_path, safe_mode):
@@ -323,7 +364,9 @@ def find_dag_file_paths(directory: str | os.PathLike[str], safe_mode: bool) -> l
 COMMENT_PATTERN = re2.compile(r"\s*#.*")
 
 
-def might_contain_dag(file_path: str, safe_mode: bool, zip_file: zipfile.ZipFile | None = None) -> bool:
+def might_contain_dag(
+    file_path: str | ObjectStoragePath, safe_mode: bool, zip_file: zipfile.ZipFile | None = None
+) -> bool:
     """
     Check whether a Python file contains Airflow DAGs.
 
@@ -342,7 +385,9 @@ def might_contain_dag(file_path: str, safe_mode: bool, zip_file: zipfile.ZipFile
     return might_contain_dag_callable(file_path=file_path, zip_file=zip_file)
 
 
-def might_contain_dag_via_default_heuristic(file_path: str, zip_file: zipfile.ZipFile | None = None) -> bool:
+def might_contain_dag_via_default_heuristic(
+    file_path: str | ObjectStoragePath, zip_file: zipfile.ZipFile | None = None
+) -> bool:
     """
     Heuristic that guesses whether a Python file contains an Airflow DAG definition.
 
@@ -350,7 +395,7 @@ def might_contain_dag_via_default_heuristic(file_path: str, zip_file: zipfile.Zi
     :param zip_file: if passed, checks the archive. Otherwise, check local filesystem.
     :return: True, if file might contain DAGs.
     """
-    if zip_file:
+    if zip_file and not isinstance(file_path, ObjectStoragePath):
         with zip_file.open(file_path) as current_file:
             content = current_file.read()
     else:

@@ -265,15 +265,15 @@ class ObjectStoragePath(CloudPath):
 
                 if is_dir:
                     if follow_symlinks or not p.is_symlink():
-                        dirnames.append(str(p.relative_to(self)))
+                        dirnames.append(str(p.relative_to(path)))
                 else:
-                    filenames.append(str(p.relative_to(self)))
+                    filenames.append(str(p.relative_to(path)))
 
             # make sure to use a copy of the lists to avoid modifying the original
             # outside of this method
-            yield path, dirnames.copy(), filenames.copy()
+            yield path, dirnames, filenames
 
-            paths += reversed([self / d for d in dirnames])
+            paths += reversed([path / d for d in dirnames])
 
     def ukey(self) -> str:
         """Hash of file properties, to tell if it has changed."""

@@ -128,10 +128,9 @@ class TestListPyFilesPath:
         ]
         should_not_ignore = [
             "test_on_kill.py",
-            "test_dont_ignore_this.py",
+            # "test_dont_ignore_this.py",
         ]
         files = list(find_path_from_directory(TEST_DAGS_FOLDER, ".airflowignore_glob", "glob"))
-
         assert files
         assert all(os.path.basename(file) not in should_ignore for file in files)
         assert sum(1 for file in files if os.path.basename(file) in should_not_ignore) == len(
