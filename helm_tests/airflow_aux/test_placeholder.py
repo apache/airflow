@@ -77,6 +77,6 @@ class TestPlaceHolder:
         )
         assert 1 == len(docs)
 
-        assert "PodDisruptionBudget" == jmespath.search("kind", docs[2])
-        assert "release-name-placeholder-pdb" == jmespath.search("metadata.name", docs[2])
-        assert 1 == jmespath.search("spec.maxUnavailable", docs[2])
+        assert "PodDisruptionBudget" == jmespath.search("kind", docs[0])
+        assert "release-name-placeholder-pdb" == jmespath.search("metadata.name", docs[0])
+        assert 1 == jmespath.search("spec.maxUnavailable", docs[0])
