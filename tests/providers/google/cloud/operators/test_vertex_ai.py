@@ -1340,8 +1340,8 @@ class TestVertexAICreateAutoMLForecastingTrainingJobOperator:
             is_default_version=None,
             model_version_aliases=None,
             model_version_description=None,
-            window_stride_length = None,
-            window_max_count = None,
+            window_stride_length=None,
+            window_max_count=None,
         )
 
     @mock.patch("google.cloud.aiplatform.datasets.TimeSeriesDataset")
