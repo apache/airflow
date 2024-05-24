@@ -1632,7 +1632,7 @@ class TestKubernetesPodOperator:
         client, hook, pod_manager = k.client, k.hook, k.pod_manager
 
         # no exception doesn't update properties
-        k.await_container_completion(pod)
+        k.await_pod_completion(pod)
         assert client == k.client
         assert hook == k.hook
         assert pod_manager == k.pod_manager
@@ -1640,7 +1640,7 @@ class TestKubernetesPodOperator:
         # exception refreshes properties
         mock_await_container_completion.side_effect = [ApiException(status=401), mock.DEFAULT]
         fetch_requested_container_logs.side_effect = [ApiException(status=401), mock.DEFAULT]
-        k.await_container_completion(pod)
+        k.await_pod_completion(pod)
 
         if get_logs:
             fetch_requested_container_logs.assert_has_calls(
@@ -1675,10 +1675,10 @@ class TestKubernetesPodOperator:
         pod = self.run_pod(k)
         mock_await_container_completion.side_effect = side_effect
         if expect_exc:
-            k.await_container_completion(pod)
+            k.await_pod_completion(pod)
         else:
             with pytest.raises(exception_type):
-                k.await_container_completion(pod)
+                k.await_pod_completion(pod)
         expected_call_count = min(len(side_effect), 3)  # retry max 3 times
         mock_await_container_completion.assert_has_calls(
             [mock.call(pod=pod, container_name=k.base_container_name)] * expected_call_count

@@ -612,7 +612,7 @@ class KubernetesPodOperator(BaseOperator):
                     mode=ExecutionMode.SYNC,
                 )
 
-            self.await_container_completion(pod=self.pod)
+            self.await_pod_completion(pod=self.pod)
             if self.callbacks:
                 self.callbacks.on_pod_completion(
                     pod=self.find_pod(self.pod.metadata.namespace, context=context),
@@ -645,7 +645,7 @@ class KubernetesPodOperator(BaseOperator):
         retry=tenacity.retry_if_exception(lambda exc: check_exception_is_kubernetes_api_unauthorized(exc)),
         reraise=True,
     )
-    def await_container_completion(self, pod: k8s.V1Pod):
+    def await_pod_completion(self, pod: k8s.V1Pod):
         try:
             if self.get_logs:
                 self.pod_manager.fetch_requested_container_logs(
