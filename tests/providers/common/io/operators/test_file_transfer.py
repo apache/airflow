@@ -69,3 +69,30 @@ def test_get_openlineage_facets_on_start():
     assert len(lineage.outputs) == 1
     assert lineage.inputs[0] == expected_input
     assert lineage.outputs[0] == expected_output
+
+
+def test_get_openlineage_facets_on_start_without_namespace():
+    mock_src = mock.MagicMock(key="/src_key", protocol="s3", bucket="src_bucket", sep="/")
+    mock_dst = mock.MagicMock(key="dst_key", protocol="gcs", bucket="", sep="/")
+
+    # Ensure the `namespace` attribute does not exist
+    if hasattr(mock_src, "namespace"):
+        delattr(mock_src, "namespace")
+    if hasattr(mock_dst, "namespace"):
+        delattr(mock_dst, "namespace")
+
+    operator = FileTransferOperator(
+        task_id="task",
+        src=mock_src,
+        dst=mock_dst,
+        source_conn_id="source_conn_id",
+        dest_conn_id="dest_conn_id",
+    )
+    # Make sure the _get_path method returns the mock objects
+    operator._get_path = mock.Mock(side_effect=[mock_src, mock_dst])
+
+    lineage = operator.get_openlineage_facets_on_start()
+    assert len(lineage.inputs) == 1
+    assert len(lineage.outputs) == 1
+    assert lineage.inputs[0] == Dataset(namespace="s3://src_bucket", name="src_key")
+    assert lineage.outputs[0] == Dataset(namespace="gcs", name="dst_key")

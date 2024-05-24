@@ -42,6 +42,7 @@ from airflow.providers.amazon.aws.executors.batch.utils import (
 )
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.state import State
+from tests.conftest import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 from tests.test_utils.config import conf_vars
 
 ARN1 = "arn1"
@@ -655,6 +656,11 @@ class TestBatchExecutorConfig:
     def teardown_method(self) -> None:
         self._unset_conf()
 
+    @pytest.mark.skipif(
+        RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES,
+        reason="Config defaults are validated against provider.yaml so this test "
+        "should only run when tests are run from sources",
+    )
     def test_validate_config_defaults(self):
         """Assert that the defaults stated in the config.yml file match those in utils.CONFIG_DEFAULTS."""
         curr_dir = os.path.dirname(os.path.abspath(__file__))

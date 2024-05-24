@@ -113,7 +113,10 @@ dependencies:
   - google-auth-httplib2>=0.0.1
   - google-cloud-aiplatform>=1.42.1
   - google-cloud-automl>=2.12.0
-  - google-cloud-bigquery>=3.0.1
+  # google-cloud-bigquery version 3.21.0 introduced a performance enhancement in QueryJob.result(),
+  # which has led to backward compatibility issues
+  # - https://github.com/apache/airflow/issues/39541
+  - google-cloud-bigquery<3.21.0,>=3.0.1
   - google-cloud-bigquery-datatransfer>=3.13.0
   - google-cloud-bigtable>=2.17.0
   - google-cloud-build>=3.22.0
@@ -1271,6 +1274,12 @@ extra-links:
   - airflow.providers.google.common.links.storage.StorageLink
   - airflow.providers.google.common.links.storage.FileDetailsLink
   - airflow.providers.google.marketing_platform.links.analytics_admin.GoogleAnalyticsPropertyLink
+  - airflow.providers.google.cloud.links.translate.TranslationLegacyDatasetLink
+  - airflow.providers.google.cloud.links.translate.TranslationDatasetListLink
+  - airflow.providers.google.cloud.links.translate.TranslationLegacyModelLink
+  - airflow.providers.google.cloud.links.translate.TranslationLegacyModelTrainLink
+  - airflow.providers.google.cloud.links.translate.TranslationLegacyModelPredictLink
+
 
 secrets-backends:
   - airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend

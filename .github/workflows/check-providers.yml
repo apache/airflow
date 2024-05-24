@@ -43,7 +43,11 @@ on:  # yamllint disable-line rule:truthy
       providers-compatibility-checks:
         description: >
           JSON-formatted array of providers compatibility checks in the form of array of dicts
-          (airflow-version, python-versions, remove-providers)
+          (airflow-version, python-versions, remove-providers, run-tests)
+        required: true
+        type: string
+      providers-test-types-list-as-string:
+        description: "List of parallel provider test types as string"
         required: true
         type: string
       skip-provider-tests:
@@ -237,6 +241,9 @@ jobs:
       - name: >
           Install and verify all provider packages and airflow on
           Airflow ${{ matrix.airflow-version }}:Python ${{ matrix.python-version }}
+        # We do not need to run import check if we run tests, the tests should cover all the import checks
+        # automatically
+        if: matrix.run-tests != 'true'
         run: >
           breeze release-management verify-provider-packages
           --use-packages-from-dist
@@ -245,3 +252,17 @@ jobs:
           --airflow-constraints-reference constraints-${{matrix.airflow-version}}
           --providers-skip-constraints
           --install-airflow-with-constraints
+      - name: >
+          Run provider unit tests on
+          Airflow ${{ matrix.airflow-version }}:Python ${{ matrix.python-version }}
+        if: matrix.run-tests == 'true'
+        run: >
+          breeze testing tests --run-in-parallel
+          --parallel-test-types "${{ inputs.providers-test-types-list-as-string }}"
+          --use-packages-from-dist
+          --package-format wheel
+          --use-airflow-version "${{ matrix.airflow-version }}"
+          --airflow-constraints-reference constraints-${{matrix.airflow-version}}
+          --install-airflow-with-constraints
+          --providers-skip-constraints
+          --skip-providers "${{ matrix.remove-providers }}"

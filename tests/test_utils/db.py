@@ -36,7 +36,6 @@ from airflow.models import (
     XCom,
 )
 from airflow.models.dag import DagOwnerAttributes
-from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dagcode import DagCode
 from airflow.models.dagwarning import DagWarning
 from airflow.models.dataset import (
@@ -46,12 +45,12 @@ from airflow.models.dataset import (
     DatasetModel,
     TaskOutletDatasetReference,
 )
-from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.fab.auth_manager.models import Permission, Resource, assoc_permission_role
 from airflow.security.permissions import RESOURCE_DAG_PREFIX
 from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections, reflect_tables
 from airflow.utils.session import create_session
+from tests.test_utils.compat import ParseImportError
 
 
 def clear_db_runs():
@@ -172,6 +171,8 @@ def clear_db_task_reschedule():
 
 def clear_db_dag_parsing_requests():
     with create_session() as session:
+        from airflow.models.dagbag import DagPriorityParsingRequest
+
         session.query(DagPriorityParsingRequest).delete()
 
 

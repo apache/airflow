@@ -205,6 +205,8 @@ function determine_airflow_to_use() {
         mkdir -p "${AIRFLOW_SOURCES}"/tmp/
     else
         python "${IN_CONTAINER_DIR}/install_airflow_and_providers.py"
+        # Some packages might leave legacy typing module which causes test issues
+        pip uninstall -y typing || true
     fi
 
     if [[ "${USE_AIRFLOW_VERSION}" =~ ^2\.2\..*|^2\.1\..*|^2\.0\..* && "${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=}" != "" ]]; then
@@ -225,8 +227,12 @@ function check_boto_upgrade() {
     ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} aiobotocore s3fs || true
     # We need to include oss2 as dependency as otherwise jmespath will be bumped and it will not pass
     # the pip check test, Similarly gcloud-aio-auth limit is needed to be included as it bumps cryptography
+    # Also until docker-py compatibility with requests 2.32 is fixed we need to limit requests version
+    # Should be removed after  https://github.com/docker/docker-py/issues/3256 together with removal of similar
+    # limitation in providers/docker/pyproject.toml
     # shellcheck disable=SC2086
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade boto3 botocore "oss2>=2.14.0" "gcloud-aio-auth>=4.0.0,<5.0.0"
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade boto3 botocore \
+       "oss2>=2.14.0" "gcloud-aio-auth>=4.0.0,<5.0.0" "requests<2.32.0"
     pip check
 }
 

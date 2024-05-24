@@ -30,7 +30,7 @@ requires = [
     "pluggy==1.5.0",
     "smmap==5.0.1",
     "tomli==2.0.1; python_version < '3.11'",
-    "trove-classifiers==2024.4.10",
+    "trove-classifiers==2024.5.22",
 ]
 build-backend = "hatchling.build"
 
@@ -394,6 +394,7 @@ combine-as-imports = true
 "tests/providers/google/cloud/hooks/vertex_ai/test_model_service.py" = ["E402"]
 "tests/providers/google/cloud/hooks/vertex_ai/test_pipeline_job.py" = ["E402"]
 "tests/providers/google/cloud/hooks/vertex_ai/test_prediction_service.py" = ["E402"]
+"tests/providers/google/cloud/links/test_translate.py" = ["E402"]
 "tests/providers/google/cloud/operators/test_automl.py"= ["E402"]
 "tests/providers/google/cloud/operators/test_vertex_ai.py" = ["E402"]
 "tests/providers/google/cloud/operators/vertex_ai/test_generative_model.py" = ["E402"]
@@ -409,6 +410,9 @@ combine-as-imports = true
 
 # https://github.com/apache/airflow/issues/39252
 "airflow/providers/amazon/aws/hooks/eks.py" = ["W605"]
+
+# Test compat imports banned imports to allow testing against older airflow versions
+"tests/test_utils/compat.py" = ["TID251", "F401"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.
