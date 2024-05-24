@@ -805,7 +805,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         self._cluster_url = kwargs["cluster_url"]
         self._ssl_ca_cert = kwargs["ssl_ca_cert"]
 
-        return super().execute_complete(context, event, **kwargs)
+        return super().trigger_reentry(context, event)
 
 
 class GKEStartJobOperator(KubernetesJobOperator):
