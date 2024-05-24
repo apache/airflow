@@ -47,6 +47,7 @@ from airflow.providers.common.sql.operators.sql import (
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.providers.google.cloud.links.bigquery import BigQueryDatasetLink, BigQueryTableLink
+from airflow.providers.google.cloud.openlineage.utils import _BigQueryOpenLineageMixin
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryCheckTrigger,
@@ -138,68 +139,6 @@ class _BigQueryDbHookMixin:
             location=self.location,
             impersonation_chain=self.impersonation_chain,
             labels=self.labels,
-        )
-
-
-class _BigQueryOpenLineageMixin:
-    def get_openlineage_facets_on_complete(self, task_instance):
-        """
-        Retrieve OpenLineage data for a COMPLETE BigQuery job.
-
-        This method retrieves statistics for the specified job_ids using the BigQueryDatasetsProvider.
-        It calls BigQuery API, retrieving input and output dataset info from it, as well as run-level
-        usage statistics.
-
-        Run facets should contain:
-            - ExternalQueryRunFacet
-            - BigQueryJobRunFacet
-
-        Job facets should contain:
-            - SqlJobFacet if operator has self.sql
-
-        Input datasets should contain facets:
-            - DataSourceDatasetFacet
-            - SchemaDatasetFacet
-
-        Output datasets should contain facets:
-            - DataSourceDatasetFacet
-            - SchemaDatasetFacet
-            - OutputStatisticsOutputDatasetFacet
-        """
-        from openlineage.client.facet import SqlJobFacet
-        from openlineage.common.provider.bigquery import BigQueryDatasetsProvider
-
-        from airflow.providers.openlineage.extractors import OperatorLineage
-        from airflow.providers.openlineage.utils.utils import normalize_sql
-
-        if not self.job_id:
-            return OperatorLineage()
-
-        client = self.hook.get_client(project_id=self.hook.project_id)
-        job_ids = self.job_id
-        if isinstance(self.job_id, str):
-            job_ids = [self.job_id]
-        inputs, outputs, run_facets = {}, {}, {}
-        for job_id in job_ids:
-            stats = BigQueryDatasetsProvider(client=client).get_facets(job_id=job_id)
-            for input in stats.inputs:
-                input = input.to_openlineage_dataset()
-                inputs[input.name] = input
-            if stats.output:
-                output = stats.output.to_openlineage_dataset()
-                outputs[output.name] = output
-            for key, value in stats.run_facets.items():
-                run_facets[key] = value
-
-        job_facets = {}
-        if hasattr(self, "sql"):
-            job_facets["sql"] = SqlJobFacet(query=normalize_sql(self.sql))
-
-        return OperatorLineage(
-            inputs=list(inputs.values()),
-            outputs=list(outputs.values()),
-            run_facets=run_facets,
-            job_facets=job_facets,
         )
 
 

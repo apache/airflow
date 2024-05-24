@@ -846,6 +846,18 @@ class CustomBuildHook(BuildHookInterface[BuilderConfig]):
         # field in core.metadata until this is possible
         self.metadata.core._optional_dependencies = self.optional_dependencies
 
+        # Add entrypoints dynamically for all provider packages, in editable build
+        # else they will not be found by plugin manager
+        if version != "standard":
+            entry_points = self.metadata.core._entry_points or {}
+            plugins = entry_points.get("airflow.plugins") or {}
+            for provider in PROVIDER_DEPENDENCIES.values():
+                for plugin in provider["plugins"]:
+                    plugin_class: str = plugin["plugin-class"]
+                    plugins[plugin["name"]] = plugin_class[::-1].replace(".", ":", 1)[::-1]
+            entry_points["airflow.plugins"] = plugins
+            self.metadata.core._entry_points = entry_points
+
     def _add_devel_ci_dependencies(self, deps: list[str], python_exclusion: str) -> None:
         """
         Add devel_ci_dependencies.

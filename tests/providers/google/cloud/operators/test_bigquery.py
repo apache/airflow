@@ -26,9 +26,8 @@ import pandas as pd
 import pytest
 from google.cloud.bigquery import DEFAULT_RETRY
 from google.cloud.exceptions import Conflict
-from openlineage.client.facet import DataSourceDatasetFacet, ExternalQueryRunFacet, SqlJobFacet
+from openlineage.client.facet import ErrorMessageRunFacet, ExternalQueryRunFacet, SqlJobFacet
 from openlineage.client.run import Dataset
-from openlineage.common.provider.bigquery import BigQueryErrorRunFacet
 
 from airflow.exceptions import AirflowException, AirflowSkipException, AirflowTaskTimeout, TaskDeferred
 from airflow.providers.google.cloud.operators.bigquery import (
@@ -1712,21 +1711,19 @@ class TestBigQueryInsertJobOperator:
 
         assert result == real_job_id
 
-        with open(file="tests/providers/google/cloud/operators/job_details.json") as f:
+        with open(file="tests/providers/google/cloud/utils/job_details.json") as f:
             job_details = json.loads(f.read())
         mock_hook.return_value.get_client.return_value.get_job.return_value._properties = job_details
+        mock_hook.return_value.get_client.return_value.get_table.side_effect = Exception()
 
         lineage = op.get_openlineage_facets_on_complete(None)
         assert lineage.inputs == [
-            Dataset(
-                namespace="bigquery",
-                name="airflow-openlineage.new_dataset.test_table",
-                facets={"dataSource": DataSourceDatasetFacet(name="bigquery", uri="bigquery")},
-            )
+            Dataset(namespace="bigquery", name="airflow-openlineage.new_dataset.test_table")
         ]
 
         assert lineage.run_facets == {
             "bigQuery_job": mock.ANY,
+            "bigQueryJob": mock.ANY,
             "externalQuery": ExternalQueryRunFacet(externalQueryId=mock.ANY, source="bigquery"),
         }
         assert lineage.job_facets == {"sql": SqlJobFacet(query="SELECT * FROM test_table")}
@@ -1756,7 +1753,7 @@ class TestBigQueryInsertJobOperator:
             operator.execute(MagicMock())
         lineage = operator.get_openlineage_facets_on_complete(None)
 
-        assert lineage.run_facets["bigQuery_error"] == BigQueryErrorRunFacet(clientError=mock.ANY)
+        assert isinstance(lineage.run_facets["errorMessage"], ErrorMessageRunFacet)
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")

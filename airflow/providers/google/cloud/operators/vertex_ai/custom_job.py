@@ -493,6 +493,8 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
     def execute(self, context: Context):
         super().execute(context)
 
+        self.parent_model = self.parent_model.split("@")[0] if self.parent_model else None
+
         if self.deferrable:
             self.invoke_defer(context=context)
 
@@ -965,6 +967,8 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
 
     def execute(self, context: Context):
         super().execute(context)
+
+        self.parent_model = self.parent_model.split("@")[0] if self.parent_model else None
 
         if self.deferrable:
             self.invoke_defer(context=context)
@@ -1445,6 +1449,8 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
 
     def execute(self, context: Context):
         super().execute(context)
+
+        self.parent_model = self.parent_model.split("@")[0] if self.parent_model else None
 
         if self.deferrable:
             self.invoke_defer(context=context)
