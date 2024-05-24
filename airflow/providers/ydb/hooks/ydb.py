@@ -24,7 +24,8 @@ from typing import TYPE_CHECKING, Any, Iterable, Union
 
 from deprecated import deprecated
 from sqlalchemy.engine import URL
-#import ydb_sqlalchemy.dbapi.connection as YDBConnection
+
+# import ydb_sqlalchemy.dbapi.connection as YDBConnection
 from airflow.providers.ydb.hooks.dbapi.connection import Connection
 from airflow.providers.ydb.hooks.dbapi.cursor import YdbQuery
 import ydb
@@ -33,6 +34,7 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
+
 
 class YDBCursor:
     def __init__(self, delegatee, is_ddl):
@@ -69,7 +71,7 @@ class YDBCursor:
         return self.delegatee.setoutputsize()
 
     def close(self):
-        return self.delegatee.close()
+        pass  # return self.delegatee.close()
 
     @property
     def rowcount(self):
@@ -127,9 +129,7 @@ class YDBConnection:
 
 
 class YDBHook(DbApiHook):
-    """Interact with YDB.
-
-    """
+    """Interact with YDB."""
 
     conn_name_attr = "ydb_conn_id"
     default_conn_name = "ydb_default"

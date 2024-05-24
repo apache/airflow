@@ -30,6 +30,7 @@ from airflow.models.dag import DAG
 from airflow.providers.ydb.operators.ydb import YDBOperator
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 
+
 # @pytest.mark.db_test
 def est_sql_templating(create_task_instance_of_operator):
     ti = create_task_instance_of_operator(
@@ -45,17 +46,39 @@ def est_sql_templating(create_task_instance_of_operator):
     task: YDBOperator = ti.task
     assert task.sql == "SELECT * FROM pet WHERE birth_date BETWEEN '2020-01-01' AND '2020-12-31'"
 
-class X:
+
+class FakeDriver:
     def wait(*args, **kwargs):
         pass
 
-class S1:
+
+class FakeSessionPoolImpl:
     def __init__(self, driver):
         self._driver = driver
 
-class S2:
+
+class FakeSessionPool:
     def __init__(self, driver):
-        self._pool_impl = S1(driver)
+        self._pool_impl = FakeSessionPoolImpl(driver)
+
+
+class FakeYDBCursor:
+    def __init__(self, *args, **kwargs):
+        self.description = True
+
+    def execute(self, operation, parameters=None):
+        return True
+
+    def fetchall(self):
+        return "fetchall: result"
+
+    def close(self):
+        pass
+
+    @property
+    def rowcount(self):
+        return 1
+
 
 class TestYDBOperator:
     def setup_method(self):
@@ -73,23 +96,18 @@ class TestYDBOperator:
     @patch("airflow.hooks.base.BaseHook.get_connection")
     @patch("ydb.Driver")
     @patch("ydb.SessionPool")
-    @patch("airflow.providers.ydb.hooks.dbapi.cursor.Cursor.execute")
-    @patch("airflow.providers.ydb.hooks.dbapi.cursor.Cursor.fetchall")
-    @patch("airflow.providers.ydb.hooks.dbapi.cursor.Cursor.rowcount", new_callable=PropertyMock)
-#    @patch("airflow.providers.ydb.hooks.dbapi.cursor.Cursor.description", new_callable=PropertyMock)
-    def test_execute_query(self, mock_cursor_rowcount, mock_cursor_fetchall, mock_cursor_execute, mock_session_pool, mock_driver, mock_get_connection):
+    @patch("airflow.providers.ydb.hooks.dbapi.connection.Connection._cursor_class", new_callable=PropertyMock)
+    def test_execute_query(self, cursor_class, mock_session_pool, mock_driver, mock_get_connection):
         mock_get_connection.return_value = Connection(conn_type="ydb", extra={"oauth": "OAUTH_TOKEN"})
-        driver_instance = X()
-        #driver_instance.wait.return_value = None
+        driver_instance = FakeDriver()
 
+        cursor_class.return_value = FakeYDBCursor
         mock_driver.return_value = driver_instance
-        mock_session_pool.return_value = S2(driver_instance)
-        mock_cursor_execute.return_value = True
-        mock_cursor_rowcount.return_value = 1
-        #mock_cursor_description.return_value = True
-        mock_cursor_fetchall.return_value = "zzzz"
-        operator = YDBOperator(task_id="simple_sql", sql="select 987", is_ddl=True, handler=fetch_all_handler)
+        mock_session_pool.return_value = FakeSessionPool(driver_instance)
+        operator = YDBOperator(
+            task_id="simple_sql", sql="select 987", is_ddl=False, handler=fetch_all_handler
+        )
         context = {"ti": MagicMock()}
 
         results = operator.execute(context)
-        assert results == "zzzz"
+        assert results == "fetchall: result"
