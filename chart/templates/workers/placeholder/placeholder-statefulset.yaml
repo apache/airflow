@@ -94,7 +94,18 @@ spec:
             weight: 100
         {{- end }}
       tolerations: {{- toYaml $tolerations | nindent 8 }}
-      topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              tier: airflow
+              component: place-holder
+              release: { { .Release.Name } }
+              { { - if or (.Values.labels) (.Values.workers.placeHolder.labels) } }
+                { { - mustMerge .Values.workers.placeHolder.labels .Values.labels | toYaml | nindent 8 } }
+              { { - end } }
       terminationGracePeriodSeconds: 0
       restartPolicy: Always
       serviceAccountName: {{ include "worker.serviceAccountName" . }}
