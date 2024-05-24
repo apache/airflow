@@ -21,6 +21,7 @@ import logging
 import logging.config
 import os
 import re
+from http import HTTPStatus
 from importlib import reload
 from pathlib import Path
 from unittest import mock
@@ -29,6 +30,7 @@ from unittest.mock import patch
 import pendulum
 import pytest
 from kubernetes.client import models as k8s
+from requests.adapters import Response
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.exceptions import RemovedInAirflow3Warning
@@ -43,6 +45,7 @@ from airflow.operators.python import PythonOperator
 from airflow.utils.log.file_task_handler import (
     FileTaskHandler,
     LogType,
+    _fetch_logs_from_service,
     _interleave_logs,
     _parse_timestamps_in_log_file,
 )
@@ -779,3 +782,65 @@ def test_permissions_for_new_directories(tmp_path):
         assert base_dir.stat().st_mode % 0o1000 == default_permissions
     finally:
         os.umask(old_umask)
+
+
+worker_url = "http://10.240.5.168:8793"
+log_location = "dag_id=sample/run_id=manual__2024-05-23T07:18:59.298882+00:00/task_id=sourcing/attempt=1.log"
+log_url = f"{worker_url}/log/{log_location}"
+
+
+@pytest.fixture
+def http_proxy():
+    _origin_http_proxy = os.getenv("http_proxy") or ""
+    os.environ["http_proxy"] = "http://proxy.example.com"
+    yield
+    os.environ["http_proxy"] = _origin_http_proxy
+
+
+@pytest.fixture
+def no_proxy():
+    _origin_no_proxy = os.getenv("no_proxy") or ""
+
+    def _set_no_proxy(values):
+        os.environ["no_proxy"] = values
+
+    yield _set_no_proxy
+    os.environ["no_proxy"] = _origin_no_proxy
+
+
+@mock.patch("requests.adapters.HTTPAdapter.send")
+@pytest.mark.usefixtures("http_proxy")
+def test_fetch_logs_from_service_with_not_matched_no_proxy(mock_send, no_proxy):
+    no_proxy("localhost")
+
+    response = Response()
+    response.status_code = HTTPStatus.OK
+    mock_send.return_value = response
+
+    _fetch_logs_from_service(log_url, log_location)
+
+    mock_send.assert_called()
+    _, kwargs = mock_send.call_args
+    assert "proxies" in kwargs
+    proxies = kwargs["proxies"]
+    assert "http" in proxies.keys()
+    assert "no" in proxies.keys()
+
+
+@mock.patch("requests.adapters.HTTPAdapter.send")
+@pytest.mark.usefixtures("http_proxy")
+def test_fetch_logs_from_service_with_cidr_no_proxy(mock_send, no_proxy):
+    no_proxy("10.0.0.0/8")
+
+    response = Response()
+    response.status_code = HTTPStatus.OK
+    mock_send.return_value = response
+
+    _fetch_logs_from_service(log_url, log_location)
+
+    mock_send.assert_called()
+    _, kwargs = mock_send.call_args
+    assert "proxies" in kwargs
+    proxies = kwargs["proxies"]
+    assert "http" not in proxies.keys()
+    assert "no" not in proxies.keys()
