@@ -18,7 +18,7 @@
 */}}
 
 ####################################
-## Airflow PlaceHolder Deployment
+## Airflow PlaceHolder StatefulSet
 ####################################
 {{- if .Values.workers.placeHolder.enabled }}
 {{- if or (eq .Values.executor "KubernetesExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
@@ -26,6 +26,8 @@
 {{- $affinity := or .Values.workers.affinity .Values.affinity }}
 {{- $tolerations := or .Values.workers.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := .Values.workers.placeHolder.topologySpreadConstraints }}
+{{- $safeToEvict := dict "cluster-autoscaler.kubernetes.io/safe-to-evict" "true" }}
+{{- $podAnnotations :=  mergeOverwrite (deepCopy .Values.airflowPodAnnotations) .Values.workers.podAnnotations (.Values.workers.placeHolder.podAnnotations) $safeToEvict }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -70,11 +72,8 @@ spec:
         checksum/airflow-config: {{ include (print $.Template.BasePath "/configmaps/configmap.yaml") . | sha256sum }}
         checksum/extra-configmaps: {{ include (print $.Template.BasePath "/configmaps/extra-configmaps.yaml") . | sha256sum }}
         checksum/extra-secrets: {{ include (print $.Template.BasePath "/secrets/extra-secrets.yaml") . | sha256sum }}
-        {{- if .Values.airflowPodAnnotations }}
-          {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
-        {{- end }}
-        {{- if .Values.workers.placeHolder.podAnnotations }}
-          {{- toYaml .Values.workers.placeHolder.podAnnotations | nindent 8 }}
+        {{- if $podAnnotations }}
+          {{- toYaml $podAnnotations | nindent 8 }}
         {{- end }}
     spec:
       priorityClassName: {{ include "airflow.fullname" . }}-placeholder-pc

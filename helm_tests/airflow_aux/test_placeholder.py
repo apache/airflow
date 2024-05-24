@@ -17,13 +17,11 @@
 from __future__ import annotations
 
 import jmespath
-import pytest
 
 from tests.charts.helm_template_generator import render_chart
 
 
 class TestPlaceHolder:
-
     def test_priority_class_name(self):
         docs = render_chart(
             values={
@@ -31,7 +29,7 @@ class TestPlaceHolder:
                 "workers": {"placeHolder": {"enabled": True}},
             },
             show_only=[
-                "templates/workers/placeholder/placeholder-deployment.yaml",
+                "templates/workers/placeholder/placeholder-statefulset.yaml",
                 "templates/workers/placeholder/placeholder-poddisruptionbudget.yaml",
                 "templates/workers/placeholder/placeholder-priorityclass.yaml",
             ],

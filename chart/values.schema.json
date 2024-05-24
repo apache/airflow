@@ -2172,7 +2172,7 @@
                                 "null",
                                 "integer"
                             ],
-                            "default": 10
+                            "default": null
                         },
                         "labels": {
                             "description": "Labels to add to the placeholder objects and pods.",
@@ -2187,8 +2187,11 @@
                         },
                         "annotations": {
                             "description": "Annotations to add to PlaceHolder Deployment.",
-                            "type": "object",
-                            "default": {},
+                            "type": [
+                                "null",
+                                "object"
+                            ],
+                            "default": null,
                             "additionalProperties": {
                                 "type": "string"
                             }

@@ -22,7 +22,7 @@
 ################################
 
 {{- if or (eq .Values.executor "KubernetesExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
-{{- if .Values.workers.placeHolder.enabled  -}}
+{{- if .Values.workers.placeHolder.enabled  }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:

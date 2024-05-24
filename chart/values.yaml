@@ -263,7 +263,7 @@ rbac:
 
 # Airflow executor
 # One of: LocalExecutor, LocalKubernetesExecutor, CeleryExecutor, KubernetesExecutor, CeleryKubernetesExecutor
-executor: "KubernetesExecutor"
+executor: "CeleryExecutor"
 
 # If this is true and using LocalExecutor/KubernetesExecutor/CeleryKubernetesExecutor, the scheduler's
 # service account will have access to communicate with the api-server and launch pods.
@@ -767,12 +767,11 @@ workers:
 
   ## Creates placeHolder for Workers in Kubernetes Executor Mode
   placeHolder:
-    enabled: true
+    enabled: false
     replicas: 2
     labels: ~
     placeHolderPriority: ~
-    annotations:
-      cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+    annotations: ~
     podAnnotations: ~
     podDisruptionBudget:
       config: ~
