@@ -73,9 +73,16 @@ class TriggerDagRunLink(BaseOperatorLink):
         # which is stored in xcom during execution of the triggerING task.
         dag_id = XCom.get_value(ti_key=ti_key, key=XCOM_DAG_ID)
         when = XCom.get_value(ti_key=ti_key, key=XCOM_LOGICAL_DATE_ISO)
-        # includes the dag id from the xcom during execution or the one passed into the operator for backwards
-        # compatibility
-        query = {"dag_id": dag_id or cast(TriggerDagRunOperator, operator).trigger_dag_id, "base_date": when}
+
+        old_trigger_dag_id = str(cast(TriggerDagRunOperator, operator).trigger_dag_id)
+        if old_trigger_dag_id.startswith("{{") and old_trigger_dag_id.endswith("}}"):
+            old_trigger_dag_id = None
+
+        # Includes the dag id from the XCom during execution or the one passed into the operator
+        # for backwards compatibility. If the dag id is templated, the old trigger dag id will
+        # be set to None so the button in the UI will be grayed out until the dag is can be
+        # retrieved from the XCom
+        query = {"dag_id": dag_id or old_trigger_dag_id, "base_date": when}
         return build_airflow_url_with_query(query)
 
 
