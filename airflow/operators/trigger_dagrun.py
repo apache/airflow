@@ -74,7 +74,7 @@ class TriggerDagRunLink(BaseOperatorLink):
         dag_id = XCom.get_value(ti_key=ti_key, key=XCOM_DAG_ID)
         when = XCom.get_value(ti_key=ti_key, key=XCOM_LOGICAL_DATE_ISO)
 
-        old_trigger_dag_id = str(cast(TriggerDagRunOperator, operator).trigger_dag_id)
+        old_trigger_dag_id: str | None = str(cast(TriggerDagRunOperator, operator).trigger_dag_id)
         if old_trigger_dag_id.startswith("{{") and old_trigger_dag_id.endswith("}}"):
             old_trigger_dag_id = None
 
