@@ -707,7 +707,7 @@ class TestGKEPodOperatorAsync:
     @pytest.mark.parametrize("status", ["error", "failed", "timeout"])
     @mock.patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_pod")
     @mock.patch(KUB_OP_PATH.format("_clean"))
-    @mock.patch(KUB_OP_PATH.format("write_logs"))
+    @mock.patch(KUB_OP_PATH.format("_write_logs"))
     def test_execute_complete_failure(self, mock_write_logs, mock_clean, mock_get_pod, status):
         self.gke_op._cluster_url = CLUSTER_URL
         self.gke_op._ssl_ca_cert = SSL_CA_CERT
@@ -722,7 +722,7 @@ class TestGKEPodOperatorAsync:
 
     @mock.patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_pod")
     @mock.patch(KUB_OP_PATH.format("_clean"))
-    @mock.patch(KUB_OP_PATH.format("write_logs"))
+    @mock.patch(KUB_OP_PATH.format("_write_logs"))
     def test_execute_complete_success(self, mock_write_logs, mock_clean, mock_get_pod):
         self.gke_op._cluster_url = CLUSTER_URL
         self.gke_op._ssl_ca_cert = SSL_CA_CERT
@@ -740,8 +740,9 @@ class TestGKEPodOperatorAsync:
     )
     @mock.patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_pod")
     @mock.patch(KUB_OP_PATH.format("_clean"))
+    @mock.patch("airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator.hook")
     def test_execute_complete_running(
-        self, mock_clean, mock_get_pod, mock_invoke_defer_method, mock_pod_manager
+        self, mock_gke_hook, mock_clean, mock_get_pod, mock_invoke_defer_method, mock_pod_manager
     ):
         self.gke_op._cluster_url = CLUSTER_URL
         self.gke_op._ssl_ca_cert = SSL_CA_CERT
