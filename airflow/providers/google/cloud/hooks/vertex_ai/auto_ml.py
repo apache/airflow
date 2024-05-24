@@ -706,9 +706,9 @@ class AutoMLHook(GoogleBaseHook):
             concurrent Future and any downstream object will be immediately returned and synced when the
             Future has completed.
         :param window_stride_length: Optional. Step length used to generate input examples. Every 
-        ``window_stride_length`` rows will be used to generate a sliding window.
+            ``window_stride_length`` rows will be used to generate a sliding window.
         :param window_max_count: Optional. Number of rows that should be used to generate input examples. If the 
-        total row count is larger than this number, the input data will be randomly sampled to hit the count.
+            total row count is larger than this number, the input data will be randomly sampled to hit the count.
         """
         if column_transformations:
             warnings.warn(
