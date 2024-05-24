@@ -27,6 +27,21 @@
 Changelog
 ---------
 
+Main
+.......
+
+.. note::
+  Several AutoML operators have stopped being supported following the shutdown of a legacy version of
+  AutoML Natural Language, Tables, Vision, and Video Intelligence services. This includes
+  ``AutoMLDeployModelOperator``, ``AutoMLTablesUpdateDatasetOperator``, ``AutoMLTablesListTableSpecsOperator``
+  and ``AutoMLTablesListColumnSpecsOperator``. Please refer to the operator documentation to find out
+  about available alternatives, if any. For additional information regarding the AutoML shutdown see:
+
+* `AutoML Natural Language <https://cloud.google.com/natural-language/automl/docs/deprecations>`_
+* `AutoML Tables <https://cloud.google.com/automl-tables/docs/deprecations>`_
+* `AutoML Vision <https://cloud.google.com/vision/automl/docs/deprecations>`_
+* `AutoML Video Intelligence <https://cloud.google.com/video-intelligence/automl/docs/deprecations>`_
+
 10.18.0
 .......
 
