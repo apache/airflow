@@ -479,6 +479,6 @@ class ObjectStoragePath(CloudPath):
 
         # symlink handling for local fs
         if not self.protocol or self.protocol == "file":
-            return Path(self).resolve(strict=strict)
+            return type(self)(Path(self).resolve(strict=strict))
 
         return super().resolve(strict=strict)

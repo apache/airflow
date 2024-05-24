@@ -255,6 +255,7 @@ class TestFs:
             s = p / "bar"
             s.symlink_to(f)
             o = ObjectStoragePath(s)
+            assert type(o.resolve()) == type(o)
             assert str(o.resolve()) == str(ObjectStoragePath(f).resolve())
 
     def test_bucket_key_protocol(self):
