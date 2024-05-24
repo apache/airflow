@@ -21,6 +21,7 @@ import os
 import shutil
 import typing
 import warnings
+from pathlib import Path
 from typing import Any, Mapping
 from urllib.parse import urlsplit
 
@@ -475,5 +476,9 @@ class ObjectStoragePath(CloudPath):
             options = {**self.storage_options}
             options.pop("_rel_path")
             return type(self)(*self.parts, protocol=self.protocol, **options)
+
+        # symlink handling for local fs
+        if not self.protocol or self.protocol == "file":
+            return Path(self).resolve(strict=strict)
 
         return super().resolve(strict=strict)

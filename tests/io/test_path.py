@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import sys
 import uuid
+from pathlib import Path
 from stat import S_ISDIR, S_ISREG
-from tempfile import NamedTemporaryFile
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, ClassVar
 from unittest import mock
 
@@ -245,6 +246,16 @@ class TestFs:
             assert o.stat().st_size == 0
             assert S_ISREG(o.stat().st_mode)
             assert S_ISDIR(o.parent.stat().st_mode)
+
+    def test_resolve(self):
+        with TemporaryDirectory() as d:
+            p = Path(d)
+            f = p / "foo"
+            f.touch()
+            s = p / "bar"
+            s.symlink_to(f)
+            o = ObjectStoragePath(s)
+            assert str(o.resolve()) == str(ObjectStoragePath(f).resolve())
 
     def test_bucket_key_protocol(self):
         attach(protocol="s3", fs=FakeRemoteFileSystem())
