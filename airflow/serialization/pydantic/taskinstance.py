@@ -57,20 +57,21 @@ if TYPE_CHECKING:
 
 def serialize_operator(x: Operator | None) -> dict | None:
     if x:
-        from airflow.serialization.serialized_objects import SerializedBaseOperator
+        from airflow.serialization.serialized_objects import BaseSerialization
 
-        return SerializedBaseOperator.serialize_operator(x)
+        return BaseSerialization.serialize(x, use_pydantic_models=True)
     return None
 
 
 def validated_operator(x: dict[str, Any] | Operator, _info: ValidationInfo) -> Any:
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.mappedoperator import MappedOperator
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
 
     if isinstance(x, BaseOperator) or isinstance(x, MappedOperator) or x is None:
         return x
-    return SerializedBaseOperator.deserialize_operator(x)
+    from airflow.serialization.serialized_objects import BaseSerialization
+
+    return BaseSerialization.deserialize(x, use_pydantic_models=True)
 
 
 PydanticOperator = Annotated[
