@@ -134,7 +134,7 @@ class SafeDogStatsdLogger:
             tags_list = []
         if self.metrics_validator.test(stat):
             if isinstance(dt, datetime.timedelta):
-                dt = dt.total_seconds()
+                dt = dt.total_seconds() * 1000
             return self.dogstatsd.timing(metric=stat, value=dt, tags=tags_list)
         return None
 
