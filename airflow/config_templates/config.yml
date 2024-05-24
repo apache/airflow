@@ -341,6 +341,14 @@ core:
       type: string
       example: ~
       default: "downstream"
+    task_success_overtime:
+      description: |
+        Maximum possible time (in seconds) that task will have for execution of auxiliary processes
+        (like listeners, mini scheduler...) after task is marked as success..
+      version_added: 2.10.0
+      type: integer
+      example: ~
+      default: "20"
     default_task_execution_timeout:
       description: |
         The default task execution_timeout value for the operators. Expected an integer value to
