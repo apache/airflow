@@ -47,7 +47,9 @@ metadata:
 spec:
   replicas: {{ .Values.workers.placeHolder.replicas }}
   revisionHistoryLimit: 0
-  updateStrategy: RollingUpdate
+  serviceName: {{ include "airflow.fullname" . }}-place-holder
+  updateStrategy:
+    type: RollingUpdate
   podManagementPolicy: Parallel
   selector:
     matchLabels:
@@ -95,7 +97,6 @@ spec:
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
       terminationGracePeriodSeconds: 0
       restartPolicy: Never
-      resources: {{- toYaml .Values.workers.resources | nindent 12 }}
       serviceAccountName: {{ include "worker.serviceAccountName" . }}
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:
@@ -107,5 +108,6 @@ spec:
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           command: [ "/bin/bash", "-c", "--" ]
           args: [ "while true; do sleep 30; done;" ]
+          resources: {{- toYaml .Values.workers.resources | nindent 12 }}
 {{- end }}
 {{- end }}

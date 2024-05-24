@@ -22,7 +22,33 @@ from tests.charts.helm_template_generator import render_chart
 
 
 class TestPlaceHolder:
-    def test_priority_class_name(self):
+    def test_priority_class(self):
+        docs = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
+                "workers": {"placeHolder": {"enabled": True}},
+            },
+            show_only=[
+                "templates/workers/placeholder/placeholder-priorityclass.yaml",
+            ],
+        )
+        assert 1 == len(docs)
+        # assert "StatefulSet" == jmespath.search("kind", docs[0])
+        assert "release-name-placeholder-pc" == jmespath.search("metadata.name", docs[0])
+        # assert 2 == jmespath.search("spec.replicas", docs[0])
+        # assert "placeholder" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
+        # assert "release-name-placeholder-pc" == jmespath.search(
+        #     "spec.template.spec.priorityClassName", docs[0]
+        # )
+        assert "PriorityClass" == jmespath.search("kind", docs[0])
+        assert not jmespath.search("globalDefault", docs[0])
+        assert -10 == jmespath.search("value", docs[0])
+
+        # assert "release-name-placeholder-pc" == jmespath.search("metadata.name", docs[1])
+        # assert "PodDisruptionBudget" == jmespath.search("kind", docs[2])
+        # assert "release-name-placeholder-pdb" == jmespath.search("metadata.name", docs[2])
+
+    def test_stateful_set(self):
         docs = render_chart(
             values={
                 "executor": "KubernetesExecutor",
@@ -30,19 +56,27 @@ class TestPlaceHolder:
             },
             show_only=[
                 "templates/workers/placeholder/placeholder-statefulset.yaml",
-                "templates/workers/placeholder/placeholder-poddisruptionbudget.yaml",
-                "templates/workers/placeholder/placeholder-priorityclass.yaml",
             ],
         )
-        assert 3 == len(docs)
-        assert "Deployment" == jmespath.search("kind", docs[0])
-        assert "release-name-place-holder" == jmespath.search("metadata.name", docs[0])
-        assert 2 == jmespath.search("spec.replicas", docs[0])
-        assert "placeholder" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
+        assert 1 == len(docs)
+        assert "StatefulSet" == jmespath.search("kind", docs[0])
+        assert "placeholder" == jmespath.search("spec.template.spec.containers[-1].name", docs[0])
         assert "release-name-placeholder-pc" == jmespath.search(
             "spec.template.spec.priorityClassName", docs[0]
         )
-        assert "PriorityClass" == jmespath.search("kind", docs[1])
-        assert "release-name-placeholder-pc" == jmespath.search("metadata.name", docs[1])
+
+    def test_poddisruptionbudget(self):
+        docs = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
+                "workers": {"placeHolder": {"enabled": True}},
+            },
+            show_only=[
+                "templates/workers/placeholder/placeholder-poddisruptionbudget.yaml",
+            ],
+        )
+        assert 1 == len(docs)
+
         assert "PodDisruptionBudget" == jmespath.search("kind", docs[2])
         assert "release-name-placeholder-pdb" == jmespath.search("metadata.name", docs[2])
+        assert 1 == jmespath.search("spec.maxUnavailable", docs[2])
