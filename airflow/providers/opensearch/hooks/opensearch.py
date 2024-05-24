@@ -63,7 +63,9 @@ class OpenSearchHook(BaseHook):
         self.__SERVICE = "es"
 
     def _load_conn_type(self, module_name: str | None) -> Any:
-        """Check if the connection type module is listed in 'DEFAULT_CONN_TYPES' and load it.
+        """
+        Check if the connection type module is listed in 'DEFAULT_CONN_TYPES' and load it.
+
         This method protects against the execution of random modules.
         """
         if module_name:

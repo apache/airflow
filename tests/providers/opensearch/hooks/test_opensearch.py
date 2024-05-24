@@ -61,8 +61,8 @@ class TestOpenSearchHook:
         mock_get_connection.return_value = mock_conn
         hook = OpenSearchHook(open_search_conn_id="opensearch_default", log_query=True)
 
-        assert type(hook.use_ssl) == bool
-        assert type(hook.verify_certs) == bool
+        assert isinstance(hook.use_ssl, bool)
+        assert isinstance(hook.verify_certs, bool)
 
     def test_load_conn_param(self, mock_hook):
         hook_default = OpenSearchHook(open_search_conn_id="opensearch_default", log_query=True)
