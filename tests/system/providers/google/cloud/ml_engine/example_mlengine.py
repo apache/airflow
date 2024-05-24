@@ -57,7 +57,7 @@ from airflow.utils.trigger_rule import TriggerRule
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-DAG_ID = "example_gcp_mlengine"
+DAG_ID = "gcp_mlengine"
 REGION = "us-central1"
 
 PACKAGE_DISPLAY_NAME = f"package-{DAG_ID}-{ENV_ID}".replace("_", "-")
@@ -222,7 +222,7 @@ with models.DAG(
         task_id="delete_model_version_1",
         project_id=PROJECT_ID,
         region=REGION,
-        model_id=model_id_v2,
+        model_id=model_id_v1,
         trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_gcp_mlengine_delete_version]
@@ -232,7 +232,7 @@ with models.DAG(
         task_id="delete_model",
         project_id=PROJECT_ID,
         region=REGION,
-        model_id=model_id_v1,
+        model_id=model_id_v2,
         trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_gcp_mlengine_delete_model]

@@ -391,6 +391,10 @@
         "8.21.0": {
             "associated_airflow_version": "2.9.1",
             "date_released": "2024-05-06T08:35:20Z"
+        },
+        "8.22.0": {
+            "associated_airflow_version": "2.9.1",
+            "date_released": "2024-05-17T16:07:16Z"
         }
     },
     "apache.beam": {
@@ -3709,6 +3713,10 @@
         "10.17.0": {
             "associated_airflow_version": "2.9.1",
             "date_released": "2024-04-13T18:19:54Z"
+        },
+        "10.18.0": {
+            "associated_airflow_version": "2.9.1",
+            "date_released": "2024-05-17T16:07:16Z"
         }
     },
     "grpc": {
@@ -4549,6 +4557,10 @@
         "10.0.0": {
             "associated_airflow_version": "2.9.1",
             "date_released": "2024-04-13T18:19:54Z"
+        },
+        "10.1.0": {
+            "associated_airflow_version": "2.9.1",
+            "date_released": "2024-05-17T16:07:16Z"
         }
     },
     "microsoft.mssql": {
@@ -7333,6 +7345,10 @@
         "1.5.0": {
             "associated_airflow_version": "2.8.1",
             "date_released": "2024-05-06T08:35:20Z"
+        },
+        "1.5.1": {
+            "associated_airflow_version": "2.8.1",
+            "date_released": "2024-05-17T16:07:16Z"
         }
     },
     "telegram": {

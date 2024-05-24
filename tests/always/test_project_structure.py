@@ -363,6 +363,8 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         ".CloudDataTransferServiceS3ToGCSOperator",
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service"
         ".CloudDataTransferServiceGCSToGCSOperator",
+        "airflow.providers.google.cloud.operators.automl.AutoMLTablesListColumnSpecsOperator",
+        "airflow.providers.google.cloud.operators.automl.AutoMLTablesListTableSpecsOperator",
         "airflow.providers.google.cloud.operators.automl.AutoMLTablesUpdateDatasetOperator",
         "airflow.providers.google.cloud.operators.automl.AutoMLDeployModelOperator",
         "airflow.providers.google.cloud.operators.dataproc.DataprocSubmitHadoopJobOperator",
