@@ -850,7 +850,7 @@ logging:
       type: string
       example: ~
       default: (?<=\n)(?=(?:|[ \t]+?)(?:\[.+?\]) (?:{{.+?:[0-9]+}}) (?:CRITICAL|ERROR|WARNING|INFO|DEBUG) - (?:.+?)(?:\n|$))
-    log_format_dedupe_logs:
+    log_format_deduplicate_logs:
       description: |
         Flag to enable/disable deduplication between log messages
       version_added: 2.9.2
