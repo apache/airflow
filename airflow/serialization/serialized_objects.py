@@ -1185,6 +1185,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = {arg: cls.deserialize(value) for arg, value in v.items()}
             elif k in {"expand_input", "op_kwargs_expand_input"}:
                 v = _ExpandInputRef(v["type"], cls.deserialize(v["value"]))
+            elif k == "operator_class":
+                v = {k_: cls.deserialize(v_, use_pydantic_models=True) for k_, v_ in v.items()}
             elif (
                 k in cls._decorated_fields
                 or k not in op.get_serialized_fields()
@@ -1200,7 +1202,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             setattr(op, k, v)
 
         for k in op.get_serialized_fields() - encoded_op.keys() - cls._CONSTRUCTOR_PARAMS.keys():
-            # TODO: refactor deserialization of BaseOperator and MappedOperaotr (split it out), then check
+            # TODO: refactor deserialization of BaseOperator and MappedOperator (split it out), then check
             # could go away.
             if not hasattr(op, k):
                 setattr(op, k, None)
