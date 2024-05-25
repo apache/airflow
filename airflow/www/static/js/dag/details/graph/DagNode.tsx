@@ -45,6 +45,7 @@ const DagNode = ({
     isOpen,
     isActive,
     setupTeardownType,
+    onToggleCollapse,
     labelStyle,
     style,
     isZoomedOut,
