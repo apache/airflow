@@ -780,8 +780,11 @@ def test_interleave_logs_correct_ordering():
 result
 [2023-01-17T12:47:11.883-0800] {temporal.py:74} INFO - yielding event with payload DateTime(2023, 1, 17, 20, 47, 11, 254388, tzinfo=Timezone('UTC'))
 [2023-01-17T12:47:11.883-0800] {triggerer_job.py:540} INFO - Trigger <airflow.triggers.temporal.DateTimeTrigger moment=2023-01-17T20:47:11.254388+00:00> (ID 1) fired: TriggerEvent<DateTime(2023, 1, 17, 20, 47, 11, 254388, tzinfo=Timezone('UTC'))>
-"""
-    assert sample_with_dupe_multiline == "\n".join(_interleave_logs(sample_with_dupe_multiline, "", sample_with_dupe_multiline))
+""" # noqa
+
+    assert sample_with_dupe_multiline == "\n".join(
+        _interleave_logs(sample_with_dupe_multiline, "", sample_with_dupe_multiline)
+    )
 
 
 def test_permissions_for_new_directories(tmp_path):

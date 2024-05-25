@@ -22,6 +22,7 @@ import functools
 import json
 import logging
 import os
+import re2
 import sys
 import traceback
 import warnings
@@ -81,6 +82,7 @@ GUNICORN_WORKER_READY_PREFIX = "[ready] "
 LOG_FORMAT = conf.get("logging", "log_format")
 SIMPLE_LOG_FORMAT = conf.get("logging", "simple_log_format")
 LOG_FORMAT_RE_PATTERN = conf.get("logging", "log_format_re_pattern")
+LOG_FORMAT_RE_PATTERN_COMPILED = re2.compile(LOG_FORMAT_RE_PATTERN)
 LOG_FORMAT_DEDUPLICATE_LOGS = conf.getboolean("logging", "log_format_deduplicate_logs")
 
 SQL_ALCHEMY_CONN: str | None = None

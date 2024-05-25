@@ -849,7 +849,7 @@ logging:
       version_added: 2.9.2
       type: string
       example: ~
-      default: (?<=\n)(?=(?:|[ \t]+?)(?:\[.+?\]) (?:{{.+?:[0-9]+}}) (?:CRITICAL|ERROR|WARNING|INFO|DEBUG) - (?:.+?)(?:\n|$))
+      default: (\s*?\[.+?\] {{.+?:[0-9]+}} \w+ - )
     log_format_deduplicate_logs:
       description: |
         Flag to enable/disable deduplication between log messages
