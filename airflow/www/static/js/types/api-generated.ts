@@ -1064,6 +1064,12 @@ export interface components {
        * *New in version 2.3.0*
        */
       next_dagrun_create_after?: string | null;
+      /**
+       * @description (experimental) The maximum number of consecutive DAG failures before DAG is automatically paused.
+       *
+       * *New in version 2.9.0*
+       */
+      max_consecutive_failed_dag_runs?: number | null;
     };
     /**
      * @description Collection of DAGs.
