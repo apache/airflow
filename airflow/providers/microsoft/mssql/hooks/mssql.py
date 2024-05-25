@@ -23,6 +23,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 import pymssql
+from pymssql import Connection as PymssqlConnection
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
@@ -104,7 +105,7 @@ class MsSqlHook(DbApiHook):
         engine = self.get_sqlalchemy_engine(engine_kwargs=engine_kwargs)
         return engine.connect(**(connect_kwargs or {}))
 
-    def get_conn(self) -> pymssql.connect:
+    def get_conn(self) -> PymssqlConnection:
         """Return ``pymssql`` connection object."""
         conn = self.connection
         return pymssql.connect(
@@ -112,15 +113,15 @@ class MsSqlHook(DbApiHook):
             user=conn.login,
             password=conn.password,
             database=self.schema or conn.schema,
-            port=conn.port,
+            port=str(conn.port),
         )
 
     def set_autocommit(
         self,
-        conn: pymssql.connect,
+        conn: PymssqlConnection,
         autocommit: bool,
     ) -> None:
         conn.autocommit(autocommit)
 
-    def get_autocommit(self, conn: pymssql.connect):
+    def get_autocommit(self, conn: PymssqlConnection):
         return conn.autocommit_state
