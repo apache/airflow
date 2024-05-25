@@ -141,7 +141,7 @@ class BaseSQLOperator(BaseOperator):
         super().__init__(**kwargs)
         self.conn_id = conn_id
         self.database = database
-        self.hook_params = {} if hook_params is None else hook_params
+        self.hook_params = hook_params or {}
         self.retry_on_failure = retry_on_failure
 
     @cached_property
