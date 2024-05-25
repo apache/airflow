@@ -263,8 +263,8 @@ class EmrStartNotebookExecutionOperator(BaseOperator):
         wait_for_completion: bool = False,
         aws_conn_id: str | None = "aws_default",
         # TODO: waiter_max_attempts and waiter_delay should default to None when the other two are deprecated.
-        waiter_max_attempts: int | None | ArgNotSet = NOTSET,
-        waiter_delay: int | None | ArgNotSet = NOTSET,
+        waiter_max_attempts: int | None = None,
+        waiter_delay: int | None = None,
         waiter_countdown: int | None = None,
         waiter_check_interval_seconds: int | None = None,
         **kwargs: Any,
@@ -391,8 +391,8 @@ class EmrStopNotebookExecutionOperator(BaseOperator):
         wait_for_completion: bool = False,
         aws_conn_id: str | None = "aws_default",
         # TODO: waiter_max_attempts and waiter_delay should default to None when the other two are deprecated.
-        waiter_max_attempts: int | None | ArgNotSet = NOTSET,
-        waiter_delay: int | None | ArgNotSet = NOTSET,
+        waiter_max_attempts: int | None = None,
+        waiter_delay: int | None = None,
         waiter_countdown: int | None = None,
         waiter_check_interval_seconds: int | None = None,
         **kwargs: Any,
