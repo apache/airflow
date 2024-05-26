@@ -29,6 +29,15 @@ from airflow.utils import db, timezone
 
 DEFAULT_DATE = timezone.datetime(2024, 1, 1)
 
+@pytest.fixture(scope="module", autouse=True)
+def ydb_connections():
+    """Create YDB connection which use for testing purpose."""
+    c = Connection(conn_id="ydb_default", conn_type="ydb", host="ydb", port=2135, extra={"database": "local"})
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv(f"AIRFLOW_CONN_YDB_DEFAULT", c.as_json())
+        yield
+
 
 @pytest.mark.integration("ydb")
 class TestYDBOperator:

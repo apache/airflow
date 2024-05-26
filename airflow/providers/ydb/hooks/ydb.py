@@ -149,6 +149,60 @@ class YDBHook(DbApiHook):
         self.is_ddl = is_ddl
         self.conn: YDBConnection = None
 
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to YDB connection form."""
+        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import PasswordField, StringField, BooleanField
+
+        return {
+            "database": StringField(
+                lazy_gettext("Database name"),
+                widget=BS3PasswordFieldWidget(),
+                description="Required. YDB database name",
+            ),
+            "service_account_json": PasswordField(
+                lazy_gettext("Service account auth JSON"),
+                widget=BS3PasswordFieldWidget(),
+                description="Service account auth JSON. Looks like "
+                '{"id": "...", "service_account_id": "...", "private_key": "..."}. '
+                "Will be used instead of IAM token and SA JSON file path field if specified.",
+            ),
+            "service_account_json_path": StringField(
+                lazy_gettext("Service account auth JSON file path"),
+                widget=BS3TextFieldWidget(),
+                description="Service account auth JSON file path. File content looks like "
+                '{"id": "...", "service_account_id": "...", "private_key": "..."}. ',
+            ),
+            "token": PasswordField(
+                lazy_gettext("IAM token"),
+                widget=BS3PasswordFieldWidget(),
+                description="User account IAM token. ",
+            ),
+            "use_vm_metadata": BooleanField(
+                lazy_gettext("Use VM metadata"),
+                default=False,
+                description="Optional. Whether to use VM metadata to retrieve IAM token",
+            ),
+        }
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom UI field behaviour for YDB connection."""
+        return {
+            "hidden_fields": ["schema", "extra"],
+            "relabeling": {},
+            "placeholders": {
+                "host": 'eg. grpcs://my_host or ydb.serverless.yandexcloud.net or lb.etn9txxxx.ydb.mdb.yandexcloud.net',
+                "login": "root",
+                "password": "my_password",
+                "database": "e.g. local or /ru-central1/b1gtl2kg13him37quoo6/etndqstq7ne4v68n6c9b",
+                "service_account_json": 'e.g. {"id": "...", "service_account_id": "...", "private_key": "..."}',
+                "token": "t1.9....AAQ",
+            },
+        }
+
     @property
     def sqlalchemy_url(self) -> URL:
         conn = self.get_connection(getattr(self, self.conn_name_attr))
