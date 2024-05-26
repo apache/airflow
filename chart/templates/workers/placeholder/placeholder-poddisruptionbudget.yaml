@@ -45,7 +45,7 @@ spec:
   {{- if (.Values.workers.placeHolder.podDisruptionBudget.config)}}
   {{- toYaml .Values.workers.placeHolder.podDisruptionBudget.config | nindent 2 }}
   {{- else}}
-  maxUnavailable: 1
+  minAvailable: 0
   {{- end}}
 {{- end }}
 {{- end }}

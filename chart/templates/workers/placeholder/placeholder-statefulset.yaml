@@ -89,7 +89,7 @@ spec:
           - podAffinityTerm:
               labelSelector:
                 matchLabels:
-                  component: worker
+                  component: place-holder
               topologyKey: kubernetes.io/hostname
             weight: 100
         {{- end }}
@@ -103,9 +103,6 @@ spec:
               tier: airflow
               component: place-holder
               release: { { .Release.Name } }
-              { { - if or (.Values.labels) (.Values.workers.placeHolder.labels) } }
-                { { - mustMerge .Values.workers.placeHolder.labels .Values.labels | toYaml | nindent 8 } }
-              { { - end } }
       terminationGracePeriodSeconds: 0
       restartPolicy: Always
       serviceAccountName: {{ include "worker.serviceAccountName" . }}

@@ -33,20 +33,10 @@ class TestPlaceHolder:
             ],
         )
         assert 1 == len(docs)
-        # assert "StatefulSet" == jmespath.search("kind", docs[0])
         assert "release-name-placeholder-pc" == jmespath.search("metadata.name", docs[0])
-        # assert 2 == jmespath.search("spec.replicas", docs[0])
-        # assert "placeholder" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
-        # assert "release-name-placeholder-pc" == jmespath.search(
-        #     "spec.template.spec.priorityClassName", docs[0]
-        # )
         assert "PriorityClass" == jmespath.search("kind", docs[0])
         assert not jmespath.search("globalDefault", docs[0])
         assert -10 == jmespath.search("value", docs[0])
-
-        # assert "release-name-placeholder-pc" == jmespath.search("metadata.name", docs[1])
-        # assert "PodDisruptionBudget" == jmespath.search("kind", docs[2])
-        # assert "release-name-placeholder-pdb" == jmespath.search("metadata.name", docs[2])
 
     def test_stateful_set(self):
         docs = render_chart(
@@ -79,4 +69,4 @@ class TestPlaceHolder:
 
         assert "PodDisruptionBudget" == jmespath.search("kind", docs[0])
         assert "release-name-placeholder-pdb" == jmespath.search("metadata.name", docs[0])
-        assert 1 == jmespath.search("spec.maxUnavailable", docs[0])
+        assert 0 == jmespath.search("spec.minAvailable", docs[0])

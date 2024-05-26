@@ -23,7 +23,6 @@
 
 {{- if or (eq .Values.executor "KubernetesExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
 {{- if .Values.workers.placeHolder.enabled }}
-
 apiVersion: scheduling.k8s.io/v1
 kind: PriorityClass
 metadata:
@@ -38,7 +37,7 @@ metadata:
       {{- toYaml . | nindent 4 }}
     {{- end }}
 globalDefault: false
-value: {{ default -10 (.Values.workers.placeHolder).placeHolderPriority }}
+value: {{ default -100 (.Values.workers.placeHolder).placeHolderPriority }}
 description: "Placeholder pods priority should be lower than other pods to make them evictable."
 {{- end }}
 {{- end }}
