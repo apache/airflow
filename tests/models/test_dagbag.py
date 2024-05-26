@@ -447,7 +447,7 @@ class TestDagBag:
             process_file_calls = 0
 
             def process_file(self, filepath, only_if_updated=True, safe_mode=True):
-                if filepath in fileloc:
+                if str(filepath) in fileloc:
                     _TestDagBag.process_file_calls += 1
                 return super().process_file(filepath, only_if_updated, safe_mode)
 

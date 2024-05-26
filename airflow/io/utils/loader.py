@@ -16,11 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import importlib
 import marshal
 import os.path
 import sys
 from importlib.abc import MetaPathFinder, SourceLoader
 from importlib.machinery import ModuleSpec
+from pathlib import Path
 from types import ModuleType
 from typing import Any
 
@@ -30,9 +32,10 @@ from airflow.io.path import ObjectStoragePath
 class FSSpecLoader(SourceLoader):
     """Create a FSSpecLoader that allows loading modules from remote locations and caches locally."""
 
-    def __init__(self, base_uri: str, cache_dir: str):
+    def __init__(self, base_uri: str | Path, cache_dir: str):
         self.base_uri = base_uri
         self.cache_dir = cache_dir
+
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
 
@@ -103,7 +106,7 @@ class FSSpecLoader(SourceLoader):
         path = self.base_uri
         for part in parts:
             path = os.path.join(path, part)
-        osp = ObjectStoragePath(path + ".py")
+        osp = ObjectStoragePath(path).with_suffix(".py")
         if osp.exists():
             return osp
         osp = ObjectStoragePath(path)
@@ -130,6 +133,23 @@ class FSSpecLoader(SourceLoader):
         osp = ObjectStoragePath(self.base_uri).joinpath(*parts)
         init_file = osp.joinpath("__init__.py")
         return osp.is_dir() and init_file.exists()
+
+
+class PathLoader(importlib.abc.Loader):
+    """A loader that loads a module from a pathlib.Path."""
+
+    def __init__(self, fullname: str, path: Path):
+        self.fullname = fullname
+        self.path: Path = path
+
+    def create_module(self, spec) -> ModuleType | None:
+        # Use default module creation semantics
+        return None
+
+    def exec_module(self, module):
+        code = self.path.read_text()
+        module.__file__ = str(self.path)
+        exec(code, module.__dict__)
 
 
 class FSSpecFinder(MetaPathFinder):

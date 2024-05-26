@@ -248,7 +248,6 @@ def _find_path_from_directory(
 
     for root, dirs, files in base_dir_path.walk(follow_symlinks=True):
         patterns: list[_IgnoreRule] = patterns_by_dir.get(root.resolve(), [])
-        print(f"root: {root}, patterns: {patterns}")
         ignore_file_path = root / ignore_file_name
         if ignore_file_path.is_file():
             with open(ignore_file_path) as ifile:
@@ -365,7 +364,7 @@ COMMENT_PATTERN = re2.compile(r"\s*#.*")
 
 
 def might_contain_dag(
-    file_path: str | ObjectStoragePath, safe_mode: bool, zip_file: zipfile.ZipFile | None = None
+    file_path: str | Path, safe_mode: bool, zip_file: zipfile.ZipFile | None = None
 ) -> bool:
     """
     Check whether a Python file contains Airflow DAGs.
@@ -386,7 +385,7 @@ def might_contain_dag(
 
 
 def might_contain_dag_via_default_heuristic(
-    file_path: str | ObjectStoragePath, zip_file: zipfile.ZipFile | None = None
+    file_path: str | Path, zip_file: zipfile.ZipFile | None = None
 ) -> bool:
     """
     Heuristic that guesses whether a Python file contains an Airflow DAG definition.
@@ -395,7 +394,7 @@ def might_contain_dag_via_default_heuristic(
     :param zip_file: if passed, checks the archive. Otherwise, check local filesystem.
     :return: True, if file might contain DAGs.
     """
-    if zip_file and not isinstance(file_path, ObjectStoragePath):
+    if zip_file and not isinstance(file_path, Path):
         with zip_file.open(file_path) as current_file:
             content = current_file.read()
     else:
@@ -416,10 +415,10 @@ def _find_imported_modules(module: ast.Module) -> Generator[str, None, None]:
             yield st.module
 
 
-def iter_airflow_imports(file_path: str) -> Generator[str, None, None]:
+def iter_airflow_imports(file_path: Path) -> Generator[str, None, None]:
     """Find Airflow modules imported in the given file."""
     try:
-        parsed = ast.parse(Path(file_path).read_bytes())
+        parsed = ast.parse(file_path.read_bytes())
     except Exception:
         return
     for m in _find_imported_modules(parsed):
@@ -427,10 +426,9 @@ def iter_airflow_imports(file_path: str) -> Generator[str, None, None]:
             yield m
 
 
-def get_unique_dag_module_name(file_path: str) -> str:
+def get_unique_dag_module_name(file_path: Path) -> str:
     """Return a unique module name in the format unusual_prefix_{sha1 of module's file path}_{original module name}."""
-    if isinstance(file_path, str):
-        path_hash = hashlib.sha1(file_path.encode("utf-8")).hexdigest()
-        org_mod_name = Path(file_path).stem
-        return MODIFIED_DAG_MODULE_NAME.format(path_hash=path_hash, module_name=org_mod_name)
-    raise ValueError("file_path should be a string to generate unique module name")
+    path_hash = hashlib.sha1(str(file_path).encode("utf-8")).hexdigest()
+    org_mod_name = file_path.stem
+
+    return MODIFIED_DAG_MODULE_NAME.format(path_hash=path_hash, module_name=org_mod_name)

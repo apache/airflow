@@ -3097,7 +3097,7 @@ class DAG(LoggingMixin):
     def bulk_write_to_db(
         cls,
         dags: Collection[DAG],
-        processor_subdir: str | None = None,
+        processor_subdir: pathlib.Path | None = None,
         session=NEW_SESSION,
     ):
         """
@@ -3367,7 +3367,7 @@ class DAG(LoggingMixin):
         )
 
     @provide_session
-    def sync_to_db(self, processor_subdir: str | None = None, session=NEW_SESSION):
+    def sync_to_db(self, processor_subdir: pathlib.Path | None = None, session=NEW_SESSION):
         """
         Save attributes about this DAG to the DB.
 

@@ -48,6 +48,8 @@ from airflow.exceptions import (
     AirflowDagDuplicatedIdException,
     RemovedInAirflow3Warning,
 )
+from airflow.io.path import ObjectStoragePath
+from airflow.io.utils.loader import PathLoader
 from airflow.models.base import Base
 from airflow.stats import Stats
 from airflow.utils import timezone
@@ -151,12 +153,12 @@ class DagBag(LoggingMixin):
             read_dags_from_db = store_serialized_dags
 
         dag_folder = dag_folder or settings.DAGS_FOLDER
-        self.dag_folder = dag_folder
+        self.dag_folder = ObjectStoragePath(dag_folder)
         self.dags: dict[str, DAG] = {}
         # the file's last modified timestamp when we last read it
-        self.file_last_changed: dict[str, datetime] = {}
-        self.import_errors: dict[str, str] = {}
-        self.captured_warnings: dict[str, tuple[str, ...]] = {}
+        self.file_last_changed: dict[Path, datetime] = {}
+        self.import_errors: dict[Path, str] = {}
+        self.captured_warnings: dict[Path, tuple[str, ...]] = {}
         self.has_logged = False
         self.read_dags_from_db = read_dags_from_db
         # Only used by read_dags_from_db=True
@@ -304,21 +306,26 @@ class DagBag(LoggingMixin):
         self.dags_last_fetched[dag.dag_id] = timezone.utcnow()
         self.dags_hash[dag.dag_id] = row.dag_hash
 
-    def process_file(self, filepath, only_if_updated=True, safe_mode=True):
+    def process_file(self, filepath: str | Path, only_if_updated=True, safe_mode=True):
         """Given a path to a python module or zip file, import the module and look for dag objects within."""
         from airflow.models.dag import DagContext
 
         # if the source file no longer exists in the DB or in the filesystem,
         # return an empty list
         # todo: raise exception?
+        if not filepath:
+            return []
 
-        if filepath is None or not os.path.isfile(filepath):
+        if not isinstance(filepath, Path):
+            filepath = ObjectStoragePath(filepath)
+
+        if not filepath.is_file():
             return []
 
         try:
             # This failed before in what may have been a git sync
             # race condition
-            file_last_changed_on_disk = datetime.fromtimestamp(os.path.getmtime(filepath))
+            file_last_changed_on_disk = datetime.fromtimestamp(filepath.stat().st_mtime)
             if (
                 only_if_updated
                 and filepath in self.file_last_changed
@@ -334,7 +341,7 @@ class DagBag(LoggingMixin):
 
         self.captured_warnings.pop(filepath, None)
         with capture_with_reraise() as captured_warnings:
-            if filepath.endswith(".py") or not zipfile.is_zipfile(filepath):
+            if filepath.suffix == ".py" or not zipfile.is_zipfile(filepath):
                 mods = self._load_modules_from_file(filepath, safe_mode)
             else:
                 mods = self._load_modules_from_zip(filepath, safe_mode)
@@ -353,7 +360,7 @@ class DagBag(LoggingMixin):
         self.file_last_changed[filepath] = file_last_changed_on_disk
         return found_dags
 
-    def _load_modules_from_file(self, filepath, safe_mode):
+    def _load_modules_from_file(self, filepath: Path, safe_mode: bool):
         from airflow.models.dag import DagContext
 
         if not might_contain_dag(filepath, safe_mode):
@@ -371,13 +378,20 @@ class DagBag(LoggingMixin):
 
         DagContext.current_autoregister_module_name = mod_name
 
-        def parse(mod_name, filepath):
+        # fixme add fsspecfinder
+        def parse(mod_name: str, filepath: Path):
             try:
-                loader = importlib.machinery.SourceFileLoader(mod_name, filepath)
+                loader = PathLoader(mod_name, filepath)
                 spec = importlib.util.spec_from_loader(mod_name, loader)
+
+                # keep mypy happy
+                if not spec:
+                    raise ImportError(f"Cannot find module {mod_name}")
+
                 new_module = importlib.util.module_from_spec(spec)
                 sys.modules[spec.name] = new_module
                 loader.exec_module(new_module)
+
                 return [new_module]
             except Exception as e:
                 DagContext.autoregistered_dags.clear()
@@ -390,7 +404,7 @@ class DagBag(LoggingMixin):
                     self.import_errors[filepath] = str(e)
                 return []
 
-        dagbag_import_timeout = settings.get_dagbag_import_timeout(filepath)
+        dagbag_import_timeout = settings.get_dagbag_import_timeout(str(filepath))
 
         if not isinstance(dagbag_import_timeout, (int, float)):
             raise TypeError(
@@ -590,7 +604,7 @@ class DagBag(LoggingMixin):
                 file_parse_end_dttm = timezone.utcnow()
                 stats.append(
                     FileLoadStat(
-                        file=filepath.replace(settings.DAGS_FOLDER, ""),
+                        file=str(filepath).replace(settings.DAGS_FOLDER, ""),
                         duration=file_parse_end_dttm - file_parse_start_dttm,
                         dag_num=len(found_dags),
                         task_num=sum(len(dag.tasks) for dag in found_dags),
@@ -649,7 +663,7 @@ class DagBag(LoggingMixin):
     def _sync_to_db(
         cls,
         dags: dict[str, DAG],
-        processor_subdir: str | None = None,
+        processor_subdir: Path | None = None,
         session: Session = NEW_SESSION,
     ):
         """Save attributes about list of DAG to the DB."""
@@ -718,7 +732,7 @@ class DagBag(LoggingMixin):
         return import_errors
 
     @provide_session
-    def sync_to_db(self, processor_subdir: str | None = None, session: Session = NEW_SESSION):
+    def sync_to_db(self, processor_subdir: Path | None = None, session: Session = NEW_SESSION):
         import_errors = DagBag._sync_to_db(dags=self.dags, processor_subdir=processor_subdir, session=session)
         self.import_errors.update(import_errors)
 

@@ -25,6 +25,7 @@ import time
 import zipfile
 from contextlib import redirect_stderr, redirect_stdout, suppress
 from datetime import timedelta
+from pathlib import Path
 from typing import TYPE_CHECKING, Iterable, Iterator
 
 from setproctitle import setproctitle
@@ -64,6 +65,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.callbacks.callback_requests import CallbackRequest
+    from airflow.io.path import ObjectStoragePath
     from airflow.models.operator import Operator
 
 
@@ -82,10 +84,10 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
 
     def __init__(
         self,
-        file_path: str,
+        file_path: Path,
         pickle_dags: bool,
         dag_ids: list[str] | None,
-        dag_directory: str,
+        dag_directory: ObjectStoragePath,
         callback_requests: list[CallbackRequest],
     ):
         super().__init__()
@@ -111,18 +113,18 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
         DagFileProcessorProcess.class_creation_counter += 1
 
     @property
-    def file_path(self) -> str:
+    def file_path(self) -> Path:
         return self._file_path
 
     @staticmethod
     def _run_file_processor(
         result_channel: MultiprocessingConnection,
         parent_channel: MultiprocessingConnection,
-        file_path: str,
+        file_path: Path,
         pickle_dags: bool,
         dag_ids: list[str] | None,
         thread_name: str,
-        dag_directory: str,
+        dag_directory: ObjectStoragePath,
         callback_requests: list[CallbackRequest],
     ) -> None:
         """
@@ -205,7 +207,7 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
                     with zipfile.ZipFile(self.file_path) as z:
                         zip_file_paths.extend(
                             [
-                                os.path.join(self.file_path, info.filename)
+                                Path(os.path.join(self.file_path, info.filename))
                                 for info in z.infolist()
                                 if might_contain_dag(info.filename, True, z)
                             ]
@@ -366,7 +368,7 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
     def waitable_handle(self):
         return self._process.sentinel
 
-    def import_modules(self, file_path: str | Iterable[str]):
+    def import_modules(self, file_path: Path | Iterable[Path]):
         def _import_modules(filepath):
             for module in iter_airflow_imports(filepath):
                 try:
@@ -408,7 +410,7 @@ class DagFileProcessor(LoggingMixin):
 
     UNIT_TEST_MODE: bool = conf.getboolean("core", "UNIT_TEST_MODE")
 
-    def __init__(self, dag_ids: list[str] | None, dag_directory: str, log: logging.Logger):
+    def __init__(self, dag_ids: list[str] | None, dag_directory: Path, log: logging.Logger):
         super().__init__()
         self.dag_ids = dag_ids
         self._log = log
@@ -426,6 +428,8 @@ class DagFileProcessor(LoggingMixin):
 
         We are assuming that the scheduler runs often, so we only check for
         tasks that should have succeeded in the past hour.
+
+        fixme: remove this from the dag processor
         """
         dagbag = DagFileProcessor._get_dagbag(dag_folder)
         dag = dagbag.get_dag(dag_id)
@@ -593,9 +597,9 @@ class DagFileProcessor(LoggingMixin):
     @internal_api_call
     @provide_session
     def update_import_errors(
-        file_last_changed: dict[str, datetime],
-        import_errors: dict[str, str],
-        processor_subdir: str | None,
+        file_last_changed: dict[Path, datetime],
+        import_errors: dict[Path, str],
+        processor_subdir: Path | None,
         session: Session = NEW_SESSION,
     ) -> None:
         """
@@ -793,7 +797,7 @@ class DagFileProcessor(LoggingMixin):
         session.flush()
 
     @classmethod
-    def _get_dagbag(cls, file_path: str):
+    def _get_dagbag(cls, file_path: Path):
         try:
             return DagBag(file_path, include_examples=False)
         except Exception:
@@ -804,7 +808,7 @@ class DagFileProcessor(LoggingMixin):
     @provide_session
     def process_file(
         self,
-        file_path: str,
+        file_path: Path,
         callback_requests: list[CallbackRequest],
         pickle_dags: bool = False,
         session: Session = NEW_SESSION,
@@ -889,7 +893,7 @@ class DagFileProcessor(LoggingMixin):
     @provide_session
     def save_dag_to_db(
         dags: dict[str, DAG],
-        dag_directory: str,
+        dag_directory: Path,
         pickle_dags: bool = False,
         session=NEW_SESSION,
     ):
