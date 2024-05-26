@@ -37,6 +37,7 @@ Misc
 * ``Simplify 'airflow_version' imports (#39497)``
 * ``ECS Executor: Set tasks to RUNNING state once active (#39212)``
 * ``Remove compat code for 2.7.0 - its now the min Airflow version (#39591)``
+* ``misc: add comment about remove unused code (#39748)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

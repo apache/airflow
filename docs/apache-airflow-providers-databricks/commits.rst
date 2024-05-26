@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 6.5.0
 .....
 
-Latest change: 2024-05-14
+Latest change: 2024-05-21
 
 =================================================================================================  ===========  =================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =================================================================================================
+`f18e6340d8 <https://github.com/apache/airflow/commit/f18e6340d89f9fb18850c1340434064276a95c54>`_  2024-05-21   ``Better typing for BaseOperator 'defer' (#39742)``
 `1e4663f34c <https://github.com/apache/airflow/commit/1e4663f34c2fb42b87cf75e4776650620eb2baa4>`_  2024-05-14   ``add deferrable support to 'DatabricksNotebookOperator' (#39295)``
 `2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
 `2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``

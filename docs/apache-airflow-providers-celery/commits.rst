@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.7.1
 .....
 
-Latest change: 2024-05-13
+Latest change: 2024-05-22
 
 =================================================================================================  ===========  ===========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================
+`7b588b4dd9 <https://github.com/apache/airflow/commit/7b588b4dd97ee719b9574c2f9b948b7a5a837968>`_  2024-05-22   ``misc: add comment about remove unused code (#39748)``
 `e3897dcbed <https://github.com/apache/airflow/commit/e3897dcbed0262b0cab7a357f8d7fbbb6c4f4eeb>`_  2024-05-13   ``Remove compat code for 2.7.0 - its now the min Airflow version (#39591)``
 `2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
 `2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``

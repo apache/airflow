@@ -45,11 +45,17 @@ For high-level changelog, see :doc:`package information including changelog <ind
 10.19.0
 .......
 
-Latest change: 2024-05-20
+Latest change: 2024-05-24
 
 =================================================================================================  ===========  ========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================
+`4fe55e5992 <https://github.com/apache/airflow/commit/4fe55e5992dfb9ef9a6bfa4e272c30a00e27a336>`_  2024-05-24   ``Deprecate AutoML Tables operators (#39752)``
+`57dab1303c <https://github.com/apache/airflow/commit/57dab1303c5850b9b2ff81e64cbbe5bd4d1032f9>`_  2024-05-23   ``typo: wrong OpenLineage facet key in spec (#39782)``
+`5aad588ef9 <https://github.com/apache/airflow/commit/5aad588ef933e58c303c1908afc9c42f0d683f5c>`_  2024-05-23   ``Fix BigQueryCursor execute method if the location is missing (#39659)``
+`8d5b43443a <https://github.com/apache/airflow/commit/8d5b43443a8925d55fe044d7a12f8b1ffe44cb6e>`_  2024-05-22   ``Reroute AutoML operator links to Google Translation links (#39668)``
+`791f3cfc5c <https://github.com/apache/airflow/commit/791f3cfc5cc7f2798ee0fcd18ff72906c48ebd01>`_  2024-05-21   ``Fix acknowledged functionality in deferrable mode for PubSubPullSensor (#39711)``
+`0f717ea5e6 <https://github.com/apache/airflow/commit/0f717ea5e61f2028e4eafd70105f551ea2b77910>`_  2024-05-21   ``removed stale code (#39744)``
 `4ee46b984d <https://github.com/apache/airflow/commit/4ee46b984da73974f0a30bcf361ac36e995993c3>`_  2024-05-20   ``Remove 'openlineage.common' dependencies in Google and Snowflake providers. (#39614)``
 `27b3a22e34 <https://github.com/apache/airflow/commit/27b3a22e341468855c4ef368015ad946a59aa2e3>`_  2024-05-19   ``Introduce anonymous credentials in GCP base hook (#39695)``
 `a31169bd63 <https://github.com/apache/airflow/commit/a31169bd6384040fbb00c277f95859f218b1f1f7>`_  2024-05-19   ``Pin google-cloud-bigquery to < 3.21.0 (#39583)``

@@ -89,10 +89,9 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
 
-========================  =====================
+========================  ==================
 PIP package               Version required
-========================  =====================
+========================  ==================
 ``apache-airflow``        ``>=2.7.0``
-``atlassian-python-api``  ``>=1.14.2,!=3.41.6``
-``beautifulsoup4``
-========================  =====================
+``atlassian-python-api``  ``>3.41.10``
+========================  ==================

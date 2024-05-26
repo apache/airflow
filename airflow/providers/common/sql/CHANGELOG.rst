@@ -44,6 +44,7 @@ Misc
 * ``refactor: The executemany parameter of insert_rows should not be deprecated as for some hooks we don't want to enable a system-wide supports_executemany parameter, that way we can also keep using it in dedicated situations (#39630)``
 * ``Faster 'airflow_version' imports (#39552)``
 * ``Simplify 'airflow_version' imports (#39497)``
+* ``Add typing for SqlSensor (#39773)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

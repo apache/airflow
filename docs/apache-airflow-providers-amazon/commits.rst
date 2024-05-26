@@ -38,18 +38,22 @@ For high-level changelog, see :doc:`package information including changelog <ind
 8.23.0
 ......
 
-Latest change: 2024-05-17
+Latest change: 2024-05-23
 
-=================================================================================================  ===========  ======================================================================
+=================================================================================================  ===========  ==============================================================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ======================================================================
+=================================================================================================  ===========  ==============================================================================================================================
+`e565cea65c <https://github.com/apache/airflow/commit/e565cea65cb42e43387aa7fd135ac46e8ac25f65>`_  2024-05-23   ``Resolving EMR deprecated warnings (#39743)``
+`7b588b4dd9 <https://github.com/apache/airflow/commit/7b588b4dd97ee719b9574c2f9b948b7a5a837968>`_  2024-05-22   ``misc: add comment about remove unused code (#39748)``
+`a78ee74b6a <https://github.com/apache/airflow/commit/a78ee74b6a6d1774f7f248b14100eda8f87d9952>`_  2024-05-22   ``bugfix: handle invalid cluster states in NeptuneStopDbClusterOperator (#38287)``
+`49b38719e2 <https://github.com/apache/airflow/commit/49b38719e24bd4adb3354319aeacb87b87e79b9c>`_  2024-05-21   ``Fix automatic termination issue in 'EmrOperator' by ensuring 'waiter_max_attempts' is set for deferrable triggers (#38658)``
 `8d1bd345b2 <https://github.com/apache/airflow/commit/8d1bd345b2f343c9abe83e6dc5a71604796f0085>`_  2024-05-17   ``fix: empty openlineage dataset name for AthenaExtractor (#39677)``
 `f3687b68a6 <https://github.com/apache/airflow/commit/f3687b68a677f61a57d78a96b6b9323ab8f8258e>`_  2024-05-16   ``Sagemaker trigger: pass the job name as part of the event (#39671)``
 `9ea78d9d72 <https://github.com/apache/airflow/commit/9ea78d9d726d9ddb6109a7fba0c3a838f8a05610>`_  2024-05-15   ``Fix default value for aws batch operator retry strategy (#39608)``
 `9284dc5391 <https://github.com/apache/airflow/commit/9284dc53914fc1b8b17399158de7b2c883519664>`_  2024-05-15   ``Amazon Bedrock - Retrieve and RetrieveAndGenerate (#39500)``
 `9dd77520be <https://github.com/apache/airflow/commit/9dd77520be3d8492156958d57b63b5779a3f55eb>`_  2024-05-15   ``Introduce Amazon Comprehend Service (#39592)``
 `339ea508e2 <https://github.com/apache/airflow/commit/339ea508e2afa56205cfdaf90574fb42a0101eac>`_  2024-05-14   ``Handle task adoption for batch executor (#39590)``
-=================================================================================================  ===========  ======================================================================
+=================================================================================================  ===========  ==============================================================================================================================
 
 8.22.0
 ......

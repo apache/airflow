@@ -30,6 +30,11 @@ Changelog
 5.4.1
 .....
 
+Bug Fixes
+~~~~~~~~~
+
+* ``Make elastic search index_pattern more configurable (#38423)``
+
 Misc
 ~~~~
 

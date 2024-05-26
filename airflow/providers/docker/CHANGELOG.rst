@@ -41,6 +41,8 @@ Misc
 
 * ``Faster 'airflow_version' imports (#39552)``
 * ``Simplify 'airflow_version' imports (#39497)``
+* ``Limit requests in botocore upgrade test (#39747)``
+* ``Pin requests due to incompatibility with docker-py (#39740)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

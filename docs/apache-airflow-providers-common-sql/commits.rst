@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 1.14.0
 ......
 
-Latest change: 2024-05-18
+Latest change: 2024-05-23
 
 =================================================================================================  ===========  ===========================================================================================================================================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================================================================================================================================================================================
+`1734b15e4e <https://github.com/apache/airflow/commit/1734b15e4efb124d9a37591e22c208529241e50a>`_  2024-05-23   ``Add typing for SqlSensor (#39773)``
 `db80e5e21c <https://github.com/apache/airflow/commit/db80e5e21c113f6889ca7c3ec5236296fade013b>`_  2024-05-18   ``DbAPiHook: Don't log a warning message if placeholder is None and make sure warning message is formatted correctly (#39690)``
 `9669f51f0a <https://github.com/apache/airflow/commit/9669f51f0a1fe8992796bf1b7a2531617f68480b>`_  2024-05-15   ``refactor: The executemany parameter of insert_rows should not be deprecated as for some hooks we don't want to enable a system-wide supports_executemany parameter, that way we can also keep using it in dedicated situations (#39630)``
 `ce4e8477f1 <https://github.com/apache/airflow/commit/ce4e8477f1972400dda228f802e8f501de5dbe49>`_  2024-05-13   ``Add 'parameters' as template field for SqlSensor (#39588)``

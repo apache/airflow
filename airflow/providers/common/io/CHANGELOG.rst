@@ -28,6 +28,11 @@ Changelog
 1.3.2
 .....
 
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: OpenLineage in FileTransferOperator for Airflow 2.8 (#39755)``
+
 Misc
 ~~~~
 

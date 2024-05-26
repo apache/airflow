@@ -38,11 +38,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.12.0
 ......
 
-Latest change: 2024-05-18
+Latest change: 2024-05-22
 
 =================================================================================================  ===========  ===================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================
+`39269d6a71 <https://github.com/apache/airflow/commit/39269d6a71f9696cbe0053e23fb965a59ca555c7>`_  2024-05-22   ``Limit requests in botocore upgrade test (#39747)``
+`1da7f1f433 <https://github.com/apache/airflow/commit/1da7f1f4339241c0a0aa59e158c4cd480c1b2ddf>`_  2024-05-21   ``Pin requests due to incompatibility with docker-py (#39740)``
 `77a6b4f419 <https://github.com/apache/airflow/commit/77a6b4f41917e05009c34fd9be9b7fa4192a11bc>`_  2024-05-18   ``Add args to docker service ContainerSpec (#39464)``
 `2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
 `2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``

@@ -42,6 +42,14 @@ Bug Fixes
 * ``Fix default value for aws batch operator retry strategy (#39608)``
 * ``Sagemaker trigger: pass the job name as part of the event (#39671)``
 * ``Handle task adoption for batch executor (#39590)``
+* ``bugfix: handle invalid cluster states in NeptuneStopDbClusterOperator (#38287)``
+* ``Fix automatic termination issue in 'EmrOperator' by ensuring 'waiter_max_attempts' is set for deferrable triggers (#38658)``
+
+Misc
+~~~~
+
+* ``Resolving EMR deprecated warnings (#39743)``
+* ``misc: add comment about remove unused code (#39748)``
 
 8.22.0
 ......

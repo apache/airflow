@@ -43,6 +43,8 @@ Latest change: 2024-05-21
 =================================================================================================  ===========  ========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================
+`9532cc7a6c <https://github.com/apache/airflow/commit/9532cc7a6c12097a1b50c0cb2c6aa410901d5181>`_  2024-05-21   ``fix: Prevent error when extractor can't be imported (#39736)``
+`b7671ef5ab <https://github.com/apache/airflow/commit/b7671ef5ab2946c68a4f2011a587fb30f3510f94>`_  2024-05-21   ``Re-configure ORM in spawned OpenLineage process in scheduler. (#39735)``
 `a81504e316 <https://github.com/apache/airflow/commit/a81504e316ad6dc6884df1855670e2c40dbfef1b>`_  2024-05-21   ``chore: Update conf retrieval docstring and adjust pool_size (#39721)``
 `4ee46b984d <https://github.com/apache/airflow/commit/4ee46b984da73974f0a30bcf361ac36e995993c3>`_  2024-05-20   ``Remove 'openlineage.common' dependencies in Google and Snowflake providers. (#39614)``
 `0b698a852b <https://github.com/apache/airflow/commit/0b698a852b5cca4ac7571865c24b5c5494be14b8>`_  2024-05-17   ``Add missing 'dag_state_change_process_pool_size' in 'provider.yaml'. (#39674)``

@@ -27,7 +27,7 @@
 Changelog
 ---------
 
-Main
+10.19.0
 .......
 
 .. note::
@@ -42,30 +42,29 @@ Main
 * `AutoML Vision <https://cloud.google.com/vision/automl/docs/deprecations>`_
 * `AutoML Video Intelligence <https://cloud.google.com/video-intelligence/automl/docs/deprecations>`_
 
-
-10.19.0
-.......
-
 Features
 ~~~~~~~~
 
-   * ``Introduce anonymous credentials in GCP base hook (#39695)``
+* ``Introduce anonymous credentials in GCP base hook (#39695)``
 
 
 Bug Fixes
 ~~~~~~~~~
 
 * ``Remove parent_model version suffix if it is passed to Vertex AI operators (#39640)``
+* ``Fix BigQueryCursor execute method if the location is missing (#39659)``
+* ``Fix acknowledged functionality in deferrable mode for PubSubPullSensor (#39711)``
+* ``Reroute AutoML operator links to Google Translation links (#39668)``
+* ``Pin google-cloud-bigquery to < 3.21.0 (#39583)``
 
 Misc
 ~~~~
 
 * ``Remove 'openlineage.common' dependencies in Google and Snowflake providers. (#39614)``
-* ``Pin google-cloud-bigquery to < 3.21.0 (#39583)``
-
-.. Below changes are excluded from the changelog. Move them to
-   appropriate section above if needed. Do not delete the lines(!):
-   * ``Resolve deprecation warnings in Azure FileShare-to-GCS tests (#39599)``
+* ``Deprecate AutoML Tables operators (#39752)``
+* ``Resolve deprecation warnings in Azure FileShare-to-GCS tests (#39599)``
+* ``typo: wrong OpenLineage facet key in spec (#39782)``
+* ``removed stale code from StackdriverTaskHandler (#39744)``
 
 10.18.0
 .......

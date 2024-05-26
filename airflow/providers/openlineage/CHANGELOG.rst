@@ -40,6 +40,12 @@ Features
 
 * ``Scheduler to handle incrementing of try_number (#39336)``
 
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Prevent error when extractor can't be imported (#39736)``
+* ``Re-configure ORM in spawned OpenLineage process in scheduler. (#39735)``
+
 Misc
 ~~~~
 
