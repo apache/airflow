@@ -745,7 +745,6 @@ def create_default_connections(session: Session = NEW_SESSION):
         Connection(
             conn_id="ydb_default",
             conn_type="ydb",
-            schema="default",
         ),
         session,
     )

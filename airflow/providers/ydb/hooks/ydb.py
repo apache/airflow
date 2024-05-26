@@ -35,6 +35,7 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
 
+DEFAULT_YDB_GRPCS_PORT = 2135
 
 class YDBCursor:
     def __init__(self, delegatee, is_ddl):
@@ -70,8 +71,14 @@ class YDBCursor:
     def setoutputsize(self, column=None):
         return self.delegatee.setoutputsize()
 
+    def __enter__(self):
+        return self    
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
     def close(self):
-        pass  # return self.delegatee.close()
+        return self.delegatee.close()
 
     @property
     def rowcount(self):
@@ -79,17 +86,12 @@ class YDBCursor:
 
     @property
     def description(self):
-        # hack
-        return "ZZZ"
+        return self.delegatee.description
 
 
 class YDBConnection:
-    def __init__(self, is_ddl):
+    def __init__(self, endpoint, database, credentials, is_ddl):
         self.is_ddl = is_ddl
-        endpoint = "grpcs://ydb.serverless.yandexcloud.net:2135"
-        database = "/ru-central1/b1gtl2kg13him37quoo6/etndqstq7ne4v68n6c9b"
-        iam_token = "t1.9..."
-        credentials = ydb.AccessTokenCredentials(iam_token)
         driver_config = ydb.DriverConfig(
             endpoint=endpoint,
             database=database,
@@ -114,18 +116,22 @@ class YDBConnection:
     def rollback(self):
         self.delegatee.rollback()
 
+    def __enter__(self):
+        return self    
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
     def close(self):
         self.delegatee.close()
 
     def _get_table_client_settings(self) -> ydb.TableClientSettings:
-        return (
-            ydb.TableClientSettings()
-            .with_native_date_in_result_sets(True)
-            .with_native_datetime_in_result_sets(True)
-            .with_native_timestamp_in_result_sets(True)
-            .with_native_interval_in_result_sets(True)
-            .with_native_json_in_result_sets(False)
-        )
+        return ydb.TableClientSettings().\
+            with_native_date_in_result_sets(True).\
+            with_native_datetime_in_result_sets(True).\
+            with_native_timestamp_in_result_sets(True).\
+            with_native_interval_in_result_sets(True).\
+            with_native_json_in_result_sets(False)
 
 
 class YDBHook(DbApiHook):
@@ -152,12 +158,34 @@ class YDBHook(DbApiHook):
             password=conn.password,
             host=conn.host,
             port=conn.port,
-            database=self.database or conn.schema,
+            database=self.database,
         )
 
     def get_conn(self) -> YDBConnection:
         """Establish a connection to a YDB database."""
-        self.conn = YDBConnection(is_ddl=self.is_ddl)
+        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        host = conn.host
+        if not host:
+            raise ValueError("YDB host must be specified, " + conn.debug_info())
+        port = conn.port or DEFAULT_YDB_GRPCS_PORT
+        endpoint = f"{host}:{port}"
+        database = conn.extra_dejson.get("database") # "/ru-central1/b1gtl2kg13him37quoo6/etndqstq7ne4v68n6c9b"
+        if not database:
+            raise ValueError("YDB database must be specified")
+        
+        if not conn.login and not conn.password:
+            credentials = ydb.AnonymousCredentials()
+        elif conn.login and conn.password:
+            driver_config = ydb.DriverConfig(
+                endpoint=endpoint,
+                database=database,
+            )
+
+            credentials = ydb.StaticCredentials(driver_config, user=conn.login, password=conn.password)
+        elif conn.password:
+            credentials = ydb.AccessTokenCredentials(conn.password)
+
+        self.conn = YDBConnection(endpoint=endpoint, database=database, credentials=credentials, is_ddl=self.is_ddl)
         return self.conn
 
     def get_uri(self) -> str:

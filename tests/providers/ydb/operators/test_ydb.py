@@ -28,7 +28,7 @@ from responses import matchers
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.ydb.operators.ydb import YDBOperator
-from airflow.providers.common.sql.hooks.sql import fetch_all_handler
+from airflow.providers.common.sql.hooks.sql import fetch_all_handler, fetch_one_handler
 
 
 # @pytest.mark.db_test
@@ -72,6 +72,9 @@ class FakeYDBCursor:
     def fetchall(self):
         return "fetchall: result"
 
+    def fetchone(self):
+        return "fetchone: result"
+
     def close(self):
         pass
 
@@ -104,10 +107,17 @@ class TestYDBOperator:
         cursor_class.return_value = FakeYDBCursor
         mock_driver.return_value = driver_instance
         mock_session_pool.return_value = FakeSessionPool(driver_instance)
+        context = {"ti": MagicMock()}
+        operator = YDBOperator(
+            task_id="simple_sql", sql="select 987", is_ddl=False, handler=fetch_one_handler
+        )
+
+        results = operator.execute(context)
+        assert results == "fetchone: result"
+
         operator = YDBOperator(
             task_id="simple_sql", sql="select 987", is_ddl=False, handler=fetch_all_handler
         )
-        context = {"ti": MagicMock()}
 
         results = operator.execute(context)
         assert results == "fetchall: result"
