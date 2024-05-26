@@ -166,12 +166,13 @@ class TestIntegrationFTPHook:
         )
 
         db.merge_conn(
-            Connection(conn_id="ftp_custom_port_and_login",
-                       conn_type="ftp", host="localhost",
-                       port=10000,
-                       login='user',
-                       password='pass123',
-                       extra='{"passive": true}',
+            Connection(
+                conn_id="ftp_custom_port_and_login",
+                conn_type="ftp", host="localhost",
+                port=10000,
+                login='user',
+                password='pass123',
+                extra='{"passive": true}',
             )
         )
 
