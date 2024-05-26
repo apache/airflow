@@ -35,6 +35,25 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.3.0
+.....
+
+Latest change: 2024-05-15
+
+=================================================================================================  ===========  =======================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================================================================
+`610747d25a <https://github.com/apache/airflow/commit/610747d25a6153574c07624afaadcbf575aa2960>`_  2024-05-15   ``Add timeout when watching pod events in k8s executor (#39551)``
+`f57de6c183 <https://github.com/apache/airflow/commit/f57de6c1836199190ab02419aa2b9d5caee33002>`_  2024-05-14   ``Move Kubernetes cli to provider package (#39587)``
+`e3897dcbed <https://github.com/apache/airflow/commit/e3897dcbed0262b0cab7a357f8d7fbbb6c4f4eeb>`_  2024-05-13   ``Remove compat code for 2.7.0 - its now the min Airflow version (#39591)``
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`20265fe1fa <https://github.com/apache/airflow/commit/20265fe1fa19672df489973fa6692c4378c7a2b7>`_  2024-05-10   ``Add retry logic for KubernetesCreateResourceOperator and KubernetesJobOperator (#39201)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+`0e6c0ab252 <https://github.com/apache/airflow/commit/0e6c0ab252ee0df900e2e1b7b04283923d1f6ce7>`_  2024-05-05   ``Replace pod_manager.read_pod_logs with client.read_namespaced_pod_log in KubernetesPodOperator._write_logs (#39112)``
+`b5153c1745 <https://github.com/apache/airflow/commit/b5153c174596bc9ee7ebb9bf0376c95edc3abc94>`_  2024-05-03   ``Fix deprecated calls in 'cncf.kubernetes' provider (#39381)``
+=================================================================================================  ===========  =======================================================================================================================
+
 8.2.0
 .....
 
@@ -43,6 +62,7 @@ Latest change: 2024-05-01
 =================================================================================================  ===========  ===============================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===============================================================================================
+`fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
 `43b48a9ac1 <https://github.com/apache/airflow/commit/43b48a9ac1737b9dbafa706caa6f266399753521>`_  2024-05-01   ``Refresh properties on KubernetesPodOperator when k8s fails due to token expiration (#39325)``
 `97871a0378 <https://github.com/apache/airflow/commit/97871a0378be7b89e8a4aef6ede31c9a884413e8>`_  2024-05-01   ``Fix SparkKubernetesOperator when using initContainers (#38119)``
 `ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
