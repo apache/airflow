@@ -16,59 +16,52 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-Example Airflow DAG for Google AutoML service testing dataset operations.
-"""
+"""Example Airflow DAG for Google AutoML service testing dataset operations."""
 
 from __future__ import annotations
 
 import os
 from datetime import datetime
 
+from google.cloud import storage  # type: ignore[attr-defined]
+
+from airflow.decorators import task
 from airflow.models.dag import DAG
-from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.operators.automl import (
     AutoMLCreateDatasetOperator,
     AutoMLDeleteDatasetOperator,
     AutoMLImportDataOperator,
     AutoMLListDatasetOperator,
-    AutoMLTablesListColumnSpecsOperator,
-    AutoMLTablesListTableSpecsOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
     GCSDeleteBucketOperator,
-    GCSSynchronizeBucketsOperator,
 )
+from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-DAG_ID = "example_automl_dataset"
+DAG_ID = "automl_dataset"
 GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
 GCP_AUTOML_LOCATION = "us-central1"
 RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
 DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("_", "-")
 
-DATASET_NAME = f"ds_tabular_{ENV_ID}".replace("-", "_")
+DATASET_NAME = f"ds_{DAG_ID}_{ENV_ID}".replace("-", "_")
 DATASET = {
     "display_name": DATASET_NAME,
-    "tables_dataset_metadata": {"target_column_spec_id": ""},
+    "translation_dataset_metadata": {
+        "source_language_code": "en",
+        "target_language_code": "es",
+    },
 }
-AUTOML_DATASET_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl/tabular-classification.csv"
+
+CSV_FILE_NAME = "en-es.csv"
+TSV_FILE_NAME = "en-es.tsv"
+GCS_FILE_PATH = f"automl/datasets/translate/{CSV_FILE_NAME}"
+AUTOML_DATASET_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl/{CSV_FILE_NAME}"
 IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [AUTOML_DATASET_BUCKET]}}
-
-extract_object_id = CloudAutoMLHook.extract_object_id
-
-
-def get_target_column_spec(columns_specs: list[dict], column_name: str) -> str:
-    """
-    Using column name returns spec of the column.
-    """
-    for column in columns_specs:
-        if column["display_name"] == column_name:
-            return extract_object_id(column)
-    raise Exception(f"Unknown target column: {column_name}")
 
 
 with DAG(
@@ -77,11 +70,6 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "automl", "dataset"],
-    user_defined_macros={
-        "get_target_column_spec": get_target_column_spec,
-        "target": "Class",
-        "extract_object_id": extract_object_id,
-    },
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket",
@@ -90,13 +78,32 @@ with DAG(
         location=GCP_AUTOML_LOCATION,
     )
 
-    move_dataset_file = GCSSynchronizeBucketsOperator(
-        task_id="move_dataset_to_bucket",
+    @task
+    def upload_updated_csv_file_to_gcs():
+        # download file into memory
+        storage_client = storage.Client()
+        bucket = storage_client.bucket(RESOURCE_DATA_BUCKET, GCP_PROJECT_ID)
+        blob = bucket.blob(GCS_FILE_PATH)
+        contents = blob.download_as_string().decode()
+
+        # update file content
+        updated_contents = contents.replace("template-bucket", DATA_SAMPLE_GCS_BUCKET_NAME)
+
+        # upload updated content to bucket
+        destination_bucket = storage_client.bucket(DATA_SAMPLE_GCS_BUCKET_NAME)
+        destination_blob = destination_bucket.blob(f"automl/{CSV_FILE_NAME}")
+        destination_blob.upload_from_string(updated_contents)
+
+    # AutoML requires a .csv file with links to .tsv/.tmx files containing translation training data
+    upload_csv_dataset_file = upload_updated_csv_file_to_gcs()
+
+    # The .tsv file contains training data with translated language pairs
+    copy_tsv_dataset_file = GCSToGCSOperator(
+        task_id="copy_dataset_file",
         source_bucket=RESOURCE_DATA_BUCKET,
-        source_object="automl/datasets/tabular",
+        source_object=f"automl/datasets/translate/{TSV_FILE_NAME}",
         destination_bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
-        destination_object="automl",
-        recursive=True,
+        destination_object=f"automl/{TSV_FILE_NAME}",
     )
 
     # [START howto_operator_automl_create_dataset]
@@ -118,25 +125,6 @@ with DAG(
     )
     # [END howto_operator_automl_import_data]
 
-    # [START howto_operator_automl_specs]
-    list_tables_spec = AutoMLTablesListTableSpecsOperator(
-        task_id="list_tables_spec",
-        dataset_id=dataset_id,
-        location=GCP_AUTOML_LOCATION,
-        project_id=GCP_PROJECT_ID,
-    )
-    # [END howto_operator_automl_specs]
-
-    # [START howto_operator_automl_column_specs]
-    list_columns_spec = AutoMLTablesListColumnSpecsOperator(
-        task_id="list_columns_spec",
-        dataset_id=dataset_id,
-        table_spec_id="{{ extract_object_id(task_instance.xcom_pull('list_tables_spec_task')[0]) }}",
-        location=GCP_AUTOML_LOCATION,
-        project_id=GCP_PROJECT_ID,
-    )
-    # [END howto_operator_automl_column_specs]
-
     # [START howto_operator_list_dataset]
     list_datasets = AutoMLListDatasetOperator(
         task_id="list_datasets",
@@ -151,20 +139,23 @@ with DAG(
         dataset_id=dataset_id,
         location=GCP_AUTOML_LOCATION,
         project_id=GCP_PROJECT_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_delete_dataset]
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     (
         # TEST SETUP
-        [create_bucket >> move_dataset_file, create_dataset]
+        [create_bucket >> upload_csv_dataset_file >> copy_tsv_dataset_file]
+        # create_bucket
+        >> create_dataset
         # TEST BODY
         >> import_dataset
-        >> list_tables_spec
-        >> list_columns_spec
         >> list_datasets
         # TEST TEARDOWN
         >> delete_dataset

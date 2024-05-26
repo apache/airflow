@@ -180,6 +180,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         """
 
     @classmethod
+    @internal_api_call
     @provide_session
     def set(
         cls,

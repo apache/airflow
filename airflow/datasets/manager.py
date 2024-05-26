@@ -22,12 +22,14 @@ from typing import TYPE_CHECKING
 from sqlalchemy import exc, select
 from sqlalchemy.orm import joinedload
 
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
 from airflow.datasets import Dataset
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
@@ -56,13 +58,16 @@ class DatasetManager(LoggingMixin):
         for dataset_model in dataset_models:
             self.notify_dataset_created(dataset=Dataset(uri=dataset_model.uri, extra=dataset_model.extra))
 
+    @classmethod
+    @internal_api_call
+    @provide_session
     def register_dataset_change(
-        self,
+        cls,
         *,
         task_instance: TaskInstance | None = None,
         dataset: Dataset,
         extra=None,
-        session: Session,
+        session: Session = NEW_SESSION,
         **kwargs,
     ) -> DatasetEvent | None:
         """
@@ -71,13 +76,14 @@ class DatasetManager(LoggingMixin):
         For local datasets, look them up, record the dataset event, queue dagruns, and broadcast
         the dataset event
         """
+        # todo: add test so that all usages of internal_api_call are added to rpc endpoint
         dataset_model = session.scalar(
             select(DatasetModel)
             .where(DatasetModel.uri == dataset.uri)
             .options(joinedload(DatasetModel.consuming_dags).joinedload(DagScheduleDatasetReference.dag))
         )
         if not dataset_model:
-            self.log.warning("DatasetModel %s not found", dataset)
+            cls.logger().warning("DatasetModel %s not found", dataset)
             return None
 
         event_kwargs = {
@@ -97,10 +103,10 @@ class DatasetManager(LoggingMixin):
         session.add(dataset_event)
         session.flush()
 
-        self.notify_dataset_changed(dataset=dataset)
+        cls.notify_dataset_changed(dataset=dataset)
 
         Stats.incr("dataset.updates")
-        self._queue_dagruns(dataset_model, session)
+        cls._queue_dagruns(dataset_model, session)
         session.flush()
         return dataset_event
 
@@ -108,11 +114,13 @@ class DatasetManager(LoggingMixin):
         """Run applicable notification actions when a dataset is created."""
         get_listener_manager().hook.on_dataset_created(dataset=dataset)
 
-    def notify_dataset_changed(self, dataset: Dataset):
+    @classmethod
+    def notify_dataset_changed(cls, dataset: Dataset):
         """Run applicable notification actions when a dataset is changed."""
         get_listener_manager().hook.on_dataset_changed(dataset=dataset)
 
-    def _queue_dagruns(self, dataset: DatasetModel, session: Session) -> None:
+    @classmethod
+    def _queue_dagruns(cls, dataset: DatasetModel, session: Session) -> None:
         # Possible race condition: if multiple dags or multiple (usually
         # mapped) tasks update the same dataset, this can fail with a unique
         # constraint violation.
@@ -123,10 +131,11 @@ class DatasetManager(LoggingMixin):
         # where `ti.state` is changed.
 
         if session.bind.dialect.name == "postgresql":
-            return self._postgres_queue_dagruns(dataset, session)
-        return self._slow_path_queue_dagruns(dataset, session)
+            return cls._postgres_queue_dagruns(dataset, session)
+        return cls._slow_path_queue_dagruns(dataset, session)
 
-    def _slow_path_queue_dagruns(self, dataset: DatasetModel, session: Session) -> None:
+    @classmethod
+    def _slow_path_queue_dagruns(cls, dataset: DatasetModel, session: Session) -> None:
         def _queue_dagrun_if_needed(dag: DagModel) -> str | None:
             if not dag.is_active or dag.is_paused:
                 return None
@@ -137,14 +146,15 @@ class DatasetManager(LoggingMixin):
                 with session.begin_nested():
                     session.merge(item)
             except exc.IntegrityError:
-                self.log.debug("Skipping record %s", item, exc_info=True)
+                cls.logger().debug("Skipping record %s", item, exc_info=True)
             return dag.dag_id
 
         queued_results = (_queue_dagrun_if_needed(ref.dag) for ref in dataset.consuming_dags)
         if queued_dag_ids := [r for r in queued_results if r is not None]:
-            self.log.debug("consuming dag ids %s", queued_dag_ids)
+            cls.logger().debug("consuming dag ids %s", queued_dag_ids)
 
-    def _postgres_queue_dagruns(self, dataset: DatasetModel, session: Session) -> None:
+    @classmethod
+    def _postgres_queue_dagruns(cls, dataset: DatasetModel, session: Session) -> None:
         from sqlalchemy.dialects.postgresql import insert
 
         values = [

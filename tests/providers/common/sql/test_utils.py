@@ -42,7 +42,7 @@ def mock_hook(hook_class: type[BaseHook], hook_params=None, conn_params=None):
     conn = mock.MagicMock()
     conn.cursor.return_value = cursor
 
-    class MockedHook(hook_class):
+    class MockedHook(hook_class):  # type: ignore[misc, valid-type]
         conn_name_attr = "test_conn_id"
 
         @classmethod

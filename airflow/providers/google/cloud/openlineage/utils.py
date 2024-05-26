@@ -269,7 +269,7 @@ class _BigQueryOpenLineageMixin:
             if hasattr(self, "log"):
                 self.log.warning("Cannot retrieve job details from BigQuery.Client. %s", e, exc_info=True)
             exception_msg = traceback.format_exc()
-            # TODO: remove ErrorMessageRunFacet in next release
+            # TODO: remove BigQueryErrorRunFacet in next release
             run_facets.update(
                 {
                     "errorMessage": ErrorMessageRunFacet(
@@ -282,10 +282,6 @@ class _BigQueryOpenLineageMixin:
                 }
             )
         deduplicated_outputs = self._deduplicate_outputs(outputs)
-        # For complex scripts there can be multiple outputs - in that case keep them all in `outputs` and
-        # leave the `output` empty to avoid providing misleading information. When the script has a single
-        # output (f.e. a single statement with some variable declarations), treat it as a regular non-script
-        # job and put the output in `output` as an addition to new `outputs`. `output` is deprecated.
         return inputs, deduplicated_outputs, run_facets
 
     def _deduplicate_outputs(self, outputs: list[Dataset | None]) -> list[Dataset]:
