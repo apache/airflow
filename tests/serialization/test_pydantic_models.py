@@ -75,8 +75,11 @@ def test_serializing_pydantic_task_instance(session, create_task_instance):
 @pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 def test_deserialize_ti_mapped_op_reserialized_with_refresh_from_task(session, dag_maker):
     op_class_dict_expected = {
+        "_needs_expansion": True,
         "_task_type": "_PythonDecoratedOperator",
         "downstream_task_ids": [],
+        "next_method": None,
+        "start_trigger": None,
         "_operator_name": "@task",
         "ui_fgcolor": "#000",
         "ui_color": "#ffefeb",
