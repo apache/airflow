@@ -551,6 +551,8 @@ class AutoMLHook(GoogleBaseHook):
         is_default_version: bool | None = None,
         model_version_aliases: list[str] | None = None,
         model_version_description: str | None = None,
+        window_stride_length: int | None = None,
+        window_max_count: int | None = None,
     ) -> tuple[models.Model | None, str]:
         """
         Create an AutoML Forecasting Training Job.
@@ -703,6 +705,10 @@ class AutoMLHook(GoogleBaseHook):
         :param sync: Whether to execute this method synchronously. If False, this method will be executed in
             concurrent Future and any downstream object will be immediately returned and synced when the
             Future has completed.
+        :param window_stride_length: Optional. Step length used to generate input examples. Every
+            ``window_stride_length`` rows will be used to generate a sliding window.
+        :param window_max_count: Optional. Number of rows that should be used to generate input examples. If the
+            total row count is larger than this number, the input data will be randomly sampled to hit the count.
         """
         if column_transformations:
             warnings.warn(
@@ -758,6 +764,8 @@ class AutoMLHook(GoogleBaseHook):
             is_default_version=is_default_version,
             model_version_aliases=model_version_aliases,
             model_version_description=model_version_description,
+            window_stride_length=window_stride_length,
+            window_max_count=window_max_count,
         )
         training_id = self.extract_training_id(self._job.resource_name)
         if model:

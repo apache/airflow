@@ -22,9 +22,10 @@ description: |
     `Teradata <https://www.teradata.com/>`__
 
 state: ready
-source-date-epoch: 1715384492
+source-date-epoch: 1716289161
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 2.1.1
   - 2.1.0
   - 2.0.0
 
