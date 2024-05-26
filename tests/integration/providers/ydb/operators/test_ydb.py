@@ -38,19 +38,11 @@ class TestYDBOperator:
         self.dag = DAG("test_ydb_dag_id", default_args=args)
 
         self.mock_context = MagicMock()
-        db.merge_conn(
-            Connection(
-                conn_id="ydb_default",
-                #uri="ydb://grpcs://ydb:2135?database=local",
-                host="xxx",
-                login="my_login",
-            )
-        )
 
 
     def test_execute_hello(self):
         operator = YDBOperator(
-            ydb_conn_id="ydb_default", task_id="simple_sql", sql="select 987", is_ddl=False, handler=fetch_all_handler
+            task_id="simple_sql", sql="select 987", is_ddl=False, handler=fetch_all_handler
         )
 
         results = operator.execute(self.mock_context)

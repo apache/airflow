@@ -78,9 +78,8 @@ def test_execute(cursor_class, mock_session_pool, mock_driver, mock_get_connecti
     mock_get_connection.return_value = Connection(
         conn_type="ydb",
         host="localhost",
-        port=8083,
-        database="",
-        extra={"oauth": "OAUTH_TOKEN"}
+        port=2135,
+        extra={"database": "my_db"}
     )
     driver_instance = FakeDriver()
 

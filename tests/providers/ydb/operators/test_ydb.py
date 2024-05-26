@@ -101,7 +101,7 @@ class TestYDBOperator:
     @patch("ydb.SessionPool")
     @patch("airflow.providers.ydb.hooks.dbapi.connection.Connection._cursor_class", new_callable=PropertyMock)
     def test_execute_query(self, cursor_class, mock_session_pool, mock_driver, mock_get_connection):
-        mock_get_connection.return_value = Connection(conn_type="ydb", extra={"oauth": "OAUTH_TOKEN"})
+        mock_get_connection.return_value = Connection(conn_type="ydb", host="localhost", extra={"database": "my_db"})
         driver_instance = FakeDriver()
 
         cursor_class.return_value = FakeYDBCursor

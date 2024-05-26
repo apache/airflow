@@ -1334,6 +1334,7 @@
       "ydb>=3.11.3"
     ],
     "devel-deps": [],
+    "plugins": [],
     "cross-providers-deps": [
       "common.sql"
     ],
