@@ -36,7 +36,7 @@ class TestPlaceHolder:
         assert "release-name-placeholder-pc" == jmespath.search("metadata.name", docs[0])
         assert "PriorityClass" == jmespath.search("kind", docs[0])
         assert not jmespath.search("globalDefault", docs[0])
-        assert -10 == jmespath.search("value", docs[0])
+        assert -100 == jmespath.search("value", docs[0])
 
     def test_stateful_set(self):
         docs = render_chart(
