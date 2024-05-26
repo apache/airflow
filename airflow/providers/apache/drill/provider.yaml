@@ -22,9 +22,10 @@ description: |
     `Apache Drill <https://drill.apache.org/>`__.
 
 state: ready
-source-date-epoch: 1715384396
+source-date-epoch: 1716286445
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 2.7.1
   - 2.7.0
   - 2.6.1
   - 2.6.0

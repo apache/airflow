@@ -26,6 +26,30 @@
 Changelog
 ---------
 
+6.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``add deferrable support to 'DatabricksNotebookOperator' (#39295)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``get all failed tasks errors in when exception raised in DatabricksCreateJobsOperator (#39354)``
+
+Misc
+~~~~
+
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+* ``Better typing for BaseOperator 'defer' (#39742)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
 6.4.0
 .....
 

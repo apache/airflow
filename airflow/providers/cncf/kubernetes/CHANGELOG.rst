@@ -27,6 +27,33 @@
 Changelog
 ---------
 
+8.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add timeout when watching pod events in k8s executor (#39551)``
+* ``Add retry logic for KubernetesCreateResourceOperator and KubernetesJobOperator (#39201)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix deprecated calls in 'cncf.kubernetes' provider (#39381)``
+
+Misc
+~~~~
+
+* ``Move Kubernetes cli to provider package (#39587)``
+* ``Remove compat code for 2.7.0 - its now the min Airflow version (#39591)``
+* ``Simplify 'airflow_version' imports (#39497)``
+* ``Replace pod_manager.read_pod_logs with client.read_namespaced_pod_log in KubernetesPodOperator._write_logs (#39112)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+   * ``Faster 'airflow_version' imports (#39552)``
+
 8.2.0
 .....
 

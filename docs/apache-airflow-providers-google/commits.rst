@@ -42,6 +42,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.19.0
+.......
+
+Latest change: 2024-05-24
+
+=================================================================================================  ===========  ========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================
+`4fe55e5992 <https://github.com/apache/airflow/commit/4fe55e5992dfb9ef9a6bfa4e272c30a00e27a336>`_  2024-05-24   ``Deprecate AutoML Tables operators (#39752)``
+`57dab1303c <https://github.com/apache/airflow/commit/57dab1303c5850b9b2ff81e64cbbe5bd4d1032f9>`_  2024-05-23   ``typo: wrong OpenLineage facet key in spec (#39782)``
+`5aad588ef9 <https://github.com/apache/airflow/commit/5aad588ef933e58c303c1908afc9c42f0d683f5c>`_  2024-05-23   ``Fix BigQueryCursor execute method if the location is missing (#39659)``
+`8d5b43443a <https://github.com/apache/airflow/commit/8d5b43443a8925d55fe044d7a12f8b1ffe44cb6e>`_  2024-05-22   ``Reroute AutoML operator links to Google Translation links (#39668)``
+`791f3cfc5c <https://github.com/apache/airflow/commit/791f3cfc5cc7f2798ee0fcd18ff72906c48ebd01>`_  2024-05-21   ``Fix acknowledged functionality in deferrable mode for PubSubPullSensor (#39711)``
+`0f717ea5e6 <https://github.com/apache/airflow/commit/0f717ea5e61f2028e4eafd70105f551ea2b77910>`_  2024-05-21   ``removed stale code (#39744)``
+`4ee46b984d <https://github.com/apache/airflow/commit/4ee46b984da73974f0a30bcf361ac36e995993c3>`_  2024-05-20   ``Remove 'openlineage.common' dependencies in Google and Snowflake providers. (#39614)``
+`27b3a22e34 <https://github.com/apache/airflow/commit/27b3a22e341468855c4ef368015ad946a59aa2e3>`_  2024-05-19   ``Introduce anonymous credentials in GCP base hook (#39695)``
+`a31169bd63 <https://github.com/apache/airflow/commit/a31169bd6384040fbb00c277f95859f218b1f1f7>`_  2024-05-19   ``Pin google-cloud-bigquery to < 3.21.0 (#39583)``
+`74c3fb366e <https://github.com/apache/airflow/commit/74c3fb366ecf830b6e0fb961dd6668216d21cdeb>`_  2024-05-17   ``Remove parent_model version suffix if it is passed to Vertex AI operators (#39640)``
+`6621874bf5 <https://github.com/apache/airflow/commit/6621874bf523c0f1caa5ac51e482434528ee13e4>`_  2024-05-14   ``Resolve deprecation warnings in Azure FileShare-to-GCS tests (#39599)``
+=================================================================================================  ===========  ========================================================================================
+
 10.18.0
 .......
 
@@ -50,6 +71,7 @@ Latest change: 2024-05-12
 =================================================================================================  ===========  =============================================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================================================================================================
+`97e867f170 <https://github.com/apache/airflow/commit/97e867f1701fae287a20dff7e0f9e9ecbdc38f27>`_  2024-05-12   ``Prepare docs 2nd wave May 2024 (#39565)``
 `ffa523f442 <https://github.com/apache/airflow/commit/ffa523f442745123232cb35e5533629673532783>`_  2024-05-12   ``Fix validation of label values in BigQueryInsertJobOperator (#39568)``
 `86caf84934 <https://github.com/apache/airflow/commit/86caf84934e056185d688f5b37dd45f630d05b5c>`_  2024-05-11   ``Remove Airflow 2.6 back compact code (#39558)``
 `2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
