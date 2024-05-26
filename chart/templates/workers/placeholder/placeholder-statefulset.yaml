@@ -102,7 +102,7 @@ spec:
             matchLabels:
               tier: airflow
               component: place-holder
-              release: { { .Release.Name } }
+              release: {{ .Release.Name }}
       terminationGracePeriodSeconds: 0
       restartPolicy: Always
       serviceAccountName: {{ include "worker.serviceAccountName" . }}
